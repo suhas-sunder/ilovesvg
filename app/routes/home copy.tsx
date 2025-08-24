@@ -36,17 +36,9 @@ export function loader({ context }: Route.LoaderArgs) {
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
-
-// NEW: input safety caps (keeps original behavior but adds guard rails)
-const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200 MB
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
-
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const uploadHandler = createMemoryUploadHandler({
-      // let multer-ish handler accept large files; we enforce our own cap below
-      // (defaults are fine; Remix keeps in memory for the action)
-    });
+    const uploadHandler = createMemoryUploadHandler();
     const form = await parseMultipartFormData(request, uploadHandler);
 
     const file = form.get("file");
@@ -54,23 +46,8 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Basic type/size checks (NEW)
-    const webFile = file as File;
-    if (!ALLOWED_MIME.has(webFile.type)) {
-      return json(
-        { error: "Only PNG or JPEG images are allowed." },
-        { status: 415 }
-      );
-    }
-    if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
-      return json(
-        { error: "File too large. Max 200 MB per image." },
-        { status: 413 }
-      );
-    }
-
     // Read original bytes into Buffer
-    const ab = await webFile.arrayBuffer();
+    const ab = await (file as File).arrayBuffer();
     // @ts-ignore Buffer is available in Remix node runtime
     let input: Buffer = Buffer.from(ab);
 
@@ -181,35 +158,14 @@ async function normalizeForPotrace(
   opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
 ): Promise<Buffer> {
   try {
-    // Lazy CJS import so this never leaks into client bundle
     const { createRequire } = await import("node:module");
     const req = createRequire(import.meta.url);
-    const sharp = req("sharp") as typeof import("sharp");
+    const sharp = req("sharp");
 
-    // Keep memory predictable on small VPS
-    sharp.cache(false);
-    // Optionally set a low concurrency on tiny droplets:
-    // sharp.concurrency(2);
-
-    // Decode + respect EXIF
-    let base = sharp(input).rotate();
-
-    // Soft guard against pathological megapixels (keeps behavior but avoids OOM)
-    try {
-      const meta = await base.metadata();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      const mp = (w * h) / 1_000_000;
-      if (mp > 80) {
-        // ~ up to 4000x4000 “inside”
-        base = base.resize({ width: 4000, height: 4000, fit: "inside" });
-      }
-    } catch {
-      // ignore metadata errors; proceed
-    }
+    const base = sharp(input).rotate(); // respect EXIF
 
     if (opts.preprocess === "edge") {
-      // Flatten alpha to white, grayscale, blur lightly, RAW, Sobel, PNG
+      // Flatten alpha to white, grayscale, blur lightly, then Sobel
       const { data, info } = await base
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .removeAlpha()
@@ -222,8 +178,7 @@ async function normalizeForPotrace(
       const H = info.height | 0;
       if (W <= 1 || H <= 1) {
         // too small: fall back
-        return await sharp(input)
-          .rotate()
+        return await base
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
           .grayscale()
@@ -259,8 +214,9 @@ async function normalizeForPotrace(
         }
       }
 
-      // Detect flat/invalid edge maps and fallback
+      // --- Deployment robustness: detect flat/invalid edge maps and fallback ---
       if (isFlatBuffer(out)) {
+        // Fallback to robust grayscale normalization
         return await sharp(input)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
@@ -286,9 +242,8 @@ async function normalizeForPotrace(
       .normalize()
       .png()
       .toBuffer();
-  } catch (e) {
-    // If sharp isn't available (e.g., platform build missing), just return original input
-    // Potrace will still run; for photos it may be noisier vs. edge prepass
+  } catch {
+    // If sharp isn't available, just return original input
     return input;
   }
 }
@@ -326,15 +281,19 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
 }
 
 /* ---------- SVG helpers (Node-safe, no DOMParser) ---------- */
+
+/** Ensure `svgRaw` is a string that starts with <svg ...>. If not, wrap it. */
 function coerceSvg(svgRaw: string | null | undefined): string {
   const fallback =
     '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"></svg>';
   if (!svgRaw) return fallback;
   const trimmed = String(svgRaw).trim();
   if (/^<svg\b/i.test(trimmed)) return trimmed;
+  // If Potrace ever returns only inner content, wrap it into an SVG root
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${trimmed}</svg>`;
 }
 
+/** Ensure viewBox exists, remove width/height (for responsiveness). */
 function ensureViewBoxResponsive(svg: string): {
   svg: string;
   width: number;
@@ -345,6 +304,8 @@ function ensureViewBoxResponsive(svg: string): {
 
   const openTag = openTagMatch[0];
   const hasViewBox = /viewBox\s*=\s*["'][^"']*["']/.test(openTag);
+
+  // Extract numeric width/height if present
   const widthMatch = openTag.match(/width\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
   const heightMatch = openTag.match(/height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
   let width = widthMatch ? Number(widthMatch[1]) : 1024;
@@ -352,6 +313,7 @@ function ensureViewBoxResponsive(svg: string): {
 
   let newOpen = openTag;
 
+  // If no viewBox, add one from width/height (or defaults)
   if (!hasViewBox) {
     newOpen = newOpen.replace(
       /<svg\b/i,
@@ -359,6 +321,7 @@ function ensureViewBoxResponsive(svg: string): {
     );
   }
 
+  // Drop explicit width/height for responsiveness
   newOpen = newOpen
     .replace(/\swidth\s*=\s*["'][^"']*["']/i, "")
     .replace(/\sheight\s*=\s*["'][^"']*["']/i, "");
@@ -367,11 +330,14 @@ function ensureViewBoxResponsive(svg: string): {
   return { svg: newSVG, width, height };
 }
 
+/** Recolor all <path ... fill="..."> to the requested line color. */
 function recolorPaths(svg: string, fillColor: string): string {
+  // Replace existing fill on paths
   let out = svg.replace(
     /<path\b([^>]*?)\sfill\s*=\s*["'][^"']*["']([^>]*?)>/gi,
     (_m, a, b) => `<path${a} fill="${fillColor}"${b}>`
   );
+  // Ensure a fill exists if missing
   out = out.replace(
     /<path\b((?:(?!>)[\s\S])*?)>(?![\s\S]*?<\/path>)/gi,
     (m, attrs) => {
@@ -382,6 +348,7 @@ function recolorPaths(svg: string, fillColor: string): string {
   return out;
 }
 
+/** Remove a white full-canvas rect, if present. */
 function stripFullWhiteBackgroundRect(
   svg: string,
   width: number,
@@ -407,6 +374,7 @@ function stripFullWhiteBackgroundRect(
   return svg.replace(numeric, "").replace(percent, "");
 }
 
+/** Inject a background rect as the first child after <svg ...>. */
 function injectBackgroundRectString(
   svg: string,
   width: number,
@@ -418,6 +386,8 @@ function injectBackgroundRectString(
   const openTag = openTagMatch[0];
 
   const rect = `<rect x="0" y="0" width="${width}" height="${height}" fill="${color}"/>`;
+
+  // Insert rect immediately after <svg ...>
   const idx = svg.indexOf(openTag) + openTag.length;
   return svg.slice(0, idx) + rect + svg.slice(idx);
 }
@@ -438,13 +408,13 @@ type Settings = {
   invert: boolean;
 
   // background
-  transparent: boolean;
+  transparent: boolean; // true => no background rect
   bgColor: string;
 
   // preprocess
   preprocess: "none" | "edge";
-  blurSigma: number;
-  edgeBoost: number;
+  blurSigma: number; // for edge
+  edgeBoost: number; // for edge
 };
 
 type Preset = {
@@ -454,7 +424,7 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
-  // (unchanged presets)
+  // ===== Existing Lineart =====
   {
     id: "line-accurate",
     label: "Lineart  -  Accurate (default)",
@@ -501,6 +471,8 @@ const PRESETS: Preset[] = [
       turnPolicy: "black",
     },
   },
+
+  // ===== Existing Photo Edge =====
   {
     id: "photo-soft",
     label: "Photo Edge  -  Soft",
@@ -549,6 +521,8 @@ const PRESETS: Preset[] = [
       optTolerance: 0.45,
     },
   },
+
+  // ===== NEW: Scans / Documents =====
   {
     id: "scan-clean",
     label: "Scan  -  Clean (remove speckles)",
@@ -575,6 +549,8 @@ const PRESETS: Preset[] = [
       invert: false,
     },
   },
+
+  // ===== NEW: Logos / Flat Icons =====
   {
     id: "logo-clean",
     label: "Logo  -  Clean shapes",
@@ -601,6 +577,8 @@ const PRESETS: Preset[] = [
       invert: false,
     },
   },
+
+  // ===== NEW: Low-contrast / Noisy Photos =====
   {
     id: "noisy-denoise",
     label: "Noisy Photo  -  Denoise Edge",
@@ -627,6 +605,8 @@ const PRESETS: Preset[] = [
       turnPolicy: "minority",
     },
   },
+
+  // ===== NEW: Inverted Art (white pencil on black) =====
   {
     id: "invert-white-on-black",
     label: "Invert  -  White lines on black",
@@ -640,6 +620,8 @@ const PRESETS: Preset[] = [
       lineColor: "#ffffff",
     },
   },
+
+  // ===== NEW: Comics / Inks =====
   {
     id: "comics-inks",
     label: "Comics  -  Inks (chunky)",
@@ -654,6 +636,8 @@ const PRESETS: Preset[] = [
       lineColor: "#000000",
     },
   },
+
+  // ===== NEW: Blueprint / Diagram =====
   {
     id: "blueprint",
     label: "Diagram  -  Blueprint (invert + blue)",
@@ -667,6 +651,8 @@ const PRESETS: Preset[] = [
       lineColor: "#0ea5e9",
     },
   },
+
+  // ===== NEW: Whiteboard / Glare =====
   {
     id: "whiteboard",
     label: "Whiteboard  -  Anti-glare",
@@ -723,7 +709,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
 
-  // Hydration guard
+  // Hydration guard to keep SSR and first client render identical for boolean attrs
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
