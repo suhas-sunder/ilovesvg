@@ -257,7 +257,6 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
     max = 0,
     sum = 0,
     count = 0;
-  // Sample to keep it cheap on huge images; still accurate enough
   for (let i = 0; i < len; i += sampleStep) {
     const v = buf[i];
     if (v < min) min = v;
@@ -268,17 +267,17 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
   const mean = sum / Math.max(count, 1);
   const range = max - min;
 
-  if (range <= 1) return true; // literally uniform
-  if (mean <= 2 || mean >= 253) return true; // ~all black or ~all white
+  // More aggressive fallback:
+  if (range <= 2) return true; // nearly uniform
+  if (mean <= 8 || mean >= 247) return true; // almost all black or white
 
-  // quick variance estimate (second pass on same samples)
   let varSum = 0;
   for (let i = 0; i < len; i += sampleStep) {
     const v = buf[i] - mean;
     varSum += v * v;
   }
   const variance = varSum / Math.max(count - 1, 1);
-  return variance < 4; // super low contrast => treat as flat
+  return variance < 8; // lower threshold for "flat"
 }
 
 /* ---------- SVG helpers (Node-safe, no DOMParser) ---------- */
