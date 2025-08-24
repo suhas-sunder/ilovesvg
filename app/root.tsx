@@ -28,7 +28,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const { pathname } = url;
 
-  // Skip redirects for ANY data request to avoid loops like "/_root.data?index"
+  // 1) Never redirect data/fetch requests
   const isDataRequest =
     request.headers.get("X-React-Router-Request") === "1" ||
     request.headers.get("X-Remix-Request") === "yes" ||
@@ -37,6 +37,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   if (isDataRequest) return null;
 
+  // 2) Only consider canonical redirects for real HTML documents
+  const accept = request.headers.get("accept") || "";
+  const isDocument = request.method === "GET" && accept.includes("text/html");
+
+  if (!isDocument) return null;
+
+  // 3) Strip trailing slashes for documents only
   if (needsStrip(pathname)) {
     const stripped = strip(pathname);
     if (stripped !== pathname) {
@@ -44,6 +51,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       return redirect(url.pathname + url.search, { status: 301 });
     }
   }
+
   return null;
 }
 
