@@ -35,74 +35,83 @@ export function loader({ context }: Route.LoaderArgs) {
 /* ========================
    Limits & types (mirrored client/server)
 ======================== */
-const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200 MB
-const MAX_MP = 80; // ~80 megapixels (tune for your box)
+const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
+const MAX_MP = 80; // ~80 megapixels
 const MAX_SIDE = 12_000; // max width or height in pixels
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
+
+/* ========================
+   Simple structured logging helpers
+======================== */
+const APP_TAG = "[iLoveSVG]";
+function log(...args: any[]) {
+  // You can gate by NODE_ENV if you want less noise locally
+  // if (process.env.NODE_ENV !== "production") return;
+  console.log(APP_TAG, ...args);
+}
+function logTime(label: string) {
+  const start = process.hrtime.bigint();
+  return () => {
+    const end = process.hrtime.bigint();
+    const ms = Number(end - start) / 1_000_000;
+    log(`${label} took ${ms.toFixed(1)} ms`);
+    return ms;
+  };
+}
+function kb(n: number) {
+  return `${(n / 1024).toFixed(1)} KB`;
+}
+function mb(n: number) {
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
 export async function action({ request }: ActionFunctionArgs) {
+  const endTotal = logTime("action total");
+
   try {
     const uploadHandler = createMemoryUploadHandler();
     const form = await parseMultipartFormData(request, uploadHandler);
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
+      log("reject: no file");
       return json({ error: "No file uploaded." }, { status: 400 });
     }
 
     // Basic type/size checks (authoritative)
     const webFile = file as File;
+    log("upload meta:", {
+      name: (webFile as any).name || "(no name)",
+      type: webFile.type,
+      size: webFile.size,
+    });
+
     if (!ALLOWED_MIME.has(webFile.type)) {
+      log("reject: bad mime", webFile.type);
       return json(
         { error: "Only PNG or JPEG images are allowed." },
         { status: 415 }
       );
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
+      log("reject: file too large", mb(webFile.size || 0));
       return json(
-        { error: "File too large. Max 200 MB per image." },
+        { error: "File too large. Max 500 MB per image." },
         { status: 413 }
       );
     }
 
     // Read original bytes into Buffer
+    const tAB = logTime("read arrayBuffer");
     const ab = await webFile.arrayBuffer();
+    const abMs = tAB();
     // @ts-ignore Buffer exists in Remix node runtime
     let input: Buffer = Buffer.from(ab);
-
-    // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
-    try {
-      const { createRequire } = await import("node:module");
-      const req = createRequire(import.meta.url);
-      const sharp = req("sharp") as typeof import("sharp");
-      const meta = await sharp(input).metadata();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      if (!w || !h) {
-        return json(
-          { error: "Could not read image dimensions. Try a different file." },
-          { status: 415 }
-        );
-      }
-      const mp = (w * h) / 1_000_000;
-      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-        return json(
-          {
-            error: `Image too large: ${w}×${h} (~${mp.toFixed(
-              1
-            )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
-          },
-          { status: 413 }
-        );
-      }
-    } catch {
-      // If sharp metadata fails here, we still proceed — Potrace may handle small files fine.
-      // (Limits will still be enforced client-side; this is just a best-effort server guard.)
-    }
+    log("input buffer:", { size: mb(input.length), readMs: abMs.toFixed(1) });
 
     // Potrace params
     const threshold = Number(form.get("threshold") ?? 224);
@@ -131,14 +140,84 @@ export async function action({ request }: ActionFunctionArgs) {
     const blurSigma = Number(form.get("blurSigma") ?? 0.8);
     const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
-    // Normalize for Potrace (EXIF rotate, alpha flatten, grayscale, optional edge prepass)
-    const prepped = await normalizeForPotrace(input, {
+    log("params:", {
+      threshold,
+      turdSize,
+      optTolerance,
+      turnPolicy,
+      lineColor,
+      invert,
+      transparent,
+      bgColor,
       preprocess,
       blurSigma,
       edgeBoost,
     });
 
-    // Potrace (CJS API)
+    // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
+    try {
+      const { createRequire } = await import("node:module");
+      const req = createRequire(import.meta.url);
+      const sharp = req("sharp") as typeof import("sharp");
+      log("sharp present:", {
+        versions: (sharp as any).versions,
+        simd: (sharp as any).simd?.(),
+        node: process.version,
+        platform: process.platform,
+        arch: process.arch,
+      });
+
+      const tMeta = logTime("sharp.metadata");
+      const meta = await sharp(input).metadata();
+      const metaMs = tMeta();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+      const mp = (w * h) / 1_000_000;
+      log("image dims:", {
+        w,
+        h,
+        mp: mp.toFixed(2),
+        metaMs: metaMs.toFixed(1),
+      });
+
+      if (!w || !h) {
+        log("reject: no dimensions from sharp.metadata");
+        return json(
+          { error: "Could not read image dimensions. Try a different file." },
+          { status: 415 }
+        );
+      }
+      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+        log("reject: megapixel or side limit", { w, h, mp: mp.toFixed(2) });
+        return json(
+          {
+            error: `Image too large: ${w}×${h} (~${mp.toFixed(
+              1
+            )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+          },
+          { status: 413 }
+        );
+      }
+    } catch (e) {
+      log("sharp guard skipped or failed. proceeding. reason:", String(e));
+      // Continue. Client has precheck. Potrace may still succeed for small files.
+    }
+
+    // Normalize for Potrace
+    const tPrep = logTime("normalizeForPotrace");
+    const prepped = await normalizeForPotrace(input, {
+      preprocess,
+      blurSigma,
+      edgeBoost,
+    });
+    const prepMs = tPrep();
+    log("normalize done:", {
+      outSize: mb(prepped.length),
+      prepMs: prepMs.toFixed(1),
+    });
+
+    // Potrace
+    const tTrace = logTime("potrace");
     const potrace = await import("potrace");
     const traceFn: any = (potrace as any).trace;
     const PotraceClass: any = (potrace as any).Potrace;
@@ -171,8 +250,14 @@ export async function action({ request }: ActionFunctionArgs) {
         reject(new Error("potrace API not found"));
       }
     });
+    const traceMs = tTrace();
+    log("potrace done:", {
+      svgLen: svgRaw?.length || 0,
+      traceMs: traceMs.toFixed(1),
+    });
 
-    // Post-process SVG safely (defensive)
+    // Post-process SVG
+    const tPost = logTime("svg post");
     const safeSvg = coerceSvg(svgRaw);
     const ensured = ensureViewBoxResponsive(safeSvg);
     const svg2 = recolorPaths(ensured.svg, lineColor);
@@ -189,14 +274,23 @@ export async function action({ request }: ActionFunctionArgs) {
           ensured.height,
           bgColor
         );
+    const postMs = tPost();
+    log("svg post done:", {
+      width: ensured.width,
+      height: ensured.height,
+      finalLen: finalSVG.length,
+      postMs: postMs.toFixed(1),
+    });
 
+    endTotal();
     return json({
       svg: finalSVG,
       width: ensured.width,
       height: ensured.height,
     });
   } catch (err: any) {
-    console.error("potrace action error:", err);
+    log("potrace action error:", err?.stack || String(err));
+    endTotal();
     return json(
       { error: err?.message || "Server error during conversion." },
       { status: 500 }
@@ -209,32 +303,55 @@ async function normalizeForPotrace(
   input: Buffer,
   opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
 ): Promise<Buffer> {
+  const end = logTime("normalizeForPotrace total");
   try {
     // Lazy CJS import so this never leaks into client bundle
     const { createRequire } = await import("node:module");
     const req = createRequire(import.meta.url);
     const sharp = req("sharp") as typeof import("sharp");
 
-    sharp.cache(false);
-    // sharp.concurrency(2); // uncomment for tiny droplets
+    // Keep cache tiny for small droplets
+    try {
+      (sharp as any).cache?.({ files: 0, memory: 50 });
+      // Uncomment to serialize workers on very small boxes
+      // (sharp as any).concurrency?.(2);
+    } catch {}
+
+    log("normalize: starting", {
+      preprocess: opts.preprocess,
+      blurSigma: opts.blurSigma,
+      edgeBoost: opts.edgeBoost,
+      inputSize: mb(input.length),
+    });
 
     // Decode + respect EXIF
     let base = sharp(input).rotate();
 
-    // Soft guard (keeps behavior but avoids OOM)
+    // Soft guard to avoid OOM
     try {
+      const tMeta = logTime("normalize.metadata");
       const meta = await base.metadata();
+      const metaMs = tMeta();
       const w = meta.width ?? 0;
       const h = meta.height ?? 0;
       const mp = (w * h) / 1_000_000;
+      log("normalize: dims", {
+        w,
+        h,
+        mp: mp.toFixed(2),
+        metaMs: metaMs.toFixed(1),
+      });
+
       if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+        log("normalize: downscaling for safety");
         base = base.resize({ width: 4000, height: 4000, fit: "inside" });
       }
-    } catch {
-      // ignore metadata errors; proceed
+    } catch (e) {
+      log("normalize: metadata failed, continuing:", String(e));
     }
 
     if (opts.preprocess === "edge") {
+      const tRaw = logTime("normalize.raw");
       const { data, info } = await base
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .removeAlpha()
@@ -242,11 +359,22 @@ async function normalizeForPotrace(
         .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
         .raw()
         .toBuffer({ resolveWithObject: true });
+      const rawMs = tRaw();
 
       const W = info.width | 0;
       const H = info.height | 0;
+      log("normalize: raw extracted", {
+        W,
+        H,
+        channels: info.channels,
+        rawSize: mb((data as Buffer).length),
+        rawMs: rawMs.toFixed(1),
+      });
+
       if (W <= 1 || H <= 1) {
-        return await sharp(input)
+        log("normalize: tiny image, using grayscale fallback");
+        const tTiny = logTime("normalize.tiny-fallback");
+        const tiny = await sharp(input)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
@@ -255,14 +383,18 @@ async function normalizeForPotrace(
           .normalize()
           .png()
           .toBuffer();
+        tTiny();
+        end();
+        return tiny;
       }
 
-      const src = data as Buffer; // 1 channel
+      const src = data as Buffer; // 1 channel enforced by grayscale above
       const out = Buffer.alloc(W * H, 255);
 
       const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
       const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
+      const tConv = logTime("normalize.convolution");
       for (let y = 1; y < H - 1; y++) {
         for (let x = 1; x < W - 1; x++) {
           let gx = 0,
@@ -281,9 +413,13 @@ async function normalizeForPotrace(
           out[y * W + x] = 255 - m; // edges dark, background light
         }
       }
+      const convMs = tConv();
+      log("normalize: convolution done", { convMs: convMs.toFixed(1) });
 
       if (isFlatBuffer(out)) {
-        return await sharp(input)
+        log("normalize: flat buffer detected, using grayscale fallback");
+        const tFlat = logTime("normalize.flat-fallback");
+        const fb = await sharp(input)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
@@ -292,14 +428,28 @@ async function normalizeForPotrace(
           .normalize()
           .png()
           .toBuffer();
+        tFlat();
+        end();
+        return fb;
       }
 
-      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
+      const tPack = logTime("normalize.pack-png");
+      const edged = await sharp(out, {
+        raw: { width: W, height: H, channels: 1 },
+      })
         .png()
         .toBuffer();
+      const packMs = tPack();
+      log("normalize: edge PNG ready", {
+        size: mb(edged.length),
+        packMs: packMs.toFixed(1),
+      });
+      end();
+      return edged;
     }
 
-    return await base
+    const tPlain = logTime("normalize.plain-grayscale");
+    const plain = await base
       .flatten({ background: { r: 255, g: 255, b: 255 } })
       .removeAlpha()
       .grayscale()
@@ -307,13 +457,25 @@ async function normalizeForPotrace(
       .normalize()
       .png()
       .toBuffer();
-  } catch {
-    // If sharp isn't available (platform build missing), just return original
+    const plainMs = tPlain();
+    log("normalize: plain PNG ready", {
+      size: mb(plain.length),
+      plainMs: plainMs.toFixed(1),
+    });
+    end();
+    return plain;
+  } catch (e) {
+    log(
+      "normalize: sharp path failed. returning original buffer. reason:",
+      String(e)
+    );
+    end();
+    // If sharp is not available or fails, just return original
     return input;
   }
 }
 
-/** Heuristic: flat if min==max OR very low variance OR mean ≈ 0/255. */
+/** Heuristic: flat if min==max OR very low variance OR mean near 0 or 255. */
 function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
   const len = buf.length;
   if (len === 0) return true;
@@ -472,7 +634,8 @@ type Preset = {
   settings: Partial<Settings>;
 };
 
-/* (same presets as before — omitted here for brevity in explanation) */
+/* Presets unchanged, omitted for brevity in this comment block.
+   They remain exactly the same as your current file. */
 const PRESETS: Preset[] = [
   {
     id: "line-accurate",
@@ -742,7 +905,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
 
-  // client-side measured dims (nice UX plus precheck)
+  // client-side measured dims
   const [dims, setDims] = React.useState<{
     w: number;
     h: number;
@@ -753,7 +916,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
-  // Attempts history (newest first)
+  // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
 
   React.useEffect(() => {
@@ -761,7 +924,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     else setErr(null);
   }, [fetcher.data]);
 
-  // When a new server SVG arrives, push to history (max 10)
+  // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
       const item: HistoryItem = {
@@ -802,7 +965,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setPreviewUrl(URL.createObjectURL(f));
     setErr(null);
     setDims(null);
-    // async measure (no await)
     measureAndSet(f);
     e.currentTarget.value = "";
   }
@@ -829,7 +991,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    // Client-side precheck (friendly UX; server still authoritative)
+    // Client-side precheck
     try {
       await validateBeforeSubmit(file);
     } catch (e: any) {
@@ -852,7 +1014,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("edgeBoost", String(settings.edgeBoost));
     setErr(null);
 
-    // IMPORTANT: target this route's index action to avoid hitting "root" action
+    // Target this route's index action
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
@@ -860,7 +1022,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  // Always-on live preview (debounced)
+  // Always-on live preview, debounced
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => {
     if (!file) return;
@@ -877,11 +1039,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
-  // Apply preset without carrying user overrides (e.g., invert)
+  // Apply preset without carrying user overrides except background choices
   function applyPreset(preset: Preset) {
     setActivePreset(preset.id);
     setSettings((s) => {
-      // preserve only background choices; everything else from DEFAULTS
       const baseline: Settings = {
         ...DEFAULTS,
         transparent: s.transparent,
@@ -960,7 +1121,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
             {/* Limits helper */}
             <div className="text-[13px] text-slate-600 mb-2">
-              Limits: <b>200 MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b>{" "}
+              Limits: <b>500 MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b>{" "}
               max side.
             </div>
 
@@ -1301,12 +1462,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
 /* ===== Client-side helpers (dimension precheck) ===== */
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
-  // Prefer createImageBitmap when available (fast & memory-friendly)
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
     return { w: bmp.width, h: bmp.height };
   }
-  // Fallback to <img>.decode()
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -1323,7 +1482,7 @@ async function validateBeforeSubmit(file: File) {
     throw new Error("Only PNG or JPEG images are allowed.");
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    throw new Error("File too large. Max 200 MB per image.");
+    throw new Error("File too large. Max 500 MB per image.");
   }
   const { w, h } = await getImageSize(file);
   if (!w || !h) throw new Error("Could not read image dimensions.");
