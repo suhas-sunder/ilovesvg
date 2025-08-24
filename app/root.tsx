@@ -23,16 +23,26 @@ function strip(pathname: string) {
   return pathname.replace(/\/+$/, "") || "/";
 }
 
-/* ---------- Loader does the canonical 301 ---------- */
+/* ---------- Loader does the canonical 301 (documents only) ---------- */
 export async function loader({ request }: Route.LoaderArgs) {
-  // 👇 IMPORTANT: data requests must not redirect, or you'll loop
-  const isDataRequest = request.headers.get("X-React-Router-Request") === "1";
+  const url = new URL(request.url);
+  const { pathname } = url;
+
+  // Skip redirects for ANY data request to avoid loops like "/_root.data?index"
+  const isDataRequest =
+    request.headers.get("X-React-Router-Request") === "1" ||
+    request.headers.get("X-Remix-Request") === "yes" ||
+    pathname.startsWith("/_") ||
+    pathname.endsWith(".data");
+
   if (isDataRequest) return null;
 
-  const url = new URL(request.url);
-  if (needsStrip(url.pathname)) {
-    url.pathname = strip(url.pathname);
-    return redirect(url.pathname + url.search, { status: 301 });
+  if (needsStrip(pathname)) {
+    const stripped = strip(pathname);
+    if (stripped !== pathname) {
+      url.pathname = stripped;
+      return redirect(url.pathname + url.search, { status: 301 });
+    }
   }
   return null;
 }
