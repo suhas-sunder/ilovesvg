@@ -205,7 +205,7 @@ export async function action({ request }: ActionFunctionArgs) {
         );
       }
     } catch {
-      // If sharp metadata fails here, continue — Potrace may still handle small files.
+      // If sharp metadata fails here, continue - Potrace may still handle small files.
     }
 
     // ----- Acquire concurrency slot (gate heavy work only) -----
@@ -1001,7 +1001,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Try to auto-compress to ≤25MB if needed
     let chosen = f;
     if (f.size > LIVE_MED_MAX) {
-      setInfo("Large file detected — compressing on your device for preview…");
+      setInfo("Large file detected - compressing on your device for preview…");
       try {
         const shrunk = await compressToTarget25MB(f);
         chosen = shrunk;
@@ -1069,7 +1069,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (!file) return;
 
     const mode = autoMode;
-    if (mode === "off") return; // file >25MB and not compressible — no auto submit
+    if (mode === "off") return; // file >25MB and not compressible - no auto submit
 
     const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -2039,8 +2039,8 @@ function SeoSections() {
                   className="mt-2"
                 >
                   <span itemProp="text">
-                    Yes—use the Photo Edge presets to extract clean contours and
-                    stylized linework.
+                    Yes, use the Photo Edge presets to extract clean contours
+                    and stylized linework.
                   </span>
                 </p>
               </article>
