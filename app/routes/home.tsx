@@ -40,6 +40,14 @@ const MAX_MP = 80; // ~80 megapixels
 const MAX_SIDE = 12_000; // max width or height in pixels
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
+// -------- Live preview tiers (client) --------
+// ≤5MB: fast,  5–10MB: medium,  >10MB: high throttle (still live)
+const LIVE_FAST_MAX = 5 * 1024 * 1024;
+const LIVE_MED_MAX = 10 * 1024 * 1024;
+const LIVE_FAST_MS = 400;
+const LIVE_MED_MS = 1400;
+const LIVE_HIGH_MS = 3800;
+
 /* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
@@ -63,7 +71,11 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    const uploadHandler = createMemoryUploadHandler();
+    // IMPORTANT: lift the default ~3MB part limit so 500MB files are accepted.
+    // (Still processed in RAM; adjust to a file-based handler if needed.)
+    const uploadHandler = createMemoryUploadHandler({
+      maxPartSize: MAX_UPLOAD_BYTES,
+    });
     const form = await parseMultipartFormData(request, uploadHandler);
 
     const file = form.get("file");
@@ -119,7 +131,7 @@ export async function action({ request }: ActionFunctionArgs) {
         );
       }
     } catch {
-      // If sharp metadata fails here, continue  Potrace may still handle small files.
+      // If sharp metadata fails here, continue — Potrace may still handle small files.
     }
 
     // Potrace params
@@ -664,7 +676,6 @@ const PRESETS: Preset[] = [
       threshold: 228,
       turdSize: 2,
       optTolerance: 0.36,
-      turnPolicy: "minority",
     },
   },
   {
@@ -753,6 +764,28 @@ type HistoryItem = {
   stamp: number;
 };
 
+// ---- tiering helpers (client) ----
+type AutoMode = "fast" | "medium" | "high" | "off";
+function getAutoMode(bytes?: number | null): AutoMode {
+  if (bytes == null) return "off";
+  if (bytes < LIVE_FAST_MAX) return "fast";
+  if (bytes <= LIVE_MED_MAX) return "medium";
+  return "high"; // >10MB: still live, but heavily throttled
+}
+function autoModeHint(mode: AutoMode): string {
+  if (mode === "high")
+    return "Live preview is heavily throttled for files over 10 MB.";
+  if (mode === "medium") return "Live preview is throttled for 5–10 MB files.";
+  return "";
+}
+function autoModeDetail(mode: AutoMode): string {
+  if (mode === "high")
+    return "File is large; conversions may take a little longer.";
+  if (mode === "medium")
+    return "File is midsize; updates run less frequently to keep things smooth.";
+  return "";
+}
+
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
@@ -776,6 +809,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+
+  // Live preview tier
+  const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
   React.useEffect(() => {
     if (fetcher.data?.error) setErr(fetcher.data.error);
@@ -821,6 +857,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
+    setAutoMode(getAutoMode(f.size)); // set tier
     setErr(null);
     setDims(null);
     measureAndSet(f);
@@ -838,6 +875,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
+    setAutoMode(getAutoMode(f.size)); // set tier
     setErr(null);
     setDims(null);
     measureAndSet(f);
@@ -880,19 +918,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  // Always-on live preview, debounced
+  // ---- Tiered live preview (≤10MB active; >10MB heavily throttled) ----
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => {
     if (!file) return;
+
+    const mode = autoMode;
+    if (mode === "off") return; // no file yet
+
+    const delay =
+      mode === "fast"
+        ? LIVE_FAST_MS
+        : mode === "medium"
+          ? LIVE_MED_MS
+          : LIVE_HIGH_MS;
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       submitConvert();
-    }, 400);
+    }, delay);
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset]);
+  }, [file, settings, activePreset, autoMode]);
 
   // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || busy || !file;
@@ -1028,6 +1078,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
                         setPreviewUrl(null);
+                        setAutoMode("off");
                         setDims(null);
                         setErr(null);
                       }}
@@ -1216,7 +1267,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </Field>
               </div>
 
-              {/* Convert button + errors */}
+              {/* Convert button + errors + tier hints */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
@@ -1231,6 +1282,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 >
                   {busy ? "Converting…" : "Convert"}
                 </button>
+
+                {/* Live preview tier notice */}
+                {file && autoMode !== "fast" && (
+                  <span className="text-[13px] text-slate-600">
+                    {autoModeHint(autoMode)} {autoModeDetail(autoMode)}
+                  </span>
+                )}
+
                 {err && <span className="text-red-700 text-sm">{err}</span>}
               </div>
 
@@ -1248,7 +1307,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
             {/* RESULTS */}
             <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-scroll shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Result</h2>
+              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
+                Result
+                {busy && (
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+                )}
+              </h2>
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
