@@ -33,6 +33,78 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 /* ========================
+   Image normalization for Potrace (alpha, EXIF, colorspace)
+======================== */
+async function normalizeForPotrace(
+  input: Buffer,
+  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
+): Promise<Buffer> {
+  try {
+    const { createRequire } = await import("node:module");
+    const req = createRequire(import.meta.url);
+    const sharp = req("sharp");
+
+    const base = sharp(input).rotate(); // respect EXIF
+
+    if (opts.preprocess === "edge") {
+      // Flatten alpha to white, grayscale, blur lightly, then Sobel
+      const { data, info } = await base
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .removeAlpha()
+        .grayscale()
+        .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      const W = info.width;
+      const H = info.height;
+      const src = data as Buffer; // 1 channel
+      const out = Buffer.alloc(W * H, 255); // init white to avoid dark borders
+
+      // Sobel kernels
+      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          let gx = 0,
+            gy = 0,
+            n = 0;
+          for (let j = -1; j <= 1; j++) {
+            for (let i = -1; i <= 1; i++) {
+              const v = src[(y + j) * W + (x + i)];
+              gx += v * kx[n];
+              gy += v * ky[n];
+              n++;
+            }
+          }
+          let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
+          if (m > 255) m = 255;
+          out[y * W + x] = 255 - m; // edges dark, background light
+        }
+      }
+
+      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
+        .png()
+        .toBuffer();
+    }
+
+    // preprocess === "none": match browser-ish luminance, kill alpha
+    return await base
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .removeAlpha()
+      .grayscale()
+      .gamma()
+      .normalize()
+      .png()
+      .toBuffer();
+  } catch {
+    // If sharp isn't available, just return original input
+    return input;
+  }
+}
+
+/* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
@@ -78,58 +150,12 @@ export async function action({ request }: ActionFunctionArgs) {
     const blurSigma = Number(form.get("blurSigma") ?? 0.8);
     const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
-    // Load sharp under ESM SSR via createRequire (keeps CJS as-is)
-    let sharp: any = null;
-    if (preprocess === "edge") {
-      try {
-        const { createRequire } = await import("node:module");
-        const req = createRequire(import.meta.url);
-        sharp = req("sharp");
-      } catch {
-        sharp = null; // graceful fallback
-      }
-    }
-
-    // Optional Edge pre-pass (only if sharp is available)
-    if (preprocess === "edge" && sharp) {
-      const { data, info } = await sharp(input)
-        .grayscale()
-        .blur(blurSigma > 0 ? blurSigma : undefined)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const W = info.width,
-        H = info.height;
-      const src = data as Buffer; // 1 channel grayscale
-      const out = Buffer.allocUnsafe(W * H);
-
-      // Sobel kernels
-      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-      for (let y = 1; y < H - 1; y++) {
-        for (let x = 1; x < W - 1; x++) {
-          let gx = 0,
-            gy = 0,
-            n = 0;
-          for (let j = -1; j <= 1; j++) {
-            for (let i = -1; i <= 1; i++) {
-              const v = src[(y + j) * W + (x + i)];
-              gx += v * kx[n];
-              gy += v * ky[n];
-              n++;
-            }
-          }
-          let m = Math.sqrt(gx * gx + gy * gy) * edgeBoost;
-          if (m > 255) m = 255;
-          out[y * W + x] = 255 - m; // invert so edges become dark lines
-        }
-      }
-
-      input = await sharp(out, { raw: { width: W, height: H, channels: 1 } })
-        .png()
-        .toBuffer();
-    }
+    // Always normalize before tracing (handles alpha/EXIF/colorspace)
+    input = await normalizeForPotrace(input, {
+      preprocess,
+      blurSigma,
+      edgeBoost,
+    });
 
     // Potrace (CJS API)
     const potrace = await import("potrace");
@@ -701,7 +727,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`, // <-- target the INDEX route's action
+      action: `${window.location.pathname}?index`,
     });
   }
 
