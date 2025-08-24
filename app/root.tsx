@@ -5,7 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  redirect, // ⟵ add this
+  redirect,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -25,6 +25,10 @@ function strip(pathname: string) {
 
 /* ---------- Loader does the canonical 301 ---------- */
 export async function loader({ request }: Route.LoaderArgs) {
+  // 👇 IMPORTANT: data requests must not redirect, or you'll loop
+  const isDataRequest = request.headers.get("X-React-Router-Request") === "1";
+  if (isDataRequest) return null;
+
   const url = new URL(request.url);
   if (needsStrip(url.pathname)) {
     url.pathname = strip(url.pathname);
