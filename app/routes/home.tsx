@@ -16,7 +16,7 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "i🩵SVG  -  Potrace (server, in-memory, live preview)";
   const description =
-    "Convert images to SVG with Potrace on the server (RAM only). Lineart presets + Edge preprocessor for photos. Live preview, color & background.";
+    "A free, all in one SVG editor, processor, and converter. Convert PNG/JEPG images to SVG, SVG to PNG or JPEG images. Batch processing supported.";
   return [
     { title },
     { name: "description", content: description },
@@ -41,64 +41,45 @@ const MAX_SIDE = 12_000; // max width or height in pixels
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
 /* ========================
-   Simple structured logging helpers
-======================== */
-const APP_TAG = "[iLoveSVG]";
-function log(...args: any[]) {
-  // You can gate by NODE_ENV if you want less noise locally
-  // if (process.env.NODE_ENV !== "production") return;
-  console.log(APP_TAG, ...args);
-}
-function logTime(label: string) {
-  const start = process.hrtime.bigint();
-  return () => {
-    const end = process.hrtime.bigint();
-    const ms = Number(end - start) / 1_000_000;
-    log(`${label} took ${ms.toFixed(1)} ms`);
-    return ms;
-  };
-}
-function kb(n: number) {
-  return `${(n / 1024).toFixed(1)} KB`;
-}
-function mb(n: number) {
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
 export async function action({ request }: ActionFunctionArgs) {
-  const endTotal = logTime("action total");
-
   try {
+    // --- Guard: method ---
+    if (request.method.toUpperCase() !== "POST") {
+      return json(
+        { error: "Method not allowed" },
+        { status: 405, headers: { Allow: "POST" } }
+      );
+    }
+
+    // --- Guard: content type ---
+    const contentType = request.headers.get("content-type") || "";
+    if (!contentType.startsWith("multipart/form-data")) {
+      return json(
+        { error: "Unsupported content type. Use multipart/form-data." },
+        { status: 415 }
+      );
+    }
+
     const uploadHandler = createMemoryUploadHandler();
     const form = await parseMultipartFormData(request, uploadHandler);
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
-      log("reject: no file");
       return json({ error: "No file uploaded." }, { status: 400 });
     }
 
     // Basic type/size checks (authoritative)
     const webFile = file as File;
-    log("upload meta:", {
-      name: (webFile as any).name || "(no name)",
-      type: webFile.type,
-      size: webFile.size,
-    });
-
     if (!ALLOWED_MIME.has(webFile.type)) {
-      log("reject: bad mime", webFile.type);
       return json(
         { error: "Only PNG or JPEG images are allowed." },
         { status: 415 }
       );
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
-      log("reject: file too large", mb(webFile.size || 0));
       return json(
         { error: "File too large. Max 500 MB per image." },
         { status: 413 }
@@ -106,12 +87,40 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Read original bytes into Buffer
-    const tAB = logTime("read arrayBuffer");
     const ab = await webFile.arrayBuffer();
-    const abMs = tAB();
     // @ts-ignore Buffer exists in Remix node runtime
     let input: Buffer = Buffer.from(ab);
-    log("input buffer:", { size: mb(input.length), readMs: abMs.toFixed(1) });
+
+    // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
+    try {
+      const { createRequire } = await import("node:module");
+      const req = createRequire(import.meta.url);
+      const sharp = req("sharp") as typeof import("sharp");
+      const meta = await sharp(input).metadata();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+
+      if (!w || !h) {
+        return json(
+          { error: "Could not read image dimensions. Try a different file." },
+          { status: 415 }
+        );
+      }
+
+      const mp = (w * h) / 1_000_000;
+      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+        return json(
+          {
+            error: `Image too large: ${w}×${h} (~${mp.toFixed(
+              1
+            )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+          },
+          { status: 413 }
+        );
+      }
+    } catch {
+      // If sharp metadata fails here, continue  Potrace may still handle small files.
+    }
 
     // Potrace params
     const threshold = Number(form.get("threshold") ?? 224);
@@ -140,84 +149,14 @@ export async function action({ request }: ActionFunctionArgs) {
     const blurSigma = Number(form.get("blurSigma") ?? 0.8);
     const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
-    log("params:", {
-      threshold,
-      turdSize,
-      optTolerance,
-      turnPolicy,
-      lineColor,
-      invert,
-      transparent,
-      bgColor,
-      preprocess,
-      blurSigma,
-      edgeBoost,
-    });
-
-    // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
-    try {
-      const { createRequire } = await import("node:module");
-      const req = createRequire(import.meta.url);
-      const sharp = req("sharp") as typeof import("sharp");
-      log("sharp present:", {
-        versions: (sharp as any).versions,
-        simd: (sharp as any).simd?.(),
-        node: process.version,
-        platform: process.platform,
-        arch: process.arch,
-      });
-
-      const tMeta = logTime("sharp.metadata");
-      const meta = await sharp(input).metadata();
-      const metaMs = tMeta();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      const mp = (w * h) / 1_000_000;
-      log("image dims:", {
-        w,
-        h,
-        mp: mp.toFixed(2),
-        metaMs: metaMs.toFixed(1),
-      });
-
-      if (!w || !h) {
-        log("reject: no dimensions from sharp.metadata");
-        return json(
-          { error: "Could not read image dimensions. Try a different file." },
-          { status: 415 }
-        );
-      }
-      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-        log("reject: megapixel or side limit", { w, h, mp: mp.toFixed(2) });
-        return json(
-          {
-            error: `Image too large: ${w}×${h} (~${mp.toFixed(
-              1
-            )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
-          },
-          { status: 413 }
-        );
-      }
-    } catch (e) {
-      log("sharp guard skipped or failed. proceeding. reason:", String(e));
-      // Continue. Client has precheck. Potrace may still succeed for small files.
-    }
-
     // Normalize for Potrace
-    const tPrep = logTime("normalizeForPotrace");
     const prepped = await normalizeForPotrace(input, {
       preprocess,
       blurSigma,
       edgeBoost,
     });
-    const prepMs = tPrep();
-    log("normalize done:", {
-      outSize: mb(prepped.length),
-      prepMs: prepMs.toFixed(1),
-    });
 
-    // Potrace
-    const tTrace = logTime("potrace");
+    // Potrace (CJS API)
     const potrace = await import("potrace");
     const traceFn: any = (potrace as any).trace;
     const PotraceClass: any = (potrace as any).Potrace;
@@ -250,14 +189,8 @@ export async function action({ request }: ActionFunctionArgs) {
         reject(new Error("potrace API not found"));
       }
     });
-    const traceMs = tTrace();
-    log("potrace done:", {
-      svgLen: svgRaw?.length || 0,
-      traceMs: traceMs.toFixed(1),
-    });
 
-    // Post-process SVG
-    const tPost = logTime("svg post");
+    // Post-process SVG safely (defensive)
     const safeSvg = coerceSvg(svgRaw);
     const ensured = ensureViewBoxResponsive(safeSvg);
     const svg2 = recolorPaths(ensured.svg, lineColor);
@@ -274,23 +207,13 @@ export async function action({ request }: ActionFunctionArgs) {
           ensured.height,
           bgColor
         );
-    const postMs = tPost();
-    log("svg post done:", {
-      width: ensured.width,
-      height: ensured.height,
-      finalLen: finalSVG.length,
-      postMs: postMs.toFixed(1),
-    });
 
-    endTotal();
     return json({
       svg: finalSVG,
       width: ensured.width,
       height: ensured.height,
     });
   } catch (err: any) {
-    log("potrace action error:", err?.stack || String(err));
-    endTotal();
     return json(
       { error: err?.message || "Server error during conversion." },
       { status: 500 }
@@ -303,55 +226,33 @@ async function normalizeForPotrace(
   input: Buffer,
   opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
 ): Promise<Buffer> {
-  const end = logTime("normalizeForPotrace total");
   try {
     // Lazy CJS import so this never leaks into client bundle
     const { createRequire } = await import("node:module");
     const req = createRequire(import.meta.url);
     const sharp = req("sharp") as typeof import("sharp");
 
-    // Keep cache tiny for small droplets
+    // Keep cache tiny for small droplets (best-effort)
     try {
       (sharp as any).cache?.({ files: 0, memory: 50 });
-      // Uncomment to serialize workers on very small boxes
-      // (sharp as any).concurrency?.(2);
+      // (sharp as any).concurrency?.(2); // optional throttle for tiny boxes
     } catch {}
-
-    log("normalize: starting", {
-      preprocess: opts.preprocess,
-      blurSigma: opts.blurSigma,
-      edgeBoost: opts.edgeBoost,
-      inputSize: mb(input.length),
-    });
 
     // Decode + respect EXIF
     let base = sharp(input).rotate();
 
     // Soft guard to avoid OOM
     try {
-      const tMeta = logTime("normalize.metadata");
       const meta = await base.metadata();
-      const metaMs = tMeta();
       const w = meta.width ?? 0;
       const h = meta.height ?? 0;
       const mp = (w * h) / 1_000_000;
-      log("normalize: dims", {
-        w,
-        h,
-        mp: mp.toFixed(2),
-        metaMs: metaMs.toFixed(1),
-      });
-
       if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-        log("normalize: downscaling for safety");
         base = base.resize({ width: 4000, height: 4000, fit: "inside" });
       }
-    } catch (e) {
-      log("normalize: metadata failed, continuing:", String(e));
-    }
+    } catch {}
 
     if (opts.preprocess === "edge") {
-      const tRaw = logTime("normalize.raw");
       const { data, info } = await base
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .removeAlpha()
@@ -359,22 +260,12 @@ async function normalizeForPotrace(
         .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
         .raw()
         .toBuffer({ resolveWithObject: true });
-      const rawMs = tRaw();
 
       const W = info.width | 0;
       const H = info.height | 0;
-      log("normalize: raw extracted", {
-        W,
-        H,
-        channels: info.channels,
-        rawSize: mb((data as Buffer).length),
-        rawMs: rawMs.toFixed(1),
-      });
 
       if (W <= 1 || H <= 1) {
-        log("normalize: tiny image, using grayscale fallback");
-        const tTiny = logTime("normalize.tiny-fallback");
-        const tiny = await sharp(input)
+        return await sharp(input)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
@@ -383,9 +274,6 @@ async function normalizeForPotrace(
           .normalize()
           .png()
           .toBuffer();
-        tTiny();
-        end();
-        return tiny;
       }
 
       const src = data as Buffer; // 1 channel enforced by grayscale above
@@ -394,7 +282,6 @@ async function normalizeForPotrace(
       const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
       const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
-      const tConv = logTime("normalize.convolution");
       for (let y = 1; y < H - 1; y++) {
         for (let x = 1; x < W - 1; x++) {
           let gx = 0,
@@ -413,13 +300,9 @@ async function normalizeForPotrace(
           out[y * W + x] = 255 - m; // edges dark, background light
         }
       }
-      const convMs = tConv();
-      log("normalize: convolution done", { convMs: convMs.toFixed(1) });
 
       if (isFlatBuffer(out)) {
-        log("normalize: flat buffer detected, using grayscale fallback");
-        const tFlat = logTime("normalize.flat-fallback");
-        const fb = await sharp(input)
+        return await sharp(input)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
@@ -428,28 +311,17 @@ async function normalizeForPotrace(
           .normalize()
           .png()
           .toBuffer();
-        tFlat();
-        end();
-        return fb;
       }
 
-      const tPack = logTime("normalize.pack-png");
-      const edged = await sharp(out, {
+      return await sharp(out, {
         raw: { width: W, height: H, channels: 1 },
       })
         .png()
         .toBuffer();
-      const packMs = tPack();
-      log("normalize: edge PNG ready", {
-        size: mb(edged.length),
-        packMs: packMs.toFixed(1),
-      });
-      end();
-      return edged;
     }
 
-    const tPlain = logTime("normalize.plain-grayscale");
-    const plain = await base
+    // Plain grayscale prep
+    return await base
       .flatten({ background: { r: 255, g: 255, b: 255 } })
       .removeAlpha()
       .grayscale()
@@ -457,19 +329,7 @@ async function normalizeForPotrace(
       .normalize()
       .png()
       .toBuffer();
-    const plainMs = tPlain();
-    log("normalize: plain PNG ready", {
-      size: mb(plain.length),
-      plainMs: plainMs.toFixed(1),
-    });
-    end();
-    return plain;
-  } catch (e) {
-    log(
-      "normalize: sharp path failed. returning original buffer. reason:",
-      String(e)
-    );
-    end();
+  } catch {
     // If sharp is not available or fails, just return original
     return input;
   }
@@ -634,8 +494,6 @@ type Preset = {
   settings: Partial<Settings>;
 };
 
-/* Presets unchanged, omitted for brevity in this comment block.
-   They remain exactly the same as your current file. */
 const PRESETS: Preset[] = [
   {
     id: "line-accurate",
@@ -1075,388 +933,399 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
-      <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
-        <header className="text-center mb-2">
-          <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-            <span>i</span>
-            <span
-              role="img"
-              aria-label="love"
-              className="text-[34px] -translate-y-[1px]"
-            >
-              🩵
-            </span>
-            <span className="text-[#0b2dff]">SVG</span>
-          </h1>
-          <p className="mt-1 text-slate-600">
-            Convert your png, jpeg, and other image files into crisp vector
-            graphics and illustrations.
-          </p>
-        </header>
+    <>
+      <SiteHeader />
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          {/* INPUT */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-            <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
-
-            {/* Presets */}
-            <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => applyPreset(p)}
-                  className={[
-                    "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                    activePreset === p.id
-                      ? "bg-[#e7eeff] border-[#0b2dff]"
-                      : "bg-white border-slate-200 hover:bg-slate-50",
-                  ].join(" ")}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Limits helper */}
-            <div className="text-[13px] text-slate-600 mb-2">
-              Limits: <b>500 MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b>{" "}
-              max side.
-            </div>
-
-            {/* Dropzone */}
-            {!file ? (
-              <div
-                role="button"
-                tabIndex={0}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={onDrop}
-                onClick={() => document.getElementById("file-inp")?.click()}
-                className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+      <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
+        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+          <header className="text-center mb-2">
+            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+              <span>i</span>
+              <span
+                role="img"
+                aria-label="love"
+                className="text-[34px] -translate-y-[1px]"
               >
-                <div className="text-sm text-slate-600">
-                  Click, drag & drop, or paste a PNG/JPEG
-                </div>
-                <input
-                  id="file-inp"
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={onPick}
-                  className="hidden"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                  <div className="flex items-center min-w-0 gap-2">
-                    {previewUrl && (
-                      <img
-                        src={previewUrl}
-                        alt=""
-                        className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                      />
-                    )}
-                    <span title={file?.name || ""} className="truncate">
-                      {file?.name} • {prettyBytes(file?.size || 0)}
-                    </span>
-                  </div>
+                🩵
+              </span>
+              <span className="text-[#0b2dff]">SVG</span>
+            </h1>
+            <p className="mt-1 text-slate-600">
+              Convert your png, jpeg, and other image files into crisp vector
+              graphics and illustrations.
+            </p>
+          </header>
+
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            {/* INPUT */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
+              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+
+              {/* Presets */}
+              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
+                {PRESETS.map((p) => (
                   <button
+                    key={p.id}
                     type="button"
-                    onClick={() => {
-                      if (previewUrl) URL.revokeObjectURL(previewUrl);
-                      setFile(null);
-                      setPreviewUrl(null);
-                      setDims(null);
-                      setErr(null);
-                    }}
-                    className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    onClick={() => applyPreset(p)}
+                    className={[
+                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
+                      activePreset === p.id
+                        ? "bg-[#e7eeff] border-[#0b2dff]"
+                        : "bg-white border-slate-200 hover:bg-slate-50",
+                    ].join(" ")}
                   >
-                    ×
+                    {p.label}
                   </button>
-                </div>
-                {dims && (
-                  <div className="mt-2 text-[13px] text-slate-700">
-                    Detected size:{" "}
-                    <b>
-                      {dims.w}×{dims.h}
-                    </b>{" "}
-                    (~{dims.mp.toFixed(1)} MP)
-                  </div>
-                )}
-              </>
-            )}
+                ))}
+              </div>
 
-            {/* Settings */}
-            <div className="mt-3 flex flex-col gap-2 min-w-0">
-              <Field label="Preprocess">
-                <select
-                  value={settings.preprocess}
-                  onChange={(e) =>
-                    setSettings((s) => ({
-                      ...s,
-                      preprocess: e.target.value as any,
-                    }))
-                  }
-                  className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+              {/* Limits helper */}
+              <div className="text-[13px] text-slate-600 mb-2">
+                Limits: <b>500 MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b>{" "}
+                max side.
+              </div>
+
+              {/* Dropzone */}
+              {!file ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={onDrop}
+                  onClick={() => document.getElementById("file-inp")?.click()}
+                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
-                  <option value="none">None (lineart)</option>
-                  <option value="edge">Edge (photo/painting)</option>
-                </select>
-              </Field>
-
-              {settings.preprocess === "edge" && (
+                  <div className="text-sm text-slate-600">
+                    Click, drag & drop, or paste a PNG/JPEG
+                  </div>
+                  <input
+                    id="file-inp"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={onPick}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
                 <>
-                  <Field label={`Blur σ (${settings.blurSigma})`}>
-                    <Num
-                      value={settings.blurSigma}
-                      min={0}
-                      max={3}
-                      step={0.1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, blurSigma: v }))
-                      }
-                    />
-                  </Field>
-                  <Field label={`Edge boost (${settings.edgeBoost})`}>
-                    <Num
-                      value={settings.edgeBoost}
-                      min={0.5}
-                      max={2.0}
-                      step={0.1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, edgeBoost: v }))
-                      }
-                    />
-                  </Field>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setDims(null);
+                        setErr(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
                 </>
               )}
 
-              <Field label={`Threshold (${settings.threshold})`}>
-                <input
-                  type="range"
-                  min={0}
-                  max={255}
-                  step={1}
-                  value={settings.threshold}
-                  onChange={(e) =>
-                    setSettings((s) => ({
-                      ...s,
-                      threshold: Number(e.target.value),
-                    }))
-                  }
-                  className="w-full accent-[#0b2dff]"
-                />
-              </Field>
-
-              <Field label="Turd size">
-                <Num
-                  value={settings.turdSize}
-                  min={0}
-                  max={10}
-                  step={1}
-                  onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
-                />
-              </Field>
-
-              <Field label="Curve tolerance">
-                <Num
-                  value={settings.optTolerance}
-                  min={0.05}
-                  max={1.2}
-                  step={0.05}
-                  onChange={(v) =>
-                    setSettings((s) => ({ ...s, optTolerance: v }))
-                  }
-                />
-              </Field>
-
-              <Field label="Turn policy">
-                <select
-                  value={settings.turnPolicy}
-                  onChange={(e) =>
-                    setSettings((s) => ({
-                      ...s,
-                      turnPolicy: e.target.value as any,
-                    }))
-                  }
-                  className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                >
-                  <option value="black">black</option>
-                  <option value="white">white</option>
-                  <option value="left">left</option>
-                  <option value="right">right</option>
-                  <option value="minority">minority</option>
-                  <option value="majority">majority</option>
-                </select>
-              </Field>
-
-              <Field label="Line color">
-                <input
-                  type="color"
-                  value={settings.lineColor}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, lineColor: e.target.value }))
-                  }
-                  className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                />
-              </Field>
-
-              <Field label="Invert lineart">
-                <input
-                  type="checkbox"
-                  checked={settings.invert}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, invert: e.target.checked }))
-                  }
-                  className="h-4 w-4 accent-[#0b2dff]"
-                />
-              </Field>
-
-              <Field label="Background">
-                <div className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={settings.transparent}
+              {/* Settings */}
+              <div className="mt-3 flex flex-col gap-2 min-w-0">
+                <Field label="Preprocess">
+                  <select
+                    value={settings.preprocess}
                     onChange={(e) =>
                       setSettings((s) => ({
                         ...s,
-                        transparent: e.target.checked,
+                        preprocess: e.target.value as any,
                       }))
                     }
-                    title="Transparent background"
-                    className="h-4 w-4 accent-[#0b2dff]"
+                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                  >
+                    <option value="none">None (lineart)</option>
+                    <option value="edge">Edge (photo/painting)</option>
+                  </select>
+                </Field>
+
+                {settings.preprocess === "edge" && (
+                  <>
+                    <Field label={`Blur σ (${settings.blurSigma})`}>
+                      <Num
+                        value={settings.blurSigma}
+                        min={0}
+                        max={3}
+                        step={0.1}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, blurSigma: v }))
+                        }
+                      />
+                    </Field>
+                    <Field label={`Edge boost (${settings.edgeBoost})`}>
+                      <Num
+                        value={settings.edgeBoost}
+                        min={0.5}
+                        max={2.0}
+                        step={0.1}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, edgeBoost: v }))
+                        }
+                      />
+                    </Field>
+                  </>
+                )}
+
+                <Field label={`Threshold (${settings.threshold})`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={255}
+                    step={1}
+                    value={settings.threshold}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        threshold: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full accent-[#0b2dff]"
                   />
-                  <span className="text-[13px] text-slate-700">
-                    Transparent
-                  </span>
+                </Field>
+
+                <Field label="Turd size">
+                  <Num
+                    value={settings.turdSize}
+                    min={0}
+                    max={10}
+                    step={1}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, turdSize: v }))
+                    }
+                  />
+                </Field>
+
+                <Field label="Curve tolerance">
+                  <Num
+                    value={settings.optTolerance}
+                    min={0.05}
+                    max={1.2}
+                    step={0.05}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, optTolerance: v }))
+                    }
+                  />
+                </Field>
+
+                <Field label="Turn policy">
+                  <select
+                    value={settings.turnPolicy}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        turnPolicy: e.target.value as any,
+                      }))
+                    }
+                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                  >
+                    <option value="black">black</option>
+                    <option value="white">white</option>
+                    <option value="left">left</option>
+                    <option value="right">right</option>
+                    <option value="minority">minority</option>
+                    <option value="majority">majority</option>
+                  </select>
+                </Field>
+
+                <Field label="Line color">
                   <input
                     type="color"
-                    value={settings.bgColor}
+                    value={settings.lineColor}
                     onChange={(e) =>
-                      setSettings((s) => ({ ...s, bgColor: e.target.value }))
+                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
                     }
-                    aria-disabled={settings.transparent}
-                    className={[
-                      "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                      settings.transparent
-                        ? "opacity-50 pointer-events-none"
-                        : "",
-                    ].join(" ")}
-                    title={
-                      settings.transparent
-                        ? "Uncheck to pick a background color"
-                        : "Pick background color"
+                    className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
+                  />
+                </Field>
+
+                <Field label="Invert lineart">
+                  <input
+                    type="checkbox"
+                    checked={settings.invert}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, invert: e.target.checked }))
                     }
+                    className="h-4 w-4 accent-[#0b2dff]"
+                  />
+                </Field>
+
+                <Field label="Background">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={settings.transparent}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          transparent: e.target.checked,
+                        }))
+                      }
+                      title="Transparent background"
+                      className="h-4 w-4 accent-[#0b2dff]"
+                    />
+                    <span className="text-[13px] text-slate-700">
+                      Transparent
+                    </span>
+                    <input
+                      type="color"
+                      value={settings.bgColor}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
+                      }
+                      aria-disabled={settings.transparent}
+                      className={[
+                        "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
+                        settings.transparent
+                          ? "opacity-50 pointer-events-none"
+                          : "",
+                      ].join(" ")}
+                      title={
+                        settings.transparent
+                          ? "Uncheck to pick a background color"
+                          : "Pick background color"
+                      }
+                    />
+                  </div>
+                </Field>
+              </div>
+
+              {/* Convert button + errors */}
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={submitConvert}
+                  disabled={buttonDisabled}
+                  suppressHydrationWarning
+                  className={[
+                    "px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
+                    "disabled:opacity-70 disabled:cursor-not-allowed",
+                  ].join(" ")}
+                >
+                  {busy ? "Converting…" : "Convert"}
+                </button>
+                {err && <span className="text-red-700 text-sm">{err}</span>}
+              </div>
+
+              {/* Input preview below controls */}
+              {previewUrl && (
+                <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                  <img
+                    src={previewUrl}
+                    alt="Input"
+                    className="w-full h-auto block"
                   />
                 </div>
-              </Field>
+              )}
             </div>
 
-            {/* Convert button + errors */}
-            <div className="flex items-center gap-3 mt-3 flex-wrap">
-              <button
-                type="button"
-                onClick={submitConvert}
-                disabled={buttonDisabled}
-                suppressHydrationWarning
-                className={[
-                  "px-3.5 py-2 rounded-lg font-bold border transition-colors",
-                  "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
-                  "disabled:opacity-70 disabled:cursor-not-allowed",
-                ].join(" ")}
-              >
-                {busy ? "Converting…" : "Convert"}
-              </button>
-              {err && <span className="text-red-700 text-sm">{err}</span>}
-            </div>
+            {/* RESULTS */}
+            <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-scroll shadow-sm min-w-0">
+              <h2 className="m-0 mb-3 text-lg text-slate-900">Result</h2>
 
-            {/* Input preview below controls */}
-            {previewUrl && (
-              <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                <img
-                  src={previewUrl}
-                  alt="Input"
-                  className="w-full h-auto block"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* RESULTS */}
-          <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 h-full shadow-sm min-w-0">
-            <h2 className="m-0 mb-3 text-lg text-slate-900">Result</h2>
-
-            {history.length > 0 ? (
-              <div className="grid gap-3">
-                {history.map((item) => (
-                  <div
-                    key={item.stamp}
-                    className="rounded-xl border border-slate-200 bg-white p-2"
-                  >
-                    <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
-                      <img
-                        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                          item.svg
-                        )}`}
-                        alt="SVG result"
-                        className="max-w-full h-auto"
-                      />
-                    </div>
-                    <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
-                      <span className="text-[13px] text-slate-700">
-                        {item.width > 0 && item.height > 0
-                          ? `${item.width} × ${item.height} px`
-                          : "size unknown"}
-                      </span>
-                      <div className="flex gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const b = new Blob([item.svg], {
-                              type: "image/svg+xml;charset=utf-8",
-                            });
-                            const u = URL.createObjectURL(b);
-                            const a = document.createElement("a");
-                            a.href = u;
-                            a.download = "converted.svg";
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                            URL.revokeObjectURL(u);
-                          }}
-                          className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
-                        >
-                          Download SVG
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopySvg(item.svg)}
-                          className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
-                        >
-                          Copy SVG
-                        </button>
+              {history.length > 0 ? (
+                <div className="grid gap-3">
+                  {history.map((item) => (
+                    <div
+                      key={item.stamp}
+                      className="rounded-xl border border-slate-200 bg-white p-2"
+                    >
+                      <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                        <img
+                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+                            item.svg
+                          )}`}
+                          alt="SVG result"
+                          className="max-w-full h-auto"
+                        />
+                      </div>
+                      <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
+                        <span className="text-[13px] text-slate-700">
+                          {item.width > 0 && item.height > 0
+                            ? `${item.width} × ${item.height} px`
+                            : "size unknown"}
+                        </span>
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const b = new Blob([item.svg], {
+                                type: "image/svg+xml;charset=utf-8",
+                              });
+                              const u = URL.createObjectURL(b);
+                              const a = document.createElement("a");
+                              a.href = u;
+                              a.download = "converted.svg";
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(u);
+                            }}
+                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                          >
+                            Download SVG
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopySvg(item.svg)}
+                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                          >
+                            Copy SVG
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-slate-600 m-0">
-                {busy ? "Converting…" : "Your converted file will appear here."}
-              </p>
-            )}
-          </div>
-        </section>
-      </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
-          {toast}
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-600 m-0">
+                  {busy
+                    ? "Converting…"
+                    : "Your converted file will appear here."}
+                </p>
+              )}
+            </div>
+          </section>
         </div>
-      )}
-    </main>
+
+        {/* Toast */}
+        {toast && (
+          <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
+            {toast}
+          </div>
+        )}
+      </main>
+      <SeoSections />
+
+      <SiteFooter />
+    </>
   );
 }
 
@@ -1546,4 +1415,745 @@ function prettyBytes(bytes: number) {
     i++;
   }
   return `${v.toFixed(1)} ${u[i]}`;
+}
+
+/* ===== Simple site header & footer ===== */
+function SiteHeader() {
+  return (
+    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
+      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
+        <a href="/" className="font-extrabold tracking-tight text-slate-900">
+          i<span className="text-sky-600">🩵</span>SVG
+        </a>
+        <nav className="text-sm text-slate-600">
+          <a
+            href="#"
+            className="px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+          >
+            Docs
+          </a>
+          <a
+            href="#"
+            className="px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+          >
+            GitHub
+          </a>
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="bg-white border-t border-slate-200">
+      <div className="max-w-[1180px] mx-auto px-4 py-6 text-sm text-slate-600 flex items-center justify-between">
+        <span>© {new Date().getFullYear()} i🩵SVG</span>
+        <span className="space-x-3">
+          <a href="#" className="hover:text-slate-900">
+            Privacy
+          </a>
+          <a href="#" className="hover:text-slate-900">
+            Terms
+          </a>
+        </span>
+      </div>
+    </footer>
+  );
+}
+
+function SeoSections() {
+  return (
+    <section className="bg-white border-t border-slate-200">
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
+        {/* Overview */}
+        <article className="prose prose-slate max-w-none">
+          <h2 className="m-0">
+            SVG Converter Overview: Precise, Fast, and Built for Creators
+          </h2>
+          <p className="mt-3">
+            This is your all-in-one <strong>SVG everything</strong> experience:
+            a high-quality raster-to-vector converter powered by Potrace, tuned
+            for logos, line art, scans, whiteboards, comics, diagrams, and even
+            photo-style edge extraction. Files are processed in memory and
+            returned immediately as clean, scalable <strong>SVG</strong> you can
+            edit, recolor, and embed in design tools or code. Elsewhere on the
+            site, we also support
+            <strong> batch conversion</strong> for larger workflows.
+          </p>
+
+          {/* HowTo */}
+          <section
+            itemScope
+            itemType="https://schema.org/HowTo"
+            className="mt-8"
+          >
+            <h3 itemProp="name" className="m-0">
+              How to Convert PNG or JPEG to SVG
+            </h3>
+            <ol className="mt-3 list-decimal pl-5 grid gap-2" itemProp="step">
+              <li itemScope itemType="https://schema.org/HowToStep">
+                <span itemProp="name">
+                  <strong>Upload</strong> a PNG or JPEG (drag &amp; drop or
+                  click the picker).
+                </span>
+                <div
+                  itemProp="itemListElement"
+                  className="text-sm text-slate-600"
+                >
+                  For best results, start with a sharp image; avoid heavy
+                  compression artifacts.
+                </div>
+              </li>
+              <li itemScope itemType="https://schema.org/HowToStep">
+                <span itemProp="name">
+                  <strong>Choose a preset</strong> that matches your art.
+                </span>
+                <div
+                  itemProp="itemListElement"
+                  className="text-sm text-slate-600"
+                >
+                  “Lineart – Accurate” for clean inks; “Logo – Clean shapes” for
+                  logos; “Photo Edge” for photos.
+                </div>
+              </li>
+              <li itemScope itemType="https://schema.org/HowToStep">
+                <span itemProp="name">
+                  <strong>Adjust settings</strong> (threshold, curve tolerance,
+                  etc.).
+                </span>
+                <div
+                  itemProp="itemListElement"
+                  className="text-sm text-slate-600"
+                >
+                  Use the live preview to fine-tune detail vs. smoothness.
+                </div>
+              </li>
+              <li itemScope itemType="https://schema.org/HowToStep">
+                <span itemProp="name">
+                  <strong>Pick line color and background</strong>.
+                </span>
+                <div
+                  itemProp="itemListElement"
+                  className="text-sm text-slate-600"
+                >
+                  Transparent background is ideal for overlays; set a color if
+                  you need a solid canvas.
+                </div>
+              </li>
+              <li itemScope itemType="https://schema.org/HowToStep">
+                <span itemProp="name">
+                  <strong>Download or copy the SVG</strong>.
+                </span>
+                <div
+                  itemProp="itemListElement"
+                  className="text-sm text-slate-600"
+                >
+                  SVG scales to any size without quality loss and remains
+                  editable.
+                </div>
+              </li>
+            </ol>
+          </section>
+
+          {/* Settings explained */}
+          <section className="mt-10">
+            <h3 className="m-0">Settings Explained (Get the Look You Want)</h3>
+            <div className="mt-3 grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="m-0">Preprocess</h4>
+                <ul className="mt-2">
+                  <li>
+                    <strong>None</strong>: Best for logos, scans, and crisp line
+                    art.
+                  </li>
+                  <li>
+                    <strong>Edge</strong>: Runs a fast edge detector for
+                    photos/paintings to capture outlines.
+                  </li>
+                </ul>
+                <p className="text-sm text-slate-600 mt-1">
+                  Edge mode respects EXIF rotation, flattens alpha, converts to
+                  grayscale, and boosts contours.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Threshold</h4>
+                <p className="mt-2">
+                  Controls what counts as “ink.” Higher values include lighter
+                  areas (more fill); lower values include only darker strokes
+                  (less fill).
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Curve Tolerance</h4>
+                <p className="mt-2">
+                  Adjusts path smoothing. Lower tolerance preserves tiny
+                  wiggles; higher tolerance simplifies curves for smaller,
+                  cleaner SVGs.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Turd Size</h4>
+                <p className="mt-2">
+                  Removes tiny specks. Increase this to drop dust, scanner
+                  noise, or stray dots from the result.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Turn Policy</h4>
+                <p className="mt-2">
+                  Guides how ambiguous corners are traced (<em>minority</em>,{" "}
+                  <em>majority</em>, <em>black</em>,<em> white</em>,{" "}
+                  <em>left</em>, <em>right</em>). It can help close gaps or
+                  emphasize certain edges.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Line Color &amp; Invert</h4>
+                <p className="mt-2">
+                  Choose any output color for the vector paths. Invert flips
+                  light/dark, useful for “white ink on black” looks or
+                  blueprint-style presets.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Background</h4>
+                <p className="mt-2">
+                  Keep <strong>Transparent</strong> for overlays and web use, or
+                  inject a solid background color for exports that need a
+                  visible canvas.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0">Edge Boost &amp; Blur σ</h4>
+                <p className="mt-2">
+                  In edge mode, a small blur reduces sensor noise; edge boost
+                  amplifies contours before tracing. Tweak these together to
+                  balance detail and cleanliness.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Use cases & presets */}
+          <section className="mt-10">
+            <h3 className="m-0">Popular Use Cases &amp; Presets</h3>
+            <ul className="mt-3 grid md:grid-cols-2 gap-2">
+              <li>
+                <strong>Logos</strong>: “Logo – Clean shapes” or “Logo – Thin
+                details.”
+              </li>
+              <li>
+                <strong>Scanned drawings</strong>: “Scan – Clean” to remove
+                speckles.
+              </li>
+              <li>
+                <strong>Comics/inks</strong>: “Comics – Inks” for chunky
+                outlines.
+              </li>
+              <li>
+                <strong>Whiteboards</strong>: “Whiteboard – Anti-glare” to even
+                out glare and smudges.
+              </li>
+              <li>
+                <strong>Photos/paintings</strong>: “Photo Edge” presets to
+                extract linework silhouettes.
+              </li>
+              <li>
+                <strong>Blueprint/diagram look</strong>: “Diagram – Blueprint”
+                (invert + colorized lines).
+              </li>
+            </ul>
+          </section>
+
+          {/* Performance & limits */}
+          <section className="mt-10">
+            <h3 className="m-0">Performance, Limits, and File Handling</h3>
+            <ul className="mt-3">
+              <li>
+                <strong>Max file size</strong>: 500 MB per image.
+              </li>
+              <li>
+                <strong>Resolution guard</strong>: Up to ~80 megapixels or
+                12,000 px on the longest side.
+              </li>
+              <li>
+                <strong>In-memory processing</strong>: Uploads are handled in
+                RAM and returned as SVG.
+              </li>
+              <li>
+                <strong>Batch conversion</strong>: Supported elsewhere on the
+                site for larger workflows and folders.
+              </li>
+            </ul>
+          </section>
+
+          {/* Troubleshooting */}
+          <section className="mt-10">
+            <h3 className="m-0">Troubleshooting &amp; Tips</h3>
+            <ul className="mt-3">
+              <li>
+                <strong>“Image too large”</strong>: Downscale the source or crop
+                unused borders.
+              </li>
+              <li>
+                <strong>“Could not read image dimensions”</strong>: Re-export as
+                PNG or JPEG and retry.
+              </li>
+              <li>
+                <strong>Blank or very light result</strong>: Lower{" "}
+                <em>Threshold</em> or disable <em>Invert</em>.
+              </li>
+              <li>
+                <strong>Jagged edges</strong>: Increase <em>Curve Tolerance</em>{" "}
+                slightly.
+              </li>
+              <li>
+                <strong>Too many dots</strong>: Raise <em>Turd Size</em> or try
+                a “Scan – Clean” preset.
+              </li>
+              <li>
+                <strong>Missing fine lines</strong>: Lower <em>Turd Size</em>,
+                lower <em>Curve Tolerance</em>, or increase <em>Threshold</em>.
+              </li>
+            </ul>
+          </section>
+
+          <section
+            id="why-use-svg-converter"
+            className="prose prose-slate max-w-none mt-10"
+          >
+            <h2>Why Use an Online SVG Converter?</h2>
+            <p>
+              SVG (Scalable Vector Graphics) is a vector format that stays sharp
+              at any size and can be styled or animated with code. Converting
+              PNG or JPEG into SVG improves clarity, flexibility, and long-term
+              editability for logos, icons, line art, and diagrams.
+            </p>
+            <ul>
+              <li>
+                <strong>Resolution-independent:</strong> vectors scale cleanly
+                for web, print, and high-DPI screens.
+              </li>
+              <li>
+                <strong>Editable:</strong> paths and groups can be customized in
+                design tools or by hand.
+              </li>
+              <li>
+                <strong>Performance-minded:</strong> often smaller than large
+                rasters and can be inlined.
+              </li>
+              <li>
+                <strong>Accessible &amp; scriptable:</strong> manipulable via
+                CSS/JS for modern interfaces.
+              </li>
+            </ul>
+          </section>
+
+          {/* STEP-BY-STEP */}
+          <section
+            id="step-by-step"
+            className="prose prose-slate max-w-none mt-10"
+          >
+            <h2>Step-by-Step: Convert PNG or JPEG to SVG</h2>
+            <ol>
+              <li>
+                <strong>Upload your image:</strong> drag, drop, or pick a
+                PNG/JPEG.
+              </li>
+              <li>
+                <strong>Choose a preset:</strong> Lineart, Logo, Scan Cleanup,
+                or Photo Edge.
+              </li>
+              <li>
+                <strong>Tune quality:</strong> adjust Threshold, Turd Size, and
+                Curve Tolerance.
+              </li>
+              <li>
+                <strong>Pick line color &amp; background:</strong> keep it
+                transparent or set a color fill.
+              </li>
+              <li>
+                <strong>Preview live:</strong> the SVG updates in real time to
+                reflect your settings.
+              </li>
+              <li>
+                <strong>Download SVG:</strong> save clean vector output to use
+                anywhere.
+              </li>
+            </ol>
+            <p>
+              This tool creates crisp vector paths that are easy to edit,
+              export, and reuse across web, apps, and print. For large
+              workloads, batch conversion is also available elsewhere on the
+              site.
+            </p>
+          </section>
+
+          {/* ADVANCED SETTINGS */}
+          <section
+            id="advanced-settings"
+            className="prose prose-slate max-w-none mt-10"
+          >
+            <h2>Advanced Settings Explained</h2>
+            <h3>Threshold</h3>
+            <p>
+              Controls which pixels become “ink” in the final vector. Lower
+              values capture darker areas only; higher values include lighter
+              details. Useful for photos, pencil drawings, and faint scans.
+            </p>
+            <h3>Turd Size</h3>
+            <p>
+              Removes tiny specks produced by noise or dust in scans. Increase
+              to clean up artifacts; decrease to preserve micro-details in
+              intricate drawings.
+            </p>
+            <h3>Curve Tolerance</h3>
+            <p>
+              Sets how closely the SVG curves follow the original edges. Lower
+              values capture more detail and sharp corners; higher values
+              simplify shapes for smoother, lighter paths.
+            </p>
+            <h3>Turn Policy</h3>
+            <p>
+              Determines how ambiguous turns are resolved when tracing edges.
+              Helpful for handwriting, logos with gaps, or overlapping strokes.
+            </p>
+            <h3>Edge Preprocessing (Photos)</h3>
+            <p>
+              When enabled, the image is softened (Blur Sigma) and edge contrast
+              is emphasized (Edge Boost) to extract clean contours from photos,
+              paintings, and noisy captures.
+            </p>
+          </section>
+
+          {/* USE CASES */}
+          <section id="who-uses" className="prose prose-slate max-w-none mt-10">
+            <h2>Who Uses This SVG Converter?</h2>
+            <ul>
+              <li>
+                <strong>Designers &amp; illustrators:</strong> convert sketches,
+                line art, and logos into flexible vectors.
+              </li>
+              <li>
+                <strong>Web developers:</strong> ship responsive icons,
+                diagrams, and UI graphics that scale.
+              </li>
+              <li>
+                <strong>Teachers &amp; students:</strong> turn whiteboards and
+                notes into clean, shareable SVG.
+              </li>
+              <li>
+                <strong>Makers &amp; print shops:</strong> prep files for laser
+                cutting, vinyl, embroidery, and signage.
+              </li>
+            </ul>
+          </section>
+
+          {/* LIMITS */}
+          <section
+            id="supported-files"
+            className="prose prose-slate max-w-none mt-10"
+          >
+            <h2>Supported File Types &amp; Limits</h2>
+            <ul>
+              <li>
+                <strong>Formats:</strong> PNG and JPEG
+              </li>
+              <li>
+                <strong>Max size:</strong> 500&nbsp;MB per image
+              </li>
+              <li>
+                <strong>Max dimensions:</strong> 12,000&nbsp;px per side (up to
+                ~80&nbsp;MP)
+              </li>
+              <li>
+                <strong>Output:</strong> standards-compliant SVG optimized for
+                crisp lines and curves
+              </li>
+            </ul>
+          </section>
+
+          {/* BATCH */}
+          <section
+            id="batch-conversion"
+            className="prose prose-slate max-w-none mt-10"
+          >
+            <h2>Batch SVG Conversion</h2>
+            <p>
+              This interface focuses on single-file conversion with instant
+              preview. For larger workflows, batch tools on this site can
+              convert entire folders of PNG or JPEG files into SVG using the
+              same presets and quality options. It’s ideal for logo libraries,
+              diagram sets, and high-volume asset pipelines.
+            </p>
+          </section>
+
+          {/* TIPS */}
+          <section id="pro-tips" className="prose prose-slate max-w-none mt-10">
+            <h2>Pro Tips for Best Results</h2>
+            <ul>
+              <li>
+                Start with a clear source image. High contrast produces cleaner
+                vectors.
+              </li>
+              <li>
+                Use <em>Scan Cleanup</em> or raise <em>Turd Size</em> to remove
+                speckles from paper scans.
+              </li>
+              <li>
+                Lower <em>Curve Tolerance</em> for technical drawings; raise it
+                for smooth, stylized art.
+              </li>
+              <li>
+                Try <em>Photo Edge</em> presets when converting portraits or
+                paintings to illustrative line art.
+              </li>
+              <li>
+                Keep backgrounds transparent for UI assets; add a background
+                color for print previews.
+              </li>
+            </ul>
+          </section>
+
+          {/* FAQ schema-style markup */}
+          <section
+            className="mt-10"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
+            <h3 className="m-0">Frequently Asked Questions</h3>
+
+            <div className="mt-3 grid gap-4">
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  What is SVG and why convert to it?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    SVG is a resolution-independent vector format. It stays
+                    sharp at any size, is editable in design tools and code, and
+                    compresses efficiently for the web.
+                  </span>
+                </p>
+              </article>
+
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  Can this handle photos?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    Yes-use the Photo Edge presets. They extract major contours
+                    to create stylized linework from images.
+                  </span>
+                </p>
+              </article>
+
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  Is color supported?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    Output paths can be any single color. For multi-color
+                    posterization, convert per color region or use advanced
+                    workflows elsewhere on the site.
+                  </span>
+                </p>
+              </article>
+
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  Do you support batch conversion?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    Yes-batch tools are available in other areas on this site
+                    for converting multiple files at once.
+                  </span>
+                </p>
+              </article>
+
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  Will my SVG be editable?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    Absolutely. The converter outputs standard paths you can
+                    edit, recolor, and optimize.
+                  </span>
+                </p>
+              </article>
+            </div>
+          </section>
+
+          {/* Glossary */}
+          <section className="mt-10">
+            <h3 className="m-0">Glossary</h3>
+            <dl className="mt-3 grid md:grid-cols-2 gap-x-6 gap-y-2">
+              <div>
+                <dt className="font-semibold">Raster</dt>
+                <dd className="text-slate-600">
+                  Pixel-based image (PNG, JPEG). Resolution dependent.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Vector</dt>
+                <dd className="text-slate-600">
+                  Math-based shapes (paths). Scales cleanly to any size.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Potrace</dt>
+                <dd className="text-slate-600">
+                  The tracer that converts bitmap edges into vector paths.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Threshold</dt>
+                <dd className="text-slate-600">
+                  The cutoff for what becomes “ink” in the trace.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Turn Policy</dt>
+                <dd className="text-slate-600">
+                  A rule for how corners and ambiguous pixels get traced.
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">viewBox</dt>
+                <dd className="text-slate-600">
+                  Defines the coordinate system; makes SVG scale responsively.
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </article>
+      </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: "i🩵SVG Converter",
+            description:
+              "Convert PNG and JPEG images to crisp, clean vector SVG files online. Supports presets, lineart, logos, scans, comics, photo edge extraction, and batch conversion.",
+            mainEntity: [
+              {
+                "@type": "HowTo",
+                name: "How to Convert PNG or JPEG to SVG",
+                description:
+                  "Step-by-step instructions for using the i🩵SVG converter to create editable vector graphics.",
+                step: [
+                  {
+                    "@type": "HowToStep",
+                    text: "Upload a PNG or JPEG image up to 500 MB or 80 megapixels.",
+                  },
+                  {
+                    "@type": "HowToStep",
+                    text: "Choose a preset (Lineart, Logo, Scan Cleanup, Photo Edge, etc.).",
+                  },
+                  {
+                    "@type": "HowToStep",
+                    text: "Adjust settings like threshold, turd size, curve tolerance, and turn policy.",
+                  },
+                  {
+                    "@type": "HowToStep",
+                    text: "Set line color and choose transparent or solid background.",
+                  },
+                  {
+                    "@type": "HowToStep",
+                    text: "Preview the SVG instantly, then download or copy it for your project.",
+                  },
+                ],
+              },
+              {
+                "@type": "FAQPage",
+                mainEntity: [
+                  {
+                    "@type": "Question",
+                    name: "What is SVG and why convert to it?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "SVG is a resolution-independent vector format that stays sharp at any size. It is lightweight, editable, and ideal for logos, icons, diagrams, comics, and scalable graphics.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "Can this handle photos?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Yes. Photo Edge presets preprocess your image with blur and edge detection to extract clear contours and stylized line art from photos or paintings.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "Is color supported?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Yes, you can pick any single line color or background color. For multi-color effects, process multiple times or use batch workflows.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "Do you support batch conversion?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Yes. While this interface is for single images with live preview, batch conversion tools are available elsewhere on the site to process multiple files at once.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "Will my SVG be editable?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Yes, the output is standards-compliant SVG. Paths can be opened in design tools, recolored, optimized, and animated with CSS or JavaScript.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "What file limits apply?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Uploads are limited to PNG and JPEG, up to 500 MB per file, with a maximum of 12,000 pixels per side (around 80 megapixels).",
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        }}
+      />
+    </section>
+  );
 }
