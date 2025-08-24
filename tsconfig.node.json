@@ -1,13 +1,14 @@
 {
-  "extends": "./tsconfig.json",
-  "include": ["server.js", "vite.config.ts"],
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.vite.json" }
+  ],
   "compilerOptions": {
-    "composite": true,
+    "checkJs": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
     "strict": true,
-    "types": ["node"],
-    "lib": ["ES2022"],
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler"
+    "noEmit": true
   }
 }
