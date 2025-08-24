@@ -14,9 +14,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  Potrace (server, in-memory, live preview)";
+  const title =
+    "i🩵SVG  -  Potrace (server, in-memory, live preview, client auto-compress)";
   const description =
-    "A free, all in one SVG editor, processor, and converter. Convert PNG/JEPG images to SVG, SVG to PNG or JPEG images. Batch processing supported.";
+    "Convert PNG/JPEG to SVG with live preview. Auto-compress large files on-device to 25 MB for instant preview. Server concurrency-gated. Batch supported.";
   return [
     { title },
     { name: "description", content: description },
@@ -35,22 +36,96 @@ export function loader({ context }: Route.LoaderArgs) {
 /* ========================
    Limits & types (mirrored client/server)
 ======================== */
-const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
+const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB (hard guard)
 const MAX_MP = 80; // ~80 megapixels
 const MAX_SIDE = 12_000; // max width or height in pixels
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
 // -------- Live preview tiers (client) --------
-// ≤5MB: fast,  5–10MB: medium,  >10MB: high throttle (still live)
-const LIVE_FAST_MAX = 5 * 1024 * 1024;
-const LIVE_MED_MAX = 10 * 1024 * 1024;
+// ≤10MB: fast,  10–25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
+const LIVE_FAST_MAX = 10 * 1024 * 1024;
+const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
-const LIVE_MED_MS = 1400;
-const LIVE_HIGH_MS = 3800;
+const LIVE_MED_MS = 1500;
+
+// -------- Concurrency gate (server) --------
+type ReleaseFn = () => void;
+type Gate = {
+  acquireOrQueue: () => Promise<ReleaseFn>;
+  running: number;
+  queued: number;
+};
+async function getGate(): Promise<Gate> {
+  const g = globalThis as any;
+  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+
+  const { createRequire } = await import("node:module");
+  const req = createRequire(import.meta.url);
+  let cpuCount = 1;
+  try {
+    const os = req("os") as typeof import("os");
+    cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
+  } catch {}
+  const MAX = Math.max(1, Math.min(2, cpuCount)); // N=1 on 1 vCPU; N=2 on 2+ vCPU
+  const QUEUE_MAX = 32; // small fairness queue
+  const EST_JOB_MS = 2000; // rough estimate used to compute Retry-After
+
+  class SimpleGate implements Gate {
+    max: number;
+    queueMax: number;
+    running = 0;
+    queue: Array<(r: ReleaseFn) => void> = [];
+    constructor(max: number, queueMax: number) {
+      this.max = max;
+      this.queueMax = queueMax;
+    }
+    get queued() {
+      return this.queue.length;
+    }
+    private mkRelease(): ReleaseFn {
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        this.running = Math.max(0, this.running - 1);
+        const next = this.queue.shift();
+        if (next) {
+          this.running++;
+          next(this.mkRelease());
+        }
+      };
+    }
+    estimateRetryMs() {
+      const waves = Math.ceil((this.queued + 1) / this.max);
+      return Math.min(15000, Math.max(1000, waves * EST_JOB_MS));
+    }
+    acquireOrQueue(): Promise<ReleaseFn> {
+      return new Promise((resolve, reject) => {
+        if (this.running < this.max) {
+          this.running++;
+          resolve(this.mkRelease());
+          return;
+        }
+        if (this.queue.length >= this.queueMax) {
+          const err: any = new Error("Server busy");
+          err.code = "BUSY";
+          err.retryAfterMs = this.estimateRetryMs();
+          reject(err);
+          return;
+        }
+        this.queue.push((rel) => resolve(rel));
+      });
+    }
+  }
+
+  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__iheartsvg_gate as Gate;
+}
 
 /* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
+   + Concurrency gate with 429 + Retry-After when saturated
 ======================== */
 export async function action({ request }: ActionFunctionArgs) {
   try {
@@ -71,8 +146,7 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    // IMPORTANT: lift the default ~3MB part limit so 500MB files are accepted.
-    // (Still processed in RAM; adjust to a file-based handler if needed.)
+    // Lift default part limit to our hard max (500MB)
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
@@ -134,97 +208,130 @@ export async function action({ request }: ActionFunctionArgs) {
       // If sharp metadata fails here, continue — Potrace may still handle small files.
     }
 
-    // Potrace params
-    const threshold = Number(form.get("threshold") ?? 224);
-    const turdSize = Number(form.get("turdSize") ?? 2);
-    const optTolerance = Number(form.get("optTolerance") ?? 0.28);
-    const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
-      | "black"
-      | "white"
-      | "left"
-      | "right"
-      | "minority"
-      | "majority";
-    const lineColor = String(form.get("lineColor") ?? "#000000");
-    const invert =
-      String(form.get("invert") ?? "false").toLowerCase() === "true";
+    // ----- Acquire concurrency slot (gate heavy work only) -----
+    const gate = await getGate();
+    let release: ReleaseFn | null = null;
+    try {
+      release = await gate.acquireOrQueue();
+    } catch (e: any) {
+      const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
+      return json(
+        {
+          error:
+            "Server is busy converting other images. We'll retry automatically.",
+          retryAfterMs,
+          code: "BUSY",
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil(retryAfterMs / 1000)),
+          },
+        }
+      );
+    }
 
-    // Background
-    const transparent =
-      String(form.get("transparent") ?? "true").toLowerCase() === "true";
-    const bgColor = String(form.get("bgColor") ?? "#ffffff");
+    try {
+      // Potrace params
+      const threshold = Number(form.get("threshold") ?? 224);
+      const turdSize = Number(form.get("turdSize") ?? 2);
+      const optTolerance = Number(form.get("optTolerance") ?? 0.28);
+      const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
+        | "black"
+        | "white"
+        | "left"
+        | "right"
+        | "minority"
+        | "majority";
+      const lineColor = String(form.get("lineColor") ?? "#000000");
+      const invert =
+        String(form.get("invert") ?? "false").toLowerCase() === "true";
 
-    // Preprocess (for photos)
-    const preprocess = String(form.get("preprocess") ?? "none") as
-      | "none"
-      | "edge";
-    const blurSigma = Number(form.get("blurSigma") ?? 0.8);
-    const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
+      // Background
+      const transparent =
+        String(form.get("transparent") ?? "true").toLowerCase() === "true";
+      const bgColor = String(form.get("bgColor") ?? "#ffffff");
 
-    // Normalize for Potrace
-    const prepped = await normalizeForPotrace(input, {
-      preprocess,
-      blurSigma,
-      edgeBoost,
-    });
+      // Preprocess (for photos)
+      const preprocess = String(form.get("preprocess") ?? "none") as
+        | "none"
+        | "edge";
+      const blurSigma = Number(form.get("blurSigma") ?? 0.8);
+      const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
-    // Potrace (CJS API)
-    const potrace = await import("potrace");
-    const traceFn: any = (potrace as any).trace;
-    const PotraceClass: any = (potrace as any).Potrace;
+      // Normalize for Potrace
+      const prepped = await normalizeForPotrace(input, {
+        preprocess,
+        blurSigma,
+        edgeBoost,
+      });
 
-    const opts: any = {
-      color: lineColor,
-      threshold,
-      turdSize,
-      optTolerance,
-      turnPolicy,
-      invert,
-      blackOnWhite: !invert,
-    };
+      // Potrace (CJS API)
+      const potrace = await import("potrace");
+      const traceFn: any = (potrace as any).trace;
+      const PotraceClass: any = (potrace as any).Potrace;
 
-    const svgRaw: string = await new Promise((resolve, reject) => {
-      if (typeof traceFn === "function") {
-        traceFn(prepped, opts, (err: any, out: string) =>
-          err ? reject(err) : resolve(out)
-        );
-      } else if (PotraceClass) {
-        const p = new PotraceClass(opts);
-        p.loadImage(prepped, (err: any) => {
-          if (err) return reject(err);
-          p.setParameters(opts);
-          p.getSVG((err2: any, out: string) =>
-            err2 ? reject(err2) : resolve(out)
+      const opts: any = {
+        color: lineColor,
+        threshold,
+        turdSize,
+        optTolerance,
+        turnPolicy,
+        invert,
+        blackOnWhite: !invert,
+      };
+
+      const svgRaw: string = await new Promise((resolve, reject) => {
+        if (typeof traceFn === "function") {
+          traceFn(prepped, opts, (err: any, out: string) =>
+            err ? reject(err) : resolve(out)
           );
-        });
-      } else {
-        reject(new Error("potrace API not found"));
-      }
-    });
+        } else if (PotraceClass) {
+          const p = new PotraceClass(opts);
+          p.loadImage(prepped, (err: any) => {
+            if (err) return reject(err);
+            p.setParameters(opts);
+            p.getSVG((err2: any, out: string) =>
+              err2 ? reject(err2) : resolve(out)
+            );
+          });
+        } else {
+          reject(new Error("potrace API not found"));
+        }
+      });
 
-    // Post-process SVG safely (defensive)
-    const safeSvg = coerceSvg(svgRaw);
-    const ensured = ensureViewBoxResponsive(safeSvg);
-    const svg2 = recolorPaths(ensured.svg, lineColor);
-    const svg3 = stripFullWhiteBackgroundRect(
-      svg2,
-      ensured.width,
-      ensured.height
-    );
-    const finalSVG = transparent
-      ? svg3
-      : injectBackgroundRectString(
-          svg3,
-          ensured.width,
-          ensured.height,
-          bgColor
-        );
+      // Post-process SVG safely (defensive)
+      const safeSvg = coerceSvg(svgRaw);
+      const ensured = ensureViewBoxResponsive(safeSvg);
+      const svg2 = recolorPaths(ensured.svg, lineColor);
+      const svg3 = stripFullWhiteBackgroundRect(
+        svg2,
+        ensured.width,
+        ensured.height
+      );
+      const finalSVG = transparent
+        ? svg3
+        : injectBackgroundRectString(
+            svg3,
+            ensured.width,
+            ensured.height,
+            bgColor
+          );
 
-    return json({
-      svg: finalSVG,
-      width: ensured.width,
-      height: ensured.height,
-    });
+      return json({
+        svg: finalSVG,
+        width: ensured.width,
+        height: ensured.height,
+        gate: {
+          running: gate.running,
+          queued: gate.queued,
+        },
+      });
+    } finally {
+      try {
+        release?.();
+      } catch {}
+    }
   } catch (err: any) {
     return json(
       { error: err?.message || "Server error during conversion." },
@@ -755,6 +862,9 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  retryAfterMs?: number;
+  code?: string;
+  gate?: { running: number; queued: number };
 };
 
 type HistoryItem = {
@@ -765,36 +875,36 @@ type HistoryItem = {
 };
 
 // ---- tiering helpers (client) ----
-type AutoMode = "fast" | "medium" | "high" | "off";
+type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
   if (bytes == null) return "off";
-  if (bytes < LIVE_FAST_MAX) return "fast";
+  if (bytes <= LIVE_FAST_MAX) return "fast";
   if (bytes <= LIVE_MED_MAX) return "medium";
-  return "high"; // >10MB: still live, but heavily throttled
+  return "off";
 }
 function autoModeHint(mode: AutoMode): string {
-  if (mode === "high")
-    return "Live preview is heavily throttled for files over 10 MB.";
-  if (mode === "medium") return "Live preview is throttled for 5–10 MB files.";
+  if (mode === "medium") return "Live preview is throttled for 10–25 MB files.";
   return "";
 }
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "high")
-    return "File is large; conversions may take a little longer.";
   if (mode === "medium")
-    return "File is midsize; updates run less frequently to keep things smooth.";
+    return "Large file; updates run less frequently to keep things smooth.";
   return "";
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
+  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
+    null
+  );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>("line-accurate");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
+  const [info, setInfo] = React.useState<string | null>(null);
 
   // client-side measured dims
   const [dims, setDims] = React.useState<{
@@ -814,8 +924,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
   React.useEffect(() => {
-    if (fetcher.data?.error) setErr(fetcher.data.error);
-    else setErr(null);
+    if (fetcher.data?.error) {
+      setErr(fetcher.data.error);
+    } else setErr(null);
+
+    // If server replied 429 with retryAfterMs, auto-reschedule
+    if (fetcher.data?.retryAfterMs) {
+      const ms = Math.max(800, fetcher.data.retryAfterMs);
+      setInfo(
+        `Server busy… retrying automatically in ${(ms / 1000).toFixed(1)}s`
+      );
+      const t = setTimeout(() => {
+        if (file) submitConvert(); // retry
+      }, ms);
+      return () => clearTimeout(t);
+    } else {
+      setInfo(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.data]);
 
   // When a new server SVG arrives, push to history
@@ -837,9 +963,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
   }, [previewUrl]);
 
-  async function measureAndSet(file: File) {
+  async function measureAndSet(f: File) {
     try {
-      const { w, h } = await getImageSize(file);
+      const { w, h } = await getImageSize(f);
       const mp = (w * h) / 1_000_000;
       setDims({ w, h, mp });
     } catch {
@@ -847,38 +973,57 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
   }
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setErr("Please choose a PNG or JPEG.");
-      return;
-    }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
-    setAutoMode(getAutoMode(f.size)); // set tier
-    setErr(null);
-    setDims(null);
-    measureAndSet(f);
+    await handleNewFile(f);
     e.currentTarget.value = "";
   }
-  function onDrop(e: React.DragEvent) {
+  async function onDrop(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
+    await handleNewFile(f);
+  }
+
+  async function handleNewFile(f: File) {
     if (!f.type.startsWith("image/")) {
       setErr("Please choose a PNG or JPEG.");
       return;
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
-    setAutoMode(getAutoMode(f.size)); // set tier
     setErr(null);
+    setInfo(null);
     setDims(null);
-    measureAndSet(f);
+    setOriginalFileSize(f.size);
+
+    // Try to auto-compress to ≤25MB if needed
+    let chosen = f;
+    if (f.size > LIVE_MED_MAX) {
+      setInfo("Large file detected — compressing on your device for preview…");
+      try {
+        const shrunk = await compressToTarget25MB(f);
+        chosen = shrunk;
+        setInfo(
+          `Compressed on-device to ${prettyBytes(
+            shrunk.size
+          )} for faster preview.`
+        );
+      } catch (e: any) {
+        setErr(
+          e?.message ||
+            "Could not compress below 25 MB. Please resize the image and try again."
+        );
+        // Still set preview for UX; but live reload will be off
+      }
+    }
+
+    setFile(chosen);
+    setAutoMode(getAutoMode(chosen.size)); // set tier
+    const url = URL.createObjectURL(chosen);
+    setPreviewUrl(url);
+    await measureAndSet(chosen);
   }
 
   async function submitConvert() {
@@ -918,21 +1063,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  // ---- Tiered live preview (≤10MB active; >10MB heavily throttled) ----
+  // ---- Tiered live preview (always live for allowed sizes; throttled >10MB) ----
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => {
     if (!file) return;
 
     const mode = autoMode;
-    if (mode === "off") return; // no file yet
+    if (mode === "off") return; // file >25MB and not compressible — no auto submit
 
-    const delay =
-      mode === "fast"
-        ? LIVE_FAST_MS
-        : mode === "medium"
-          ? LIVE_MED_MS
-          : LIVE_HIGH_MS;
-
+    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       submitConvert();
@@ -1001,8 +1140,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <span className="text-[#0b2dff]">SVG</span>
             </h1>
             <p className="mt-1 text-slate-600">
-              Convert your png, jpeg, and other image files into crisp vector
-              graphics and illustrations.
+              Convert your PNG/JPEG images into crisp vector graphics with live
+              preview. Large files auto-compress on your device up to 25 MB.
             </p>
           </header>
 
@@ -1032,8 +1171,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               {/* Limits helper */}
               <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>500 MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b>{" "}
-                max side.
+                Limits: <b>500 MB</b> • <b>{MAX_MP} MP</b> •{" "}
+                <b>{MAX_SIDE}px longest side</b> each max.
+              </div>
+              <div className="text-sky-700 mb-2 text-center text-sm">
+                Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 25 MB
+                are auto-compressed on-device (if possible).
               </div>
 
               {/* Dropzone */}
@@ -1070,6 +1213,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       )}
                       <span title={file?.name || ""} className="truncate">
                         {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize &&
+                          originalFileSize > file.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
                     <button
@@ -1081,6 +1227,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setAutoMode("off");
                         setDims(null);
                         setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -1291,6 +1439,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
 
                 {err && <span className="text-red-700 text-sm">{err}</span>}
+                {!err && info && (
+                  <span className="text-[13px] text-slate-600">{info}</span>
+                )}
               </div>
 
               {/* Input preview below controls */}
@@ -1393,7 +1544,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
-/* ===== Client-side helpers (dimension precheck) ===== */
+/* ===== Client-side helpers (dimension precheck + compression ≤25MB) ===== */
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
@@ -1422,9 +1573,102 @@ async function validateBeforeSubmit(file: File) {
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). ` +
-        `Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`
+      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`
     );
+  }
+}
+
+/** Compress to ≤25MB (best effort). Converts PNG→JPEG if necessary for size.
+ *  Strategy: try JPEG quality steps; if still large, progressively scale down. */
+async function compressToTarget25MB(file: File): Promise<File> {
+  const TARGET = LIVE_MED_MAX; // 25MB
+  if (file.size <= TARGET) return file;
+  if (!file.type.startsWith("image/"))
+    throw new Error("Unsupported file type for compression.");
+
+  const img =
+    "createImageBitmap" in window
+      ? await createImageBitmap(file)
+      : await loadImageElement(file);
+
+  // Start with original dims; scale down gradually as needed
+  let w = img.width;
+  let h = img.height;
+
+  // Helper to encode current canvas as JPEG with provided quality
+  const encode = async (quality: number): Promise<Blob> => {
+    const canvas =
+      "OffscreenCanvas" in window
+        ? new OffscreenCanvas(w, h)
+        : (document.createElement("canvas") as HTMLCanvasElement);
+    if (!(canvas as any).getContext) throw new Error("Canvas unsupported.");
+    (canvas as any).width = w;
+    (canvas as any).height = h;
+    const ctx = (canvas as any).getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D unsupported.");
+    ctx.drawImage(img as any, 0, 0, w, h);
+
+    const mime = "image/jpeg";
+    const blob: Blob = await new Promise((res, rej) => {
+      if ("convertToBlob" in (canvas as any)) {
+        // OffscreenCanvas path
+        (canvas as any)
+          .convertToBlob({ type: mime, quality })
+          .then(res)
+          .catch(rej);
+      } else {
+        (canvas as HTMLCanvasElement).toBlob(
+          (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
+          mime,
+          quality
+        );
+      }
+    });
+    return blob;
+  };
+
+  // Heuristic: first try quality-only reductions, then scale down by 85% steps
+  const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
+  for (const q of qualities) {
+    const b = await encode(q);
+    if (b.size <= TARGET) {
+      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+    }
+  }
+
+  // Still too large → scale down progressively + mid quality
+  let scale = 0.9;
+  while (w > 64 && h > 64) {
+    w = Math.max(64, Math.floor(w * scale));
+    h = Math.max(64, Math.floor(h * scale));
+    const b = await encode(0.75);
+    if (b.size <= TARGET) {
+      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+    }
+    // tighten both quality and scale over time
+    scale = Math.max(0.5, scale - 0.07);
+  }
+
+  throw new Error(
+    "This image cannot be reduced below 25 MB without excessive degradation."
+  );
+}
+
+function renameToJpeg(name: string) {
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  return `${base}.jpg`;
+}
+
+async function loadImageElement(file: File): Promise<HTMLImageElement> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -1489,20 +1733,6 @@ function SiteHeader() {
         <a href="/" className="font-extrabold tracking-tight text-slate-900">
           i<span className="text-sky-600">🩵</span>SVG
         </a>
-        <nav className="text-sm text-slate-600">
-          <a
-            href="#"
-            className="px-2 py-1 rounded hover:bg-slate-100 transition-colors"
-          >
-            Docs
-          </a>
-          <a
-            href="#"
-            className="px-2 py-1 rounded hover:bg-slate-100 transition-colors"
-          >
-            GitHub
-          </a>
-        </nav>
       </div>
     </div>
   );
@@ -1540,10 +1770,12 @@ function SeoSections() {
             a high-quality raster-to-vector converter powered by Potrace, tuned
             for logos, line art, scans, whiteboards, comics, diagrams, and even
             photo-style edge extraction. Files are processed in memory and
-            returned immediately as clean, scalable <strong>SVG</strong> you can
-            edit, recolor, and embed in design tools or code. Elsewhere on the
-            site, we also support
-            <strong> batch conversion</strong> for larger workflows.
+            returned as clean, scalable <strong>SVG</strong> you can edit,
+            recolor, and embed anywhere. Live preview stays snappy with
+            <strong> fast updates ≤10&nbsp;MB</strong> and{" "}
+            <strong>throttled updates to 25&nbsp;MB</strong>. Larger files are
+            auto-compressed on your device (if possible) to reach the 25&nbsp;MB
+            live threshold.
           </p>
 
           {/* HowTo */}
@@ -1565,8 +1797,8 @@ function SeoSections() {
                   itemProp="itemListElement"
                   className="text-sm text-slate-600"
                 >
-                  For best results, start with a sharp image; avoid heavy
-                  compression artifacts.
+                  Large files are auto-compressed on-device for faster preview
+                  up to 25&nbsp;MB.
                 </div>
               </li>
               <li itemScope itemType="https://schema.org/HowToStep">
@@ -1590,32 +1822,19 @@ function SeoSections() {
                   itemProp="itemListElement"
                   className="text-sm text-slate-600"
                 >
-                  Use the live preview to fine-tune detail vs. smoothness.
+                  The live preview updates automatically; heavier images update
+                  a bit less frequently.
                 </div>
               </li>
               <li itemScope itemType="https://schema.org/HowToStep">
                 <span itemProp="name">
                   <strong>Pick line color and background</strong>.
                 </span>
-                <div
-                  itemProp="itemListElement"
-                  className="text-sm text-slate-600"
-                >
-                  Transparent background is ideal for overlays; set a color if
-                  you need a solid canvas.
-                </div>
               </li>
               <li itemScope itemType="https://schema.org/HowToStep">
                 <span itemProp="name">
                   <strong>Download or copy the SVG</strong>.
                 </span>
-                <div
-                  itemProp="itemListElement"
-                  className="text-sm text-slate-600"
-                >
-                  SVG scales to any size without quality loss and remains
-                  editable.
-                </div>
               </li>
             </ol>
           </section>
@@ -1636,99 +1855,53 @@ function SeoSections() {
                     photos/paintings to capture outlines.
                   </li>
                 </ul>
-                <p className="text-sm text-slate-600 mt-1">
-                  Edge mode respects EXIF rotation, flattens alpha, converts to
-                  grayscale, and boosts contours.
-                </p>
               </div>
               <div>
                 <h4 className="m-0">Threshold</h4>
                 <p className="mt-2">
                   Controls what counts as “ink.” Higher values include lighter
-                  areas (more fill); lower values include only darker strokes
-                  (less fill).
+                  areas; lower values include only darker strokes.
                 </p>
               </div>
               <div>
                 <h4 className="m-0">Curve Tolerance</h4>
                 <p className="mt-2">
-                  Adjusts path smoothing. Lower tolerance preserves tiny
-                  wiggles; higher tolerance simplifies curves for smaller,
-                  cleaner SVGs.
+                  Lower = more detail; higher = smoother, smaller SVGs.
                 </p>
               </div>
               <div>
                 <h4 className="m-0">Turd Size</h4>
                 <p className="mt-2">
-                  Removes tiny specks. Increase this to drop dust, scanner
-                  noise, or stray dots from the result.
+                  Removes tiny specks and scanner dust from the result.
                 </p>
               </div>
               <div>
                 <h4 className="m-0">Turn Policy</h4>
                 <p className="mt-2">
-                  Guides how ambiguous corners are traced (<em>minority</em>,{" "}
-                  <em>majority</em>, <em>black</em>,<em> white</em>,{" "}
-                  <em>left</em>, <em>right</em>). It can help close gaps or
-                  emphasize certain edges.
+                  Guides how ambiguous corners are traced (minority/majority,
+                  black/white, left/right).
                 </p>
               </div>
               <div>
                 <h4 className="m-0">Line Color &amp; Invert</h4>
                 <p className="mt-2">
-                  Choose any output color for the vector paths. Invert flips
-                  light/dark, useful for “white ink on black” looks or
-                  blueprint-style presets.
+                  Pick any output color; invert for white ink.
                 </p>
               </div>
               <div>
                 <h4 className="m-0">Background</h4>
                 <p className="mt-2">
-                  Keep <strong>Transparent</strong> for overlays and web use, or
-                  inject a solid background color for exports that need a
-                  visible canvas.
+                  Keep transparent or inject a solid color.
                 </p>
               </div>
               <div>
                 <h4 className="m-0">Edge Boost &amp; Blur σ</h4>
                 <p className="mt-2">
-                  In edge mode, a small blur reduces sensor noise; edge boost
-                  amplifies contours before tracing. Tweak these together to
-                  balance detail and cleanliness.
+                  In edge mode, small blur reduces noise; Edge Boost amplifies
+                  contours before tracing.
                 </p>
               </div>
             </div>
-          </section>
-
-          {/* Use cases & presets */}
-          <section className="mt-10">
-            <h3 className="m-0">Popular Use Cases &amp; Presets</h3>
-            <ul className="mt-3 grid md:grid-cols-2 gap-2">
-              <li>
-                <strong>Logos</strong>: “Logo – Clean shapes” or “Logo – Thin
-                details.”
-              </li>
-              <li>
-                <strong>Scanned drawings</strong>: “Scan – Clean” to remove
-                speckles.
-              </li>
-              <li>
-                <strong>Comics/inks</strong>: “Comics – Inks” for chunky
-                outlines.
-              </li>
-              <li>
-                <strong>Whiteboards</strong>: “Whiteboard – Anti-glare” to even
-                out glare and smudges.
-              </li>
-              <li>
-                <strong>Photos/paintings</strong>: “Photo Edge” presets to
-                extract linework silhouettes.
-              </li>
-              <li>
-                <strong>Blueprint/diagram look</strong>: “Diagram – Blueprint”
-                (invert + colorized lines).
-              </li>
-            </ul>
           </section>
 
           {/* Performance & limits */}
@@ -1736,19 +1909,24 @@ function SeoSections() {
             <h3 className="m-0">Performance, Limits, and File Handling</h3>
             <ul className="mt-3">
               <li>
-                <strong>Max file size</strong>: 500 MB per image.
+                <strong>Max file size</strong>: 500&nbsp;MB per image.
               </li>
               <li>
-                <strong>Resolution guard</strong>: Up to ~80 megapixels or
-                12,000 px on the longest side.
+                <strong>Resolution guard</strong>: Up to ~80&nbsp;MP or
+                12,000&nbsp;px per side.
               </li>
               <li>
-                <strong>In-memory processing</strong>: Uploads are handled in
-                RAM and returned as SVG.
+                <strong>Live preview tiers</strong>: fast ≤10&nbsp;MB, throttled
+                ≤25&nbsp;MB. Larger files auto-compress on-device when possible.
+              </li>
+              <li>
+                <strong>Server concurrency gate</strong>: Only a few conversions
+                run at once. When busy, responses include <code>429</code> with
+                <code>Retry-After</code> so the client retries smoothly.
               </li>
               <li>
                 <strong>Batch conversion</strong>: Supported elsewhere on the
-                site for larger workflows and folders.
+                site for larger workflows.
               </li>
             </ul>
           </section>
@@ -1762,221 +1940,24 @@ function SeoSections() {
                 unused borders.
               </li>
               <li>
-                <strong>“Could not read image dimensions”</strong>: Re-export as
-                PNG or JPEG and retry.
+                <strong>Over 25&nbsp;MB</strong>: We try to compress locally. If
+                that fails, please resize and re-upload.
               </li>
               <li>
-                <strong>Blank or very light result</strong>: Lower{" "}
-                <em>Threshold</em> or disable <em>Invert</em>.
+                <strong>429 “Server busy”</strong>: We’re protecting stability.
+                The app will retry automatically after the suggested delay.
               </li>
               <li>
-                <strong>Jagged edges</strong>: Increase <em>Curve Tolerance</em>{" "}
+                <strong>Blank or light result</strong>: Lower Threshold or
+                disable Invert.
+              </li>
+              <li>
+                <strong>Jagged edges</strong>: Increase Curve Tolerance
                 slightly.
               </li>
               <li>
-                <strong>Too many dots</strong>: Raise <em>Turd Size</em> or try
-                a “Scan – Clean” preset.
-              </li>
-              <li>
-                <strong>Missing fine lines</strong>: Lower <em>Turd Size</em>,
-                lower <em>Curve Tolerance</em>, or increase <em>Threshold</em>.
-              </li>
-            </ul>
-          </section>
-
-          <section
-            id="why-use-svg-converter"
-            className="prose prose-slate max-w-none mt-10"
-          >
-            <h2>Why Use an Online SVG Converter?</h2>
-            <p>
-              SVG (Scalable Vector Graphics) is a vector format that stays sharp
-              at any size and can be styled or animated with code. Converting
-              PNG or JPEG into SVG improves clarity, flexibility, and long-term
-              editability for logos, icons, line art, and diagrams.
-            </p>
-            <ul>
-              <li>
-                <strong>Resolution-independent:</strong> vectors scale cleanly
-                for web, print, and high-DPI screens.
-              </li>
-              <li>
-                <strong>Editable:</strong> paths and groups can be customized in
-                design tools or by hand.
-              </li>
-              <li>
-                <strong>Performance-minded:</strong> often smaller than large
-                rasters and can be inlined.
-              </li>
-              <li>
-                <strong>Accessible &amp; scriptable:</strong> manipulable via
-                CSS/JS for modern interfaces.
-              </li>
-            </ul>
-          </section>
-
-          {/* STEP-BY-STEP */}
-          <section
-            id="step-by-step"
-            className="prose prose-slate max-w-none mt-10"
-          >
-            <h2>Step-by-Step: Convert PNG or JPEG to SVG</h2>
-            <ol>
-              <li>
-                <strong>Upload your image:</strong> drag, drop, or pick a
-                PNG/JPEG.
-              </li>
-              <li>
-                <strong>Choose a preset:</strong> Lineart, Logo, Scan Cleanup,
-                or Photo Edge.
-              </li>
-              <li>
-                <strong>Tune quality:</strong> adjust Threshold, Turd Size, and
-                Curve Tolerance.
-              </li>
-              <li>
-                <strong>Pick line color &amp; background:</strong> keep it
-                transparent or set a color fill.
-              </li>
-              <li>
-                <strong>Preview live:</strong> the SVG updates in real time to
-                reflect your settings.
-              </li>
-              <li>
-                <strong>Download SVG:</strong> save clean vector output to use
-                anywhere.
-              </li>
-            </ol>
-            <p>
-              This tool creates crisp vector paths that are easy to edit,
-              export, and reuse across web, apps, and print. For large
-              workloads, batch conversion is also available elsewhere on the
-              site.
-            </p>
-          </section>
-
-          {/* ADVANCED SETTINGS */}
-          <section
-            id="advanced-settings"
-            className="prose prose-slate max-w-none mt-10"
-          >
-            <h2>Advanced Settings Explained</h2>
-            <h3>Threshold</h3>
-            <p>
-              Controls which pixels become “ink” in the final vector. Lower
-              values capture darker areas only; higher values include lighter
-              details. Useful for photos, pencil drawings, and faint scans.
-            </p>
-            <h3>Turd Size</h3>
-            <p>
-              Removes tiny specks produced by noise or dust in scans. Increase
-              to clean up artifacts; decrease to preserve micro-details in
-              intricate drawings.
-            </p>
-            <h3>Curve Tolerance</h3>
-            <p>
-              Sets how closely the SVG curves follow the original edges. Lower
-              values capture more detail and sharp corners; higher values
-              simplify shapes for smoother, lighter paths.
-            </p>
-            <h3>Turn Policy</h3>
-            <p>
-              Determines how ambiguous turns are resolved when tracing edges.
-              Helpful for handwriting, logos with gaps, or overlapping strokes.
-            </p>
-            <h3>Edge Preprocessing (Photos)</h3>
-            <p>
-              When enabled, the image is softened (Blur Sigma) and edge contrast
-              is emphasized (Edge Boost) to extract clean contours from photos,
-              paintings, and noisy captures.
-            </p>
-          </section>
-
-          {/* USE CASES */}
-          <section id="who-uses" className="prose prose-slate max-w-none mt-10">
-            <h2>Who Uses This SVG Converter?</h2>
-            <ul>
-              <li>
-                <strong>Designers &amp; illustrators:</strong> convert sketches,
-                line art, and logos into flexible vectors.
-              </li>
-              <li>
-                <strong>Web developers:</strong> ship responsive icons,
-                diagrams, and UI graphics that scale.
-              </li>
-              <li>
-                <strong>Teachers &amp; students:</strong> turn whiteboards and
-                notes into clean, shareable SVG.
-              </li>
-              <li>
-                <strong>Makers &amp; print shops:</strong> prep files for laser
-                cutting, vinyl, embroidery, and signage.
-              </li>
-            </ul>
-          </section>
-
-          {/* LIMITS */}
-          <section
-            id="supported-files"
-            className="prose prose-slate max-w-none mt-10"
-          >
-            <h2>Supported File Types &amp; Limits</h2>
-            <ul>
-              <li>
-                <strong>Formats:</strong> PNG and JPEG
-              </li>
-              <li>
-                <strong>Max size:</strong> 500&nbsp;MB per image
-              </li>
-              <li>
-                <strong>Max dimensions:</strong> 12,000&nbsp;px per side (up to
-                ~80&nbsp;MP)
-              </li>
-              <li>
-                <strong>Output:</strong> standards-compliant SVG optimized for
-                crisp lines and curves
-              </li>
-            </ul>
-          </section>
-
-          {/* BATCH */}
-          <section
-            id="batch-conversion"
-            className="prose prose-slate max-w-none mt-10"
-          >
-            <h2>Batch SVG Conversion</h2>
-            <p>
-              This interface focuses on single-file conversion with instant
-              preview. For larger workflows, batch tools on this site can
-              convert entire folders of PNG or JPEG files into SVG using the
-              same presets and quality options. It’s ideal for logo libraries,
-              diagram sets, and high-volume asset pipelines.
-            </p>
-          </section>
-
-          {/* TIPS */}
-          <section id="pro-tips" className="prose prose-slate max-w-none mt-10">
-            <h2>Pro Tips for Best Results</h2>
-            <ul>
-              <li>
-                Start with a clear source image. High contrast produces cleaner
-                vectors.
-              </li>
-              <li>
-                Use <em>Scan Cleanup</em> or raise <em>Turd Size</em> to remove
-                speckles from paper scans.
-              </li>
-              <li>
-                Lower <em>Curve Tolerance</em> for technical drawings; raise it
-                for smooth, stylized art.
-              </li>
-              <li>
-                Try <em>Photo Edge</em> presets when converting portraits or
-                paintings to illustrative line art.
-              </li>
-              <li>
-                Keep backgrounds transparent for UI assets; add a background
-                color for print previews.
+                <strong>Too many dots</strong>: Raise Turd Size or try “Scan –
+                Clean”.
               </li>
             </ul>
           </section>
@@ -1992,7 +1973,7 @@ function SeoSections() {
             <div className="mt-3 grid gap-4">
               <article itemScope itemType="https://schema.org/Question">
                 <h4 itemProp="name" className="m-0">
-                  What is SVG and why convert to it?
+                  What file limits apply?
                 </h4>
                 <p
                   itemScope
@@ -2001,9 +1982,48 @@ function SeoSections() {
                   className="mt-2"
                 >
                   <span itemProp="text">
-                    SVG is a resolution-independent vector format. It stays
-                    sharp at any size, is editable in design tools and code, and
-                    compresses efficiently for the web.
+                    PNG/JPEG up to 500&nbsp;MB, 12,000&nbsp;px per side (about
+                    80&nbsp;MP). Live preview is fastest ≤10&nbsp;MB and
+                    throttled up to 25&nbsp;MB. Above 25&nbsp;MB, we try to
+                    compress on-device.
+                  </span>
+                </p>
+              </article>
+
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  What happens with files over 25&nbsp;MB?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    The app attempts an on-device compression (PNG may be
+                    converted to JPEG) to reach ≤25&nbsp;MB for live preview. If
+                    that’s not possible without excessive degradation, you’ll be
+                    asked to resize and re-upload.
+                  </span>
+                </p>
+              </article>
+
+              <article itemScope itemType="https://schema.org/Question">
+                <h4 itemProp="name" className="m-0">
+                  Why do I see “Server busy” with Retry-After?
+                </h4>
+                <p
+                  itemScope
+                  itemType="https://schema.org/Answer"
+                  itemProp="acceptedAnswer"
+                  className="mt-2"
+                >
+                  <span itemProp="text">
+                    We limit concurrent conversions based on CPU to keep the
+                    site fast for everyone. When the queue is full, the server
+                    returns 429 with a Retry-After hint; the app respects it and
+                    retries automatically.
                   </span>
                 </p>
               </article>
@@ -2019,107 +2039,12 @@ function SeoSections() {
                   className="mt-2"
                 >
                   <span itemProp="text">
-                    Yes-use the Photo Edge presets. They extract major contours
-                    to create stylized linework from images.
-                  </span>
-                </p>
-              </article>
-
-              <article itemScope itemType="https://schema.org/Question">
-                <h4 itemProp="name" className="m-0">
-                  Is color supported?
-                </h4>
-                <p
-                  itemScope
-                  itemType="https://schema.org/Answer"
-                  itemProp="acceptedAnswer"
-                  className="mt-2"
-                >
-                  <span itemProp="text">
-                    Output paths can be any single color. For multi-color
-                    posterization, convert per color region or use advanced
-                    workflows elsewhere on the site.
-                  </span>
-                </p>
-              </article>
-
-              <article itemScope itemType="https://schema.org/Question">
-                <h4 itemProp="name" className="m-0">
-                  Do you support batch conversion?
-                </h4>
-                <p
-                  itemScope
-                  itemType="https://schema.org/Answer"
-                  itemProp="acceptedAnswer"
-                  className="mt-2"
-                >
-                  <span itemProp="text">
-                    Yes-batch tools are available in other areas on this site
-                    for converting multiple files at once.
-                  </span>
-                </p>
-              </article>
-
-              <article itemScope itemType="https://schema.org/Question">
-                <h4 itemProp="name" className="m-0">
-                  Will my SVG be editable?
-                </h4>
-                <p
-                  itemScope
-                  itemType="https://schema.org/Answer"
-                  itemProp="acceptedAnswer"
-                  className="mt-2"
-                >
-                  <span itemProp="text">
-                    Absolutely. The converter outputs standard paths you can
-                    edit, recolor, and optimize.
+                    Yes—use the Photo Edge presets to extract clean contours and
+                    stylized linework.
                   </span>
                 </p>
               </article>
             </div>
-          </section>
-
-          {/* Glossary */}
-          <section className="mt-10">
-            <h3 className="m-0">Glossary</h3>
-            <dl className="mt-3 grid md:grid-cols-2 gap-x-6 gap-y-2">
-              <div>
-                <dt className="font-semibold">Raster</dt>
-                <dd className="text-slate-600">
-                  Pixel-based image (PNG, JPEG). Resolution dependent.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Vector</dt>
-                <dd className="text-slate-600">
-                  Math-based shapes (paths). Scales cleanly to any size.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Potrace</dt>
-                <dd className="text-slate-600">
-                  The tracer that converts bitmap edges into vector paths.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Threshold</dt>
-                <dd className="text-slate-600">
-                  The cutoff for what becomes “ink” in the trace.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">Turn Policy</dt>
-                <dd className="text-slate-600">
-                  A rule for how corners and ambiguous pixels get traced.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold">viewBox</dt>
-                <dd className="text-slate-600">
-                  Defines the coordinate system; makes SVG scale responsively.
-                </dd>
-              </div>
-            </dl>
           </section>
         </article>
       </div>
@@ -2131,7 +2056,7 @@ function SeoSections() {
             "@type": "WebPage",
             name: "i🩵SVG Converter",
             description:
-              "Convert PNG and JPEG images to crisp, clean vector SVG files online. Supports presets, lineart, logos, scans, comics, photo edge extraction, and batch conversion.",
+              "Live PNG/JPEG→SVG converter with client-side auto-compress to 25 MB, live preview tiers, and CPU-aware concurrency.",
             mainEntity: [
               {
                 "@type": "HowTo",
@@ -2141,7 +2066,7 @@ function SeoSections() {
                 step: [
                   {
                     "@type": "HowToStep",
-                    text: "Upload a PNG or JPEG image up to 500 MB or 80 megapixels.",
+                    text: "Upload a PNG or JPEG (up to 500 MB or ~80 MP). Large files auto-compress on-device to enable live preview.",
                   },
                   {
                     "@type": "HowToStep",
@@ -2149,15 +2074,15 @@ function SeoSections() {
                   },
                   {
                     "@type": "HowToStep",
-                    text: "Adjust settings like threshold, turd size, curve tolerance, and turn policy.",
+                    text: "Adjust threshold, turd size, curve tolerance, and turn policy; live preview updates with rate limits.",
                   },
                   {
                     "@type": "HowToStep",
-                    text: "Set line color and choose transparent or solid background.",
+                    text: "Pick line color and background (transparent or solid).",
                   },
                   {
                     "@type": "HowToStep",
-                    text: "Preview the SVG instantly, then download or copy it for your project.",
+                    text: "Download or copy SVG for your project.",
                   },
                 ],
               },
@@ -2166,50 +2091,18 @@ function SeoSections() {
                 mainEntity: [
                   {
                     "@type": "Question",
-                    name: "What is SVG and why convert to it?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "SVG is a resolution-independent vector format that stays sharp at any size. It is lightweight, editable, and ideal for logos, icons, diagrams, comics, and scalable graphics.",
-                    },
-                  },
-                  {
-                    "@type": "Question",
-                    name: "Can this handle photos?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "Yes. Photo Edge presets preprocess your image with blur and edge detection to extract clear contours and stylized line art from photos or paintings.",
-                    },
-                  },
-                  {
-                    "@type": "Question",
-                    name: "Is color supported?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "Yes, you can pick any single line color or background color. For multi-color effects, process multiple times or use batch workflows.",
-                    },
-                  },
-                  {
-                    "@type": "Question",
-                    name: "Do you support batch conversion?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "Yes. While this interface is for single images with live preview, batch conversion tools are available elsewhere on the site to process multiple files at once.",
-                    },
-                  },
-                  {
-                    "@type": "Question",
-                    name: "Will my SVG be editable?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "Yes, the output is standards-compliant SVG. Paths can be opened in design tools, recolored, optimized, and animated with CSS or JavaScript.",
-                    },
-                  },
-                  {
-                    "@type": "Question",
                     name: "What file limits apply?",
                     acceptedAnswer: {
                       "@type": "Answer",
-                      text: "Uploads are limited to PNG and JPEG, up to 500 MB per file, with a maximum of 12,000 pixels per side (around 80 megapixels).",
+                      text: "PNG/JPEG up to 500 MB and 12,000 px per side (~80 MP). Live preview: fast ≤10 MB, throttled ≤25 MB; above 25 MB we attempt client-side compression.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "Why do I see 429 with Retry-After?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "The server concurrency gate may be saturated. We return 429 with a Retry-After hint and the app retries automatically.",
                     },
                   },
                 ],
