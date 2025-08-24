@@ -84,6 +84,7 @@ async function normalizeForPotrace(
         }
       }
 
+      // Restore original working local version: no extra fallback logic
       return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
         .png()
         .toBuffer();
@@ -103,7 +104,6 @@ async function normalizeForPotrace(
     return input;
   }
 }
-
 /* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
