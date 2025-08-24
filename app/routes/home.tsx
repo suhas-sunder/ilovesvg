@@ -674,7 +674,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(settings.blurSigma));
     fd.append("edgeBoost", String(settings.edgeBoost));
     setErr(null);
-    fetcher.submit(fd, { method: "POST", encType: "multipart/form-data" });
+    fetcher.submit(fd, {
+      method: "POST",
+      encType: "multipart/form-data",
+      action: window.location.pathname, // explicit
+    });
   }
 
   // Always-on live preview (debounced)
