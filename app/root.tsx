@@ -27,29 +27,19 @@ export const links: Route.LinksFunction = () => [
 export const loader: LoaderFunction = async ({ request }) => {
   if (request.method !== "GET") return null;
 
-  // Only normalize full-page HTML navigations
+  // Only normalize real page navigations
   const dest = request.headers.get("sec-fetch-dest") || "";
   const accept = request.headers.get("accept") || "";
   const isDocument = dest === "document" || accept.includes("text/html");
   if (!isDocument) return null;
 
   const url = new URL(request.url);
-  const host = url.hostname;
   const p0 = url.pathname;
 
-  // Optional: consolidate host to apex (keep or remove this block as you prefer)
-  if (host === "www.ilovesvg.com") {
-    url.hostname = "ilovesvg.com";
-    return new Response(null, {
-      status: 308,
-      headers: { Location: url.toString() },
-    });
-  }
-
-  // Never touch root
+  // Never touch the homepage
   if (p0 === "/") return null;
 
-  // Skip obvious static buckets
+  // Skip common static prefixes
   if (
     p0.startsWith("/build/") ||
     p0.startsWith("/assets/") ||
@@ -58,13 +48,11 @@ export const loader: LoaderFunction = async ({ request }) => {
     return null;
   }
 
-  // Skip file-like paths, e.g. /foo.png, /site.webmanifest
+  // Skip file-like paths (/foo.png, /site.webmanifest)
   if (/\.[a-zA-Z0-9]+$/.test(p0)) return null;
 
-  // Normalize path:
-  // 1) collapse duplicate slashes
-  // 2) remove trailing slashes
-  // 3) remove trailing dots/spaces (rare, but safe)
+  // Normalize path: collapse duplicate slashes, strip trailing slashes,
+  // strip trailing dots/spaces (very rare, but safe)
   const p1 = p0.replace(/\/{2,}/g, "/");
   const p2 = p1.replace(/\/+$/, "");
   const p3 = p2.replace(/[.\s]+$/, "");
