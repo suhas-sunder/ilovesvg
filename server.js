@@ -39,15 +39,7 @@ if (DEVELOPMENT) {
   );
   app.use(morgan("tiny"));
   app.use(express.static("build/client", { maxAge: "1h" }));
-  const mod = await import(BUILD_PATH);
-  // prefer `app`, otherwise fall back to `default`
-  const handler = typeof mod.app === "function" ? mod.app : mod.default;
-  if (typeof handler !== "function") {
-    throw new Error(
-      "Server build did not export an Express middleware (expected `app` or default)."
-    );
-  }
-  app.use(handler);
+  app.use(await import(BUILD_PATH).then((mod) => mod.app));
 }
 
 app.listen(PORT, () => {
