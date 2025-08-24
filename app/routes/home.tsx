@@ -701,7 +701,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`,
+      action: window.location.pathname, // ← use the current page, no ?index
     });
   }
 
