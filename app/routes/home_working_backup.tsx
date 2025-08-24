@@ -37,164 +37,142 @@ export function loader({ context }: Route.LoaderArgs) {
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
 export async function action({ request }: ActionFunctionArgs) {
-  try {
-    const uploadHandler = createMemoryUploadHandler();
-    const form = await parseMultipartFormData(request, uploadHandler);
+  const uploadHandler = createMemoryUploadHandler();
+  const form = await parseMultipartFormData(request, uploadHandler);
 
-    const file = form.get("file");
-    if (!file || typeof file === "string") {
-      return json({ error: "No file uploaded" }, { status: 400 });
-    }
-
-    // Read original bytes into Buffer
-    const ab = await (file as File).arrayBuffer();
-    // @ts-ignore Buffer is available in Remix node runtime
-    let input: Buffer = Buffer.from(ab);
-
-    // Potrace params
-    const threshold = Number(form.get("threshold") ?? 224);
-    const turdSize = Number(form.get("turdSize") ?? 2);
-    const optTolerance = Number(form.get("optTolerance") ?? 0.28);
-    const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
-      | "black"
-      | "white"
-      | "left"
-      | "right"
-      | "minority"
-      | "majority";
-    const lineColor = String(form.get("lineColor") ?? "#000000");
-    const invert =
-      String(form.get("invert") ?? "false").toLowerCase() === "true";
-
-    // Background
-    const transparent =
-      String(form.get("transparent") ?? "true").toLowerCase() === "true";
-    const bgColor = String(form.get("bgColor") ?? "#ffffff");
-
-    // Preprocess (for photos)
-    const preprocess = String(form.get("preprocess") ?? "none") as
-      | "none"
-      | "edge";
-    const blurSigma = Number(form.get("blurSigma") ?? 0.8);
-    const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
-
-    // Load sharp under ESM SSR via createRequire (keeps CJS as-is)
-    let sharp: any = null;
-    if (preprocess === "edge") {
-      try {
-        const { createRequire } = await import("node:module");
-        const req = createRequire(import.meta.url);
-        sharp = req("sharp");
-      } catch {
-        sharp = null; // graceful fallback
-      }
-    }
-
-    // Optional Edge pre-pass (only if sharp is available)
-    if (preprocess === "edge" && sharp) {
-      const { data, info } = await sharp(input)
-        .grayscale()
-        .blur(blurSigma > 0 ? blurSigma : undefined)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const W = info.width,
-        H = info.height;
-      const src = data as Buffer; // 1 channel grayscale
-      const out = Buffer.allocUnsafe(W * H);
-
-      // Sobel kernels
-      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-      for (let y = 1; y < H - 1; y++) {
-        for (let x = 1; x < W - 1; x++) {
-          let gx = 0,
-            gy = 0,
-            n = 0;
-          for (let j = -1; j <= 1; j++) {
-            for (let i = -1; i <= 1; i++) {
-              const v = src[(y + j) * W + (x + i)];
-              gx += v * kx[n];
-              gy += v * ky[n];
-              n++;
-            }
-          }
-          let m = Math.sqrt(gx * gx + gy * gy) * edgeBoost;
-          if (m > 255) m = 255;
-          out[y * W + x] = 255 - m; // invert so edges become dark lines
-        }
-      }
-
-      input = await sharp(out, { raw: { width: W, height: H, channels: 1 } })
-        .png()
-        .toBuffer();
-    }
-
-    // Potrace (CJS API)
-    const potrace = await import("potrace");
-    const traceFn: any = (potrace as any).trace;
-    const PotraceClass: any = (potrace as any).Potrace;
-
-    const opts: any = {
-      color: lineColor,
-      threshold,
-      turdSize,
-      optTolerance,
-      turnPolicy,
-      invert,
-      blackOnWhite: !invert,
-    };
-
-    const svgRaw: string = await new Promise((resolve, reject) => {
-      if (typeof traceFn === "function") {
-        traceFn(input, opts, (err: any, out: string) =>
-          err ? reject(err) : resolve(out)
-        );
-      } else if (PotraceClass) {
-        const p = new PotraceClass(opts);
-        p.loadImage(input, (err: any) => {
-          if (err) return reject(err);
-          p.setParameters(opts);
-          p.getSVG((err2: any, out: string) =>
-            err2 ? reject(err2) : resolve(out)
-          );
-        });
-      } else {
-        reject(new Error("potrace API not found"));
-      }
-    });
-
-    // Normalize + recolor + background (string-based, Node-safe)
-    const ensured = ensureViewBoxResponsive(svgRaw);
-    let svg2 = recolorPaths(ensured.svg, lineColor);
-    let svg3 = stripFullWhiteBackgroundRect(
-      svg2,
-      ensured.width,
-      ensured.height
-    );
-    let finalSVG = transparent
-      ? svg3
-      : injectBackgroundRectString(
-          svg3,
-          ensured.width,
-          ensured.height,
-          bgColor
-        );
-
-    // return width/height for UI
-    return json({
-      svg: finalSVG,
-      width: ensured.width,
-      height: ensured.height,
-    });
-  } catch (err: any) {
-    console.error("potrace action error:", err);
-    return json(
-      { error: err?.message || "Server error during conversion." },
-      { status: 500 }
-    );
+  const file = form.get("file");
+  if (!file || typeof file === "string") {
+    return json({ error: "No file uploaded" }, { status: 400 });
   }
+
+  // Read original bytes into Buffer
+  const ab = await (file as File).arrayBuffer();
+  // @ts-ignore Buffer is available in Remix node runtime
+  let input: Buffer = Buffer.from(ab);
+
+  // Potrace params
+  const threshold = Number(form.get("threshold") ?? 224);
+  const turdSize = Number(form.get("turdSize") ?? 2);
+  const optTolerance = Number(form.get("optTolerance") ?? 0.28);
+  const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
+    | "black"
+    | "white"
+    | "left"
+    | "right"
+    | "minority"
+    | "majority";
+  const lineColor = String(form.get("lineColor") ?? "#000000");
+  const invert = String(form.get("invert") ?? "false").toLowerCase() === "true";
+
+  // Background
+  const transparent =
+    String(form.get("transparent") ?? "true").toLowerCase() === "true";
+  const bgColor = String(form.get("bgColor") ?? "#ffffff");
+
+  // Preprocess (for photos)
+  const preprocess = String(form.get("preprocess") ?? "none") as
+    | "none"
+    | "edge";
+  const blurSigma = Number(form.get("blurSigma") ?? 0.8);
+  const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
+
+  // Load sharp under ESM SSR via createRequire (keeps CJS as-is)
+  let sharp: any = null;
+  if (preprocess === "edge") {
+    try {
+      const { createRequire } = await import("node:module");
+      const req = createRequire(import.meta.url);
+      sharp = req("sharp");
+    } catch {
+      sharp = null; // graceful fallback
+    }
+  }
+
+  // Optional Edge pre-pass (only if sharp is available)
+  if (preprocess === "edge" && sharp) {
+    const { data, info } = await sharp(input)
+      .grayscale()
+      .blur(blurSigma > 0 ? blurSigma : undefined)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const W = info.width,
+      H = info.height;
+    const src = data as Buffer; // 1 channel grayscale
+    const out = Buffer.allocUnsafe(W * H);
+
+    // Sobel kernels
+    const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        let gx = 0,
+          gy = 0,
+          n = 0;
+        for (let j = -1; j <= 1; j++) {
+          for (let i = -1; i <= 1; i++) {
+            const v = src[(y + j) * W + (x + i)];
+            gx += v * kx[n];
+            gy += v * ky[n];
+            n++;
+          }
+        }
+        let m = Math.sqrt(gx * gx + gy * gy) * edgeBoost;
+        if (m > 255) m = 255;
+        out[y * W + x] = 255 - m; // invert so edges become dark lines
+      }
+    }
+
+    input = await sharp(out, { raw: { width: W, height: H, channels: 1 } })
+      .png()
+      .toBuffer();
+  }
+
+  // Potrace (CJS API)
+  const potrace = await import("potrace");
+  const traceFn: any = (potrace as any).trace;
+  const PotraceClass: any = (potrace as any).Potrace;
+
+  const opts: any = {
+    color: lineColor,
+    threshold,
+    turdSize,
+    optTolerance,
+    turnPolicy,
+    invert,
+    blackOnWhite: !invert,
+  };
+
+  const svgRaw: string = await new Promise((resolve, reject) => {
+    if (typeof traceFn === "function") {
+      traceFn(input, opts, (err: any, out: string) =>
+        err ? reject(err) : resolve(out)
+      );
+    } else if (PotraceClass) {
+      const p = new PotraceClass(opts);
+      p.loadImage(input, (err: any) => {
+        if (err) return reject(err);
+        p.setParameters(opts);
+        p.getSVG((err2: any, out: string) =>
+          err2 ? reject(err2) : resolve(out)
+        );
+      });
+    } else {
+      reject(new Error("potrace API not found"));
+    }
+  });
+
+  // Normalize + recolor + background (string-based, Node-safe)
+  const ensured = ensureViewBoxResponsive(svgRaw);
+  let svg2 = recolorPaths(ensured.svg, lineColor);
+  let svg3 = stripFullWhiteBackgroundRect(svg2, ensured.width, ensured.height);
+  let finalSVG = transparent
+    ? svg3
+    : injectBackgroundRectString(svg3, ensured.width, ensured.height, bgColor);
+
+  // return width/height for UI
+  return json({ svg: finalSVG, width: ensured.width, height: ensured.height });
 }
 
 /* ---------- SVG helpers (Node-safe, no DOMParser) ---------- */
@@ -696,13 +674,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(settings.blurSigma));
     fd.append("edgeBoost", String(settings.edgeBoost));
     setErr(null);
-
-    // IMPORTANT: target this route's index action to avoid hitting "root" action
-    fetcher.submit(fd, {
-      method: "POST",
-      encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`,
-    });
+    fetcher.submit(fd, { method: "POST", encType: "multipart/form-data" });
   }
 
   // Always-on live preview (debounced)
