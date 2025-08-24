@@ -33,78 +33,6 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 /* ========================
-   Image normalization for Potrace (alpha, EXIF, colorspace)
-======================== */
-async function normalizeForPotrace(
-  input: Buffer,
-  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
-): Promise<Buffer> {
-  try {
-    const { createRequire } = await import("node:module");
-    const req = createRequire(import.meta.url);
-    const sharp = req("sharp");
-
-    const base = sharp(input).rotate(); // respect EXIF
-
-    if (opts.preprocess === "edge") {
-      // Flatten alpha to white, grayscale, blur lightly, then Sobel
-      const { data, info } = await base
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .removeAlpha()
-        .grayscale()
-        .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const W = info.width;
-      const H = info.height;
-      const src = data as Buffer; // 1 channel
-      const out = Buffer.alloc(W * H, 255); // init white to avoid dark borders
-
-      // Sobel kernels
-      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-      for (let y = 1; y < H - 1; y++) {
-        for (let x = 1; x < W - 1; x++) {
-          let gx = 0,
-            gy = 0,
-            n = 0;
-          for (let j = -1; j <= 1; j++) {
-            for (let i = -1; i <= 1; i++) {
-              const v = src[(y + j) * W + (x + i)];
-              gx += v * kx[n];
-              gy += v * ky[n];
-              n++;
-            }
-          }
-          let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
-          if (m > 255) m = 255;
-          out[y * W + x] = 255 - m; // edges dark, background light
-        }
-      }
-
-      // Restore original working local version: no extra fallback logic
-      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
-        .png()
-        .toBuffer();
-    }
-
-    // preprocess === "none": match browser-ish luminance, kill alpha
-    return await base
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .removeAlpha()
-      .grayscale()
-      .gamma()
-      .normalize()
-      .png()
-      .toBuffer();
-  } catch {
-    // If sharp isn't available, just return original input
-    return input;
-  }
-}
-/* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
@@ -150,8 +78,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const blurSigma = Number(form.get("blurSigma") ?? 0.8);
     const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
-    // Always normalize before tracing (handles alpha/EXIF/colorspace)
-    input = await normalizeForPotrace(input, {
+    // Normalize for Potrace (EXIF rotate, alpha flatten, grayscale, optional edge prepass)
+    const prepped = await normalizeForPotrace(input, {
       preprocess,
       blurSigma,
       edgeBoost,
@@ -174,12 +102,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const svgRaw: string = await new Promise((resolve, reject) => {
       if (typeof traceFn === "function") {
-        traceFn(input, opts, (err: any, out: string) =>
+        traceFn(prepped, opts, (err: any, out: string) =>
           err ? reject(err) : resolve(out)
         );
       } else if (PotraceClass) {
         const p = new PotraceClass(opts);
-        p.loadImage(input, (err: any) => {
+        p.loadImage(prepped, (err: any) => {
           if (err) return reject(err);
           p.setParameters(opts);
           p.getSVG((err2: any, out: string) =>
@@ -191,15 +119,16 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     });
 
-    // Normalize + recolor + background (string-based, Node-safe)
-    const ensured = ensureViewBoxResponsive(svgRaw);
-    let svg2 = recolorPaths(ensured.svg, lineColor);
-    let svg3 = stripFullWhiteBackgroundRect(
+    // Post-process SVG safely (defensive against odd/empty outputs)
+    const safeSvg = coerceSvg(svgRaw);
+    const ensured = ensureViewBoxResponsive(safeSvg);
+    const svg2 = recolorPaths(ensured.svg, lineColor);
+    const svg3 = stripFullWhiteBackgroundRect(
       svg2,
       ensured.width,
       ensured.height
     );
-    let finalSVG = transparent
+    const finalSVG = transparent
       ? svg3
       : injectBackgroundRectString(
           svg3,
@@ -223,7 +152,147 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
+/* ---------- Image normalization for Potrace (server-side, robust) ---------- */
+async function normalizeForPotrace(
+  input: Buffer,
+  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
+): Promise<Buffer> {
+  try {
+    const { createRequire } = await import("node:module");
+    const req = createRequire(import.meta.url);
+    const sharp = req("sharp");
+
+    const base = sharp(input).rotate(); // respect EXIF
+
+    if (opts.preprocess === "edge") {
+      // Flatten alpha to white, grayscale, blur lightly, then Sobel
+      const { data, info } = await base
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .removeAlpha()
+        .grayscale()
+        .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      const W = info.width | 0;
+      const H = info.height | 0;
+      if (W <= 1 || H <= 1) {
+        // too small: fall back
+        return await base
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .removeAlpha()
+          .grayscale()
+          .gamma()
+          .normalize()
+          .png()
+          .toBuffer();
+      }
+
+      const src = data as Buffer; // 1 channel
+      const out = Buffer.alloc(W * H, 255); // init white to avoid dark borders
+
+      // Sobel kernels
+      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          let gx = 0,
+            gy = 0,
+            n = 0;
+          for (let j = -1; j <= 1; j++) {
+            for (let i = -1; i <= 1; i++) {
+              const v = src[(y + j) * W + (x + i)];
+              gx += v * kx[n];
+              gy += v * ky[n];
+              n++;
+            }
+          }
+          let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
+          if (m > 255) m = 255;
+          out[y * W + x] = 255 - m; // edges dark, background light
+        }
+      }
+
+      // --- Deployment robustness: detect flat/invalid edge maps and fallback ---
+      if (isFlatBuffer(out)) {
+        // Fallback to robust grayscale normalization
+        return await sharp(input)
+          .rotate()
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .removeAlpha()
+          .grayscale()
+          .gamma()
+          .normalize()
+          .png()
+          .toBuffer();
+      }
+
+      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
+        .png()
+        .toBuffer();
+    }
+
+    // preprocess === "none": browser-ish luminance, kill alpha, normalize dynamic range
+    return await base
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .removeAlpha()
+      .grayscale()
+      .gamma()
+      .normalize()
+      .png()
+      .toBuffer();
+  } catch {
+    // If sharp isn't available, just return original input
+    return input;
+  }
+}
+
+/** Heuristic: flat if min==max OR very low variance OR mean ≈ 0/255. */
+function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
+  const len = buf.length;
+  if (len === 0) return true;
+
+  let min = 255,
+    max = 0,
+    sum = 0,
+    count = 0;
+  // Sample to keep it cheap on huge images; still accurate enough
+  for (let i = 0; i < len; i += sampleStep) {
+    const v = buf[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+    count++;
+  }
+  const mean = sum / Math.max(count, 1);
+  const range = max - min;
+
+  if (range <= 1) return true; // literally uniform
+  if (mean <= 2 || mean >= 253) return true; // ~all black or ~all white
+
+  // quick variance estimate (second pass on same samples)
+  let varSum = 0;
+  for (let i = 0; i < len; i += sampleStep) {
+    const v = buf[i] - mean;
+    varSum += v * v;
+  }
+  const variance = varSum / Math.max(count - 1, 1);
+  return variance < 4; // super low contrast => treat as flat
+}
+
 /* ---------- SVG helpers (Node-safe, no DOMParser) ---------- */
+
+/** Ensure `svgRaw` is a string that starts with <svg ...>. If not, wrap it. */
+function coerceSvg(svgRaw: string | null | undefined): string {
+  const fallback =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"></svg>';
+  if (!svgRaw) return fallback;
+  const trimmed = String(svgRaw).trim();
+  if (/^<svg\b/i.test(trimmed)) return trimmed;
+  // If Potrace ever returns only inner content, wrap it into an SVG root
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${trimmed}</svg>`;
+}
 
 /** Ensure viewBox exists, remove width/height (for responsiveness). */
 function ensureViewBoxResponsive(svg: string): {
@@ -269,7 +338,7 @@ function recolorPaths(svg: string, fillColor: string): string {
     /<path\b([^>]*?)\sfill\s*=\s*["'][^"']*["']([^>]*?)>/gi,
     (_m, a, b) => `<path${a} fill="${fillColor}"${b}>`
   );
-  // Add fill if missing
+  // Ensure a fill exists if missing
   out = out.replace(
     /<path\b((?:(?!>)[\s\S])*?)>(?![\s\S]*?<\/path>)/gi,
     (m, attrs) => {
@@ -289,26 +358,21 @@ function stripFullWhiteBackgroundRect(
   const whitePattern =
     /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
 
-  const fullRects = [
-    // numeric size
-    new RegExp(
-      `<rect\\b[^>]*x\\s*=\\s*["']0["'][^>]*y\\s*=\\s*["']0["'][^>]*width\\s*=\\s*["']${escapeReg(
-        String(width)
-      )}["'][^>]*height\\s*=\\s*["']${escapeReg(
-        String(height)
-      )}["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
-      "ig"
-    ),
-    // percent size
-    new RegExp(
-      `<rect\\b[^>]*x\\s*=\\s*["']0%?["'][^>]*y\\s*=\\s*["']0%?["'][^>]*width\\s*=\\s*["']100%["'][^>]*height\\s*=\\s*["']100%["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
-      "ig"
-    ),
-  ];
+  const numeric = new RegExp(
+    `<rect\\b[^>]*x\\s*=\\s*["']0["'][^>]*y\\s*=\\s*["']0["'][^>]*width\\s*=\\s*["']${escapeReg(
+      String(width)
+    )}["'][^>]*height\\s*=\\s*["']${escapeReg(
+      String(height)
+    )}["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
+    "ig"
+  );
 
-  let out = svg;
-  for (const re of fullRects) out = out.replace(re, "");
-  return out;
+  const percent = new RegExp(
+    `<rect\\b[^>]*x\\s*=\\s*["']0%?["'][^>]*y\\s*=\\s*["']0%?["'][^>]*width\\s*=\\s*["']100%["'][^>]*height\\s*=\\s*["']100%["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
+    "ig"
+  );
+
+  return svg.replace(numeric, "").replace(percent, "");
 }
 
 /** Inject a background rect as the first child after <svg ...>. */
@@ -334,7 +398,7 @@ function escapeReg(s: string) {
 }
 
 /* ========================
-   UI
+   UI (types)
 ======================== */
 type Settings = {
   threshold: number;
