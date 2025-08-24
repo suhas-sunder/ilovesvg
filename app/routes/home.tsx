@@ -33,28 +33,28 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 /* ========================
+   Limits & types (mirrored client/server)
+======================== */
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200 MB
+const MAX_MP = 80; // ~80 megapixels (tune for your box)
+const MAX_SIDE = 12_000; // max width or height in pixels
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
+
+/* ========================
    Action: Potrace (RAM-only)
    + Optional server-side "Edge" preprocessor via sharp
 ======================== */
-
-// NEW: input safety caps (keeps original behavior but adds guard rails)
-const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200 MB
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
-
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const uploadHandler = createMemoryUploadHandler({
-      // let multer-ish handler accept large files; we enforce our own cap below
-      // (defaults are fine; Remix keeps in memory for the action)
-    });
+    const uploadHandler = createMemoryUploadHandler();
     const form = await parseMultipartFormData(request, uploadHandler);
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
-      return json({ error: "No file uploaded" }, { status: 400 });
+      return json({ error: "No file uploaded." }, { status: 400 });
     }
 
-    // Basic type/size checks (NEW)
+    // Basic type/size checks (authoritative)
     const webFile = file as File;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
@@ -71,8 +71,38 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Read original bytes into Buffer
     const ab = await webFile.arrayBuffer();
-    // @ts-ignore Buffer is available in Remix node runtime
+    // @ts-ignore Buffer exists in Remix node runtime
     let input: Buffer = Buffer.from(ab);
+
+    // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
+    try {
+      const { createRequire } = await import("node:module");
+      const req = createRequire(import.meta.url);
+      const sharp = req("sharp") as typeof import("sharp");
+      const meta = await sharp(input).metadata();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+      if (!w || !h) {
+        return json(
+          { error: "Could not read image dimensions. Try a different file." },
+          { status: 415 }
+        );
+      }
+      const mp = (w * h) / 1_000_000;
+      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+        return json(
+          {
+            error: `Image too large: ${w}×${h} (~${mp.toFixed(
+              1
+            )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+          },
+          { status: 413 }
+        );
+      }
+    } catch {
+      // If sharp metadata fails here, we still proceed — Potrace may handle small files fine.
+      // (Limits will still be enforced client-side; this is just a best-effort server guard.)
+    }
 
     // Potrace params
     const threshold = Number(form.get("threshold") ?? 224);
@@ -142,7 +172,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     });
 
-    // Post-process SVG safely (defensive against odd/empty outputs)
+    // Post-process SVG safely (defensive)
     const safeSvg = coerceSvg(svgRaw);
     const ensured = ensureViewBoxResponsive(safeSvg);
     const svg2 = recolorPaths(ensured.svg, lineColor);
@@ -160,7 +190,6 @@ export async function action({ request }: ActionFunctionArgs) {
           bgColor
         );
 
-    // return width/height for UI
     return json({
       svg: finalSVG,
       width: ensured.width,
@@ -186,22 +215,19 @@ async function normalizeForPotrace(
     const req = createRequire(import.meta.url);
     const sharp = req("sharp") as typeof import("sharp");
 
-    // Keep memory predictable on small VPS
     sharp.cache(false);
-    // Optionally set a low concurrency on tiny droplets:
-    // sharp.concurrency(2);
+    // sharp.concurrency(2); // uncomment for tiny droplets
 
     // Decode + respect EXIF
     let base = sharp(input).rotate();
 
-    // Soft guard against pathological megapixels (keeps behavior but avoids OOM)
+    // Soft guard (keeps behavior but avoids OOM)
     try {
       const meta = await base.metadata();
       const w = meta.width ?? 0;
       const h = meta.height ?? 0;
       const mp = (w * h) / 1_000_000;
-      if (mp > 80) {
-        // ~ up to 4000x4000 “inside”
+      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
         base = base.resize({ width: 4000, height: 4000, fit: "inside" });
       }
     } catch {
@@ -209,7 +235,6 @@ async function normalizeForPotrace(
     }
 
     if (opts.preprocess === "edge") {
-      // Flatten alpha to white, grayscale, blur lightly, RAW, Sobel, PNG
       const { data, info } = await base
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .removeAlpha()
@@ -221,7 +246,6 @@ async function normalizeForPotrace(
       const W = info.width | 0;
       const H = info.height | 0;
       if (W <= 1 || H <= 1) {
-        // too small: fall back
         return await sharp(input)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
@@ -234,9 +258,8 @@ async function normalizeForPotrace(
       }
 
       const src = data as Buffer; // 1 channel
-      const out = Buffer.alloc(W * H, 255); // init white to avoid dark borders
+      const out = Buffer.alloc(W * H, 255);
 
-      // Sobel kernels
       const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
       const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
 
@@ -259,7 +282,6 @@ async function normalizeForPotrace(
         }
       }
 
-      // Detect flat/invalid edge maps and fallback
       if (isFlatBuffer(out)) {
         return await sharp(input)
           .rotate()
@@ -277,7 +299,6 @@ async function normalizeForPotrace(
         .toBuffer();
     }
 
-    // preprocess === "none": browser-ish luminance, kill alpha, normalize dynamic range
     return await base
       .flatten({ background: { r: 255, g: 255, b: 255 } })
       .removeAlpha()
@@ -286,9 +307,8 @@ async function normalizeForPotrace(
       .normalize()
       .png()
       .toBuffer();
-  } catch (e) {
-    // If sharp isn't available (e.g., platform build missing), just return original input
-    // Potrace will still run; for photos it may be noisier vs. edge prepass
+  } catch {
+    // If sharp isn't available (platform build missing), just return original
     return input;
   }
 }
@@ -312,9 +332,8 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
   const mean = sum / Math.max(count, 1);
   const range = max - min;
 
-  // More aggressive fallback:
-  if (range <= 2) return true; // nearly uniform
-  if (mean <= 8 || mean >= 247) return true; // almost all black or white
+  if (range <= 2) return true;
+  if (mean <= 8 || mean >= 247) return true;
 
   let varSum = 0;
   for (let i = 0; i < len; i += sampleStep) {
@@ -322,7 +341,7 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
     varSum += v * v;
   }
   const variance = varSum / Math.max(count - 1, 1);
-  return variance < 8; // lower threshold for "flat"
+  return variance < 8;
 }
 
 /* ---------- SVG helpers (Node-safe, no DOMParser) ---------- */
@@ -453,8 +472,8 @@ type Preset = {
   settings: Partial<Settings>;
 };
 
+/* (same presets as before — omitted here for brevity in explanation) */
 const PRESETS: Preset[] = [
-  // (unchanged presets)
   {
     id: "line-accurate",
     label: "Lineart  -  Accurate (default)",
@@ -723,6 +742,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
 
+  // client-side measured dims (nice UX plus precheck)
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
+
   // Hydration guard
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
@@ -754,6 +780,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
   }, [previewUrl]);
 
+  async function measureAndSet(file: File) {
+    try {
+      const { w, h } = await getImageSize(file);
+      const mp = (w * h) / 1_000_000;
+      setDims({ w, h, mp });
+    } catch {
+      setDims(null);
+    }
+  }
+
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -764,6 +800,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
+    setErr(null);
+    setDims(null);
+    // async measure (no await)
+    measureAndSet(f);
     e.currentTarget.value = "";
   }
   function onDrop(e: React.DragEvent) {
@@ -778,13 +818,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
+    setErr(null);
+    setDims(null);
+    measureAndSet(f);
   }
 
-  function submitConvert() {
+  async function submitConvert() {
     if (!file) {
       setErr("Choose an image first.");
       return;
     }
+
+    // Client-side precheck (friendly UX; server still authoritative)
+    try {
+      await validateBeforeSubmit(file);
+    } catch (e: any) {
+      setErr(e?.message || "Image is too large.");
+      return;
+    }
+
     const fd = new FormData();
     fd.append("file", file);
     fd.append("threshold", String(settings.threshold));
@@ -906,6 +958,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               ))}
             </div>
 
+            {/* Limits helper */}
+            <div className="text-[13px] text-slate-600 mb-2">
+              Limits: <b>200 MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b>{" "}
+              max side.
+            </div>
+
             {/* Dropzone */}
             {!file ? (
               <div
@@ -914,7 +972,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={onDrop}
                 onClick={() => document.getElementById("file-inp")?.click()}
-                className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer  min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <div className="text-sm text-slate-600">
                   Click, drag & drop, or paste a PNG/JPEG
@@ -928,31 +986,44 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 />
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                <div className="flex items-center min-w-0 gap-2">
-                  {previewUrl && (
-                    <img
-                      src={previewUrl}
-                      alt=""
-                      className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                    />
-                  )}
-                  <span title={file?.name || ""} className="truncate">
-                    {file?.name} • {prettyBytes(file?.size || 0)}
-                  </span>
+              <>
+                <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                  <div className="flex items-center min-w-0 gap-2">
+                    {previewUrl && (
+                      <img
+                        src={previewUrl}
+                        alt=""
+                        className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                      />
+                    )}
+                    <span title={file?.name || ""} className="truncate">
+                      {file?.name} • {prettyBytes(file?.size || 0)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (previewUrl) URL.revokeObjectURL(previewUrl);
+                      setFile(null);
+                      setPreviewUrl(null);
+                      setDims(null);
+                      setErr(null);
+                    }}
+                    className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                  >
+                    ×
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (previewUrl) URL.revokeObjectURL(previewUrl);
-                    setFile(null);
-                    setPreviewUrl(null);
-                  }}
-                  className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                >
-                  ×
-                </button>
-              </div>
+                {dims && (
+                  <div className="mt-2 text-[13px] text-slate-700">
+                    Detected size:{" "}
+                    <b>
+                      {dims.w}×{dims.h}
+                    </b>{" "}
+                    (~{dims.mp.toFixed(1)} MP)
+                  </div>
+                )}
+              </>
             )}
 
             {/* Settings */}
@@ -1121,7 +1192,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </Field>
             </div>
 
-            {/* Convert button */}
+            {/* Convert button + errors */}
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               <button
                 type="button"
@@ -1226,6 +1297,43 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       )}
     </main>
   );
+}
+
+/* ===== Client-side helpers (dimension precheck) ===== */
+async function getImageSize(file: File): Promise<{ w: number; h: number }> {
+  // Prefer createImageBitmap when available (fast & memory-friendly)
+  if ("createImageBitmap" in window) {
+    const bmp = await createImageBitmap(file);
+    return { w: bmp.width, h: bmp.height };
+  }
+  // Fallback to <img>.decode()
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return { w: img.naturalWidth, h: img.naturalHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function validateBeforeSubmit(file: File) {
+  if (!ALLOWED_MIME.has(file.type)) {
+    throw new Error("Only PNG or JPEG images are allowed.");
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("File too large. Max 200 MB per image.");
+  }
+  const { w, h } = await getImageSize(file);
+  if (!w || !h) throw new Error("Could not read image dimensions.");
+  const mp = (w * h) / 1_000_000;
+  if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+    throw new Error(
+      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). ` +
+        `Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`
+    );
+  }
 }
 
 /* ===== UI helpers ===== */
