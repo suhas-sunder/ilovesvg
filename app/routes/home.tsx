@@ -1787,8 +1787,12 @@ function SeoSections() {
             <h3 itemProp="name" className="m-0">
               How to Convert PNG or JPEG to SVG
             </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2" itemProp="step">
-              <li itemScope itemType="https://schema.org/HowToStep">
+            <ol className="mt-3 list-decimal pl-5 grid gap-2">
+              <li
+                itemScope
+                itemType="https://schema.org/HowToStep"
+                itemProp="step"
+              >
                 <span itemProp="name">
                   <strong>Upload</strong> a PNG or JPEG (drag &amp; drop or
                   click the picker).
@@ -1801,7 +1805,11 @@ function SeoSections() {
                   up to 25&nbsp;MB.
                 </div>
               </li>
-              <li itemScope itemType="https://schema.org/HowToStep">
+              <li
+                itemScope
+                itemType="https://schema.org/HowToStep"
+                itemProp="step"
+              >
                 <span itemProp="name">
                   <strong>Choose a preset</strong> that matches your art.
                 </span>
@@ -1813,7 +1821,11 @@ function SeoSections() {
                   logos; “Photo Edge” for photos.
                 </div>
               </li>
-              <li itemScope itemType="https://schema.org/HowToStep">
+              <li
+                itemScope
+                itemType="https://schema.org/HowToStep"
+                itemProp="step"
+              >
                 <span itemProp="name">
                   <strong>Adjust settings</strong> (threshold, curve tolerance,
                   etc.).
@@ -1826,12 +1838,20 @@ function SeoSections() {
                   a bit less frequently.
                 </div>
               </li>
-              <li itemScope itemType="https://schema.org/HowToStep">
+              <li
+                itemScope
+                itemType="https://schema.org/HowToStep"
+                itemProp="step"
+              >
                 <span itemProp="name">
                   <strong>Pick line color and background</strong>.
                 </span>
               </li>
-              <li itemScope itemType="https://schema.org/HowToStep">
+              <li
+                itemScope
+                itemType="https://schema.org/HowToStep"
+                itemProp="step"
+              >
                 <span itemProp="name">
                   <strong>Download or copy the SVG</strong>.
                 </span>
@@ -1971,7 +1991,11 @@ function SeoSections() {
             <h3 className="m-0">Frequently Asked Questions</h3>
 
             <div className="mt-3 grid gap-4">
-              <article itemScope itemType="https://schema.org/Question">
+              <article
+                itemScope
+                itemType="https://schema.org/Question"
+                itemProp="mainEntity"
+              >
                 <h4 itemProp="name" className="m-0">
                   What file limits apply?
                 </h4>
@@ -1990,7 +2014,11 @@ function SeoSections() {
                 </p>
               </article>
 
-              <article itemScope itemType="https://schema.org/Question">
+              <article
+                itemScope
+                itemType="https://schema.org/Question"
+                itemProp="mainEntity"
+              >
                 <h4 itemProp="name" className="m-0">
                   What happens with files over 25&nbsp;MB?
                 </h4>
@@ -2003,13 +2031,17 @@ function SeoSections() {
                   <span itemProp="text">
                     The app attempts an on-device compression (PNG may be
                     converted to JPEG) to reach ≤25&nbsp;MB for live preview. If
-                    that’s not possible without excessive degradation, you’ll be
-                    asked to resize and re-upload.
+                    that is not possible without excessive degradation, you will
+                    be asked to resize and re-upload.
                   </span>
                 </p>
               </article>
 
-              <article itemScope itemType="https://schema.org/Question">
+              <article
+                itemScope
+                itemType="https://schema.org/Question"
+                itemProp="mainEntity"
+              >
                 <h4 itemProp="name" className="m-0">
                   Why do I see “Server busy” with Retry-After?
                 </h4>
@@ -2028,7 +2060,11 @@ function SeoSections() {
                 </p>
               </article>
 
-              <article itemScope itemType="https://schema.org/Question">
+              <article
+                itemScope
+                itemType="https://schema.org/Question"
+                itemProp="mainEntity"
+              >
                 <h4 itemProp="name" className="m-0">
                   Can this handle photos?
                 </h4>
@@ -2083,27 +2119,6 @@ function SeoSections() {
                   {
                     "@type": "HowToStep",
                     text: "Download or copy SVG for your project.",
-                  },
-                ],
-              },
-              {
-                "@type": "FAQPage",
-                mainEntity: [
-                  {
-                    "@type": "Question",
-                    name: "What file limits apply?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "PNG/JPEG up to 500 MB and 12,000 px per side (~80 MP). Live preview: fast ≤10 MB, throttled ≤25 MB; above 25 MB we attempt client-side compression.",
-                    },
-                  },
-                  {
-                    "@type": "Question",
-                    name: "Why do I see 429 with Retry-After?",
-                    acceptedAnswer: {
-                      "@type": "Answer",
-                      text: "The server concurrency gate may be saturated. We return 429 with a Retry-After hint and the app retries automatically.",
-                    },
                   },
                 ],
               },
