@@ -36,14 +36,13 @@ export function loader({ context }: Route.LoaderArgs) {
 /* ========================
    Limits & types (mirrored client/server)
 ======================== */
-// Client submits ≤25MB for live preview. Allow a little overhead for multipart.
-const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
-const MAX_MP = 30; // ~30 megapixels
-const MAX_SIDE = 8000; // max width or height in pixels
+const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB (hard guard)
+const MAX_MP = 80; // ~80 megapixels
+const MAX_SIDE = 12_000; // max width or height in pixels
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
 // -------- Live preview tiers (client) --------
-// ≤10MB: fast,  10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
+// ≤10MB: fast,  10–25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
@@ -68,8 +67,8 @@ async function getGate(): Promise<Gate> {
     cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
   } catch {}
   const MAX = Math.max(1, Math.min(2, cpuCount)); // N=1 on 1 vCPU; N=2 on 2+ vCPU
-  const QUEUE_MAX = 8; // small fairness queue
-  const EST_JOB_MS = 3000; // rough estimate used to compute Retry-After
+  const QUEUE_MAX = 32; // small fairness queue
+  const EST_JOB_MS = 2000; // rough estimate used to compute Retry-After
 
   class SimpleGate implements Gate {
     max: number;
@@ -147,20 +146,7 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    // --- Early reject: don't parse multipart if request is huge ---
-    const contentLength = Number(request.headers.get("content-length") || "0");
-    const MAX_OVERHEAD = 5 * 1024 * 1024;
-    if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
-      return json(
-        {
-          error:
-            "Upload too large for live conversion. Please resize and try again.",
-        },
-        { status: 413 }
-      );
-    }
-
-    // Parse multipart with strict per-part limit (RAM upload handler)
+    // Lift default part limit to our hard max (500MB)
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
@@ -181,19 +167,50 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
       return json(
-        {
-          error: `File too large. Max ${Math.round(
-            MAX_UPLOAD_BYTES / (1024 * 1024)
-          )} MB per image.`,
-        },
+        { error: "File too large. Max 500 MB per image." },
         { status: 413 }
       );
     }
 
-    // ----- Acquire concurrency slot BEFORE reading bytes into RAM -----
+    // Read original bytes into Buffer
+    const ab = await webFile.arrayBuffer();
+    // @ts-ignore Buffer exists in Remix node runtime
+    let input: Buffer = Buffer.from(ab);
+
+    // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
+    try {
+      const { createRequire } = await import("node:module");
+      const req = createRequire(import.meta.url);
+      const sharp = req("sharp") as typeof import("sharp");
+      const meta = await sharp(input).metadata();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+
+      if (!w || !h) {
+        return json(
+          { error: "Could not read image dimensions. Try a different file." },
+          { status: 415 }
+        );
+      }
+
+      const mp = (w * h) / 1_000_000;
+      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+        return json(
+          {
+            error: `Image too large: ${w}×${h} (~${mp.toFixed(
+              1
+            )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+          },
+          { status: 413 }
+        );
+      }
+    } catch {
+      // If sharp metadata fails here, continue - Potrace may still handle small files.
+    }
+
+    // ----- Acquire concurrency slot (gate heavy work only) -----
     const gate = await getGate();
     let release: ReleaseFn | null = null;
-
     try {
       release = await gate.acquireOrQueue();
     } catch (e: any) {
@@ -215,42 +232,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     try {
-      // NOW read original bytes into Buffer (RAM-heavy)
-      const ab = await webFile.arrayBuffer();
-      // @ts-ignore Buffer exists in Remix node runtime
-      let input: Buffer = Buffer.from(ab);
-
-      // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
-      try {
-        const { createRequire } = await import("node:module");
-        const req = createRequire(import.meta.url);
-        const sharp = req("sharp") as typeof import("sharp");
-        const meta = await sharp(input).metadata();
-        const w = meta.width ?? 0;
-        const h = meta.height ?? 0;
-
-        if (!w || !h) {
-          return json(
-            { error: "Could not read image dimensions. Try a different file." },
-            { status: 415 }
-          );
-        }
-
-        const mp = (w * h) / 1_000_000;
-        if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-          return json(
-            {
-              error: `Image too large: ${w}×${h} (~${mp.toFixed(
-                1
-              )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
-            },
-            { status: 413 }
-          );
-        }
-      } catch {
-        // If sharp metadata fails here, continue - Potrace may still handle small files.
-      }
-
       // Potrace params
       const threshold = Number(form.get("threshold") ?? 224);
       const turdSize = Number(form.get("turdSize") ?? 2);
@@ -372,8 +353,8 @@ async function normalizeForPotrace(
 
     // Keep cache tiny for small droplets (best-effort)
     try {
-      (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 32 }); // even smaller
+      (sharp as any).cache?.({ files: 0, memory: 50 });
+      // (sharp as any).concurrency?.(2); // optional throttle for tiny boxes
     } catch {}
 
     // Decode + respect EXIF
@@ -902,7 +883,7 @@ function getAutoMode(bytes?: number | null): AutoMode {
   return "off";
 }
 function autoModeHint(mode: AutoMode): string {
-  if (mode === "medium") return "Live preview is throttled for 10-25 MB files.";
+  if (mode === "medium") return "Live preview is throttled for 10–25 MB files.";
   return "";
 }
 function autoModeDetail(mode: AutoMode): string {
@@ -1007,73 +988,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   async function handleNewFile(f: File) {
-    if (!ALLOWED_MIME.has(f.type)) {
+    if (!f.type.startsWith("image/")) {
       setErr("Please choose a PNG or JPEG.");
       return;
     }
-
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-
     setErr(null);
     setInfo(null);
     setDims(null);
     setOriginalFileSize(f.size);
 
+    // Try to auto-compress to ≤25MB if needed
     let chosen = f;
-
-    // If already above server max, try to compress immediately
-    if (f.size > MAX_UPLOAD_BYTES) {
-      setInfo("Huge file detected - compressing on your device…");
-      try {
-        chosen = await compressToTarget25MB(f);
-      } catch (e: any) {
-        setInfo(null);
-        setErr(
-          e?.message ||
-            "This image is too large. Please resize it and try again."
-        );
-        // Block selection since it can never be uploaded
-        setFile(null);
-        setPreviewUrl(null);
-        setAutoMode("off");
-        setOriginalFileSize(null);
-        return;
-      }
-    } else if (f.size > LIVE_MED_MAX) {
-      // Over 25MB but within server max: compress only for live preview tier
+    if (f.size > LIVE_MED_MAX) {
       setInfo("Large file detected - compressing on your device for preview…");
       try {
         const shrunk = await compressToTarget25MB(f);
         chosen = shrunk;
-        setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
+        setInfo(
+          `Compressed on-device to ${prettyBytes(
+            shrunk.size
+          )} for faster preview.`
+        );
       } catch (e: any) {
         setErr(
           e?.message ||
-            "Could not compress below 25 MB. Live preview will be disabled."
+            "Could not compress below 25 MB. Please resize the image and try again."
         );
-        setInfo(null);
-        // Keep original if it's still within server max
-        chosen = f;
+        // Still set preview for UX; but live reload will be off
       }
     }
 
-    // Final guard: never keep a file that exceeds server max
-    if (chosen.size > MAX_UPLOAD_BYTES) {
-      setErr(
-        `File too large. Max ${Math.round(
-          MAX_UPLOAD_BYTES / (1024 * 1024)
-        )} MB.`
-      );
-      setInfo(null);
-      setFile(null);
-      setPreviewUrl(null);
-      setAutoMode("off");
-      setOriginalFileSize(null);
-      return;
-    }
-
     setFile(chosen);
-    setAutoMode(getAutoMode(chosen.size));
+    setAutoMode(getAutoMode(chosen.size)); // set tier
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
     await measureAndSet(chosen);
@@ -1224,11 +1171,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               {/* Limits helper */}
               <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
+                Limits: <b>500 MB</b> • <b>{MAX_MP} MP</b> •{" "}
+                <b>{MAX_SIDE}px longest side</b> each max.
               </div>
               <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30 MB
+                Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 25 MB
                 are auto-compressed on-device (if possible).
               </div>
 
@@ -1619,7 +1566,7 @@ async function validateBeforeSubmit(file: File) {
     throw new Error("Only PNG or JPEG images are allowed.");
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    throw new Error("File too large. Max 30 MB per image.");
+    throw new Error("File too large. Max 500 MB per image.");
   }
   const { w, h } = await getImageSize(file);
   if (!w || !h) throw new Error("Could not read image dimensions.");
@@ -1870,7 +1817,7 @@ function SeoSections() {
                   itemProp="itemListElement"
                   className="text-sm text-slate-600"
                 >
-                  “Lineart - Accurate” for clean inks; “Logo - Clean shapes” for
+                  “Lineart – Accurate” for clean inks; “Logo – Clean shapes” for
                   logos; “Photo Edge” for photos.
                 </div>
               </li>
@@ -1982,11 +1929,11 @@ function SeoSections() {
             <h3 className="m-0">Performance, Limits, and File Handling</h3>
             <ul className="mt-3">
               <li>
-                <strong>Max file size</strong>: 30&nbsp;MB per image.
+                <strong>Max file size</strong>: 500&nbsp;MB per image.
               </li>
               <li>
-                <strong>Resolution guard</strong>: Up to ~{MAX_MP.toFixed(1)}
-                &nbsp;MP or {MAX_SIDE.toLocaleString()}&nbsp;px per side.
+                <strong>Resolution guard</strong>: Up to ~80&nbsp;MP or
+                12,000&nbsp;px per side.
               </li>
               <li>
                 <strong>Live preview tiers</strong>: fast ≤10&nbsp;MB, throttled
@@ -1994,7 +1941,7 @@ function SeoSections() {
               </li>
               <li>
                 <strong>Server concurrency gate</strong>: Only a few conversions
-                run at once. When busy, responses include <code>429</code> with{" "}
+                run at once. When busy, responses include <code>429</code> with
                 <code>Retry-After</code> so the client retries smoothly.
               </li>
               <li>
@@ -2029,7 +1976,7 @@ function SeoSections() {
                 slightly.
               </li>
               <li>
-                <strong>Too many dots</strong>: Raise Turd Size or try “Scan -
+                <strong>Too many dots</strong>: Raise Turd Size or try “Scan –
                 Clean”.
               </li>
             </ul>
@@ -2059,8 +2006,8 @@ function SeoSections() {
                   className="mt-2"
                 >
                   <span itemProp="text">
-                    PNG/JPEG up to 30&nbsp;MB, 8,000&nbsp;px per side (about
-                    30&nbsp;MP). Live preview is fastest ≤10&nbsp;MB and
+                    PNG/JPEG up to 500&nbsp;MB, 12,000&nbsp;px per side (about
+                    80&nbsp;MP). Live preview is fastest ≤10&nbsp;MB and
                     throttled up to 25&nbsp;MB. Above 25&nbsp;MB, we try to
                     compress on-device.
                   </span>
@@ -2155,7 +2102,7 @@ function SeoSections() {
                 step: [
                   {
                     "@type": "HowToStep",
-                    text: "Upload a PNG or JPEG (up to 30 MB or ~30 MP). Large files auto-compress on-device to enable live preview.",
+                    text: "Upload a PNG or JPEG (up to 500 MB or ~80 MP). Large files auto-compress on-device to enable live preview.",
                   },
                   {
                     "@type": "HowToStep",
