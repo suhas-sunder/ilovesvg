@@ -1,5 +1,7 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-recolor";
+import { OtherToolsLinks } from "~/components/navigation/OtherToolsLinks";
+import { RelatedSites } from "~/components/navigation/RelatedSites";
 
 const isServer = typeof document === "undefined";
 
@@ -1076,7 +1078,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
           <SeoSections />
         </div>
-
+        <RelatedSites />
         <SiteFooter />
 
         {/* Toast */}
@@ -1390,6 +1392,8 @@ function SeoSections() {
               </div>
             </section>
           </div>
+
+          <OtherToolsLinks />
         </div>
       </div>
     </section>
@@ -1488,10 +1492,10 @@ function SiteHeader() {
           <ul className="flex items-center gap-4 text-[14px] font-semibold">
             <li>
               <a
-                href="/svg-background-editor"
+                href="/#other-tools"
                 className="text-slate-700 hover:text-slate-900 transition-colors"
               >
-                Edit SVG Background
+                All Tools
               </a>
             </li>
 

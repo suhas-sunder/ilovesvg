@@ -1,5 +1,7 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-webp-converter";
+import { OtherToolsLinks } from "~/components/navigation/OtherToolsLinks";
+import { RelatedSites } from "~/components/navigation/RelatedSites";
 
 /* ========================
    Meta
@@ -605,6 +607,8 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <OtherToolsLinks />
+      <RelatedSites />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
       <SiteFooter />
@@ -864,10 +868,10 @@ function SiteHeader() {
           <ul className="flex items-center gap-4 text-[14px] font-semibold">
             <li>
               <a
-                href="/svg-background-editor"
+                href="/#other-tools"
                 className="text-slate-700 hover:text-slate-900 transition-colors"
               >
-                Edit SVG Background
+                All Tools
               </a>
             </li>
 
