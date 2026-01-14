@@ -165,7 +165,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "svg-resize-scale",
     title: "SVG Resize and Scale Tool",
-    shortTitle: "Resize",
+    shortTitle: "Resize and Scale SVG",
     description: "Resize and scale SVG files without distortion.",
     to: "/svg-resize-and-scale-editor",
     group: "Edit",
@@ -181,7 +181,7 @@ export const UTILITIES: UtilityLink[] = [
     keywords: ["recolor svg", "change svg color"],
   },
   {
-    id: "svg-background",
+    id: "svg-background-editor",
     title: "SVG Background Editor",
     shortTitle: "SVG Background Editor",
     description: "Add or remove backgrounds from SVG files.",
@@ -190,7 +190,7 @@ export const UTILITIES: UtilityLink[] = [
     keywords: ["svg background", "transparent svg"],
   },
   {
-    id: "svg-stroke-width",
+    id: "svg-stroke-width-adjust",
     title: "SVG Stroke Width Adjuster",
     shortTitle: "SVG Stroke Editor",
     description: "Adjust and normalize stroke widths in SVGs.",
@@ -212,7 +212,7 @@ export const UTILITIES: UtilityLink[] = [
     title: "SVG Viewer",
     shortTitle: "SVG Viewer",
     description: "Preview SVG files with zoom and pan.",
-    to: "/svg-viewer",
+    to: "/svg-preview-viewer",
     group: "Inspect",
     keywords: ["svg viewer", "preview svg"],
   },
@@ -280,15 +280,6 @@ export const UTILITIES: UtilityLink[] = [
     keywords: ["svg optimizer", "svgo"],
   },
   {
-    id: "svg-sprite",
-    title: "SVG Sprite Generator",
-    shortTitle: "SVG Sprite",
-    description: "Generate SVG sprites from multiple icons.",
-    to: "/svg-sprite-generator",
-    group: "Optimize",
-    keywords: ["svg sprite", "icon sprite"],
-  },
-  {
     id: "svg-to-base64",
     title: "SVG to Base64 Encoder",
     shortTitle: "SVG→Base64",
@@ -315,4 +306,22 @@ export const UTILITIES: UtilityLink[] = [
     group: "Convert",
     keywords: ["image to svg", "convert image"],
   },
+  {
+    id: "svg-favicon-generator",
+    title: "SVG Favicon Generator",
+    shortTitle: "SVG Favicon",
+    description: "Generate favicons from SVG files for websites.",
+    to: "/svg-favicon-generator",
+    group: "Convert",
+    keywords: ["svg favicon", "generate favicon"],
+  },
+  {
+    id:"svg-vs-image-comparison",
+    title: "SVG vs Image Comparison",
+    shortTitle: "SVG vs Image",
+    description: "Compare SVG and image files side by side.",
+    to: "/svg-vs-image-comparison",
+    group: "Inspect",
+    keywords: ["svg vs image", "compare svg"],
+  }
 ];

@@ -607,9 +607,41 @@ async function svgToPngDataUrl(
     throw new Error("Output is too large. Lower width/height or quality.");
   }
 
-  const svgBlob = new Blob([ensureSvgHasXmlns(svgText)], {
+  if (pxW > 20000 || pxH > 20000) {
+    throw new Error("Output is too large. Lower width/height or quality.");
+  }
+
+  function coerceSvgToExactPixelSize(
+    svgText: string,
+    pxW: number,
+    pxH: number
+  ) {
+    let svg = ensureSvgHasXmlns(svgText);
+
+    // Ensure xlink namespace too (older SVGs still use it)
+    if (!/xmlns:xlink\s*=/.test(svg)) {
+      svg = svg.replace(
+        /<svg\b/i,
+        `<svg xmlns:xlink="http://www.w3.org/1999/xlink"`
+      );
+    }
+
+    // Inject explicit width/height on the root <svg ...>
+    svg = svg.replace(/<svg\b([^>]*)>/i, (full, attrs) => {
+      const cleaned = attrs
+        .replace(/\swidth\s*=\s*["'][^"']*["']/i, "")
+        .replace(/\sheight\s*=\s*["'][^"']*["']/i, "");
+      return `<svg${cleaned} width="${pxW}" height="${pxH}">`;
+    });
+
+    return svg;
+  }
+
+  const coercedSvg = coerceSvgToExactPixelSize(svgText, pxW, pxH);
+  const svgBlob = new Blob([coercedSvg], {
     type: "image/svg+xml;charset=utf-8",
   });
+
   const url = URL.createObjectURL(svgBlob);
 
   try {
@@ -655,11 +687,13 @@ function ensureSvgHasXmlns(svg: string) {
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // Helps when the SVG references same-origin assets (and sometimes CORS-enabled ones)
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () =>
       reject(
         new Error(
-          "Could not render this SVG. (Some SVGs reference external assets or unsupported features.)"
+          "Could not render this SVG. If it uses external images or fonts, try embedding them in the SVG (data URIs) and try again."
         )
       );
     img.src = url;
@@ -682,29 +716,51 @@ function parseSvgSize(svg: string): SvgInfo | null {
   const open = svg.match(/<svg\b[^>]*>/i)?.[0];
   if (!open) return null;
 
-  const wAttr = matchAttr(open, "width");
-  const hAttr = matchAttr(open, "height");
+  const widthRaw = matchAttr(open, "width");
+  const heightRaw = matchAttr(open, "height");
   const vb = matchAttr(open, "viewBox");
 
-  const w = wAttr ? parseNumber(wAttr) : null;
-  const h = hAttr ? parseNumber(hAttr) : null;
+  const wPx = widthRaw ? parseCssLengthToPx(widthRaw) : null;
+  const hPx = heightRaw ? parseCssLengthToPx(heightRaw) : null;
 
-  if (w && h) {
-    return { width: w, height: h, viewBox: vb || undefined, aspect: w / h };
+  // If both width/height are usable, great
+  if (wPx && hPx && wPx > 0 && hPx > 0) {
+    return {
+      width: wPx,
+      height: hPx,
+      viewBox: vb || undefined,
+      aspect: wPx / hPx,
+    };
   }
 
-  if (vb) {
-    const parts = vb
-      .trim()
-      .split(/[\s,]+/)
-      .map((x) => Number(x));
-    if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
-      const vbW = Math.abs(parts[2]);
-      const vbH = Math.abs(parts[3]);
-      if (vbW > 0 && vbH > 0) {
-        return { width: vbW, height: vbH, viewBox: vb, aspect: vbW / vbH };
-      }
+  // If viewBox exists, use it (common case)
+  const vbParsed = parseViewBox(vb);
+  if (vbParsed && vbParsed.w > 0 && vbParsed.h > 0) {
+    // If only one side was specified, preserve aspect
+    if (wPx && wPx > 0) {
+      const h = Math.max(1, Math.round(wPx * (vbParsed.h / vbParsed.w)));
+      return {
+        width: wPx,
+        height: h,
+        viewBox: vb || undefined,
+        aspect: wPx / h,
+      };
     }
+    if (hPx && hPx > 0) {
+      const w = Math.max(1, Math.round(hPx * (vbParsed.w / vbParsed.h)));
+      return {
+        width: w,
+        height: hPx,
+        viewBox: vb || undefined,
+        aspect: w / hPx,
+      };
+    }
+    return {
+      width: vbParsed.w,
+      height: vbParsed.h,
+      viewBox: vb || undefined,
+      aspect: vbParsed.w / vbParsed.h,
+    };
   }
 
   return null;
@@ -714,6 +770,44 @@ function matchAttr(tag: string, name: string): string | null {
   const re = new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`, "i");
   const m = tag.match(re);
   return m ? m[1] : null;
+}
+
+function parseViewBox(vb: string | null | undefined) {
+  if (!vb) return null;
+  const parts = vb
+    .trim()
+    .split(/[\s,]+/)
+    .map((x) => Number(x));
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [, , w, h] = parts;
+  if (w === 0 || h === 0) return null;
+  return { w: Math.abs(w), h: Math.abs(h) };
+}
+
+function parseCssLengthToPx(raw: string): number | null {
+  const s = String(raw || "").trim();
+  const m = s.match(/^(-?\d+(\.\d+)?)([a-z%]*)$/i);
+  if (!m) return null;
+
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+
+  const unit = (m[3] || "px").toLowerCase();
+  const v = Math.abs(n);
+
+  if (!unit || unit === "px") return v;
+  if (unit === "in") return v * 96;
+  if (unit === "cm") return (v * 96) / 2.54;
+  if (unit === "mm") return (v * 96) / 25.4;
+  if (unit === "pt") return (v * 96) / 72;
+  if (unit === "pc") return (v * 96) / 6;
+
+  if (unit === "em" || unit === "rem") return v * 16;
+
+  // Percent is undefined without viewport
+  if (unit === "%") return null;
+
+  return null;
 }
 
 function parseNumber(s: string): number | null {
@@ -978,7 +1072,6 @@ function SiteFooter() {
     </footer>
   );
 }
-
 
 /* ========================
    Breadcrumbs UI + JSON-LD

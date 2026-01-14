@@ -144,7 +144,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
     setFile(f);
 
     const text = await f.text();
-    const safeText = ensureSvgHasXmlns(text);
+    const safeText = sanitizeSvgForRaster(text);
     setSvgText(safeText);
 
     const info = parseSvgSize(safeText) || {
@@ -161,14 +161,13 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
       width: clampInt(Math.round(info.width), 16, 16384),
       height: clampInt(Math.round(info.height), 16, 16384),
       lockAspect: true,
-      // JPG needs a background; keep user’s choice
+      dpiScale: clampDpiScale(s.dpiScale),
+      jpegQuality: clampJpegQuality(s.jpegQuality),
       background: "solid",
     }));
 
-    const url = URL.createObjectURL(
-      new Blob([safeText], { type: "image/svg+xml" })
-    );
-    setPreviewSvgUrl(url);
+    // Use data URL for preview (more predictable than Blob URL)
+    setPreviewSvgUrl(svgToDataUrl(ensureSvgHasXmlns(safeText)));
   }
 
   function clearAll() {
@@ -226,7 +225,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG → JPG", href: "/svg-to-jpg" },
+    { name: "SVG to JPG", href: "/svg-to-jpg" },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;
@@ -418,7 +417,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                       onChange={(e) =>
                         setSettings((s) => ({
                           ...s,
-                          dpiScale: Number(e.target.value),
+                          dpiScale: clampDpiScale(Number(e.target.value)),
                         }))
                       }
                       className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
@@ -458,7 +457,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                       onChange={(e) =>
                         setSettings((s) => ({
                           ...s,
-                          jpegQuality: Number(e.target.value),
+                          jpegQuality: clampJpegQuality(Number(e.target.value)),
                         }))
                       }
                       className="w-full accent-[#0b2dff]"
@@ -587,6 +586,9 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
 /* ========================
    Conversion
 ======================== */
+/* ========================
+   Replace svgToJpgDataUrl with this (predictable raster + less failures)
+======================== */
 async function svgToJpgDataUrl(
   svgText: string,
   svgInfo: SvgInfo | null,
@@ -598,43 +600,41 @@ async function svgToJpgDataUrl(
   const outW = clampInt(settings.width, 16, 16384);
   const outH = clampInt(settings.height, 16, 16384);
 
-  const pxW = Math.max(1, Math.round(outW * settings.dpiScale));
-  const pxH = Math.max(1, Math.round(outH * settings.dpiScale));
+  const dpi = clampDpiScale(settings.dpiScale);
+  const q = clampJpegQuality(settings.jpegQuality);
+
+  const pxW = Math.max(1, Math.round(outW * dpi));
+  const pxH = Math.max(1, Math.round(outH * dpi));
 
   if (pxW * pxH > MAX_CANVAS_PIXELS) {
     throw new Error("Output is too large. Lower width/height or quality.");
   }
 
-  const svgBlob = new Blob([ensureSvgHasXmlns(svgText)], {
-    type: "image/svg+xml;charset=utf-8",
-  });
-  const url = URL.createObjectURL(svgBlob);
+  const sanitized = sanitizeSvgForRaster(svgText);
+  const sizedSvg = withRasterViewport(sanitized, outW, outH, info);
 
-  try {
-    const img = await loadImage(url);
-    const canvas = document.createElement("canvas");
-    canvas.width = pxW;
-    canvas.height = pxH;
+  // Load via data URL (avoids object URL + some cross-origin edge cases)
+  const img = await loadImage(svgToDataUrl(sizedSvg));
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D context not available.");
+  const canvas = document.createElement("canvas");
+  canvas.width = pxW;
+  canvas.height = pxH;
 
-    ctx.imageSmoothingEnabled = settings.antiAlias;
-    ctx.imageSmoothingQuality = "high";
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D context not available.");
 
-    // JPG requires background fill
-    ctx.fillStyle = settings.bgColor;
-    ctx.fillRect(0, 0, pxW, pxH);
+  ctx.imageSmoothingEnabled = !!settings.antiAlias;
+  ctx.imageSmoothingQuality = settings.antiAlias ? "high" : "low";
 
-    ctx.drawImage(img, 0, 0, pxW, pxH);
+  // background fill (JPG)
+  ctx.fillStyle = settings.bgColor || "#ffffff";
+  ctx.fillRect(0, 0, pxW, pxH);
 
-    const q = clamp01(settings.jpegQuality);
-    const dataUrl = canvas.toDataURL("image/jpeg", q);
+  // draw into scaled pixel canvas
+  ctx.drawImage(img, 0, 0, pxW, pxH);
 
-    return { dataUrl, width: pxW, height: pxH };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const dataUrl = canvas.toDataURL("image/jpeg", q);
+  return { dataUrl, width: pxW, height: pxH };
 }
 
 function clamp01(v: number) {
@@ -651,20 +651,6 @@ function ensureSvgHasXmlns(svg: string) {
   return svg.replace(/<svg\b/i, `<svg xmlns="http://www.w3.org/2000/svg"`);
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () =>
-      reject(
-        new Error(
-          "Could not render this SVG. (Some SVGs reference external assets or unsupported features.)"
-        )
-      );
-    img.src = url;
-  });
-}
-
 function downloadDataUrl(dataUrl: string, filename: string) {
   const a = document.createElement("a");
   a.href = dataUrl;
@@ -677,6 +663,9 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 /* ========================
    SVG size parsing
 ======================== */
+/* ========================
+   Replace parseSvgSize with unit-aware version (px/in/cm/mm/pt/pc)
+======================== */
 function parseSvgSize(svg: string): SvgInfo | null {
   const open = svg.match(/<svg\b[^>]*>/i)?.[0];
   if (!open) return null;
@@ -685,8 +674,8 @@ function parseSvgSize(svg: string): SvgInfo | null {
   const hAttr = matchAttr(open, "height");
   const vb = matchAttr(open, "viewBox");
 
-  const w = wAttr ? parseNumber(wAttr) : null;
-  const h = hAttr ? parseNumber(hAttr) : null;
+  const w = wAttr ? parseLengthToPx(wAttr) : null;
+  const h = hAttr ? parseLengthToPx(hAttr) : null;
 
   if (w && h)
     return { width: w, height: h, viewBox: vb || undefined, aspect: w / h };
@@ -703,6 +692,33 @@ function parseSvgSize(svg: string): SvgInfo | null {
         return { width: vbW, height: vbH, viewBox: vb, aspect: vbW / vbH };
     }
   }
+  return null;
+}
+
+function parseLengthToPx(raw: string): number | null {
+  const s = String(raw).trim().toLowerCase();
+
+  // percentages are not absolute, treat as unknown
+  if (/%$/.test(s)) return null;
+
+  const m = s.match(/^(-?\d+(\.\d+)?)([a-z]+)?/);
+  if (!m) return null;
+
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n === 0) return null;
+
+  const unit = (m[3] || "px").toLowerCase();
+
+  // 96dpi baseline per CSS px
+  const abs = Math.abs(n);
+  if (unit === "px") return abs;
+  if (unit === "in") return abs * 96;
+  if (unit === "cm") return (abs * 96) / 2.54;
+  if (unit === "mm") return (abs * 96) / 25.4;
+  if (unit === "pt") return (abs * 96) / 72;
+  if (unit === "pc") return (abs * 96) / 6;
+
+  // em/rem/etc are not absolute without context
   return null;
 }
 
@@ -745,6 +761,129 @@ function safeFileName(name: string) {
 /* ========================
    UI helpers
 ======================== */
+function sanitizeSvgForRaster(svg: string) {
+  // light but effective: remove scripts, foreignObject, event handlers, javascript: hrefs
+  let s = ensureSvgHasXmlns(svg);
+  s = s.replace(/\r\n?/g, "\n");
+  s = s.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "");
+  s = s.replace(/<script\b[^>]*\/\s*>/gi, "");
+  s = s.replace(/<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi, "");
+  s = s.replace(/<foreignObject\b[^>]*\/\s*>/gi, "");
+  s = s.replace(/\s(on[a-zA-Z]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/g, "");
+  s = s.replace(
+    /\s(?:href|xlink:href)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+    (m) => {
+      const valMatch = m.match(/=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      const raw = (valMatch?.[1] || valMatch?.[2] || valMatch?.[3] || "")
+        .trim()
+        .replace(/^['"]|['"]$/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, "");
+      return raw.startsWith("javascript:") ? "" : m;
+    }
+  );
+
+  // collapse whitespace a bit (helps data URL size)
+  s = s
+    .replace(/>\s+</g, "><")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return s;
+}
+
+function clampDpiScale(v: number) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(4, n));
+}
+
+function clampJpegQuality(v: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0.9;
+  return Math.max(0.1, Math.min(1, n));
+}
+
+function svgToDataUrl(svg: string) {
+  // safest way to load SVG into <img> without CORS taint from Blob URL edge cases
+  const encoded = encodeURIComponent(svg)
+    .replace(/%0A/g, "")
+    .replace(/%20/g, " ")
+    .replace(/%3D/g, "=")
+    .replace(/%3A/g, ":")
+    .replace(/%2F/g, "/");
+  return `data:image/svg+xml;charset=utf-8,${encoded}`;
+}
+
+/*
+Inject output sizing into SVG so rasterization is predictable.
+- If SVG has viewBox, keep it.
+- If missing viewBox, create one from detected size.
+- Always set width/height to requested output px (not dpiScale px).
+*/
+function withRasterViewport(
+  svg: string,
+  outW: number,
+  outH: number,
+  info: SvgInfo | null
+) {
+  let s = ensureSvgHasXmlns(svg);
+
+  const openMatch = s.match(/<svg\b[^>]*>/i);
+  if (!openMatch) return s;
+  const open = openMatch[0];
+
+  let next = open;
+
+  // Ensure a viewBox exists (critical for consistent scaling)
+  const hasVB = /viewBox\s*=\s*["'][^"']*["']/i.test(next);
+  if (!hasVB) {
+    const vbW = Math.max(1, Math.round(info?.width || outW));
+    const vbH = Math.max(1, Math.round(info?.height || outH));
+    next = setOrReplaceAttr(next, "viewBox", `0 0 ${vbW} ${vbH}`);
+  }
+
+  next = setOrReplaceAttr(next, "width", `${outW}`);
+  next = setOrReplaceAttr(next, "height", `${outH}`);
+
+  // keep aspect behavior reasonable
+  if (!/preserveAspectRatio\s*=/.test(next)) {
+    next = setOrReplaceAttr(next, "preserveAspectRatio", "xMidYMid meet");
+  }
+
+  return s.replace(open, next);
+}
+
+function setOrReplaceAttr(tag: string, name: string, value: string) {
+  const re = new RegExp(`\\s${name}\\s*=\\s*["'][^"']*["']`, "i");
+  if (re.test(tag))
+    return tag.replace(
+      re,
+      ` ${name}="${String(value).replace(/"/g, "&quot;")}"`
+    );
+  return tag.replace(
+    /<svg\b/i,
+    (m) => `${m} ${name}="${String(value).replace(/"/g, "&quot;")}"`
+  );
+}
+
+/* ========================
+   Replace loadImage with this (better SVG handling)
+======================== */
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () =>
+      reject(
+        new Error(
+          "Could not render this SVG. Try embedding fonts/images, removing external references, or simplifying filters."
+        )
+      );
+    img.src = url;
+  });
+}
+
 function Field({
   label,
   children,
@@ -1086,22 +1225,21 @@ function JsonLdFaq() {
 /* ========================
    SEO sections
 ======================== */
+/* ========================
+   HIGH-ROI SEO + VISIBLE FAQ (replace SeoSections entirely)
+======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
-            SVG to JPG Converter (Free, Instant, Client-Side)
-          </h2>
+          <h2 className="m-0 font-bold">SVG to JPG Converter (Client-Side)</h2>
+
           <p className="mt-3">
-            Use this <strong>SVG to JPG converter</strong> to export icons,
-            logos, and vector art to a JPG image without uploading anything.
-            Conversion happens <strong>fully in your browser</strong> by
-            rendering the SVG onto an HTML canvas and exporting it as JPG. You
-            can set a custom <strong>width and height</strong>, lock aspect
-            ratio, pick a <strong>background color</strong>, and control{" "}
-            <strong>JPEG quality</strong>.
+            Convert <strong>SVG to JPG</strong> instantly in your browser. Set
+            an exact pixel size, lock aspect ratio, choose a background color,
+            and control JPEG compression. Files stay on your device with{" "}
+            <strong>no uploads</strong>.
           </p>
 
           <section
@@ -1113,107 +1251,179 @@ function SeoSections() {
               How to Convert SVG to JPG
             </h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">Upload (or paste) an SVG file.</li>
+              <li itemProp="step">Upload (or paste) an SVG.</li>
+              <li itemProp="step">Pick output width and height in pixels.</li>
               <li itemProp="step">
-                Set output width and height (enable Lock aspect ratio if
-                needed).
+                Choose a background color (JPG has no transparency).
               </li>
-              <li itemProp="step">
-                Choose a background color (JPG can’t be transparent).
-              </li>
-              <li itemProp="step">
-                Adjust JPEG quality if you want a smaller file.
-              </li>
-              <li itemProp="step">Click Convert to JPG, then Download JPG.</li>
+              <li itemProp="step">Adjust pixel ratio and JPEG quality.</li>
+              <li itemProp="step">Convert, preview, then download the JPG.</li>
             </ol>
           </section>
 
           <section className="mt-10">
-            <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3">
+            <h3 className="m-0 font-bold">Best Uses</h3>
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
+              <li>Exporting SVG logos for platforms that only accept JPG</li>
               <li>
-                Export an SVG logo to JPG for platforms that don’t accept SVG
+                Creating thumbnails and previews for blog posts and marketplaces
               </li>
-              <li>
-                Create JPG previews for documents, blog posts, or marketplaces
-              </li>
-              <li>Resize SVG artwork to a specific pixel size</li>
-              <li>Reduce file size by lowering JPEG quality</li>
+              <li>Batch-like workflows: convert one SVG at multiple sizes</li>
+              <li>Reducing file size using JPEG compression</li>
             </ul>
           </section>
 
           <section className="mt-10">
-            <h3 className="m-0 font-bold">Tips for Best Quality</h3>
-            <ul className="mt-3">
+            <h3 className="m-0 font-bold">Quality Tips</h3>
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
-                For sharper output, raise <strong>Quality (pixel ratio)</strong>{" "}
-                or export larger dimensions.
+                Increase <strong>pixel ratio</strong> (2x or 3x) for sharper
+                edges, especially for text and thin strokes.
               </li>
               <li>
-                If you need a transparent background, use the{" "}
-                <strong>SVG → PNG</strong> converter instead (JPG can’t do
-                transparency).
+                Lower <strong>JPEG quality</strong> to shrink the file size. For
+                logos, avoid very low quality because JPG can introduce
+                artifacts.
               </li>
               <li>
-                If your SVG uses external fonts/images, embed them for better
-                compatibility.
+                Need transparency? Use{" "}
+                <a href="/svg-to-png-converter">SVG to PNG</a> instead.
               </li>
             </ul>
+          </section>
+
+          <section className="mt-10">
+            <h3 className="m-0 font-bold">Troubleshooting</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">The JPG preview is blank</h4>
+                <p className="mt-1">
+                  The SVG may reference external fonts or images, or use
+                  advanced filters that the browser cannot rasterize reliably.
+                  Embed assets into the SVG, or simplify filters and fonts.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">The output looks blurry</h4>
+                <p className="mt-1">
+                  Raise pixel ratio or export larger dimensions. If the SVG
+                  contains small text, 2x or 3x usually improves clarity.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">File size is too large</h4>
+                <p className="mt-1">
+                  Reduce width and height first, then lower JPEG quality.
+                  Dimension changes usually save more than quality changes.
+                </p>
+              </div>
+            </div>
           </section>
 
           <section className="mt-10">
             <h3 className="m-0 font-bold">FAQ</h3>
-            <div className="mt-3 grid gap-4">
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Does this upload my SVG?
+
+            <div className="not-prose mt-3 grid gap-3">
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Does this SVG to JPG converter upload my file?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  No. The conversion runs in your browser and your file never
-                  leaves your device.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  No. Conversion runs entirely in your browser using HTML
+                  canvas. Your SVG does not get uploaded to any server.
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Can I set a custom width and height?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Can I set a custom width and height?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  Yes. Set width and height in pixels. Turn on Lock aspect ratio
-                  to keep the original proportions.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  Yes. Set output width and height in pixels. Turn on Lock
+                  aspect ratio to keep the original proportions.
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Why do I need a background color?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Why do I need a background color?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  JPG doesn’t support transparency. The converter fills the
-                  output with your background color before exporting.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  JPG does not support transparency. The converter fills the
+                  canvas with your chosen background color before exporting.
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  How do I reduce file size?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>How do I reduce JPG file size?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  Lower JPEG quality or export smaller dimensions. Both reduce
-                  the final JPG size.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  Lower JPEG quality or export at a smaller width and height.
+                  Smaller dimensions usually reduce size more than quality
+                  changes.
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Why won’t some SVGs convert?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Why won’t some SVGs convert?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  Some SVGs depend on external fonts/images or unsupported
-                  features that can’t be rendered to canvas. Embed assets when
-                  possible.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  Some SVGs reference external fonts/images or use unsupported
+                  features that the browser can’t render to canvas. Embed assets
+                  directly in the SVG or simplify filters.
+                </div>
               </details>
+            </div>
+          </section>
+
+          <section className="mt-10 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Related tools
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-to-png-converter"
+                >
+                  SVG to PNG
+                </a>
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-to-webp-converter"
+                >
+                  SVG to WebP
+                </a>
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-resize-and-scale-editor"
+                >
+                  SVG Resize / Scale
+                </a>
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-recolor"
+                >
+                  SVG Recolor
+                </a>
+              </div>
             </div>
           </section>
         </article>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
   <url>
     <loc>https://www.ilovesvg.com/</loc>
     <lastmod>2026-01-13</lastmod>
@@ -34,4 +35,50 @@
     <loc>https://www.ilovesvg.com/svg-recolor</loc>
     <lastmod>2026-01-13</lastmod>
   </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-minifier</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-preview-viewer</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-base64</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/base64-to-svg</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-pdf-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-cleaner</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-embed-code-generator</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/inline-svg-vs-img</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-favicon-generator</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
 </urlset>

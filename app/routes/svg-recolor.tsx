@@ -70,6 +70,29 @@ type PaletteItem = {
   count: number;
 };
 
+const faq = [
+  {
+    q: "Will this upload my SVG to a server?",
+    a: "No. Recoloring runs in your browser. The SVG text is edited locally and you download the updated file.",
+  },
+  {
+    q: "Do I have to guess the colors?",
+    a: "No. The tool extracts the SVG palette automatically and lists each detected color with a count. Click a swatch to create or update a replacement rule.",
+  },
+  {
+    q: "Why does part of my SVG not recolor?",
+    a: "Some SVGs define colors in CSS (style tags) or inline style attributes. Enable those toggles under Replace mode. If it uses external CSS classes, currentColor mode is often the cleanest solution.",
+  },
+  {
+    q: "What is currentColor mode used for?",
+    a: "It converts icons to inherit CSS color from the parent element. This is ideal for UI icons, hover states, and dark mode.",
+  },
+  {
+    q: "Can I paste SVG code instead of uploading a file?",
+    a: "Yes. Paste SVG markup anywhere on the page, or open the paste box and click Apply.",
+  },
+];
+
 const DEFAULTS: Settings = {
   mode: "replace",
   applyTo: "both",
@@ -150,6 +173,15 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
   // paste-to-page (if user pastes markup anywhere)
   async function onPaste(e: React.ClipboardEvent) {
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName?.toLowerCase();
+    const isTypingTarget =
+      tag === "textarea" ||
+      tag === "input" ||
+      (target && (target as any).isContentEditable);
+
+    if (isTypingTarget) return;
+
     const txt = e.clipboardData.getData("text/plain");
     if (!txt) return;
 
@@ -337,31 +369,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
   const breadcrumbs = [
     { name: "Home", url: "/" },
-    { name: "SVG Tools", url: "/" },
     { name: "SVG Recolor", url: "/svg-recolor" },
-  ];
-
-  const faq = [
-    {
-      q: "Will this upload my SVG to a server?",
-      a: "No. Recoloring runs in your browser. The SVG text is edited locally and you download the updated file.",
-    },
-    {
-      q: "Do I have to guess the colors?",
-      a: "No. The tool extracts the SVG palette automatically and lists each detected color with a count. Click a swatch to create or update a replacement rule.",
-    },
-    {
-      q: "Why does part of my SVG not recolor?",
-      a: "Some SVGs define colors in CSS (style tags) or inline style attributes. Enable those toggles under Replace mode. If it uses external CSS classes, currentColor mode is often the cleanest solution.",
-    },
-    {
-      q: "What is currentColor mode used for?",
-      a: "It converts icons to inherit CSS color from the parent element. This is ideal for UI icons, hover states, and dark mode.",
-    },
-    {
-      q: "Can I paste SVG code instead of uploading a file?",
-      a: "Yes. Paste SVG markup anywhere on the page, or open the paste box and click Apply.",
-    },
   ];
 
   return (
@@ -1361,67 +1369,47 @@ function SeoSections() {
 
           {/* FAQ */}
           <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6">
-            <section itemScope itemType="https://schema.org/FAQPage">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="m-0 text-lg font-bold">
-                  Frequently Asked Questions
-                </h3>
-                <span className="text-[13px] text-slate-600">
-                  Quick answers to common issues
-                </span>
-              </div>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="m-0 text-lg font-bold text-slate-900">
+                Frequently Asked Questions
+              </h3>
+              <span className="text-[13px] text-slate-600">
+                Quick answers to common issues
+              </span>
+            </div>
 
-              <div className="mt-4 grid gap-4">
-                <FaqItem
-                  q="I uploaded a multi-color SVG and nothing changed. Why?"
-                  a="The SVG may define colors via style tags or inline style rules instead of fill/stroke attributes. Turn on style tag editing and inline style editing. If it relies on external CSS classes, use currentColor mode or edit the class rules in the SVG."
-                />
-                <FaqItem
-                  q="Why are some colors missing from the palette?"
-                  a="Gradients and patterns use url(#...) references rather than literal colors, so they aren’t listed as solid palette entries. External CSS and filter-driven effects also won’t show up as plain fill/stroke values inside the SVG text."
-                />
-                <FaqItem
-                  q="Do I have to guess the colors?"
-                  a="No. The detected palette lists the exact colors found and how often they appear. Click a swatch to populate the From field."
-                />
-                <FaqItem
-                  q="Can I recolor fill and stroke separately?"
-                  a="Yes. Use “Apply to” to target fill only, stroke only, or both."
-                />
-                <FaqItem
-                  q="Does this upload my SVG?"
-                  a="No. Everything runs in your browser. You download the updated SVG."
-                />
-              </div>
-            </section>
+            <div className="mt-4 grid gap-2">
+              {faq.map((x) => (
+                <details
+                  key={x.q}
+                  className="group rounded-xl border border-slate-200 bg-white overflow-hidden"
+                >
+                  <summary className="cursor-pointer list-none px-4 py-3 flex items-start justify-between gap-3 hover:bg-slate-50">
+                    <span className="text-[15px] font-bold text-slate-900 leading-snug">
+                      {x.q}
+                    </span>
+                    <span className="mt-[2px] shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] text-slate-600 group-open:hidden">
+                      +
+                    </span>
+                    <span className="mt-[2px] shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] text-slate-600 hidden group-open:inline">
+                      −
+                    </span>
+                  </summary>
+
+                  <div className="px-4 pb-4">
+                    <p className="mt-0 text-[14px] text-slate-700 leading-relaxed">
+                      {x.a}
+                    </p>
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
 
           <OtherToolsLinks />
         </div>
       </div>
     </section>
-  );
-}
-
-function FaqItem({ q, a }: { q: string; a: string }) {
-  return (
-    <article
-      itemScope
-      itemType="https://schema.org/Question"
-      itemProp="mainEntity"
-    >
-      <h4 itemProp="name" className="m-0">
-        {q}
-      </h4>
-      <p
-        itemScope
-        itemType="https://schema.org/Answer"
-        itemProp="acceptedAnswer"
-        className="mt-2"
-      >
-        <span itemProp="text">{a}</span>
-      </p>
-    </article>
   );
 }
 
