@@ -11,4 +11,7 @@ export default [
     "routes/svg-resize-and-scale-editor.tsx"
   ),
   route("svg-recolor", "routes/svg-recolor.tsx"),
+  route("cookies", "routes/cookies.tsx"),
+  route("privacy-policy", "routes/privacy-policy.tsx"),
+  route("terms-of-service", "routes/terms-of-service.tsx"),
 ] satisfies RouteConfig;

@@ -5,9 +5,10 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
-import { useFetcher, type ActionFunctionArgs } from "react-router";
-import { OtherToolsLinks } from "~/components/navigation/OtherToolsLinks";
-import { RelatedSites } from "~/components/navigation/RelatedSites";
+import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
+import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { RelatedSites } from "~/client/components/navigation/RelatedSites";
+import SocialLinks from "~/client/components/navigation/SocialLinks";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1595,6 +1596,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <OtherToolsLinks />
       <SeoSections />
       <RelatedSites />
+      <SocialLinks />
       <SiteFooter />
     </>
   );
@@ -1856,16 +1858,111 @@ function SiteHeader() {
 function SiteFooter() {
   return (
     <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-6 text-sm text-slate-600 flex items-center justify-between">
-        <span>© {new Date().getFullYear()} i🩵SVG</span>
-        <span className="space-x-3">
-          <a href="#" className="hover:text-slate-900">
-            Privacy
-          </a>
-          <a href="#" className="hover:text-slate-900">
-            Terms
-          </a>
-        </span>
+      <div className="max-w-[1180px] mx-auto px-4 py-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="text-sm text-slate-600">
+            <span>© {new Date().getFullYear()} i🩵SVG</span>
+            <span className="mx-2 text-slate-300">•</span>
+            <span className="text-slate-500">
+              Simple SVG tools, no accounts.
+            </span>
+          </div>
+
+          <nav aria-label="Footer" className="text-sm">
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
+              <li>
+                <Link
+                  to="/"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Home
+                </Link>
+              </li>
+
+              <li className="text-slate-300" aria-hidden>
+                |
+              </li>
+
+              <li>
+                <Link
+                  to="/svg-to-png-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  SVG to PNG
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/svg-to-jpg-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  SVG to JPG
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/svg-to-webp-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  SVG to WebP
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/svg-background-editor"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Background
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/svg-resize-and-scale-editor"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Resize / Scale
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/svg-recolor"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Recolor
+                </Link>
+              </li>
+
+              <li className="text-slate-300" aria-hidden>
+                |
+              </li>
+
+              <li>
+                <Link
+                  to="/privacy-policy"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/terms-of-service"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Terms
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/cookies"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Cookies
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        </div>
       </div>
     </footer>
   );
