@@ -1,3 +1,14 @@
-import { type RouteConfig, index } from "@react-router/dev/routes";
+import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
-export default [index("routes/home.tsx")] satisfies RouteConfig;
+export default [
+  index("routes/home.tsx"),
+  route("svg-to-png-converter", "routes/svg-to-png-converter.tsx"),
+  route("svg-to-jpg-converter", "routes/svg-to-jpg-converter.tsx"),
+  route("svg-to-webp-converter", "routes/svg-to-webp-converter.tsx"),
+  route("svg-background-editor", "routes/svg-background-editor.tsx"),
+  route(
+    "svg-resize-and-scale-editor",
+    "routes/svg-resize-and-scale-editor.tsx"
+  ),
+  route("svg-recolor", "routes/svg-recolor.tsx"),
+] satisfies RouteConfig;

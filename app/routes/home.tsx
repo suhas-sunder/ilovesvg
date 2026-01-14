@@ -1783,9 +1783,68 @@ function SiteHeader() {
   return (
     <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
+        {/* Logo (unchanged) */}
         <a href="/" className="font-extrabold tracking-tight text-slate-900">
           i<span className="text-sky-600">🩵</span>SVG
         </a>
+
+        {/* Right-side nav */}
+        <nav aria-label="Primary">
+          <ul className="flex items-center gap-4 text-[14px] font-semibold">
+            <li>
+              <a
+                href="/svg-background-editor"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Edit SVG Background
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/svg-recolor"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Recolor
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/svg-resize-and-scale-editor"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Resize/Scale
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/svg-to-png-converter"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                SVG to PNG
+              </a>
+            </li>
+
+            <li>
+              <a
+                href="/svg-to-jpg-converter"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                SVG to JPG
+              </a>
+            </li>
+            <li>
+              <a
+                href="/svg-to-webp-converter"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                SVG to WEBP
+              </a>
+            </li>
+          </ul>
+        </nav>
       </div>
     </div>
   );
@@ -1914,7 +1973,9 @@ function SeoSections() {
 
           {/* Settings explained */}
           <section className="mt-10">
-            <h3 className="m-0">Settings Explained (Get the Look You Want)</h3>
+            <h3 className="m-0 font-bold">
+              Settings Explained (Get the Look You Want)
+            </h3>
             <div className="mt-3 grid md:grid-cols-2 gap-6">
               <div>
                 <h4 className="m-0">Preprocess</h4>
@@ -1979,7 +2040,9 @@ function SeoSections() {
 
           {/* Performance & limits */}
           <section className="mt-10">
-            <h3 className="m-0">Performance, Limits, and File Handling</h3>
+            <h3 className="m-0 font-bold">
+              Performance, Limits, and File Handling
+            </h3>
             <ul className="mt-3">
               <li>
                 <strong>Max file size</strong>: 30&nbsp;MB per image.
@@ -1998,15 +2061,16 @@ function SeoSections() {
                 <code>Retry-After</code> so the client retries smoothly.
               </li>
               <li>
-                <strong>Batch conversion</strong>: Supported elsewhere on the
-                site for larger workflows.
+                <strong>Batch conversion</strong>: Currently not supported due
+                to the high server load of vectorization, which is not feasible
+                since this site is free to use.
               </li>
             </ul>
           </section>
 
           {/* Troubleshooting */}
           <section className="mt-10">
-            <h3 className="m-0">Troubleshooting &amp; Tips</h3>
+            <h3 className="m-0 font-bold">Troubleshooting &amp; Tips</h3>
             <ul className="mt-3">
               <li>
                 <strong>“Image too large”</strong>: Downscale the source or crop
@@ -2041,7 +2105,7 @@ function SeoSections() {
             itemScope
             itemType="https://schema.org/FAQPage"
           >
-            <h3 className="m-0">Frequently Asked Questions</h3>
+            <h3 className="m-0 font-bold">Frequently Asked Questions</h3>
 
             <div className="mt-3 grid gap-4">
               <article

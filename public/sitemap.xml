@@ -1,7 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.ilovesvg.com</loc>
-    <lastmod>2025-08-24T05:17:03.688Z</lastmod>
+    <loc>https://www.ilovesvg.com/</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-png-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-jpg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-webp-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-background-editor</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-resize-and-scale-editor</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-recolor</loc>
+    <lastmod>2026-01-13</lastmod>
   </url>
 </urlset>
