@@ -9,7 +9,8 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  SVG Dimensions Inspector (Width, Height, viewBox, px)";
+  const title =
+    "i🩵SVG  -  SVG Dimensions Inspector (Width, Height, viewBox, px)";
   const description =
     "Inspect SVG dimensions instantly in your browser. Upload or paste SVG, read width/height/viewBox, compute pixel size, detect sizing issues, and apply fixes like adding viewBox or setting width/height. Live preview. No uploads.";
   return [
@@ -26,17 +27,32 @@ export function meta({}: Route.MetaArgs) {
 /* ========================
    Types
 ======================== */
-type Unit = "px" | "mm" | "cm" | "in" | "pt" | "pc" | "%" | "em" | "rem" | "none" | "unknown";
+type Unit =
+  | "px"
+  | "mm"
+  | "cm"
+  | "in"
+  | "pt"
+  | "pc"
+  | "%"
+  | "em"
+  | "rem"
+  | "none"
+  | "unknown";
 
 type Settings = {
-  dpi: number; // used for unit conversion to px for physical units
-  defaultPxIfMissing: number; // used when both width/height and viewBox missing
+  dpi: number;
+  defaultPxIfMissing: number;
+
   fixStrategy: "none" | "add-viewbox" | "set-width-height" | "normalize";
+
   normalizeRemovePxSuffix: boolean;
   normalizeAddMissingXmlns: boolean;
-  widthOut: string; // user-specified width
-  heightOut: string; // user-specified height
-  viewBoxOut: string; // user-specified viewBox
+
+  widthOut: string;
+  heightOut: string;
+  viewBoxOut: string;
+
   fileName: string;
 };
 
@@ -65,12 +81,16 @@ type Result = {
 const DEFAULTS: Settings = {
   dpi: 96,
   defaultPxIfMissing: 1024,
+
   fixStrategy: "none",
+
   normalizeRemovePxSuffix: false,
   normalizeAddMissingXmlns: true,
+
   widthOut: "1024",
   heightOut: "1024",
   viewBoxOut: "0 0 1024 1024",
+
   fileName: "svg-dimensions",
 };
 
@@ -89,9 +109,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
   const [parsed, setParsed] = React.useState<SvgParsed | null>(null);
 
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [outPreviewUrl, setOutPreviewUrl] = React.useState<string | null>(null);
 
   const [result, setResult] = React.useState<Result | null>(null);
-  const [outPreviewUrl, setOutPreviewUrl] = React.useState<string | null>(null);
 
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
@@ -128,7 +148,10 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     for (const it of items) {
       if (it.kind === "file") {
         const f = it.getAsFile();
-        if (f && (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))) {
+        if (
+          f &&
+          (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
+        ) {
           e.preventDefault();
           await handleNewFile(f);
           return;
@@ -140,19 +163,26 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
   async function handleNewFile(f: File) {
     setErr(null);
     setResult(null);
+
     setOutPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return null;
     });
 
-    if (!(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))) {
+    if (
+      !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
+    ) {
       setErr("Please choose an SVG file.");
       return;
     }
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl((u) => {
+      if (u) URL.revokeObjectURL(u);
+      return null;
+    });
 
     setFile(f);
+
     const text = await f.text();
     const coerced = ensureSvgHasXmlns(text);
     setSvgText(coerced);
@@ -160,13 +190,11 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     const p = inspectSvg(coerced, settings.dpi, settings.defaultPxIfMissing);
     setParsed(p);
 
-    const baseName = stripExt(f.name) || "svg-dimensions";
+    // Better basename: handles weird names like "something.svg.svg"
+    const baseName = stripSvgSuffix(stripExt(f.name)) || "svg-dimensions";
     setSettings((s) => ({ ...s, fileName: baseName }));
 
-    const url = URL.createObjectURL(new Blob([coerced], { type: "image/svg+xml" }));
-    setPreviewUrl(url);
-
-    // seed quick-fix fields
+    // Seed fix fields
     const seed = seedFixFields(p, settings.defaultPxIfMissing);
     setSettings((s) => ({
       ...s,
@@ -174,17 +202,27 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       heightOut: seed.heightOut,
       viewBoxOut: seed.viewBoxOut,
     }));
+
+    const url = URL.createObjectURL(
+      new Blob([coerced], { type: "image/svg+xml;charset=utf-8" })
+    );
+    setPreviewUrl(url);
   }
 
   function clearAll() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
+    setPreviewUrl((u) => {
+      if (u) URL.revokeObjectURL(u);
+      return null;
+    });
+    setOutPreviewUrl((u) => {
+      if (u) URL.revokeObjectURL(u);
+      return null;
+    });
+
     setFile(null);
     setSvgText("");
     setParsed(null);
-    setPreviewUrl(null);
     setResult(null);
-    setOutPreviewUrl(null);
     setErr(null);
   }
 
@@ -210,7 +248,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
 
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
-      return URL.createObjectURL(new Blob([example], { type: "image/svg+xml" }));
+      return URL.createObjectURL(
+        new Blob([example], { type: "image/svg+xml;charset=utf-8" })
+      );
     });
 
     setOutPreviewUrl((u) => {
@@ -225,6 +265,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       heightOut: seed.heightOut,
       viewBoxOut: seed.viewBoxOut,
       fileName: "svg-dimensions",
+      fixStrategy: "none",
     }));
 
     showToast("Example loaded");
@@ -246,20 +287,13 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       const p = inspectSvg(coerced, settings.dpi, settings.defaultPxIfMissing);
       setParsed(p);
 
-      // keep preview synced if user edits source
+      // Keep the before preview synced with source edits
       setPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(new Blob([coerced], { type: "image/svg+xml" }));
+        return URL.createObjectURL(
+          new Blob([coerced], { type: "image/svg+xml;charset=utf-8" })
+        );
       });
-
-      // keep fix fields loosely seeded if user edits SVG
-      const seed = seedFixFields(p, settings.defaultPxIfMissing);
-      setSettings((s) => ({
-        ...s,
-        widthOut: s.widthOut || seed.widthOut,
-        heightOut: s.heightOut || seed.heightOut,
-        viewBoxOut: s.viewBoxOut || seed.viewBoxOut,
-      }));
     } catch (e: any) {
       setErr(e?.message || "Failed to parse SVG.");
       setParsed(null);
@@ -271,16 +305,22 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     try {
       if (!svgText.trim()) throw new Error("Upload or paste an SVG first.");
 
-      const out = applyFix(svgText, settings);
+      const out = applyFix(svgText, settings, parsed);
       setResult(out);
 
       setOutPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(new Blob([out.svgText], { type: "image/svg+xml;charset=utf-8" }));
+        return URL.createObjectURL(
+          new Blob([out.svgText], { type: "image/svg+xml;charset=utf-8" })
+        );
       });
 
-      // also re-inspect the output so the user sees new sizes immediately
-      const p2 = inspectSvg(out.svgText, settings.dpi, settings.defaultPxIfMissing);
+      // Re-inspect output so the stats reflect the fixed SVG
+      const p2 = inspectSvg(
+        out.svgText,
+        settings.dpi,
+        settings.defaultPxIfMissing
+      );
       setParsed(p2);
 
       showToast("Updated");
@@ -295,17 +335,18 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
   }
 
   function downloadSvg() {
-    const text = result?.svgText || svgText;
-    if (!text.trim()) return;
-    const name = (settings.fileName || "svg-dimensions").trim() || "svg-dimensions";
+    const text = (result?.svgText || svgText || "").trim();
+    if (!text) return;
+    const name =
+      (settings.fileName || "svg-dimensions").trim() || "svg-dimensions";
     const filename = `${safeFileName(name)}.svg`;
     downloadText(text, filename, "image/svg+xml;charset=utf-8");
     showToast("Downloaded");
   }
 
   function copySvg() {
-    const text = result?.svgText || svgText;
-    if (!text.trim()) return;
+    const text = (result?.svgText || svgText || "").trim();
+    if (!text) return;
     navigator.clipboard
       .writeText(text)
       .then(() => showToast("Copied"))
@@ -318,7 +359,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     const key = JSON.stringify({
       svg: svgText,
       dpi: settings.dpi,
-      defaultPxIfMissing: settings.defaultPxIfMissing,
+      fallback: settings.defaultPxIfMissing,
     });
     if (key === lastKeyRef.current) return;
     lastKeyRef.current = key;
@@ -326,11 +367,20 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svgText, settings.dpi, settings.defaultPxIfMissing]);
 
+  const beforeImgSrc = previewUrl || null;
+
+  // Key change: never show a broken/empty "After" area.
+  // If we have an output preview, use it. Otherwise, show the input preview in the "After" slot too.
+  const afterImgSrc = outPreviewUrl || previewUrl || null;
+
   return (
     <>
       <SiteHeader />
 
-      <main className="min-h-[100dvh] bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main
+        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        onPaste={onPaste}
+      >
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <Breadcrumbs crumbs={crumbs} />
 
@@ -341,8 +391,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
               <span className="text-[#0b2dff]">Dimensions</span>
             </h1>
             <p className="mt-2 text-slate-600">
-              Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and the computed pixel size. Apply common fixes and preview
-              instantly. Runs fully client-side.
+              Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and the
+              computed pixel size. Apply common fixes and preview instantly.
+              Runs fully client-side.
             </p>
           </header>
 
@@ -350,7 +401,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">SVG Input</h2>
+                <h2 className="m-0 font-bold text-lg text-slate-900">
+                  SVG Input
+                </h2>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
@@ -378,8 +431,16 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   onClick={() => document.getElementById("svg-inp")?.click()}
                   className="mt-3 border border-dashed border-[#c8d3ea] rounded-2xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
-                  <div className="text-sm text-slate-600">Click, drag & drop, or paste an SVG file</div>
-                  <input id="svg-inp" type="file" accept="image/svg+xml,.svg" onChange={onPick} className="hidden" />
+                  <div className="text-sm text-slate-600">
+                    Click, drag & drop, or paste an SVG file
+                  </div>
+                  <input
+                    id="svg-inp"
+                    type="file"
+                    accept="image/svg+xml,.svg"
+                    onChange={onPick}
+                    className="hidden"
+                  />
                 </div>
               ) : (
                 <>
@@ -401,12 +462,18 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   ) : null}
 
                   <details className="mt-3 rounded-2xl border border-slate-200 bg-white">
-                    <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">Advanced: Edit SVG source</summary>
+                    <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
+                      Advanced: Edit SVG source
+                    </summary>
                     <div className="px-4 pb-4">
-                      <p className="text-[13px] text-slate-600 mt-2">Optional. Parsing updates instantly.</p>
+                      <p className="text-[13px] text-slate-600 mt-2">
+                        Optional. Stats update instantly.
+                      </p>
                       <textarea
                         value={svgText}
-                        onChange={(e) => setSvgText(ensureSvgHasXmlns(e.target.value))}
+                        onChange={(e) =>
+                          setSvgText(ensureSvgHasXmlns(e.target.value))
+                        }
                         className="mt-2 w-full h-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
                         spellCheck={false}
                         placeholder="<svg ...>...</svg>"
@@ -416,12 +483,13 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                 </>
               )}
 
-              {/* Before / After preview */}
-              {(previewUrl || outPreviewUrl) && (
+              {/* Before / After */}
+              {beforeImgSrc && (
                 <div className="mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-white">
                   <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
                     Before / After
                   </div>
+
                   <div className="p-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
@@ -429,11 +497,11 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           Before (input)
                         </div>
                         <div className="p-3">
-                          {previewUrl ? (
-                            <img src={previewUrl} alt="Before SVG preview" className="w-full h-auto block" />
-                          ) : (
-                            <div className="text-slate-600 text-sm">Upload an SVG to see preview.</div>
-                          )}
+                          <img
+                            src={beforeImgSrc}
+                            alt="Before SVG preview"
+                            className="w-full h-auto block"
+                          />
                         </div>
                       </div>
 
@@ -442,10 +510,23 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           After (output)
                         </div>
                         <div className="p-3">
-                          {outPreviewUrl ? (
-                            <img src={outPreviewUrl} alt="After SVG preview" className="w-full h-auto block" />
+                          {afterImgSrc ? (
+                            <>
+                              <img
+                                src={afterImgSrc}
+                                alt="After SVG preview"
+                                className="w-full h-auto block"
+                              />
+                              {!outPreviewUrl ? (
+                                <div className="mt-2 text-[12px] text-slate-500">
+                                  No output yet. Showing input preview here too.
+                                </div>
+                              ) : null}
+                            </>
                           ) : (
-                            <div className="text-slate-600 text-sm">Apply a fix to generate an output preview.</div>
+                            <div className="text-slate-600 text-sm">
+                              Upload an SVG to see preview.
+                            </div>
                           )}
                         </div>
                       </div>
@@ -479,13 +560,23 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
 
             {/* INSPECT + FIX */}
             <div className="bg-sky-50/10 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-hidden">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">Dimensions</h2>
+              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+                Dimensions
+              </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
                 <div className="grid gap-2 min-w-0">
                   <Field label="DPI for unit conversion">
-                    <Num value={settings.dpi} min={24} max={1200} step={1} onChange={(v) => setSettings((s) => ({ ...s, dpi: v }))} />
-                    <span className="text-[12px] text-slate-500 shrink-0">Used for mm/in/pt to px</span>
+                    <Num
+                      value={settings.dpi}
+                      min={24}
+                      max={2400}
+                      step={1}
+                      onChange={(v) => setSettings((s) => ({ ...s, dpi: v }))}
+                    />
+                    <span className="text-[12px] text-slate-500 shrink-0">
+                      Used for mm/in/pt to px
+                    </span>
                   </Field>
 
                   <Field label="Fallback px if missing">
@@ -494,13 +585,19 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                       min={16}
                       max={20000}
                       step={1}
-                      onChange={(v) => setSettings((s) => ({ ...s, defaultPxIfMissing: v }))}
+                      onChange={(v) =>
+                        setSettings((s) => ({ ...s, defaultPxIfMissing: v }))
+                      }
                     />
-                    <span className="text-[12px] text-slate-500 shrink-0">Only if width/height and viewBox missing</span>
+                    <span className="text-[12px] text-slate-500 shrink-0">
+                      Only if width/height and viewBox missing
+                    </span>
                   </Field>
 
                   <div className="rounded-xl border border-slate-200 bg-[#fafcff] px-3 py-2">
-                    <div className="text-[13px] font-semibold text-slate-900">Detected</div>
+                    <div className="text-[13px] font-semibold text-slate-900">
+                      Detected
+                    </div>
                     <div className="mt-2 grid gap-1 text-[13px] text-slate-700">
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         <span>
@@ -510,29 +607,44 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           height: <b>{parsed?.heightRaw ?? "?"}</b>
                         </span>
                       </div>
+
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         <span>
                           viewBox: <b>{parsed?.viewBoxRaw ?? "?"}</b>
                         </span>
                         <span className="text-slate-500">
-                          preserveAspectRatio: <b>{parsed?.preserveAspectRatio ?? "default"}</b>
+                          preserveAspectRatio:{" "}
+                          <b>{parsed?.preserveAspectRatio ?? "default"}</b>
                         </span>
                       </div>
+
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         <span className="text-slate-500">
-                          file size: <b>{parsed ? formatBytes(parsed.bytes) : "?"}</b>
+                          file size:{" "}
+                          <b>{parsed ? formatBytes(parsed.bytes) : "?"}</b>
                         </span>
                         <span className="text-slate-500">
-                          aspect ratio: <b>{parsed?.aspectRatio ? roundN(parsed.aspectRatio, 4) : "?"}</b>
+                          aspect ratio:{" "}
+                          <b>
+                            {parsed?.aspectRatio
+                              ? roundN(parsed.aspectRatio, 4)
+                              : "?"}
+                          </b>
                         </span>
                       </div>
 
                       <div className="mt-1">
                         computed px:{" "}
                         <b>
-                          {parsed?.inferredPx ? `${parsed.inferredPx.w} × ${parsed.inferredPx.h}` : "?"}
+                          {parsed?.inferredPx
+                            ? `${parsed.inferredPx.w} × ${parsed.inferredPx.h}`
+                            : "?"}
                         </b>{" "}
-                        {parsed?.inferredPx ? <span className="text-slate-500">({parsed.inferredPx.source})</span> : null}
+                        {parsed?.inferredPx ? (
+                          <span className="text-slate-500">
+                            ({parsed.inferredPx.source})
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -540,22 +652,57 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   <Field label="Fix strategy">
                     <select
                       value={settings.fixStrategy}
-                      onChange={(e) => setSettings((s) => ({ ...s, fixStrategy: e.target.value as any }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          fixStrategy: e.target
+                            .value as Settings["fixStrategy"],
+                        }))
+                      }
                       className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
                     >
                       <option value="none">None (inspect only)</option>
-                      <option value="add-viewbox">Add viewBox (best for scaling)</option>
-                      <option value="set-width-height">Set width and height attributes</option>
-                      <option value="normalize">Normalize (safe defaults)</option>
+                      <option value="add-viewbox">
+                        Add viewBox (best for scaling)
+                      </option>
+                      <option value="set-width-height">
+                        Set width and height attributes
+                      </option>
+                      <option value="normalize">
+                        Normalize (safe defaults)
+                      </option>
                     </select>
                   </Field>
 
-                  {(settings.fixStrategy === "set-width-height" || settings.fixStrategy === "normalize") && (
+                  {(settings.fixStrategy === "add-viewbox" ||
+                    settings.fixStrategy === "normalize") && (
+                    <Field label="viewBox output">
+                      <input
+                        value={settings.viewBoxOut}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            viewBoxOut: e.target.value,
+                          }))
+                        }
+                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        placeholder="e.g. 0 0 512 512"
+                      />
+                    </Field>
+                  )}
+
+                  {(settings.fixStrategy === "set-width-height" ||
+                    settings.fixStrategy === "normalize") && (
                     <>
                       <Field label="Width output">
                         <input
                           value={settings.widthOut}
-                          onChange={(e) => setSettings((s) => ({ ...s, widthOut: e.target.value }))}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              widthOut: e.target.value,
+                            }))
+                          }
                           className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                           placeholder="e.g. 512 or 512px or 100%"
                         />
@@ -563,23 +710,17 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                       <Field label="Height output">
                         <input
                           value={settings.heightOut}
-                          onChange={(e) => setSettings((s) => ({ ...s, heightOut: e.target.value }))}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              heightOut: e.target.value,
+                            }))
+                          }
                           className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                           placeholder="e.g. 512 or 512px or 100%"
                         />
                       </Field>
                     </>
-                  )}
-
-                  {(settings.fixStrategy === "add-viewbox" || settings.fixStrategy === "normalize") && (
-                    <Field label="viewBox output">
-                      <input
-                        value={settings.viewBoxOut}
-                        onChange={(e) => setSettings((s) => ({ ...s, viewBoxOut: e.target.value }))}
-                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        placeholder="e.g. 0 0 512 512"
-                      />
-                    </Field>
                   )}
 
                   {settings.fixStrategy === "normalize" && (
@@ -588,20 +729,34 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                         <input
                           type="checkbox"
                           checked={settings.normalizeRemovePxSuffix}
-                          onChange={(e) => setSettings((s) => ({ ...s, normalizeRemovePxSuffix: e.target.checked }))}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              normalizeRemovePxSuffix: e.target.checked,
+                            }))
+                          }
                           className="h-4 w-4 accent-[#0b2dff] shrink-0"
                         />
-                        <span className="text-[13px] text-slate-700 min-w-0">Turn 512px into 512</span>
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Turn 512px into 512
+                        </span>
                       </Field>
 
                       <Field label="Normalize: ensure xmlns">
                         <input
                           type="checkbox"
                           checked={settings.normalizeAddMissingXmlns}
-                          onChange={(e) => setSettings((s) => ({ ...s, normalizeAddMissingXmlns: e.target.checked }))}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              normalizeAddMissingXmlns: e.target.checked,
+                            }))
+                          }
                           className="h-4 w-4 accent-[#0b2dff] shrink-0"
                         />
-                        <span className="text-[13px] text-slate-700 min-w-0">Adds xmlns if missing</span>
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Adds xmlns if missing
+                        </span>
                       </Field>
                     </>
                   )}
@@ -609,7 +764,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   <Field label="Output filename">
                     <input
                       value={settings.fileName}
-                      onChange={(e) => setSettings((s) => ({ ...s, fileName: e.target.value }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, fileName: e.target.value }))
+                      }
                       className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                       placeholder="svg-dimensions"
                     />
@@ -620,7 +777,11 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={applyFixNow}
-                    disabled={!hydrated || !svgText.trim() || settings.fixStrategy === "none"}
+                    disabled={
+                      !hydrated ||
+                      !svgText.trim() ||
+                      settings.fixStrategy === "none"
+                    }
                     className={[
                       "px-3.5 py-2 rounded-xl font-bold border transition-colors",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
@@ -651,7 +812,6 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      // quickly switch to output as the new input
                       const next = result?.svgText;
                       if (!next) return;
                       setSvgText(next);
@@ -670,7 +830,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                 </div>
 
                 <div className="mt-3 text-[13px] text-slate-600">
-                  Tip: for most SVG workflows, <b>viewBox</b> is what makes scaling behave correctly. Width and height are often just display hints.
+                  Tip: for most SVG workflows, <b>viewBox</b> is what makes
+                  scaling behave correctly. Width and height are often just
+                  display hints.
                 </div>
               </div>
 
@@ -688,7 +850,11 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                         setResult((r) => (r ? { ...r, svgText: v } : r));
                         setOutPreviewUrl((prev) => {
                           if (prev) URL.revokeObjectURL(prev);
-                          return URL.createObjectURL(new Blob([v], { type: "image/svg+xml;charset=utf-8" }));
+                          return URL.createObjectURL(
+                            new Blob([v], {
+                              type: "image/svg+xml;charset=utf-8",
+                            })
+                          );
                         });
                       }}
                       className="w-full h-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
@@ -725,14 +891,19 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
 /* ========================
    Core: inspect + fix
 ======================== */
-function inspectSvg(svgText: string, dpi: number, defaultPxIfMissing: number): SvgParsed {
+function inspectSvg(
+  svgText: string,
+  dpi: number,
+  defaultPxIfMissing: number
+): SvgParsed {
   const safe = ensureSvgHasXmlns(String(svgText || "").trim());
   const bytes = new Blob([safe]).size;
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(safe, "image/svg+xml");
   const parserError = doc.getElementsByTagName("parsererror")?.[0];
-  if (parserError) throw new Error("Invalid SVG. Please upload a valid SVG file.");
+  if (parserError)
+    throw new Error("Invalid SVG. Please upload a valid SVG file.");
 
   const svg = doc.documentElement;
   if (!svg || svg.nodeName.toLowerCase() !== "svg") {
@@ -749,17 +920,48 @@ function inspectSvg(svgText: string, dpi: number, defaultPxIfMissing: number): S
   const viewBox = parseViewBox(viewBoxRaw);
 
   const warnings: string[] = [];
-  if (!widthRaw) warnings.push("No width attribute found. Some apps will rely on viewBox or CSS sizing.");
-  if (!heightRaw) warnings.push("No height attribute found. Some apps will rely on viewBox or CSS sizing.");
-  if (!viewBoxRaw) warnings.push("No viewBox found. This is a top reason SVG scaling behaves weird or gets clipped.");
-  if (width.unit === "%" || height.unit === "%") warnings.push("Width or height uses %. Pixel size depends on the container.");
-  if (width.unit === "em" || width.unit === "rem" || height.unit === "em" || height.unit === "rem") {
-    warnings.push("Width or height uses em/rem. Pixel size depends on font-size in the container.");
+  if (!widthRaw)
+    warnings.push(
+      "No width attribute found. Some apps will rely on viewBox or CSS sizing."
+    );
+  if (!heightRaw)
+    warnings.push(
+      "No height attribute found. Some apps will rely on viewBox or CSS sizing."
+    );
+  if (!viewBoxRaw)
+    warnings.push(
+      "No viewBox found. This is a top reason SVG scaling behaves weird or gets clipped."
+    );
+  if (width.unit === "%" || height.unit === "%")
+    warnings.push(
+      "Width or height uses %. Pixel size depends on the container."
+    );
+  if (
+    width.unit === "em" ||
+    width.unit === "rem" ||
+    height.unit === "em" ||
+    height.unit === "rem"
+  ) {
+    warnings.push(
+      "Width or height uses em/rem. Pixel size depends on font-size in the container."
+    );
   }
 
-  const inferredPx = computeEffectivePx(width, height, viewBox, dpi, defaultPxIfMissing, warnings);
+  const inferredPx = computeEffectivePx(
+    width,
+    height,
+    viewBox,
+    dpi,
+    defaultPxIfMissing,
+    warnings
+  );
 
-  const aspectRatio = inferredPx && inferredPx.h > 0 ? inferredPx.w / inferredPx.h : viewBox ? viewBox.w / viewBox.h : null;
+  const aspectRatio =
+    inferredPx && inferredPx.h > 0
+      ? inferredPx.w / inferredPx.h
+      : viewBox
+        ? viewBox.w / viewBox.h
+        : null;
 
   return {
     bytes,
@@ -771,17 +973,25 @@ function inspectSvg(svgText: string, dpi: number, defaultPxIfMissing: number): S
     height,
     viewBox,
     inferredPx,
-    aspectRatio: aspectRatio && Number.isFinite(aspectRatio) ? aspectRatio : null,
+    aspectRatio:
+      aspectRatio && Number.isFinite(aspectRatio) ? aspectRatio : null,
     warnings,
   };
 }
 
-function applyFix(svgText: string, settings: Settings): Result {
+function applyFix(
+  svgText: string,
+  settings: Settings,
+  parsed: SvgParsed | null
+): Result {
   const notes: string[] = [];
   let safe = String(svgText || "").trim();
 
   if (settings.fixStrategy === "none") {
-    return { svgText: ensureSvgHasXmlns(safe), notes: ["No fix applied (inspect only)."] };
+    return {
+      svgText: ensureSvgHasXmlns(safe),
+      notes: ["No fix applied (inspect only)."],
+    };
   }
 
   if (settings.fixStrategy === "normalize") {
@@ -793,18 +1003,37 @@ function applyFix(svgText: string, settings: Settings): Result {
   const parser = new DOMParser();
   const doc = parser.parseFromString(safe, "image/svg+xml");
   const parserError = doc.getElementsByTagName("parsererror")?.[0];
-  if (parserError) throw new Error("Invalid SVG. Please upload a valid SVG file.");
+  if (parserError)
+    throw new Error("Invalid SVG. Please upload a valid SVG file.");
 
   const svg = doc.documentElement;
-  if (!svg || svg.nodeName.toLowerCase() !== "svg") throw new Error("Invalid SVG. Root <svg> element not found.");
+  if (!svg || svg.nodeName.toLowerCase() !== "svg")
+    throw new Error("Invalid SVG. Root <svg> element not found.");
+
+  // Always ensure namespaces (some SVGs render weird in <img> without xmlns)
+  if (!svg.getAttribute("xmlns"))
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  if (!svg.getAttribute("xmlns:xlink"))
+    svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
   // Fix strategy handling
   if (settings.fixStrategy === "add-viewbox") {
     const vb = settings.viewBoxOut.trim();
-    const parsed = parseViewBox(vb);
-    if (!parsed) throw new Error("viewBox output is invalid. Example: 0 0 512 512");
-    svg.setAttribute("viewBox", `${parsed.minX} ${parsed.minY} ${parsed.w} ${parsed.h}`);
-    notes.push("Added or replaced viewBox.");
+    const parsedVb = parseViewBox(vb);
+    if (!parsedVb)
+      throw new Error("viewBox output is invalid. Example: 0 0 512 512");
+
+    const current = (svg.getAttribute("viewBox") || "").trim();
+    const next =
+      `${parsedVb.minX} ${parsedVb.minY} ${parsedVb.w} ${parsedVb.h}`.trim();
+
+    svg.setAttribute("viewBox", next);
+
+    if (current && current === next)
+      notes.push(
+        "viewBox was already set to the same value. Output still generated."
+      );
+    else notes.push(current ? "Replaced viewBox." : "Added viewBox.");
   }
 
   if (settings.fixStrategy === "set-width-height") {
@@ -817,26 +1046,29 @@ function applyFix(svgText: string, settings: Settings): Result {
   }
 
   if (settings.fixStrategy === "normalize") {
-    // viewBox
     const vb = settings.viewBoxOut.trim();
     if (vb) {
-      const parsed = parseViewBox(vb);
-      if (!parsed) throw new Error("viewBox output is invalid. Example: 0 0 512 512");
-      svg.setAttribute("viewBox", `${parsed.minX} ${parsed.minY} ${parsed.w} ${parsed.h}`);
+      const parsedVb = parseViewBox(vb);
+      if (!parsedVb)
+        throw new Error("viewBox output is invalid. Example: 0 0 512 512");
+      svg.setAttribute(
+        "viewBox",
+        `${parsedVb.minX} ${parsedVb.minY} ${parsedVb.w} ${parsedVb.h}`
+      );
       notes.push("Normalized viewBox.");
-    } else {
-      notes.push("Normalize: no viewBox output provided, skipped viewBox update.");
+    } else if (!svg.getAttribute("viewBox")) {
+      // If user left it blank, still try to infer a reasonable viewBox rather than producing a no-op
+      const vb2 = inferViewBoxFallback(parsed, settings.defaultPxIfMissing);
+      svg.setAttribute("viewBox", vb2);
+      notes.push("Normalized viewBox (auto inferred).");
     }
 
-    // width/height
     const w = settings.widthOut.trim();
     const h = settings.heightOut.trim();
     if (w && h) {
       svg.setAttribute("width", w);
       svg.setAttribute("height", h);
       notes.push("Normalized width and height.");
-    } else {
-      notes.push("Normalize: width or height output empty, skipped width/height update.");
     }
 
     if (settings.normalizeRemovePxSuffix) {
@@ -846,49 +1078,73 @@ function applyFix(svgText: string, settings: Settings): Result {
       const h2 = hRaw.endsWith("px") ? hRaw.slice(0, -2) : hRaw;
       if (w2 !== wRaw) svg.setAttribute("width", w2);
       if (h2 !== hRaw) svg.setAttribute("height", h2);
-      if (w2 !== wRaw || h2 !== hRaw) notes.push("Removed px suffix from width/height.");
+      if (w2 !== wRaw || h2 !== hRaw)
+        notes.push("Removed px suffix from width/height.");
     }
   }
 
-  // Always ensure xmlns is present
-  if (!svg.getAttribute("xmlns")) svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  if (!svg.getAttribute("xmlns:xlink")) svg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  // If the "fix" didn't actually modify anything, still generate output so the After preview never errors out.
+  if (!notes.length)
+    notes.push("No changes were needed. Output still generated.");
 
   const serializer = new XMLSerializer();
   const out = serializer.serializeToString(doc).replace(/\u00a0/g, " ");
   return { svgText: ensureSvgHasXmlns(out), notes };
 }
 
+function inferViewBoxFallback(
+  parsed: SvgParsed | null,
+  defaultPxIfMissing: number
+) {
+  const w = parsed?.inferredPx?.w || defaultPxIfMissing;
+  const h = parsed?.inferredPx?.h || defaultPxIfMissing;
+  return `0 0 ${Math.max(1, Math.round(w))} ${Math.max(1, Math.round(h))}`;
+}
+
 /* ========================
    Sizing helpers
 ======================== */
-function parseLength(raw: string | null): { n: number | null; unit: Unit; raw: string | null } {
+function parseLength(raw: string | null): {
+  n: number | null;
+  unit: Unit;
+  raw: string | null;
+} {
   if (!raw) return { n: null, unit: "none", raw: null };
   const s = String(raw).trim();
-  if (!s) return { n: null, unit: "none", raw: raw };
+  if (!s) return { n: null, unit: "none", raw };
 
-  // allow formats like "100", "100px", "10.5mm", "100%"
   const m = s.match(/^(-?\d+(\.\d+)?)([a-z%]*)$/i);
-  if (!m) return { n: null, unit: "unknown", raw: raw };
+  if (!m) return { n: null, unit: "unknown", raw };
 
   const n = Number(m[1]);
-  if (!Number.isFinite(n)) return { n: null, unit: "unknown", raw: raw };
+  if (!Number.isFinite(n)) return { n: null, unit: "unknown", raw };
+
   const u = (m[3] || "").toLowerCase();
 
   const unit: Unit =
-    u === "" ? "px" :
-    u === "px" ? "px" :
-    u === "mm" ? "mm" :
-    u === "cm" ? "cm" :
-    u === "in" ? "in" :
-    u === "pt" ? "pt" :
-    u === "pc" ? "pc" :
-    u === "%" ? "%" :
-    u === "em" ? "em" :
-    u === "rem" ? "rem" :
-    "unknown";
+    u === ""
+      ? "px"
+      : u === "px"
+        ? "px"
+        : u === "mm"
+          ? "mm"
+          : u === "cm"
+            ? "cm"
+            : u === "in"
+              ? "in"
+              : u === "pt"
+                ? "pt"
+                : u === "pc"
+                  ? "pc"
+                  : u === "%"
+                    ? "%"
+                    : u === "em"
+                      ? "em"
+                      : u === "rem"
+                        ? "rem"
+                        : "unknown";
 
-  return { n: Math.abs(n), unit, raw: raw };
+  return { n: Math.abs(n), unit, raw };
 }
 
 function parseViewBox(vb: string | null | undefined) {
@@ -922,8 +1178,6 @@ function computeEffectivePx(
     if (unit === "mm") return (n / 25.4) * pxPerIn;
     if (unit === "pt") return (n / 72) * pxPerIn;
     if (unit === "pc") return (n / 6) * pxPerIn;
-    if (unit === "%") return null;
-    if (unit === "em" || unit === "rem") return null;
     return null;
   };
 
@@ -931,29 +1185,43 @@ function computeEffectivePx(
   const hPx = height.n != null ? toPx(height.n, height.unit) : null;
 
   if (wPx != null && hPx != null) {
-    return { w: Math.max(1, Math.round(wPx)), h: Math.max(1, Math.round(hPx)), source: `from width/height (${width.unit}, ${height.unit})` };
+    return {
+      w: Math.max(1, Math.round(wPx)),
+      h: Math.max(1, Math.round(hPx)),
+      source: `from width/height (${width.unit}, ${height.unit})`,
+    };
   }
 
   if ((width.unit === "%" || height.unit === "%") && viewBox) {
-    warnings.push("Percent sizing found. Using viewBox to estimate pixel size (estimate only).");
+    warnings.push(
+      "Percent sizing found. Using viewBox to estimate pixel size (estimate only)."
+    );
   }
 
   if (viewBox) {
-    // If one dimension is known, preserve aspect ratio.
     if (wPx != null && hPx == null) {
       const h = Math.max(1, Math.round(wPx * (viewBox.h / viewBox.w)));
-      return { w: Math.max(1, Math.round(wPx)), h, source: "width + viewBox aspect ratio" };
+      return {
+        w: Math.max(1, Math.round(wPx)),
+        h,
+        source: "width + viewBox aspect ratio",
+      };
     }
     if (hPx != null && wPx == null) {
       const w = Math.max(1, Math.round(hPx * (viewBox.w / viewBox.h)));
-      return { w, h: Math.max(1, Math.round(hPx)), source: "height + viewBox aspect ratio" };
+      return {
+        w,
+        h: Math.max(1, Math.round(hPx)),
+        source: "height + viewBox aspect ratio",
+      };
     }
-
-    // No usable width/height, treat viewBox units as px-like
-    return { w: Math.max(1, Math.round(viewBox.w)), h: Math.max(1, Math.round(viewBox.h)), source: "from viewBox (unitless)" };
+    return {
+      w: Math.max(1, Math.round(viewBox.w)),
+      h: Math.max(1, Math.round(viewBox.h)),
+      source: "from viewBox (unitless)",
+    };
   }
 
-  // Nothing usable
   return {
     w: Math.max(1, Math.round(defaultPxIfMissing)),
     h: Math.max(1, Math.round(defaultPxIfMissing)),
@@ -962,16 +1230,23 @@ function computeEffectivePx(
 }
 
 function seedFixFields(parsed: SvgParsed, defaultPxIfMissing: number) {
-  // Prefer viewBox as a stable fix
   const vb = parsed.viewBox
     ? `0 0 ${Math.round(parsed.viewBox.w)} ${Math.round(parsed.viewBox.h)}`
     : parsed.inferredPx
       ? `0 0 ${parsed.inferredPx.w} ${parsed.inferredPx.h}`
       : `0 0 ${defaultPxIfMissing} ${defaultPxIfMissing}`;
 
-  // For width/height, prefer existing values if present, else inferred
-  const wOut = parsed.widthRaw?.trim() || (parsed.inferredPx ? String(parsed.inferredPx.w) : String(defaultPxIfMissing));
-  const hOut = parsed.heightRaw?.trim() || (parsed.inferredPx ? String(parsed.inferredPx.h) : String(defaultPxIfMissing));
+  const wOut =
+    (parsed.widthRaw && parsed.widthRaw.trim()) ||
+    (parsed.inferredPx
+      ? String(parsed.inferredPx.w)
+      : String(defaultPxIfMissing));
+
+  const hOut =
+    (parsed.heightRaw && parsed.heightRaw.trim()) ||
+    (parsed.inferredPx
+      ? String(parsed.inferredPx.h)
+      : String(defaultPxIfMissing));
 
   return { viewBoxOut: vb, widthOut: wOut, heightOut: hOut };
 }
@@ -1002,6 +1277,15 @@ function downloadText(text: string, filename: string, mime: string) {
 function stripExt(name: string) {
   const i = name.lastIndexOf(".");
   return i > 0 ? name.slice(0, i) : name;
+}
+
+function stripSvgSuffix(name: string) {
+  let out = String(name || "");
+  // handle "something.svg.svg" or ".svg" left behind by stripExt
+  for (let i = 0; i < 3; i++) {
+    if (out.toLowerCase().endsWith(".svg")) out = out.slice(0, -4);
+  }
+  return out;
 }
 
 function safeFileName(name: string) {
@@ -1035,10 +1319,18 @@ function roundN(v: number, d: number) {
 /* ========================
    UI helpers
 ======================== */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-xl px-3 py-2 min-w-0">
-      <span className="min-w-[200px] text-[13px] text-slate-700 shrink-0">{label}</span>
+      <span className="min-w-[200px] text-[13px] text-slate-700 shrink-0">
+        {label}
+      </span>
       <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
     </label>
   );
@@ -1084,22 +1376,34 @@ function SiteHeader() {
         <nav aria-label="Primary">
           <ul className="flex items-center gap-4 text-[14px] font-semibold">
             <li>
-              <a href="/#other-tools" className="text-slate-700 hover:text-slate-900 transition-colors">
+              <a
+                href="/#other-tools"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
                 All Tools
               </a>
             </li>
             <li>
-              <a href="/svg-dimensions-inspector" className="text-slate-700 hover:text-slate-900 transition-colors">
+              <a
+                href="/svg-dimensions-inspector"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
                 Dimensions
               </a>
             </li>
             <li>
-              <a href="/svg-to-pdf" className="text-slate-700 hover:text-slate-900 transition-colors">
+              <a
+                href="/svg-to-pdf"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
                 SVG to PDF
               </a>
             </li>
             <li>
-              <a href="/svg-to-png-converter" className="text-slate-700 hover:text-slate-900 transition-colors">
+              <a
+                href="/svg-to-png-converter"
+                className="text-slate-700 hover:text-slate-900 transition-colors"
+              >
                 SVG to PNG
               </a>
             </li>
@@ -1122,17 +1426,26 @@ function SiteFooter() {
           <nav aria-label="Footer" className="text-sm">
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
               <li>
-                <Link to="/privacy-policy" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/privacy-policy"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Privacy
                 </Link>
               </li>
               <li>
-                <Link to="/terms-of-service" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/terms-of-service"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Terms
                 </Link>
               </li>
               <li>
-                <Link to="/cookies" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/cookies"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Cookies
                 </Link>
               </li>
@@ -1147,7 +1460,11 @@ function SiteFooter() {
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
-function Breadcrumbs({ crumbs }: { crumbs: Array<{ name: string; href: string }> }) {
+function Breadcrumbs({
+  crumbs,
+}: {
+  crumbs: Array<{ name: string; href: string }>;
+}) {
   return (
     <div className="mb-4">
       <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
@@ -1157,7 +1474,9 @@ function Breadcrumbs({ crumbs }: { crumbs: Array<{ name: string; href: string }>
               <a href={c.href} className="hover:text-slate-900">
                 {c.name}
               </a>
-              {i < crumbs.length - 1 ? <span className="text-slate-300">/</span> : null}
+              {i < crumbs.length - 1 ? (
+                <span className="text-slate-300">/</span>
+              ) : null}
             </li>
           ))}
         </ol>
@@ -1172,10 +1491,20 @@ function JsonLdBreadcrumbs() {
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: "/" },
-      { "@type": "ListItem", position: 2, name: "SVG Dimensions Inspector", item: "/svg-dimensions-inspector" },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "SVG Dimensions Inspector",
+        item: "/svg-dimensions-inspector",
+      },
     ],
   };
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
 }
 
 /* ========================
@@ -1185,23 +1514,27 @@ function SeoSections() {
   const faqs = [
     {
       q: "Does this SVG dimensions inspector upload my file?",
-      a: "No. The SVG is processed in your browser. Nothing is uploaded to a server.",
+      a: "No. Everything runs locally in your browser. Your SVG never leaves your device.",
     },
     {
       q: "What is the difference between width/height and viewBox?",
-      a: "width and height are display sizes. viewBox defines the internal coordinate system. A viewBox is what makes SVG scale cleanly without cropping.",
+      a: "Width and height are the displayed size. viewBox is the internal coordinate system (the drawing space). viewBox is what makes SVG scale correctly without cropping or distortion.",
     },
     {
       q: "Why does my SVG show the wrong size in different apps?",
-      a: "Some apps prioritize width/height, others rely on viewBox or container CSS. If your SVG is missing viewBox, scaling can break or clip. Percent and em units also depend on the container.",
+      a: "Different tools prioritize different signals. Some prefer width/height, others rely on viewBox, and web rendering can be controlled by CSS. Percent, em, and rem units depend on the container, so the same SVG can appear “different sizes” in different places.",
+    },
+    {
+      q: "Why does the tool show a pixel size if SVG is “resolution independent”?",
+      a: "SVG is vector, but it still renders into pixels on screens and when exported. The “computed pixel size” is an estimate of how the SVG will render based on width/height units and/or viewBox.",
     },
     {
       q: "What fix should I use?",
-      a: "If you want reliable scaling, add or normalize the viewBox. If you need a fixed rendered size, set width and height. You can do both with Normalize.",
+      a: "If scaling is broken or clipping happens, add/normalize viewBox first. If you need a fixed display size, set width and height. Normalize is the safest option when you want consistent behavior across apps.",
     },
     {
       q: "Does applying fixes rewrite paths or reduce quality?",
-      a: "No. This tool edits SVG attributes (viewBox, width, height). It does not rasterize or rewrite shapes.",
+      a: "No. This tool edits only SVG sizing attributes (viewBox, width, height). It does not rasterize, flatten, or rewrite your vector paths.",
     },
   ];
 
@@ -1215,77 +1548,155 @@ function SeoSections() {
         acceptedAnswer: { "@type": "Answer", text: f.a },
       })),
     };
-    return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+    return (
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      />
+    );
   }
 
   return (
     <section className="bg-white border-t border-slate-200">
       <JsonLdFaq />
+
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">SVG Dimensions Inspector (Width, Height, viewBox, Pixel Size)</h2>
+          <h2 className="m-0 font-bold">
+            SVG Dimensions Inspector (Check Width, Height, viewBox, and Pixel
+            Size)
+          </h2>
 
           <p className="mt-3">
-            Use this <strong>SVG dimensions inspector</strong> to instantly see an SVG&apos;s <strong>width</strong>,{" "}
-            <strong>height</strong>, and <strong>viewBox</strong>, plus an estimated <strong>pixel size</strong> for how it
-            will render in browsers and design tools. Upload or paste SVG code, preview it, then apply common sizing fixes.
-            Everything runs client-side.
+            This <strong>SVG dimensions inspector</strong> helps you quickly
+            understand how an SVG is sized and why it may render differently
+            across browsers, design tools, and export pipelines. Upload an SVG
+            or paste the code to instantly read the <strong>width</strong>,{" "}
+            <strong>height</strong>, <strong>viewBox</strong>, and an estimated{" "}
+            <strong>rendered pixel size</strong>. Then apply common fixes like
+            adding a missing viewBox or normalizing width/height for consistent
+            results. Everything runs <strong>client-side</strong>.
           </p>
 
           <section className="mt-10">
-            <h3 className="m-0 font-bold">What This Tool Checks</h3>
+            <h3 className="m-0 font-bold">What this tool checks</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
-                <strong>width</strong> and <strong>height</strong> attributes (including units like px, mm, in, %)
+                <strong>Width / Height</strong> (including units like px, in,
+                mm, pt, %, em/rem)
               </li>
               <li>
-                <strong>viewBox</strong> (minX, minY, viewBox width, viewBox height)
+                <strong>viewBox</strong> values (min-x, min-y, width, height)
+                that define the SVG coordinate system
               </li>
               <li>
-                A computed <strong>effective pixel size</strong> (with DPI conversion for physical units)
+                <strong>preserveAspectRatio</strong> behavior that affects
+                stretching/cropping
               </li>
               <li>
-                Common issues like missing viewBox, percent sizing, and unit mismatches that cause wrong rendering sizes
+                A practical <strong>pixel-size estimate</strong> for how the SVG
+                may render on screens or in exports
               </li>
             </ul>
           </section>
 
           <section className="mt-10">
-            <h3 className="m-0 font-bold">Why SVG Size Can Be Confusing</h3>
+            <h3 className="m-0 font-bold">
+              Why your SVG “size” can be confusing
+            </h3>
             <p className="mt-3">
-              SVG has two different concepts: the <strong>internal coordinate system</strong> (viewBox) and the{" "}
-              <strong>display size</strong> (width/height or CSS). If the <strong>viewBox is missing</strong>, many tools
-              cannot scale the artwork correctly, and you can get clipping or unexpected sizes. If width/height use{" "}
-              <strong>%</strong>, <strong>em</strong>, or <strong>rem</strong>, the final size depends on the container, so a
-              single fixed pixel size does not exist.
+              SVG is vector, but rendering still happens into pixels. The “real”
+              size depends on which sizing signals exist and who is interpreting
+              them:
+            </p>
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
+              <li>
+                If <strong>width/height</strong> are present, many tools use
+                them as the display size.
+              </li>
+              <li>
+                If <strong>viewBox</strong> is missing, scaling often breaks or
+                becomes unpredictable.
+              </li>
+              <li>
+                If sizing uses <strong>%</strong>, <strong>em</strong>, or{" "}
+                <strong>rem</strong>, the result depends on the container and
+                CSS.
+              </li>
+              <li>
+                Different apps make different choices, so the same SVG can look
+                “wrong” between Figma, Illustrator, Inkscape, browsers, and icon
+                pipelines.
+              </li>
+            </ul>
+          </section>
+
+          <section className="mt-10">
+            <h3 className="m-0 font-bold">Why viewBox matters (the #1 fix)</h3>
+            <p className="mt-3">
+              The <strong>viewBox</strong> defines the internal drawing space.
+              Without it, the browser or editor has to guess how to map your
+              vector coordinates to a display size, which leads to clipping,
+              weird scaling, or inconsistent behavior. If you want one fix that
+              usually makes SVG behave properly, it’s adding (or normalizing) a{" "}
+              <strong>viewBox</strong>.
             </p>
           </section>
 
           <section className="mt-10">
-            <h3 className="m-0 font-bold">How to Fix SVG Sizing</h3>
+            <h3 className="m-0 font-bold">How to use the fixes</h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2 text-slate-700">
+              <li>Upload or paste your SVG.</li>
               <li>
-                If you want SVG to scale cleanly everywhere, add a <strong>viewBox</strong>.
+                Check the detected <strong>width/height</strong> and{" "}
+                <strong>viewBox</strong>.
               </li>
               <li>
-                If you need a fixed render size, set <strong>width</strong> and <strong>height</strong>.
+                If viewBox is missing or scaling is broken, choose{" "}
+                <strong>Add viewBox</strong> (best for scaling).
               </li>
               <li>
-                If you want both, use <strong>Normalize</strong> to set viewBox plus width/height together.
+                If you need a fixed display size, choose{" "}
+                <strong>Set width and height</strong>.
               </li>
+              <li>
+                If you want consistent behavior across tools, choose{" "}
+                <strong>Normalize</strong>.
+              </li>
+              <li>Preview the output and download the updated SVG.</li>
             </ol>
+          </section>
+
+          <section className="mt-10">
+            <h3 className="m-0 font-bold">Common use cases</h3>
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
+              <li>Fix SVGs that scale incorrectly in browsers</li>
+              <li>Stop clipping when rotating, exporting, or embedding</li>
+              <li>Normalize icons for a design system or UI library</li>
+              <li>Prepare SVGs for favicon/app icon pipelines</li>
+              <li>
+                Debug why the same SVG looks different in different editors
+              </li>
+            </ul>
           </section>
 
           <section className="mt-12">
             <h3 className="m-0 font-bold">FAQ</h3>
             <div className="not-prose mt-4 grid gap-3">
               {faqs.map((f) => (
-                <details key={f.q} className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <details
+                  key={f.q}
+                  className="group rounded-xl border border-slate-200 bg-white px-4 py-3"
+                >
                   <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
                     <span>{f.q}</span>
-                    <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">+</span>
+                    <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                      +
+                    </span>
                   </summary>
-                  <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">{f.a}</div>
+                  <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                    {f.a}
+                  </div>
                 </details>
               ))}
             </div>

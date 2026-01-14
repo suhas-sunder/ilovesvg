@@ -23,6 +23,7 @@ export default [
   route("svg-stroke-width-editor", "routes/svg-stroke-width-editor.tsx"),
   route("svg-flip-and-rotate-editor", "routes/svg-flip-and-rotate-editor.tsx"),
   route("svg-dimensions-inspector", "routes/svg-dimensions-inspector.tsx"),
+  route("svg-size-inspector", "routes/svg-size-inspector.tsx"),
   route("cookies", "routes/cookies.tsx"),
   route("privacy-policy", "routes/privacy-policy.tsx"),
   route("terms-of-service", "routes/terms-of-service.tsx"),

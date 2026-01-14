@@ -25,6 +25,10 @@ type Props = {
  * - No "coming soon"
  * - All tools have real URLs
  * - SEO-friendly descriptions
+ *
+ * NOTE:
+ * Home page ("/") is Image → SVG on your site.
+ * Legal pages exist in routes but are intentionally excluded from this list.
  */
 export function OtherToolsLinks({
   title = "Other SVG tools",
@@ -34,24 +38,31 @@ export function OtherToolsLinks({
   const { pathname } = useLocation();
 
   const current = React.useMemo(() => {
-    return UTILITIES.find((u) => pathname.startsWith(u.to)) ?? null;
+    return (
+      UTILITIES.find(
+        (u) => pathname === u.to || pathname.startsWith(u.to + "/")
+      ) ?? null
+    );
   }, [pathname]);
 
   const items = React.useMemo(() => {
     const base = UTILITIES.filter((u) => {
       if (u.to === "/") return pathname !== "/";
-      return !pathname.startsWith(u.to);
+      return !(pathname === u.to || pathname.startsWith(u.to + "/"));
     });
 
     if (!current) return base.slice(0, maxItems);
 
     const currentKeys = new Set(
-      (current.keywords ?? []).concat(current.group).map((s) => s.toLowerCase())
+      (current.keywords ?? [])
+        .concat(current.group)
+        .map((s) => s.toLowerCase())
     );
 
     return base
       .map((u) => {
         let score = 0;
+
         if (u.group === current.group) score += 100;
 
         const uKeys = (u.keywords ?? [])
@@ -124,204 +135,205 @@ function affinityBonus(current: UtilityGroup, candidate: UtilityGroup) {
 
 /**
  * FULL list with real URLs and SEO-friendly descriptions
+ * Synced to your routes config:
+ * - "/" home is Image → SVG
+ * - converters/editors/inspectors/optimizers/base64 included
+ * - legal pages intentionally excluded
  */
 export const UTILITIES: UtilityLink[] = [
+  // Home (Convert)
+  {
+    id: "image-to-svg",
+    title: "Image to SVG Converter",
+    shortTitle: "Image→SVG",
+    description: "Convert an image into an SVG (vector) for scaling, logos, and clean print output.",
+    to: "/",
+    group: "Convert",
+    keywords: ["image to svg", "convert image", "vectorize", "png to svg", "jpg to svg"],
+  },
+
+  // Convert
   {
     id: "svg-to-png",
     title: "SVG to PNG Converter",
     shortTitle: "SVG→PNG",
-    description: "Convert SVG files to high-quality PNG images.",
+    description:
+      "Convert SVG to PNG with clean edges and transparent background support.",
     to: "/svg-to-png-converter",
     group: "Convert",
-    keywords: ["svg to png", "convert svg", "raster"],
+    keywords: ["svg to png", "convert svg", "raster", "export png"],
   },
   {
     id: "svg-to-jpg",
     title: "SVG to JPG Converter",
     shortTitle: "SVG→JPG",
-    description: "Export SVG graphics as JPG images for sharing.",
+    description:
+      "Export SVG as JPG/JPEG for sharing, email, and fast previews.",
     to: "/svg-to-jpg-converter",
     group: "Convert",
-    keywords: ["svg to jpg", "jpeg", "convert"],
+    keywords: ["svg to jpg", "svg to jpeg", "convert", "export jpg"],
   },
   {
     id: "svg-to-webp",
     title: "SVG to WebP Converter",
     shortTitle: "SVG→WebP",
-    description: "Convert SVG to WebP for smaller, modern images.",
+    description: "Convert SVG to WebP for smaller files and modern web delivery.",
     to: "/svg-to-webp-converter",
     group: "Convert",
-    keywords: ["svg to webp", "image optimization"],
+    keywords: ["svg to webp", "webp", "image optimization", "convert svg"],
   },
   {
     id: "svg-to-pdf",
     title: "SVG to PDF Converter",
     shortTitle: "SVG→PDF",
-    description: "Export SVG files as printable PDF documents.",
-    to: "/svg-to-pdf",
+    description: "Convert SVG to PDF for printing, sharing, and design handoff.",
+    to: "/svg-to-pdf-converter",
     group: "Convert",
-    keywords: ["svg to pdf", "vector pdf"],
+    keywords: ["svg to pdf", "vector pdf", "print svg", "export pdf"],
+  },
+  {
+    id: "svg-to-favicon",
+    title: "Favicon Generator (ICO) + App Icon Generator",
+    shortTitle: "Favicon + App",
+    description: "Generate favicon.ico and app icon sizes from SVG/PNG/JPG/WEBP.",
+    to: "/svg-to-favicon-generator",
+    group: "Convert",
+    keywords: ["favicon generator", "favicon.ico", "app icons", "ico", "pwa icons"],
+  },
+
+  // Edit
+  {
+    id: "svg-background-editor",
+    title: "SVG Background Editor",
+    shortTitle: "Background",
+    description:
+      "Add or remove an SVG background rectangle for solid or transparent output.",
+    to: "/svg-background-editor",
+    group: "Edit",
+    keywords: ["svg background", "transparent svg", "remove background", "add background"],
   },
   {
     id: "svg-resize-scale",
-    title: "SVG Resize and Scale Tool",
-    shortTitle: "Resize and Scale SVG",
-    description: "Resize and scale SVG files without distortion.",
+    title: "SVG Resize and Scale Editor",
+    shortTitle: "Resize/Scale",
+    description: "Resize and scale SVGs safely by updating viewBox and size attributes.",
     to: "/svg-resize-and-scale-editor",
     group: "Edit",
-    keywords: ["resize svg", "scale svg", "viewbox"],
+    keywords: ["resize svg", "scale svg", "viewbox", "width height"],
   },
   {
     id: "svg-recolor",
     title: "SVG Recolor Tool",
-    shortTitle: "Recolor SVG",
-    description: "Change SVG fill and stroke colors easily.",
+    shortTitle: "Recolor",
+    description: "Replace SVG fill and stroke colors quickly, with live preview.",
     to: "/svg-recolor",
     group: "Edit",
-    keywords: ["recolor svg", "change svg color"],
+    keywords: ["recolor svg", "change svg color", "fill", "stroke"],
   },
   {
-    id: "svg-background-editor",
-    title: "SVG Background Editor",
-    shortTitle: "SVG Background Editor",
-    description: "Add or remove backgrounds from SVG files.",
-    to: "/svg-background-editor",
+    id: "svg-stroke-width-editor",
+    title: "SVG Stroke Width Editor",
+    shortTitle: "Stroke Width",
+    description:
+      "Make SVG lines thicker or thinner by adjusting stroke widths (attribute/style/CSS).",
+    to: "/svg-stroke-width-editor",
     group: "Edit",
-    keywords: ["svg background", "transparent svg"],
+    keywords: ["svg stroke width", "stroke-width", "thicken lines", "thin lines"],
   },
   {
-    id: "svg-stroke-width-adjust",
-    title: "SVG Stroke Width Adjuster",
-    shortTitle: "SVG Stroke Editor",
-    description: "Adjust and normalize stroke widths in SVGs.",
-    to: "/svg-stroke-width-adjust",
+    id: "svg-flip-rotate-editor",
+    title: "SVG Flip and Rotate Editor",
+    shortTitle: "Flip/Rotate",
+    description: "Flip horizontally/vertically and rotate SVGs without rasterizing.",
+    to: "/svg-flip-and-rotate-editor",
     group: "Edit",
-    keywords: ["svg stroke width", "edit svg"],
+    keywords: ["rotate svg", "flip svg", "mirror svg", "transform"],
   },
+
+  // Inspect
   {
-    id: "svg-flip-rotate",
-    title: "SVG Flip and Rotate Tool",
-    shortTitle: "Flip and Rotate SVG",
-    description: "Flip or rotate SVG graphics safely.",
-    to: "/svg-flip-rotate",
-    group: "Edit",
-    keywords: ["rotate svg", "flip svg"],
-  },
-  {
-    id: "svg-viewer",
-    title: "SVG Viewer",
-    shortTitle: "SVG Viewer",
-    description: "Preview SVG files with zoom and pan.",
+    id: "svg-preview-viewer",
+    title: "SVG Preview Viewer",
+    shortTitle: "Preview",
+    description: "Preview SVGs instantly in the browser to verify rendering and layout.",
     to: "/svg-preview-viewer",
     group: "Inspect",
-    keywords: ["svg viewer", "preview svg"],
+    keywords: ["svg viewer", "preview svg", "view svg", "render svg"],
   },
   {
     id: "svg-dimensions-inspector",
     title: "SVG Dimensions Inspector",
-    shortTitle: "SVG Dimensions",
-    description: "Inspect SVG width, height, and viewBox.",
+    shortTitle: "Dimensions",
+    description: "Inspect width, height, viewBox, and computed pixel size for an SVG.",
     to: "/svg-dimensions-inspector",
     group: "Inspect",
-    keywords: ["svg dimensions", "viewbox"],
+    keywords: ["svg dimensions", "viewbox", "width height", "pixel size"],
   },
   {
     id: "svg-size-inspector",
     title: "SVG Size Inspector",
-    shortTitle: "SVG Size",
-    description: "Analyze SVG paths and bounding boxes.",
+    shortTitle: "Size",
+    description: "Inspect artwork bounds and sizing behavior to prevent clipping and scaling issues.",
     to: "/svg-size-inspector",
     group: "Inspect",
-    keywords: ["svg size", "bounding box"],
+    keywords: ["svg size", "bounds", "bounding box", "clip", "scale"],
   },
   {
-    id: "svg-embed-code",
+    id: "svg-embed-code-generator",
     title: "SVG Embed Code Generator",
-    shortTitle: "SVG Embed",
-    description: "Generate inline SVG and embed code.",
+    shortTitle: "Embed Code",
+    description: "Generate embed snippets for inline SVG, <img>, and CSS background usage.",
     to: "/svg-embed-code-generator",
     group: "Inspect",
-    keywords: ["embed svg", "inline svg"],
+    keywords: ["embed svg", "inline svg", "svg html", "img tag"],
   },
   {
-    id: "inline-vs-img",
-    title: "Inline SVG vs IMG Comparison",
-    shortTitle: "Inline SVG vs IMG",
-    description: "Compare inline SVG and image tag usage.",
+    id: "inline-svg-vs-img",
+    title: "Inline SVG vs IMG",
+    shortTitle: "Inline vs IMG",
+    description: "Compare inline SVG vs <img> for styling, caching, and performance.",
     to: "/inline-svg-vs-img",
     group: "Inspect",
-    keywords: ["inline svg", "img tag"],
+    keywords: ["inline svg", "img tag", "svg vs img", "svg styling"],
   },
+
+  // Optimize
   {
-    id: "svg-minify",
+    id: "svg-minifier",
     title: "SVG Minifier",
-    shortTitle: "Minify SVG",
-    description: "Minify SVG files to reduce file size.",
-    to: "/svg-minify",
+    shortTitle: "Minify",
+    description: "Minify SVG markup to reduce file size while preserving appearance.",
+    to: "/svg-minifier",
     group: "Optimize",
-    keywords: ["svg minify", "compress svg"],
+    keywords: ["svg minify", "minify svg", "compress svg", "reduce size"],
   },
   {
     id: "svg-cleaner",
     title: "SVG Cleaner",
-    shortTitle: "SVG Cleaner",
-    description: "Remove metadata and comments from SVGs.",
+    shortTitle: "Cleaner",
+    description: "Clean SVG files by removing metadata, comments, and unnecessary attributes.",
     to: "/svg-cleaner",
     group: "Optimize",
-    keywords: ["svg cleaner", "optimize svg"],
+    keywords: ["svg cleaner", "clean svg", "optimize svg", "remove metadata"],
   },
-  {
-    id: "svg-optimize",
-    title: "SVG Optimizer",
-    shortTitle: "Optimize SVG",
-    description: "Optimize SVG files using SVGO.",
-    to: "/svg-optimize",
-    group: "Optimize",
-    keywords: ["svg optimizer", "svgo"],
-  },
+
+  // Base64
   {
     id: "svg-to-base64",
     title: "SVG to Base64 Encoder",
     shortTitle: "SVG→Base64",
-    description: "Encode SVG files as Base64 strings.",
+    description: "Encode SVG as Base64 for embedding in CSS, HTML, or data URLs.",
     to: "/svg-to-base64",
     group: "Base64",
-    keywords: ["svg base64", "encode svg"],
+    keywords: ["svg base64", "encode svg", "data url", "base64 svg"],
   },
   {
     id: "base64-to-svg",
     title: "Base64 to SVG Decoder",
     shortTitle: "Base64→SVG",
-    description: "Decode Base64 strings back into SVG files.",
+    description: "Decode Base64 back into an SVG file you can preview and download.",
     to: "/base64-to-svg",
     group: "Base64",
-    keywords: ["base64 to svg", "decode svg"],
+    keywords: ["base64 to svg", "decode svg", "data url", "base64 decoder"],
   },
-  {
-    id: "image-to-svg",
-    title: "Image to SVG Converter",
-    shortTitle: "Image→SVG",
-    description: "Convert images to SVG files.",
-    to: "/",
-    group: "Convert",
-    keywords: ["image to svg", "convert image"],
-  },
-  {
-    id: "svg-favicon-generator",
-    title: "SVG Favicon Generator",
-    shortTitle: "SVG Favicon",
-    description: "Generate favicons from SVG files for websites.",
-    to: "/svg-favicon-generator",
-    group: "Convert",
-    keywords: ["svg favicon", "generate favicon"],
-  },
-  {
-    id:"svg-vs-image-comparison",
-    title: "SVG vs Image Comparison",
-    shortTitle: "SVG vs Image",
-    description: "Compare SVG and image files side by side.",
-    to: "/svg-vs-image-comparison",
-    group: "Inspect",
-    keywords: ["svg vs image", "compare svg"],
-  }
 ];
