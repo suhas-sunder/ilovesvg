@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -9,6 +10,7 @@ import {
 import type { LoaderFunction } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { PHProvider } from "./provider";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -79,9 +81,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
-        <ScrollRestoration />
-        <Scripts />
+        <PHProvider>
+          {children}
+          <ScrollRestoration />
+          <Scripts />
+        </PHProvider>
       </body>
     </html>
   );

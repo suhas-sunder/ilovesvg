@@ -1,3 +1,4 @@
+// vite.config.ts
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -12,4 +13,7 @@ export default defineConfig(({ isSsrBuild }) => ({
       : undefined,
   },
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  ssr: {
+    noExternal: ["posthog-js", "posthog-js/react"],
+  },
 }));
