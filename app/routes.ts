@@ -24,6 +24,11 @@ export default [
   route("svg-flip-and-rotate-editor", "routes/svg-flip-and-rotate-editor.tsx"),
   route("svg-dimensions-inspector", "routes/svg-dimensions-inspector.tsx"),
   route("svg-size-inspector", "routes/svg-size-inspector.tsx"),
+  route("free-color-picker", "routes/free-color-picker.tsx"),
+  route(
+    "svg-accessibility-and-contrast-checker",
+    "routes/svg-accessibility-and-contrast-checker.tsx"
+  ),
   route("cookies", "routes/cookies.tsx"),
   route("privacy-policy", "routes/privacy-policy.tsx"),
   route("terms-of-service", "routes/terms-of-service.tsx"),
