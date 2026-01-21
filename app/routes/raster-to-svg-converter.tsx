@@ -950,6 +950,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
+  const fileRef = React.useRef<File | null>(null); // FIX: avoid race with state
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
   );
@@ -978,9 +979,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // Live preview tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
+  // ---- Tiered live preview ----
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressLiveRef = React.useRef(false);
+
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
-    if (!file) return;
+    if (!fileRef.current) return;
 
     const mode = autoMode;
     if (mode === "off") return;
@@ -1052,6 +1057,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Clear current file first so nothing submits with the old one
     setFile(null);
+    fileRef.current = null; // FIX
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
@@ -1067,7 +1073,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     let chosen = f;
 
-    // ... keep ALL your existing compression logic and the rest unchanged ...
+    // Auto-compress best effort for >25MB (your existing logic is already here)
+    // Keep it unchanged, but actually run it:
+    if (chosen.size > LIVE_MED_MAX && chosen.size <= MAX_UPLOAD_BYTES) {
+      try {
+        const c = await compressToTarget25MB(chosen);
+        chosen = c;
+      } catch (e: any) {
+        setErr(e?.message || "Could not compress this file.");
+        suppressLiveRef.current = false;
+        return;
+      }
+    }
+
+    // FIX: set ref immediately so submitConvert can see it
+    fileRef.current = chosen;
 
     setFile(chosen);
     setAutoMode(getAutoMode(chosen.size));
@@ -1077,18 +1097,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Re-enable live preview and force one conversion for the new file
     suppressLiveRef.current = false;
-    setTimeout(() => submitConvert(), 0);
+
+    // FIX: pass chosen so we don't race state
+    submitConvert(chosen);
   }
 
-  async function submitConvert() {
-    if (!file) {
+  async function submitConvert(fileOverride?: File) {
+    const f = fileOverride ?? fileRef.current ?? file; // FIX
+    if (!f) {
       setErr("Choose an image first.");
       return;
     }
 
     // Client-side precheck
     try {
-      await validateBeforeSubmit(file);
+      await validateBeforeSubmit(f);
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
       return;
@@ -1116,7 +1139,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     })();
 
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", f);
     fd.append("threshold", String(effective.threshold));
     fd.append("turdSize", String(effective.turdSize));
     fd.append("optTolerance", String(effective.optTolerance));
@@ -1138,30 +1161,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  // ---- Tiered live preview (always live for allowed sizes; throttled >10MB) ----
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressLiveRef = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!file) return;
-
-    const mode = autoMode;
-    if (mode === "off") return; // file >25MB and not compressible - no auto submit
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      submitConvert();
-    }, delay);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
-
   // Disable logic identical on SSR and first client render
-  const buttonDisabled = isServer || !hydrated || busy || !file;
+  const buttonDisabled = isServer || !hydrated || busy || !fileRef.current;
 
   // Apply preset without carrying user overrides except background choices
   function applyPreset(preset: Preset) {
@@ -1300,6 +1301,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       onClick={() => {
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
+                        fileRef.current = null; // FIX
                         setPreviewUrl(null);
                         setAutoMode("off");
                         setDims(null);
@@ -1515,7 +1517,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitConvert}
+                  onClick={() => submitConvert()}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[

@@ -560,7 +560,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                       downloadText(
                         ensureSvgHasXmlns(svgText),
                         filename,
-                        "image/svg+xml;charset=utf-8"
+                        "image/svg+xml;charset=utf-8",
                       );
                       showToast("Downloaded");
                     }}
@@ -588,10 +588,10 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
       <SiteFooter />
     </>
   );
@@ -674,7 +674,7 @@ function inspectSvg(svgText: string, settings: Settings): SvgStats {
 
   if (!viewBox) {
     warnings.push(
-      "Missing viewBox. Scaling can be inconsistent across apps. Adding a viewBox is usually the safest fix."
+      "Missing viewBox. Scaling can be inconsistent across apps. Adding a viewBox is usually the safest fix.",
     );
   } else if (vb && (vb.w <= 0 || vb.h <= 0)) {
     warnings.push("viewBox exists but looks invalid (zero or non-numeric).");
@@ -689,18 +689,18 @@ function inspectSvg(svgText: string, settings: Settings): SvgStats {
 
   if (widthRaw && /(em|rem)/i.test(widthRaw)) {
     warnings.push(
-      "width uses em/rem. Pixel size depends on font-size context."
+      "width uses em/rem. Pixel size depends on font-size context.",
     );
   }
   if (heightRaw && /(em|rem)/i.test(heightRaw)) {
     warnings.push(
-      "height uses em/rem. Pixel size depends on font-size context."
+      "height uses em/rem. Pixel size depends on font-size context.",
     );
   }
 
   if (!widthRaw || !heightRaw) {
     warnings.push(
-      "width/height missing or non-px units not fully resolvable. Many tools fall back to viewBox or default sizing."
+      "width/height missing or non-px units not fully resolvable. Many tools fall back to viewBox or default sizing.",
     );
   }
 
@@ -746,7 +746,7 @@ function sanitizeSvgForPreview(svgText: string) {
         .toLowerCase()
         .replace(/\s+/g, "");
       return raw.startsWith("javascript:") ? "" : m;
-    }
+    },
   );
 
   return ensureSvgHasXmlns(svg);
@@ -1025,23 +1025,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Size Inspector",
-        item: "/svg-size-inspector",
+        item: `${baseUrl}/svg-size-inspector`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

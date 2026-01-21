@@ -166,7 +166,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
 
@@ -649,11 +649,11 @@ export default function SvgMinify(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -685,7 +685,7 @@ function minifySvg(svgText: string, settings: Settings): { svg: string } {
     svg = svg.replace(/\sxmlns:(inkscape|sodipodi)\s*=\s*["'][^"']*["']/gi, "");
     svg = svg.replace(
       /\s(?:inkscape|sodipodi):[a-zA-Z0-9_-]+\s*=\s*["'][^"']*["']/gi,
-      ""
+      "",
     );
   }
 
@@ -1047,23 +1047,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Minify",
-        item: "/svg-minify",
+        item: `${baseUrl}/svg-minify`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

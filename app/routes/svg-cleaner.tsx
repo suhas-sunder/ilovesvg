@@ -226,7 +226,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
     setSettings((s) => ({ ...s, fileName: baseName }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
   }
@@ -265,7 +265,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([ensureSvgHasXmlns(example)], { type: "image/svg+xml" })
+        new Blob([ensureSvgHasXmlns(example)], { type: "image/svg+xml" }),
       );
     });
 
@@ -282,7 +282,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
       setOutPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(
-          new Blob([res.svg], { type: "image/svg+xml" })
+          new Blob([res.svg], { type: "image/svg+xml" }),
         );
       });
     } catch (e: any) {
@@ -997,11 +997,11 @@ export default function SvgCleaner(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -1012,7 +1012,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
 ======================== */
 function cleanSvg(
   svgText: string,
-  settings: Settings
+  settings: Settings,
 ): { svg: string; info: SvgInfo } {
   const input = String(svgText || "");
   const bytesIn = new Blob([input]).size;
@@ -1059,7 +1059,7 @@ function cleanSvg(
       const before = svg;
       svg = svg.replace(
         /\s(?:href|xlink:href)\s*=\s*["']\s*javascript:[^"']*["']/gi,
-        ""
+        "",
       );
       if (svg !== before) removed.push("javascript: hrefs");
     }
@@ -1119,7 +1119,7 @@ function cleanSvg(
     const before = newOpen;
     newOpen = newOpen.replace(
       /\sdata-[a-z0-9\-_:.]+\s*=\s*["'][^"']*["']/gi,
-      ""
+      "",
     );
     if (newOpen !== before) removed.push("data-* (root)");
   }
@@ -1128,7 +1128,7 @@ function cleanSvg(
     const before = newOpen;
     newOpen = newOpen.replace(
       /\saria-[a-z0-9\-_:.]+\s*=\s*["'][^"']*["']/gi,
-      ""
+      "",
     );
     if (newOpen !== before) removed.push("aria-* (root)");
   }
@@ -1238,7 +1238,7 @@ function cleanSvg(
 }
 
 function parseSvgInfoLite(
-  svg: string
+  svg: string,
 ): Pick<
   SvgInfo,
   "widthRaw" | "heightRaw" | "viewBox" | "hasScripts" | "hasForeignObject"
@@ -1274,7 +1274,7 @@ function stripEditorJunk(svg: string) {
   for (const p of editorPrefixes) {
     const reAttr = new RegExp(
       `\\s${p}:[a-z0-9_\\-:.]+\\s*=\\s*["'][^"']*["']`,
-      "gi"
+      "gi",
     );
     s = s.replace(reAttr, "");
   }
@@ -1329,7 +1329,7 @@ function removeUnusedDefsBestEffort(svg: string) {
 
   const defsBlock = defsMatch[0];
   const ids = Array.from(
-    defsBlock.matchAll(/\sid\s*=\s*["']([^"']+)["']/gi)
+    defsBlock.matchAll(/\sid\s*=\s*["']([^"']+)["']/gi),
   ).map((m) => m[1]);
   if (!ids.length) return svg;
 
@@ -1340,7 +1340,7 @@ function removeUnusedDefsBestEffort(svg: string) {
     const urlRe = new RegExp(`url\\(\\s*#${escapeRegExp(id)}\\s*\\)`, "i");
     const hrefRe = new RegExp(
       `\\b(?:href|xlink:href)\\s*=\\s*["']#${escapeRegExp(id)}["']`,
-      "i"
+      "i",
     );
 
     // If referenced anywhere outside <defs> itself, keep.
@@ -1356,11 +1356,11 @@ function removeUnusedDefsBestEffort(svg: string) {
     // Remove element with that id anywhere (best-effort). Prefer removing within defs.
     const re = new RegExp(
       `<([a-zA-Z_:][\\w:.-]*)\\b([^>]*\\sid\\s*=\\s*["']${escapeRegExp(id)}["'][^>]*)>[\\s\\S]*?<\\/\\1>`,
-      "i"
+      "i",
     );
     const reSelf = new RegExp(
       `<([a-zA-Z_:][\\w:.-]*)\\b([^>]*\\sid\\s*=\\s*["']${escapeRegExp(id)}["'][^>]*)\\/?>`,
-      "i"
+      "i",
     );
 
     // Attempt inside defs block first
@@ -1397,7 +1397,7 @@ function dropUnusedXmlnsPrefixes(openTag: string, fullSvg: string) {
 
   // Collect xmlns:prefix declarations on the root <svg>
   const decls = Array.from(
-    openTag.matchAll(/\sxmlns:([a-z0-9_\-]+)\s*=\s*["'][^"']*["']/gi)
+    openTag.matchAll(/\sxmlns:([a-z0-9_\-]+)\s*=\s*["'][^"']*["']/gi),
   ).map((m) => m[1]);
 
   if (!decls.length) return out;
@@ -1405,13 +1405,13 @@ function dropUnusedXmlnsPrefixes(openTag: string, fullSvg: string) {
   for (const prefix of decls) {
     // If prefix is used anywhere as "prefix:" in element/attribute names, keep.
     const used = new RegExp(`\\b${escapeRegExp(prefix)}:`, "i").test(
-      fullSvg.replace(openTag, "")
+      fullSvg.replace(openTag, ""),
     );
     if (used) continue;
 
     const re = new RegExp(
       `\\sxmlns:${escapeRegExp(prefix)}\\s*=\\s*["'][^"']*["']`,
-      "i"
+      "i",
     );
     out = out.replace(re, "");
   }
@@ -1464,7 +1464,7 @@ function matchAttr(tag: string, name: string): string | null {
 function removeAttr(tag: string, name: string) {
   const re = new RegExp(
     `\\s${escapeRegExp(name)}\\s*=\\s*["'][^"']*["']`,
-    "ig"
+    "ig",
   );
   return tag.replace(re, "");
 }
@@ -1692,23 +1692,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Cleaner",
-        item: "/svg-cleaner",
+        item: `${baseUrl}/svg-cleaner`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

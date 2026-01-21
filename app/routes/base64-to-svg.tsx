@@ -527,11 +527,11 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -573,7 +573,7 @@ function normalizeLikelyPastes(raw: string) {
   // If user pasted a JSON blob, try to grab a common property value
   // { "src": "data:..." } or {src:"data:..."}
   const jsonLike = t.match(
-    /["']?(src|href|url|data)["']?\s*:\s*["']([^"']+)["']/i
+    /["']?(src|href|url|data)["']?\s*:\s*["']([^"']+)["']/i,
   );
   if (jsonLike?.[2]) t = jsonLike[2].trim();
 
@@ -700,7 +700,7 @@ function decodeBase64ToString(b64: string, mode: DecodeMode) {
     bin = atob(b64);
   } catch {
     throw new Error(
-      "Base64 decode failed. Try pasting the full data URL, or check for missing characters."
+      "Base64 decode failed. Try pasting the full data URL, or check for missing characters.",
     );
   }
 
@@ -760,7 +760,7 @@ function postprocessSvg(svgText: string, settings: Settings) {
     if (settings.stripJavascriptHrefs) {
       svg = svg.replace(
         /\s(?:href|xlink:href)\s*=\s*["']\s*javascript:[^"']*["']/gi,
-        ""
+        "",
       );
     }
   }
@@ -1070,23 +1070,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "Base64 to SVG",
-        item: "/base64-to-svg",
+        item: `${baseUrl}/base64-to-svg`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

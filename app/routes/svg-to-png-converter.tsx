@@ -164,7 +164,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([safeText], { type: "image/svg+xml" })
+      new Blob([safeText], { type: "image/svg+xml" }),
     );
     setPreviewSvgUrl(url);
   }
@@ -400,7 +400,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                           const height = clampInt(
                             Math.round(s.width / svgInfo.aspect),
                             16,
-                            16384
+                            16384,
                           );
                           return { ...s, lockAspect, height };
                         })
@@ -575,11 +575,11 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -591,7 +591,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
 async function svgToPngDataUrl(
   svgText: string,
   svgInfo: SvgInfo | null,
-  settings: Settings
+  settings: Settings,
 ): Promise<Result> {
   const info = svgInfo ||
     parseSvgSize(svgText) || { width: 1024, height: 1024, aspect: 1 };
@@ -614,7 +614,7 @@ async function svgToPngDataUrl(
   function coerceSvgToExactPixelSize(
     svgText: string,
     pxW: number,
-    pxH: number
+    pxH: number,
   ) {
     let svg = ensureSvgHasXmlns(svgText);
 
@@ -622,7 +622,7 @@ async function svgToPngDataUrl(
     if (!/xmlns:xlink\s*=/.test(svg)) {
       svg = svg.replace(
         /<svg\b/i,
-        `<svg xmlns:xlink="http://www.w3.org/1999/xlink"`
+        `<svg xmlns:xlink="http://www.w3.org/1999/xlink"`,
       );
     }
 
@@ -693,8 +693,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () =>
       reject(
         new Error(
-          "Could not render this SVG. If it uses external images or fonts, try embedding them in the SVG (data URIs) and try again."
-        )
+          "Could not render this SVG. If it uses external images or fonts, try embedding them in the SVG (data URIs) and try again.",
+        ),
       );
     img.src = url;
   });
@@ -1102,23 +1102,33 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: baseUrl,
+      },
       {
         "@type": "ListItem",
         position: 2,
-        name: "SVG → PNG",
-        item: "/svg-to-png",
+        name: "SVG to PNG",
+        item: `${baseUrl}/svg-to-png`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

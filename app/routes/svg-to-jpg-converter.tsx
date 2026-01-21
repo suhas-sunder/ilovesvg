@@ -399,7 +399,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                           const height = clampInt(
                             Math.round(s.width / svgInfo.aspect),
                             16,
-                            16384
+                            16384,
                           );
                           return { ...s, lockAspect, height };
                         })
@@ -573,11 +573,11 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -592,7 +592,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
 async function svgToJpgDataUrl(
   svgText: string,
   svgInfo: SvgInfo | null,
-  settings: Settings
+  settings: Settings,
 ): Promise<Result> {
   const info = svgInfo ||
     parseSvgSize(svgText) || { width: 1024, height: 1024, aspect: 1 };
@@ -780,7 +780,7 @@ function sanitizeSvgForRaster(svg: string) {
         .toLowerCase()
         .replace(/\s+/g, "");
       return raw.startsWith("javascript:") ? "" : m;
-    }
+    },
   );
 
   // collapse whitespace a bit (helps data URL size)
@@ -824,7 +824,7 @@ function withRasterViewport(
   svg: string,
   outW: number,
   outH: number,
-  info: SvgInfo | null
+  info: SvgInfo | null,
 ) {
   let s = ensureSvgHasXmlns(svg);
 
@@ -858,11 +858,11 @@ function setOrReplaceAttr(tag: string, name: string, value: string) {
   if (re.test(tag))
     return tag.replace(
       re,
-      ` ${name}="${String(value).replace(/"/g, "&quot;")}"`
+      ` ${name}="${String(value).replace(/"/g, "&quot;")}"`,
     );
   return tag.replace(
     /<svg\b/i,
-    (m) => `${m} ${name}="${String(value).replace(/"/g, "&quot;")}"`
+    (m) => `${m} ${name}="${String(value).replace(/"/g, "&quot;")}"`,
   );
 }
 
@@ -877,8 +877,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () =>
       reject(
         new Error(
-          "Could not render this SVG. Try embedding fonts/images, removing external references, or simplifying filters."
-        )
+          "Could not render this SVG. Try embedding fonts/images, removing external references, or simplifying filters.",
+        ),
       );
     img.src = url;
   });
@@ -1143,23 +1143,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
-        name: "SVG → JPG",
-        item: "/svg-to-jpg",
+        name: "SVG to JPG",
+        item: `${baseUrl}/svg-to-jpg`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

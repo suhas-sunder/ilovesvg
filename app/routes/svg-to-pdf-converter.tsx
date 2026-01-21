@@ -192,7 +192,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
   }
@@ -231,7 +231,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([example], { type: "image/svg+xml" })
+        new Blob([example], { type: "image/svg+xml" }),
       );
     });
 
@@ -807,11 +807,11 @@ export default function SvgToPdf(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -822,14 +822,14 @@ export default function SvgToPdf(_: Route.ComponentProps) {
 ======================== */
 async function renderSvgToPdf(
   svgText: string,
-  settings: Settings
+  settings: Settings,
 ): Promise<{ bytes: Uint8Array }> {
   const svg = ensureSvgHasXmlns(svgText);
 
   const { pageW, pageH } = getPaperSize(
     settings.paper,
     settings.orientation,
-    settings.unit
+    settings.unit,
   );
   const margin = clampNum(settings.margin, 0, 9999);
   const contentW = Math.max(1, pageW - margin * 2);
@@ -874,7 +874,7 @@ async function renderSvgToPdf(
 
   if (safeDrawW * safeDrawH > MAX_CANVAS_PIXELS) {
     throw new Error(
-      "Output is too large. Lower DPI, margin, or use Fit (contain)."
+      "Output is too large. Lower DPI, margin, or use Fit (contain).",
     );
   }
 
@@ -937,7 +937,7 @@ async function renderSvgToPdf(
     imgWUnits,
     imgHUnits,
     undefined,
-    "FAST"
+    "FAST",
   );
 
   const bytes = doc.output("arraybuffer");
@@ -1039,7 +1039,7 @@ function postprocessSvg(svgText: string, settings: Settings) {
     if (settings.stripEventHandlers) {
       svg = svg.replace(
         /\s(on[a-zA-Z]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/g,
-        ""
+        "",
       );
     }
     if (settings.stripJavascriptHrefs) {
@@ -1053,7 +1053,7 @@ function postprocessSvg(svgText: string, settings: Settings) {
             .toLowerCase()
             .replace(/\s+/g, "");
           return raw.startsWith("javascript:") ? "" : m;
-        }
+        },
       );
     }
   }
@@ -1388,23 +1388,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG to PDF",
-        item: "/svg-to-pdf",
+        item: `${baseUrl}/svg-to-pdf`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

@@ -265,7 +265,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
   }
@@ -289,7 +289,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
     setInfo(parseSvgInfo(example));
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
-      return URL.createObjectURL(new Blob([example], { type: "image/svg+xml" }));
+      return URL.createObjectURL(
+        new Blob([example], { type: "image/svg+xml" }),
+      );
     });
     setSettings((s) => ({
       ...s,
@@ -522,7 +524,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                       <option value="data-uri-utf8">Data URI (UTF-8)</option>
                       <option value="data-uri-base64">Data URI (Base64)</option>
                       <option value="react-jsx">React/JSX</option>
-                      <option value="react-component">React component (TSX)</option>
+                      <option value="react-component">
+                        React component (TSX)
+                      </option>
                     </select>
                   </Field>
 
@@ -599,11 +603,15 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                         />
                         <UnitSelect
                           value={settings.unit}
-                          onChange={(u) => setSettings((s) => ({ ...s, unit: u }))}
+                          onChange={(u) =>
+                            setSettings((s) => ({ ...s, unit: u }))
+                          }
                         />
                         <TogglePill
                           checked={settings.useWidth}
-                          onChange={(v) => setSettings((s) => ({ ...s, useWidth: v }))}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, useWidth: v }))
+                          }
                           label="Use"
                         />
                       </Field>
@@ -623,7 +631,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                         />
                         <UnitSelect
                           value={settings.unit}
-                          onChange={(u) => setSettings((s) => ({ ...s, unit: u }))}
+                          onChange={(u) =>
+                            setSettings((s) => ({ ...s, unit: u }))
+                          }
                         />
                         <TogglePill
                           checked={settings.useHeight}
@@ -750,12 +760,15 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                dataUriCharset: e.target.value as DataUriCharset,
+                                dataUriCharset: e.target
+                                  .value as DataUriCharset,
                               }))
                             }
                             className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
                           >
-                            <option value="utf8">UTF-8 (percent-encoded)</option>
+                            <option value="utf8">
+                              UTF-8 (percent-encoded)
+                            </option>
                             <option value="base64">Base64</option>
                           </select>
                         </Field>
@@ -953,7 +966,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                             setSettings((s) => ({
                               ...s,
                               reactComponentName: sanitizeJsIdentifier(
-                                e.target.value
+                                e.target.value,
                               ),
                             }))
                           }
@@ -1197,11 +1210,11 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 
       <SeoSections />
       <FaqSection />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -1228,7 +1241,7 @@ function prepareSvg(svgText: string, settings: Settings) {
     if (settings.stripJavascriptHrefs) {
       svg = svg.replace(
         /\s(?:href|xlink:href)\s*=\s*["']\s*javascript:[^"']*["']/gi,
-        ""
+        "",
       );
     }
   }
@@ -1242,7 +1255,7 @@ function prepareSvg(svgText: string, settings: Settings) {
   svg = setOrReplaceAttrOnSvg(
     svg,
     "preserveAspectRatio",
-    settings.preserveAspectRatio
+    settings.preserveAspectRatio,
   );
 
   if (settings.focusableFalse) {
@@ -1275,7 +1288,7 @@ function prepareSvg(svgText: string, settings: Settings) {
 function generateEmbed(
   svg: string,
   settings: Settings,
-  ctx: { previewUrl: string | null }
+  ctx: { previewUrl: string | null },
 ): { code: string; htmlPreview: string } {
   const q = settings.quoteMode === "single" ? "'" : '"';
   const indent =
@@ -1301,11 +1314,13 @@ function generateEmbed(
   };
 
   const sizeForHtmlAttrs = () => {
-    if (!settings.useWidth && !settings.useHeight) return { attrs: "", style: "" };
+    if (!settings.useWidth && !settings.useHeight)
+      return { attrs: "", style: "" };
 
     if (settings.unit === "px") {
       const parts: string[] = [];
-      if (settings.useWidth) parts.push(`width=${q}${String(settings.width)}${q}`);
+      if (settings.useWidth)
+        parts.push(`width=${q}${String(settings.width)}${q}`);
       if (settings.useHeight)
         parts.push(`height=${q}${String(settings.height)}${q}`);
       return { attrs: parts.join(" "), style: "" };
@@ -1321,7 +1336,8 @@ function generateEmbed(
   };
 
   const choosePreviewSrcForFileEmbeds = () => {
-    if (settings.previewUseLocalBlobForFileEmbeds && ctx.previewUrl) return ctx.previewUrl;
+    if (settings.previewUseLocalBlobForFileEmbeds && ctx.previewUrl)
+      return ctx.previewUrl;
     return settings.assetUrl || "/icons/icon.svg";
   };
 
@@ -1354,7 +1370,8 @@ function generateEmbed(
 
     const sz = sizeForHtmlAttrs();
     if (settings.unit === "px") {
-      if (settings.useWidth) attrs.push(`width=${q}${String(settings.width)}${q}`);
+      if (settings.useWidth)
+        attrs.push(`width=${q}${String(settings.width)}${q}`);
       if (settings.useHeight)
         attrs.push(`height=${q}${String(settings.height)}${q}`);
     } else if (sz.style) {
@@ -1369,7 +1386,8 @@ function generateEmbed(
     if (settings.objectType)
       pAttrs.push(`type=${q}${escapeAttr(settings.objectType)}${q}`);
     if (settings.unit === "px") {
-      if (settings.useWidth) pAttrs.push(`width=${q}${String(settings.width)}${q}`);
+      if (settings.useWidth)
+        pAttrs.push(`width=${q}${String(settings.width)}${q}`);
       if (settings.useHeight)
         pAttrs.push(`height=${q}${String(settings.height)}${q}`);
     } else if (sz.style) {
@@ -1390,7 +1408,8 @@ function generateEmbed(
 
     const sz = sizeForHtmlAttrs();
     if (settings.unit === "px") {
-      if (settings.useWidth) attrs.push(`width=${q}${String(settings.width)}${q}`);
+      if (settings.useWidth)
+        attrs.push(`width=${q}${String(settings.width)}${q}`);
       if (settings.useHeight)
         attrs.push(`height=${q}${String(settings.height)}${q}`);
     } else if (sz.style) {
@@ -1409,7 +1428,8 @@ function generateEmbed(
       pAttrs.push(`sandbox=${q}${escapeAttr(s)}${q}`);
     }
     if (settings.unit === "px") {
-      if (settings.useWidth) pAttrs.push(`width=${q}${String(settings.width)}${q}`);
+      if (settings.useWidth)
+        pAttrs.push(`width=${q}${String(settings.width)}${q}`);
       if (settings.useHeight)
         pAttrs.push(`height=${q}${String(settings.height)}${q}`);
       pAttrs.push(`style=${q}border:0;${q}`);
@@ -1442,7 +1462,8 @@ function generateEmbed(
       inlineSvg = removeAttrOnSvg(inlineSvg, "role");
     }
 
-    if (settings.useWidth) inlineSvg = setOrReplaceAttrOnSvg(inlineSvg, "width", w);
+    if (settings.useWidth)
+      inlineSvg = setOrReplaceAttrOnSvg(inlineSvg, "width", w);
     else inlineSvg = removeAttrOnSvg(inlineSvg, "width");
 
     if (settings.useHeight)
@@ -1507,18 +1528,19 @@ function generateEmbed(
 
     const codeLines: string[] = [];
     codeLines.push(`${settings.cssSelector} {`);
-    if (settings.cssIncludeDisplayBlock) codeLines.push(`${indent}display: block;`);
+    if (settings.cssIncludeDisplayBlock)
+      codeLines.push(`${indent}display: block;`);
     if (settings.useWidth) codeLines.push(`${indent}width: ${w};`);
     if (settings.useHeight) codeLines.push(`${indent}height: ${h};`);
     codeLines.push(`${indent}${prop}: url(${q}${dataUri}${q});`);
     codeLines.push(
-      `${indent}${kind === "css-mask" ? "mask-repeat" : "background-repeat"}: ${settings.cssRepeat};`
+      `${indent}${kind === "css-mask" ? "mask-repeat" : "background-repeat"}: ${settings.cssRepeat};`,
     );
     codeLines.push(
-      `${indent}${kind === "css-mask" ? "mask-position" : "background-position"}: ${pos};`
+      `${indent}${kind === "css-mask" ? "mask-position" : "background-position"}: ${pos};`,
     );
     codeLines.push(
-      `${indent}${kind === "css-mask" ? "mask-size" : "background-size"}: ${settings.cssSizeMode};`
+      `${indent}${kind === "css-mask" ? "mask-size" : "background-size"}: ${settings.cssSizeMode};`,
     );
     if (kind === "css-mask") {
       codeLines.push(`${indent}background-color: currentColor;`);
@@ -1668,7 +1690,11 @@ function ensureViewBox(svg: string, w: number, h: number) {
   const ww = parseLen(widthRaw || "") ?? w;
   const hh = parseLen(heightRaw || "") ?? h;
 
-  const newOpen = setOrReplaceAttr(open, "viewBox", `0 0 ${Math.max(1, ww)} ${Math.max(1, hh)}`);
+  const newOpen = setOrReplaceAttr(
+    open,
+    "viewBox",
+    `0 0 ${Math.max(1, ww)} ${Math.max(1, hh)}`,
+  );
   return svg.replace(open, newOpen);
 }
 
@@ -1695,7 +1721,10 @@ function setOrReplaceAttr(tag: string, name: string, value: string) {
 }
 
 function removeAttr(tag: string, name: string) {
-  const re = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*["'][^"']*["']`, "ig");
+  const re = new RegExp(
+    `\\s${escapeRegExp(name)}\\s*=\\s*["'][^"']*["']`,
+    "ig",
+  );
   return tag.replace(re, "");
 }
 
@@ -1728,7 +1757,7 @@ function svgToJsx(
     height: string;
     useCurrentColor: boolean;
     forwardProps: boolean;
-  }
+  },
 ) {
   let s = svg.trim();
 
@@ -1755,10 +1784,12 @@ function svgToJsx(
   const open = openMatch[0];
   let newOpen = open;
 
-  if (opts.width) newOpen = setOrReplaceGenericAttr(newOpen, "width", opts.width);
+  if (opts.width)
+    newOpen = setOrReplaceGenericAttr(newOpen, "width", opts.width);
   else newOpen = removeGenericAttr(newOpen, "width");
 
-  if (opts.height) newOpen = setOrReplaceGenericAttr(newOpen, "height", opts.height);
+  if (opts.height)
+    newOpen = setOrReplaceGenericAttr(newOpen, "height", opts.height);
   else newOpen = removeGenericAttr(newOpen, "height");
 
   if (opts.ariaHidden) {
@@ -1808,7 +1839,7 @@ function svgToReactComponent(
     height: string;
     useCurrentColor: boolean;
     forwardProps: boolean;
-  }
+  },
 ) {
   const name = sanitizeJsIdentifier(opts.name || "Icon") || "Icon";
   const jsx = svgToJsx(svg, {
@@ -1908,7 +1939,10 @@ function setOrReplaceGenericAttr(tag: string, name: string, value: string) {
 }
 
 function removeGenericAttr(tag: string, name: string) {
-  const re = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*["'][^"']*["']`, "ig");
+  const re = new RegExp(
+    `\\s${escapeRegExp(name)}\\s*=\\s*["'][^"']*["']`,
+    "ig",
+  );
   return tag.replace(re, "");
 }
 
@@ -2278,23 +2312,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Embed Code Generator",
-        item: "/svg-embed-code-generator",
+        item: `${baseUrl}/svg-embed-code-generator`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }
@@ -2426,21 +2465,32 @@ function SeoSections() {
           <p className="mt-3">
             Generate <strong>SVG embed code</strong> for the most common ways to
             use SVG on the web. Upload or paste an SVG and instantly get
-            snippets for HTML <strong>&lt;img&gt;</strong>, <strong>inline SVG</strong>,{" "}
-            <strong>CSS background-image</strong>, <strong>CSS mask-image</strong>,{" "}
-            <strong>SVG data URIs</strong> (UTF-8 or Base64), and{" "}
-            <strong>React/JSX</strong>. Everything runs <strong>client-side</strong>.
+            snippets for HTML <strong>&lt;img&gt;</strong>,{" "}
+            <strong>inline SVG</strong>, <strong>CSS background-image</strong>,{" "}
+            <strong>CSS mask-image</strong>, <strong>SVG data URIs</strong>{" "}
+            (UTF-8 or Base64), and <strong>React/JSX</strong>. Everything runs{" "}
+            <strong>client-side</strong>.
           </p>
 
-          <section className="mt-8" itemScope itemType="https://schema.org/HowTo">
+          <section
+            className="mt-8"
+            itemScope
+            itemType="https://schema.org/HowTo"
+          >
             <h3 itemProp="name" className="m-0 font-bold">
               How to generate SVG embed code
             </h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2">
               <li itemProp="step">Upload an SVG file or paste SVG markup.</li>
-              <li itemProp="step">Choose an embed type (img, inline, CSS, data URI, React).</li>
-              <li itemProp="step">Adjust size, viewBox, and accessibility options.</li>
-              <li itemProp="step">Copy the generated snippet into your project.</li>
+              <li itemProp="step">
+                Choose an embed type (img, inline, CSS, data URI, React).
+              </li>
+              <li itemProp="step">
+                Adjust size, viewBox, and accessibility options.
+              </li>
+              <li itemProp="step">
+                Copy the generated snippet into your project.
+              </li>
             </ol>
           </section>
 

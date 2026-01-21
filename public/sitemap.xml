@@ -6,6 +6,7 @@
     <lastmod>2026-01-13</lastmod>
   </url>
 
+  <!-- Core converters -->
   <url>
     <loc>https://www.ilovesvg.com/svg-to-png-converter</loc>
     <lastmod>2026-01-13</lastmod>
@@ -22,6 +23,17 @@
   </url>
 
   <url>
+    <loc>https://www.ilovesvg.com/svg-to-pdf-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-favicon-generator</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <!-- Editors -->
+  <url>
     <loc>https://www.ilovesvg.com/svg-background-editor</loc>
     <lastmod>2026-01-13</lastmod>
   </url>
@@ -37,62 +49,23 @@
   </url>
 
   <url>
-    <loc>https://www.ilovesvg.com/free-color-picker</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-minifier</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-preview-viewer</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-to-base64</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/base64-to-svg</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-to-pdf-converter</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-cleaner</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-embed-code-generator</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/inline-svg-vs-img</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
-    <loc>https://www.ilovesvg.com/svg-to-favicon-generator</loc>
-    <lastmod>2026-01-13</lastmod>
-  </url>
-
-  <url>
     <loc>https://www.ilovesvg.com/svg-stroke-width-editor</loc>
     <lastmod>2026-01-13</lastmod>
   </url>
 
   <url>
     <loc>https://www.ilovesvg.com/svg-flip-and-rotate-editor</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/free-color-picker</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <!-- Inspect -->
+  <url>
+    <loc>https://www.ilovesvg.com/svg-preview-viewer</loc>
     <lastmod>2026-01-13</lastmod>
   </url>
 
@@ -107,10 +80,144 @@
   </url>
 
   <url>
+    <loc>https://www.ilovesvg.com/svg-embed-code-generator</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/inline-svg-vs-img</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
     <loc>https://www.ilovesvg.com/svg-accessibility-and-contrast-checker</loc>
     <lastmod>2026-01-13</lastmod>
   </url>
 
+  <!-- Optimize -->
+  <url>
+    <loc>https://www.ilovesvg.com/svg-minifier</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/svg-cleaner</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <!-- Base64 -->
+  <url>
+    <loc>https://www.ilovesvg.com/svg-to-base64</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/base64-to-svg</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <!-- Image-to-SVG converter landing pages / specialized routes (missing before) -->
+  <url>
+    <loc>https://www.ilovesvg.com/png-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/jpeg-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/jpg-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/webp-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/logo-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/image-to-svg-outline</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/photo-to-svg-outline</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/scan-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/drawing-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/emoji-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/text-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/icon-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/sticker-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/line-art-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/comic-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/illustration-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/bitmap-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/raster-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/black-and-white-image-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <url>
+    <loc>https://www.ilovesvg.com/sketch-to-svg-converter</loc>
+    <lastmod>2026-01-13</lastmod>
+  </url>
+
+  <!-- Legal (kept, since you already include them in sitemap) -->
   <url>
     <loc>https://www.ilovesvg.com/cookies</loc>
     <lastmod>2026-01-13</lastmod>

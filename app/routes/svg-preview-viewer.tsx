@@ -153,7 +153,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   // tabs
   const [tab, setTab] = React.useState<"details" | "elements" | "source">(
-    "details"
+    "details",
   );
 
   function showToast(msg: string) {
@@ -246,7 +246,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
   function applySafetyAndRender(
     raw: string,
     parsedInfo: SvgInfo | null,
-    s: Settings
+    s: Settings,
   ) {
     setErr(null);
     try {
@@ -439,7 +439,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
   function zoomAtScreenPoint(
     screenX: number,
     screenY: number,
-    nextScaleRaw: number
+    nextScaleRaw: number,
   ) {
     const vp = viewportRef.current;
     if (!vp) return;
@@ -754,7 +754,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                         const val = clamp(
                           Number(e.target.value) / 100,
                           0.05,
-                          64
+                          64,
                         );
                         zoomAtCenter(val);
                       }}
@@ -1103,11 +1103,11 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -1420,7 +1420,7 @@ function buildSafeSvg(svgText: string, settings: Settings) {
   if (settings.stripJavascriptHrefs) {
     svg = svg.replace(
       /\s(?:href|xlink:href)\s*=\s*["']\s*javascript:[^"']*["']/gi,
-      ""
+      "",
     );
   }
 
@@ -1622,7 +1622,7 @@ function analyzeSvgDom(svg: string): {
     }
 
     defsSummary.gradients = doc.querySelectorAll(
-      "linearGradient, radialGradient"
+      "linearGradient, radialGradient",
     ).length;
     defsSummary.patterns = doc.querySelectorAll("pattern").length;
     defsSummary.clipPaths = doc.querySelectorAll("clipPath").length;
@@ -1691,7 +1691,7 @@ function escapeAttr(v: string) {
    Element bbox helper
 ======================== */
 function safeGetBBox(
-  el: any
+  el: any,
 ): { x: number; y: number; w: number; h: number } | null {
   try {
     if (!el || typeof el.getBBox !== "function") return null;
@@ -1864,23 +1864,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Viewer",
-        item: "/svg-preview-viewer",
+        item: `${baseUrl}/svg-preview-viewer`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

@@ -382,7 +382,7 @@ export default function SvgBackgroundPage({
                         setInputText(t);
                         setInputSvgValid("");
                         setInPreviewSrc(
-                          makeSvgDataUrl(bestEffortSvgForPreview(t))
+                          makeSvgDataUrl(bestEffortSvgForPreview(t)),
                         );
                         setErr(er?.message || "Invalid SVG markup.");
                       }
@@ -494,7 +494,7 @@ export default function SvgBackgroundPage({
                           // Update input preview from what user typed (best-effort),
                           // but DO NOT let settings changes affect this.
                           setInPreviewSrc(
-                            makeSvgDataUrl(bestEffortSvgForPreview(next))
+                            makeSvgDataUrl(bestEffortSvgForPreview(next)),
                           );
 
                           // Only update processing pipeline when valid
@@ -612,7 +612,7 @@ export default function SvgBackgroundPage({
                               ...s,
                               cornerRadius: Math.max(
                                 0,
-                                Number(e.target.value || 0)
+                                Number(e.target.value || 0),
                               ),
                             }))
                           }
@@ -838,8 +838,8 @@ export default function SvgBackgroundPage({
           </section>
 
           <SeoSections />
-          <OtherToolsLinks />
         </div>
+        <OtherToolsLinks />
         <RelatedSites />
         <SocialLinks />
         <SiteFooter />
@@ -1409,7 +1409,6 @@ function SiteFooter() {
   );
 }
 
-
 /* ========================
    SVG validation + normalization
 ======================== */
@@ -1455,7 +1454,7 @@ function detectBackground(svgText: string): BgDetection {
   const children = Array.from(svg.children);
   const interesting = children.filter(
     (el) =>
-      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase())
+      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase()),
   );
 
   const N = Math.min(8, interesting.length);
@@ -1518,7 +1517,7 @@ function removeDetectedBackground(svg: SVGSVGElement, dims: CanvasDims) {
 
   const interesting = children.filter(
     (el) =>
-      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase())
+      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase()),
   );
 
   const N = Math.min(12, interesting.length);
@@ -1536,7 +1535,7 @@ function removeDetectedBackground(svg: SVGSVGElement, dims: CanvasDims) {
 function insertBackground(svg: SVGSVGElement, dims: CanvasDims, s: Settings) {
   const rect = svg.ownerDocument!.createElementNS(
     "http://www.w3.org/2000/svg",
-    "rect"
+    "rect",
   );
 
   const vb = parseViewBox(svg.getAttribute("viewBox"));
@@ -1759,7 +1758,7 @@ function normalizeColorToken(token: string): string | null {
     .toLowerCase();
   if (/^#[0-9a-f]{3,8}$/.test(v)) return normalizeHex(v);
   const rgb = v.match(
-    /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+))?\s*\)$/i
+    /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+))?\s*\)$/i,
   );
   if (rgb) {
     const r = clamp255(Number(rgb[1]));

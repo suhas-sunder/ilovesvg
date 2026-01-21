@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/home";
+import type { Route } from "./+types/icon-to-svg-converter";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -18,17 +18,21 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "i🩵SVG  -  Potrace (server, in-memory, live preview, client auto-compress)";
+    "Icon to SVG Converter - Potrace vectorizer (in-memory, live preview, droplet-safe)";
   const description =
-    "Convert PNG/JPEG to SVG with live preview. Auto-compress large files on-device to 25 MB for instant preview. Server concurrency-gated. Batch supported.";
+    "Convert icons (PNG/JPEG) into clean, scalable SVG. Tuned presets for app icons, logos, and UI glyphs. Live preview with on-device compression and server concurrency gating.";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+
+    { rel: "canonical", href: "https://ilovesvg.com/icon-to-svg-converter" },
   ];
 }
 
@@ -39,29 +43,30 @@ export function loader({ context }: Route.LoaderArgs) {
 /* ========================
    Limits & types (mirrored client/server)
 ======================== */
-// Client submits ≤25MB for live preview. Allow a little overhead for multipart.
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
-// Dark background default for invert "white on dark"
-const DARK_BG_DEFAULT = "#0b1020";
-
-// -------- Live preview tiers (client) --------
-// ≤10MB: fast,  10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
+// Live preview tiers
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
 const LIVE_MED_MS = 1500;
 
-// -------- Concurrency gate (server) --------
+// Dark background default for "White on dark"
+const DARK_BG_DEFAULT = "#0b1020";
+
+/* ========================
+   Concurrency gate (server)
+======================== */
 type ReleaseFn = () => void;
 type Gate = {
   acquireOrQueue: () => Promise<ReleaseFn>;
   running: number;
   queued: number;
 };
+
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
   if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
@@ -69,13 +74,15 @@ async function getGate(): Promise<Gate> {
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
   let cpuCount = 1;
+
   try {
     const os = req("os") as typeof import("os");
     cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
   } catch {}
-  const MAX = Math.max(1, Math.min(2, cpuCount)); // N=1 on 1 vCPU; N=2 on 2+ vCPU
-  const QUEUE_MAX = 8; // small fairness queue
-  const EST_JOB_MS = 3000; // rough estimate used to compute Retry-After
+
+  const MAX = Math.max(1, Math.min(2, cpuCount)); // 1 on 1 vCPU; 2 on 2+ vCPU
+  const QUEUE_MAX = 8;
+  const EST_JOB_MS = 3000;
 
   class SimpleGate implements Gate {
     max: number;
@@ -131,16 +138,12 @@ async function getGate(): Promise<Gate> {
 
 /* ========================
    Action: Potrace (RAM-only)
-   + Optional server-side "Edge" preprocessor via sharp
-   + Concurrency gate with 429 + Retry-After when saturated
-
-   IMPORTANT:
-   We treat `invert` as OUTPUT "white on dark" mode (not potrace invert),
-   to avoid blank results. We force a visible background and recolor paths.
+   NOTE: "invert" is treated as OUTPUT "white on dark" mode.
+         We do NOT use potrace invert for this, because it easily
+         produces "blank" results on light lineart.
 ======================== */
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    // --- Guard: method ---
     if (request.method.toUpperCase() !== "POST") {
       return json(
         { error: "Method not allowed" },
@@ -148,7 +151,6 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    // --- Guard: content type ---
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.startsWith("multipart/form-data")) {
       return json(
@@ -157,20 +159,15 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    // --- Early reject: don't parse multipart if request is huge ---
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
       return json(
-        {
-          error:
-            "Upload too large for live conversion. Please resize and try again.",
-        },
+        { error: "Upload too large. Please resize and try again." },
         { status: 413 },
       );
     }
 
-    // Parse multipart with strict per-part limit (RAM upload handler)
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
@@ -181,8 +178,8 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ error: "No file uploaded." }, { status: 400 });
     }
 
-    // Basic type/size checks (authoritative)
     const webFile = file as File;
+
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -200,7 +197,6 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    // ----- Acquire concurrency slot BEFORE reading bytes into RAM -----
     const gate = await getGate();
     let release: ReleaseFn | null = null;
 
@@ -217,20 +213,17 @@ export async function action({ request }: ActionFunctionArgs) {
         },
         {
           status: 429,
-          headers: {
-            "Retry-After": String(Math.ceil(retryAfterMs / 1000)),
-          },
+          headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
         },
       );
     }
 
     try {
-      // NOW read original bytes into Buffer (RAM-heavy)
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
-      let input: Buffer = Buffer.from(ab);
+      const input: Buffer = Buffer.from(ab);
 
-      // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
+      // Cheap authoritative dimension check via sharp (best-effort)
       try {
         const { createRequire } = await import("node:module");
         const req = createRequire(import.meta.url);
@@ -258,14 +251,14 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
       } catch {
-        // If sharp metadata fails here, continue - Potrace may still handle small files.
+        // If sharp metadata fails, continue.
       }
 
       // Potrace params
-      const threshold = Number(form.get("threshold") ?? 224);
+      const threshold = Number(form.get("threshold") ?? 210);
       const turdSize = Number(form.get("turdSize") ?? 2);
-      const optTolerance = Number(form.get("optTolerance") ?? 0.28);
-      const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
+      const optTolerance = Number(form.get("optTolerance") ?? 0.35);
+      const turnPolicy = String(form.get("turnPolicy") ?? "majority") as
         | "black"
         | "white"
         | "left"
@@ -273,7 +266,7 @@ export async function action({ request }: ActionFunctionArgs) {
         | "minority"
         | "majority";
 
-      // We interpret invert as output "white on dark"
+      // NOTE: We interpret "invert" as output "white on dark"
       const whiteOnDark =
         String(form.get("invert") ?? "false").toLowerCase() === "true";
 
@@ -285,7 +278,7 @@ export async function action({ request }: ActionFunctionArgs) {
         String(form.get("transparent") ?? "true").toLowerCase() === "true";
       let bgColor = String(form.get("bgColor") ?? "#ffffff");
 
-      // Preprocess (for photos)
+      // Preprocess
       const preprocess = String(form.get("preprocess") ?? "none") as
         | "none"
         | "edge";
@@ -294,34 +287,29 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // Force sensible output for white-on-dark
       if (whiteOnDark) {
+        // Always visible (no "blank" on white page)
         transparent = false;
-        if (
-          !bgColor ||
-          bgColor.toLowerCase() === "#ffffff" ||
-          bgColor.toLowerCase() === "#fff"
-        ) {
+        // If they left bgColor on white, give a dark default
+        if (!bgColor || bgColor.toLowerCase() === "#ffffff" || bgColor.toLowerCase() === "#fff") {
           bgColor = DARK_BG_DEFAULT;
         }
-        // If they didn't set a visible line, force white
+        // If they didn't set a light line, force it
         if (!lineColor || lineColor.toLowerCase() === "#000000") {
           lineColor = "#ffffff";
         }
       }
 
-      // Normalize for Potrace
       const prepped = await normalizeForPotrace(input, {
         preprocess,
         blurSigma,
         edgeBoost,
       });
 
-      // Potrace (CJS API)
       const potrace = await import("potrace");
       const traceFn: any = (potrace as any).trace;
       const PotraceClass: any = (potrace as any).Potrace;
 
       // IMPORTANT: do NOT use potrace invert for white-on-dark output mode
-      // We trace as black, then recolor paths.
       const opts: any = {
         color: "#000000",
         threshold,
@@ -351,32 +339,24 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       });
 
-      // Post-process SVG safely (defensive)
       const safeSvg = coerceSvg(svgRaw);
       const ensured = ensureViewBoxResponsive(safeSvg);
+
+      // recolor to desired output color
       const svg2 = recolorPaths(ensured.svg, lineColor);
-      const svg3 = stripFullWhiteBackgroundRect(
-        svg2,
-        ensured.width,
-        ensured.height,
-      );
+
+      // remove full-white bg rect if potrace emits it
+      const svg3 = stripFullWhiteBackgroundRect(svg2, ensured.width, ensured.height);
+
       const finalSVG = transparent
         ? svg3
-        : injectBackgroundRectString(
-            svg3,
-            ensured.width,
-            ensured.height,
-            bgColor,
-          );
+        : injectBackgroundRectString(svg3, bgColor);
 
       return json({
         svg: finalSVG,
         width: ensured.width,
         height: ensured.height,
-        gate: {
-          running: gate.running,
-          queued: gate.queued,
-        },
+        gate: { running: gate.running, queued: gate.queued },
       });
     } finally {
       try {
@@ -391,24 +371,21 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
-/* ---------- Image normalization for Potrace (server-side, robust) ---------- */
+/* ---------- Image normalization for Potrace (server-side) ---------- */
 async function normalizeForPotrace(
   input: Buffer,
   opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number },
 ): Promise<Buffer> {
   try {
-    // Lazy CJS import so this never leaks into client bundle
     const { createRequire } = await import("node:module");
     const req = createRequire(import.meta.url);
     const sharp = req("sharp") as typeof import("sharp");
 
-    // Keep cache tiny for small droplets (best-effort)
     try {
       (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 32 }); // even smaller
+      (sharp as any).cache?.({ files: 0, memory: 32 });
     } catch {}
 
-    // Decode + respect EXIF
     let base = sharp(input).rotate();
 
     // Soft guard to avoid OOM
@@ -446,7 +423,7 @@ async function normalizeForPotrace(
           .toBuffer();
       }
 
-      const src = data as Buffer; // 1 channel enforced by grayscale above
+      const src = data as Buffer;
       const out = Buffer.alloc(W * H, 255);
 
       const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
@@ -467,7 +444,7 @@ async function normalizeForPotrace(
           }
           let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
           if (m > 255) m = 255;
-          out[y * W + x] = 255 - m; // edges dark, background light
+          out[y * W + x] = 255 - m;
         }
       }
 
@@ -483,14 +460,11 @@ async function normalizeForPotrace(
           .toBuffer();
       }
 
-      return await sharp(out, {
-        raw: { width: W, height: H, channels: 1 },
-      })
+      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
         .png()
         .toBuffer();
     }
 
-    // Plain grayscale prep
     return await base
       .flatten({ background: { r: 255, g: 255, b: 255 } })
       .removeAlpha()
@@ -500,12 +474,10 @@ async function normalizeForPotrace(
       .png()
       .toBuffer();
   } catch {
-    // If sharp is not available or fails, just return original
     return input;
   }
 }
 
-/** Heuristic: flat if min==max OR very low variance OR mean near 0 or 255. */
 function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
   const len = buf.length;
   if (len === 0) return true;
@@ -514,6 +486,7 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
     max = 0,
     sum = 0,
     count = 0;
+
   for (let i = 0; i < len; i += sampleStep) {
     const v = buf[i];
     if (v < min) min = v;
@@ -521,6 +494,7 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
     sum += v;
     count++;
   }
+
   const mean = sum / Math.max(count, 1);
   const range = max - min;
 
@@ -536,7 +510,7 @@ function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
   return variance < 8;
 }
 
-/* ---------- SVG helpers (Node-safe, no DOMParser) ---------- */
+/* ---------- SVG helpers (Node-safe) ---------- */
 function coerceSvg(svgRaw: string | null | undefined): string {
   const fallback =
     '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"></svg>';
@@ -557,7 +531,10 @@ function ensureViewBoxResponsive(svg: string): {
   const openTag = openTagMatch[0];
   const hasViewBox = /viewBox\s*=\s*["'][^"']*["']/.test(openTag);
   const widthMatch = openTag.match(/width\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
-  const heightMatch = openTag.match(/height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
+  const heightMatch = openTag.match(
+    /height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i,
+  );
+
   let width = widthMatch ? Number(widthMatch[1]) : 1024;
   let height = heightMatch ? Number(heightMatch[1]) : 1024;
 
@@ -593,11 +570,7 @@ function recolorPaths(svg: string, fillColor: string): string {
   return out;
 }
 
-function stripFullWhiteBackgroundRect(
-  svg: string,
-  width: number,
-  height: number,
-): string {
+function stripFullWhiteBackgroundRect(svg: string, width: number, height: number): string {
   const whitePattern =
     /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
 
@@ -618,17 +591,16 @@ function stripFullWhiteBackgroundRect(
   return svg.replace(numeric, "").replace(percent, "");
 }
 
-function injectBackgroundRectString(
-  svg: string,
-  width: number,
-  height: number,
-  color: string,
-): string {
+/**
+ * Inject a full-coverage background rect that cannot "miss" and create borders.
+ * Use 100% sizing instead of numeric width/height.
+ */
+function injectBackgroundRectString(svg: string, color: string): string {
   const openTagMatch = svg.match(/<svg\b[^>]*>/i);
   if (!openTagMatch) return svg;
   const openTag = openTagMatch[0];
 
-  const rect = `<rect x="0" y="0" width="${width}" height="${height}" fill="${color}"/>`;
+  const rect = `<rect x="0" y="0" width="100%" height="100%" fill="${color}"/>`;
   const idx = svg.indexOf(openTag) + openTag.length;
   return svg.slice(0, idx) + rect + svg.slice(idx);
 }
@@ -646,13 +618,17 @@ type Settings = {
   optTolerance: number;
   turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   lineColor: string;
+
+  /**
+   * IMPORTANT:
+   * We now treat `invert` as OUTPUT "white on dark" mode.
+   * (This avoids potrace invert producing blank results.)
+   */
   invert: boolean;
 
-  // background
   transparent: boolean;
   bgColor: string;
 
-  // preprocess
   preprocess: "none" | "edge";
   blurSigma: number;
   edgeBoost: number;
@@ -664,181 +640,81 @@ type Preset = {
   settings: Partial<Settings>;
 };
 
+// Icon-focused presets
 const PRESETS: Preset[] = [
   {
-    id: "line-accurate",
-    label: "Lineart  -  Accurate (default)",
+    id: "icon-crisp",
+    label: "Icon - Crisp (default)",
     settings: {
       preprocess: "none",
-      threshold: 224,
+      threshold: 210,
       turdSize: 2,
-      optTolerance: 0.28,
-      turnPolicy: "minority",
+      optTolerance: 0.35,
+      turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
     },
   },
   {
-    id: "line-bold",
-    label: "Lineart  -  Bold",
+    id: "icon-thin",
+    label: "Icon - Preserve thin strokes",
     settings: {
       preprocess: "none",
-      threshold: 212,
-      turdSize: 3,
-      optTolerance: 0.38,
-      turnPolicy: "majority",
-    },
-  },
-  {
-    id: "line-fine",
-    label: "Lineart  -  Fine detail",
-    settings: {
-      preprocess: "none",
-      threshold: 232,
+      threshold: 235,
       turdSize: 1,
       optTolerance: 0.22,
       turnPolicy: "minority",
     },
   },
   {
-    id: "line-gap",
-    label: "Lineart  -  Seal gaps",
+    id: "icon-bold",
+    label: "Icon - Bold fill",
     settings: {
       preprocess: "none",
-      threshold: 218,
+      threshold: 198,
       turdSize: 3,
-      optTolerance: 0.34,
-      turnPolicy: "black",
-    },
-  },
-  {
-    id: "photo-soft",
-    label: "Photo Edge  -  Soft",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 1.2,
-      edgeBoost: 0.9,
-      threshold: 210,
-      turdSize: 2,
-      optTolerance: 0.35,
-    },
-  },
-  {
-    id: "photo-normal",
-    label: "Photo Edge  -  Normal",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.1,
-      threshold: 220,
-      turdSize: 2,
-      optTolerance: 0.35,
-    },
-  },
-  {
-    id: "photo-bold",
-    label: "Photo Edge  -  Bold",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.6,
-      edgeBoost: 1.4,
-      threshold: 230,
-      turdSize: 3,
-      optTolerance: 0.4,
-    },
-  },
-  {
-    id: "edge-clean",
-    label: "Edge  -  Clean",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.8,
-      edgeBoost: 1.2,
-      threshold: 236,
-      turdSize: 2,
-      optTolerance: 0.45,
-    },
-  },
-  {
-    id: "scan-clean",
-    label: "Scan  -  Clean (remove speckles)",
-    settings: {
-      preprocess: "none",
-      threshold: 226,
-      turdSize: 4,
-      optTolerance: 0.3,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-    },
-  },
-  {
-    id: "scan-aggressive",
-    label: "Scan  -  Aggressive (close gaps)",
-    settings: {
-      preprocess: "none",
-      threshold: 218,
-      turdSize: 5,
       optTolerance: 0.42,
       turnPolicy: "black",
-      lineColor: "#000000",
-      invert: false,
     },
   },
   {
     id: "logo-clean",
-    label: "Logo  -  Clean shapes",
+    label: "Logo - Clean shapes (few nodes)",
     settings: {
       preprocess: "none",
       threshold: 210,
       turdSize: 2,
-      optTolerance: 0.25,
+      optTolerance: 0.55,
       turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
     },
   },
   {
-    id: "logo-thin",
-    label: "Logo  -  Thin details",
+    id: "glyph-ui",
+    label: "UI Glyph - Simplify",
     settings: {
       preprocess: "none",
-      threshold: 238,
-      turdSize: 1,
-      optTolerance: 0.2,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
-    },
-  },
-  {
-    id: "noisy-denoise",
-    label: "Noisy Photo  -  Denoise Edge",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 1.6,
-      edgeBoost: 1.25,
-      threshold: 222,
-      turdSize: 3,
-      optTolerance: 0.38,
+      threshold: 220,
+      turdSize: 2,
+      optTolerance: 0.75,
       turnPolicy: "majority",
     },
   },
   {
-    id: "low-contrast",
-    label: "Low-contrast Photo  -  Boost edges",
+    id: "photo-icon-edge",
+    label: "Icon from photo - Edge extract",
     settings: {
       preprocess: "edge",
-      blurSigma: 1.0,
-      edgeBoost: 1.6,
+      blurSigma: 0.9,
+      edgeBoost: 1.2,
       threshold: 228,
       turdSize: 2,
-      optTolerance: 0.36,
+      optTolerance: 0.4,
+      turnPolicy: "majority",
     },
   },
   {
-    id: "invert-white-on-black",
-    label: "Invert  -  White lines on black",
+    id: "invert-white",
+    label: "White on dark",
     settings: {
       preprocess: "none",
       threshold: 225,
@@ -851,56 +727,13 @@ const PRESETS: Preset[] = [
       bgColor: DARK_BG_DEFAULT,
     },
   },
-  {
-    id: "comics-inks",
-    label: "Comics  -  Inks (chunky)",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.7,
-      edgeBoost: 1.5,
-      threshold: 234,
-      turdSize: 3,
-      optTolerance: 0.48,
-      turnPolicy: "black",
-      lineColor: "#000000",
-    },
-  },
-  {
-    id: "blueprint",
-    label: "Diagram  -  Blueprint (invert + blue)",
-    settings: {
-      preprocess: "none",
-      threshold: 230,
-      turdSize: 2,
-      optTolerance: 0.3,
-      turnPolicy: "minority",
-      invert: true,
-      lineColor: "#0ea5e9",
-      transparent: false,
-      bgColor: DARK_BG_DEFAULT,
-    },
-  },
-  {
-    id: "whiteboard",
-    label: "Whiteboard  -  Anti-glare",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 1.3,
-      edgeBoost: 1.15,
-      threshold: 220,
-      turdSize: 2,
-      optTolerance: 0.34,
-      turnPolicy: "majority",
-      lineColor: "#0f172a",
-    },
-  },
 ];
 
 const DEFAULTS: Settings = {
-  threshold: 224,
+  threshold: 210,
   turdSize: 2,
-  optTolerance: 0.28,
-  turnPolicy: "minority",
+  optTolerance: 0.35,
+  turnPolicy: "majority",
   lineColor: "#000000",
   invert: false,
 
@@ -929,7 +762,7 @@ type HistoryItem = {
   stamp: number;
 };
 
-// ---- tiering helpers (client) ----
+/* ---- tiering helpers (client) ---- */
 type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
   if (bytes == null) return "off";
@@ -947,57 +780,44 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
+export default function IconToSvgConverter({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
-  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
-    null,
-  );
+  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
-  const [activePreset, setActivePreset] =
-    React.useState<string>("line-accurate");
+  const [activePreset, setActivePreset] = React.useState<string>("icon-crisp");
+
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
 
-  // client-side measured dims
-  const [dims, setDims] = React.useState<{
-    w: number;
-    h: number;
-    mp: number;
-  } | null>(null);
+  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(null);
 
-  // Hydration guard
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
-  // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
-
-  // Live preview tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
   React.useEffect(() => {
-    if (suppressLiveRef.current) return;
-    if (!file) return;
+    if (fetcher.data?.error) setErr(fetcher.data.error);
+    else setErr(null);
 
-    const mode = autoMode;
-    if (mode === "off") return;
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      submitConvert();
-    }, delay);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    if (fetcher.data?.retryAfterMs) {
+      const ms = Math.max(800, fetcher.data.retryAfterMs);
+      setInfo(`Server busy… retrying automatically in ${(ms / 1000).toFixed(1)}s`);
+      const t = setTimeout(() => {
+        if (file) submitConvert();
+      }, ms);
+      return () => clearTimeout(t);
+    } else {
+      setInfo(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [fetcher.data]);
 
-  // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
       const item: HistoryItem = {
@@ -1046,19 +866,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    // Stop live preview while we swap state
-    suppressLiveRef.current = true;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    // Clear current file first so nothing submits with the old one
-    setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
-
-    // Reset settings/results for the new upload
-    setSettings(DEFAULTS);
-    setActivePreset("line-accurate");
-    setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
     setInfo(null);
@@ -1067,17 +875,47 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     let chosen = f;
 
-    // ... keep ALL your existing compression logic and the rest unchanged ...
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setInfo("Huge file detected - compressing on your device…");
+      try {
+        chosen = await compressToTarget25MB(f);
+      } catch (e: any) {
+        setInfo(null);
+        setErr(e?.message || "This image is too large. Please resize it and try again.");
+        setFile(null);
+        setPreviewUrl(null);
+        setAutoMode("off");
+        setOriginalFileSize(null);
+        return;
+      }
+    } else if (f.size > LIVE_MED_MAX) {
+      setInfo("Large file detected - compressing on your device for preview…");
+      try {
+        const shrunk = await compressToTarget25MB(f);
+        chosen = shrunk;
+        setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
+      } catch (e: any) {
+        setErr(e?.message || "Could not compress below 25 MB. Live preview will be disabled.");
+        setInfo(null);
+        chosen = f;
+      }
+    }
+
+    if (chosen.size > MAX_UPLOAD_BYTES) {
+      setErr(`File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`);
+      setInfo(null);
+      setFile(null);
+      setPreviewUrl(null);
+      setAutoMode("off");
+      setOriginalFileSize(null);
+      return;
+    }
 
     setFile(chosen);
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
     await measureAndSet(chosen);
-
-    // Re-enable live preview and force one conversion for the new file
-    suppressLiveRef.current = false;
-    setTimeout(() => submitConvert(), 0);
   }
 
   async function submitConvert() {
@@ -1086,7 +924,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    // Client-side precheck
     try {
       await validateBeforeSubmit(file);
     } catch (e: any) {
@@ -1094,24 +931,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    // Ensure invert always produces visible output (white on dark)
+    // client-side sanity: if "white on dark" is enabled, force visible bg
     const effective = (() => {
       if (!settings.invert) return settings;
       const bg =
-        !settings.bgColor ||
-        settings.bgColor.toLowerCase() === "#ffffff" ||
-        settings.bgColor.toLowerCase() === "#fff"
+        !settings.bgColor || settings.bgColor.toLowerCase() === "#ffffff" || settings.bgColor.toLowerCase() === "#fff"
           ? DARK_BG_DEFAULT
           : settings.bgColor;
-
       return {
         ...settings,
         transparent: false,
         bgColor: bg,
-        lineColor:
-          settings.lineColor?.toLowerCase() === "#000000"
-            ? "#ffffff"
-            : settings.lineColor,
+        lineColor: settings.lineColor?.toLowerCase() === "#000000" ? "#ffffff" : settings.lineColor,
       };
     })();
 
@@ -1128,9 +959,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("preprocess", effective.preprocess);
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
+
     setErr(null);
 
-    // Target this route's index action
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
@@ -1138,18 +969,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  // ---- Tiered live preview (always live for allowed sizes; throttled >10MB) ----
+  // Tiered live preview
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressLiveRef = React.useRef(false);
-
   React.useEffect(() => {
     if (!file) return;
+    if (autoMode === "off") return;
 
-    const mode = autoMode;
-    if (mode === "off") return; // file >25MB and not compressible - no auto submit
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
+    const delay = autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
     debounceRef.current = setTimeout(() => {
       submitConvert();
     }, delay);
@@ -1160,42 +988,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, settings, activePreset, autoMode]);
 
-  // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
-  // Apply preset without carrying user overrides except background choices
   function applyPreset(preset: Preset) {
     setActivePreset(preset.id);
-    setSettings((s) => {
-      const baseline: Settings = {
-        ...DEFAULTS,
-        transparent: s.transparent,
-        bgColor: s.bgColor,
-      };
-      const lineColor =
-        preset.settings.lineColor !== undefined
-          ? preset.settings.lineColor
-          : s.lineColor;
 
-      return {
-        ...baseline,
-        lineColor,
-        ...preset.settings,
-      } as Settings;
+    setSettings((s) => {
+      // start from defaults
+      const next: Settings = { ...DEFAULTS };
+
+      // If preset does NOT specify background fields, preserve user's current background choices
+      if (preset.settings.transparent === undefined) next.transparent = s.transparent;
+      if (preset.settings.bgColor === undefined) next.bgColor = s.bgColor;
+
+      // If preset does NOT specify lineColor, preserve current lineColor (icons often want user color)
+      if (preset.settings.lineColor === undefined) next.lineColor = s.lineColor;
+
+      // Apply preset
+      return { ...next, ...preset.settings } as Settings;
     });
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
-
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 1500);
   }
-
   function handleCopySvg(svg: string) {
-    navigator.clipboard.writeText(svg).then(() => {
-      showToast("SVG copied");
-    });
+    navigator.clipboard.writeText(svg).then(() => showToast("SVG copied"));
   }
 
   return (
@@ -1205,21 +1025,46 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2">
+              Icon to SVG converter
+            </p>
             <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-              <span>i</span>
-              <span
-                role="img"
-                aria-label="love"
-                className="text-[34px] -translate-y-[1px]"
-              >
-                🩵
-              </span>
+              <span>Icon</span>
+              <span className="text-slate-400">→</span>
               <span className="text-[#0b2dff]">SVG</span>
             </h1>
             <p className="mt-1 text-slate-600">
-              Convert your PNG/JPEG images into crisp vector graphics with live
-              preview. Large files auto-compress on your device up to 25 MB.
+              Turn app icons, UI glyphs, and small logos into clean SVG paths.
+              Presets are tuned for flat shapes and crisp edges, with live
+              preview and droplet-safe limits.
             </p>
+
+            <div className="mt-3 flex items-center justify-center gap-3 text-sm">
+              <a
+                href="/"
+                className="text-slate-700 hover:text-slate-900 hover:underline underline-offset-4"
+              >
+                Back to all tools
+              </a>
+              <span className="text-slate-300" aria-hidden>
+                |
+              </span>
+              <a
+                href="/svg-recolor"
+                className="text-slate-700 hover:text-slate-900 hover:underline underline-offset-4"
+              >
+                Recolor SVG
+              </a>
+              <span className="text-slate-300" aria-hidden>
+                |
+              </span>
+              <a
+                href="/svg-resize-and-scale-editor"
+                className="text-slate-700 hover:text-slate-900 hover:underline underline-offset-4"
+              >
+                Resize / Scale
+              </a>
+            </div>
           </header>
 
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -1249,7 +1094,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {/* Limits helper */}
               <div className="text-[13px] text-slate-600 mb-2">
                 Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> max.
               </div>
               <div className="text-sky-700 mb-2 text-center text-sm">
                 Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30 MB
@@ -1267,7 +1112,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
+                    Click, drag & drop, or paste an icon image (PNG/JPEG)
                   </div>
                   <input
                     id="file-inp"
@@ -1312,6 +1157,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       ×
                     </button>
                   </div>
+
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
@@ -1319,6 +1165,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         {dims.w}×{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+
+                  {dims && (dims.w > 2048 || dims.h > 2048) && (
+                    <div className="mt-2 text-[13px] text-amber-700">
+                      Icon tip: If this is a true icon, consider exporting it
+                      closer to 512–1024px. You will get a simpler SVG.
                     </div>
                   )}
                 </>
@@ -1337,8 +1190,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
-                    <option value="none">None (lineart)</option>
-                    <option value="edge">Edge (photo/painting)</option>
+                    <option value="none">None (icons/logos)</option>
+                    <option value="edge">Edge (photo-style icons)</option>
                   </select>
                 </Field>
 
@@ -1392,9 +1245,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     min={0}
                     max={10}
                     step={1}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, turdSize: v }))
-                    }
+                    onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
                   />
                 </Field>
 
@@ -1430,7 +1281,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   </select>
                 </Field>
 
-                <Field label="Line color">
+                <Field label="Path color">
                   <input
                     type="color"
                     value={settings.lineColor}
@@ -1441,7 +1292,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   />
                 </Field>
 
-                <Field label="Invert lineart">
+                <Field label="White on dark">
                   <input
                     type="checkbox"
                     checked={settings.invert}
@@ -1449,17 +1300,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       setSettings((s) => {
                         const on = e.target.checked;
                         if (!on) return { ...s, invert: false };
-                        const bg =
-                          !s.bgColor ||
-                          s.bgColor.toLowerCase() === "#ffffff" ||
-                          s.bgColor.toLowerCase() === "#fff"
-                            ? DARK_BG_DEFAULT
-                            : s.bgColor;
                         return {
                           ...s,
                           invert: true,
                           transparent: false,
-                          bgColor: bg,
+                          bgColor:
+                            !s.bgColor ||
+                            s.bgColor.toLowerCase() === "#ffffff" ||
+                            s.bgColor.toLowerCase() === "#fff"
+                              ? DARK_BG_DEFAULT
+                              : s.bgColor,
                           lineColor:
                             s.lineColor?.toLowerCase() === "#000000"
                               ? "#ffffff"
@@ -1484,6 +1334,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       }
                       title="Transparent background"
                       className="h-4 w-4 accent-[#0b2dff]"
+                      disabled={settings.invert}
                     />
                     <span className="text-[13px] text-slate-700">
                       Transparent
@@ -1497,16 +1348,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       aria-disabled={settings.transparent}
                       className={[
                         "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent
-                          ? "opacity-50 pointer-events-none"
-                          : "",
+                        settings.transparent ? "opacity-50 pointer-events-none" : "",
                       ].join(" ")}
                       title={
                         settings.transparent
                           ? "Uncheck to pick a background color"
                           : "Pick background color"
                       }
+                      disabled={settings.transparent}
                     />
+                    {settings.invert && (
+                      <span className="text-[12px] text-slate-500">
+                        White-on-dark forces a solid background.
+                      </span>
+                    )}
                   </div>
                 </Field>
               </div>
@@ -1524,10 +1379,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
-                  {busy ? "Converting…" : "Convert"}
+                  {busy ? "Converting…" : "Convert icon"}
                 </button>
 
-                {/* Live preview tier notice */}
                 {file && autoMode !== "fast" && (
                   <span className="text-[13px] text-slate-600">
                     {autoModeHint(autoMode)} {autoModeDetail(autoMode)}
@@ -1540,16 +1394,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
               </div>
 
-              {/* Input preview below controls */}
               {previewUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <img
-                    src={previewUrl}
-                    alt="Input"
-                    className="w-full h-auto block"
-                  />
+                  <img src={previewUrl} alt="Input icon" className="w-full h-auto block" />
                 </div>
               )}
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700">
+                <div className="font-semibold mb-1">Icon-specific tips</div>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>Want fewer nodes? Increase Curve tolerance (try 0.55–0.85).</li>
+                  <li>Thin strokes disappearing? Raise Threshold and lower Turd size.</li>
+                  <li>Blobby edges? Lower Threshold or switch Turn policy to minority.</li>
+                </ul>
+              </div>
             </div>
 
             {/* RESULTS */}
@@ -1570,19 +1428,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     >
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
                         <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            item.svg,
-                          )}`}
+                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
                       </div>
+
                       <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
                         <span className="text-[13px] text-slate-700">
                           {item.width > 0 && item.height > 0
                             ? `${item.width} × ${item.height} px`
                             : "size unknown"}
                         </span>
+
                         <div className="flex gap-2 flex-wrap">
                           <button
                             type="button"
@@ -1593,7 +1451,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               const u = URL.createObjectURL(b);
                               const a = document.createElement("a");
                               a.href = u;
-                              a.download = "converted.svg";
+                              a.download = "icon.svg";
                               document.body.appendChild(a);
                               a.click();
                               a.remove();
@@ -1603,6 +1461,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           >
                             Download SVG
                           </button>
+
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
@@ -1617,22 +1476,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </div>
               ) : (
                 <p className="text-slate-600 m-0">
-                  {busy
-                    ? "Converting…"
-                    : "Your converted file will appear here."}
+                  {busy ? "Converting…" : "Your converted SVG will appear here."}
                 </p>
               )}
             </div>
           </section>
         </div>
 
-        {/* Toast */}
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
             {toast}
           </div>
         )}
       </main>
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1642,7 +1499,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
-/* ===== Client-side helpers (dimension precheck + compression ≤25MB) ===== */
+/* ===== Client-side helpers ===== */
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
@@ -1660,12 +1517,11 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 }
 
 async function validateBeforeSubmit(file: File) {
-  if (!ALLOWED_MIME.has(file.type)) {
+  if (!ALLOWED_MIME.has(file.type))
     throw new Error("Only PNG or JPEG images are allowed.");
-  }
-  if (file.size > MAX_UPLOAD_BYTES) {
+  if (file.size > MAX_UPLOAD_BYTES)
     throw new Error("File too large. Max 30 MB per image.");
-  }
+
   const { w, h } = await getImageSize(file);
   if (!w || !h) throw new Error("Could not read image dimensions.");
   const mp = (w * h) / 1_000_000;
@@ -1676,8 +1532,7 @@ async function validateBeforeSubmit(file: File) {
   }
 }
 
-/** Compress to ≤25MB (best effort). Converts PNG→JPEG if necessary for size.
- *  Strategy: try JPEG quality steps; if still large, progressively scale down. */
+/** Compress to ≤25MB (best effort). Converts PNG→JPEG if necessary. */
 async function compressToTarget25MB(file: File): Promise<File> {
   const TARGET = LIVE_MED_MAX; // 25MB
   if (file.size <= TARGET) return file;
@@ -1689,19 +1544,19 @@ async function compressToTarget25MB(file: File): Promise<File> {
       ? await createImageBitmap(file)
       : await loadImageElement(file);
 
-  // Start with original dims; scale down gradually as needed
   let w = img.width;
   let h = img.height;
 
-  // Helper to encode current canvas as JPEG with provided quality
   const encode = async (quality: number): Promise<Blob> => {
     const canvas =
       "OffscreenCanvas" in window
         ? new OffscreenCanvas(w, h)
         : (document.createElement("canvas") as HTMLCanvasElement);
+
     if (!(canvas as any).getContext) throw new Error("Canvas unsupported.");
     (canvas as any).width = w;
     (canvas as any).height = h;
+
     const ctx = (canvas as any).getContext("2d");
     if (!ctx) throw new Error("Canvas 2D unsupported.");
     ctx.drawImage(img as any, 0, 0, w, h);
@@ -1709,7 +1564,6 @@ async function compressToTarget25MB(file: File): Promise<File> {
     const mime = "image/jpeg";
     const blob: Blob = await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
-        // OffscreenCanvas path
         (canvas as any)
           .convertToBlob({ type: mime, quality })
           .then(res)
@@ -1725,25 +1579,20 @@ async function compressToTarget25MB(file: File): Promise<File> {
     return blob;
   };
 
-  // Heuristic: first try quality-only reductions, then scale down by 85% steps
   const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
   for (const q of qualities) {
     const b = await encode(q);
-    if (b.size <= TARGET) {
+    if (b.size <= TARGET)
       return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
   }
 
-  // Still too large → scale down progressively + mid quality
   let scale = 0.9;
   while (w > 64 && h > 64) {
     w = Math.max(64, Math.floor(w * scale));
     h = Math.max(64, Math.floor(h * scale));
     const b = await encode(0.75);
-    if (b.size <= TARGET) {
+    if (b.size <= TARGET)
       return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
-    // tighten both quality and scale over time
     scale = Math.max(0.5, scale - 0.07);
   }
 
@@ -1771,13 +1620,7 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 }
 
 /* ===== UI helpers ===== */
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
       <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
@@ -1787,6 +1630,7 @@ function Field({
     </label>
   );
 }
+
 function Num({
   value,
   min,
@@ -1812,6 +1656,7 @@ function Num({
     />
   );
 }
+
 function prettyBytes(bytes: number) {
   const u = ["B", "KB", "MB", "GB"];
   let v = bytes,
@@ -1828,12 +1673,10 @@ function SiteHeader() {
   return (
     <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        {/* Logo (unchanged) */}
         <a href="/" className="font-extrabold tracking-tight text-slate-900">
           i<span className="text-sky-600">🩵</span>SVG
         </a>
 
-        {/* Right-side nav */}
         <nav aria-label="Primary">
           <ul className="flex items-center gap-4 text-[14px] font-semibold">
             <li>
@@ -1844,7 +1687,6 @@ function SiteHeader() {
                 All Tools
               </a>
             </li>
-
             <li>
               <a
                 href="/svg-recolor"
@@ -1853,7 +1695,6 @@ function SiteHeader() {
                 Recolor
               </a>
             </li>
-
             <li>
               <a
                 href="/svg-resize-and-scale-editor"
@@ -1862,7 +1703,6 @@ function SiteHeader() {
                 Resize/Scale
               </a>
             </li>
-
             <li>
               <a
                 href="/svg-to-png-converter"
@@ -1871,7 +1711,6 @@ function SiteHeader() {
                 SVG to PNG
               </a>
             </li>
-
             <li>
               <a
                 href="/svg-to-jpg-converter"
@@ -1925,59 +1764,6 @@ function SiteFooter() {
 
               <li>
                 <Link
-                  to="/svg-to-png-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  SVG to PNG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-to-jpg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  SVG to JPG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-to-webp-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  SVG to WebP
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-background-editor"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Background
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-resize-and-scale-editor"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Resize / Scale
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-recolor"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Recolor
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
                   to="/privacy-policy"
                   className="hover:text-slate-900 hover:underline underline-offset-4"
                 >
@@ -2013,54 +1799,49 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
         <article className="max-w-none">
-          {/* Header / Hero */}
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
-            <div className="flex flex-col gap-3">
-              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                PNG/JPEG to SVG vectorizer
-              </p>
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                SVG Converter: Precise, fast, and built for creators
-              </h2>
-              <p className="text-slate-600 max-w-[75ch]">
-                Potrace-powered raster-to-vector conversion tuned for logos,
-                line art, scans, diagrams, and photo-style edge extraction.
-                Clean, editable SVG output with snappy live preview and smart
-                on-device compression.
-              </p>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              App icon and UI glyph vectorizer
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold leading-tight mt-2">
+              Convert icons to SVG paths you can recolor, resize, and ship
+            </h2>
+            <p className="text-slate-600 max-w-[78ch] mt-2">
+              Icons usually need clean shapes and predictable curves. This page
+              uses icon-tuned presets so your SVG is simple, scalable, and easy
+              to edit in Figma, Illustrator, or code.
+            </p>
 
-              <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { k: "Clean SVG", v: "Editable paths, recolor anywhere" },
-                  { k: "Fast preview", v: "≤10 MB live updates" },
-                  { k: "Throttled tier", v: "Up to 25 MB preview" },
-                  { k: "Private by default", v: "Processed in memory" },
-                ].map((x) => (
-                  <div
-                    key={x.k}
-                    className="rounded-xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="text-sm font-semibold">{x.k}</div>
-                    <div className="mt-1 text-sm text-slate-600">{x.v}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { k: "Icon presets", v: "Crisp, thin, bold, glyph simplify" },
+                { k: "Live preview", v: "Fast ≤10 MB, throttled ≤25 MB" },
+                { k: "Droplet safe", v: "RAM-only + concurrency gate" },
+                { k: "Editable output", v: "Responsive viewBox paths" },
+              ].map((x) => (
+                <div
+                  key={x.k}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="text-sm font-semibold">{x.k}</div>
+                  <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                </div>
+              ))}
             </div>
           </header>
 
-          {/* Use cases */}
           <section className="mt-10">
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Logos",
-                "Line art",
-                "Scans",
-                "Whiteboards",
-                "Comics",
-                "Diagrams",
+                "App icons",
+                "Favicons",
+                "UI glyphs",
+                "Flat logos",
+                "Badges",
                 "Stickers",
-                "Photo edges",
+                "Buttons",
+                "Simple marks",
               ].map((t) => (
                 <span
                   key={t}
@@ -2070,62 +1851,33 @@ function SeoSections() {
                 </span>
               ))}
             </div>
-
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">Lineart and ink</div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Choose “Lineart - Accurate” for crisp strokes and clean fills.
-                  Lower curve tolerance for detail, raise turd size to kill
-                  dust.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">Logos and icons</div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Use “Logo - Clean shapes” for smoother curves and fewer nodes.
-                  Adjust threshold to control what becomes solid.
-                </p>
-              </div>
-            </div>
           </section>
 
-          {/* HowTo */}
-          <section
-            itemScope
-            itemType="https://schema.org/HowTo"
-            className="mt-12"
-          >
+          <section itemScope itemType="https://schema.org/HowTo" className="mt-12">
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold">
-                How to convert PNG or JPEG to SVG
+                How to convert an icon image to SVG
               </h3>
-              <span className="text-xs text-slate-500">
-                Fast path: upload → preset → tweak → export
-              </span>
+              <span className="text-xs text-slate-500">Upload → preset → adjust → export</span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a PNG or JPEG",
-                  body: "Drag and drop or use the picker. Large files may be auto-compressed on your device for smoother preview up to 25 MB.",
+                  title: "Upload your icon PNG/JPEG",
+                  body: "Transparent PNG works well. If your file is large, preview may be throttled or locally compressed.",
                 },
                 {
-                  title: "Pick a preset that matches your art",
-                  body: "Lineart for inks, Logo for clean shapes, Photo Edge for contour extraction.",
+                  title: "Choose an icon preset",
+                  body: "Crisp is the default. Thin preserves light strokes. Glyph Simplify reduces node count.",
                 },
                 {
-                  title: "Adjust settings",
-                  body: "Tune threshold, curve tolerance, turd size, and turn policy. Preview updates automatically with rate limits for heavier images.",
+                  title: "Tune for clean shapes",
+                  body: "Increase curve tolerance to reduce nodes. Adjust threshold to keep or drop light pixels.",
                 },
                 {
-                  title: "Choose line color and background",
-                  body: "Keep transparency or inject a solid background color. Invert when needed.",
-                },
-                {
-                  title: "Download or copy SVG",
-                  body: "Export a scalable vector you can edit, recolor, and embed anywhere.",
+                  title: "Export SVG",
+                  body: "Download the SVG or copy the raw markup for use in CSS, React, or design tools.",
                 },
               ].map((s, i) => (
                 <li
@@ -2143,11 +1895,8 @@ function SeoSections() {
                       <div itemProp="name" className="font-semibold">
                         {s.title}
                       </div>
-                      <div
-                        itemProp="itemListElement"
-                        className="mt-1 text-sm text-slate-600"
-                      >
-                        {s.body}
+                      <div className="mt-1 text-sm text-slate-600">
+                        <span itemProp="itemListElement">{s.body}</span>
                       </div>
                     </div>
                   </div>
@@ -2156,130 +1905,18 @@ function SeoSections() {
             </ol>
           </section>
 
-          {/* Settings */}
           <section className="mt-12">
-            <h3 className="text-lg font-bold">Settings explained</h3>
-            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              Small tweaks make a huge difference. Use these to control detail,
-              smoothness, and cleanup.
-            </p>
-
-            <div className="mt-5 grid md:grid-cols-2 gap-4">
-              {[
-                {
-                  title: "Preprocess",
-                  body: "None for logos and crisp inks. Edge mode for photos and paintings when you want outlines.",
-                },
-                {
-                  title: "Threshold",
-                  body: "Controls what counts as ink. Higher includes lighter pixels, lower keeps only darker strokes.",
-                },
-                {
-                  title: "Curve tolerance",
-                  body: "Lower preserves detail. Higher smooths curves and reduces SVG size.",
-                },
-                {
-                  title: "Turd size",
-                  body: "Removes tiny specks and scanner dust so your SVG looks intentional.",
-                },
-                {
-                  title: "Turn policy",
-                  body: "Decides how ambiguous corners resolve. Useful when corners look “wrong” in the trace.",
-                },
-                {
-                  title: "Line color, invert, background",
-                  body: "Pick any line color. Invert for white ink. Keep transparency or add a solid background.",
-                },
-                {
-                  title: "Edge boost and blur σ",
-                  body: "In Edge mode: blur reduces noise; edge boost amplifies contours before tracing.",
-                },
-              ].map((c) => (
-                <div
-                  key={c.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
-                >
-                  <div className="text-sm font-semibold">{c.title}</div>
-                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Performance */}
-          <section className="mt-12">
-            <h3 className="text-lg font-bold">Performance and limits</h3>
-
-            <div className="mt-4 grid lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold">Specs</div>
-                <dl className="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Max file size</dt>
-                    <dd className="mt-1 font-semibold">30 MB per image</dd>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Resolution guard</dt>
-                    <dd className="mt-1 font-semibold">
-                      ~{MAX_MP.toFixed(1)} MP or {MAX_SIDE.toLocaleString()} px
-                      per side
-                    </dd>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Preview tiers</dt>
-                    <dd className="mt-1 font-semibold">
-                      Fast ≤10 MB, throttled ≤25 MB
-                    </dd>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Large files</dt>
-                    <dd className="mt-1 font-semibold">
-                      Auto-compress on-device when possible
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-sm font-semibold">Server stability</div>
-                <p className="mt-2 text-sm text-slate-700">
-                  Vectorization is CPU heavy. We cap concurrent conversions.
-                  When busy, you may get <code>429</code> with{" "}
-                  <code>Retry-After</code>, and the client retries smoothly.
-                </p>
-                <p className="mt-3 text-sm text-slate-700">
-                  Batch conversion is off because this site is free and the load
-                  is not feasible.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Troubleshooting */}
-          <section className="mt-12">
-            <h3 className="text-lg font-bold">Troubleshooting and tips</h3>
+            <h3 className="text-lg font-bold">Troubleshooting</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
-                ["Image too large", "Downscale or crop unused borders."],
-                [
-                  "Over 25 MB",
-                  "We try to compress locally. If it fails, resize and re-upload.",
-                ],
-                [
-                  "429 server busy",
-                  "Stability protection. The app retries after the suggested delay.",
-                ],
-                ["Blank or too light", "Lower threshold or disable invert."],
-                ["Jagged edges", "Increase curve tolerance slightly."],
-                [
-                  "Too many dots",
-                  "Raise turd size or try Scan Cleanup presets.",
-                ],
+                ["Icon looks too thick", "Increase threshold or pick Icon - Preserve thin strokes."],
+                ["Too many nodes", "Raise curve tolerance (0.55–0.85) and use Logo - Clean shapes."],
+                ["Speckles", "Increase turd size to remove tiny dots."],
+                ["Edges are jagged", "Increase curve tolerance slightly, or try majority turn policy."],
+                ["429 server busy", "The app retries automatically after Retry-After to keep the droplet stable."],
+                ["Photo icon", "Switch preprocess to Edge and adjust blur/boost."],
               ].map(([t, d]) => (
-                <div
-                  key={t}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
-                >
+                <div key={t} className="rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="text-sm font-semibold">{t}</div>
                   <p className="mt-1 text-sm text-slate-600">{d}</p>
                 </div>
@@ -2287,31 +1924,25 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* FAQ */}
-          <section
-            className="mt-12"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-          >
-            <h3 className="text-lg font-bold">Frequently asked questions</h3>
-
+          <section className="mt-12" itemScope itemType="https://schema.org/FAQPage">
+            <h3 className="text-lg font-bold">FAQ</h3>
             <div className="mt-4 grid gap-3">
               {[
                 {
-                  q: "What file limits apply?",
-                  a: "PNG/JPEG up to 30 MB, ~30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+                  q: "Is this different from the general PNG to SVG converter?",
+                  a: "Yes. This page is tuned for icons: cleaner curves, fewer nodes, and presets aimed at flat shapes and glyphs.",
                 },
                 {
-                  q: "What happens with files over 25 MB?",
-                  a: "We try to compress locally (PNG may become JPEG) to reach ≤25 MB for preview. If quality would drop too much, you will need to resize and re-upload.",
+                  q: "What limits apply?",
+                  a: "PNG/JPEG up to 30 MB and about 30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Larger files may be compressed on-device.",
                 },
                 {
-                  q: "Why do I see “Server busy” with Retry-After?",
-                  a: "We cap concurrency to keep the site stable. When the queue is full the server responds 429 with Retry-After, and the app retries automatically.",
+                  q: "Do you store my icon?",
+                  a: "No. Conversion runs in memory and results are returned immediately. There are no accounts.",
                 },
                 {
-                  q: "Can this handle photos?",
-                  a: "Yes. Use the Photo Edge presets to extract contours and stylized linework.",
+                  q: "How do I get fewer path points?",
+                  a: "Increase curve tolerance and use Logo - Clean shapes or UI Glyph - Simplify.",
                 },
               ].map((x) => (
                 <article

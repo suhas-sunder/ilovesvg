@@ -50,7 +50,7 @@ export default function SvgAccessibilityAndContrastChecker() {
 
   // Preview toggles
   const [previewMode, setPreviewMode] = React.useState<"original" | "updated">(
-    "updated"
+    "updated",
   );
   const [showCheckerSample, setShowCheckerSample] =
     React.useState<boolean>(true);
@@ -107,7 +107,7 @@ export default function SvgAccessibilityAndContrastChecker() {
         { id: "aa-large", label: "AA (Large text)", value: 3 },
         { id: "aaa-large", label: "AAA (Large text)", value: 4.5 },
       ] as const,
-    []
+    [],
   );
 
   const wcag = React.useMemo(() => {
@@ -233,7 +233,7 @@ export default function SvgAccessibilityAndContrastChecker() {
       setWorkingSvg(nextSvg);
       setPreviewMode("updated");
       setInfo(
-        `Applied foreground update for ${args.targetLabel} (${args.targetValue}:1).`
+        `Applied foreground update for ${args.targetLabel} (${args.targetValue}:1).`,
       );
       return;
     }
@@ -244,7 +244,7 @@ export default function SvgAccessibilityAndContrastChecker() {
     setWorkingSvg(updated);
     setPreviewMode("updated");
     setInfo(
-      `Applied background update where possible for ${args.targetLabel} (${args.targetValue}:1).`
+      `Applied background update where possible for ${args.targetLabel} (${args.targetValue}:1).`,
     );
   }
 
@@ -272,11 +272,11 @@ export default function SvgAccessibilityAndContrastChecker() {
 
   const safeOriginalSvg = React.useMemo(
     () => sanitizeSvgString(originalSvg),
-    [originalSvg]
+    [originalSvg],
   );
   const safeWorkingSvg = React.useMemo(
     () => sanitizeSvgString(workingSvg),
-    [workingSvg]
+    [workingSvg],
   );
 
   return (
@@ -870,14 +870,14 @@ export default function SvgAccessibilityAndContrastChecker() {
 
           {/* SEO + FAQ (below utility) */}
           <SeoSections />
-          <OtherToolsLinks />
-          <RelatedSites />
-          <SocialLinks />
 
           {/* ld+json FAQPage */}
           <FaqJsonLd />
         </div>
       </main>
+      <OtherToolsLinks />
+      <RelatedSites />
+      <SocialLinks />
 
       <SiteFooter />
     </>
@@ -1381,7 +1381,7 @@ function relLuminance(hex: string): number {
   const { r, g, b } = hexToRgb(hex);
   const srgb = [r, g, b].map((v) => v / 255);
   const lin = srgb.map((c) =>
-    c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+    c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4),
   );
   return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
 }
@@ -1416,14 +1416,14 @@ function suggestNearestContrastColor(opts: {
     black,
     fixed,
     opts.moving,
-    opts.target
+    opts.target,
   );
   const towardWhite = findBlendThatMeetsTarget(
     moving,
     white,
     fixed,
     opts.moving,
-    opts.target
+    opts.target,
   );
 
   if (!towardBlack && !towardWhite) return null;
@@ -1438,7 +1438,7 @@ function findBlendThatMeetsTarget(
   end: string,
   fixed: string,
   moving: "foreground" | "background",
-  target: number
+  target: number,
 ): { hex: string; ratio: number; delta: number } | null {
   let best: { hex: string; ratio: number; delta: number } | null = null;
   for (let i = 1; i <= 80; i++) {
@@ -1461,7 +1461,7 @@ function findBlendThatMeetsTarget(
 ======================== */
 function simulateColorBlindness(
   hex: string,
-  mode: "none" | "protanopia" | "deuteranopia" | "tritanopia" | "achromatopsia"
+  mode: "none" | "protanopia" | "deuteranopia" | "tritanopia" | "achromatopsia",
 ): string {
   if (mode === "none") return normalizeHex(hex);
   if (!isHex(hex)) return "#000000";
@@ -1475,7 +1475,7 @@ function simulateColorBlindness(
 }
 
 function getBlindMatrix(
-  mode: "protanopia" | "deuteranopia" | "tritanopia" | "achromatopsia"
+  mode: "protanopia" | "deuteranopia" | "tritanopia" | "achromatopsia",
 ): number[] {
   switch (mode) {
     case "protanopia":
@@ -1496,7 +1496,7 @@ function replaceSvgColorBestEffort(
   svg: string,
   fromHex: string,
   toHex: string,
-  scope: "fill" | "stroke" | "both"
+  scope: "fill" | "stroke" | "both",
 ): string {
   const from = normalizeHex(fromHex).toLowerCase();
   const to = normalizeHex(toHex);
@@ -1509,26 +1509,26 @@ function replaceSvgColorBestEffort(
   for (const attr of parts) {
     out = out.replace(
       new RegExp(`${attr}\\s*=\\s*["']\\s*${escapeReg(from)}\\s*["']`, "gi"),
-      `${attr}="${to}"`
+      `${attr}="${to}"`,
     );
 
     out = out.replace(
       new RegExp(`(${attr}\\s*:\\s*)${escapeReg(from)}(\\s*;)`, "gi"),
-      `$1${to}$2`
+      `$1${to}$2`,
     );
 
     out = out.replace(
       new RegExp(`(${attr}\\s*:\\s*)${escapeReg(from)}(\\s*["'])`, "gi"),
-      `$1${to}$2`
+      `$1${to}$2`,
     );
   }
 
   out = out.replace(
     new RegExp(
       `(${["stop-color", "color"].join("|")})\\s*:\\s*${escapeReg(from)}`,
-      "gi"
+      "gi",
     ),
-    (_m, k) => `${k}: ${to}`
+    (_m, k) => `${k}: ${to}`,
   );
 
   return out;
@@ -1537,7 +1537,7 @@ function replaceSvgColorBestEffort(
 function replaceLikelyBackgroundFill(
   svg: string,
   fromHex: string,
-  toHex: string
+  toHex: string,
 ): string {
   const from = normalizeHex(fromHex).toLowerCase();
   const to = normalizeHex(toHex);
@@ -1547,21 +1547,21 @@ function replaceLikelyBackgroundFill(
   out = out.replace(
     new RegExp(
       `(<rect\\b[^>]*\\bwidth\\s*=\\s*["']100%["'][^>]*\\bheight\\s*=\\s*["']100%["'][^>]*\\bfill\\s*=\\s*["'])\\s*${escapeReg(
-        from
+        from,
       )}\\s*(["'][^>]*>)`,
-      "gi"
+      "gi",
     ),
-    `$1${to}$2`
+    `$1${to}$2`,
   );
 
   out = out.replace(
     new RegExp(
       `(<rect\\b[^>]*\\bwidth\\s*=\\s*["']100%["'][^>]*\\bheight\\s*=\\s*["']100%["'][^>]*\\bstyle\\s*=\\s*["'][^"']*fill\\s*:\\s*)${escapeReg(
-        from
+        from,
       )}([^"']*["'][^>]*>)`,
-      "gi"
+      "gi",
     ),
-    `$1${to}$2`
+    `$1${to}$2`,
   );
 
   return out;
@@ -1584,7 +1584,7 @@ function sanitizeSvgString(svg: string): string {
   // Remove javascript: URLs in href/xlink:href
   out = out.replace(
     /\s(xlink:href|href)\s*=\s*("javascript:[^"]*"|'javascript:[^']*')/gi,
-    ""
+    "",
   );
 
   return out;
@@ -1612,7 +1612,7 @@ function normalizeColorToken(token: string): string | null {
   if (isHex(t)) return normalizeHex(t);
 
   const rgb = t.match(
-    /^rgb\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*\)$/
+    /^rgb\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*\)$/,
   );
   if (rgb) {
     const r = clamp(parseInt(rgb[1], 10));
@@ -1622,7 +1622,7 @@ function normalizeColorToken(token: string): string | null {
   }
 
   const rgba = t.match(
-    /^rgba\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9.]+)\s*\)$/
+    /^rgba\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9.]+)\s*\)$/,
   );
   if (rgba) {
     const r = clamp(parseInt(rgba[1], 10));
@@ -1693,7 +1693,7 @@ function rgbToHex(rgb: { r: number; g: number; b: number }): string {
 function blendRgb(
   a: { r: number; g: number; b: number },
   b: { r: number; g: number; b: number },
-  t: number
+  t: number,
 ) {
   return {
     r: Math.round(a.r + (b.r - a.r) * t),

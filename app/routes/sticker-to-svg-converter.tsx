@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/home";
+import type { Route } from "./+types/sticker-to-svg-converter";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -14,13 +14,18 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 const isServer = typeof document === "undefined";
 
 /* ========================
+   Route constants
+======================== */
+const ROUTE_PATH = "/sticker-to-svg-converter";
+const ROUTE_LABEL = "Sticker to SVG Converter";
+
+/* ========================
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  Potrace (server, in-memory, live preview, client auto-compress)";
+  const title = "Sticker to SVG Converter - i🩵SVG (Potrace, live preview)";
   const description =
-    "Convert PNG/JPEG to SVG with live preview. Auto-compress large files on-device to 25 MB for instant preview. Server concurrency-gated. Batch supported.";
+    "Convert sticker PNG/JPEG images to clean SVG vectors. Tuned presets for stickers, logos, and cut-friendly shapes. Live preview, in-memory processing, and device-side auto-compress up to 25 MB.";
   return [
     { title },
     { name: "description", content: description },
@@ -49,7 +54,7 @@ const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 const DARK_BG_DEFAULT = "#0b1020";
 
 // -------- Live preview tiers (client) --------
-// ≤10MB: fast,  10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
+// ≤10MB: fast, 10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
@@ -258,7 +263,7 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
       } catch {
-        // If sharp metadata fails here, continue - Potrace may still handle small files.
+        // If sharp metadata fails here, continue. Potrace may still handle small files.
       }
 
       // Potrace params
@@ -405,7 +410,7 @@ async function normalizeForPotrace(
     // Keep cache tiny for small droplets (best-effort)
     try {
       (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 32 }); // even smaller
+      (sharp as any).cache?.({ files: 0, memory: 32 });
     } catch {}
 
     // Decode + respect EXIF
@@ -666,128 +671,35 @@ type Preset = {
 
 const PRESETS: Preset[] = [
   {
-    id: "line-accurate",
-    label: "Lineart  -  Accurate (default)",
+    id: "sticker-clean",
+    label: "Sticker - Clean cut (recommended)",
     settings: {
       preprocess: "none",
-      threshold: 224,
-      turdSize: 2,
-      optTolerance: 0.28,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
-    },
-  },
-  {
-    id: "line-bold",
-    label: "Lineart  -  Bold",
-    settings: {
-      preprocess: "none",
-      threshold: 212,
+      threshold: 214,
       turdSize: 3,
-      optTolerance: 0.38,
-      turnPolicy: "majority",
-    },
-  },
-  {
-    id: "line-fine",
-    label: "Lineart  -  Fine detail",
-    settings: {
-      preprocess: "none",
-      threshold: 232,
-      turdSize: 1,
-      optTolerance: 0.22,
-      turnPolicy: "minority",
-    },
-  },
-  {
-    id: "line-gap",
-    label: "Lineart  -  Seal gaps",
-    settings: {
-      preprocess: "none",
-      threshold: 218,
-      turdSize: 3,
-      optTolerance: 0.34,
-      turnPolicy: "black",
-    },
-  },
-  {
-    id: "photo-soft",
-    label: "Photo Edge  -  Soft",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 1.2,
-      edgeBoost: 0.9,
-      threshold: 210,
-      turdSize: 2,
-      optTolerance: 0.35,
-    },
-  },
-  {
-    id: "photo-normal",
-    label: "Photo Edge  -  Normal",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.1,
-      threshold: 220,
-      turdSize: 2,
-      optTolerance: 0.35,
-    },
-  },
-  {
-    id: "photo-bold",
-    label: "Photo Edge  -  Bold",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.6,
-      edgeBoost: 1.4,
-      threshold: 230,
-      turdSize: 3,
-      optTolerance: 0.4,
-    },
-  },
-  {
-    id: "edge-clean",
-    label: "Edge  -  Clean",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.8,
-      edgeBoost: 1.2,
-      threshold: 236,
-      turdSize: 2,
-      optTolerance: 0.45,
-    },
-  },
-  {
-    id: "scan-clean",
-    label: "Scan  -  Clean (remove speckles)",
-    settings: {
-      preprocess: "none",
-      threshold: 226,
-      turdSize: 4,
-      optTolerance: 0.3,
+      optTolerance: 0.32,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
     },
   },
   {
-    id: "scan-aggressive",
-    label: "Scan  -  Aggressive (close gaps)",
+    id: "sticker-bold",
+    label: "Sticker - Bold outline",
     settings: {
       preprocess: "none",
-      threshold: 218,
-      turdSize: 5,
+      threshold: 205,
+      turdSize: 3,
       optTolerance: 0.42,
       turnPolicy: "black",
       lineColor: "#000000",
-      invert: false,
     },
   },
   {
     id: "logo-clean",
-    label: "Logo  -  Clean shapes",
+    label: "Logo - Clean shapes",
     settings: {
       preprocess: "none",
       threshold: 210,
@@ -800,7 +712,7 @@ const PRESETS: Preset[] = [
   },
   {
     id: "logo-thin",
-    label: "Logo  -  Thin details",
+    label: "Logo - Thin details",
     settings: {
       preprocess: "none",
       threshold: 238,
@@ -812,33 +724,46 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "noisy-denoise",
-    label: "Noisy Photo  -  Denoise Edge",
+    id: "line-accurate",
+    label: "Lineart - Accurate",
     settings: {
-      preprocess: "edge",
-      blurSigma: 1.6,
-      edgeBoost: 1.25,
-      threshold: 222,
-      turdSize: 3,
-      optTolerance: 0.38,
-      turnPolicy: "majority",
+      preprocess: "none",
+      threshold: 224,
+      turdSize: 2,
+      optTolerance: 0.28,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
     },
   },
   {
-    id: "low-contrast",
-    label: "Low-contrast Photo  -  Boost edges",
+    id: "scan-clean",
+    label: "Scan - Clean (remove speckles)",
+    settings: {
+      preprocess: "none",
+      threshold: 226,
+      turdSize: 4,
+      optTolerance: 0.3,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+    },
+  },
+  {
+    id: "photo-normal",
+    label: "Photo Edge - Normal",
     settings: {
       preprocess: "edge",
-      blurSigma: 1.0,
-      edgeBoost: 1.6,
-      threshold: 228,
+      blurSigma: 0.9,
+      edgeBoost: 1.1,
+      threshold: 220,
       turdSize: 2,
-      optTolerance: 0.36,
+      optTolerance: 0.35,
     },
   },
   {
     id: "invert-white-on-black",
-    label: "Invert  -  White lines on black",
+    label: "Invert - White lines on black",
     settings: {
       preprocess: "none",
       threshold: 225,
@@ -851,56 +776,13 @@ const PRESETS: Preset[] = [
       bgColor: DARK_BG_DEFAULT,
     },
   },
-  {
-    id: "comics-inks",
-    label: "Comics  -  Inks (chunky)",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.7,
-      edgeBoost: 1.5,
-      threshold: 234,
-      turdSize: 3,
-      optTolerance: 0.48,
-      turnPolicy: "black",
-      lineColor: "#000000",
-    },
-  },
-  {
-    id: "blueprint",
-    label: "Diagram  -  Blueprint (invert + blue)",
-    settings: {
-      preprocess: "none",
-      threshold: 230,
-      turdSize: 2,
-      optTolerance: 0.3,
-      turnPolicy: "minority",
-      invert: true,
-      lineColor: "#0ea5e9",
-      transparent: false,
-      bgColor: DARK_BG_DEFAULT,
-    },
-  },
-  {
-    id: "whiteboard",
-    label: "Whiteboard  -  Anti-glare",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 1.3,
-      edgeBoost: 1.15,
-      threshold: 220,
-      turdSize: 2,
-      optTolerance: 0.34,
-      turnPolicy: "majority",
-      lineColor: "#0f172a",
-    },
-  },
 ];
 
 const DEFAULTS: Settings = {
-  threshold: 224,
-  turdSize: 2,
-  optTolerance: 0.28,
-  turnPolicy: "minority",
+  threshold: 214,
+  turdSize: 3,
+  optTolerance: 0.32,
+  turnPolicy: "majority",
   lineColor: "#000000",
   invert: false,
 
@@ -947,7 +829,80 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
+/* ========================
+   FAQ (UI + JSON-LD)
+======================== */
+const FAQ_ITEMS: Array<{ q: string; a: string }> = [
+  {
+    q: "What is a sticker-to-SVG converter?",
+    a: "It turns a sticker image (PNG or JPEG) into a scalable SVG vector. SVG stays crisp at any size and is easy to recolor.",
+  },
+  {
+    q: "What works best for sticker designs?",
+    a: "High-contrast art with clear edges. For typical sticker packs, start with “Sticker - Clean cut” or “Logo - Clean shapes” and adjust threshold if small details disappear.",
+  },
+  {
+    q: "Do you remove the background automatically?",
+    a: "No. This tool traces what is in the image. If your sticker has a solid background, crop it out first or use a PNG with transparency.",
+  },
+  {
+    q: "What file limits apply?",
+    a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest up to 10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+  },
+  {
+    q: "Why do I see “Server busy” with Retry-After?",
+    a: "Vectorization is CPU heavy. We cap concurrent conversions to keep the site stable. If the queue is full the server responds with 429 and a Retry-After delay, and the app retries.",
+  },
+];
+
+function buildFaqJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_ITEMS.map((x) => ({
+      "@type": "Question",
+      name: x.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: x.a,
+      },
+    })),
+  };
+}
+
+function buildHowToJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "How to convert a sticker image to SVG",
+    step: [
+      {
+        "@type": "HowToStep",
+        name: "Upload your sticker image",
+        text: "Drag and drop a PNG or JPEG. For best results, use a transparent PNG or crop out extra background.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Pick a sticker-friendly preset",
+        text: "Start with Sticker - Clean cut for smooth, cut-friendly shapes, or Logo - Clean shapes for simplified paths.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Tweak settings",
+        text: "Adjust threshold for detail, curve tolerance for smoothness, and turd size to remove tiny specks.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Export SVG",
+        text: "Download or copy the SVG. You can recolor it in most design apps or browsers.",
+      },
+    ],
+  };
+}
+
+export default function StickerToSvgConverter({
+  loaderData,
+}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -956,7 +911,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("line-accurate");
+    React.useState<string>("sticker-clean");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -977,25 +932,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Live preview tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
-
-  React.useEffect(() => {
-    if (suppressLiveRef.current) return;
-    if (!file) return;
-
-    const mode = autoMode;
-    if (mode === "off") return;
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      submitConvert();
-    }, delay);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
 
   // When a new server SVG arrives, push to history
   React.useEffect(() => {
@@ -1040,6 +976,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     await handleNewFile(f);
   }
 
+  // ---- Tiered live preview debounce refs ----
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressLiveRef = React.useRef(false);
+
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
       setErr("Please choose a PNG or JPEG.");
@@ -1057,8 +997,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("line-accurate");
-    setHistory([]); // optional, remove if you want to keep old results
+    setActivePreset("sticker-clean");
+    setHistory([]);
 
     setErr(null);
     setInfo(null);
@@ -1068,6 +1008,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     let chosen = f;
 
     // ... keep ALL your existing compression logic and the rest unchanged ...
+    // Example (if you want it enabled here):
+    // if (chosen.size > LIVE_MED_MAX) chosen = await compressToTarget25MB(chosen);
 
     setFile(chosen);
     setAutoMode(getAutoMode(chosen.size));
@@ -1077,7 +1019,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Re-enable live preview and force one conversion for the new file
     suppressLiveRef.current = false;
-    setTimeout(() => submitConvert(), 0);
+
+    // Apply recommended preset settings immediately for sticker intent
+    const preset = PRESETS.find((p) => p.id === "sticker-clean");
+    if (preset) {
+      applyPreset(preset);
+    } else {
+      setTimeout(() => submitConvert(), 0);
+    }
   }
 
   async function submitConvert() {
@@ -1130,7 +1079,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("edgeBoost", String(effective.edgeBoost));
     setErr(null);
 
-    // Target this route's index action
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
@@ -1139,10 +1087,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   // ---- Tiered live preview (always live for allowed sizes; throttled >10MB) ----
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressLiveRef = React.useRef(false);
-
   React.useEffect(() => {
+    if (suppressLiveRef.current) return;
     if (!file) return;
 
     const mode = autoMode;
@@ -1177,12 +1123,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           ? preset.settings.lineColor
           : s.lineColor;
 
-      return {
+      const merged = {
         ...baseline,
         lineColor,
         ...preset.settings,
       } as Settings;
+
+      // Keep invert safe
+      if (merged.invert) {
+        const bg =
+          !merged.bgColor ||
+          merged.bgColor.toLowerCase() === "#ffffff" ||
+          merged.bgColor.toLowerCase() === "#fff"
+            ? DARK_BG_DEFAULT
+            : merged.bgColor;
+        merged.transparent = false;
+        merged.bgColor = bg;
+        if (merged.lineColor?.toLowerCase() === "#000000")
+          merged.lineColor = "#ffffff";
+      }
+
+      return merged;
     });
+
+    // If live preview is on, it will auto-submit. If not, we still submit once.
+    if (autoMode === "off") setTimeout(() => submitConvert(), 0);
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
@@ -1198,27 +1163,44 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
+  const faqJsonLd = React.useMemo(() => buildFaqJsonLd(), []);
+  const howToJsonLd = React.useMemo(() => buildHowToJsonLd(), []);
+
   return (
     <>
       <SiteHeader />
 
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+          {/* Breadcrumb */}
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-3 text-[13px] text-slate-600"
+          >
+            <ol className="flex items-center gap-2 flex-wrap">
+              <li>
+                <Link
+                  to="/"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Home
+                </Link>
+              </li>
+              <li aria-hidden className="text-slate-300">
+                /
+              </li>
+              <li className="text-slate-800 font-semibold">{ROUTE_LABEL}</li>
+            </ol>
+          </nav>
+
           <header className="text-center mb-2">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-              <span>i</span>
-              <span
-                role="img"
-                aria-label="love"
-                className="text-[34px] -translate-y-[1px]"
-              >
-                🩵
-              </span>
-              <span className="text-[#0b2dff]">SVG</span>
+            <h1 className="text-[34px] font-extrabold leading-none m-0">
+              Sticker to SVG Converter
             </h1>
             <p className="mt-1 text-slate-600">
-              Convert your PNG/JPEG images into crisp vector graphics with live
-              preview. Large files auto-compress on your device up to 25 MB.
+              Convert sticker PNG/JPEG images into clean SVG vectors with live
+              preview. Sticker presets focus on smooth edges and cut-friendly
+              shapes.
             </p>
           </header>
 
@@ -1267,7 +1249,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
+                    Click, drag & drop, or paste a sticker PNG/JPEG
                   </div>
                   <input
                     id="file-inp"
@@ -1306,6 +1288,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
+                        setHistory([]);
+                        setSettings(DEFAULTS);
+                        setActivePreset("sticker-clean");
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -1337,8 +1322,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
-                    <option value="none">None (lineart)</option>
-                    <option value="edge">Edge (photo/painting)</option>
+                    <option value="none">None (sticker, logo, lineart)</option>
+                    <option value="edge">
+                      Edge (photo, textured stickers)
+                    </option>
                   </select>
                 </Field>
 
@@ -1593,7 +1580,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               const u = URL.createObjectURL(b);
                               const a = document.createElement("a");
                               a.href = u;
-                              a.download = "converted.svg";
+                              a.download = "sticker.svg";
                               document.body.appendChild(a);
                               a.click();
                               a.remove();
@@ -1619,12 +1606,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <p className="text-slate-600 m-0">
                   {busy
                     ? "Converting…"
-                    : "Your converted file will appear here."}
+                    : "Your converted sticker SVG will appear here."}
                 </p>
               )}
             </div>
           </section>
         </div>
+
+        {/* JSON-LD: FAQ + HowTo */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
+        />
 
         {/* Toast */}
         {toast && (
@@ -1633,6 +1630,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1709,7 +1707,6 @@ async function compressToTarget25MB(file: File): Promise<File> {
     const mime = "image/jpeg";
     const blob: Blob = await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
-        // OffscreenCanvas path
         (canvas as any)
           .convertToBlob({ type: mime, quality })
           .then(res)
@@ -1725,7 +1722,7 @@ async function compressToTarget25MB(file: File): Promise<File> {
     return blob;
   };
 
-  // Heuristic: first try quality-only reductions, then scale down by 85% steps
+  // Heuristic: first try quality-only reductions, then scale down by steps
   const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
   for (const q of qualities) {
     const b = await encode(q);
@@ -1743,7 +1740,6 @@ async function compressToTarget25MB(file: File): Promise<File> {
     if (b.size <= TARGET) {
       return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
     }
-    // tighten both quality and scale over time
     scale = Math.max(0.5, scale - 0.07);
   }
 
@@ -1828,12 +1824,10 @@ function SiteHeader() {
   return (
     <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        {/* Logo (unchanged) */}
         <a href="/" className="font-extrabold tracking-tight text-slate-900">
           i<span className="text-sky-600">🩵</span>SVG
         </a>
 
-        {/* Right-side nav */}
         <nav aria-label="Primary">
           <ul className="flex items-center gap-4 text-[14px] font-semibold">
             <li>
@@ -2017,24 +2011,31 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                PNG/JPEG to SVG vectorizer
+                Sticker image to SVG vectorizer
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                SVG Converter: Precise, fast, and built for creators
+                Sticker to SVG converter for clean, cut-friendly vectors
               </h2>
               <p className="text-slate-600 max-w-[75ch]">
-                Potrace-powered raster-to-vector conversion tuned for logos,
-                line art, scans, diagrams, and photo-style edge extraction.
-                Clean, editable SVG output with snappy live preview and smart
-                on-device compression.
+                Turn sticker art into crisp SVG paths using Potrace. This page
+                is tuned for sticker-style graphics like bold outlines, flat
+                colors, and logo-like shapes. Live preview stays fast with
+                device-side auto-compress and a server concurrency gate to keep
+                the droplet stable.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
-                  { k: "Clean SVG", v: "Editable paths, recolor anywhere" },
+                  {
+                    k: "Sticker presets",
+                    v: "Clean cut and bold outline modes",
+                  },
+                  {
+                    k: "Transparent-friendly",
+                    v: "Keep alpha or add background",
+                  },
                   { k: "Fast preview", v: "≤10 MB live updates" },
-                  { k: "Throttled tier", v: "Up to 25 MB preview" },
-                  { k: "Private by default", v: "Processed in memory" },
+                  { k: "In-memory", v: "No accounts, no saved uploads" },
                 ].map((x) => (
                   <div
                     key={x.k}
@@ -2053,14 +2054,14 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Logos",
-                "Line art",
-                "Scans",
-                "Whiteboards",
-                "Comics",
-                "Diagrams",
-                "Stickers",
-                "Photo edges",
+                "Sticker packs",
+                "Die-cut outlines",
+                "Logo stickers",
+                "Badge designs",
+                "Decals",
+                "Simple icons",
+                "Print-ready vectors",
+                "Cricut-style imports",
               ].map((t) => (
                 <span
                   key={t}
@@ -2073,24 +2074,27 @@ function SeoSections() {
 
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">Lineart and ink</div>
+                <div className="text-sm font-semibold">Clean sticker edges</div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Choose “Lineart - Accurate” for crisp strokes and clean fills.
-                  Lower curve tolerance for detail, raise turd size to kill
-                  dust.
+                  Start with “Sticker - Clean cut”. Increase curve tolerance a
+                  little for smoother edges. Raise turd size if you see tiny
+                  specks.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">Logos and icons</div>
+                <div className="text-sm font-semibold">
+                  Simplify for cutting
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use “Logo - Clean shapes” for smoother curves and fewer nodes.
-                  Adjust threshold to control what becomes solid.
+                  “Logo - Clean shapes” reduces noisy detail and keeps paths
+                  more manageable. If fine details vanish, raise threshold
+                  slightly.
                 </p>
               </div>
             </div>
           </section>
 
-          {/* HowTo */}
+          {/* HowTo (UI, JSON-LD is injected above) */}
           <section
             itemScope
             itemType="https://schema.org/HowTo"
@@ -2098,34 +2102,34 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold">
-                How to convert PNG or JPEG to SVG
+                How to convert a sticker image to SVG
               </h3>
               <span className="text-xs text-slate-500">
-                Fast path: upload → preset → tweak → export
+                Fast path: upload → sticker preset → tweak → export
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a PNG or JPEG",
-                  body: "Drag and drop or use the picker. Large files may be auto-compressed on your device for smoother preview up to 25 MB.",
+                  title: "Upload a sticker PNG or JPEG",
+                  body: "Transparent PNGs usually trace cleaner. Crop away extra background so the trace focuses on the sticker.",
                 },
                 {
-                  title: "Pick a preset that matches your art",
-                  body: "Lineart for inks, Logo for clean shapes, Photo Edge for contour extraction.",
+                  title: "Choose a sticker preset",
+                  body: "Use “Sticker - Clean cut” for smooth shapes. Use “Sticker - Bold outline” for heavier lines.",
                 },
                 {
-                  title: "Adjust settings",
-                  body: "Tune threshold, curve tolerance, turd size, and turn policy. Preview updates automatically with rate limits for heavier images.",
+                  title: "Adjust threshold and smoothness",
+                  body: "Lower threshold keeps only darker pixels. Increase curve tolerance to smooth edges and reduce SVG complexity.",
                 },
                 {
-                  title: "Choose line color and background",
-                  body: "Keep transparency or inject a solid background color. Invert when needed.",
+                  title: "Set color and background",
+                  body: "Pick a line color. Keep transparency or inject a solid background for preview and export.",
                 },
                 {
                   title: "Download or copy SVG",
-                  body: "Export a scalable vector you can edit, recolor, and embed anywhere.",
+                  body: "Export an SVG you can edit, recolor, and scale for print or web.",
                 },
               ].map((s, i) => (
                 <li
@@ -2143,10 +2147,7 @@ function SeoSections() {
                       <div itemProp="name" className="font-semibold">
                         {s.title}
                       </div>
-                      <div
-                        itemProp="itemListElement"
-                        className="mt-1 text-sm text-slate-600"
-                      >
+                      <div className="mt-1 text-sm text-slate-600">
                         {s.body}
                       </div>
                     </div>
@@ -2158,41 +2159,39 @@ function SeoSections() {
 
           {/* Settings */}
           <section className="mt-12">
-            <h3 className="text-lg font-bold">Settings explained</h3>
+            <h3 className="text-lg font-bold">
+              Sticker-focused settings explained
+            </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              Small tweaks make a huge difference. Use these to control detail,
-              smoothness, and cleanup.
+              Stickers usually want smooth, simple paths. These controls help
+              you balance detail versus clean cut lines.
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Preprocess",
-                  body: "None for logos and crisp inks. Edge mode for photos and paintings when you want outlines.",
-                },
-                {
                   title: "Threshold",
-                  body: "Controls what counts as ink. Higher includes lighter pixels, lower keeps only darker strokes.",
+                  body: "Controls what becomes solid. If your sticker has soft edges, raise it a bit. If it eats details, lower it.",
                 },
                 {
                   title: "Curve tolerance",
-                  body: "Lower preserves detail. Higher smooths curves and reduces SVG size.",
+                  body: "Higher smooths and reduces nodes (good for cutting). Lower preserves tiny corners and sharp details.",
                 },
                 {
                   title: "Turd size",
-                  body: "Removes tiny specks and scanner dust so your SVG looks intentional.",
+                  body: "Removes tiny dots and dust. Increase it if your sticker image has compression artifacts or speckles.",
                 },
                 {
                   title: "Turn policy",
-                  body: "Decides how ambiguous corners resolve. Useful when corners look “wrong” in the trace.",
+                  body: "Changes how ambiguous corners resolve. If corners look wrong, try majority or black.",
                 },
                 {
-                  title: "Line color, invert, background",
-                  body: "Pick any line color. Invert for white ink. Keep transparency or add a solid background.",
+                  title: "Preprocess: Edge mode",
+                  body: "Useful for textured stickers or photos where you want outlines. Blur reduces noise, edge boost strengthens contours.",
                 },
                 {
-                  title: "Edge boost and blur σ",
-                  body: "In Edge mode: blur reduces noise; edge boost amplifies contours before tracing.",
+                  title: "Background and transparency",
+                  body: "If your PNG has transparency, keep it. If you need a filled background, uncheck Transparent and pick a color.",
                 },
               ].map((c) => (
                 <div
@@ -2260,21 +2259,24 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Troubleshooting and tips</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
-                ["Image too large", "Downscale or crop unused borders."],
                 [
-                  "Over 25 MB",
-                  "We try to compress locally. If it fails, resize and re-upload.",
+                  "Sticker edges look jagged",
+                  "Increase curve tolerance slightly.",
+                ],
+                [
+                  "Small details disappear",
+                  "Lower threshold or switch to Logo - Thin details.",
+                ],
+                ["Too many tiny dots", "Raise turd size to remove speckles."],
+                [
+                  "Background gets traced",
+                  "Crop the image or use a transparent PNG.",
                 ],
                 [
                   "429 server busy",
                   "Stability protection. The app retries after the suggested delay.",
                 ],
-                ["Blank or too light", "Lower threshold or disable invert."],
-                ["Jagged edges", "Increase curve tolerance slightly."],
-                [
-                  "Too many dots",
-                  "Raise turd size or try Scan Cleanup presets.",
-                ],
+                ["Image too large", "Downscale or crop unused borders."],
               ].map(([t, d]) => (
                 <div
                   key={t}
@@ -2287,7 +2289,7 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* FAQ */}
+          {/* FAQ (UI) */}
           <section
             className="mt-12"
             itemScope
@@ -2296,24 +2298,7 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "What file limits apply?",
-                  a: "PNG/JPEG up to 30 MB, ~30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
-                },
-                {
-                  q: "What happens with files over 25 MB?",
-                  a: "We try to compress locally (PNG may become JPEG) to reach ≤25 MB for preview. If quality would drop too much, you will need to resize and re-upload.",
-                },
-                {
-                  q: "Why do I see “Server busy” with Retry-After?",
-                  a: "We cap concurrency to keep the site stable. When the queue is full the server responds 429 with Retry-After, and the app retries automatically.",
-                },
-                {
-                  q: "Can this handle photos?",
-                  a: "Yes. Use the Photo Edge presets to extract contours and stylized linework.",
-                },
-              ].map((x) => (
+              {FAQ_ITEMS.map((x) => (
                 <article
                   key={x.q}
                   itemScope

@@ -121,7 +121,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
 
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [resultPreviewUrl, setResultPreviewUrl] = React.useState<string | null>(
-    null
+    null,
   );
 
   const [files, setFiles] = React.useState<GeneratedFile[] | null>(null);
@@ -247,7 +247,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
 
       // for rendering svg as an image reliably, use a blob URL from the text
       const svgUrl = URL.createObjectURL(
-        new Blob([coerced], { type: "image/svg+xml;charset=utf-8" })
+        new Blob([coerced], { type: "image/svg+xml;charset=utf-8" }),
       );
       setSrcImageUrl((prev) => {
         if (prev && prev !== u) URL.revokeObjectURL(prev);
@@ -284,14 +284,14 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([example], { type: "image/svg+xml" })
+        new Blob([example], { type: "image/svg+xml" }),
       );
     });
 
     setSrcImageUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([example], { type: "image/svg+xml" })
+        new Blob([example], { type: "image/svg+xml" }),
       );
     });
 
@@ -358,7 +358,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
           await canvasToPngFile(master, 16, "favicon-16x16.png"),
           await canvasToPngFile(master, 192, "android-chrome-192x192.png"),
           await canvasToPngFile(master, 512, "android-chrome-512x512.png"),
-          await canvasToPngFile(master, 180, "apple-touch-icon.png")
+          await canvasToPngFile(master, 180, "apple-touch-icon.png"),
         );
       }
 
@@ -369,7 +369,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
           await canvasToPngFile(master, 96, "android-icon-96x96.png"),
           await canvasToPngFile(master, 144, "android-icon-144x144.png"),
           await canvasToPngFile(master, 192, "android-icon-192x192.png"),
-          await canvasToPngFile(master, 512, "android-icon-512x512.png")
+          await canvasToPngFile(master, 512, "android-icon-512x512.png"),
         );
       }
 
@@ -380,7 +380,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
           await canvasToPngFile(master, 167, "apple-touch-icon-167x167.png"),
           await canvasToPngFile(master, 120, "apple-touch-icon-120x120.png"),
           await canvasToPngFile(master, 76, "apple-touch-icon-76x76.png"),
-          await canvasToPngFile(master, 60, "apple-touch-icon-60x60.png")
+          await canvasToPngFile(master, 60, "apple-touch-icon-60x60.png"),
         );
       }
 
@@ -389,7 +389,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
           await canvasToPngFile(master, 144, "mstile-144x144.png"),
           await canvasToPngFile(master, 150, "mstile-150x150.png"),
           await canvasToPngFile(master, 310, "mstile-310x310.png"),
-          await canvasToPngFile(master, 70, "mstile-70x70.png")
+          await canvasToPngFile(master, 70, "mstile-70x70.png"),
         );
       }
 
@@ -418,7 +418,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
         const xml = buildBrowserConfig({
           tileColor: settings.msTileColor,
           tiles: out.filter(
-            (f) => f.name.startsWith("mstile-") && f.name.endsWith(".png")
+            (f) => f.name.startsWith("mstile-") && f.name.endsWith(".png"),
           ),
         });
         out.push({
@@ -1035,10 +1035,10 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
       <SiteFooter />
     </>
   );
@@ -1300,7 +1300,7 @@ async function rasterizeToSquareCanvas(args: {
 async function loadAsImage(
   srcKind: SourceKind | null,
   srcSvgText: string,
-  srcUrl: string | null
+  srcUrl: string | null,
 ): Promise<HTMLImageElement> {
   const img = new Image();
   img.decoding = "async";
@@ -1334,7 +1334,7 @@ async function loadAsImage(
 ======================== */
 async function buildIcoFromCanvas(
   master: HTMLCanvasElement,
-  sizes: number[]
+  sizes: number[],
 ): Promise<Uint8Array> {
   const uniq = uniqSorted(sizes).filter((n) => n >= 16 && n <= 256);
   if (!uniq.length)
@@ -1357,7 +1357,7 @@ async function buildIcoFromCanvas(
 }
 
 function encodeIcoFromPngs(
-  entries: Array<{ size: number; bytes: Uint8Array }>
+  entries: Array<{ size: number; bytes: Uint8Array }>,
 ) {
   const count = entries.length;
   const dirSize = 6 + count * 16;
@@ -1403,7 +1403,7 @@ function encodeIcoFromPngs(
 async function canvasToPngFile(
   master: HTMLCanvasElement,
   size: number,
-  name: string
+  name: string,
 ): Promise<GeneratedFile> {
   const c = document.createElement("canvas");
   c.width = size;
@@ -1523,19 +1523,19 @@ function buildHtmlSnippet(args: {
 
   if (platforms.web) {
     lines.push(
-      `<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">`
+      `<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">`,
     );
     lines.push(
-      `<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">`
+      `<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">`,
     );
     lines.push(
-      `<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">`
+      `<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">`,
     );
   }
 
   if (includeManifest) {
     lines.push(
-      `<meta name="theme-color" content="${escapeHtmlAttr(themeColor)}">`
+      `<meta name="theme-color" content="${escapeHtmlAttr(themeColor)}">`,
     );
     lines.push(`<link rel="manifest" href="/site.webmanifest">`);
   }
@@ -1543,11 +1543,11 @@ function buildHtmlSnippet(args: {
   if (includeMsConfig) {
     lines.push(
       `<meta name="msapplication-TileColor" content="${escapeHtmlAttr(
-        msTileColor
-      )}">`
+        msTileColor,
+      )}">`,
     );
     lines.push(
-      `<meta name="msapplication-config" content="/browserconfig.xml">`
+      `<meta name="msapplication-config" content="/browserconfig.xml">`,
     );
   }
 
@@ -1618,7 +1618,7 @@ function downloadBytes(bytes: Uint8Array, filename: string, mime: string) {
   // make a defensive copy into a standalone ArrayBuffer slice (Safari friendliness)
   const ab = bytes.buffer.slice(
     bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength
+    bytes.byteOffset + bytes.byteLength,
   );
   const blob = new Blob([ab], { type: mime });
 
@@ -1876,23 +1876,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "Favicon Generator",
-        item: "/svg-favicon-generator",
+        item: `${baseUrl}/svg-favicon-generator`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

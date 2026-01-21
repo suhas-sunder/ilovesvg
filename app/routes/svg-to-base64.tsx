@@ -227,7 +227,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
           setPreviewUrl((u) => {
             if (u) URL.revokeObjectURL(u);
             return URL.createObjectURL(
-              new Blob([safeForPreview], { type: "text/plain;charset=utf-8" })
+              new Blob([safeForPreview], { type: "text/plain;charset=utf-8" }),
             );
           });
         }
@@ -642,7 +642,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                                 wrapAt: clampInt(
                                   Number(e.target.value),
                                   20,
-                                  200
+                                  200,
                                 ),
                               }))
                             }
@@ -838,11 +838,11 @@ export default function SvgToBase64(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -868,7 +868,7 @@ function preprocessSvg(svgText: string, settings: Settings) {
     if (settings.stripForeignObject) {
       svg = svg.replace(
         /<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi,
-        ""
+        "",
       );
       svg = svg.replace(/<foreignObject\b[^>]*\/\s*>/gi, "");
     }
@@ -878,7 +878,7 @@ function preprocessSvg(svgText: string, settings: Settings) {
       // Example: onload="..."  onclick='...'  onfocus=something()
       svg = svg.replace(
         /\s(on[a-zA-Z]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/g,
-        ""
+        "",
       );
     }
 
@@ -901,7 +901,7 @@ function preprocessSvg(svgText: string, settings: Settings) {
 
           if (decodedLite.startsWith("javascript:")) return "";
           return m;
-        }
+        },
       );
 
       // Also remove javascript: inside url(...) in inline styles
@@ -910,10 +910,10 @@ function preprocessSvg(svgText: string, settings: Settings) {
         (full, wrap, d, s) => {
           const style = (d ?? s ?? "").replace(
             /url\(\s*(['"])?\s*javascript:[\s\S]*?\1\s*\)/gi,
-            "url()"
+            "url()",
           );
           return style.trim() ? ` style="${style}"` : "";
-        }
+        },
       );
     }
   }
@@ -1285,23 +1285,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG to Base64",
-        item: "/svg-to-base64",
+        item: `${baseUrl}/svg-to-base64`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

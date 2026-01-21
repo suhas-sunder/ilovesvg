@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/svg-stroke-width-adjust";
+import type { Route } from "./+types/svg-stroke-width-editor";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -10,7 +10,7 @@ import { Link } from "react-router";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "i🩵SVG  -  SVG Stroke Width Adjuster (Multiply, Set, Clamp, Live Preview)";
+    "i🩵SVG  -  SVG Stroke Width Editor (Multiply, Set, Clamp, Live Preview)";
   const description =
     "Adjust stroke width in an SVG instantly in your browser. Multiply stroke widths, set an exact value, add missing stroke-width, clamp min/max, target paths/shapes, and preview the result live. No uploads, no server processing.";
   return [
@@ -212,7 +212,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
     setSettings((s) => ({ ...s, fileName: baseName }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
   }
@@ -249,7 +249,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([example], { type: "image/svg+xml" })
+        new Blob([example], { type: "image/svg+xml" }),
       );
     });
 
@@ -954,10 +954,10 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
       <SiteFooter />
     </>
   );
@@ -969,7 +969,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
 function adjustStrokeWidths(
   svgText: string,
   settings: Settings,
-  hiddenMountRef: React.RefObject<HTMLDivElement>
+  hiddenMountRef: React.RefObject<HTMLDivElement>,
 ): Result {
   const notes: string[] = [];
 
@@ -1067,7 +1067,7 @@ function adjustStrokeWidths(
           mount.appendChild(liveSvg);
           const all = Array.from(liveSvg.querySelectorAll("*"));
           all.forEach((el, i) =>
-            (el as Element).setAttribute("data-sw-id", String(i))
+            (el as Element).setAttribute("data-sw-id", String(i)),
           );
 
           computedMap = new Map();
@@ -1085,12 +1085,12 @@ function adjustStrokeWidths(
           mount.innerHTML = "";
         } else {
           notes.push(
-            "Could not mount SVG for CSS-aware base. Using attributes/styles only."
+            "Could not mount SVG for CSS-aware base. Using attributes/styles only.",
           );
         }
       } catch {
         notes.push(
-          "CSS-aware base failed in this browser. Using attributes/styles only."
+          "CSS-aware base failed in this browser. Using attributes/styles only.",
         );
         computedMap = null;
         if (mount) mount.innerHTML = "";
@@ -1106,7 +1106,7 @@ function adjustStrokeWidths(
 
   function parseStyleProp(style: string, prop: string): string | null {
     const m = String(style || "").match(
-      new RegExp(`${prop}\\s*:\\s*([^;]+)`, "i")
+      new RegExp(`${prop}\\s*:\\s*([^;]+)`, "i"),
     );
     return m ? m[1].trim() : null;
   }
@@ -1313,7 +1313,7 @@ function adjustStrokeWidths(
 
   function isMissingForApplyWhere(
     el: Element,
-    applyWhere: ApplyWhere
+    applyWhere: ApplyWhere,
   ): boolean {
     const exp = readExplicitStrokeWidth(el);
     if (applyWhere === "attr") return exp.attr == null;
@@ -1348,7 +1348,7 @@ function adjustStrokeWidths(
             const out = clampAndRound(Math.abs(n) * mul);
             changedRules++;
             return `${p1}${out}${unit || ""}`;
-          }
+          },
         );
       } else {
         const out = clampAndRound(outWidthForSetOrAdd);
@@ -1357,7 +1357,7 @@ function adjustStrokeWidths(
           (_m, p1, _num, _d, unit) => {
             changedRules++;
             return `${p1}${out}${unit || ""}`;
-          }
+          },
         );
       }
 
@@ -1366,7 +1366,7 @@ function adjustStrokeWidths(
 
     if (changedRules > 0) {
       notes.push(
-        `Updated stroke-width in embedded <style> rules (${changedRules} rule match${changedRules === 1 ? "" : "es"}).`
+        `Updated stroke-width in embedded <style> rules (${changedRules} rule match${changedRules === 1 ? "" : "es"}).`,
       );
     }
   }
@@ -1456,11 +1456,11 @@ function adjustStrokeWidths(
       }
     } else {
       notes.push(
-        "No visible change detected. Enable Force override and/or Rewrite <style> rules."
+        "No visible change detected. Enable Force override and/or Rewrite <style> rules.",
       );
       if (!settings.forceInlineOverride)
         notes.push(
-          "Turn on Force override to override class-based stroke widths."
+          "Turn on Force override to override class-based stroke widths.",
         );
       if (!settings.rewriteStyleTags)
         notes.push("Turn on Rewrite <style> rules for embedded CSS.");
@@ -1469,7 +1469,7 @@ function adjustStrokeWidths(
     // If we changed things but user might still see no visual difference, nudge the common case.
     if (settings.applyWhere === "attr") {
       notes.push(
-        "Tip: If your SVG uses inline style or classes for stroke-width, attribute-only can appear unchanged. Use Inline style or Both."
+        "Tip: If your SVG uses inline style or classes for stroke-width, attribute-only can appear unchanged. Use Inline style or Both.",
       );
     }
   }
@@ -1839,23 +1839,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Stroke Width Adjuster",
-        item: "/svg-stroke-width-adjust",
+        item: `${baseUrl}/svg-stroke-width-adjust`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

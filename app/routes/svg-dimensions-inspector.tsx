@@ -204,7 +204,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml;charset=utf-8" })
+      new Blob([coerced], { type: "image/svg+xml;charset=utf-8" }),
     );
     setPreviewUrl(url);
   }
@@ -249,7 +249,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([example], { type: "image/svg+xml;charset=utf-8" })
+        new Blob([example], { type: "image/svg+xml;charset=utf-8" }),
       );
     });
 
@@ -291,7 +291,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       setPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(
-          new Blob([coerced], { type: "image/svg+xml;charset=utf-8" })
+          new Blob([coerced], { type: "image/svg+xml;charset=utf-8" }),
         );
       });
     } catch (e: any) {
@@ -311,7 +311,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       setOutPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(
-          new Blob([out.svgText], { type: "image/svg+xml;charset=utf-8" })
+          new Blob([out.svgText], { type: "image/svg+xml;charset=utf-8" }),
         );
       });
 
@@ -319,7 +319,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       const p2 = inspectSvg(
         out.svgText,
         settings.dpi,
-        settings.defaultPxIfMissing
+        settings.defaultPxIfMissing,
       );
       setParsed(p2);
 
@@ -853,7 +853,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           return URL.createObjectURL(
                             new Blob([v], {
                               type: "image/svg+xml;charset=utf-8",
-                            })
+                            }),
                           );
                         });
                       }}
@@ -879,10 +879,10 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
       <SiteFooter />
     </>
   );
@@ -894,7 +894,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
 function inspectSvg(
   svgText: string,
   dpi: number,
-  defaultPxIfMissing: number
+  defaultPxIfMissing: number,
 ): SvgParsed {
   const safe = ensureSvgHasXmlns(String(svgText || "").trim());
   const bytes = new Blob([safe]).size;
@@ -922,19 +922,19 @@ function inspectSvg(
   const warnings: string[] = [];
   if (!widthRaw)
     warnings.push(
-      "No width attribute found. Some apps will rely on viewBox or CSS sizing."
+      "No width attribute found. Some apps will rely on viewBox or CSS sizing.",
     );
   if (!heightRaw)
     warnings.push(
-      "No height attribute found. Some apps will rely on viewBox or CSS sizing."
+      "No height attribute found. Some apps will rely on viewBox or CSS sizing.",
     );
   if (!viewBoxRaw)
     warnings.push(
-      "No viewBox found. This is a top reason SVG scaling behaves weird or gets clipped."
+      "No viewBox found. This is a top reason SVG scaling behaves weird or gets clipped.",
     );
   if (width.unit === "%" || height.unit === "%")
     warnings.push(
-      "Width or height uses %. Pixel size depends on the container."
+      "Width or height uses %. Pixel size depends on the container.",
     );
   if (
     width.unit === "em" ||
@@ -943,7 +943,7 @@ function inspectSvg(
     height.unit === "rem"
   ) {
     warnings.push(
-      "Width or height uses em/rem. Pixel size depends on font-size in the container."
+      "Width or height uses em/rem. Pixel size depends on font-size in the container.",
     );
   }
 
@@ -953,7 +953,7 @@ function inspectSvg(
     viewBox,
     dpi,
     defaultPxIfMissing,
-    warnings
+    warnings,
   );
 
   const aspectRatio =
@@ -982,7 +982,7 @@ function inspectSvg(
 function applyFix(
   svgText: string,
   settings: Settings,
-  parsed: SvgParsed | null
+  parsed: SvgParsed | null,
 ): Result {
   const notes: string[] = [];
   let safe = String(svgText || "").trim();
@@ -1031,7 +1031,7 @@ function applyFix(
 
     if (current && current === next)
       notes.push(
-        "viewBox was already set to the same value. Output still generated."
+        "viewBox was already set to the same value. Output still generated.",
       );
     else notes.push(current ? "Replaced viewBox." : "Added viewBox.");
   }
@@ -1053,7 +1053,7 @@ function applyFix(
         throw new Error("viewBox output is invalid. Example: 0 0 512 512");
       svg.setAttribute(
         "viewBox",
-        `${parsedVb.minX} ${parsedVb.minY} ${parsedVb.w} ${parsedVb.h}`
+        `${parsedVb.minX} ${parsedVb.minY} ${parsedVb.w} ${parsedVb.h}`,
       );
       notes.push("Normalized viewBox.");
     } else if (!svg.getAttribute("viewBox")) {
@@ -1094,7 +1094,7 @@ function applyFix(
 
 function inferViewBoxFallback(
   parsed: SvgParsed | null,
-  defaultPxIfMissing: number
+  defaultPxIfMissing: number,
 ) {
   const w = parsed?.inferredPx?.w || defaultPxIfMissing;
   const h = parsed?.inferredPx?.h || defaultPxIfMissing;
@@ -1165,7 +1165,7 @@ function computeEffectivePx(
   viewBox: { w: number; h: number } | null,
   dpi: number,
   defaultPxIfMissing: number,
-  warnings: string[]
+  warnings: string[],
 ): { w: number; h: number; source: string } | null {
   const safeDpi = clampNum(dpi, 24, 2400);
   const pxPerIn = safeDpi;
@@ -1194,7 +1194,7 @@ function computeEffectivePx(
 
   if ((width.unit === "%" || height.unit === "%") && viewBox) {
     warnings.push(
-      "Percent sizing found. Using viewBox to estimate pixel size (estimate only)."
+      "Percent sizing found. Using viewBox to estimate pixel size (estimate only).",
     );
   }
 
@@ -1486,23 +1486,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Dimensions Inspector",
-        item: "/svg-dimensions-inspector",
+        item: `${baseUrl}/svg-dimensions-inspector`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

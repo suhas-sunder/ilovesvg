@@ -41,7 +41,7 @@ export function OtherToolsLinks({
   const current = React.useMemo(() => {
     return (
       UTILITIES.find(
-        (u) => pathname === u.to || pathname.startsWith(u.to + "/")
+        (u) => pathname === u.to || pathname.startsWith(u.to + "/"),
       ) ?? null
     );
   }, [pathname]);
@@ -55,21 +55,23 @@ export function OtherToolsLinks({
     if (!current) return base.slice(0, maxItems);
 
     const currentKeys = new Set(
-      (current.keywords ?? []).concat(current.group).map((s) => s.toLowerCase())
+      (current.keywords ?? [])
+        .concat(current.group)
+        .map((s) => s.toLowerCase()),
     );
 
     return base
       .map((u) => {
         let score = 0;
-
         if (u.group === current.group) score += 100;
 
         const uKeys = (u.keywords ?? [])
           .concat(u.group)
           .map((s) => s.toLowerCase());
-        for (const k of uKeys) if (currentKeys.has(k)) score += 5;
 
+        for (const k of uKeys) if (currentKeys.has(k)) score += 5;
         score += affinityBonus(current.group, u.group);
+
         return { u, score };
       })
       .sort((a, b) => b.score - a.score)
@@ -196,11 +198,12 @@ export const UTILITIES: UtilityLink[] = [
       "vectorize",
       "png to svg",
       "jpg to svg",
+      "jpeg to svg",
       "webp to svg",
     ],
   },
 
-  // Convert
+  // Convert (Export SVG to raster/vector targets)
   {
     id: "svg-to-png",
     title: "SVG to PNG Converter",
@@ -209,7 +212,13 @@ export const UTILITIES: UtilityLink[] = [
       "Convert SVG to PNG with clean edges and transparent background support.",
     to: "/svg-to-png-converter",
     group: "Convert",
-    keywords: ["svg to png", "convert svg", "raster", "export png"],
+    keywords: [
+      "svg to png",
+      "convert svg",
+      "raster",
+      "export png",
+      "transparent png",
+    ],
   },
   {
     id: "svg-to-jpg",
@@ -255,6 +264,276 @@ export const UTILITIES: UtilityLink[] = [
       "app icons",
       "ico",
       "pwa icons",
+    ],
+  },
+
+  // Convert (Image to SVG: format-specific)
+  {
+    id: "png-to-svg",
+    title: "PNG to SVG Converter",
+    shortTitle: "PNG → SVG",
+    description:
+      "Convert PNG images to SVG vectors for scalable logos, icons, and crisp printing.",
+    to: "/png-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "png to svg",
+      "convert png",
+      "vectorize png",
+      "transparent png to svg",
+    ],
+  },
+  {
+    id: "jpeg-to-svg",
+    title: "JPEG to SVG Converter",
+    shortTitle: "JPEG → SVG",
+    description:
+      "Convert JPEG images to SVG with clean vector output for resizing without blur.",
+    to: "/jpeg-to-svg-converter",
+    group: "Convert",
+    keywords: ["jpeg to svg", "convert jpeg", "vectorize jpeg", "photo to svg"],
+  },
+  {
+    id: "jpg-to-svg",
+    title: "JPG to SVG Converter",
+    shortTitle: "JPG → SVG",
+    description:
+      "Convert JPG images into scalable SVGs for web graphics, posters, and print.",
+    to: "/jpg-to-svg-converter",
+    group: "Convert",
+    keywords: ["jpg to svg", "convert jpg", "vectorize jpg", "image to svg"],
+  },
+  {
+    id: "webp-to-svg",
+    title: "WebP to SVG Converter",
+    shortTitle: "WebP → SVG",
+    description:
+      "Convert WebP images to SVG for scalable assets and consistent rendering across sizes.",
+    to: "/webp-to-svg-converter",
+    group: "Convert",
+    keywords: ["webp to svg", "convert webp", "vectorize webp", "image to svg"],
+  },
+
+  // Convert (Image to SVG: intent-based)
+  {
+    id: "logo-to-svg",
+    title: "Logo to SVG Converter",
+    shortTitle: "Logo → SVG",
+    description:
+      "Turn a logo into a scalable SVG for brand kits, print, and sharp resizing.",
+    to: "/logo-to-svg-converter",
+    group: "Convert",
+    keywords: ["logo to svg", "vector logo", "brand logo", "vectorize logo"],
+  },
+  {
+    id: "scan-to-svg",
+    title: "Scan to SVG Converter",
+    shortTitle: "Scan → SVG",
+    description:
+      "Convert scanned images to SVG for cleanup, scaling, and crisp document graphics.",
+    to: "/scan-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "scan to svg",
+      "scanned image to svg",
+      "vectorize scan",
+      "paper to svg",
+    ],
+  },
+  {
+    id: "photo-to-svg-outline",
+    title: "Photo to SVG Outline Converter",
+    shortTitle: "Photo → Outline",
+    description:
+      "Create an outline-style SVG from a photo for posters, stickers, and simplified art.",
+    to: "/photo-to-svg-outline",
+    group: "Convert",
+    keywords: [
+      "photo to svg outline",
+      "outline svg",
+      "photo outline",
+      "trace photo",
+    ],
+  },
+  {
+    id: "image-to-svg-outline",
+    title: "Image to SVG Outline Converter",
+    shortTitle: "Image → Outline",
+    description:
+      "Generate an outline SVG from an image for clean line art, decals, and cut-ready shapes.",
+    to: "/image-to-svg-outline",
+    group: "Convert",
+    keywords: [
+      "image to svg outline",
+      "outline svg",
+      "line art svg",
+      "trace outline",
+    ],
+  },
+  {
+    id: "drawing-to-svg",
+    title: "Drawing to SVG Converter",
+    shortTitle: "Drawing → SVG",
+    description:
+      "Convert a drawing into SVG so it stays sharp at any size for prints and merch.",
+    to: "/drawing-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "drawing to svg",
+      "sketch to svg",
+      "hand drawn to svg",
+      "vectorize drawing",
+    ],
+  },
+  {
+    id: "sketch-to-svg",
+    title: "Sketch to SVG Converter",
+    shortTitle: "Sketch → SVG",
+    description:
+      "Vectorize sketches into SVG for clean scaling, editing, and consistent line output.",
+    to: "/sketch-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "sketch to svg",
+      "pencil sketch to svg",
+      "vectorize sketch",
+      "trace sketch",
+    ],
+  },
+  {
+    id: "line-art-to-svg",
+    title: "Line Art to SVG Converter",
+    shortTitle: "Line Art → SVG",
+    description:
+      "Convert line art into SVG for crisp outlines, coloring pages, and cut-friendly paths.",
+    to: "/line-art-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "line art to svg",
+      "outline to svg",
+      "vector line art",
+      "trace line art",
+    ],
+  },
+  {
+    id: "black-and-white-image-to-svg",
+    title: "Black and White Image to SVG Converter",
+    shortTitle: "B&W → SVG",
+    description:
+      "Convert black and white images to SVG with clear edges for stencils, decals, and prints.",
+    to: "/black-and-white-image-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "black and white to svg",
+      "bw to svg",
+      "stencil svg",
+      "threshold trace",
+    ],
+  },
+  {
+    id: "bitmap-to-svg",
+    title: "Bitmap to SVG Converter",
+    shortTitle: "Bitmap → SVG",
+    description:
+      "Convert bitmap images to SVG so artwork scales cleanly without pixelation.",
+    to: "/bitmap-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "bitmap to svg",
+      "bmp to svg",
+      "vectorize bitmap",
+      "raster to svg",
+    ],
+  },
+  {
+    id: "raster-to-svg",
+    title: "Raster to SVG Converter",
+    shortTitle: "Raster → SVG",
+    description:
+      "Convert raster images to SVG vectors for sharp scaling, editing, and print.",
+    to: "/raster-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "raster to svg",
+      "vectorize raster",
+      "image to vector",
+      "trace raster",
+    ],
+  },
+  {
+    id: "illustration-to-svg",
+    title: "Illustration to SVG Converter",
+    shortTitle: "Illustration → SVG",
+    description:
+      "Convert illustrations into SVG for scalable artwork with clean paths and shapes.",
+    to: "/illustration-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "illustration to svg",
+      "vector illustration",
+      "art to svg",
+      "trace illustration",
+    ],
+  },
+  {
+    id: "comic-to-svg",
+    title: "Comic to SVG Converter",
+    shortTitle: "Comic → SVG",
+    description:
+      "Convert comic art to SVG for sharp lines, scalable panels, and consistent export.",
+    to: "/comic-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "comic to svg",
+      "manga to svg",
+      "linework to svg",
+      "vectorize comic",
+    ],
+  },
+  {
+    id: "emoji-to-svg",
+    title: "Emoji to SVG Converter",
+    shortTitle: "Emoji → SVG",
+    description:
+      "Convert emoji-style images to SVG for scalable stickers, icons, and overlays.",
+    to: "/emoji-to-svg-converter",
+    group: "Convert",
+    keywords: ["emoji to svg", "sticker svg", "icon svg", "vector emoji"],
+  },
+  {
+    id: "icon-to-svg",
+    title: "Icon to SVG Converter",
+    shortTitle: "Icon → SVG",
+    description:
+      "Convert icons to SVG for crisp scaling, theming, and consistent UI usage.",
+    to: "/icon-to-svg-converter",
+    group: "Convert",
+    keywords: ["icon to svg", "vector icon", "ui icon svg", "convert icon"],
+  },
+  {
+    id: "sticker-to-svg",
+    title: "Sticker to SVG Converter",
+    shortTitle: "Sticker → SVG",
+    description:
+      "Convert sticker images to SVG for clean cut lines, scaling, and print-ready output.",
+    to: "/sticker-to-svg-converter",
+    group: "Convert",
+    keywords: ["sticker to svg", "decal svg", "cut file", "vector sticker"],
+  },
+  {
+    id: "text-to-svg",
+    title: "Text to SVG Converter",
+    shortTitle: "Text → SVG",
+    description:
+      "Convert text into SVG for logos, wordmarks, and scalable typography graphics.",
+    to: "/text-to-svg-converter",
+    group: "Convert",
+    keywords: [
+      "text to svg",
+      "svg text",
+      "wordmark",
+      "type to svg",
+      "vector text",
     ],
   },
 
@@ -319,6 +598,28 @@ export const UTILITIES: UtilityLink[] = [
     group: "Edit",
     keywords: ["rotate svg", "flip svg", "mirror svg", "transform"],
   },
+  {
+    id: "free-color-picker",
+    title: "Free Color Picker (SVG + Image Palette Extractor)",
+    shortTitle: "Free Color Picker",
+    description:
+      "Pick colors and extract palettes from SVG, PNG, JPG, or WEBP with live previews and copy-ready HEX/RGB/HSL.",
+    to: "/free-color-picker",
+    group: "Edit",
+    keywords: [
+      "color picker",
+      "free color picker",
+      "svg color picker",
+      "image color picker",
+      "palette extractor",
+      "extract colors",
+      "hex",
+      "rgb",
+      "hsl",
+      "fill",
+      "stroke",
+    ],
+  },
 
   // Inspect
   {
@@ -371,6 +672,27 @@ export const UTILITIES: UtilityLink[] = [
     group: "Inspect",
     keywords: ["inline svg", "img tag", "svg vs img", "svg styling"],
   },
+  {
+    id: "svg-accessibility-and-contrast-checker",
+    title: "SVG Accessibility and Contrast Checker",
+    shortTitle: "Accessibility + Contrast",
+    description:
+      "Check SVG color contrast against WCAG AA/AAA, preview common color blindness modes, and apply higher-contrast color options.",
+    to: "/svg-accessibility-and-contrast-checker",
+    group: "Inspect",
+    keywords: [
+      "svg accessibility",
+      "contrast checker",
+      "wcag",
+      "aa",
+      "aaa",
+      "color blindness",
+      "colorblind",
+      "contrast ratio",
+      "luminance",
+      "foreground background",
+    ],
+  },
 
   // Optimize
   {
@@ -414,48 +736,5 @@ export const UTILITIES: UtilityLink[] = [
     to: "/base64-to-svg",
     group: "Base64",
     keywords: ["base64 to svg", "decode svg", "data url", "base64 decoder"],
-  },
-  {
-    id: "free-color-picker",
-    title: "Free Color Picker (SVG + Image Palette Extractor)",
-    shortTitle: "Free Color Picker",
-    description:
-      "Pick colors and extract palettes from SVG, PNG, JPG, or WEBP with live previews and copy-ready HEX/RGB/HSL.",
-    to: "/free-color-picker",
-    group: "Edit",
-    keywords: [
-      "color picker",
-      "free color picker",
-      "svg color picker",
-      "image color picker",
-      "palette extractor",
-      "extract colors",
-      "hex",
-      "rgb",
-      "hsl",
-      "fill",
-      "stroke",
-    ],
-  },
-  {
-    id: "svg-accessibility-and-contrast-checker",
-    title: "SVG Accessibility and Contrast Checker",
-    shortTitle: "Accessibility + Contrast",
-    description:
-      "Check SVG color contrast against WCAG AA/AAA, preview common color blindness modes, and apply higher-contrast color options.",
-    to: "/svg-accessibility-and-contrast-checker",
-    group: "Inspect",
-    keywords: [
-      "svg accessibility",
-      "contrast checker",
-      "wcag",
-      "aa",
-      "aaa",
-      "color blindness",
-      "colorblind",
-      "contrast ratio",
-      "luminance",
-      "foreground background",
-    ],
   },
 ];

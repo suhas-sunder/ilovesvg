@@ -173,7 +173,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([safeText], { type: "image/svg+xml" })
+      new Blob([safeText], { type: "image/svg+xml" }),
     );
     setPreviewSvgUrl(url);
   }
@@ -408,7 +408,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                           const height = clampInt(
                             Math.round(s.width / svgInfo.aspect),
                             16,
-                            16384
+                            16384,
                           );
                           return { ...s, lockAspect, height };
                         })
@@ -609,11 +609,11 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
+      <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
       <SiteFooter />
     </>
   );
@@ -625,7 +625,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
 async function svgToWebpDataUrl(
   svgText: string,
   svgInfo: SvgInfo | null,
-  settings: Settings
+  settings: Settings,
 ): Promise<Result> {
   if (!supportsWebpExport()) {
     throw new Error("WebP export is not supported in this browser.");
@@ -683,7 +683,7 @@ async function svgToWebpDataUrl(
     const mime = dataUrl.slice(5, dataUrl.indexOf(";"));
     if (mime !== "image/webp") {
       throw new Error(
-        "WebP export failed (browser returned a different format)."
+        "WebP export failed (browser returned a different format).",
       );
     }
 
@@ -724,8 +724,8 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () =>
       reject(
         new Error(
-          "Could not render this SVG. (Some SVGs reference external assets or unsupported features.)"
-        )
+          "Could not render this SVG. (Some SVGs reference external assets or unsupported features.)",
+        ),
       );
     img.src = url;
   });
@@ -1070,23 +1070,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG to WebP",
-        item: "/svg-to-webp",
+        item: `${baseUrl}/svg-to-webp`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }

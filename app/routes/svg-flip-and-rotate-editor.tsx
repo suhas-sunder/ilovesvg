@@ -175,7 +175,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
     setSettings((s) => ({ ...s, fileName: baseName }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
   }
@@ -213,7 +213,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
     setPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return URL.createObjectURL(
-        new Blob([example], { type: "image/svg+xml" })
+        new Blob([example], { type: "image/svg+xml" }),
       );
     });
 
@@ -764,10 +764,10 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
       </main>
 
       <SeoSections />
+      <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <JsonLdBreadcrumbs />
       <SiteFooter />
     </>
   );
@@ -800,7 +800,7 @@ function flipRotateSvg(svgText: string, settings: Settings): Result {
 
   if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
     notes.push(
-      "Could not confidently determine SVG size; using fallback sizing."
+      "Could not confidently determine SVG size; using fallback sizing.",
     );
   }
 
@@ -854,12 +854,12 @@ function flipRotateSvg(svgText: string, settings: Settings): Result {
       const fitted = fitViewBoxToTransform(vb, deg, sx, sy, ax, ay);
       svg.setAttribute(
         "viewBox",
-        `${fmt(fitted.minX)} ${fmt(fitted.minY)} ${fmt(fitted.w)} ${fmt(fitted.h)}`
+        `${fmt(fitted.minX)} ${fmt(fitted.minY)} ${fmt(fitted.w)} ${fmt(fitted.h)}`,
       );
       notes.push("Adjusted viewBox to reduce clipping (best-effort).");
     } else {
       notes.push(
-        "Fit-to-rotation needs a viewBox. Add one or switch sizing mode."
+        "Fit-to-rotation needs a viewBox. Add one or switch sizing mode.",
       );
     }
   }
@@ -871,7 +871,7 @@ function flipRotateSvg(svgText: string, settings: Settings): Result {
 
 function getSvgBoundsForTransform(
   svg: SVGSVGElement,
-  settings: Settings
+  settings: Settings,
 ): { x: number; y: number; w: number; h: number } {
   const vb = parseViewBox(svg.getAttribute("viewBox"));
   if (vb && settings.unitMode !== "px") {
@@ -899,7 +899,7 @@ function fitViewBoxToTransform(
   sx: number,
   sy: number,
   ax: number,
-  ay: number
+  ay: number,
 ) {
   const rad = (deg * Math.PI) / 180;
   const cos = Math.cos(rad);
@@ -1265,23 +1265,28 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
+  const baseUrl = "https://ilovesvg.com";
+
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
         name: "SVG Flip & Rotate Editor",
-        item: "/svg-flip-rotate-editor",
+        item: `${baseUrl}/svg-flip-rotate-editor`,
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }
