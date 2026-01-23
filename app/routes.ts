@@ -2,9 +2,14 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"),
+
+  // SVG -> raster/pdf
   route("svg-to-png-converter", "routes/svg-to-png-converter.tsx"),
   route("svg-to-jpg-converter", "routes/svg-to-jpg-converter.tsx"),
   route("svg-to-webp-converter", "routes/svg-to-webp-converter.tsx"),
+  route("svg-to-pdf-converter", "routes/svg-to-pdf-converter.tsx"),
+
+  // SVG utilities
   route("svg-background-editor", "routes/svg-background-editor.tsx"),
   route(
     "svg-resize-and-scale-editor",
@@ -12,50 +17,49 @@ export default [
   ),
   route("svg-recolor", "routes/svg-recolor.tsx"),
   route("svg-minifier", "routes/svg-minifier.tsx"),
-  route("svg-preview-viewer", "routes/svg-preview-viewer.tsx"),
-  route("svg-to-base64", "routes/svg-to-base64.tsx"),
-  route("base64-to-svg", "routes/base64-to-svg.tsx"),
-  route("svg-to-pdf-converter", "routes/svg-to-pdf-converter.tsx"),
   route("svg-cleaner", "routes/svg-cleaner.tsx"),
+  route("svg-preview-viewer", "routes/svg-preview-viewer.tsx"),
   route("svg-embed-code-generator", "routes/svg-embed-code-generator.tsx"),
   route("inline-svg-vs-img", "routes/inline-svg-vs-img.tsx"),
   route("svg-to-favicon-generator", "routes/svg-to-favicon-generator.tsx"),
   route("svg-stroke-width-editor", "routes/svg-stroke-width-editor.tsx"),
   route("svg-flip-and-rotate-editor", "routes/svg-flip-and-rotate-editor.tsx"),
   route("svg-dimensions-inspector", "routes/svg-dimensions-inspector.tsx"),
-  route("svg-size-inspector", "routes/svg-size-inspector.tsx"),
-  route("free-color-picker", "routes/free-color-picker.tsx"),
+  route("svg-file-size-inspector", "routes/svg-file-size-inspector.tsx"),
   route(
     "svg-accessibility-and-contrast-checker",
     "routes/svg-accessibility-and-contrast-checker.tsx",
   ),
+
+  // Base64
+  route("svg-to-base64", "routes/svg-to-base64.tsx"),
+  route("base64-to-svg", "routes/base64-to-svg.tsx"),
+
+  // Color tool
+  route("free-color-picker", "routes/free-color-picker.tsx"),
+
+  // Raster -> SVG
   route("png-to-svg-converter", "routes/png-to-svg-converter.tsx"),
-  route("jpeg-to-svg-converter", "routes/jpeg-to-svg-converter.tsx"),
   route("jpg-to-svg-converter", "routes/jpg-to-svg-converter.tsx"),
+  route("jpeg-to-svg-converter", "routes/jpeg-to-svg-converter.tsx"),
   route("webp-to-svg-converter", "routes/webp-to-svg-converter.tsx"),
   route("logo-to-svg-converter", "routes/logo-to-svg-converter.tsx"),
-  route("image-to-svg-outline", "routes/image-to-svg-outline.tsx"),
-  route("photo-to-svg-outline", "routes/photo-to-svg-outline.tsx"),
-  route("scan-to-svg-converter", "routes/scan-to-svg-converter.tsx"),
-  route("drawing-to-svg-converter", "routes/drawing-to-svg-converter.tsx"),
+  route("icon-to-svg-converter", "routes/icon-to-svg-converter.tsx"),
   route("emoji-to-svg-converter", "routes/emoji-to-svg-converter.tsx"),
   route("text-to-svg-converter", "routes/text-to-svg-converter.tsx"),
-  route("icon-to-svg-converter", "routes/icon-to-svg-converter.tsx"),
   route("sticker-to-svg-converter", "routes/sticker-to-svg-converter.tsx"),
   route("line-art-to-svg-converter", "routes/line-art-to-svg-converter.tsx"),
-  route("comic-to-svg-converter", "routes/comic-to-svg-converter.tsx"),
-  route(
-    "illustration-to-svg-converter",
-    "routes/illustration-to-svg-converter.tsx",
-  ),
-  route("bitmap-to-svg-converter", "routes/bitmap-to-svg-converter.tsx"),
-  route("raster-to-svg-converter", "routes/raster-to-svg-converter.tsx"),
+  route("drawing-to-svg-converter", "routes/drawing-to-svg-converter.tsx"),
+  route("scan-to-svg-converter", "routes/scan-to-svg-converter.tsx"),
+  route("sketch-to-svg-converter", "routes/sketch-to-svg-converter.tsx"),
+  route("image-to-svg-outline", "routes/image-to-svg-outline.tsx"),
+  route("photo-to-svg-outline", "routes/photo-to-svg-outline.tsx"),
   route(
     "black-and-white-image-to-svg-converter",
     "routes/black-and-white-image-to-svg-converter.tsx",
   ),
-  route("sketch-to-svg-converter", "routes/sketch-to-svg-converter.tsx"),
 
+  // Legal
   route("cookies", "routes/cookies.tsx"),
   route("privacy-policy", "routes/privacy-policy.tsx"),
   route("terms-of-service", "routes/terms-of-service.tsx"),
