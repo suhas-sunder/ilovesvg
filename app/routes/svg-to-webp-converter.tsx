@@ -1081,7 +1081,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG to WebP",
-        item: `${baseUrl}/svg-to-webp`,
+        item: `${baseUrl}/svg-to-webp-converter`,
       },
     ],
   };

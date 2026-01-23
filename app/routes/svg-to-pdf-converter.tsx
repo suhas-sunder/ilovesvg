@@ -1287,7 +1287,7 @@ function SiteHeader() {
             </li>
             <li>
               <a
-                href="/svg-to-pdf"
+                href="/svg-to-pdf-converter"
                 className="text-slate-700 hover:text-slate-900 transition-colors"
               >
                 SVG to PDF
@@ -1399,7 +1399,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG to PDF",
-        item: `${baseUrl}/svg-to-pdf`,
+        item: `${baseUrl}/svg-to-pdf-converter`,
       },
     ],
   };

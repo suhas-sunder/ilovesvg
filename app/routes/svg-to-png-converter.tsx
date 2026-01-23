@@ -1118,7 +1118,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG to PNG",
-        item: `${baseUrl}/svg-to-png`,
+        item: `${baseUrl}/svg-to-png-converter`,
       },
     ],
   };
