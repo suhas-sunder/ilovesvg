@@ -240,7 +240,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG to PDF", href: "/svg-to-pdf" },
+    { name: "SVG to PDF", href: "/svg-to-pdf-converter" },
   ];
 
   async function convertNow() {

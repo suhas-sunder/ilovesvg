@@ -224,7 +224,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG → PNG", href: "/svg-to-png" },
+    { name: "SVG → PNG", href: "/svg-to-png-converter" },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;

@@ -225,7 +225,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG to JPG", href: "/svg-to-jpg" },
+    { name: "SVG to JPG", href: "/svg-to-jpg-converter" },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;

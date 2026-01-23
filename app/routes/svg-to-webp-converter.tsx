@@ -233,7 +233,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG → WebP", href: "/svg-to-webp" },
+    { name: "SVG → WebP", href: "/svg-to-webp-converter" },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;
