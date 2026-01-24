@@ -139,7 +139,10 @@ export async function action({ request }: ActionFunctionArgs) {
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
       return json(
-        { error: "Upload too large for live conversion. Please resize and try again." },
+        {
+          error:
+            "Upload too large for live conversion. Please resize and try again.",
+        },
         { status: 413 },
       );
     }
@@ -156,11 +159,16 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const webFile = file as File;
     if (!ALLOWED_MIME.has(webFile.type)) {
-      return json({ error: "Only PNG or JPEG images are allowed." }, { status: 415 });
+      return json(
+        { error: "Only PNG or JPEG images are allowed." },
+        { status: 415 },
+      );
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
       return json(
-        { error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB per image.` },
+        {
+          error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB per image.`,
+        },
         { status: 413 },
       );
     }
@@ -174,7 +182,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
-          error: "Server is busy converting other images. We'll retry automatically.",
+          error:
+            "Server is busy converting other images. We'll retry automatically.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -199,7 +208,10 @@ export async function action({ request }: ActionFunctionArgs) {
         const h = meta.height ?? 0;
 
         if (!w || !h) {
-          return json({ error: "Could not read image dimensions. Try a different file." }, { status: 415 });
+          return json(
+            { error: "Could not read image dimensions. Try a different file." },
+            { status: 415 },
+          );
         }
 
         const mp = (w * h) / 1_000_000;
@@ -215,7 +227,11 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const threshold = clampInt(Number(form.get("threshold") ?? 200), 0, 255);
       const turdSize = clampInt(Number(form.get("turdSize") ?? 2), 0, 10);
-      const optTolerance = clampNum(Number(form.get("optTolerance") ?? 0.28), 0.05, 1.2);
+      const optTolerance = clampNum(
+        Number(form.get("optTolerance") ?? 0.28),
+        0.05,
+        1.2,
+      );
       const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
         | "black"
         | "white"
@@ -224,18 +240,27 @@ export async function action({ request }: ActionFunctionArgs) {
         | "minority"
         | "majority";
 
-      const binaryMode = String(form.get("binaryMode") ?? "true").toLowerCase() === "true";
-      const binaryInvertInput = String(form.get("binaryInvertInput") ?? "false").toLowerCase() === "true";
+      const binaryMode =
+        String(form.get("binaryMode") ?? "true").toLowerCase() === "true";
+      const binaryInvertInput =
+        String(form.get("binaryInvertInput") ?? "false").toLowerCase() ===
+        "true";
 
-      const whiteOnDark = String(form.get("invert") ?? "false").toLowerCase() === "true";
+      const whiteOnDark =
+        String(form.get("invert") ?? "false").toLowerCase() === "true";
 
       let lineColor = String(form.get("lineColor") ?? "#000000");
-      let transparent = String(form.get("transparent") ?? "true").toLowerCase() === "true";
+      let transparent =
+        String(form.get("transparent") ?? "true").toLowerCase() === "true";
       let bgColor = String(form.get("bgColor") ?? "#ffffff");
 
       if (whiteOnDark) {
         transparent = false;
-        if (!bgColor || bgColor.toLowerCase() === "#ffffff" || bgColor.toLowerCase() === "#fff") {
+        if (
+          !bgColor ||
+          bgColor.toLowerCase() === "#ffffff" ||
+          bgColor.toLowerCase() === "#fff"
+        ) {
           bgColor = DARK_BG_DEFAULT;
         }
         if (!lineColor || lineColor.toLowerCase() === "#000000") {
@@ -265,13 +290,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const svgRaw: string = await new Promise((resolve, reject) => {
         if (typeof traceFn === "function") {
-          traceFn(prepped, opts, (err: any, out: string) => (err ? reject(err) : resolve(out)));
+          traceFn(prepped, opts, (err: any, out: string) =>
+            err ? reject(err) : resolve(out),
+          );
         } else if (PotraceClass) {
           const p = new PotraceClass(opts);
           p.loadImage(prepped, (err: any) => {
             if (err) return reject(err);
             p.setParameters(opts);
-            p.getSVG((err2: any, out: string) => (err2 ? reject(err2) : resolve(out)));
+            p.getSVG((err2: any, out: string) =>
+              err2 ? reject(err2) : resolve(out),
+            );
           });
         } else {
           reject(new Error("potrace API not found"));
@@ -281,10 +310,19 @@ export async function action({ request }: ActionFunctionArgs) {
       const safeSvg = coerceSvg(svgRaw);
       const ensured = ensureViewBoxResponsive(safeSvg);
       const svg2 = recolorPaths(ensured.svg, lineColor);
-      const svg3 = stripFullWhiteBackgroundRect(svg2, ensured.width, ensured.height);
+      const svg3 = stripFullWhiteBackgroundRect(
+        svg2,
+        ensured.width,
+        ensured.height,
+      );
       const finalSVG = transparent
         ? svg3
-        : injectBackgroundRectString(svg3, ensured.width, ensured.height, bgColor);
+        : injectBackgroundRectString(
+            svg3,
+            ensured.width,
+            ensured.height,
+            bgColor,
+          );
 
       return json({
         svg: finalSVG,
@@ -298,7 +336,10 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    return json({ error: err?.message || "Server error during conversion." }, { status: 500 });
+    return json(
+      { error: err?.message || "Server error during conversion." },
+      { status: 500 },
+    );
   }
 }
 
@@ -356,7 +397,11 @@ function coerceSvg(svgRaw: string | null | undefined): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${trimmed}</svg>`;
 }
 
-function ensureViewBoxResponsive(svg: string): { svg: string; width: number; height: number } {
+function ensureViewBoxResponsive(svg: string): {
+  svg: string;
+  width: number;
+  height: number;
+} {
   const openTagMatch = svg.match(/<svg\b[^>]*>/i);
   if (!openTagMatch) return { svg, width: 1024, height: 1024 };
 
@@ -388,14 +433,21 @@ function recolorPaths(svg: string, fillColor: string): string {
     /<path\b([^>]*?)\sfill\s*=\s*["'][^"']*["']([^>]*?)>/gi,
     (_m, a, b) => `<path${a} fill="${fillColor}"${b}>`,
   );
-  out = out.replace(/<path\b((?:(?!>)[\s\S])*?)>(?![\s\S]*?<\/path>)/gi, (m, attrs) => {
-    if (/fill\s*=/.test(attrs)) return m;
-    return `<path${attrs} fill="${fillColor}">`;
-  });
+  out = out.replace(
+    /<path\b((?:(?!>)[\s\S])*?)>(?![\s\S]*?<\/path>)/gi,
+    (m, attrs) => {
+      if (/fill\s*=/.test(attrs)) return m;
+      return `<path${attrs} fill="${fillColor}">`;
+    },
+  );
   return out;
 }
 
-function stripFullWhiteBackgroundRect(svg: string, width: number, height: number): string {
+function stripFullWhiteBackgroundRect(
+  svg: string,
+  width: number,
+  height: number,
+): string {
   const whitePattern =
     /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
 
@@ -416,7 +468,12 @@ function stripFullWhiteBackgroundRect(svg: string, width: number, height: number
   return svg.replace(numeric, "").replace(percent, "");
 }
 
-function injectBackgroundRectString(svg: string, width: number, height: number, color: string): string {
+function injectBackgroundRectString(
+  svg: string,
+  width: number,
+  height: number,
+  color: string,
+): string {
   const openTagMatch = svg.match(/<svg\b[^>]*>/i);
   if (!openTagMatch) return svg;
   const openTag = openTagMatch[0];
@@ -567,15 +624,20 @@ function autoModeHint(mode: AutoMode): string {
 }
 
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "medium") return "Large file; updates run less frequently to keep things smooth.";
+  if (mode === "medium")
+    return "Large file; updates run less frequently to keep things smooth.";
   return "";
 }
 
-export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.ComponentProps) {
+export default function BlackAndWhiteImageToSvgConverter({
+  loaderData,
+}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
 
   const [file, setFile] = React.useState<File | null>(null);
-  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(null);
+  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
+    null,
+  );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
@@ -585,7 +647,11 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
 
-  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(null);
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
 
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
@@ -727,7 +793,10 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
         transparent: s.transparent,
         bgColor: s.bgColor,
       };
-      const lineColor = preset.settings.lineColor !== undefined ? preset.settings.lineColor : s.lineColor;
+      const lineColor =
+        preset.settings.lineColor !== undefined
+          ? preset.settings.lineColor
+          : s.lineColor;
       return { ...baseline, lineColor, ...preset.settings } as Settings;
     });
   }
@@ -751,7 +820,9 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
     const effective = (() => {
       if (!settings.invert) return settings;
       const bg =
-        !settings.bgColor || settings.bgColor.toLowerCase() === "#ffffff" || settings.bgColor.toLowerCase() === "#fff"
+        !settings.bgColor ||
+        settings.bgColor.toLowerCase() === "#ffffff" ||
+        settings.bgColor.toLowerCase() === "#fff"
           ? DARK_BG_DEFAULT
           : settings.bgColor;
 
@@ -759,7 +830,10 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
         ...settings,
         transparent: false,
         bgColor: bg,
-        lineColor: settings.lineColor?.toLowerCase() === "#000000" ? "#ffffff" : settings.lineColor,
+        lineColor:
+          settings.lineColor?.toLowerCase() === "#000000"
+            ? "#ffffff"
+            : settings.lineColor,
       };
     })();
 
@@ -802,8 +876,6 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
 
   return (
     <>
-      <SiteHeader />
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
@@ -815,7 +887,8 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
               <span className="text-[#0b2dff]">SVG</span>
             </h1>
             <p className="mt-1 text-slate-600">
-              Convert black and white PNG/JPEG images into crisp vector SVG with live preview.
+              Convert black and white PNG/JPEG images into crisp vector SVG with
+              live preview.
             </p>
           </header>
 
@@ -831,7 +904,9 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                     onClick={() => applyPreset(p)}
                     className={[
                       "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id ? "bg-[#e7eeff] border-[#0b2dff]" : "bg-white border-slate-200 hover:bg-slate-50",
+                      activePreset === p.id
+                        ? "bg-[#e7eeff] border-[#0b2dff]"
+                        : "bg-white border-slate-200 hover:bg-slate-50",
                     ].join(" ")}
                   >
                     {p.label}
@@ -840,10 +915,12 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
               </div>
 
               <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> • <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
+                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
               </div>
               <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview: fast ≤10 MB, throttled ≤25 MB. Files up to 30 MB accepted.
+                Live preview: fast ≤10 MB, throttled ≤25 MB. Files up to 30 MB
+                accepted.
               </div>
 
               {!file ? (
@@ -855,17 +932,33 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                   onClick={() => document.getElementById("file-inp")?.click()}
                   className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
-                  <div className="text-sm text-slate-600">Click, drag & drop, or paste a PNG/JPEG</div>
-                  <input id="file-inp" type="file" accept="image/png,image/jpeg" onChange={onPick} className="hidden" />
+                  <div className="text-sm text-slate-600">
+                    Click, drag & drop, or paste a PNG/JPEG
+                  </div>
+                  <input
+                    id="file-inp"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={onPick}
+                    className="hidden"
+                  />
                 </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
                     <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && <img src={previewUrl} alt="" className="w-[22px] h-[22px] rounded-md object-cover mr-1" />}
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
                       <span title={file?.name || ""} className="truncate">
                         {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize && originalFileSize > file.size && ` (shrunk from ${prettyBytes(originalFileSize)})`}
+                        {originalFileSize &&
+                          originalFileSize > file.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
                     <button
@@ -902,20 +995,34 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                   <input
                     type="checkbox"
                     checked={settings.binaryMode}
-                    onChange={(e) => setSettings((s) => ({ ...s, binaryMode: e.target.checked }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        binaryMode: e.target.checked,
+                      }))
+                    }
                     className="h-4 w-4 accent-[#0b2dff]"
                   />
-                  <span className="text-[13px] text-slate-700">{settings.binaryMode ? "On" : "Off"}</span>
+                  <span className="text-[13px] text-slate-700">
+                    {settings.binaryMode ? "On" : "Off"}
+                  </span>
                 </Field>
 
                 <Field label="Invert input before tracing">
                   <input
                     type="checkbox"
                     checked={settings.binaryInvertInput}
-                    onChange={(e) => setSettings((s) => ({ ...s, binaryInvertInput: e.target.checked }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        binaryInvertInput: e.target.checked,
+                      }))
+                    }
                     className="h-4 w-4 accent-[#0b2dff]"
                   />
-                  <span className="text-[13px] text-slate-700">Swap black and white first</span>
+                  <span className="text-[13px] text-slate-700">
+                    Swap black and white first
+                  </span>
                 </Field>
 
                 <Field label={`Threshold (${settings.threshold})`}>
@@ -925,13 +1032,26 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                     max={255}
                     step={1}
                     value={settings.threshold}
-                    onChange={(e) => setSettings((s) => ({ ...s, threshold: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        threshold: Number(e.target.value),
+                      }))
+                    }
                     className="w-full accent-[#0b2dff]"
                   />
                 </Field>
 
                 <Field label="Turd size">
-                  <Num value={settings.turdSize} min={0} max={10} step={1} onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))} />
+                  <Num
+                    value={settings.turdSize}
+                    min={0}
+                    max={10}
+                    step={1}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, turdSize: v }))
+                    }
+                  />
                 </Field>
 
                 <Field label="Curve tolerance">
@@ -940,14 +1060,21 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                     min={0.05}
                     max={1.2}
                     step={0.05}
-                    onChange={(v) => setSettings((s) => ({ ...s, optTolerance: v }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, optTolerance: v }))
+                    }
                   />
                 </Field>
 
                 <Field label="Turn policy">
                   <select
                     value={settings.turnPolicy}
-                    onChange={(e) => setSettings((s) => ({ ...s, turnPolicy: e.target.value as any }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        turnPolicy: e.target.value as any,
+                      }))
+                    }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
                     <option value="black">black</option>
@@ -963,7 +1090,9 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                   <input
                     type="color"
                     value={settings.lineColor}
-                    onChange={(e) => setSettings((s) => ({ ...s, lineColor: e.target.value }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
+                    }
                     className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
                   />
                 </Field>
@@ -977,7 +1106,9 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                         const on = e.target.checked;
                         if (!on) return { ...s, invert: false };
                         const bg =
-                          !s.bgColor || s.bgColor.toLowerCase() === "#ffffff" || s.bgColor.toLowerCase() === "#fff"
+                          !s.bgColor ||
+                          s.bgColor.toLowerCase() === "#ffffff" ||
+                          s.bgColor.toLowerCase() === "#fff"
                             ? DARK_BG_DEFAULT
                             : s.bgColor;
                         return {
@@ -985,7 +1116,10 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                           invert: true,
                           transparent: false,
                           bgColor: bg,
-                          lineColor: s.lineColor?.toLowerCase() === "#000000" ? "#ffffff" : s.lineColor,
+                          lineColor:
+                            s.lineColor?.toLowerCase() === "#000000"
+                              ? "#ffffff"
+                              : s.lineColor,
                         };
                       })
                     }
@@ -998,21 +1132,36 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                     <input
                       type="checkbox"
                       checked={settings.transparent}
-                      onChange={(e) => setSettings((s) => ({ ...s, transparent: e.target.checked }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          transparent: e.target.checked,
+                        }))
+                      }
                       title="Transparent background"
                       className="h-4 w-4 accent-[#0b2dff]"
                     />
-                    <span className="text-[13px] text-slate-700">Transparent</span>
+                    <span className="text-[13px] text-slate-700">
+                      Transparent
+                    </span>
                     <input
                       type="color"
                       value={settings.bgColor}
-                      onChange={(e) => setSettings((s) => ({ ...s, bgColor: e.target.value }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
+                      }
                       aria-disabled={settings.transparent}
                       className={[
                         "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent ? "opacity-50 pointer-events-none" : "",
+                        settings.transparent
+                          ? "opacity-50 pointer-events-none"
+                          : "",
                       ].join(" ")}
-                      title={settings.transparent ? "Uncheck to pick a background color" : "Pick background color"}
+                      title={
+                        settings.transparent
+                          ? "Uncheck to pick a background color"
+                          : "Pick background color"
+                      }
                     />
                   </div>
                 </Field>
@@ -1040,12 +1189,18 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                 )}
 
                 {err && <span className="text-red-700 text-sm">{err}</span>}
-                {!err && info && <span className="text-[13px] text-slate-600">{info}</span>}
+                {!err && info && (
+                  <span className="text-[13px] text-slate-600">{info}</span>
+                )}
               </div>
 
               {previewUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <img src={previewUrl} alt="Input" className="w-full h-auto block" />
+                  <img
+                    src={previewUrl}
+                    alt="Input"
+                    className="w-full h-auto block"
+                  />
                 </div>
               )}
             </div>
@@ -1053,13 +1208,18 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
             <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-scroll shadow-sm min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
                 Result
-                {busy && <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />}
+                {busy && (
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+                )}
               </h2>
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
-                    <div key={item.stamp} className="rounded-xl border border-slate-200 bg-white p-2">
+                    <div
+                      key={item.stamp}
+                      className="rounded-xl border border-slate-200 bg-white p-2"
+                    >
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
@@ -1069,13 +1229,17 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                       </div>
                       <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
                         <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0 ? `${item.width} × ${item.height} px` : "size unknown"}
+                          {item.width > 0 && item.height > 0
+                            ? `${item.width} × ${item.height} px`
+                            : "size unknown"}
                         </span>
                         <div className="flex gap-2 flex-wrap">
                           <button
                             type="button"
                             onClick={() => {
-                              const b = new Blob([item.svg], { type: "image/svg+xml;charset=utf-8" });
+                              const b = new Blob([item.svg], {
+                                type: "image/svg+xml;charset=utf-8",
+                              });
                               const u = URL.createObjectURL(b);
                               const a = document.createElement("a");
                               a.href = u;
@@ -1102,7 +1266,11 @@ export default function BlackAndWhiteImageToSvgConverter({ loaderData }: Route.C
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">{busy ? "Converting…" : "Your converted file will appear here."}</p>
+                <p className="text-slate-600 m-0">
+                  {busy
+                    ? "Converting…"
+                    : "Your converted file will appear here."}
+                </p>
               )}
             </div>
           </section>
@@ -1141,20 +1309,32 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 }
 
 async function validateBeforeSubmit(file: File) {
-  if (!ALLOWED_MIME.has(file.type)) throw new Error("Only PNG or JPEG images are allowed.");
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error("File too large. Max 30 MB per image.");
+  if (!ALLOWED_MIME.has(file.type))
+    throw new Error("Only PNG or JPEG images are allowed.");
+  if (file.size > MAX_UPLOAD_BYTES)
+    throw new Error("File too large. Max 30 MB per image.");
   const { w, h } = await getImageSize(file);
   if (!w || !h) throw new Error("Could not read image dimensions.");
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-    throw new Error(`Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`);
+    throw new Error(
+      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+    );
   }
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
-      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">{label}</span>
+      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
+        {label}
+      </span>
       <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
     </label>
   );
@@ -1197,53 +1377,6 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-
-        <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-[14px] font-semibold">
-            <li>
-              <a href="/#other-tools" className="text-slate-700 hover:text-slate-900 transition-colors">
-                All Tools
-              </a>
-            </li>
-            <li>
-              <a href="/svg-recolor" className="text-slate-700 hover:text-slate-900 transition-colors">
-                Recolor
-              </a>
-            </li>
-            <li>
-              <a href="/svg-resize-and-scale-editor" className="text-slate-700 hover:text-slate-900 transition-colors">
-                Resize/Scale
-              </a>
-            </li>
-            <li>
-              <a href="/svg-to-png-converter" className="text-slate-700 hover:text-slate-900 transition-colors">
-                SVG to PNG
-              </a>
-            </li>
-            <li>
-              <a href="/svg-to-jpg-converter" className="text-slate-700 hover:text-slate-900 transition-colors">
-                SVG to JPG
-              </a>
-            </li>
-            <li>
-              <a href="/svg-to-webp-converter" className="text-slate-700 hover:text-slate-900 transition-colors">
-                SVG to WEBP
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  );
-}
-
 function SiteFooter() {
   return (
     <footer className="bg-white border-t border-slate-200">
@@ -1252,13 +1385,18 @@ function SiteFooter() {
           <div className="text-sm text-slate-600">
             <span>© {new Date().getFullYear()} i🩵SVG</span>
             <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">Simple SVG tools, no accounts.</span>
+            <span className="text-slate-500">
+              Simple SVG tools, no accounts.
+            </span>
           </div>
 
           <nav aria-label="Footer" className="text-sm">
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
               <li>
-                <Link to="/" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Home
                 </Link>
               </li>
@@ -1268,32 +1406,50 @@ function SiteFooter() {
               </li>
 
               <li>
-                <Link to="/svg-to-png-converter" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-to-png-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   SVG to PNG
                 </Link>
               </li>
               <li>
-                <Link to="/svg-to-jpg-converter" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-to-jpg-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   SVG to JPG
                 </Link>
               </li>
               <li>
-                <Link to="/svg-to-webp-converter" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-to-webp-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   SVG to WebP
                 </Link>
               </li>
               <li>
-                <Link to="/svg-background-editor" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-background-editor"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Background
                 </Link>
               </li>
               <li>
-                <Link to="/svg-resize-and-scale-editor" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-resize-and-scale-editor"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Resize / Scale
                 </Link>
               </li>
               <li>
-                <Link to="/svg-recolor" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-recolor"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Recolor
                 </Link>
               </li>
@@ -1303,17 +1459,26 @@ function SiteFooter() {
               </li>
 
               <li>
-                <Link to="/privacy-policy" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/privacy-policy"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Privacy
                 </Link>
               </li>
               <li>
-                <Link to="/terms-of-service" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/terms-of-service"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Terms
                 </Link>
               </li>
               <li>
-                <Link to="/cookies" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/cookies"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Cookies
                 </Link>
               </li>
@@ -1335,10 +1500,13 @@ function SeoSections() {
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 Black and white raster to SVG
               </p>
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight">Black and White Image to SVG Converter</h2>
+              <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+                Black and White Image to SVG Converter
+              </h2>
               <p className="text-slate-600 max-w-[75ch]">
-                Turn high-contrast art and scans into editable SVG paths. Binary mode produces a true black/white input
-                before tracing for predictable results.
+                Turn high-contrast art and scans into editable SVG paths. Binary
+                mode produces a true black/white input before tracing for
+                predictable results.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1348,7 +1516,10 @@ function SeoSections() {
                   { k: "Fast preview", v: "≤10 MB live updates" },
                   { k: "Private by default", v: "Processed in memory" },
                 ].map((x) => (
-                  <div key={x.k} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div
+                    key={x.k}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
                     <div className="text-sm font-semibold">{x.k}</div>
                     <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                   </div>
@@ -1361,12 +1532,27 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Tips for cleaner output</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
-                ["Start with high contrast", "If your source is gray, increase contrast before uploading."],
-                ["Adjust threshold first", "Threshold decides what becomes black. Small changes can fix missing lines."],
-                ["Remove speckles", "Increase turd size when scans contain dust or tiny dots."],
-                ["Smooth curves", "Raise curve tolerance to reduce node count and smooth jagged edges."],
+                [
+                  "Start with high contrast",
+                  "If your source is gray, increase contrast before uploading.",
+                ],
+                [
+                  "Adjust threshold first",
+                  "Threshold decides what becomes black. Small changes can fix missing lines.",
+                ],
+                [
+                  "Remove speckles",
+                  "Increase turd size when scans contain dust or tiny dots.",
+                ],
+                [
+                  "Smooth curves",
+                  "Raise curve tolerance to reduce node count and smooth jagged edges.",
+                ],
               ].map(([t, d]) => (
-                <div key={t} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div
+                  key={t}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
                   <div className="text-sm font-semibold">{t}</div>
                   <p className="mt-1 text-sm text-slate-600">{d}</p>
                 </div>
@@ -1374,7 +1560,11 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-12" itemScope itemType="https://schema.org/FAQPage">
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
             <div className="mt-4 grid gap-3">
               {[

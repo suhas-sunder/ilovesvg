@@ -235,7 +235,6 @@ export default function SvgMinify(_: Route.ComponentProps) {
 
   return (
     <>
-      <SiteHeader />
 
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
@@ -815,87 +814,6 @@ function Field({
   );
 }
 
-/* ========================
-   Header / Footer
-======================== */
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-
-        <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-[14px] font-semibold">
-            <li>
-              <a
-                href="/#other-tools"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                All Tools
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-recolor"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Recolor
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-minify"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Minify
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-resize-and-scale-editor"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Resize/Scale
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-png-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to PNG
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-jpg-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to JPG
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-webp-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to WEBP
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  );
-}
 
 function SiteFooter() {
   return (

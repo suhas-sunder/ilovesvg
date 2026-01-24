@@ -1123,7 +1123,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <SiteHeader />
 
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
@@ -1723,19 +1722,6 @@ function prettyBytes(bytes: number) {
     i++;
   }
   return `${v.toFixed(1)} ${u[i]}`;
-}
-
-/* ===== Simple site header & footer ===== */
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-      </div>
-    </div>
-  );
 }
 
 function SiteFooter() {

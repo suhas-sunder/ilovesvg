@@ -10,28 +10,11 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 
-/**
- * Text to SVG Converter (Remix)
- *
- * Changes requested:
- * - Removed Google Fonts option entirely (separate page later).
- * - Outline mode only, real conversion to paths.
- * - Upload accepts many font file types, but conversion supports: TTF, OTF, WOFF.
- *   WOFF2/EOT/SVG fonts are rejected with a clear error (opentype.js cannot parse WOFF2).
- * - Preview + output no longer cut off:
- *   - Adds safe padding for stroke width.
- *   - Uses preserveAspectRatio in the produced SVG.
- *   - Uses object-fit contain in preview.
- *
- * Install:
- *   npm i opentype.js
- */
+
 
 const isServer = typeof document === "undefined";
 
-/* ========================
-   Meta
-======================== */
+
 export function meta({}: Route.MetaArgs) {
   const title =
     "Text to SVG Converter (Paths) - Upload any font, export SVG outlines";
@@ -963,7 +946,6 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
 
   return (
     <>
-      <SiteHeader />
 
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
@@ -1479,57 +1461,6 @@ function Num({
   );
 }
 
-/* ========================
-   Header & Footer
-======================== */
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-
-        <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-[14px] font-semibold">
-            <li>
-              <a
-                href="/#other-tools"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                All Tools
-              </a>
-            </li>
-            <li>
-              <a
-                href="/logo-to-svg-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Logo
-              </a>
-            </li>
-            <li>
-              <a
-                href="/drawing-to-svg-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Drawing
-              </a>
-            </li>
-            <li>
-              <a
-                href="/scan-to-svg-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Scan
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  );
-}
 
 function SiteFooter() {
   return (

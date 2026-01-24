@@ -873,7 +873,6 @@ export default function ScanToSvgConverter({ loaderData }: Route.ComponentProps)
 
   return (
     <>
-      <SiteHeader />
 
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
@@ -1383,52 +1382,6 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-/* ===== Header & footer ===== */
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-
-        <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-[14px] font-semibold">
-            <li>
-              <a href="/#other-tools" className="text-slate-700 hover:text-slate-900 transition-colors">
-                All Tools
-              </a>
-            </li>
-            <li>
-              <a href="/photo-to-svg-outline" className="text-slate-700 hover:text-slate-900 transition-colors">
-                Photo Outline
-              </a>
-            </li>
-            <li>
-              <a href="/image-to-svg-outline" className="text-slate-700 hover:text-slate-900 transition-colors">
-                Image Outline
-              </a>
-            </li>
-            <li>
-              <a href="/logo-to-svg-converter" className="text-slate-700 hover:text-slate-900 transition-colors">
-                Logo to SVG
-              </a>
-            </li>
-            <li>
-              <a
-                href="/scan-to-svg-converter"
-                className="text-slate-900 underline underline-offset-4"
-                aria-current="page"
-              >
-                Scan to SVG
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  );
-}
 
 function SiteFooter() {
   return (

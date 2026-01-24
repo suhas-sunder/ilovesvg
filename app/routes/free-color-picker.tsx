@@ -99,7 +99,9 @@ function normalizeHex(hex: string) {
   return h;
 }
 
-function hexToRgba(hex: string): { r: number; g: number; b: number; a: number } | null {
+function hexToRgba(
+  hex: string,
+): { r: number; g: number; b: number; a: number } | null {
   const h = normalizeHex(hex);
   if (!h) return null;
   const raw = h.replace("#", "");
@@ -175,7 +177,10 @@ type PaletteSwatch = {
   weight: number; // rough weight
 };
 
-function distSq(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) {
+function distSq(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+) {
   const dr = a.r - b.r;
   const dg = a.g - b.g;
   const db = a.b - b.b;
@@ -185,7 +190,7 @@ function distSq(a: { r: number; g: number; b: number }, b: { r: number; g: numbe
 // Simple k-means quantization on sampled pixels (fast enough for a utility)
 async function extractPaletteFromImageFile(
   file: File,
-  k = 8
+  k = 8,
 ): Promise<PaletteSwatch[]> {
   const url = URL.createObjectURL(file);
   try {
@@ -304,7 +309,9 @@ function extractHexColorsFromSvgText(svgText: string): string[] {
   const out = new Set<string>();
 
   // Direct hex tokens
-  const hexMatches = svgText.match(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g);
+  const hexMatches = svgText.match(
+    /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g,
+  );
   if (hexMatches) {
     for (const h of hexMatches) {
       const n = normalizeHex(h);
@@ -316,7 +323,9 @@ function extractHexColorsFromSvgText(svgText: string): string[] {
   }
 
   // rgb()/rgba() tokens (extract and convert)
-  const rgbMatches = svgText.match(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(?:\s*,\s*[\d.]+\s*)?\)/g);
+  const rgbMatches = svgText.match(
+    /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(?:\s*,\s*[\d.]+\s*)?\)/g,
+  );
   if (rgbMatches) {
     for (const token of rgbMatches) {
       const m = token.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
@@ -346,7 +355,9 @@ function extractHexColorsFromSvgText(svgText: string): string[] {
     pink: "#ffc0cb",
     brown: "#a52a2a",
   };
-  const namedMatches = svgText.match(/\b(black|white|red|green|blue|yellow|cyan|magenta|gray|grey|orange|purple|pink|brown)\b/gi);
+  const namedMatches = svgText.match(
+    /\b(black|white|red|green|blue|yellow|cyan|magenta|gray|grey|orange|purple|pink|brown)\b/gi,
+  );
   if (namedMatches) {
     for (const n of namedMatches) {
       const key = n.toLowerCase();
@@ -373,9 +384,14 @@ export default function FreeColorPicker() {
   const [palette, setPalette] = React.useState<PaletteSwatch[]>([]);
   const [extracting, setExtracting] = React.useState(false);
   const [extractErr, setExtractErr] = React.useState<string | null>(null);
-  const [preview, setPreview] = React.useState<UploadedPreview>({ kind: "none" });
+  const [preview, setPreview] = React.useState<UploadedPreview>({
+    kind: "none",
+  });
 
-  const rgba = React.useMemo(() => hexToRgba(hex) ?? { r: 11, g: 45, b: 255, a: 1 }, [hex]);
+  const rgba = React.useMemo(
+    () => hexToRgba(hex) ?? { r: 11, g: 45, b: 255, a: 1 },
+    [hex],
+  );
   const rgb = { r: rgba.r, g: rgba.g, b: rgba.b };
   const hsl = React.useMemo(() => rgbToHsl(rgb.r, rgb.g, rgb.b), [rgb]);
 
@@ -498,8 +514,6 @@ export default function FreeColorPicker() {
 
   return (
     <>
-      <SiteHeader />
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-8">
           {/* Breadcrumbs */}
@@ -516,7 +530,9 @@ export default function FreeColorPicker() {
               <li className="text-slate-300" aria-hidden>
                 /
               </li>
-              <li className="text-slate-900 font-semibold">Free Color Picker</li>
+              <li className="text-slate-900 font-semibold">
+                Free Color Picker
+              </li>
             </ol>
           </nav>
 
@@ -529,8 +545,8 @@ export default function FreeColorPicker() {
               </span>
             </h1>
             <p className="mt-2 text-slate-600 max-w-[80ch]">
-              Pick a color, preview fills and strokes, copy HEX/RGB/HSL, and extract
-              palettes from SVG or images. Runs in your browser.
+              Pick a color, preview fills and strokes, copy HEX/RGB/HSL, and
+              extract palettes from SVG or images. Runs in your browser.
             </p>
           </header>
 
@@ -557,8 +573,9 @@ export default function FreeColorPicker() {
                 </div>
 
                 <div className="mt-2 text-sm text-slate-600">
-                  Upload an <b>SVG</b> (reads fill/stroke colors) or an <b>image</b>{" "}
-                  (PNG/JPG/WebP) to generate a palette. Click a swatch to preview.
+                  Upload an <b>SVG</b> (reads fill/stroke colors) or an{" "}
+                  <b>image</b> (PNG/JPG/WebP) to generate a palette. Click a
+                  swatch to preview.
                 </div>
 
                 <div className="mt-3 flex items-center gap-3 flex-wrap">
@@ -653,21 +670,42 @@ export default function FreeColorPicker() {
                   <div className="text-sm font-semibold">Copy values</div>
 
                   <div className="mt-3 grid gap-2">
-                    <CopyRow label="HEX" value={hexOut} onCopy={() => copy(hexOut, "HEX copied")} />
-                    <CopyRow label="RGB" value={rgbOut} onCopy={() => copy(rgbOut, "RGB copied")} />
-                    <CopyRow label="RGBA" value={rgbaOut} onCopy={() => copy(rgbaOut, "RGBA copied")} />
-                    <CopyRow label="HSL" value={hslOut} onCopy={() => copy(hslOut, "HSL copied")} />
-                    <CopyRow label="HSLA" value={hslaOut} onCopy={() => copy(hslaOut, "HSLA copied")} />
+                    <CopyRow
+                      label="HEX"
+                      value={hexOut}
+                      onCopy={() => copy(hexOut, "HEX copied")}
+                    />
+                    <CopyRow
+                      label="RGB"
+                      value={rgbOut}
+                      onCopy={() => copy(rgbOut, "RGB copied")}
+                    />
+                    <CopyRow
+                      label="RGBA"
+                      value={rgbaOut}
+                      onCopy={() => copy(rgbaOut, "RGBA copied")}
+                    />
+                    <CopyRow
+                      label="HSL"
+                      value={hslOut}
+                      onCopy={() => copy(hslOut, "HSL copied")}
+                    />
+                    <CopyRow
+                      label="HSLA"
+                      value={hslaOut}
+                      onCopy={() => copy(hslaOut, "HSLA copied")}
+                    />
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="text-sm font-semibold">Quick SVG snippet</div>
                   <p className="mt-1 text-sm text-slate-600">
-                    Use these directly as <code>fill</code> or <code>stroke</code>.
+                    Use these directly as <code>fill</code> or{" "}
+                    <code>stroke</code>.
                   </p>
                   <pre className="mt-2 text-[12px] bg-white border border-slate-200 rounded-lg p-3 overflow-auto">
-{`<rect width="120" height="120" fill="${hexOut}" />
+                    {`<rect width="120" height="120" fill="${hexOut}" />
 <path d="..." stroke="${hexOut}" stroke-width="2" fill="none" />`}
                   </pre>
                 </div>
@@ -683,7 +721,8 @@ export default function FreeColorPicker() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 mb-4">
                   <div className="text-sm font-semibold">Uploaded file</div>
                   <div className="mt-2 text-sm text-slate-600">
-                    Click a palette swatch to apply it to the preview shapes below.
+                    Click a palette swatch to apply it to the preview shapes
+                    below.
                   </div>
 
                   {preview.kind === "image" ? (
@@ -698,7 +737,9 @@ export default function FreeColorPicker() {
                     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 overflow-hidden">
                       <div
                         className="bg-white rounded-lg border border-slate-200 p-3 overflow-auto"
-                        dangerouslySetInnerHTML={{ __html: sanitizeInlineSvg(preview.text) }}
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeInlineSvg(preview.text),
+                        }}
                       />
                     </div>
                   )}
@@ -712,16 +753,39 @@ export default function FreeColorPicker() {
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 overflow-hidden">
-                  <svg viewBox="0 0 600 240" width="100%" height="auto" role="img" aria-label="Color preview">
+                  <svg
+                    viewBox="0 0 600 240"
+                    width="100%"
+                    height="auto"
+                    role="img"
+                    aria-label="Color preview"
+                  >
                     <defs>
-                      <pattern id="checker" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <pattern
+                        id="checker"
+                        width="20"
+                        height="20"
+                        patternUnits="userSpaceOnUse"
+                      >
                         <rect width="20" height="20" fill="#ffffff" />
                         <rect width="10" height="10" fill="#e5e7eb" />
-                        <rect x="10" y="10" width="10" height="10" fill="#e5e7eb" />
+                        <rect
+                          x="10"
+                          y="10"
+                          width="10"
+                          height="10"
+                          fill="#e5e7eb"
+                        />
                       </pattern>
                     </defs>
 
-                    <rect x="0" y="0" width="600" height="240" fill="url(#checker)" />
+                    <rect
+                      x="0"
+                      y="0"
+                      width="600"
+                      height="240"
+                      fill="url(#checker)"
+                    />
 
                     {/* Fill */}
                     <rect
@@ -783,7 +847,10 @@ export default function FreeColorPicker() {
         <SeoSections />
 
         {/* FAQ JSON-LD (once) */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJsonLd() }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: faqJsonLd() }}
+        />
       </main>
 
       {/* Toast */}
@@ -855,79 +922,6 @@ function sanitizeInlineSvg(svgText: string) {
   return s;
 }
 
-/* ========================
-   Header/Footer (copied style)
-======================== */
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-
-        <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-[14px] font-semibold">
-            <li>
-              <a
-                href="/#other-tools"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                All Tools
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-recolor"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Recolor
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-resize-and-scale-editor"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Resize/Scale
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-png-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to PNG
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-jpg-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to JPG
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-webp-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to WEBP
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  );
-}
-
 function SiteFooter() {
   return (
     <footer className="bg-white border-t border-slate-200">
@@ -936,7 +930,9 @@ function SiteFooter() {
           <div className="text-sm text-slate-600">
             <span>© {new Date().getFullYear()} i🩵SVG</span>
             <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">Simple SVG tools, no accounts.</span>
+            <span className="text-slate-500">
+              Simple SVG tools, no accounts.
+            </span>
           </div>
 
           <nav aria-label="Footer" className="text-sm">
@@ -1002,9 +998,10 @@ function SeoSections() {
               Pick colors fast, extract palettes from SVG and images
             </h2>
             <p className="text-slate-600 max-w-[75ch] mt-2">
-              Use this free tool to choose a color, preview it as SVG fill/stroke,
-              and copy HEX/RGB/HSL. You can also upload an SVG or image to extract
-              a palette and click swatches to apply them instantly.
+              Use this free tool to choose a color, preview it as SVG
+              fill/stroke, and copy HEX/RGB/HSL. You can also upload an SVG or
+              image to extract a palette and click swatches to apply them
+              instantly.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1014,7 +1011,10 @@ function SeoSections() {
                 { k: "Preview included", v: "Fill + stroke on shapes" },
                 { k: "Private", v: "Runs in your browser" },
               ].map((x) => (
-                <div key={x.k} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div
+                  key={x.k}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
                   <div className="text-sm font-semibold">{x.k}</div>
                   <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                 </div>
@@ -1043,14 +1043,19 @@ function SeoSections() {
                   body: "Copy HEX/RGB/HSL (and alpha variants) for your SVG, CSS, or design work.",
                 },
               ].map((s, i) => (
-                <li key={s.title} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <li
+                  key={s.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
                   <div className="flex gap-3">
                     <div className="shrink-0 h-8 w-8 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">
                       {i + 1}
                     </div>
                     <div>
                       <div className="font-semibold">{s.title}</div>
-                      <div className="mt-1 text-sm text-slate-600">{s.body}</div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {s.body}
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -1081,7 +1086,10 @@ function SeoSections() {
                   a: "If an SVG uses external CSS, injected filters, or unusual color expressions, extraction may miss some. For most normal SVGs, it works well.",
                 },
               ].map((x) => (
-                <article key={x.q} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <article
+                  key={x.q}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
                   <h4 className="m-0 font-semibold">{x.q}</h4>
                   <p className="mt-2 text-sm text-slate-600">{x.a}</p>
                 </article>
@@ -1093,12 +1101,27 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Tips</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
-                ["SVG fill vs stroke", "Use the same value for both, or keep stroke darker for readability."],
-                ["Alpha in SVG", "SVG supports opacity. If you want transparency, use opacity or RGBA in CSS."],
-                ["Palettes from photos", "Photo palettes depend on sampling. Cropping to the subject improves results."],
-                ["Copying into CSS", "HEX is common, but HSL makes it easier to create consistent tints/shades."],
+                [
+                  "SVG fill vs stroke",
+                  "Use the same value for both, or keep stroke darker for readability.",
+                ],
+                [
+                  "Alpha in SVG",
+                  "SVG supports opacity. If you want transparency, use opacity or RGBA in CSS.",
+                ],
+                [
+                  "Palettes from photos",
+                  "Photo palettes depend on sampling. Cropping to the subject improves results.",
+                ],
+                [
+                  "Copying into CSS",
+                  "HEX is common, but HSL makes it easier to create consistent tints/shades.",
+                ],
               ].map(([t, d]) => (
-                <div key={t} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div
+                  key={t}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
                   <div className="text-sm font-semibold">{t}</div>
                   <p className="mt-1 text-sm text-slate-600">{d}</p>
                 </div>

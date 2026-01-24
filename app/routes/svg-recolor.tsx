@@ -307,7 +307,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
   function addRulesForAllPaletteColors() {
     const existingFrom = new Set(
-      pairs.map((p) => normalizeColorToken(p.from)).filter(Boolean) as string[]
+      pairs.map((p) => normalizeColorToken(p.from)).filter(Boolean) as string[],
     );
 
     const newOnes: ReplacePair[] = [];
@@ -374,8 +374,6 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <SiteHeader />
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -557,7 +555,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                   style={{
                                     background: normalizeHexOrFallback(
                                       c.value,
-                                      "#ffffff"
+                                      "#ffffff",
                                     ),
                                   }}
                                 />
@@ -741,7 +739,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                     type="color"
                                     value={normalizeHexOrFallback(
                                       p.from,
-                                      "#000000"
+                                      "#000000",
                                     )}
                                     onChange={(e) =>
                                       setPair(p.id, { from: e.target.value })
@@ -765,7 +763,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                     type="color"
                                     value={normalizeHexOrFallback(
                                       p.to,
-                                      "#0b2dff"
+                                      "#0b2dff",
                                     )}
                                     onChange={(e) =>
                                       setPair(p.id, { to: e.target.value })
@@ -1122,8 +1120,8 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 ======================== */
 function SeoSections() {
   return (
-    <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-900">
+    <section className="bg-white border-t mt-6 border-slate-200">
+      <div className="max-w-[1180px] mx-auto px-4 py-4 text-slate-900">
         <div className="max-w-[980px]">
           <header className="mb-8">
             <h2 className="m-0 text-[26px] font-extrabold tracking-tight">
@@ -1468,78 +1466,6 @@ function PreviewFrame({
   );
 }
 
-/* ===== Simple site header & footer ===== */
-function SiteHeader() {
-  return (
-    <div className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 h-12 flex items-center justify-between">
-        {/* Logo (unchanged) */}
-        <a href="/" className="font-extrabold tracking-tight text-slate-900">
-          i<span className="text-sky-600">🩵</span>SVG
-        </a>
-
-        {/* Right-side nav */}
-        <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-[14px] font-semibold">
-            <li>
-              <a
-                href="/#other-tools"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                All Tools
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-recolor"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Recolor
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-resize-and-scale-editor"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                Resize/Scale
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-png-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to PNG
-              </a>
-            </li>
-
-            <li>
-              <a
-                href="/svg-to-jpg-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to JPG
-              </a>
-            </li>
-            <li>
-              <a
-                href="/svg-to-webp-converter"
-                className="text-slate-700 hover:text-slate-900 transition-colors"
-              >
-                SVG to WEBP
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  );
-}
-
 function SiteFooter() {
   return (
     <footer className="bg-white border-t border-slate-200">
@@ -1658,7 +1584,7 @@ function SiteFooter() {
 ======================== */
 function extractPalette(
   svgText: string,
-  opts: { includeStyleTags: boolean }
+  opts: { includeStyleTags: boolean },
 ): PaletteItem[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, "image/svg+xml");
@@ -1730,15 +1656,15 @@ function extractColorTokensFromCss(css: string): string[] {
   // rgb / rgba
   out.push(
     ...(css.match(
-      /rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*[\d.]+)?\s*\)/gi
-    ) || [])
+      /rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*[\d.]+)?\s*\)/gi,
+    ) || []),
   );
 
   // hsl/hsla (common in exported svgs)
   out.push(
     ...(css.match(
-      /hsla?\(\s*[\d.]+\s*(?:deg|rad|turn)?\s*,\s*[\d.]+%\s*,\s*[\d.]+%(?:\s*,\s*[\d.]+)?\s*\)/gi
-    ) || [])
+      /hsla?\(\s*[\d.]+\s*(?:deg|rad|turn)?\s*,\s*[\d.]+%\s*,\s*[\d.]+%(?:\s*,\s*[\d.]+)?\s*\)/gi,
+    ) || []),
   );
 
   // named colors (small set only)
@@ -1810,12 +1736,12 @@ function recolorSvg(input: string, s: Settings, pairs: ReplacePair[]): string {
         let next = style;
         if (s.applyTo === "fill" || s.applyTo === "both") {
           next = replaceCssColorProp(next, "fill", (val) =>
-            recolorColorValue(val, s, replaceMap)
+            recolorColorValue(val, s, replaceMap),
           );
         }
         if (s.applyTo === "stroke" || s.applyTo === "both") {
           next = replaceCssColorProp(next, "stroke", (val) =>
-            recolorColorValue(val, s, replaceMap)
+            recolorColorValue(val, s, replaceMap),
           );
         }
         next = next.trim();
@@ -1875,12 +1801,12 @@ function recolorCssText(css: string, s: Settings, map: Map<string, string>) {
   let out = css;
   if (s.applyTo === "fill" || s.applyTo === "both") {
     out = replaceCssColorProp(out, "fill", (val) =>
-      recolorColorValue(val, s, map)
+      recolorColorValue(val, s, map),
     );
   }
   if (s.applyTo === "stroke" || s.applyTo === "both") {
     out = replaceCssColorProp(out, "stroke", (val) =>
-      recolorColorValue(val, s, map)
+      recolorColorValue(val, s, map),
     );
   }
   return out;
@@ -1889,7 +1815,7 @@ function recolorCssText(css: string, s: Settings, map: Map<string, string>) {
 function recolorColorValue(
   raw: string,
   s: Settings,
-  map: Map<string, string>
+  map: Map<string, string>,
 ): string | null {
   const v = raw.trim();
   if (!v) return v;
@@ -1920,11 +1846,11 @@ function recolorColorValue(
 function replaceCssColorProp(
   cssText: string,
   prop: string,
-  replacer: (val: string) => string | null
+  replacer: (val: string) => string | null,
 ) {
   const re = new RegExp(
     `(^|[;\\s])(${escapeReg(prop)})\\s*:\\s*([^;]+)(;|$)`,
-    "gi"
+    "gi",
   );
   return cssText.replace(re, (m, pre, p, val, post) => {
     const next = replacer(String(val).trim());
@@ -1943,7 +1869,7 @@ function setCssProp(
   style: string,
   prop: string,
   value: string,
-  opts?: { respectNone?: boolean }
+  opts?: { respectNone?: boolean },
 ): string {
   const cur = getCssProp(style, prop);
   if (opts?.respectNone && cur && isNone(cur)) return style;
@@ -1975,7 +1901,7 @@ function normalizeColorToken(token: string): string | null {
 
   // rgb/rgba
   const rgb = v.match(
-    /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+))?\s*\)$/i
+    /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+))?\s*\)$/i,
   );
   if (rgb) {
     const r = clamp255(Number(rgb[1]));
@@ -1986,7 +1912,7 @@ function normalizeColorToken(token: string): string | null {
 
   // hsl/hsla → convert (so palette/replacements match)
   const hsl = v.match(
-    /^hsla?\(\s*([0-9.]+)\s*(?:deg|rad|turn)?\s*,\s*([0-9.]+)%\s*,\s*([0-9.]+)%(?:\s*,\s*([0-9.]+))?\s*\)$/i
+    /^hsla?\(\s*([0-9.]+)\s*(?:deg|rad|turn)?\s*,\s*([0-9.]+)%\s*,\s*([0-9.]+)%(?:\s*,\s*([0-9.]+))?\s*\)$/i,
   );
   if (hsl) {
     const hh = Number(hsl[1]);

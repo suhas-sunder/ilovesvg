@@ -966,7 +966,6 @@ export default function PhotoToSvgOutline({
 
   return (
     <>
-      <SiteHeader />
 
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
