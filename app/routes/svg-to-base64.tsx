@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG to Base64 Converter (Data URI)";
   const description =
     "Convert SVG to Base64 instantly with iLoveSVG. Generate data:image/svg+xml;base64 URLs, choose encoding options, sanitize scripts, optionally minify, and copy or download the result. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-to-base64";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

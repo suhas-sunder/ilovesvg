@@ -16,20 +16,24 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Text to SVG Converter (Font to SVG Paths)";
   const description =
     "Convert text to true SVG outline paths with iLoveSVG. Upload custom fonts (TTF, OTF, or WOFF) to generate clean vector paths. Control size, spacing, alignment, padding, canvas sizing, stroke, fill, and background. Export one SVG or split by line, word, or character.";
-  const urlPath = "/text-to-svg-converter";
+  const canonical = "https://ilovesvg.com/text-to-svg-converter";
 
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
-    { tagName: "link", rel: "canonical", href: urlPath },
 
+    // Canonical
+    { rel: "canonical", href: canonical },
+
+    // OpenGraph
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
 
+    // Twitter
     { name: "twitter:card", content: "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },

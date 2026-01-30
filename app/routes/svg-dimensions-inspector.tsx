@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Dimensions Inspector (Width, Height, viewBox)";
   const description =
     "Inspect SVG dimensions instantly with iLoveSVG. Paste or upload an SVG to read width, height, and viewBox, compute pixel size, detect sizing issues, and apply fixes like adding a viewBox or setting explicit dimensions. Live preview. Free, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-dimensions-inspector";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

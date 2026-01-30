@@ -20,7 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Emoji to SVG Converter (Text & Twemoji)";
   const description =
     "Convert emoji to SVG instantly with ilovesvg. Paste emoji text to export clean Twemoji SVG, or convert emoji images (PNG or JPEG) into vector paths. Supports layouts, recoloring, backgrounds, and fast in-browser processing. Free, no uploads.";
-  const urlPath = "/emoji-to-svg-converter";
+  const canonical = "https://ilovesvg.com/emoji-to-svg-converter";
 
   return [
     { title },
@@ -28,12 +28,12 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    { tagName: "link", rel: "canonical", href: urlPath },
+    { rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
   ];
 }
 

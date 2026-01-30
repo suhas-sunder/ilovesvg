@@ -11,21 +11,25 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "iLoveSVG | SVG Background Remover & Editor";
+  const title = "iLoveSVG | SVG Background Remover & Editor";
   const description =
     "Remove or add an SVG background instantly with iLoveSVG. Automatically detects full-canvas background rectangles, lets you set solid or transparent backgrounds, preserves viewBox sizing, and exports a clean SVG. Free, client-side only, no server.";
+  const canonical = "https://ilovesvg.com/svg-background-editor";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
-
 
 export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };

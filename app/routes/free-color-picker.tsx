@@ -10,21 +10,25 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "iLoveSVG | SVG Color Picker & Palette Extractor (PNG, JPG)";
+  const title = "iLoveSVG | SVG Color Picker & Palette Extractor (PNG, JPG)";
   const description =
     "Pick colors and extract palettes from SVG and images with iLoveSVG. Preview fills and strokes, copy HEX, RGB, or HSL values, and generate palettes from SVG, PNG, JPG, or WebP. Free, fast, runs entirely in your browser.";
+  const canonical = "https://ilovesvg.com/free-color-picker";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
-
 
 /* ========================
    FAQ JSON-LD

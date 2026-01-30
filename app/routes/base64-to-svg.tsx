@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Base64 to SVG Decoder (Data URI to SVG)";
   const description =
     "Decode Base64 or Data URI SVG instantly in your browser with ilovesvg. Paste a Base64 string, <img src>, CSS url(...), or data:image/svg+xml;base64 value. Preview safely, sanitize the SVG, and download the file. Free, client-side only, no uploads.";
+  const canonical = "https://ilovesvg.com/base64-to-svg";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

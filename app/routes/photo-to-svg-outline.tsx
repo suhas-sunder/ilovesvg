@@ -20,8 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Photo to SVG Outline Converter (Contours)";
   const description =
     "Convert photos (JPG or PNG) into clean outline-only SVG with iLoveSVG. Extract clear contour lines for tracing, laser cutting, or design work with live preview and privacy-friendly in-browser processing.";
-
-  const urlPath = "/photo-to-svg-outline";
+  const canonical = "https://ilovesvg.com/photo-to-svg-outline";
 
   return [
     { title },
@@ -29,14 +28,17 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    { tagName: "link", rel: "canonical", href: urlPath },
+    // Canonical
+    { rel: "canonical", href: canonical },
 
+    // OpenGraph
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
   ];
 }
+
 
 export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };

@@ -17,18 +17,23 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  Potrace (server, in-memory, live preview, client auto-compress)";
+  const title = "iLoveSVG | PNG to SVG Converter - Free Online Image to SVG";
   const description =
-    "Convert PNG/JPEG to SVG with live preview. Auto-compress large files on-device to 25 MB for instant preview. Server concurrency-gated. Batch supported.";
+    "Convert PNG and JPG images to clean, scalable SVG instantly. Live preview, fast processing, and no uploads required. Free online PNG to SVG converter by iLoveSVG.";
+  const canonical = "https://ilovesvg.com/";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 
@@ -1204,7 +1209,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
             <h1 className="inline-flex text-sky-600 items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-            Free SVG Converter
+              Free SVG Converter
             </h1>
             <p className="mt-1 text-slate-600">
               Convert your PNG/JPEG images into crisp vector graphics with live

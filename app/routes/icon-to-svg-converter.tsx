@@ -20,17 +20,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Icon to SVG Converter (PNG/JPEG Icons)";
   const description =
     "Convert icon images (PNG or JPEG) into clean, scalable SVG with iLoveSVG. Optimized for app icons, logos, and UI glyphs with live preview and fast in-browser vectorization. Free, client-side only, no uploads.";
+  const canonical = "https://ilovesvg.com/icon-to-svg-converter";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-
-    { rel: "canonical", href: "https://ilovesvg.com/icon-to-svg-converter" },
+    { property: "og:url", content: canonical },
   ];
 }
 

@@ -20,8 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Logo to SVG Converter (Clean, Editable Logos)";
   const description =
     "Convert logo PNG or JPG files into clean, scalable SVG with iLoveSVG. Optimized for logos using Potrace-style vectorization with smooth curves and fewer nodes. Live preview, privacy-friendly in-browser processing.";
-
-  const urlPath = "/logo-to-svg-converter";
+  const canonical = "https://ilovesvg.com/logo-to-svg-converter";
 
   return [
     { title },
@@ -29,14 +28,15 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    { tagName: "link", rel: "canonical", href: urlPath },
+    { rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
   ];
 }
+
 
 export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };

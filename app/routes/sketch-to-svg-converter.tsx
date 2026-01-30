@@ -12,24 +12,27 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 
 const isServer = typeof document === "undefined";
 
-export function meta({ data }: Route.MetaArgs) {
+export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Sketch to SVG Converter (Hand-Drawn Sketches)";
   const description =
     "Convert hand-drawn sketches (pencil, pen, or marker) into clean, editable SVG with iLoveSVG. Sketch-tuned presets for cleanup and smoothing, live preview, and fast, privacy-friendly in-browser processing.";
-  const canonical = data?.canonicalUrl || "/sketch-to-svg-converter";
+  const canonical = "https://ilovesvg.com/sketch-to-svg-converter";
 
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+    { name: "robots", content: "index,follow" },
+
+    // Canonical
+    { rel: "canonical", href: canonical },
+
+    // OpenGraph
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { name: "robots", content: "index,follow" },
-
-    // canonical as a link tag
-    { tagName: "link", rel: "canonical", href: canonical },
+    { property: "og:url", content: canonical },
   ];
 }
 

@@ -12,16 +12,23 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Embed Code Generator (IMG, Inline, CSS, React)";
   const description =
     "Generate SVG embed code instantly in your browser with iLoveSVG. Create HTML <img>, inline SVG, CSS background or mask, Data URI (UTF-8 or Base64), React/JSX, and <object> or <iframe> snippets. Control sizing and accessibility. Free, client-side only, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-embed-code-generator";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
+
 
 /* ========================
    Types

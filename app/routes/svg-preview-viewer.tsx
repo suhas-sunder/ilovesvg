@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Viewer (Zoom, Pan, Inspect)";
   const description =
     "Inspect SVG files instantly with iLoveSVG. Zoom and pan intuitively, fit to view, pick elements, inspect metadata, and view source. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-preview-viewer";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

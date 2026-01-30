@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Minify Tool (Client-Side SVG Minifier)";
   const description =
     "Minify SVG files instantly with iLoveSVG. Remove comments, collapse whitespace, optionally strip XML or DOCTYPE, clean style attributes, and download the optimized SVG. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-minifier";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

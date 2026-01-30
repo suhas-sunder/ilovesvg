@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Stroke Width Editor (Live Preview)";
   const description =
     "Adjust stroke width in SVG files instantly with iLoveSVG. Multiply stroke widths, set exact values, add missing stroke-width, clamp min or max values, target specific paths or shapes, and preview changes live. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-stroke-width-editor";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

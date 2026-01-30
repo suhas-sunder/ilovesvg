@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Inline SVG vs IMG Tag (Comparison & Code)";
   const description =
     "Compare inline SVG vs the img tag with iLoveSVG and generate the correct embed code. Paste an SVG to preview both approaches side by side, test CSS styling like currentColor, accessibility options, and caching tradeoffs, then copy ready-to-use snippets. Runs entirely in your browser.";
+  const canonical = "https://ilovesvg.com/inline-svg-vs-img";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

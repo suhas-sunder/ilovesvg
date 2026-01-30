@@ -13,14 +13,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Favicon Generator (ICO & App Icons)";
   const description =
     "Generate a favicon.ico and full app icon set with iLoveSVG. Create 16x16 to 256x256 ICO files, Apple touch icons, Android and Chrome icons, Microsoft tiles, plus a production-ready HTML snippet. Free, runs 100% in your browser.";
+  const canonical = "https://ilovesvg.com/svg-to-favicon-generator";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

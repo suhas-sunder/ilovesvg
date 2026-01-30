@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Cleaner & Optimizer (Remove Metadata, Junk)";
   const description =
     "Clean and optimize SVG files instantly in your browser with iLoveSVG. Remove metadata, comments, editor namespaces, XML declarations, DOCTYPE, unused defs, and hidden junk. Preview changes and download a clean SVG. Free, client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-cleaner";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

@@ -18,15 +18,15 @@ const isServer = typeof document === "undefined";
 ======================== */
 const ROUTE_PATH = "/line-art-to-svg-converter";
 const ROUTE_NAME = "Line Art to SVG Converter";
-const BRAND = "i🩵SVG";
 
 /* ========================
    Meta (unique intent, not duplicate)
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = `${BRAND} | Line Art to SVG Converter (Ink Drawings & Scans)`;
+  const title = "iLoveSVG | Line Art to SVG Converter (Ink Drawings & Scans)";
   const description =
     "Convert line art (ink drawings, sketches, and scans) into clean, editable SVG paths with iLoveSVG. Choose presets for bold or fine lines, scan cleanup, and gap sealing with live preview. Fast, privacy-friendly, in-browser processing.";
+  const canonical = "https://ilovesvg.com/line-art-to-svg-converter";
 
   return [
     { title },
@@ -34,24 +34,29 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    // Strongly differentiate in SERP snippets
+    // Keywords are ignored by Google but harmless
     {
       name: "keywords",
       content:
         "line art to svg, ink drawing to svg, scan to svg, sketch to svg, vectorize line art, potrace lineart",
     },
 
+    // Canonical
+    { rel: "canonical", href: canonical },
+
+    // OpenGraph
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: ROUTE_PATH },
+    { property: "og:url", content: canonical },
+
+    // Twitter
     { name: "twitter:card", content: "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
-
-    { tagName: "link", rel: "canonical", href: ROUTE_PATH },
   ];
 }
+
 
 export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };

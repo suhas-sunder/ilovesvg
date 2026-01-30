@@ -20,15 +20,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | WebP to SVG Converter (Clean Vector Paths)";
   const description =
     "Convert WebP images to clean, editable SVG paths with iLoveSVG. Live preview, strict size guards, and fast in-memory processing for accurate vectorization. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/webp-to-svg-converter";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { rel: "canonical", href: "https://ilovesvg.com/webp-to-svg-converter" },
+    { property: "og:url", content: canonical },
   ];
 }
 

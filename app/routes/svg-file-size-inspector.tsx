@@ -1,5 +1,6 @@
 import * as React from "react";
-import type { Route } from "./+types/svg-size-inspector";
+import type { Route } from "./+types/svg-file-size-inspector";
+
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -9,17 +10,24 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Size Inspector (Width, Height, viewBox, px)";
+  const title =
+    "iLoveSVG | SVG File Size Inspector (KB, Compression, Optimize)";
   const description =
-    "Inspect SVG size instantly with iLoveSVG. See width, height, units, viewBox, preserveAspectRatio, file size, and computed pixel dimensions. Paste or upload SVG files. Free, fully client-side, no uploads.";
+    "Inspect SVG file size instantly with iLoveSVG. See exact KB/MB size, detect bloat, estimate compression savings, and identify heavy elements. Paste or upload SVG files. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-file-size-inspector";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 
@@ -248,7 +256,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG Size Inspector", href: "/svg-size-inspector" },
+    { name: "SVG Size Inspector", href: "/svg-file-size-inspector" },
   ];
 
   return (
@@ -982,7 +990,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG Size Inspector",
-        item: `${baseUrl}/svg-size-inspector`,
+        item: `${baseUrl}/svg-file-size-inspector`,
       },
     ],
   };

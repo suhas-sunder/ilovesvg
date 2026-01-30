@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Resize & Scale Tool (Width, Height, viewBox)";
   const description =
     "Resize and scale SVG files instantly with iLoveSVG. Change width and height, preserve aspect ratio, scale by percentage, update the viewBox, and download the resized SVG. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-resize-and-scale-editor";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

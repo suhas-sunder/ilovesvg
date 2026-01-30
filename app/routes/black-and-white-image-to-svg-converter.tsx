@@ -16,14 +16,21 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | PNG/JPG to SVG Converter (Black & White Images)";
   const description =
     "Convert black and white PNG or JPEG images to clean SVG instantly with ilovesvg. Live preview, threshold control, noise cleanup, and one-click SVG export. Free, runs fully in your browser, no uploads.";
+  const canonical =
+    "https://ilovesvg.com/black-and-white-image-to-svg-converter";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

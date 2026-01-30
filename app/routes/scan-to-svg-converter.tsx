@@ -20,8 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Scan to SVG Converter (Scanned Drawings & Docs)";
   const description =
     "Convert scanned drawings, documents, and line art into clean, editable SVG with iLoveSVG. Remove speckles, seal gaps, and smooth paths using live preview and fast, privacy-friendly in-browser processing.";
-
-  const urlPath = "/scan-to-svg-converter";
+  const canonical = "https://ilovesvg.com/scan-to-svg-converter";
 
   return [
     { title },
@@ -29,12 +28,12 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    { tagName: "link", rel: "canonical", href: urlPath },
+    { rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
   ];
 }
 

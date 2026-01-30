@@ -20,7 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Image to SVG Outline Converter (Line Art & CNC)";
   const description =
     "Convert images (PNG or JPG) into clean outline-only SVG with iLoveSVG. Extract line art and outlines from photos, drawings, or paintings with live preview and fast in-browser processing. Ideal for laser cutting, CNC, and line art cleanup. Free, no uploads.";
-  const urlPath = "/image-to-svg-outline";
+  const canonical = "https://ilovesvg.com/image-to-svg-outline";
 
   return [
     { title },
@@ -28,13 +28,12 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    // Canonical prevents Google from treating this as a duplicate of your homepage tool page.
-    { tagName: "link", rel: "canonical", href: urlPath },
+    { rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
   ];
 }
 

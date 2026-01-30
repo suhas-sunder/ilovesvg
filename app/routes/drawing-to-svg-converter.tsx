@@ -20,7 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Drawing to SVG Converter (Sketches & Line Art)";
   const description =
     "Convert drawings, sketches, and line art from PNG or JPEG into clean, editable SVG with ilovesvg. Built for line art: live preview, adjustable cleanup, and fast in-browser conversion. Free, client-side only, no uploads, no server.";
-  const urlPath = "/drawing-to-svg-converter";
+  const canonical = "https://ilovesvg.com/drawing-to-svg-converter";
 
   return [
     { title },
@@ -28,13 +28,12 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    // Unique canonical per keyword page
-    { tagName: "link", rel: "canonical", href: urlPath },
+    { rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: urlPath },
+    { property: "og:url", content: canonical },
   ];
 }
 

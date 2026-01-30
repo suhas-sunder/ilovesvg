@@ -12,14 +12,20 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Flip & Rotate Editor (Live Preview)";
   const description =
     "Flip or rotate an SVG instantly with iLoveSVG. Paste or upload SVG, flip horizontally or vertically, rotate by degrees or 90° steps, preview changes live, then copy or download the updated SVG. Free, fully client-side, no uploads.";
+  const canonical = "https://ilovesvg.com/svg-flip-and-rotate-editor";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
+    { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
+    { property: "og:url", content: canonical },
   ];
 }
 

@@ -21,27 +21,31 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | PNG to SVG Converter (Logos, Icons, Line Art)";
   const description =
     "Convert PNG to SVG with iLoveSVG and get clean, editable output with live preview. Great for transparent logos, icons, and line art, with cleaner paths and fewer nodes. Fast, privacy-friendly, runs entirely in your browser.";
-
   const canonical = "https://ilovesvg.com/png-to-svg-converter";
 
   return [
     { title },
     { name: "description", content: description },
+
     {
       name: "keywords",
       content:
         "png to svg, convert png to svg, png vectorizer, vectorize png, transparent png to svg, logo png to svg, icon png to svg, potrace png to svg, outline svg, png outline to svg",
     },
+
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    { tagName: "link", rel: "canonical", href: canonical },
+    // Canonical
+    { rel: "canonical", href: canonical },
 
+    // OpenGraph
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
 
+    // Twitter
     { name: "twitter:card", content: "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
