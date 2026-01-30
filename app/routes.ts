@@ -8,6 +8,7 @@ export default [
   route("svg-to-jpg-converter", "routes/svg-to-jpg-converter.tsx"),
   route("svg-to-webp-converter", "routes/svg-to-webp-converter.tsx"),
   route("svg-to-pdf-converter", "routes/svg-to-pdf-converter.tsx"),
+  route("svg-size-inspector", "routes/svg-size-inspector.tsx"),
 
   // SVG utilities
   route("svg-background-editor", "routes/svg-background-editor.tsx"),

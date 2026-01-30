@@ -10,16 +10,12 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 
-
-
 const isServer = typeof document === "undefined";
 
-
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "Text to SVG Converter (Paths) - Upload any font, export SVG outlines";
+  const title = "iLoveSVG | Text to SVG Converter (Font to SVG Paths)";
   const description =
-    "Convert text to true SVG outline paths (vector). Upload your own font file (TTF/OTF/WOFF) to generate clean SVG paths. Control size, line height, spacing, alignment, padding, canvas sizing, repeat-fill, stroke, and background. Export one SVG or separate SVGs by line, word, or character.";
+    "Convert text to true SVG outline paths with iLoveSVG. Upload custom fonts (TTF, OTF, or WOFF) to generate clean vector paths. Control size, spacing, alignment, padding, canvas sizing, stroke, fill, and background. Export one SVG or split by line, word, or character.";
   const urlPath = "/text-to-svg-converter";
 
   return [
@@ -946,7 +942,6 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-3">
@@ -1460,7 +1455,6 @@ function Num({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

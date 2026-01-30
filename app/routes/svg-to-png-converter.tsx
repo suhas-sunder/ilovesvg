@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG → PNG Converter (client-side, resize, background, transparency)";
+  const title = "iLoveSVG | SVG to PNG Converter (Resize & Transparency)";
   const description =
-    "Convert SVG to PNG instantly in your browser. Resize by width/height, keep aspect ratio, choose transparent or colored background, and download a PNG. No uploads, no server processing.";
+    "Convert SVG to PNG instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose transparent or colored backgrounds, and download the PNG. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -231,7 +230,6 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}

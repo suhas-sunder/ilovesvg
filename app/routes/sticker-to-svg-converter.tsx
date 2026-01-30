@@ -16,21 +16,22 @@ const isServer = typeof document === "undefined";
 /* ========================
    Route constants
 ======================== */
-const ROUTE_PATH = "/sticker-to-svg-converter";
 const ROUTE_LABEL = "Sticker to SVG Converter";
 
 /* ========================
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Sticker to SVG Converter - i🩵SVG (Potrace, live preview)";
+  const title = "iLoveSVG | Sticker to SVG Converter (Cut-Ready Vectors)";
   const description =
-    "Convert sticker PNG/JPEG images to clean SVG vectors. Tuned presets for stickers, logos, and cut-friendly shapes. Live preview, in-memory processing, and device-side auto-compress up to 25 MB.";
+    "Convert sticker PNG or JPEG images into clean, cut-ready SVG vectors with iLoveSVG. Optimized for stickers, logos, and decals with smooth edges, live preview, and fast, privacy-friendly in-browser processing.";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
@@ -69,7 +70,7 @@ type Gate = {
 };
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -130,8 +131,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -1168,7 +1169,6 @@ export default function StickerToSvgConverter({
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           {/* Breadcrumb */}
@@ -1817,7 +1817,6 @@ function prettyBytes(bytes: number) {
   }
   return `${v.toFixed(1)} ${u[i]}`;
 }
-
 
 function SiteFooter() {
   return (

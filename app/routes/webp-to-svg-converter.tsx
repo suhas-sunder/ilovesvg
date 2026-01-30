@@ -17,9 +17,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "WebP to SVG Converter - Potrace, in-memory, live preview";
+  const title = "iLoveSVG | WebP to SVG Converter (Clean Vector Paths)";
   const description =
-    "Convert WebP images to clean SVG paths with live preview. Strict size and resolution guards, in-memory processing, and server concurrency gating for tiny droplets.";
+    "Convert WebP images to clean, editable SVG paths with iLoveSVG. Live preview, strict size guards, and fast in-memory processing for accurate vectorization. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -28,8 +28,7 @@ export function meta({}: Route.MetaArgs) {
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    // If you use canonical tags in your app, add it via your meta helper system.
-    // { rel: "canonical", href: "https://ilovesvg.com/webp-to-svg-converter" },
+    { rel: "canonical", href: "https://ilovesvg.com/webp-to-svg-converter" },
   ];
 }
 
@@ -1031,7 +1030,6 @@ export default function WebpToSvgConverter({
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1626,7 +1624,6 @@ function prettyBytes(bytes: number) {
   }
   return `${v.toFixed(1)} ${u[i]}`;
 }
-
 
 function SiteFooter() {
   return (

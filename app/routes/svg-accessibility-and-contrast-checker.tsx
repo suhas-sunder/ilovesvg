@@ -10,14 +10,16 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "SVG Accessibility and Contrast Checker | WCAG AA/AAA + Color Blindness Preview";
+    "iLoveSVG | SVG Contrast Checker (WCAG AA/AAA + Color Blindness)";
   const description =
-    "Check SVG color contrast against WCAG (AA/AAA), preview common color blindness modes, and generate higher-contrast color options you can apply and download as an updated SVG.";
+    "Check SVG color contrast against WCAG AA/AAA with iLoveSVG. Preview common color blindness modes, generate higher-contrast color options, and apply changes directly to download an updated SVG.";
+
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
@@ -281,7 +283,6 @@ export default function SvgAccessibilityAndContrastChecker() {
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           {/* Breadcrumbs */}

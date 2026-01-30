@@ -17,10 +17,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "Drawing to SVG Converter - Convert sketches and line art to SVG";
+  const title = "iLoveSVG | Drawing to SVG Converter (Sketches & Line Art)";
   const description =
-    "Convert drawings, sketches, and line art (PNG/JPEG) into clean, editable SVG. Tuned for line art with live preview, on-device compression up to 25 MB, and concurrency-gated in-memory conversion.";
+    "Convert drawings, sketches, and line art from PNG or JPEG into clean, editable SVG with ilovesvg. Built for line art: live preview, adjustable cleanup, and fast in-browser conversion. Free, client-side only, no uploads, no server.";
   const urlPath = "/drawing-to-svg-converter";
 
   return [
@@ -67,7 +66,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -129,8 +128,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================

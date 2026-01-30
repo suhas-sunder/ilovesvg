@@ -12,9 +12,9 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "SVG Background Add/Remove - Detect Full-Canvas Rect, Transparent Export (Client-side)";
+    "iLoveSVG | SVG Background Remover & Editor";
   const description =
-    "Add or remove an SVG background in your browser. Detects full-canvas background rectangles, lets you insert a new background color (with opacity), preserves viewBox sizing, and exports a clean updated SVG. Upload or paste SVG markup. No server.";
+    "Remove or add an SVG background instantly with iLoveSVG. Automatically detects full-canvas background rectangles, lets you set solid or transparent backgrounds, preserves viewBox sizing, and exports a clean SVG. Free, client-side only, no server.";
   return [
     { title },
     { name: "description", content: description },
@@ -25,6 +25,7 @@ export function meta({}: Route.MetaArgs) {
     { property: "og:type", content: "website" },
   ];
 }
+
 
 export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };
@@ -315,7 +316,6 @@ export default function SvgBackgroundPage({
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPasteAny}

@@ -9,9 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  SVG Minify (client-side SVG minifier)";
+  const title = "iLoveSVG | SVG Minify Tool (Client-Side SVG Minifier)";
   const description =
-    "Minify SVG files instantly in your browser. Remove comments, collapse whitespace, optionally strip XML/DOCTYPE, clean style attributes, and download the minified SVG. No uploads, no server.";
+    "Minify SVG files instantly with iLoveSVG. Remove comments, collapse whitespace, optionally strip XML or DOCTYPE, clean style attributes, and download the optimized SVG. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -235,7 +235,6 @@ export default function SvgMinify(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -813,7 +812,6 @@ function Field({
     </label>
   );
 }
-
 
 function SiteFooter() {
   return (

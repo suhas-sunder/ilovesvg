@@ -13,10 +13,11 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 const isServer = typeof document === "undefined";
 
 export function meta({ data }: Route.MetaArgs) {
-  const title = "Sketch to SVG Converter";
+  const title = "iLoveSVG | Sketch to SVG Converter (Hand-Drawn Sketches)";
   const description =
-    "Convert hand-drawn sketches (pencil, pen, marker) into clean SVG with live preview. On-device compression for large images, private in-memory processing, and sketch-tuned presets.";
+    "Convert hand-drawn sketches (pencil, pen, or marker) into clean, editable SVG with iLoveSVG. Sketch-tuned presets for cleanup and smoothing, live preview, and fast, privacy-friendly in-browser processing.";
   const canonical = data?.canonicalUrl || "/sketch-to-svg-converter";
+
   return [
     { title },
     { name: "description", content: description },
@@ -26,7 +27,9 @@ export function meta({ data }: Route.MetaArgs) {
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { name: "robots", content: "index,follow" },
-    { rel: "canonical", href: canonical },
+
+    // canonical as a link tag
+    { tagName: "link", rel: "canonical", href: canonical },
   ];
 }
 
@@ -58,7 +61,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -119,8 +122,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -1047,7 +1050,6 @@ export default function SketchToSvgConverter({
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <div className="text-[13px] text-slate-600 mb-3">
@@ -1689,7 +1691,6 @@ function prettyBytes(bytes: number) {
   }
   return `${v.toFixed(1)} ${u[i]}`;
 }
-
 
 function SiteFooter() {
   return (

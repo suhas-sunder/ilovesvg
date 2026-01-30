@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG Resize / Scale (edit width, height, viewBox, preserve aspect)";
+  const title = "iLoveSVG | SVG Resize & Scale Tool (Width, Height, viewBox)";
   const description =
-    "Resize and scale SVG files instantly in your browser. Change width/height, preserve aspect ratio, scale by percentage, update viewBox, and download the resized SVG. No uploads, no server.";
+    "Resize and scale SVG files instantly with iLoveSVG. Change width and height, preserve aspect ratio, scale by percentage, update the viewBox, and download the resized SVG. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -200,7 +199,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
     }));
 
     const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" })
+      new Blob([coerced], { type: "image/svg+xml" }),
     );
     setPreviewUrl(url);
 
@@ -289,7 +288,6 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -407,7 +405,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                       onChange={(e) => {
                         setSvgText(ensureSvgHasXmlns(e.target.value));
                         setInfo(
-                          parseSvgInfo(ensureSvgHasXmlns(e.target.value))
+                          parseSvgInfo(ensureSvgHasXmlns(e.target.value)),
                         );
                       }}
                       className="mt-2 w-full h-[240px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
@@ -760,7 +758,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
 function resizeSvg(
   svgText: string,
   info: SvgInfo | null,
-  settings: Settings
+  settings: Settings,
 ): { svg: string } {
   let svg = ensureSvgHasXmlns(svgText);
 
@@ -783,7 +781,7 @@ function resizeSvg(
   newOpen = setOrReplaceAttr(
     newOpen,
     "preserveAspectRatio",
-    settings.setPreserveAspectRatio
+    settings.setPreserveAspectRatio,
   );
 
   // width/height or responsive mode
@@ -835,7 +833,7 @@ function resizeSvg(
     newOpen = setOrReplaceAttr(
       newOpen,
       "viewBox",
-      `${baseVB.minX} ${baseVB.minY} ${newVBW} ${newVBH}`
+      `${baseVB.minX} ${baseVB.minY} ${newVBW} ${newVBH}`,
     );
   } else {
     // keep as-is
@@ -1057,7 +1055,6 @@ function NumInt({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

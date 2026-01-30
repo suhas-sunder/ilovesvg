@@ -11,10 +11,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "SVG Recolor Tool - Extract Palette, Replace Colors, Fill & Stroke (Client-side)";
+  const title = "iLoveSVG | SVG Recolor Tool (Replace Fill & Stroke Colors)";
   const description =
-    "Recolor SVGs instantly in your browser. Automatically extracts the SVG’s color palette, lets you replace specific colors in fill and stroke, convert icons to currentColor, and download a clean updated SVG. Upload or paste SVG markup. No server.";
+    "Recolor SVGs instantly with iLoveSVG. Automatically extract the SVG color palette, replace specific fill and stroke colors, convert icons to currentColor, and download a clean updated SVG. Paste or upload SVG markup. Free, client-side only, no server.";
   return [
     { title },
     { name: "description", content: description },

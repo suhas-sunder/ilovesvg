@@ -24,9 +24,9 @@ const BRAND = "i🩵SVG";
    Meta (unique intent, not duplicate)
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = `${ROUTE_NAME} | ${BRAND}`;
+  const title = `${BRAND} | Line Art to SVG Converter (Ink Drawings & Scans)`;
   const description =
-    "Convert line art (ink drawings, sketches, scans) into clean SVG paths. Tuned presets for bold, fine, scan cleanup, and gap sealing. Live preview, privacy-friendly in-memory processing.";
+    "Convert line art (ink drawings, sketches, and scans) into clean, editable SVG paths with iLoveSVG. Choose presets for bold or fine lines, scan cleanup, and gap sealing with live preview. Fast, privacy-friendly, in-browser processing.";
 
   return [
     { title },
@@ -49,8 +49,6 @@ export function meta({}: Route.MetaArgs) {
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
 
-    // If you have a canonical helper already, use it.
-    // Otherwise keep it simple and route-unique.
     { tagName: "link", rel: "canonical", href: ROUTE_PATH },
   ];
 }
@@ -86,7 +84,7 @@ type Gate = {
 };
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -147,8 +145,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -1106,7 +1104,6 @@ export default function LineArtToSvgConverter({
 
   return (
     <>
-
       {/* JSON-LD for breadcrumbs + FAQ */}
       <JsonLd data={makeBreadcrumbJsonLd()} />
       <JsonLd data={makeFaqJsonLd(FAQ)} />
@@ -1647,7 +1644,6 @@ function prettyBytes(bytes: number) {
   }
   return `${v.toFixed(1)} ${u[i]}`;
 }
-
 
 function SiteFooter() {
   return (

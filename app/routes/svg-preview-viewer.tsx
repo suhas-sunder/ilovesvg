@@ -9,9 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  SVG Viewer (zoom, pan, inspect)";
+  const title = "iLoveSVG | SVG Viewer (Zoom, Pan, Inspect)";
   const description =
-    "Inspect SVG files instantly in your browser. Intuitive zoom and pan, fit controls, element picker, metadata, and source viewer. No uploads, no server.";
+    "Inspect SVG files instantly with iLoveSVG. Zoom and pan intuitively, fit to view, pick elements, inspect metadata, and view source. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -672,7 +672,6 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}

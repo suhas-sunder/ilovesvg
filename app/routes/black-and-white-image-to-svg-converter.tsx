@@ -13,9 +13,9 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 const isServer = typeof document === "undefined";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  Black and White Image to SVG Converter";
+  const title = "iLoveSVG | PNG/JPG to SVG Converter (Black & White Images)";
   const description =
-    "Convert black and white PNG/JPEG images to SVG with live preview. Binary thresholding, noise cleanup, and instant export.";
+    "Convert black and white PNG or JPEG images to clean SVG instantly with ilovesvg. Live preview, threshold control, noise cleanup, and one-click SVG export. Free, runs fully in your browser, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -52,7 +52,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -114,8 +114,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 export async function action({ request }: ActionFunctionArgs) {

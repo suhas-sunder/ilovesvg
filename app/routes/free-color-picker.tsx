@@ -10,9 +10,10 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Free Color Picker + Palette Extractor (SVG & Images) - i🩵SVG";
+  const title =
+    "iLoveSVG | SVG Color Picker & Palette Extractor (PNG, JPG)";
   const description =
-    "Pick colors, preview fills/strokes, copy HEX/RGB/HSL, and extract palettes from SVG/PNG/JPG/WebP. Free, fast, no accounts.";
+    "Pick colors and extract palettes from SVG and images with iLoveSVG. Preview fills and strokes, copy HEX, RGB, or HSL values, and generate palettes from SVG, PNG, JPG, or WebP. Free, fast, runs entirely in your browser.";
   return [
     { title },
     { name: "description", content: description },
@@ -23,6 +24,7 @@ export function meta({}: Route.MetaArgs) {
     { property: "og:type", content: "website" },
   ];
 }
+
 
 /* ========================
    FAQ JSON-LD

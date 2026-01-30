@@ -17,9 +17,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Logo to SVG Converter (Potrace) - Clean, smooth, editable paths";
+  const title = "iLoveSVG | Logo to SVG Converter (Clean, Editable Logos)";
   const description =
-    "Convert a logo PNG/JPG into a clean SVG with smooth curves and fewer nodes. Live preview, in-memory processing, concurrency-gated for stability.";
+    "Convert logo PNG or JPG files into clean, scalable SVG with iLoveSVG. Optimized for logos using Potrace-style vectorization with smooth curves and fewer nodes. Live preview, privacy-friendly in-browser processing.";
+
   const urlPath = "/logo-to-svg-converter";
 
   return [
@@ -28,7 +29,6 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    // Canonical prevents Google from treating this as a duplicate of the homepage.
     { tagName: "link", rel: "canonical", href: urlPath },
 
     { property: "og:title", content: title },
@@ -67,7 +67,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -129,8 +129,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -142,7 +142,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (request.method.toUpperCase() !== "POST") {
       return json(
         { error: "Method not allowed" },
-        { status: 405, headers: { Allow: "POST" } }
+        { status: 405, headers: { Allow: "POST" } },
       );
     }
 
@@ -150,7 +150,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!contentType.startsWith("multipart/form-data")) {
       return json(
         { error: "Unsupported content type. Use multipart/form-data." },
-        { status: 415 }
+        { status: 415 },
       );
     }
 
@@ -160,7 +160,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
       return json(
         { error: "Upload too large. Please resize and try again." },
-        { status: 413 }
+        { status: 413 },
       );
     }
 
@@ -176,12 +176,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const webFile = file as File;
     if (!ALLOWED_MIME.has(webFile.type)) {
-      return json({ error: "Only PNG or JPEG images are allowed." }, { status: 415 });
+      return json(
+        { error: "Only PNG or JPEG images are allowed." },
+        { status: 415 },
+      );
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
       return json(
-        { error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.` },
-        { status: 413 }
+        {
+          error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+        },
+        { status: 413 },
       );
     }
 
@@ -195,14 +200,15 @@ export async function action({ request }: ActionFunctionArgs) {
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
-          error: "Server is busy converting other images. We'll retry automatically.",
+          error:
+            "Server is busy converting other images. We'll retry automatically.",
           retryAfterMs,
           code: "BUSY",
         },
         {
           status: 429,
           headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) },
-        }
+        },
       );
     }
 
@@ -223,7 +229,7 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!w || !h) {
           return json(
             { error: "Could not read image dimensions. Try a different file." },
-            { status: 415 }
+            { status: 415 },
           );
         }
 
@@ -232,10 +238,10 @@ export async function action({ request }: ActionFunctionArgs) {
           return json(
             {
               error: `Image too large: ${w}×${h} (~${mp.toFixed(
-                1
+                1,
               )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
-            { status: 413 }
+            { status: 413 },
           );
         }
       } catch {
@@ -255,15 +261,19 @@ export async function action({ request }: ActionFunctionArgs) {
         | "minority"
         | "majority";
       const lineColor = String(form.get("lineColor") ?? "#000000");
-      const invert = String(form.get("invert") ?? "false").toLowerCase() === "true";
+      const invert =
+        String(form.get("invert") ?? "false").toLowerCase() === "true";
 
       // Background
-      const transparent = String(form.get("transparent") ?? "true").toLowerCase() === "true";
+      const transparent =
+        String(form.get("transparent") ?? "true").toLowerCase() === "true";
       const bgColor = String(form.get("bgColor") ?? "#ffffff");
 
       // Preprocess
       // Logos should be "none" by default. Edge is offered as an option.
-      const preprocess = String(form.get("preprocess") ?? "none") as "none" | "edge";
+      const preprocess = String(form.get("preprocess") ?? "none") as
+        | "none"
+        | "edge";
       const blurSigma = Number(form.get("blurSigma") ?? 0.8);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
@@ -289,13 +299,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const svgRaw: string = await new Promise((resolve, reject) => {
         if (typeof traceFn === "function") {
-          traceFn(prepped, opts, (err: any, out: string) => (err ? reject(err) : resolve(out)));
+          traceFn(prepped, opts, (err: any, out: string) =>
+            err ? reject(err) : resolve(out),
+          );
         } else if (PotraceClass) {
           const p = new PotraceClass(opts);
           p.loadImage(prepped, (err: any) => {
             if (err) return reject(err);
             p.setParameters(opts);
-            p.getSVG((err2: any, out: string) => (err2 ? reject(err2) : resolve(out)));
+            p.getSVG((err2: any, out: string) =>
+              err2 ? reject(err2) : resolve(out),
+            );
           });
         } else {
           reject(new Error("potrace API not found"));
@@ -305,11 +319,20 @@ export async function action({ request }: ActionFunctionArgs) {
       const safeSvg = coerceSvg(svgRaw);
       const ensured = ensureViewBoxResponsive(safeSvg);
       const svg2 = recolorPaths(ensured.svg, lineColor);
-      const svg3 = stripFullWhiteBackgroundRect(svg2, ensured.width, ensured.height);
+      const svg3 = stripFullWhiteBackgroundRect(
+        svg2,
+        ensured.width,
+        ensured.height,
+      );
 
       const finalSVG = transparent
         ? svg3
-        : injectBackgroundRectString(svg3, ensured.width, ensured.height, bgColor);
+        : injectBackgroundRectString(
+            svg3,
+            ensured.width,
+            ensured.height,
+            bgColor,
+          );
 
       return json({
         svg: finalSVG,
@@ -323,14 +346,17 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    return json({ error: err?.message || "Server error during conversion." }, { status: 500 });
+    return json(
+      { error: err?.message || "Server error during conversion." },
+      { status: 500 },
+    );
   }
 }
 
 /* ---------- Image normalization for Potrace (server-side, robust) ---------- */
 async function normalizeForPotrace(
   input: Buffer,
-  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number }
+  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number },
 ): Promise<Buffer> {
   try {
     const { createRequire } = await import("node:module");
@@ -417,7 +443,9 @@ async function normalizeForPotrace(
           .toBuffer();
       }
 
-      return await sharp(out, { raw: { width: W, height: H, channels: 1 } }).png().toBuffer();
+      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
+        .png()
+        .toBuffer();
     }
 
     // Plain grayscale prep (best for logos)
@@ -475,7 +503,11 @@ function coerceSvg(svgRaw: string | null | undefined): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${trimmed}</svg>`;
 }
 
-function ensureViewBoxResponsive(svg: string): { svg: string; width: number; height: number } {
+function ensureViewBoxResponsive(svg: string): {
+  svg: string;
+  width: number;
+  height: number;
+} {
   const openTagMatch = svg.match(/<svg\b[^>]*>/i);
   if (!openTagMatch) return { svg, width: 1024, height: 1024 };
 
@@ -491,7 +523,7 @@ function ensureViewBoxResponsive(svg: string): { svg: string; width: number; hei
   if (!hasViewBox) {
     newOpen = newOpen.replace(
       /<svg\b/i,
-      `<svg viewBox="0 0 ${Math.round(width)} ${Math.round(height)}"`
+      `<svg viewBox="0 0 ${Math.round(width)} ${Math.round(height)}"`,
     );
   }
 
@@ -506,40 +538,49 @@ function ensureViewBoxResponsive(svg: string): { svg: string; width: number; hei
 function recolorPaths(svg: string, fillColor: string): string {
   let out = svg.replace(
     /<path\b([^>]*?)\sfill\s*=\s*["'][^"']*["']([^>]*?)>/gi,
-    (_m, a, b) => `<path${a} fill="${fillColor}"${b}>`
+    (_m, a, b) => `<path${a} fill="${fillColor}"${b}>`,
   );
   out = out.replace(
     /<path\b((?:(?!>)[\s\S])*?)>(?![\s\S]*?<\/path>)/gi,
     (m, attrs) => {
       if (/fill\s*=/.test(attrs)) return m;
       return `<path${attrs} fill="${fillColor}">`;
-    }
+    },
   );
   return out;
 }
 
-function stripFullWhiteBackgroundRect(svg: string, width: number, height: number): string {
+function stripFullWhiteBackgroundRect(
+  svg: string,
+  width: number,
+  height: number,
+): string {
   const whitePattern =
     /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
 
   const numeric = new RegExp(
     `<rect\\b[^>]*x\\s*=\\s*["']0["'][^>]*y\\s*=\\s*["']0["'][^>]*width\\s*=\\s*["']${escapeReg(
-      String(width)
+      String(width),
     )}["'][^>]*height\\s*=\\s*["']${escapeReg(
-      String(height)
+      String(height),
     )}["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
-    "ig"
+    "ig",
   );
 
   const percent = new RegExp(
     `<rect\\b[^>]*x\\s*=\\s*["']0%?["'][^>]*y\\s*=\\s*["']0%?["'][^>]*width\\s*=\\s*["']100%["'][^>]*height\\s*=\\s*["']100%["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
-    "ig"
+    "ig",
   );
 
   return svg.replace(numeric, "").replace(percent, "");
 }
 
-function injectBackgroundRectString(svg: string, width: number, height: number, color: string): string {
+function injectBackgroundRectString(
+  svg: string,
+  width: number,
+  height: number,
+  color: string,
+): string {
   const openTagMatch = svg.match(/<svg\b[^>]*>/i);
   if (!openTagMatch) return svg;
   const openTag = openTagMatch[0];
@@ -665,7 +706,12 @@ type ServerResult = {
   gate?: { running: number; queued: number };
 };
 
-type HistoryItem = { svg: string; width: number; height: number; stamp: number };
+type HistoryItem = {
+  svg: string;
+  width: number;
+  height: number;
+  stamp: number;
+};
 
 type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
@@ -679,15 +725,20 @@ function autoModeHint(mode: AutoMode): string {
   return "";
 }
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "medium") return "Large file; updates run less often to keep the page responsive.";
+  if (mode === "medium")
+    return "Large file; updates run less often to keep the page responsive.";
   return "";
 }
 
-export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps) {
+export default function LogoToSvgConverter({
+  loaderData,
+}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
 
   const [file, setFile] = React.useState<File | null>(null);
-  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(null);
+  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
+    null,
+  );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] = React.useState<string>("logo-clean");
@@ -696,7 +747,11 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
 
-  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(null);
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
 
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
@@ -786,7 +841,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
         chosen = await compressToTarget25MB(f);
       } catch (e: any) {
         setInfo(null);
-        setErr(e?.message || "This image is too large. Please resize and try again.");
+        setErr(
+          e?.message || "This image is too large. Please resize and try again.",
+        );
         setFile(null);
         setPreviewUrl(null);
         setAutoMode("off");
@@ -801,14 +858,19 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
         chosen = shrunk;
         setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
       } catch (e: any) {
-        setErr(e?.message || "Could not compress below 25 MB. Live preview will be disabled.");
+        setErr(
+          e?.message ||
+            "Could not compress below 25 MB. Live preview will be disabled.",
+        );
         setInfo(null);
         chosen = f;
       }
     }
 
     if (chosen.size > MAX_UPLOAD_BYTES) {
-      setErr(`File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`);
+      setErr(
+        `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+      );
       setInfo(null);
       setFile(null);
       setPreviewUrl(null);
@@ -887,7 +949,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
       };
 
       const lineColor =
-        preset.settings.lineColor !== undefined ? preset.settings.lineColor : s.lineColor;
+        preset.settings.lineColor !== undefined
+          ? preset.settings.lineColor
+          : s.lineColor;
 
       return {
         ...baseline,
@@ -908,7 +972,6 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
@@ -916,11 +979,13 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
               Logo to SVG Converter
             </h1>
             <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
-              Turn a logo PNG or JPG into a clean SVG with smooth curves and editable paths.
-              This page is tuned for logos, icons, and brand marks (not photos).
+              Turn a logo PNG or JPG into a clean SVG with smooth curves and
+              editable paths. This page is tuned for logos, icons, and brand
+              marks (not photos).
             </p>
             <p className="mt-2 text-[13px] text-slate-500">
-              Tip: for best results, upload a high-contrast logo on a plain background.
+              Tip: for best results, upload a high-contrast logo on a plain
+              background.
             </p>
           </header>
 
@@ -949,11 +1014,12 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
               </div>
 
               <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> • <b>{MAX_MP} MP</b> •{" "}
-                <b>{MAX_SIDE}px longest side</b> each max.
+                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
               </div>
               <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview: fast ≤10 MB, throttled ≤25 MB. Above 30 MB we try on-device compression.
+                Live preview: fast ≤10 MB, throttled ≤25 MB. Above 30 MB we try
+                on-device compression.
               </div>
 
               {!file ? (
@@ -965,7 +1031,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                   onClick={() => document.getElementById("file-inp")?.click()}
                   className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
-                  <div className="text-sm text-slate-600">Click, drag & drop, or paste a PNG/JPEG logo</div>
+                  <div className="text-sm text-slate-600">
+                    Click, drag & drop, or paste a PNG/JPEG logo
+                  </div>
                   <input
                     id="file-inp"
                     type="file"
@@ -1012,7 +1080,11 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
 
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size: <b>{dims.w}×{dims.h}</b> (~{dims.mp.toFixed(1)} MP)
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
                     </div>
                   )}
                 </>
@@ -1023,11 +1095,18 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                 <Field label="Preprocess">
                   <select
                     value={settings.preprocess}
-                    onChange={(e) => setSettings((s) => ({ ...s, preprocess: e.target.value as any }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        preprocess: e.target.value as any,
+                      }))
+                    }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
                     <option value="none">None (best for logos)</option>
-                    <option value="edge">Edge (only if you uploaded a photo)</option>
+                    <option value="edge">
+                      Edge (only if you uploaded a photo)
+                    </option>
                   </select>
                 </Field>
 
@@ -1039,7 +1118,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                         min={0}
                         max={3}
                         step={0.1}
-                        onChange={(v) => setSettings((s) => ({ ...s, blurSigma: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, blurSigma: v }))
+                        }
                       />
                     </Field>
                     <Field label={`Edge boost (${settings.edgeBoost})`}>
@@ -1048,7 +1129,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                         min={0.5}
                         max={2.0}
                         step={0.1}
-                        onChange={(v) => setSettings((s) => ({ ...s, edgeBoost: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, edgeBoost: v }))
+                        }
                       />
                     </Field>
                   </>
@@ -1061,7 +1144,12 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                     max={255}
                     step={1}
                     value={settings.threshold}
-                    onChange={(e) => setSettings((s) => ({ ...s, threshold: Number(e.target.value) }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        threshold: Number(e.target.value),
+                      }))
+                    }
                     className="w-full accent-[#0b2dff]"
                   />
                 </Field>
@@ -1072,7 +1160,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                     min={0}
                     max={10}
                     step={1}
-                    onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, turdSize: v }))
+                    }
                   />
                 </Field>
 
@@ -1082,14 +1172,21 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                     min={0.05}
                     max={1.2}
                     step={0.05}
-                    onChange={(v) => setSettings((s) => ({ ...s, optTolerance: v }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, optTolerance: v }))
+                    }
                   />
                 </Field>
 
                 <Field label="Turn policy">
                   <select
                     value={settings.turnPolicy}
-                    onChange={(e) => setSettings((s) => ({ ...s, turnPolicy: e.target.value as any }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({
+                        ...s,
+                        turnPolicy: e.target.value as any,
+                      }))
+                    }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
                     <option value="black">black</option>
@@ -1105,7 +1202,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                   <input
                     type="color"
                     value={settings.lineColor}
-                    onChange={(e) => setSettings((s) => ({ ...s, lineColor: e.target.value }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
+                    }
                     className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
                   />
                 </Field>
@@ -1114,7 +1213,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                   <input
                     type="checkbox"
                     checked={settings.invert}
-                    onChange={(e) => setSettings((s) => ({ ...s, invert: e.target.checked }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, invert: e.target.checked }))
+                    }
                     className="h-4 w-4 accent-[#0b2dff]"
                   />
                 </Field>
@@ -1124,19 +1225,30 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                     <input
                       type="checkbox"
                       checked={settings.transparent}
-                      onChange={(e) => setSettings((s) => ({ ...s, transparent: e.target.checked }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          transparent: e.target.checked,
+                        }))
+                      }
                       title="Transparent background"
                       className="h-4 w-4 accent-[#0b2dff]"
                     />
-                    <span className="text-[13px] text-slate-700">Transparent</span>
+                    <span className="text-[13px] text-slate-700">
+                      Transparent
+                    </span>
                     <input
                       type="color"
                       value={settings.bgColor}
-                      onChange={(e) => setSettings((s) => ({ ...s, bgColor: e.target.value }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
+                      }
                       aria-disabled={settings.transparent}
                       className={[
                         "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent ? "opacity-50 pointer-events-none" : "",
+                        settings.transparent
+                          ? "opacity-50 pointer-events-none"
+                          : "",
                       ].join(" ")}
                       title={
                         settings.transparent
@@ -1171,30 +1283,41 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                 )}
 
                 {err && <span className="text-red-700 text-sm">{err}</span>}
-                {!err && info && <span className="text-[13px] text-slate-600">{info}</span>}
+                {!err && info && (
+                  <span className="text-[13px] text-slate-600">{info}</span>
+                )}
               </div>
 
               {previewUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <img src={previewUrl} alt="Input" className="w-full h-auto block" />
+                  <img
+                    src={previewUrl}
+                    alt="Input"
+                    className="w-full h-auto block"
+                  />
                 </div>
               )}
 
               {/* Quick tips (logo-specific, unique content) */}
               <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <div className="text-sm font-semibold">Logo conversion tips</div>
+                <div className="text-sm font-semibold">
+                  Logo conversion tips
+                </div>
                 <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
                   <li>
-                    If your SVG looks “blobby”, lower <b>threshold</b> and raise <b>curve tolerance</b>.
+                    If your SVG looks “blobby”, lower <b>threshold</b> and raise{" "}
+                    <b>curve tolerance</b>.
                   </li>
                   <li>
-                    If thin strokes disappear, increase <b>threshold</b> or use <b>Keep thin details</b>.
+                    If thin strokes disappear, increase <b>threshold</b> or use{" "}
+                    <b>Keep thin details</b>.
                   </li>
                   <li>
                     If you see dust specks, increase <b>turd size</b> to 3-5.
                   </li>
                   <li>
-                    For multi-color logos, this tool outputs a single shape color. Use your Recolor tool after.
+                    For multi-color logos, this tool outputs a single shape
+                    color. Use your Recolor tool after.
                   </li>
                 </ul>
               </div>
@@ -1212,7 +1335,10 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
-                    <div key={item.stamp} className="rounded-xl border border-slate-200 bg-white p-2">
+                    <div
+                      key={item.stamp}
+                      className="rounded-xl border border-slate-200 bg-white p-2"
+                    >
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
@@ -1223,13 +1349,17 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
 
                       <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
                         <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0 ? `${item.width} × ${item.height} px` : "size unknown"}
+                          {item.width > 0 && item.height > 0
+                            ? `${item.width} × ${item.height} px`
+                            : "size unknown"}
                         </span>
                         <div className="flex gap-2 flex-wrap">
                           <button
                             type="button"
                             onClick={() => {
-                              const b = new Blob([item.svg], { type: "image/svg+xml;charset=utf-8" });
+                              const b = new Blob([item.svg], {
+                                type: "image/svg+xml;charset=utf-8",
+                              });
                               const u = URL.createObjectURL(b);
                               const a = document.createElement("a");
                               a.href = u;
@@ -1256,7 +1386,9 @@ export default function LogoToSvgConverter({ loaderData }: Route.ComponentProps)
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">{busy ? "Converting…" : "Your logo SVG will appear here."}</p>
+                <p className="text-slate-600 m-0">
+                  {busy ? "Converting…" : "Your logo SVG will appear here."}
+                </p>
               )}
             </div>
           </section>
@@ -1296,15 +1428,17 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 }
 
 async function validateBeforeSubmit(file: File) {
-  if (!ALLOWED_MIME.has(file.type)) throw new Error("Only PNG or JPEG images are allowed.");
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error("File too large. Max 30 MB per image.");
+  if (!ALLOWED_MIME.has(file.type))
+    throw new Error("Only PNG or JPEG images are allowed.");
+  if (file.size > MAX_UPLOAD_BYTES)
+    throw new Error("File too large. Max 30 MB per image.");
 
   const { w, h } = await getImageSize(file);
   if (!w || !h) throw new Error("Could not read image dimensions.");
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`
+      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 }
@@ -1314,10 +1448,13 @@ async function validateBeforeSubmit(file: File) {
 async function compressToTarget25MB(file: File): Promise<File> {
   const TARGET = LIVE_MED_MAX; // 25MB
   if (file.size <= TARGET) return file;
-  if (!file.type.startsWith("image/")) throw new Error("Unsupported file type for compression.");
+  if (!file.type.startsWith("image/"))
+    throw new Error("Unsupported file type for compression.");
 
   const img =
-    "createImageBitmap" in window ? await createImageBitmap(file) : await loadImageElement(file);
+    "createImageBitmap" in window
+      ? await createImageBitmap(file)
+      : await loadImageElement(file);
 
   let w = img.width;
   let h = img.height;
@@ -1337,12 +1474,15 @@ async function compressToTarget25MB(file: File): Promise<File> {
     const mime = "image/jpeg";
     const blob: Blob = await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
-        (canvas as any).convertToBlob({ type: mime, quality }).then(res).catch(rej);
+        (canvas as any)
+          .convertToBlob({ type: mime, quality })
+          .then(res)
+          .catch(rej);
       } else {
         (canvas as HTMLCanvasElement).toBlob(
           (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
           mime,
-          quality
+          quality,
         );
       }
     });
@@ -1368,7 +1508,9 @@ async function compressToTarget25MB(file: File): Promise<File> {
     scale = Math.max(0.5, scale - 0.07);
   }
 
-  throw new Error("This image cannot be reduced below 25 MB without heavy quality loss.");
+  throw new Error(
+    "This image cannot be reduced below 25 MB without heavy quality loss.",
+  );
 }
 
 function renameToJpeg(name: string) {
@@ -1390,10 +1532,18 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 }
 
 /* ===== UI helpers ===== */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
-      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">{label}</span>
+      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
+        {label}
+      </span>
       <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
     </label>
   );
@@ -1444,13 +1594,18 @@ function SiteFooter() {
           <div className="text-sm text-slate-600">
             <span>© {new Date().getFullYear()} i🩵SVG</span>
             <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">Simple SVG tools, no accounts.</span>
+            <span className="text-slate-500">
+              Simple SVG tools, no accounts.
+            </span>
           </div>
 
           <nav aria-label="Footer" className="text-sm">
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
               <li>
-                <Link to="/" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Home
                 </Link>
               </li>
@@ -1468,17 +1623,26 @@ function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link to="/svg-to-png-converter" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-to-png-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   SVG to PNG
                 </Link>
               </li>
               <li>
-                <Link to="/svg-to-jpg-converter" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-to-jpg-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   SVG to JPG
                 </Link>
               </li>
               <li>
-                <Link to="/svg-to-webp-converter" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/svg-to-webp-converter"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   SVG to WebP
                 </Link>
               </li>
@@ -1488,17 +1652,26 @@ function SiteFooter() {
               </li>
 
               <li>
-                <Link to="/privacy-policy" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/privacy-policy"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Privacy
                 </Link>
               </li>
               <li>
-                <Link to="/terms-of-service" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/terms-of-service"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Terms
                 </Link>
               </li>
               <li>
-                <Link to="/cookies" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/cookies"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Cookies
                 </Link>
               </li>
@@ -1517,11 +1690,16 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
         <article className="max-w-none">
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Logo PNG/JPG to SVG</p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">Convert logos to SVG the clean way</h2>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              Logo PNG/JPG to SVG
+            </p>
+            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+              Convert logos to SVG the clean way
+            </h2>
             <p className="text-slate-600 max-w-[80ch]">
-              This page is tuned specifically for logos, icons, and brand marks. The goal is smooth curves, fewer nodes,
-              and a vector that is easy to edit in Figma, Illustrator, Inkscape, or on the web.
+              This page is tuned specifically for logos, icons, and brand marks.
+              The goal is smooth curves, fewer nodes, and a vector that is easy
+              to edit in Figma, Illustrator, Inkscape, or on the web.
             </p>
 
             <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1531,7 +1709,10 @@ function SeoSections() {
                 { k: "Editable SVG", v: "Paths, viewBox, responsive output" },
                 { k: "In-memory", v: "No accounts, no file storage" },
               ].map((x) => (
-                <div key={x.k} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div
+                  key={x.k}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
                   <div className="text-sm font-semibold">{x.k}</div>
                   <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                 </div>
@@ -1560,7 +1741,10 @@ function SeoSections() {
                   body: "Curve tolerance smooths curves. For most logos, 0.35 to 0.6 is the sweet spot.",
                 },
               ].map((c) => (
-                <div key={c.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
                   <div className="text-sm font-semibold">{c.title}</div>
                   <p className="mt-1 text-sm text-slate-600">{c.body}</p>
                 </div>
@@ -1568,7 +1752,11 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-12" itemScope itemType="https://schema.org/FAQPage">
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
             <h3 className="text-lg font-bold">FAQ</h3>
 
             <div className="mt-4 grid gap-3">

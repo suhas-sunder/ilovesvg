@@ -18,11 +18,11 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "PNG to SVG Converter | Vectorize PNG with Transparency (Potrace, Live Preview)";
+  const title = "iLoveSVG | PNG to SVG Converter (Logos, Icons, Line Art)";
   const description =
-    "Convert PNG to SVG online with live preview. Great for logos, icons, line art, and transparent PNGs. Auto-compress large PNGs on-device (up to 25 MB preview). Server conversion runs in memory with strict limits.";
-  const canonical = "https://iheartsvg.com/png-to-svg-converter";
+    "Convert PNG to SVG with iLoveSVG and get clean, editable output with live preview. Great for transparent logos, icons, and line art, with cleaner paths and fewer nodes. Fast, privacy-friendly, runs entirely in your browser.";
+
+  const canonical = "https://ilovesvg.com/png-to-svg-converter";
 
   return [
     { title },
@@ -35,16 +35,13 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    // Canonical
     { tagName: "link", rel: "canonical", href: canonical },
 
-    // OpenGraph
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
 
-    // Twitter
     { name: "twitter:card", content: "summary" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
@@ -84,7 +81,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -147,8 +144,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -1053,7 +1050,6 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
@@ -1670,7 +1666,6 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-
 function SiteFooter() {
   return (
     <footer className="bg-white border-t border-slate-200">
@@ -1905,7 +1900,7 @@ function PngSeoSections() {
                 name: "PNG to SVG Converter",
                 description:
                   "Convert PNG to SVG with live preview, transparency support, and presets for logos and icons.",
-                url: "https://iheartsvg.com/png-to-svg-converter",
+                url: "https://ilovesvg.com/png-to-svg-converter",
               },
               null,
               2,

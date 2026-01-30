@@ -17,9 +17,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Emoji to SVG Converter (Text or Image) - Export SVG fast";
+  const title = "iLoveSVG | Emoji to SVG Converter (Text & Twemoji)";
   const description =
-    "Convert emoji to SVG from either pasted emoji text (Twemoji SVG) or emoji images (PNG/JPEG traced to paths). Supports grouped layouts, repeat-fill, background, recolor, and in-memory processing.";
+    "Convert emoji to SVG instantly with ilovesvg. Paste emoji text to export clean Twemoji SVG, or convert emoji images (PNG or JPEG) into vector paths. Supports layouts, recoloring, backgrounds, and fast in-browser processing. Free, no uploads.";
   const urlPath = "/emoji-to-svg-converter";
 
   return [
@@ -70,7 +70,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -132,8 +132,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -1372,7 +1372,6 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-3">
@@ -2253,7 +2252,6 @@ function Num({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

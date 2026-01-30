@@ -17,10 +17,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "Photo to SVG Outline Converter - Extract photo contours (Potrace)";
+  const title = "iLoveSVG | Photo to SVG Outline Converter (Contours)";
   const description =
-    "Convert a photo (JPG/PNG) into a clean outline SVG. Edge extraction tuned for photos, with live preview, in-memory processing, and server concurrency gating.";
+    "Convert photos (JPG or PNG) into clean outline-only SVG with iLoveSVG. Extract clear contour lines for tracing, laser cutting, or design work with live preview and privacy-friendly in-browser processing.";
+
   const urlPath = "/photo-to-svg-outline";
 
   return [
@@ -29,7 +29,6 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    // Canonical is intentionally unique to avoid duplicate-page signals.
     { tagName: "link", rel: "canonical", href: urlPath },
 
     { property: "og:title", content: title },
@@ -67,7 +66,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -129,8 +128,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -966,7 +965,6 @@ export default function PhotoToSvgOutline({
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">

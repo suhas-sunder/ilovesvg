@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG Cleaner (Remove metadata, comments, editor junk)";
+  const title = "iLoveSVG | SVG Cleaner & Optimizer (Remove Metadata, Junk)";
   const description =
-    "Clean SVG files instantly in your browser. Remove metadata, comments, editor namespaces, XML declarations, DOCTYPE, unused defs, and other junk. Preview and download a cleaned SVG. No uploads, no server.";
+    "Clean and optimize SVG files instantly in your browser with iLoveSVG. Remove metadata, comments, editor namespaces, XML declarations, DOCTYPE, unused defs, and hidden junk. Preview changes and download a clean SVG. Free, client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -441,7 +440,6 @@ export default function SvgCleaner(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}

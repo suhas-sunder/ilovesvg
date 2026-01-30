@@ -10,10 +10,9 @@ import { zipSync, strToU8 } from "fflate";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  Favicon Generator (ICO + App Icons) from SVG/PNG/JPG/WEBP";
+  const title = "iLoveSVG | Favicon Generator (ICO & App Icons)";
   const description =
-    "Generate a favicon.ico and full app icon set from SVG, PNG, JPG, or WEBP. Create 16x16 to 256x256 ICO, Apple touch icons, Android/Chrome icons, Microsoft tiles, plus a production-ready HTML snippet. Runs 100% in your browser.";
+    "Generate a favicon.ico and full app icon set with iLoveSVG. Create 16x16 to 256x256 ICO files, Apple touch icons, Android and Chrome icons, Microsoft tiles, plus a production-ready HTML snippet. Free, runs 100% in your browser.";
   return [
     { title },
     { name: "description", content: description },
@@ -503,7 +502,6 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1753,7 +1751,6 @@ function PreviewTile({
     </div>
   );
 }
-
 
 function SiteFooter() {
   return (

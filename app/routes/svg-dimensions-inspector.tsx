@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG Dimensions Inspector (Width, Height, viewBox, px)";
+  const title = "iLoveSVG | SVG Dimensions Inspector (Width, Height, viewBox)";
   const description =
-    "Inspect SVG dimensions instantly in your browser. Upload or paste SVG, read width/height/viewBox, compute pixel size, detect sizing issues, and apply fixes like adding viewBox or setting width/height. Live preview. No uploads.";
+    "Inspect SVG dimensions instantly with iLoveSVG. Paste or upload an SVG to read width, height, and viewBox, compute pixel size, detect sizing issues, and apply fixes like adding a viewBox or setting explicit dimensions. Live preview. Free, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -375,7 +374,6 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}

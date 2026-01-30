@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG Embed Code Generator (IMG, Inline, CSS, React, Data URI)";
+  const title = "iLoveSVG | SVG Embed Code Generator (IMG, Inline, CSS, React)";
   const description =
-    "Generate SVG embed code instantly in your browser. Upload or paste an SVG and create HTML <img>, inline SVG, CSS background/mask, Data URI (UTF-8/Base64), React/JSX, and <object>/<iframe> snippets with sizing and accessibility options. Client-side only, no uploads, no server.";
+    "Generate SVG embed code instantly in your browser with iLoveSVG. Create HTML <img>, inline SVG, CSS background or mask, Data URI (UTF-8 or Base64), React/JSX, and <object> or <iframe> snippets. Control sizing and accessibility. Free, client-side only, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -349,7 +348,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}

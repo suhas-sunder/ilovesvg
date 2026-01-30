@@ -18,11 +18,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "JPG to SVG Converter | Convert Photos and Scans to SVG (Potrace, Live Preview)";
+  const title = "iLoveSVG | JPG to SVG Converter (Photos & Scans)";
   const description =
-    "Convert JPG to SVG online with live preview. Made for camera photos, screenshots, and scans: use scan presets for ink, or edge presets for photo outlines. Auto-compress large JPGs on-device (≤25 MB preview). In-memory server conversion with strict limits.";
-  const canonical = "https://iheartsvg.com/jpg-to-svg-converter";
+    "Convert JPG images to clean, editable SVG with iLoveSVG. Works for photos, screenshots, scans, and whiteboards using outline or ink-style presets with live preview. Fast, accurate, and runs entirely in your browser.";
+  const canonical = "https://ilovesvg.com/jpg-to-svg-converter";
 
   return [
     { title },
@@ -30,7 +29,7 @@ export function meta({}: Route.MetaArgs) {
     {
       name: "keywords",
       content:
-        "jpg to svg, convert jpg to svg, jpg vectorizer, photo to svg, scan to svg, whiteboard to svg, potrace jpg to svg, outline svg from jpg",
+        "jpg to svg, convert jpg to svg, jpg vectorizer, photo to svg, scan to svg, whiteboard to svg, outline svg from jpg",
     },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
@@ -76,7 +75,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -139,8 +138,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -515,9 +514,7 @@ function ensureViewBoxResponsive(svg: string): {
   const openTag = openTagMatch[0];
   const hasViewBox = /viewBox\s*=\s*["'][^"']*["']/.test(openTag);
   const widthMatch = openTag.match(/width\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
-  const heightMatch = openTag.match(
-    /height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i,
-  );
+  const heightMatch = openTag.match(/height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
   let width = widthMatch ? Number(widthMatch[1]) : 1024;
   let height = heightMatch ? Number(heightMatch[1]) : 1024;
 
@@ -752,11 +749,13 @@ function getAutoMode(bytes?: number | null): AutoMode {
   return "off";
 }
 function autoModeHint(mode: AutoMode): string {
-  if (mode === "medium") return "Live preview is throttled for 10 to 25 MB JPGs.";
+  if (mode === "medium")
+    return "Live preview is throttled for 10 to 25 MB JPGs.";
   return "";
 }
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "medium") return "Large JPG, updates run less frequently to keep things smooth.";
+  if (mode === "medium")
+    return "Large JPG, updates run less frequently to keep things smooth.";
   return "";
 }
 
@@ -776,9 +775,11 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
 
-  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(
-    null,
-  );
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
 
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
@@ -847,7 +848,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a JPG/JPEG (or PNG). This page is optimized for JPG.");
+      setErr(
+        "Please choose a JPG/JPEG (or PNG). This page is optimized for JPG.",
+      );
       return;
     }
 
@@ -866,7 +869,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         chosen = await compressToTarget25MB(f);
       } catch (e: any) {
         setInfo(null);
-        setErr(e?.message || "This image is too large. Please resize and try again.");
+        setErr(
+          e?.message || "This image is too large. Please resize and try again.",
+        );
         setFile(null);
         setPreviewUrl(null);
         setAutoMode("off");
@@ -880,14 +885,19 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         chosen = shrunk;
         setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
       } catch (e: any) {
-        setErr(e?.message || "Could not compress below 25 MB. Live preview will be disabled.");
+        setErr(
+          e?.message ||
+            "Could not compress below 25 MB. Live preview will be disabled.",
+        );
         setInfo(null);
         chosen = f;
       }
     }
 
     if (chosen.size > MAX_UPLOAD_BYTES) {
-      setErr(`File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`);
+      setErr(
+        `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+      );
       setInfo(null);
       setFile(null);
       setPreviewUrl(null);
@@ -964,7 +974,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         bgColor: s.bgColor,
       };
       const lineColor =
-        preset.settings.lineColor !== undefined ? preset.settings.lineColor : s.lineColor;
+        preset.settings.lineColor !== undefined
+          ? preset.settings.lineColor
+          : s.lineColor;
 
       return {
         ...baseline,
@@ -985,7 +997,6 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
@@ -993,8 +1004,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
               JPG to SVG Converter
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
-              Turn JPG photos and scans into editable SVG paths. For clean scans, start with
-              a Scan preset. For photo outlines, switch to a Photo Edge preset.
+              Turn JPG photos and scans into editable SVG paths. For clean
+              scans, start with a Scan preset. For photo outlines, switch to a
+              Photo Edge preset.
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2 justify-center text-sm">
@@ -1048,12 +1060,13 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
               </div>
 
               <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> • <b>{MAX_MP} MP</b> •{" "}
-                <b>{MAX_SIDE}px</b> longest side
+                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b> longest side
               </div>
 
               <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview tiers: fast ≤10 MB, throttled ≤25 MB. Large files may be compressed on-device.
+                Live preview tiers: fast ≤10 MB, throttled ≤25 MB. Large files
+                may be compressed on-device.
               </div>
 
               {!file ? (
@@ -1065,7 +1078,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   onClick={() => document.getElementById("file-inp")?.click()}
                   className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
-                  <div className="text-sm text-slate-600">Click or drag and drop a JPG</div>
+                  <div className="text-sm text-slate-600">
+                    Click or drag and drop a JPG
+                  </div>
                   <input
                     id="file-inp"
                     type="file"
@@ -1112,7 +1127,11 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
 
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size: <b>{dims.w}×{dims.h}</b> (~{dims.mp.toFixed(1)} MP)
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
                     </div>
                   )}
                 </>
@@ -1123,11 +1142,16 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   <select
                     value={settings.preprocess}
                     onChange={(e) =>
-                      setSettings((s) => ({ ...s, preprocess: e.target.value as any }))
+                      setSettings((s) => ({
+                        ...s,
+                        preprocess: e.target.value as any,
+                      }))
                     }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
-                    <option value="none">None (best for clean scans and ink)</option>
+                    <option value="none">
+                      None (best for clean scans and ink)
+                    </option>
                     <option value="edge">Edge (outline photos)</option>
                   </select>
                 </Field>
@@ -1140,7 +1164,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                         min={0}
                         max={3}
                         step={0.1}
-                        onChange={(v) => setSettings((s) => ({ ...s, blurSigma: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, blurSigma: v }))
+                        }
                       />
                     </Field>
                     <Field label={`Edge boost (${settings.edgeBoost})`}>
@@ -1149,7 +1175,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                         min={0.5}
                         max={2.0}
                         step={0.1}
-                        onChange={(v) => setSettings((s) => ({ ...s, edgeBoost: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, edgeBoost: v }))
+                        }
                       />
                     </Field>
                   </>
@@ -1163,7 +1191,10 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                     step={1}
                     value={settings.threshold}
                     onChange={(e) =>
-                      setSettings((s) => ({ ...s, threshold: Number(e.target.value) }))
+                      setSettings((s) => ({
+                        ...s,
+                        threshold: Number(e.target.value),
+                      }))
                     }
                     className="w-full accent-[#0b2dff]"
                   />
@@ -1175,7 +1206,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                     min={0}
                     max={10}
                     step={1}
-                    onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, turdSize: v }))
+                    }
                   />
                 </Field>
 
@@ -1185,7 +1218,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                     min={0.05}
                     max={1.2}
                     step={0.05}
-                    onChange={(v) => setSettings((s) => ({ ...s, optTolerance: v }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, optTolerance: v }))
+                    }
                   />
                 </Field>
 
@@ -1193,7 +1228,10 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   <select
                     value={settings.turnPolicy}
                     onChange={(e) =>
-                      setSettings((s) => ({ ...s, turnPolicy: e.target.value as any }))
+                      setSettings((s) => ({
+                        ...s,
+                        turnPolicy: e.target.value as any,
+                      }))
                     }
                     className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
                   >
@@ -1210,7 +1248,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   <input
                     type="color"
                     value={settings.lineColor}
-                    onChange={(e) => setSettings((s) => ({ ...s, lineColor: e.target.value }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
+                    }
                     className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
                   />
                 </Field>
@@ -1219,7 +1259,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   <input
                     type="checkbox"
                     checked={settings.invert}
-                    onChange={(e) => setSettings((s) => ({ ...s, invert: e.target.checked }))}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, invert: e.target.checked }))
+                    }
                     className="h-4 w-4 accent-[#0b2dff]"
                   />
                 </Field>
@@ -1229,20 +1271,35 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                     <input
                       type="checkbox"
                       checked={settings.transparent}
-                      onChange={(e) => setSettings((s) => ({ ...s, transparent: e.target.checked }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s,
+                          transparent: e.target.checked,
+                        }))
+                      }
                       className="h-4 w-4 accent-[#0b2dff]"
                     />
-                    <span className="text-[13px] text-slate-700">Transparent</span>
+                    <span className="text-[13px] text-slate-700">
+                      Transparent
+                    </span>
                     <input
                       type="color"
                       value={settings.bgColor}
-                      onChange={(e) => setSettings((s) => ({ ...s, bgColor: e.target.value }))}
+                      onChange={(e) =>
+                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
+                      }
                       aria-disabled={settings.transparent}
                       className={[
                         "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent ? "opacity-50 pointer-events-none" : "",
+                        settings.transparent
+                          ? "opacity-50 pointer-events-none"
+                          : "",
                       ].join(" ")}
-                      title={settings.transparent ? "Uncheck to pick a background color" : "Pick background color"}
+                      title={
+                        settings.transparent
+                          ? "Uncheck to pick a background color"
+                          : "Pick background color"
+                      }
                     />
                   </div>
                 </Field>
@@ -1270,12 +1327,18 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                 )}
 
                 {err && <span className="text-red-700 text-sm">{err}</span>}
-                {!err && info && <span className="text-[13px] text-slate-600">{info}</span>}
+                {!err && info && (
+                  <span className="text-[13px] text-slate-600">{info}</span>
+                )}
               </div>
 
               {previewUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <img src={previewUrl} alt="JPG input" className="w-full h-auto block" />
+                  <img
+                    src={previewUrl}
+                    alt="JPG input"
+                    className="w-full h-auto block"
+                  />
                 </div>
               )}
             </div>
@@ -1291,7 +1354,10 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
-                    <div key={item.stamp} className="rounded-xl border border-slate-200 bg-white p-2">
+                    <div
+                      key={item.stamp}
+                      className="rounded-xl border border-slate-200 bg-white p-2"
+                    >
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
@@ -1338,7 +1404,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">{busy ? "Converting..." : "Your SVG will appear here."}</p>
+                <p className="text-slate-600 m-0">
+                  {busy ? "Converting..." : "Your SVG will appear here."}
+                </p>
               )}
             </div>
           </section>
@@ -1420,7 +1488,10 @@ async function compressToTarget25MB(file: File): Promise<File> {
     const mime = "image/jpeg";
     const blob: Blob = await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
-        (canvas as any).convertToBlob({ type: mime, quality }).then(res).catch(rej);
+        (canvas as any)
+          .convertToBlob({ type: mime, quality })
+          .then(res)
+          .catch(rej);
       } else {
         (canvas as HTMLCanvasElement).toBlob(
           (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
@@ -1473,10 +1544,18 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 }
 
 /* ===== UI helpers ===== */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
-      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">{label}</span>
+      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
+        {label}
+      </span>
       <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
     </label>
   );
@@ -1527,12 +1606,17 @@ function SiteFooter() {
           <div className="text-sm text-slate-600">
             <span>© {new Date().getFullYear()} i🩵SVG</span>
             <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">Simple SVG tools, no accounts.</span>
+            <span className="text-slate-500">
+              Simple SVG tools, no accounts.
+            </span>
           </div>
           <nav aria-label="Footer" className="text-sm">
             <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
               <li>
-                <Link to="/" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Home
                 </Link>
               </li>
@@ -1540,17 +1624,26 @@ function SiteFooter() {
                 |
               </li>
               <li>
-                <Link to="/privacy-policy" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/privacy-policy"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Privacy
                 </Link>
               </li>
               <li>
-                <Link to="/terms-of-service" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/terms-of-service"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Terms
                 </Link>
               </li>
               <li>
-                <Link to="/cookies" className="hover:text-slate-900 hover:underline underline-offset-4">
+                <Link
+                  to="/cookies"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
                   Cookies
                 </Link>
               </li>
@@ -1578,9 +1671,10 @@ function JpgSeoSections() {
               Convert JPG to SVG without guessing settings
             </h2>
             <p className="mt-2 text-slate-600 max-w-[85ch]">
-              Most phones export JPG. The downside is compression noise: tiny blocks and soft gradients can
-              trace into extra paths. This page gives you two reliable starting points: Scan presets for
-              clean ink and Edge presets for contour outlines from photos.
+              Most phones export JPG. The downside is compression noise: tiny
+              blocks and soft gradients can trace into extra paths. This page
+              gives you two reliable starting points: Scan presets for clean ink
+              and Edge presets for contour outlines from photos.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1590,7 +1684,10 @@ function JpgSeoSections() {
                 { k: "Noise controls", v: "Blur, edge boost, speck removal" },
                 { k: "Hard limits", v: "30 MB, 30 MP, 8000 px" },
               ].map((x) => (
-                <div key={x.k} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div
+                  key={x.k}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
                   <div className="text-sm font-semibold">{x.k}</div>
                   <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                 </div>
@@ -1602,37 +1699,49 @@ function JpgSeoSections() {
             <h3 className="text-lg font-bold">JPG tips that actually help</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold">If your SVG has lots of dots</div>
+                <div className="text-sm font-semibold">
+                  If your SVG has lots of dots
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  That is usually compression noise. In Scan mode, raise Turd size. In Edge mode, increase Blur
-                  first, then reduce Edge boost a bit.
+                  That is usually compression noise. In Scan mode, raise Turd
+                  size. In Edge mode, increase Blur first, then reduce Edge
+                  boost a bit.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold">If you want an outline from a photo</div>
+                <div className="text-sm font-semibold">
+                  If you want an outline from a photo
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use a Photo Edge preset. Adjust Blur to calm clutter, then Edge boost to pull out the subject,
-                  and only then touch Threshold.
+                  Use a Photo Edge preset. Adjust Blur to calm clutter, then
+                  Edge boost to pull out the subject, and only then touch
+                  Threshold.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold">If it is a clean scan</div>
+                <div className="text-sm font-semibold">
+                  If it is a clean scan
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Keep preprocess set to None. Scan presets usually produce fewer stray paths than Edge mode on
-                  high-contrast ink.
+                  Keep preprocess set to None. Scan presets usually produce
+                  fewer stray paths than Edge mode on high-contrast ink.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="text-sm font-semibold">JPG vs JPEG</div>
                 <p className="mt-1 text-sm text-slate-600">
-                  They are the same format. If your file ends in .jpg or .jpeg, it uses the same decoder and the
-                  same tracing pipeline here.
+                  They are the same format. If your file ends in .jpg or .jpeg,
+                  it uses the same decoder and the same tracing pipeline here.
                 </p>
               </div>
             </div>
           </section>
 
-          <section itemScope itemType="https://schema.org/FAQPage" className="mt-12">
+          <section
+            itemScope
+            itemType="https://schema.org/FAQPage"
+            className="mt-12"
+          >
             <h3 className="text-lg font-bold">JPG to SVG FAQ</h3>
             <div className="mt-4 grid gap-3">
               {[
@@ -1684,7 +1793,7 @@ function JpgSeoSections() {
                 name: "JPG to SVG Converter",
                 description:
                   "Convert JPG images to SVG using scan presets or optional edge extraction for photo outlines.",
-                url: "https://iheartsvg.com/jpg-to-svg-converter",
+                url: "https://ilovesvg.com/jpg-to-svg-converter",
               },
               null,
               2,

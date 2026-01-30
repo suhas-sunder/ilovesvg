@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG Stroke Width Editor (Multiply, Set, Clamp, Live Preview)";
+  const title = "iLoveSVG | SVG Stroke Width Editor (Live Preview)";
   const description =
-    "Adjust stroke width in an SVG instantly in your browser. Multiply stroke widths, set an exact value, add missing stroke-width, clamp min/max, target paths/shapes, and preview the result live. No uploads, no server processing.";
+    "Adjust stroke width in SVG files instantly with iLoveSVG. Multiply stroke widths, set exact values, add missing stroke-width, clamp min or max values, target specific paths or shapes, and preview changes live. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -375,7 +374,6 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1713,7 +1711,6 @@ function NumInt({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

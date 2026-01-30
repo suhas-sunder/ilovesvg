@@ -9,9 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  SVG to Base64 (data URI) Converter";
+  const title = "iLoveSVG | SVG to Base64 Converter (Data URI)";
   const description =
-    "Convert SVG to Base64 instantly in your browser. Generate data:image/svg+xml;base64, URLs, choose encoding options, sanitize scripts, minify, and copy or download. No uploads, no server.";
+    "Convert SVG to Base64 instantly with iLoveSVG. Generate data:image/svg+xml;base64 URLs, choose encoding options, sanitize scripts, optionally minify, and copy or download the result. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -318,7 +318,6 @@ export default function SvgToBase64(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1159,8 +1158,6 @@ function ToggleRow({
     </label>
   );
 }
-
-
 
 function SiteFooter() {
   return (

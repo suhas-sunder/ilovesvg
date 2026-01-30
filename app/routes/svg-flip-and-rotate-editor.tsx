@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG Flip & Rotate Editor (Client-Side, Live Preview)";
+  const title = "iLoveSVG | SVG Flip & Rotate Editor (Live Preview)";
   const description =
-    "Flip or rotate an SVG instantly in your browser. Upload or paste SVG, flip horizontally/vertically, rotate by degrees or 90° steps, preview before/after live, then copy or download. No uploads, no server.";
+    "Flip or rotate an SVG instantly with iLoveSVG. Paste or upload SVG, flip horizontally or vertically, rotate by degrees or 90° steps, preview changes live, then copy or download the updated SVG. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -325,7 +324,6 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1139,7 +1137,6 @@ function Num({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

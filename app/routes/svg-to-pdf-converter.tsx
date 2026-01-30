@@ -11,9 +11,9 @@ import { Canvg } from "canvg";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  SVG to PDF (Client-Side Converter)";
+  const title = "iLoveSVG | SVG to PDF Converter";
   const description =
-    "Convert SVG to PDF instantly in your browser. Upload or paste an SVG, choose paper size, orientation, margins, and DPI, preview the PDF, and download. No uploads, no server.";
+    "Convert SVG to PDF instantly with iLoveSVG. Paste or upload an SVG, choose paper size, orientation, margins, and DPI, preview the result, and download the PDF. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -334,7 +334,6 @@ export default function SvgToPdf(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1262,7 +1261,6 @@ function Num({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

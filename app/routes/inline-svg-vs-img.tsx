@@ -9,9 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  Inline SVG vs <img> (Comparison + Generator)";
+  const title = "iLoveSVG | Inline SVG vs IMG Tag (Comparison & Code)";
   const description =
-    "Compare inline SVG vs <img> and generate the right embed code. Paste an SVG, preview both methods side by side, test CSS styling (currentColor), accessibility options, caching tradeoffs, and copy ready-to-use snippets. Client-side only.";
+    "Compare inline SVG vs the img tag with iLoveSVG and generate the correct embed code. Paste an SVG to preview both approaches side by side, test CSS styling like currentColor, accessibility options, and caching tradeoffs, then copy ready-to-use snippets. Runs entirely in your browser.";
   return [
     { title },
     { name: "description", content: description },
@@ -311,7 +311,6 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -1963,7 +1962,6 @@ function UnitSelect({
     </select>
   );
 }
-
 
 function SiteFooter() {
   return (

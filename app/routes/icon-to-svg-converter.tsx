@@ -17,11 +17,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "Icon to SVG Converter - Potrace vectorizer (in-memory, live preview, droplet-safe)";
+  const title = "iLoveSVG | Icon to SVG Converter (PNG/JPEG Icons)";
   const description =
-    "Convert icons (PNG/JPEG) into clean, scalable SVG. Tuned presets for app icons, logos, and UI glyphs. Live preview with on-device compression and server concurrency gating.";
-
+    "Convert icon images (PNG or JPEG) into clean, scalable SVG with iLoveSVG. Optimized for app icons, logos, and UI glyphs with live preview and fast in-browser vectorization. Free, client-side only, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -69,7 +67,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -132,8 +130,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -290,7 +288,11 @@ export async function action({ request }: ActionFunctionArgs) {
         // Always visible (no "blank" on white page)
         transparent = false;
         // If they left bgColor on white, give a dark default
-        if (!bgColor || bgColor.toLowerCase() === "#ffffff" || bgColor.toLowerCase() === "#fff") {
+        if (
+          !bgColor ||
+          bgColor.toLowerCase() === "#ffffff" ||
+          bgColor.toLowerCase() === "#fff"
+        ) {
           bgColor = DARK_BG_DEFAULT;
         }
         // If they didn't set a light line, force it
@@ -346,7 +348,11 @@ export async function action({ request }: ActionFunctionArgs) {
       const svg2 = recolorPaths(ensured.svg, lineColor);
 
       // remove full-white bg rect if potrace emits it
-      const svg3 = stripFullWhiteBackgroundRect(svg2, ensured.width, ensured.height);
+      const svg3 = stripFullWhiteBackgroundRect(
+        svg2,
+        ensured.width,
+        ensured.height,
+      );
 
       const finalSVG = transparent
         ? svg3
@@ -531,9 +537,7 @@ function ensureViewBoxResponsive(svg: string): {
   const openTag = openTagMatch[0];
   const hasViewBox = /viewBox\s*=\s*["'][^"']*["']/.test(openTag);
   const widthMatch = openTag.match(/width\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
-  const heightMatch = openTag.match(
-    /height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i,
-  );
+  const heightMatch = openTag.match(/height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
 
   let width = widthMatch ? Number(widthMatch[1]) : 1024;
   let height = heightMatch ? Number(heightMatch[1]) : 1024;
@@ -570,7 +574,11 @@ function recolorPaths(svg: string, fillColor: string): string {
   return out;
 }
 
-function stripFullWhiteBackgroundRect(svg: string, width: number, height: number): string {
+function stripFullWhiteBackgroundRect(
+  svg: string,
+  width: number,
+  height: number,
+): string {
   const whitePattern =
     /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
 
@@ -780,10 +788,14 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function IconToSvgConverter({ loaderData }: Route.ComponentProps) {
+export default function IconToSvgConverter({
+  loaderData,
+}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
-  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(null);
+  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
+    null,
+  );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
@@ -793,7 +805,11 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
 
-  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(null);
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
 
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
@@ -807,7 +823,9 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
 
     if (fetcher.data?.retryAfterMs) {
       const ms = Math.max(800, fetcher.data.retryAfterMs);
-      setInfo(`Server busy… retrying automatically in ${(ms / 1000).toFixed(1)}s`);
+      setInfo(
+        `Server busy… retrying automatically in ${(ms / 1000).toFixed(1)}s`,
+      );
       const t = setTimeout(() => {
         if (file) submitConvert();
       }, ms);
@@ -881,7 +899,10 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
         chosen = await compressToTarget25MB(f);
       } catch (e: any) {
         setInfo(null);
-        setErr(e?.message || "This image is too large. Please resize it and try again.");
+        setErr(
+          e?.message ||
+            "This image is too large. Please resize it and try again.",
+        );
         setFile(null);
         setPreviewUrl(null);
         setAutoMode("off");
@@ -895,14 +916,19 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
         chosen = shrunk;
         setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
       } catch (e: any) {
-        setErr(e?.message || "Could not compress below 25 MB. Live preview will be disabled.");
+        setErr(
+          e?.message ||
+            "Could not compress below 25 MB. Live preview will be disabled.",
+        );
         setInfo(null);
         chosen = f;
       }
     }
 
     if (chosen.size > MAX_UPLOAD_BYTES) {
-      setErr(`File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`);
+      setErr(
+        `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+      );
       setInfo(null);
       setFile(null);
       setPreviewUrl(null);
@@ -935,14 +961,19 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
     const effective = (() => {
       if (!settings.invert) return settings;
       const bg =
-        !settings.bgColor || settings.bgColor.toLowerCase() === "#ffffff" || settings.bgColor.toLowerCase() === "#fff"
+        !settings.bgColor ||
+        settings.bgColor.toLowerCase() === "#ffffff" ||
+        settings.bgColor.toLowerCase() === "#fff"
           ? DARK_BG_DEFAULT
           : settings.bgColor;
       return {
         ...settings,
         transparent: false,
         bgColor: bg,
-        lineColor: settings.lineColor?.toLowerCase() === "#000000" ? "#ffffff" : settings.lineColor,
+        lineColor:
+          settings.lineColor?.toLowerCase() === "#000000"
+            ? "#ffffff"
+            : settings.lineColor,
       };
     })();
 
@@ -998,7 +1029,8 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
       const next: Settings = { ...DEFAULTS };
 
       // If preset does NOT specify background fields, preserve user's current background choices
-      if (preset.settings.transparent === undefined) next.transparent = s.transparent;
+      if (preset.settings.transparent === undefined)
+        next.transparent = s.transparent;
       if (preset.settings.bgColor === undefined) next.bgColor = s.bgColor;
 
       // If preset does NOT specify lineColor, preserve current lineColor (icons often want user color)
@@ -1020,7 +1052,6 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
@@ -1244,7 +1275,9 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
                     min={0}
                     max={10}
                     step={1}
-                    onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, turdSize: v }))
+                    }
                   />
                 </Field>
 
@@ -1347,7 +1380,9 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
                       aria-disabled={settings.transparent}
                       className={[
                         "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent ? "opacity-50 pointer-events-none" : "",
+                        settings.transparent
+                          ? "opacity-50 pointer-events-none"
+                          : "",
                       ].join(" ")}
                       title={
                         settings.transparent
@@ -1395,16 +1430,28 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
 
               {previewUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <img src={previewUrl} alt="Input icon" className="w-full h-auto block" />
+                  <img
+                    src={previewUrl}
+                    alt="Input icon"
+                    className="w-full h-auto block"
+                  />
                 </div>
               )}
 
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700">
                 <div className="font-semibold mb-1">Icon-specific tips</div>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li>Want fewer nodes? Increase Curve tolerance (try 0.55–0.85).</li>
-                  <li>Thin strokes disappearing? Raise Threshold and lower Turd size.</li>
-                  <li>Blobby edges? Lower Threshold or switch Turn policy to minority.</li>
+                  <li>
+                    Want fewer nodes? Increase Curve tolerance (try 0.55–0.85).
+                  </li>
+                  <li>
+                    Thin strokes disappearing? Raise Threshold and lower Turd
+                    size.
+                  </li>
+                  <li>
+                    Blobby edges? Lower Threshold or switch Turn policy to
+                    minority.
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1475,7 +1522,9 @@ export default function IconToSvgConverter({ loaderData }: Route.ComponentProps)
                 </div>
               ) : (
                 <p className="text-slate-600 m-0">
-                  {busy ? "Converting…" : "Your converted SVG will appear here."}
+                  {busy
+                    ? "Converting…"
+                    : "Your converted SVG will appear here."}
                 </p>
               )}
             </div>
@@ -1619,7 +1668,13 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 }
 
 /* ===== UI helpers ===== */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
       <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
@@ -1666,7 +1721,6 @@ function prettyBytes(bytes: number) {
   }
   return `${v.toFixed(1)} ${u[i]}`;
 }
-
 
 function SiteFooter() {
   return (
@@ -1787,12 +1841,18 @@ function SeoSections() {
             </div>
           </section>
 
-          <section itemScope itemType="https://schema.org/HowTo" className="mt-12">
+          <section
+            itemScope
+            itemType="https://schema.org/HowTo"
+            className="mt-12"
+          >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold">
                 How to convert an icon image to SVG
               </h3>
-              <span className="text-xs text-slate-500">Upload → preset → adjust → export</span>
+              <span className="text-xs text-slate-500">
+                Upload → preset → adjust → export
+              </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
@@ -1843,14 +1903,32 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Troubleshooting</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
-                ["Icon looks too thick", "Increase threshold or pick Icon - Preserve thin strokes."],
-                ["Too many nodes", "Raise curve tolerance (0.55–0.85) and use Logo - Clean shapes."],
+                [
+                  "Icon looks too thick",
+                  "Increase threshold or pick Icon - Preserve thin strokes.",
+                ],
+                [
+                  "Too many nodes",
+                  "Raise curve tolerance (0.55–0.85) and use Logo - Clean shapes.",
+                ],
                 ["Speckles", "Increase turd size to remove tiny dots."],
-                ["Edges are jagged", "Increase curve tolerance slightly, or try majority turn policy."],
-                ["429 server busy", "The app retries automatically after Retry-After to keep the droplet stable."],
-                ["Photo icon", "Switch preprocess to Edge and adjust blur/boost."],
+                [
+                  "Edges are jagged",
+                  "Increase curve tolerance slightly, or try majority turn policy.",
+                ],
+                [
+                  "429 server busy",
+                  "The app retries automatically after Retry-After to keep the droplet stable.",
+                ],
+                [
+                  "Photo icon",
+                  "Switch preprocess to Edge and adjust blur/boost.",
+                ],
               ].map(([t, d]) => (
-                <div key={t} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div
+                  key={t}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
                   <div className="text-sm font-semibold">{t}</div>
                   <p className="mt-1 text-sm text-slate-600">{d}</p>
                 </div>
@@ -1858,7 +1936,11 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-12" itemScope itemType="https://schema.org/FAQPage">
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
             <h3 className="text-lg font-bold">FAQ</h3>
             <div className="mt-4 grid gap-3">
               {[

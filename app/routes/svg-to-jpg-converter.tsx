@@ -9,10 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "i🩵SVG  -  SVG → JPG Converter (client-side, resize, background, quality)";
+  const title = "iLoveSVG | SVG to JPG Converter (Resize & Background)";
   const description =
-    "Convert SVG to JPG instantly in your browser. Resize by width/height, keep aspect ratio, choose a background color, set JPEG quality, and download. No uploads, no server processing.";
+    "Convert SVG to JPG instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose a background color, set JPEG quality, and download the result. Free, fully client-side, no uploads.";
   return [
     { title },
     { name: "description", content: description },
@@ -232,7 +231,6 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
 
   return (
     <>
-
       <main
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
@@ -925,7 +923,6 @@ function NumInt({
     />
   );
 }
-
 
 function SiteFooter() {
   return (

@@ -9,9 +9,9 @@ import { Link } from "react-router";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "i🩵SVG  -  Base64 to SVG (Data URI Decoder)";
+  const title = "iLoveSVG | Base64 to SVG Decoder (Data URI to SVG)";
   const description =
-    "Decode Base64 to SVG instantly in your browser. Paste a Base64 string, an <img src=...> snippet, CSS url(...), or a data:image/svg+xml;base64, URL. Preview, sanitize risky content, and download the decoded SVG. No uploads, no server.";
+    "Decode Base64 or Data URI SVG instantly in your browser with ilovesvg. Paste a Base64 string, <img src>, CSS url(...), or data:image/svg+xml;base64 value. Preview safely, sanitize the SVG, and download the file. Free, client-side only, no uploads.";
   return [
     { title },
     { name: "description", content: description },

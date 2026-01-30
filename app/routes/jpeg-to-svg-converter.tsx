@@ -18,11 +18,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "JPEG to SVG Converter | JPG Photo and Scan Vectorizer (Potrace, Live Preview)";
+  const title = "iLoveSVG | JPEG to SVG Converter (JPG to SVG)";
   const description =
-    "Convert JPEG (JPG) to SVG online with live preview. Built for photos, scans, and whiteboards: use edge extraction for contours or clean scan presets for ink. Auto-compress large files on-device (≤25 MB preview). In-memory server conversion with strict limits.";
-  const canonical = "https://iheartsvg.com/jpeg-to-svg-converter";
+    "Convert JPEG (JPG) images to clean SVG with iLoveSVG. Vectorize photos, scans, and whiteboards using edge outlines or clean ink presets, preview instantly, then download an editable SVG. Free, fast, runs entirely in your browser.";
+  const canonical = "https://ilovesvg.com/jpeg-to-svg-converter";
 
   return [
     { title },
@@ -30,7 +29,7 @@ export function meta({}: Route.MetaArgs) {
     {
       name: "keywords",
       content:
-        "jpeg to svg, jpg to svg, convert jpg to svg, jpeg vectorizer, vectorize photo to svg, scan to svg, whiteboard to svg, potrace jpg to svg, photo outline svg",
+        "jpeg to svg, jpg to svg, convert jpg to svg, jpeg vectorizer, vectorize photo to svg, scan to svg, whiteboard to svg, photo outline svg",
     },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
@@ -50,6 +49,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "twitter:description", content: description },
   ];
 }
+
 
 export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };
@@ -80,7 +80,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_gate) return g.__iheartsvg_gate as Gate;
+  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -143,8 +143,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_gate as Gate;
+  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__ilovesvg_gate as Gate;
 }
 
 /* ========================
@@ -1070,7 +1070,6 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
 
   return (
     <>
-
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <header className="text-center mb-2">
@@ -1966,7 +1965,7 @@ function JpegSeoSections() {
                 name: "JPEG to SVG Converter",
                 description:
                   "Convert JPEG/JPG to SVG with scan presets and optional edge extraction for photo contours.",
-                url: "https://iheartsvg.com/jpeg-to-svg-converter",
+                url: "https://ilovesvg.com/jpeg-to-svg-converter",
               },
               null,
               2,
