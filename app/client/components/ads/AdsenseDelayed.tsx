@@ -12,6 +12,10 @@ type Props = {
   minHeight?: number;
   className?: string;
   afterInteraction?: boolean;
+  // New Constraints
+  format?: "auto" | "rectangle" | "horizontal" | "vertical";
+  fullWidth?: boolean;
+  maxHeight?: number;
 };
 
 export function AdSenseDelayed({
@@ -20,24 +24,19 @@ export function AdSenseDelayed({
   minHeight = 90,
   className = "",
   afterInteraction = false,
+  format = "auto",
+  fullWidth = false,
+  maxHeight,
 }: Props) {
-  // Track which slot was pushed so changing slot re-enables push
   const pushedSlotRef = useRef<string | null>(null);
-
   const timerRef = useRef<number | null>(null);
   const retryRef = useRef<number | null>(null);
   const insRef = useRef<HTMLModElement | null>(null);
 
   const tryPush = () => {
-    if (typeof window === "undefined") return false;
-
-    // already pushed for this slot
+    if (typeof window === "undefined" || !window.adsbygoogle) return false;
     if (pushedSlotRef.current === slot) return true;
 
-    // script not present yet
-    if (!window.adsbygoogle) return false;
-
-    // slot not laid out (width 0) -> wait
     const w = insRef.current?.offsetWidth ?? 0;
     if (w <= 0) return false;
 
@@ -52,16 +51,12 @@ export function AdSenseDelayed({
 
   const start = () => {
     if (tryPush()) return;
-
-    // retry for ~3.6s total
     let attempts = 0;
-
     if (retryRef.current) window.clearInterval(retryRef.current);
 
     retryRef.current = window.setInterval(() => {
       attempts += 1;
-      const ok = tryPush();
-      if (ok || attempts >= 12) {
+      if (tryPush() || attempts >= 12) {
         if (retryRef.current) window.clearInterval(retryRef.current);
         retryRef.current = null;
       }
@@ -70,8 +65,6 @@ export function AdSenseDelayed({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    // IMPORTANT: reset when slot changes
     pushedSlotRef.current = null;
 
     const onFirstInteraction = () => {
@@ -82,13 +75,9 @@ export function AdSenseDelayed({
     const cleanup = () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
       if (retryRef.current) window.clearInterval(retryRef.current);
-      timerRef.current = null;
-      retryRef.current = null;
-
       window.removeEventListener("pointerdown", onFirstInteraction);
       window.removeEventListener("scroll", onFirstInteraction);
       window.removeEventListener("keydown", onFirstInteraction);
-      window.removeEventListener("drop", onFirstInteraction);
     };
 
     if (afterInteraction) {
@@ -97,7 +86,6 @@ export function AdSenseDelayed({
       });
       window.addEventListener("scroll", onFirstInteraction, { once: true });
       window.addEventListener("keydown", onFirstInteraction, { once: true });
-      window.addEventListener("drop", onFirstInteraction, { once: true });
     } else {
       timerRef.current = window.setTimeout(start, delayMs);
     }
@@ -108,24 +96,28 @@ export function AdSenseDelayed({
   return (
     <div
       className={className}
-      style={{ minHeight, overflow: "hidden" }}
+      style={{
+        minHeight,
+        maxHeight: maxHeight ? `${maxHeight}px` : undefined,
+        overflow: "hidden",
+        width: "100%",
+      }}
       aria-label="Advertisement"
     >
-      // Inside your return block
       <ins
         key={slot}
-        ref={insRef as any}
+        ref={insRef}
         className="adsbygoogle"
         style={{
           display: "block",
           margin: "0 auto",
-          width: "100%", // Explicitly tell it to fill the container
-          minWidth: "250px", // Gives AdSense a hint of the smallest ad it can fit
+          width: "100%",
+          minWidth: "250px",
         }}
         data-ad-client="ca-pub-4810616735714570"
         data-ad-slot={slot}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
+        data-ad-format={format}
+        data-full-width-responsive={fullWidth ? "true" : "false"}
       />
     </div>
   );

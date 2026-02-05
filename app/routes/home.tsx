@@ -1211,6 +1211,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <>
       <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+          {typeof document !== "undefined" && (
+            <div className="hidden lg:block">
+              {/* TOP: desktop only */}
+              <AdSenseDelayed
+                slot="6722780159"
+                delayMs={1500}
+                minHeight={90}
+                maxHeight={120}
+                format="horizontal"
+                fullWidth={true}
+                className="mx-auto w-full max-w-[970px]"
+              />
+            </div>
+          )}
+
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
@@ -1679,7 +1694,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         )}
       </main>
       {typeof document !== "undefined" && (
-        <AdSenseDelayed slot="7336722354" delayMs={2500} afterInteraction />
+        <div className="lg:hidden block">
+          {/* Below Utility: Mobile only */}
+          <AdSenseDelayed
+            slot="9492413726"
+            delayMs={1500}
+            minHeight={90}
+            maxHeight={120}
+            format="horizontal"
+            fullWidth={true}
+            className="mx-auto w-full max-w-[970px]"
+          />
+        </div>
       )}
       <SeoSections />
       <OtherToolsLinks />
@@ -2028,7 +2054,21 @@ function SeoSections() {
               </div>
             </div>
           </header>
-
+          {typeof document !== "undefined" && (
+            <div className="hidden lg:block">
+              {/* In-content: desktop only (between hero and sections) */}
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-8"
+                format="rectangle" // Constrains the shape to a box
+                fullWidth={false} // Prevents giant vertical expansion
+                minHeight={250} // Reserves enough space for a standard rectangle
+                maxHeight={300} // Hard cap to keep the site clean
+              />
+            </div>
+          )}
           {/* Use cases */}
           <section className="mt-10">
             <h3 className="text-lg font-bold">Best for</h3>
@@ -2267,6 +2307,22 @@ function SeoSections() {
               ))}
             </div>
           </section>
+
+          {typeof document !== "undefined" && (
+            <div className="lg:hidden block">
+              {/* Above FAQ: mobile only */}
+              <AdSenseDelayed
+                slot="1303030579"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-8"
+                format="rectangle" // Constrains the shape to a box
+                fullWidth={false} // Prevents giant vertical expansion
+                minHeight={250} // Reserves enough space for a standard rectangle
+                maxHeight={300} // Hard cap to keep the site clean
+              />
+            </div>
+          )}
 
           {/* FAQ */}
           <section
