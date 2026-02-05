@@ -888,7 +888,7 @@ export default function BlackAndWhiteImageToSvgConverter({
     <>
       <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
-          <div className="block py-6">
+          <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="6722780159"
               delayMs={1500}
@@ -897,9 +897,31 @@ export default function BlackAndWhiteImageToSvgConverter({
               format="horizontal"
               fullWidth={true}
               className="mx-auto w-full max-w-[970px]"
-              placeholderLabel="Sponsored"
             />
           </div>
+          <div className="hidden md:block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
+            />
+          </div>
+          <div className="block md:hidden py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
+            />
+          </div>
+
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none">

@@ -523,7 +523,7 @@ export default function FreeColorPicker() {
     <>
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
-          <div className="block py-6">
+          <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="6722780159"
               delayMs={1500}
@@ -532,7 +532,28 @@ export default function FreeColorPicker() {
               format="horizontal"
               fullWidth={true}
               className="mx-auto w-full max-w-[970px]"
-              placeholderLabel="Sponsored"
+            />
+          </div>
+          <div className="hidden md:block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
+            />
+          </div>
+          <div className="block md:hidden py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
             />
           </div>
 
