@@ -1211,45 +1211,37 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <>
       <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
-          {/* Desktop (lg+) fixed 970x120 */}
-          <div className="hidden lg:flex justify-center py-6">
+          <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="2090332782"
               delayMs={1500}
-              mode="fixed"
-              fixedWidth={970}
-              fixedHeight={90}
               minHeight={90}
               maxHeight={120}
-              className="mx-auto"
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
             />
           </div>
-
-          {/* Tablet (md..lg-1) fixed 728x90 OR 728x100 (use what your unit actually allows) */}
-          <div className="hidden md:flex lg:hidden justify-center py-6">
+          <div className="hidden md:block lg:hidden py-6">
             <AdSenseDelayed
               slot="8858930853"
               delayMs={1500}
-              mode="fixed"
-              fixedWidth={728}
-              fixedHeight={90} // change to 90 if this ad unit is 728x90
               minHeight={90}
               maxHeight={100}
-              className="mx-auto"
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
             />
           </div>
-
-          {/* Mobile (<md) fixed 360x100 (or 320x100 if that’s your real unit) */}
-          <div className="flex md:hidden justify-center py-6">
+          <div className="block md:hidden py-6">
             <AdSenseDelayed
               slot="6632213024"
               delayMs={1500}
-              mode="fixed"
-              fixedWidth={360} // change to 320 if your ad unit is 320-wide
-              fixedHeight={90}
               minHeight={90}
               maxHeight={100}
-              className="mx-auto"
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
             />
           </div>
 
@@ -2071,18 +2063,16 @@ function SeoSections() {
               <AdSenseDelayed
                 slot="7336722354"
                 delayMs={2500}
-                afterInteraction
+                afterInteraction={true}
                 className="my-8"
-                mode="responsive"
-                format="auto" // let Google choose size/creative
-                fullWidth={true} // allows it to adapt to container width
-                minHeight={250} // CLS reservation only
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
                 maxHeight={300}
-                sponsoredText="Sponsored"
+                placeholderLabel="Sponsored"
               />
             </div>
           )}
-
           {/* Use cases */}
           <section className="mt-10">
             <h3 className="text-lg font-bold">Best for</h3>
