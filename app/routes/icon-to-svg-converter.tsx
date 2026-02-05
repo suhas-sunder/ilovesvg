@@ -9,6 +9,7 @@ import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1056,54 +1057,48 @@ export default function IconToSvgConverter({
   return (
     <>
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
-          <header className="text-center mb-2">
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase mb-2">
-              Icon to SVG converter
-            </p>
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-              <span>Icon</span>
-              <span className="text-slate-400">→</span>
-              <span className="text-[#0b2dff]">SVG</span>
-            </h1>
-            <p className="mt-1 text-slate-600">
-              Turn app icons, UI glyphs, and small logos into clean SVG paths.
-              Presets are tuned for flat shapes and crisp edges, with live
-              preview and droplet-safe limits.
-            </p>
-
-            <div className="mt-3 flex items-center justify-center gap-3 text-sm">
-              <a
-                href="/"
-                className="text-slate-700 hover:text-slate-900 hover:underline underline-offset-4"
-              >
-                Back to all tools
-              </a>
-              <span className="text-slate-300" aria-hidden>
-                |
-              </span>
-              <a
-                href="/svg-recolor"
-                className="text-slate-700 hover:text-slate-900 hover:underline underline-offset-4"
-              >
-                Recolor SVG
-              </a>
-              <span className="text-slate-300" aria-hidden>
-                |
-              </span>
-              <a
-                href="/svg-resize-and-scale-editor"
-                className="text-slate-700 hover:text-slate-900 hover:underline underline-offset-4"
-              >
-                Resize / Scale
-              </a>
-            </div>
-          </header>
-
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="hidden lg:block py-6">
+            <AdSenseDelayed
+              slot="2090332782"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+            />
+          </div>
+          <div className="hidden md:block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="8858930853"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
+            />
+          </div>
+          <div className="block md:hidden py-6">
+            <AdSenseDelayed
+              slot="6632213024"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
+            />
+          </div>
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none mb-2">
+                <span>Icon</span>
+                <span className="text-slate-400">→</span>
+                <span className="text-[#0b2dff]">SVG</span>
+              </h1>
 
               {/* Presets */}
               <div className="flex flex-wrap gap-2 mb-2 min-w-0">
@@ -1797,10 +1792,15 @@ function SeoSections() {
             <h2 className="text-2xl md:text-3xl font-bold leading-tight mt-2">
               Convert icons to SVG paths you can recolor, resize, and ship
             </h2>
-            <p className="text-slate-600 max-w-[78ch] mt-2">
+            <p className="text-slate-600  mt-2">
               Icons usually need clean shapes and predictable curves. This page
               uses icon-tuned presets so your SVG is simple, scalable, and easy
               to edit in Figma, Illustrator, or code.
+            </p>
+            <p className="mt-1 text-slate-600">
+              Turn app icons, UI glyphs, and small logos into clean SVG paths.
+              Presets are tuned for flat shapes and crisp edges, with live
+              preview and droplet-safe limits.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1820,7 +1820,21 @@ function SeoSections() {
               ))}
             </div>
           </header>
-
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-8"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           <section className="mt-10">
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">

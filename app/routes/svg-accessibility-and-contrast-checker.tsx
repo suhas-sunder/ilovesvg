@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "./cookies";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 /* ========================
    Meta
@@ -289,7 +290,40 @@ export default function SvgAccessibilityAndContrastChecker() {
   return (
     <>
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="hidden lg:block py-6">
+            <AdSenseDelayed
+              slot="2090332782"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+            />
+          </div>
+          <div className="hidden md:block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="8858930853"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
+            />
+          </div>
+          <div className="block md:hidden py-6">
+            <AdSenseDelayed
+              slot="6632213024"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
+            />
+          </div>
           {/* Breadcrumbs */}
           <nav aria-label="Breadcrumb" className="text-sm text-slate-600 mb-4">
             <Link to="/" className="hover:underline underline-offset-4">

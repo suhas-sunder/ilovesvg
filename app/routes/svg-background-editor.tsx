@@ -4,6 +4,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 const isServer = typeof document === "undefined";
 
@@ -324,7 +325,40 @@ export default function SvgBackgroundPage({
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPasteAny}
       >
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="hidden lg:block py-6">
+            <AdSenseDelayed
+              slot="2090332782"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+            />
+          </div>
+          <div className="hidden md:block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="8858930853"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
+            />
+          </div>
+          <div className="block md:hidden py-6">
+            <AdSenseDelayed
+              slot="6632213024"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
+            />
+          </div>
           {/* Breadcrumbs */}
           <nav
             aria-label="Breadcrumb"
@@ -879,6 +913,39 @@ function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
+        <div className="hidden lg:block py-6">
+          <AdSenseDelayed
+            slot="6722780159"
+            delayMs={1500}
+            minHeight={90}
+            maxHeight={120}
+            format="horizontal"
+            fullWidth={true}
+            className="mx-auto w-full max-w-[970px]"
+          />
+        </div>
+        <div className="hidden md:block lg:hidden py-6">
+          <AdSenseDelayed
+            slot="1303030579"
+            delayMs={1500}
+            minHeight={90}
+            maxHeight={100}
+            format="horizontal"
+            fullWidth={true}
+            className="mx-auto w-full max-w-[728px]"
+          />
+        </div>
+        <div className="block md:hidden py-6">
+          <AdSenseDelayed
+            slot="9492413726"
+            delayMs={1500}
+            minHeight={90}
+            maxHeight={100}
+            format="horizontal"
+            fullWidth={true}
+            className="mx-auto w-full max-w-[360px]"
+          />
+        </div>
         <article className="prose prose-slate max-w-none">
           <h2 className="m-0">How SVG Background Add/Remove Works</h2>
           <p className="mt-3">

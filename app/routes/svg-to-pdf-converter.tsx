@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { jsPDF } from "jspdf";
 import { Canvg } from "canvg";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 /* ========================
    Meta
@@ -344,7 +345,40 @@ export default function SvgToPdf(_: Route.ComponentProps) {
         className="min-h-[100dvh] bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="hidden lg:block py-6">
+            <AdSenseDelayed
+              slot="2090332782"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+            />
+          </div>
+          <div className="hidden md:block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="8858930853"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[728px]"
+            />
+          </div>
+          <div className="block md:hidden py-6">
+            <AdSenseDelayed
+              slot="6632213024"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
+            />
+          </div>
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">

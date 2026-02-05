@@ -953,7 +953,7 @@ export default function DrawingToSvgConverter({
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
-              slot="6722780159"
+              slot="2090332782"
               delayMs={1500}
               minHeight={90}
               maxHeight={120}
@@ -964,7 +964,7 @@ export default function DrawingToSvgConverter({
           </div>
           <div className="hidden md:block lg:hidden py-6">
             <AdSenseDelayed
-              slot="1303030579"
+              slot="8858930853"
               delayMs={1500}
               minHeight={90}
               maxHeight={100}
@@ -975,7 +975,7 @@ export default function DrawingToSvgConverter({
           </div>
           <div className="block md:hidden py-6">
             <AdSenseDelayed
-              slot="9492413726"
+              slot="6632213024"
               delayMs={1500}
               minHeight={90}
               maxHeight={100}
