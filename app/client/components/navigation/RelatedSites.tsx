@@ -45,25 +45,11 @@ export function RelatedSites() {
 
 const SITES: RelatedSite[] = [
   {
-    id: "freetypingcamp",
-    name: "FreeTypingCamp",
-    url: "https://freetypingcamp.com",
-    description:
-      "A free typing practice site with structured lessons and real-time feedback, designed to improve speed and accuracy without distractions.",
-  },
-  {
-    id: "emoji-kitchen-game",
-    name: "Emoji Kitchen Game",
-    url: "https://emojikitchengame.com",
-    description:
-      "Explore and generate creative emoji combinations inspired by Google’s Emoji Kitchen, with fast previews and easy sharing.",
-  },
-  {
     id: "i-love-coloring-page",
     name: "I Love Coloring Page",
     url: "https://ilovecoloringpage.com",
     description:
-      "Printable coloring pages for kids and adults, focused on clean outlines and easy downloads for offline use.",
+      "Printable coloring pages for kids and adults, focused on clean outlines and easy downloads for offline use. ",
   },
   {
     id: "all-text-converters",
@@ -99,13 +85,6 @@ const SITES: RelatedSite[] = [
     url: "https://ilovetimers.com",
     description:
       "Simple online timers for studying, cooking, workouts, and focus sessions, with no setup or sign-up required.",
-  },
-  {
-    id: "all-plant-care",
-    name: "All Plant Care",
-    url: "https://allplantcare.com",
-    description:
-      "Straightforward care guides for common houseplants, covering watering, light, and basic maintenance.",
   },
   {
     id: "focus-climber",

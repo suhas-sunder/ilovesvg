@@ -1230,42 +1230,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 Free SVG Converter
               </h1>
 
-              {/* Presets */}
-              <div className="mb-2 min-w-0 ">
-                <label
-                  htmlFor="preset"
-                  className="block text-sm font-medium text-slate-700 mb-1"
-                >
-                  Preset
-                </label>
-
-                <select
-                  id="preset"
-                  value={activePreset ?? ""}
-                  onChange={(e) => {
-                    const preset = PRESETS.find((p) => p.id === e.target.value);
-                    if (preset) applyPreset(preset);
-                  }}
-                  className=" w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="" disabled>
-                    Select a preset…
-                  </option>
-
-                  {PRESETS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               {/* Settings */}
               <div className="mt-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
@@ -1601,7 +1577,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               {/* Input preview below controls */}
               {previewUrl && (
-                <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                  <p className="text-slate-700 ml-2 mt-1"> Original Image Preview:</p>
                   <img
                     src={previewUrl}
                     alt="Input"
@@ -1612,7 +1589,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
               {busy && (
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
               )}
@@ -1672,7 +1649,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
+                <p className="text-white m-0">
                   {busy
                     ? "Converting…"
                     : "Your converted file will appear here...  "}
@@ -2353,5 +2330,93 @@ function SeoSections() {
         </article>
       </div>
     </section>
+  );
+}
+
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={[
+        "h-4 w-4 text-slate-500 transition-transform",
+        open ? "rotate-180" : "rotate-0",
+      ].join(" ")}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function PresetPicker({
+  presets,
+  activePreset,
+  applyPreset,
+}: {
+  presets: Preset[];
+  activePreset: string | null;
+  applyPreset: (p: Preset) => void;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  const DEFAULT_VISIBLE = 2; // 3 rows × 2 columns
+  const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
+
+  const showToggle = presets.length > DEFAULT_VISIBLE;
+
+  return (
+    <div className="mb-2 min-w-0">
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Preset
+      </label>
+
+      {/* Always 2 columns */}
+      <div className="grid sm:grid-cols-2 gap-2">
+        {visiblePresets.map((p) => {
+          const isActive = activePreset === p.id;
+
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => applyPreset(p)}
+              aria-pressed={isActive}
+              title={p.label}
+              className={[
+                "px-3 py-2 rounded-md border transition cursor-pointer",
+                "text-[13px] sm:text-sm leading-snug text-center",
+                "break-words min-h-[2.75rem]",
+                isActive
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {showToggle && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-2 w-full inline-flex items-center justify-between px-3 py-2 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+        >
+          <span className="text-sm font-medium">
+            {expanded
+              ? "Show fewer presets"
+              : `Show ${presets.length - DEFAULT_VISIBLE} more presets`}
+          </span>
+          <ChevronDownIcon open={expanded} />
+        </button>
+      )}
+    </div>
   );
 }
