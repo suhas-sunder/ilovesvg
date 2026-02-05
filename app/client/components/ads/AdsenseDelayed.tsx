@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    adsbygoogle?: any[];
   }
 }
 
@@ -11,7 +11,6 @@ type Props = {
   delayMs?: number;
   minHeight?: number;
   className?: string;
-  // pass true to wait for first user interaction OR delay (whichever comes first)
   afterInteraction?: boolean;
 };
 
@@ -24,38 +23,66 @@ export function AdSenseDelayed({
 }: Props) {
   const pushed = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const retryRef = useRef<number | null>(null);
+  const insRef = useRef<HTMLModElement | null>(null);
 
-  const pushAd = () => {
-    if (pushed.current) return;
-    pushed.current = true;
+  const tryPush = () => {
+    if (pushed.current) return true;
+    if (typeof window === "undefined") return false;
+
+    // script not present yet
+    if (!window.adsbygoogle) return false;
+
+    // slot not laid out (width 0) -> wait
+    const w = insRef.current?.offsetWidth ?? 0;
+    if (w <= 0) return false;
 
     try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      window.adsbygoogle.push({});
+      pushed.current = true;
+      return true;
     } catch {
-      // ignore double-push errors
+      return false;
     }
+  };
+
+  const start = () => {
+    if (pushed.current) return;
+
+    if (tryPush()) return;
+
+    // retry for ~3.6s total
+    let attempts = 0;
+    retryRef.current = window.setInterval(() => {
+      attempts += 1;
+      const ok = tryPush();
+      if (ok || attempts >= 12) {
+        if (retryRef.current) window.clearInterval(retryRef.current);
+        retryRef.current = null;
+      }
+    }, 300);
   };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Delay trigger
-    timerRef.current = window.setTimeout(pushAd, delayMs);
+    timerRef.current = window.setTimeout(start, delayMs);
 
     if (!afterInteraction) {
       return () => {
         if (timerRef.current) window.clearTimeout(timerRef.current);
+        if (retryRef.current) window.clearInterval(retryRef.current);
       };
     }
 
-    // First interaction trigger (click, key, touch, drop)
     const onFirstInteraction = () => {
-      pushAd();
+      start();
       cleanup();
     };
 
     const cleanup = () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
+      if (retryRef.current) window.clearInterval(retryRef.current);
       window.removeEventListener("pointerdown", onFirstInteraction);
       window.removeEventListener("keydown", onFirstInteraction);
       window.removeEventListener("drop", onFirstInteraction);
@@ -71,6 +98,7 @@ export function AdSenseDelayed({
   return (
     <div className={className} style={{ minHeight }} aria-label="Advertisement">
       <ins
+        ref={insRef}
         className="adsbygoogle"
         style={{ display: "block" }}
         data-ad-client="ca-pub-4810616735714570"

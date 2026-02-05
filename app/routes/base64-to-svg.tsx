@@ -4,6 +4,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 /* ========================
    Meta
@@ -104,6 +105,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
   React.useEffect(() => setHydrated(true), []);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
+  const [showDecodeMenu, setShowDecodeMenu] = React.useState(false);
 
   const [input, setInput] = React.useState<string>("");
   const [outSvg, setOutSvg] = React.useState<string>("");
@@ -183,24 +185,15 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <Breadcrumbs crumbs={crumbs} />
 
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-              <span className="text-[#0b2dff]">Base64</span>
-              <span className="text-slate-400">to</span>
-              <span>SVG</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Paste Base64, a <b>data:image/svg+xml</b> URL, an{" "}
-              <b>&lt;img src="..."&gt;</b> snippet, or a CSS <b>url(...)</b>.
-              Runs fully client-side.
-            </p>
-          </header>
-
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">Input</h2>
+                <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+                  <span className="text-[#0b2dff]">Base64</span>
+                  <span className="text-slate-400">to</span>
+                  <span>SVG</span>
+                </h1>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -219,263 +212,307 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                 </div>
               </div>
 
-              <p className="mt-2 text-[13px] text-slate-600">
-                Accepts: Data URI, raw Base64,{" "}
-                <code>&lt;img src="..."&gt;</code>, <code>url("data:...")</code>
-                , JS strings, or even a blob of text that contains a data URL.
-              </p>
-
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder='Paste here... (Example: <img src="data:image/svg+xml;base64,...">)'
-                className="mt-2 w-full h-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
+                className="mt-2 w-full h-[260px] rounded-2xl border border-slate-200 bg-sky-50 px-3 py-2 font-mono text-[12px] text-slate-900"
                 spellCheck={false}
               />
 
               {err && <div className="mt-3 text-red-700 text-sm">{err}</div>}
+              <p className="mt-2 text-slate-600">
+                Paste Base64, a <b>data:image/svg+xml</b> URL, an{" "}
+                <b>&lt;img src="..."&gt;</b> snippet, or CSS <b>url(...)</b>.
+                Runs fully client-side.
+              </p>
 
               <div className="mt-3 text-[13px] text-slate-600">
-                Tip: If you pasted HTML/CSS, this tool will automatically pull
-                out the <b>data:image/svg+xml...</b> part.
+                Try this:
+                <code className="ml-1 break-all">
+                  data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48L3N2Zz4=
+                </code>
+              </div>
+
+              <div className="mt-1 text-[13px] text-slate-600">
+                Tip: If you paste HTML or CSS, the data URL is auto-extracted.
               </div>
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Decode Settings
-              </h2>
+            <div className="bg-sky-50 border border-slate-200 rounded-2xl px-4 py-4 shadow-sm min-w-0 overflow-auto">
+              <div className="mt-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowDecodeMenu((v) => !v)}
+                  className="w-full inline-flex items-center justify-between px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  aria-expanded={showDecodeMenu}
+                  aria-controls="decode-menu"
+                >
+                  <span className="font-medium">Decode & sanitize options</span>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Input type">
-                    <select
-                      value={settings.sourceMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          sourceMode: e.target.value as SourceMode,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="auto">Auto detect</option>
-                      <option value="data-uri">Data URI</option>
-                      <option value="base64-only">Base64 only</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Decode mode">
-                    <select
-                      value={settings.decodeMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          decodeMode: e.target.value as DecodeMode,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="auto">Auto (recommended)</option>
-                      <option value="utf8">UTF-8</option>
-                      <option value="latin1">Latin-1 fallback</option>
-                    </select>
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Handles most SVGs
-                    </span>
-                  </Field>
-
-                  <Field label="Sanitize output">
-                    <input
-                      type="checkbox"
-                      checked={settings.sanitize}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          sanitize: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                  <svg
+                    className={[
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showDecodeMenu ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
                     />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Strip risky content (recommended)
-                    </span>
-                  </Field>
+                  </svg>
+                </button>
 
-                  {settings.sanitize && (
-                    <Field label="Sanitize options">
-                      <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                        <ToggleRow
-                          checked={settings.stripScripts}
-                          onChange={(v) =>
-                            setSettings((s) => ({ ...s, stripScripts: v }))
-                          }
-                          label="Strip <script> blocks"
-                        />
-                        <ToggleRow
-                          checked={settings.stripForeignObject}
-                          onChange={(v) =>
+                {showDecodeMenu && (
+                  <div
+                    id="decode-menu"
+                    className="mt-2 bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden"
+                  >
+                    <div className="grid gap-2 min-w-0">
+                      <Field label="Input type">
+                        <select
+                          value={settings.sourceMode}
+                          onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripForeignObject: v,
+                              sourceMode: e.target.value as SourceMode,
                             }))
                           }
-                          label="Strip <foreignObject>"
-                        />
-                        <ToggleRow
-                          checked={settings.stripEventHandlers}
-                          onChange={(v) =>
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                        >
+                          <option value="auto">Auto detect</option>
+                          <option value="data-uri">Data URI</option>
+                          <option value="base64-only">Base64 only</option>
+                        </select>
+                      </Field>
+
+                      <Field label="Decode mode">
+                        <select
+                          value={settings.decodeMode}
+                          onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripEventHandlers: v,
+                              decodeMode: e.target.value as DecodeMode,
                             }))
                           }
-                          label="Strip on* event handlers"
-                        />
-                        <ToggleRow
-                          checked={settings.stripJavascriptHrefs}
-                          onChange={(v) =>
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                        >
+                          <option value="auto">Auto (recommended)</option>
+                          <option value="utf8">UTF-8</option>
+                          <option value="latin1">Latin-1 fallback</option>
+                        </select>
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          Handles most SVGs
+                        </span>
+                      </Field>
+
+                      <Field label="Sanitize output">
+                        <input
+                          type="checkbox"
+                          checked={settings.sanitize}
+                          onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripJavascriptHrefs: v,
+                              sanitize: e.target.checked,
                             }))
                           }
-                          label="Strip javascript: links"
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
-                      </div>
-                    </Field>
-                  )}
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Strip risky content (recommended)
+                        </span>
+                      </Field>
 
-                  <Field label="Normalize">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.normalizeNewlines}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, normalizeNewlines: v }))
-                        }
-                        label="Normalize newlines"
-                      />
-                      <ToggleRow
-                        checked={settings.minifyWhitespace}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, minifyWhitespace: v }))
-                        }
-                        label="Minify whitespace (light)"
-                      />
-                      <ToggleRow
-                        checked={settings.ensureXmlns}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, ensureXmlns: v }))
-                        }
-                        label="Ensure xmlns on <svg>"
-                      />
-                      <ToggleRow
-                        checked={settings.pretty}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, pretty: v }))
-                        }
-                        label="Pretty format (best effort)"
-                      />
-                    </div>
-                  </Field>
+                      {settings.sanitize && (
+                        <Field label="Sanitize options">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.stripScripts}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripScripts: v }))
+                              }
+                              label="Strip <script> blocks"
+                            />
+                            <ToggleRow
+                              checked={settings.stripForeignObject}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripForeignObject: v,
+                                }))
+                              }
+                              label="Strip <foreignObject>"
+                            />
+                            <ToggleRow
+                              checked={settings.stripEventHandlers}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripEventHandlers: v,
+                                }))
+                              }
+                              label="Strip on* event handlers"
+                            />
+                            <ToggleRow
+                              checked={settings.stripJavascriptHrefs}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripJavascriptHrefs: v,
+                                }))
+                              }
+                              label="Strip javascript: links"
+                            />
+                          </div>
+                        </Field>
+                      )}
 
-                  <Field label="Preview">
-                    <input
-                      type="checkbox"
-                      checked={settings.showPreview}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          showPreview: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Render decoded SVG
-                    </span>
-                  </Field>
-
-                  <Field label="Copy wrapping">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.copyWithQuotes}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, copyWithQuotes: v }))
-                        }
-                        label="Copy with quotes"
-                      />
-                      {settings.copyWithQuotes && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] text-slate-600">
-                            Quote style
-                          </span>
-                          <select
-                            value={settings.quoteMode}
-                            onChange={(e) =>
+                      <Field label="Normalize">
+                        <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                          <ToggleRow
+                            checked={settings.normalizeNewlines}
+                            onChange={(v) =>
                               setSettings((s) => ({
                                 ...s,
-                                quoteMode: e.target.value as QuoteMode,
+                                normalizeNewlines: v,
                               }))
                             }
-                            className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          >
-                            <option value="double">"</option>
-                            <option value="single">'</option>
-                            <option value="none">(none)</option>
-                          </select>
+                            label="Normalize newlines"
+                          />
+                          <ToggleRow
+                            checked={settings.minifyWhitespace}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                minifyWhitespace: v,
+                              }))
+                            }
+                            label="Minify whitespace (light)"
+                          />
+                          <ToggleRow
+                            checked={settings.ensureXmlns}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, ensureXmlns: v }))
+                            }
+                            label="Ensure xmlns on <svg>"
+                          />
+                          <ToggleRow
+                            checked={settings.pretty}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, pretty: v }))
+                            }
+                            label="Pretty format (best effort)"
+                          />
                         </div>
+                      </Field>
+
+                      <Field label="Preview">
+                        <input
+                          type="checkbox"
+                          checked={settings.showPreview}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              showPreview: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Render decoded SVG
+                        </span>
+                      </Field>
+
+                      <Field label="Copy wrapping">
+                        <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                          <ToggleRow
+                            checked={settings.copyWithQuotes}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, copyWithQuotes: v }))
+                            }
+                            label="Copy with quotes"
+                          />
+                          {settings.copyWithQuotes && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[12px] text-slate-600">
+                                Quote style
+                              </span>
+                              <select
+                                value={settings.quoteMode}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    quoteMode: e.target.value as QuoteMode,
+                                  }))
+                                }
+                                className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer"
+                              >
+                                <option value="double">"</option>
+                                <option value="single">'</option>
+                                <option value="none">(none)</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </Field>
+
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="decoded"
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={copySvg}
+                        disabled={!hydrated || !outSvg}
+                        className={[
+                          "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
+                          "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
+                          "disabled:opacity-70 disabled:cursor-not-allowed",
+                        ].join(" ")}
+                      >
+                        Copy SVG
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={downloadSvg}
+                        disabled={!hydrated || !outSvg}
+                        className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        Download SVG
+                      </button>
+
+                      {!err && outSvg && (
+                        <span className="text-[13px] text-slate-600">
+                          Output size:{" "}
+                          <b>{formatBytes(new Blob([outSvg]).size)}</b>
+                        </span>
                       )}
                     </div>
-                  </Field>
 
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="decoded"
-                    />
-                  </Field>
-                </div>
-
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={copySvg}
-                    disabled={!hydrated || !outSvg}
-                    className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
-                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
-                      "disabled:opacity-70 disabled:cursor-not-allowed",
-                    ].join(" ")}
-                  >
-                    Copy SVG
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={downloadSvg}
-                    disabled={!hydrated || !outSvg}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    Download SVG
-                  </button>
-
-                  {!err && outSvg && (
-                    <span className="text-[13px] text-slate-600">
-                      Output size: <b>{formatBytes(new Blob([outSvg]).size)}</b>
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-3 text-[13px] text-slate-600">
-                  Notes: If decoding fails, try setting Decode mode to UTF-8 or
-                  Latin-1 depending on how the Base64 was created.
-                </div>
+                    <div className="mt-3 text-[13px] text-slate-600">
+                      Notes: If decoding fails, try setting Decode mode to UTF-8
+                      or Latin-1 depending on how the Base64 was created.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* OUTPUT SVG */}
@@ -529,7 +566,12 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <AdSenseDelayed
+        slot="7336722354"
+        delayMs={2500}
+        afterInteraction
+        className="my-6 flex justify-center"
+      />
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
@@ -1002,7 +1044,7 @@ function Breadcrumbs({
   crumbs: Array<{ name: string; href: string }>;
 }) {
   return (
-    <div className="mb-4">
+    <div className="hidden md:flex mb-4">
       <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
@@ -1117,15 +1159,17 @@ function SeoSections() {
           <h2 className="m-0 font-bold">
             Base64 to SVG Converter (Decode Data URI)
           </h2>
+
           <p className="mt-3">
             This tool converts <strong>Base64 to SVG</strong> so you can recover
             the original SVG source from embedded icons and{" "}
-            <strong>data:image/svg+xml;base64</strong> URLs. Paste what you
-            have, including common snippets like{" "}
-            <code>&lt;img src="..."&gt;</code> and CSS <code>url(...)</code>,
-            preview the decoded SVG, then copy or download it as a normal{" "}
-            <code>.svg</code> file.
+            <strong>data:image/svg+xml;base64</strong> URLs. Paste what you have
+            (Base64, a full data URL, an <code>&lt;img src="..."&gt;</code>{" "}
+            snippet, or CSS <code>url(...)</code>), optionally preview the
+            decoded SVG, then copy or download it as a normal <code>.svg</code>{" "}
+            file.
           </p>
+
           <p>
             It also supports decoding <strong>UTF-8 SVG data URIs</strong>{" "}
             (percent-encoded) and includes optional sanitization to remove
@@ -1145,20 +1189,119 @@ function SeoSections() {
                 Paste a Base64 string, data URL, or snippet that contains one.
               </li>
               <li itemProp="step">
-                If needed, switch Input type or Decode mode.
+                If needed, switch <strong>Input type</strong> or{" "}
+                <strong>Decode mode</strong>.
               </li>
-              <li itemProp="step">Optionally sanitize the decoded SVG.</li>
+              <li itemProp="step">
+                Optionally sanitize the decoded SVG (recommended).
+              </li>
               <li itemProp="step">Copy or download the recovered SVG.</li>
             </ol>
           </section>
 
           <section className="mt-10">
+            <h3 className="m-0 font-bold">Examples (Input → Output)</h3>
+
+            <p className="mt-3">
+              These examples show what you can paste into the tool and what you
+              should expect to get back. Outputs are shortened for readability.
+            </p>
+
+            <h4 className="mt-6 mb-2 font-bold">
+              Example 1: Full Base64 data URL
+            </h4>
+            <p className="mt-0">
+              <strong>Input</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIvPjwvc3ZnPg==`}</code>
+            </pre>
+            <p>
+              <strong>Output</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+  <rect width="24" height="24" rx="4"/>
+</svg>`}</code>
+            </pre>
+
+            <h4 className="mt-6 mb-2 font-bold">
+              Example 2: HTML snippet with an embedded data URL
+            </h4>
+            <p className="mt-0">
+              <strong>Input</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`<img alt="icon" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjAiIHk9IjE0Ij5IZWxsbzwvdGV4dD48L3N2Zz4=" />`}</code>
+            </pre>
+            <p>
+              <strong>Output</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`<svg xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="14">Hello</text>
+</svg>`}</code>
+            </pre>
+
+            <h4 className="mt-6 mb-2 font-bold">
+              Example 3: CSS url(...) with a data URL
+            </h4>
+            <p className="mt-0">
+              <strong>Input</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`.logo { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+"); }`}</code>
+            </pre>
+            <p>
+              <strong>Output</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`<svg xmlns="http://www.w3.org/2000/svg">
+  <circle cx="12" cy="12" r="10"/>
+</svg>`}</code>
+            </pre>
+
+            <h4 className="mt-6 mb-2 font-bold">
+              Example 4: UTF-8 (percent-encoded) SVG data URI
+            </h4>
+            <p className="mt-0">
+              <strong>Input</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M2%202h20v20H2z%22%2F%3E%3C%2Fsvg%3E`}</code>
+            </pre>
+            <p>
+              <strong>Output</strong>
+            </p>
+            <pre className="mt-2">
+              <code>{`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path d="M2 2h20v20H2z"/>
+</svg>`}</code>
+            </pre>
+          </section>
+
+          <section className="mt-10">
             <h3 className="m-0 font-bold">Security Notes</h3>
             <p className="mt-3">
-              SVG is an XML format that can include scripts. If you did not
-              create the SVG yourself, keep sanitization enabled before
-              previewing or reusing it.
+              SVG is XML and can include scripts, event handlers, and embedded
+              foreign content. If you didn’t create the SVG yourself, keep{" "}
+              <strong>Sanitize output</strong> enabled before previewing or
+              reusing the decoded SVG.
             </p>
+            <ul className="mt-3 list-disc pl-5">
+              <li>
+                Keep <strong>Strip &lt;script&gt; blocks</strong> on unless you
+                fully trust the source.
+              </li>
+              <li>
+                Keep <strong>Strip on* event handlers</strong> on to remove
+                things like <code>onload</code> and <code>onclick</code>.
+              </li>
+              <li>
+                Strip <strong>javascript:</strong> links to prevent
+                click-triggered script execution.
+              </li>
+            </ul>
           </section>
         </article>
       </div>
