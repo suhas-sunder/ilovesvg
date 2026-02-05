@@ -108,21 +108,29 @@ export function AdSenseDelayed({
   return (
     <div
       className={className}
-      style={{ minHeight, overflow: "hidden" }}
+      style={{
+        minHeight,
+        overflow: "hidden",
+        width: "100%",
+      }}
       aria-label="Advertisement"
     >
-      <div className="flex justify-center">
-        <ins
-          key={slot}
-          ref={insRef as any}
-          className="adsbygoogle"
-          style={{ display: "block", width: "100%", maxWidth: 728 }}
-          data-ad-client="ca-pub-4810616735714570"
-          data-ad-slot={slot}
-          data-ad-format="auto"
-          data-full-width-responsive="true"
-        />
-      </div>
+      <ins
+        key={slot}
+        ref={insRef as any}
+        className="adsbygoogle"
+        style={{
+          display: "block",
+          margin: "0 auto", // This centers the block effectively
+          width: "100%",
+          maxWidth: "728px",
+          minWidth: "250px",
+        }}
+        data-ad-client="ca-pub-4810616735714570"
+        data-ad-slot={slot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
     </div>
   );
 }
