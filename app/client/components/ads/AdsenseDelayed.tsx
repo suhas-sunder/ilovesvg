@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -6,21 +6,34 @@ declare global {
   }
 }
 
+type AdMode = "responsive" | "fixed";
+
 type Props = {
   slot: string;
+
   delayMs?: number;
-  minHeight?: number;
   className?: string;
   afterInteraction?: boolean;
-  placeholderLabel?: string;
 
-  format?: "auto" | "rectangle" | "horizontal" | "vertical";
-  fullWidth?: boolean;
+  // Reserve space (keeps CLS low). In fixed mode, this will default to fixedHeight.
+  minHeight?: number;
   maxHeight?: number;
 
-  // Placeholder (recommended)
+  // Responsive behavior (default matches your current behavior)
+  mode?: AdMode; // default "responsive"
+  format?: "auto" | "rectangle" | "horizontal" | "vertical";
+  fullWidth?: boolean;
+
+  // Fixed behavior (only used when mode="fixed")
+  fixedWidth?: number; // e.g., 320, 728
+  fixedHeight?: number; // e.g., 100, 90
+
+  // Placeholder
   showPlaceholder?: boolean; // default true
   sponsoredText?: string; // default "Sponsored"
+
+  // Back-compat no-op (you had this prop but never used it)
+  placeholderLabel?: string;
 };
 
 export function AdSenseDelayed({
@@ -29,8 +42,18 @@ export function AdSenseDelayed({
   minHeight = 90,
   className = "",
   afterInteraction = false,
+
+  // New: layout mode
+  mode = "responsive",
+
+  // Responsive defaults match your current behavior
   format = "auto",
   fullWidth = false,
+
+  // Fixed
+  fixedWidth,
+  fixedHeight,
+
   maxHeight,
 
   showPlaceholder = true,
@@ -41,11 +64,17 @@ export function AdSenseDelayed({
   const retryRef = useRef<number | null>(null);
   const insRef = useRef<HTMLModElement | null>(null);
 
-  // Reserve enough height so nothing can grow downward later.
-  // If you pass maxHeight, we reserve that. Otherwise reserve minHeight.
-  const reserveHeight = maxHeight ?? minHeight;
-
   const [isFilled, setIsFilled] = useState(false);
+
+  // Reserve enough height so nothing can grow downward later.
+  // - fixed: default to fixedHeight if provided
+  // - responsive: prefer maxHeight then minHeight
+  const reserveHeight = useMemo(() => {
+    if (mode === "fixed") {
+      return fixedHeight ?? maxHeight ?? minHeight;
+    }
+    return maxHeight ?? minHeight;
+  }, [mode, fixedHeight, maxHeight, minHeight]);
 
   const isActuallyFilled = () => {
     const ins = insRef.current;
@@ -73,6 +102,7 @@ export function AdSenseDelayed({
     if (typeof window === "undefined" || !window.adsbygoogle) return false;
     if (pushedSlotRef.current === slot) return true;
 
+    // Ensure the ins has a real layout width (important for responsive AND fixed)
     const w = insRef.current?.offsetWidth ?? 0;
     if (w <= 0) return false;
 
@@ -159,17 +189,36 @@ export function AdSenseDelayed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slot]);
 
+  // IMPORTANT: In fixed mode, do NOT output responsive AdSense attributes/styles.
+  // This prevents a later responsive unit from "bleeding" creatives into a flexible container.
+  const insStyle: React.CSSProperties =
+    mode === "fixed"
+      ? {
+          display: "inline-block",
+          width: fixedWidth ?? "auto",
+          height: fixedHeight ?? reserveHeight,
+          margin: "0 auto",
+        }
+      : {
+          display: "block",
+          margin: "0 auto",
+          width: "100%",
+          minWidth: "250px",
+          height: reserveHeight,
+        };
+
+  const wrapperOverflow = mode === "fixed" ? "hidden" : "hidden";
+
   return (
     <div
       className={["relative", className].join(" ")}
       style={{
-        height: reserveHeight, // key: fixed reservation removes CLS
-        overflow: "hidden",
+        height: reserveHeight,
+        overflow: wrapperOverflow,
         width: "100%",
       }}
       aria-label="Advertisement"
     >
-      {/* Full-size placeholder so it never looks like a random floating pill */}
       {showPlaceholder && (
         <div
           className={[
@@ -184,7 +233,6 @@ export function AdSenseDelayed({
               {sponsoredText}
             </span>
 
-            {/* subtle skeleton bars */}
             <div className="w-[220px] max-w-[70vw]">
               <div className="h-2 rounded bg-slate-200/70" />
               <div className="mt-2 h-2 rounded bg-slate-200/60" />
@@ -194,22 +242,23 @@ export function AdSenseDelayed({
         </div>
       )}
 
-      <ins
-        key={slot}
-        ref={insRef}
-        className="adsbygoogle"
-        style={{
-          display: "block",
-          margin: "0 auto",
-          width: "100%",
-          minWidth: "250px",
-          height: reserveHeight, // keep iframe/container from changing height
-        }}
-        data-ad-client="ca-pub-4810616735714570"
-        data-ad-slot={slot}
-        data-ad-format={format}
-        data-full-width-responsive={fullWidth ? "true" : "false"}
-      />
+      {/* Center fixed units cleanly; responsive units can just fill width */}
+      <div className={mode === "fixed" ? "w-full flex justify-center" : ""}>
+        <ins
+          key={slot}
+          ref={insRef}
+          className="adsbygoogle"
+          style={insStyle}
+          data-ad-client="ca-pub-4810616735714570"
+          data-ad-slot={slot}
+          {...(mode === "responsive"
+            ? {
+                "data-ad-format": format,
+                "data-full-width-responsive": fullWidth ? "true" : "false",
+              }
+            : {})}
+        />
+      </div>
     </div>
   );
 }
