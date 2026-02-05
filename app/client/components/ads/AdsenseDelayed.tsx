@@ -108,24 +108,14 @@ export function AdSenseDelayed({
   return (
     <div
       className={className}
-      style={{
-        minHeight,
-        overflow: "hidden",
-        width: "100%",
-      }}
+      style={{ minHeight, overflow: "hidden" }}
       aria-label="Advertisement"
     >
       <ins
-        key={slot}
-        ref={insRef as any}
+        key={slot} // force <ins> remount when slot changes
+        ref={insRef}
         className="adsbygoogle"
-        style={{
-          display: "block",
-          margin: "0 auto", // This centers the block effectively
-          width: "100%",
-          maxWidth: "728px",
-          minWidth: "250px",
-        }}
+        style={{ display: "block", margin: "0 auto" }}
         data-ad-client="ca-pub-4810616735714570"
         data-ad-slot={slot}
         data-ad-format="auto"
