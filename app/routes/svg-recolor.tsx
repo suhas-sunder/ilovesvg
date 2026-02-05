@@ -453,7 +453,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-visible min-w-0">
               <div className="flex items-center justify-between gap-2 mb-3">

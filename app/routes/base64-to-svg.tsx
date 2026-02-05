@@ -195,7 +195,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
             />
           </div>
 
-          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1381,7 +1381,7 @@ function SeoSections() {
                 >
                   <div className="text-sm font-semibold">{ex.title}</div>
 
-                  <div className="mt-3 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="mt-3 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                         {ex.inputLabel}

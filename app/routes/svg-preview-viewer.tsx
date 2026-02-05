@@ -941,7 +941,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
             </div>
 
             {/* Body split */}
-            <div className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-[1fr_360px]">
+            <div className="lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-[1fr_360px]">
               {/* Viewer */}
               <div className="border-r border-slate-200">
                 <div

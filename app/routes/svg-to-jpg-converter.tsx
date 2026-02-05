@@ -291,7 +291,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">

@@ -561,7 +561,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
