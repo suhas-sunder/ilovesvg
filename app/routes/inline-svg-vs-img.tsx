@@ -370,7 +370,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -938,7 +938,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
           </section>
 
           {/* PREVIEWS */}
-          <section className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <section className="mt-4 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CompareCard
               title="Inline SVG"
               badge="Styleable, best control"
@@ -1045,7 +1045,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               </table>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="mt-4 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <h3 className="m-0 font-bold text-slate-900">
                   Pick Inline SVG when
@@ -1142,7 +1142,7 @@ function CompareCard({
         </button>
       </div>
 
-      <div className="p-4 grid grid-cols-1 gap-3">
+      <div className="p-4 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 gap-3">
         <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
           <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
             Preview

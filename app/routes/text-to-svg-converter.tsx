@@ -992,7 +992,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
@@ -1680,7 +1680,7 @@ function SeoSections() {
               or character.
             </p>
 
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mt-5 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-semibold text-slate-900">
                   Supported uploads

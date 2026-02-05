@@ -415,7 +415,7 @@ export default function SvgAccessibilityAndContrastChecker() {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             {/* INPUT */}
             <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-start justify-between gap-3">
@@ -544,7 +544,7 @@ export default function SvgAccessibilityAndContrastChecker() {
 
                 <div className="grid gap-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 min-w-0">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
+                    <div className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
                       <ColorField
                         label="Foreground"
                         value={fg}
@@ -557,7 +557,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       />
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="mt-3 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="min-w-0">
                         <label className="text-sm font-semibold text-slate-700">
                           Apply scope
@@ -718,7 +718,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
+                <div className="mt-3 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
                   <PreviewCard
                     title="Original SVG"
                     svg={safeOriginalSvg}
@@ -847,7 +847,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                           </div>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="mt-3 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-2">
                           <SuggestionTile
                             disabled={!fgCandidate}
                             title="Adjust foreground"
@@ -1042,7 +1042,7 @@ function SuggestionTile(props: {
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="mt-3 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
           <div className="text-xs font-semibold text-slate-700">Current</div>
           <div className="mt-1 flex items-center gap-2 min-w-0">

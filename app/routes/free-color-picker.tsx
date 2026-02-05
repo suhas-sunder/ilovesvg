@@ -557,7 +557,7 @@ export default function FreeColorPicker() {
             />
           </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: Controls */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <nav

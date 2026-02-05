@@ -194,30 +194,8 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <section className="pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -270,7 +248,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl px-4 py-4 shadow-sm min-w-0 overflow-auto">
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl px-4 py-4 shadow-sm min-w-0 overflow-auto">
               <div className="mt-3 min-w-0">
                 <button
                   type="button"
@@ -596,6 +574,17 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
@@ -1219,7 +1208,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1393,7 +1381,7 @@ function SeoSections() {
                 >
                   <div className="text-sm font-semibold">{ex.title}</div>
 
-                  <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="mt-3 pt-6 lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                         {ex.inputLabel}
