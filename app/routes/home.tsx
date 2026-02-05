@@ -1222,30 +1222,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pt-6 lg:pt-0 lg:pb-12">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex mb-3 text-sky-600 items-center gap-2 text-[34px] font-extrabold leading-none m-0">
@@ -1253,7 +1231,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </h1>
 
               {/* Presets */}
-              <div className="mb-2 min-w-0">
+              <div className="mb-2 min-w-0 ">
                 <label
                   htmlFor="preset"
                   className="block text-sm font-medium text-slate-700 mb-1"
@@ -1268,7 +1246,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const preset = PRESETS.find((p) => p.id === e.target.value);
                     if (preset) applyPreset(preset);
                   }}
-                  className="w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className=" w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="" disabled>
                     Select a preset…
@@ -1645,6 +1623,42 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       key={item.stamp}
                       className="rounded-xl border border-slate-200 bg-white p-2"
                     >
+                      <div className="flex gap-3 items-center flex-wrap justify-between">
+                        <span className="text-[13px] text-slate-700">
+                          {item.width > 0 && item.height > 0
+                            ? `${item.width} × ${item.height} px`
+                            : "size unknown"}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap my-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const b = new Blob([item.svg], {
+                              type: "image/svg+xml;charset=utf-8",
+                            });
+                            const u = URL.createObjectURL(b);
+                            const a = document.createElement("a");
+                            a.href = u;
+                            a.download = "converted.svg";
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(u);
+                          }}
+                          className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                        >
+                          Download SVG
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopySvg(item.svg)}
+                          className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                        >
+                          Copy SVG
+                        </button>
+                      </div>
+
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
@@ -1653,41 +1667,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
-                      </div>
-                      <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
-                        <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0
-                            ? `${item.width} × ${item.height} px`
-                            : "size unknown"}
-                        </span>
-                        <div className="flex gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const b = new Blob([item.svg], {
-                                type: "image/svg+xml;charset=utf-8",
-                              });
-                              const u = URL.createObjectURL(b);
-                              const a = document.createElement("a");
-                              a.href = u;
-                              a.download = "converted.svg";
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              URL.revokeObjectURL(u);
-                            }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
-                          >
-                            Download SVG
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
-                          >
-                            Copy SVG
-                          </button>
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -1710,7 +1689,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
