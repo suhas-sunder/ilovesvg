@@ -1218,7 +1218,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               delayMs={1500}
               mode="fixed"
               fixedWidth={970}
-              fixedHeight={120}
+              fixedHeight={90}
               minHeight={90}
               maxHeight={120}
               className="mx-auto"
@@ -1232,7 +1232,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               delayMs={1500}
               mode="fixed"
               fixedWidth={728}
-              fixedHeight={100} // change to 90 if this ad unit is 728x90
+              fixedHeight={90} // change to 90 if this ad unit is 728x90
               minHeight={90}
               maxHeight={100}
               className="mx-auto"
@@ -1246,7 +1246,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               delayMs={1500}
               mode="fixed"
               fixedWidth={360} // change to 320 if your ad unit is 320-wide
-              fixedHeight={100}
+              fixedHeight={90}
               minHeight={90}
               maxHeight={100}
               className="mx-auto"
