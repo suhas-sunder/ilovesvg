@@ -111,16 +111,18 @@ export function AdSenseDelayed({
       style={{ minHeight, overflow: "hidden" }}
       aria-label="Advertisement"
     >
-      <ins
-        key={slot} // force <ins> remount when slot changes
-        ref={insRef}
-        className="adsbygoogle"
-        style={{ display: "block" }}
-        data-ad-client="ca-pub-4810616735714570"
-        data-ad-slot={slot}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-      />
+      <div className="flex justify-center">
+        <ins
+          key={slot}
+          ref={insRef as any}
+          className="adsbygoogle"
+          style={{ display: "block", width: "100%", maxWidth: 728 }}
+          data-ad-client="ca-pub-4810616735714570"
+          data-ad-slot={slot}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        />
+      </div>
     </div>
   );
 }
