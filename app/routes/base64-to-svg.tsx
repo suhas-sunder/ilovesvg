@@ -196,7 +196,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
           <div className="hidden md:block lg:hidden py-6">
             <AdSenseDelayed
-              slot="6722780159"
+              slot="1303030579"
               delayMs={1500}
               minHeight={90}
               maxHeight={100}
@@ -207,7 +207,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
           <div className="block md:hidden py-6">
             <AdSenseDelayed
-              slot="6722780159"
+              slot="9492413726"
               delayMs={1500}
               minHeight={90}
               maxHeight={100}
