@@ -1209,23 +1209,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
-          {typeof document !== "undefined" && (
-            <div className="hidden lg:block">
-              {/* TOP: desktop only */}
-              <AdSenseDelayed
-                slot="6722780159"
-                delayMs={1500}
-                minHeight={90}
-                maxHeight={120}
-                format="horizontal"
-                fullWidth={true}
-                className="mx-auto w-full max-w-[970px]"
-              />
-            </div>
-          )}
-
+      <main className=" bg-slate-50 text-slate-900 pt-6 lg:pt-0">
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="hidden lg:block py-6">
+            {/* TOP: desktop only */}
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+              placeholderLabel="Sponsored"
+            />
+          </div>
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
@@ -1694,7 +1692,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         )}
       </main>
       {typeof document !== "undefined" && (
-        <div className="lg:hidden block">
+        <div className="lg:hidden block py-6">
           {/* Below Utility: Mobile only */}
           <AdSenseDelayed
             slot="9492413726"
@@ -1704,9 +1702,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             format="horizontal"
             fullWidth={true}
             className="mx-auto w-full max-w-[970px]"
+            placeholderLabel="Sponsored"
           />
         </div>
       )}
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -2055,17 +2055,18 @@ function SeoSections() {
             </div>
           </header>
           {typeof document !== "undefined" && (
-            <div className="hidden lg:block">
+            <div className="hidden lg:block py-6">
               {/* In-content: desktop only (between hero and sections) */}
               <AdSenseDelayed
                 slot="7336722354"
                 delayMs={2500}
                 afterInteraction={true}
                 className="my-8"
-                format="rectangle" // Constrains the shape to a box
-                fullWidth={false} // Prevents giant vertical expansion
-                minHeight={250} // Reserves enough space for a standard rectangle
-                maxHeight={300} // Hard cap to keep the site clean
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
               />
             </div>
           )}
@@ -2309,17 +2310,18 @@ function SeoSections() {
           </section>
 
           {typeof document !== "undefined" && (
-            <div className="lg:hidden block">
+            <div className="lg:hidden block py-6">
               {/* Above FAQ: mobile only */}
               <AdSenseDelayed
                 slot="1303030579"
                 delayMs={2500}
                 afterInteraction={true}
                 className="my-8"
-                format="rectangle" // Constrains the shape to a box
-                fullWidth={false} // Prevents giant vertical expansion
-                minHeight={250} // Reserves enough space for a standard rectangle
-                maxHeight={300} // Hard cap to keep the site clean
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
               />
             </div>
           )}
