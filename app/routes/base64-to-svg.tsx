@@ -566,12 +566,9 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-      <AdSenseDelayed
-        slot="7336722354"
-        delayMs={2500}
-        afterInteraction
-        className="my-6 flex justify-center"
-      />
+      {typeof document !== "undefined" && (
+        <AdSenseDelayed slot="7336722354" delayMs={2500} afterInteraction />
+      )}
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />

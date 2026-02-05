@@ -21,14 +21,18 @@ export function AdSenseDelayed({
   className = "",
   afterInteraction = false,
 }: Props) {
-  const pushed = useRef(false);
+  // Track which slot was pushed so changing slot re-enables push
+  const pushedSlotRef = useRef<string | null>(null);
+
   const timerRef = useRef<number | null>(null);
   const retryRef = useRef<number | null>(null);
   const insRef = useRef<HTMLModElement | null>(null);
 
   const tryPush = () => {
-    if (pushed.current) return true;
     if (typeof window === "undefined") return false;
+
+    // already pushed for this slot
+    if (pushedSlotRef.current === slot) return true;
 
     // script not present yet
     if (!window.adsbygoogle) return false;
@@ -38,8 +42,8 @@ export function AdSenseDelayed({
     if (w <= 0) return false;
 
     try {
-      window.adsbygoogle.push({});
-      pushed.current = true;
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+      pushedSlotRef.current = slot;
       return true;
     } catch {
       return false;
@@ -47,12 +51,13 @@ export function AdSenseDelayed({
   };
 
   const start = () => {
-    if (pushed.current) return;
-
     if (tryPush()) return;
 
     // retry for ~3.6s total
     let attempts = 0;
+
+    if (retryRef.current) window.clearInterval(retryRef.current);
+
     retryRef.current = window.setInterval(() => {
       attempts += 1;
       const ok = tryPush();
@@ -66,14 +71,8 @@ export function AdSenseDelayed({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    timerRef.current = window.setTimeout(start, delayMs);
-
-    if (!afterInteraction) {
-      return () => {
-        if (timerRef.current) window.clearTimeout(timerRef.current);
-        if (retryRef.current) window.clearInterval(retryRef.current);
-      };
-    }
+    // IMPORTANT: reset when slot changes
+    pushedSlotRef.current = null;
 
     const onFirstInteraction = () => {
       start();
@@ -83,21 +82,37 @@ export function AdSenseDelayed({
     const cleanup = () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
       if (retryRef.current) window.clearInterval(retryRef.current);
+      timerRef.current = null;
+      retryRef.current = null;
+
       window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("scroll", onFirstInteraction);
       window.removeEventListener("keydown", onFirstInteraction);
       window.removeEventListener("drop", onFirstInteraction);
     };
 
-    window.addEventListener("pointerdown", onFirstInteraction, { once: true });
-    window.addEventListener("keydown", onFirstInteraction, { once: true });
-    window.addEventListener("drop", onFirstInteraction, { once: true });
+    if (afterInteraction) {
+      window.addEventListener("pointerdown", onFirstInteraction, {
+        once: true,
+      });
+      window.addEventListener("scroll", onFirstInteraction, { once: true });
+      window.addEventListener("keydown", onFirstInteraction, { once: true });
+      window.addEventListener("drop", onFirstInteraction, { once: true });
+    } else {
+      timerRef.current = window.setTimeout(start, delayMs);
+    }
 
     return cleanup;
-  }, [delayMs, afterInteraction]);
+  }, [slot, delayMs, afterInteraction]);
 
   return (
-    <div className={className} style={{ minHeight }} aria-label="Advertisement">
+    <div
+      className={className}
+      style={{ minHeight, overflow: "hidden" }}
+      aria-label="Advertisement"
+    >
       <ins
+        key={slot} // force <ins> remount when slot changes
         ref={insRef}
         className="adsbygoogle"
         style={{ display: "block" }}

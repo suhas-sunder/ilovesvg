@@ -881,6 +881,9 @@ export default function BlackAndWhiteImageToSvgConverter({
     });
   }
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
+
   return (
     <>
       <main className=" bg-slate-50 text-slate-900">
@@ -903,99 +906,33 @@ export default function BlackAndWhiteImageToSvgConverter({
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
 
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+              <div className="mb-2 min-w-0">
+                <label htmlFor="preset-select" className="sr-only">
+                  Presets
+                </label>
 
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
-              </div>
-              <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview: fast ≤10 MB, throttled ≤25 MB. Files up to 30 MB
-                accepted.
-              </div>
-
-              {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+                <select
+                  id="preset-select"
+                  value={activePreset ?? ""}
+                  onChange={(e) => {
+                    const selected = PRESETS.find(
+                      (p) => p.id === e.target.value,
+                    );
+                    if (selected) applyPreset(selected);
+                  }}
+                  className="w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b2dff]"
                 >
-                  <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
-                  </div>
-                  <input
-                    id="file-inp"
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize &&
-                          originalFileSize > file.size &&
-                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
+                  <option value="" disabled>
+                    Select a preset…
+                  </option>
+
+                  {PRESETS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="mt-3 flex flex-col gap-2 min-w-0">
                 <Field label="Binary mode (true B/W)">
@@ -1173,6 +1110,82 @@ export default function BlackAndWhiteImageToSvgConverter({
                   </div>
                 </Field>
               </div>
+
+              <div className="text-[13px] text-slate-600 mb-2">
+                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
+              </div>
+
+              {!file ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={onDrop}
+                  onClick={() => document.getElementById("file-inp")?.click()}
+                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <div className="text-lg text-slate-600">
+                    Click, drag & drop, or paste a PNG/JPEG
+                    <div className="text-sky-700 my-2 text-center text-xs">
+                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
+                      MB are auto-compressed on-device (if possible).
+                    </div>
+                  </div>
+                  <input
+                    id="file-inp"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={onPick}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize &&
+                          originalFileSize > file.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button

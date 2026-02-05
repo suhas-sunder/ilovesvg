@@ -80,11 +80,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
-          crossOrigin="anonymous"
-        />
       </head>
       <body>
         <PHProvider>
@@ -92,6 +87,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
           <ScrollRestoration />
           <Scripts />
+
+          {/* Load AdSense after app scripts */}
+          <script
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
+            crossOrigin="anonymous"
+          />
         </PHProvider>
       </body>
     </html>

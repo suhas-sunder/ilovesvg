@@ -1678,13 +1678,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
-      <AdSenseDelayed
-        slot="7336722354"
-        delayMs={2500}
-        afterInteraction
-        className="my-6 flex justify-center"
-      />
-
+      {typeof document !== "undefined" && (
+        <AdSenseDelayed slot="7336722354" delayMs={2500} afterInteraction />
+      )}
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
