@@ -9,6 +9,7 @@ import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 const isServer = typeof document === "undefined";
 
@@ -881,32 +882,35 @@ export default function BlackAndWhiteImageToSvgConverter({
     });
   }
 
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
-
+  const [showTraceSettings, setShowTraceSettings] = React.useState(false);
 
   return (
     <>
       <main className=" bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
-          <header className="text-center mb-2">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
-              <span>Black</span>
-              <span className="text-[#0b2dff]">&</span>
-              <span>White</span>
-              <span className="text-slate-400">→</span>
-              <span className="text-[#0b2dff]">SVG</span>
-            </h1>
-            <p className="mt-1 text-slate-600">
-              Convert black and white PNG/JPEG images into crisp vector SVG with
-              live preview.
-            </p>
-          </header>
-
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="block py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+              placeholderLabel="Sponsored"
+            />
+          </div>
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none">
+                <span>Black</span>
+                <span className="text-[#0b2dff]">&</span>
+                <span>White</span>
+                <span className="text-slate-400">→</span>
+                <span className="text-[#0b2dff]">SVG</span>
+              </h1>
 
-              <div className="mb-2 min-w-0">
+              <div className="my-2 min-w-0">
                 <label htmlFor="preset-select" className="sr-only">
                   Presets
                 </label>
@@ -934,183 +938,220 @@ export default function BlackAndWhiteImageToSvgConverter({
                 </select>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 min-w-0">
-                <Field label="Binary mode (true B/W)">
-                  <input
-                    type="checkbox"
-                    checked={settings.binaryMode}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        binaryMode: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 accent-[#0b2dff]"
-                  />
-                  <span className="text-[13px] text-slate-700">
-                    {settings.binaryMode ? "On" : "Off"}
-                  </span>
-                </Field>
-
-                <Field label="Invert input before tracing">
-                  <input
-                    type="checkbox"
-                    checked={settings.binaryInvertInput}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        binaryInvertInput: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 accent-[#0b2dff]"
-                  />
-                  <span className="text-[13px] text-slate-700">
-                    Swap black and white first
-                  </span>
-                </Field>
-
-                <Field label={`Threshold (${settings.threshold})`}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={255}
-                    step={1}
-                    value={settings.threshold}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        threshold: Number(e.target.value),
-                      }))
-                    }
-                    className="w-full accent-[#0b2dff]"
-                  />
-                </Field>
-
-                <Field label="Turd size">
-                  <Num
-                    value={settings.turdSize}
-                    min={0}
-                    max={10}
-                    step={1}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, turdSize: v }))
-                    }
-                  />
-                </Field>
-
-                <Field label="Curve tolerance">
-                  <Num
-                    value={settings.optTolerance}
-                    min={0.05}
-                    max={1.2}
-                    step={0.05}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, optTolerance: v }))
-                    }
-                  />
-                </Field>
-
-                <Field label="Turn policy">
-                  <select
-                    value={settings.turnPolicy}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        turnPolicy: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+              <div className="my-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowTraceSettings((v) => !v)}
+                  aria-expanded={showTraceSettings}
+                  aria-controls="trace-settings-panel"
+                  className={[
+                    "w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors",
+                    "hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b2dff]",
+                  ].join(" ")}
+                >
+                  <span className="text-sm font-semibold">Trace settings</span>
+                  <span
+                    className={[
+                      "text-slate-600 transition-transform",
+                      showTraceSettings ? "rotate-180" : "",
+                    ].join(" ")}
+                    aria-hidden="true"
                   >
-                    <option value="black">black</option>
-                    <option value="white">white</option>
-                    <option value="left">left</option>
-                    <option value="right">right</option>
-                    <option value="minority">minority</option>
-                    <option value="majority">majority</option>
-                  </select>
-                </Field>
+                    ▾
+                  </span>
+                </button>
 
-                <Field label="Line color">
-                  <input
-                    type="color"
-                    value={settings.lineColor}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
-                    }
-                    className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                  />
-                </Field>
+                {showTraceSettings && (
+                  <div
+                    id="trace-settings-panel"
+                    className="mt-3 flex flex-col gap-2 min-w-0"
+                  >
+                    <Field label="Binary mode (true B/W)">
+                      <input
+                        type="checkbox"
+                        checked={settings.binaryMode}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            binaryMode: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                      />
+                      <span className="text-[13px] text-slate-700">
+                        {settings.binaryMode ? "On" : "Off"}
+                      </span>
+                    </Field>
 
-                <Field label="Invert output (white on dark)">
-                  <input
-                    type="checkbox"
-                    checked={settings.invert}
-                    onChange={(e) =>
-                      setSettings((s) => {
-                        const on = e.target.checked;
-                        if (!on) return { ...s, invert: false };
-                        const bg =
-                          !s.bgColor ||
-                          s.bgColor.toLowerCase() === "#ffffff" ||
-                          s.bgColor.toLowerCase() === "#fff"
-                            ? DARK_BG_DEFAULT
-                            : s.bgColor;
-                        return {
-                          ...s,
-                          invert: true,
-                          transparent: false,
-                          bgColor: bg,
-                          lineColor:
-                            s.lineColor?.toLowerCase() === "#000000"
-                              ? "#ffffff"
-                              : s.lineColor,
-                        };
-                      })
-                    }
-                    className="h-4 w-4 accent-[#0b2dff]"
-                  />
-                </Field>
+                    <Field label="Invert input before tracing">
+                      <input
+                        type="checkbox"
+                        checked={settings.binaryInvertInput}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            binaryInvertInput: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                      />
+                      <span className="text-[13px] text-slate-700">
+                        Swap black and white first
+                      </span>
+                    </Field>
 
-                <Field label="Background">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={settings.transparent}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          transparent: e.target.checked,
-                        }))
-                      }
-                      title="Transparent background"
-                      className="h-4 w-4 accent-[#0b2dff]"
-                    />
-                    <span className="text-[13px] text-slate-700">
-                      Transparent
-                    </span>
-                    <input
-                      type="color"
-                      value={settings.bgColor}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
-                      }
-                      aria-disabled={settings.transparent}
-                      className={[
-                        "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent
-                          ? "opacity-50 pointer-events-none"
-                          : "",
-                      ].join(" ")}
-                      title={
-                        settings.transparent
-                          ? "Uncheck to pick a background color"
-                          : "Pick background color"
-                      }
-                    />
+                    <Field label={`Threshold (${settings.threshold})`}>
+                      <input
+                        type="range"
+                        min={0}
+                        max={255}
+                        step={1}
+                        value={settings.threshold}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            threshold: Number(e.target.value),
+                          }))
+                        }
+                        className="w-full accent-[#0b2dff] cursor-pointer"
+                      />
+                    </Field>
+
+                    <Field label="Turd size">
+                      <Num
+                        value={settings.turdSize}
+                        min={0}
+                        max={10}
+                        step={1}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, turdSize: v }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Curve tolerance">
+                      <Num
+                        value={settings.optTolerance}
+                        min={0.05}
+                        max={1.2}
+                        step={0.05}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, optTolerance: v }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Turn policy">
+                      <select
+                        value={settings.turnPolicy}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            turnPolicy: e.target.value as any,
+                          }))
+                        }
+                        className={[
+                          "w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors",
+                          "hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b2dff]",
+                        ].join(" ")}
+                      >
+                        <option value="black">black</option>
+                        <option value="white">white</option>
+                        <option value="left">left</option>
+                        <option value="right">right</option>
+                        <option value="minority">minority</option>
+                        <option value="majority">majority</option>
+                      </select>
+                    </Field>
+
+                    <Field label="Line color">
+                      <input
+                        type="color"
+                        value={settings.lineColor}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            lineColor: e.target.value,
+                          }))
+                        }
+                        className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                      />
+                    </Field>
+
+                    <Field label="Invert output (white on dark)">
+                      <input
+                        type="checkbox"
+                        checked={settings.invert}
+                        onChange={(e) =>
+                          setSettings((s) => {
+                            const on = e.target.checked;
+                            if (!on) return { ...s, invert: false };
+                            const bg =
+                              !s.bgColor ||
+                              s.bgColor.toLowerCase() === "#ffffff" ||
+                              s.bgColor.toLowerCase() === "#fff"
+                                ? DARK_BG_DEFAULT
+                                : s.bgColor;
+                            return {
+                              ...s,
+                              invert: true,
+                              transparent: false,
+                              bgColor: bg,
+                              lineColor:
+                                s.lineColor?.toLowerCase() === "#000000"
+                                  ? "#ffffff"
+                                  : s.lineColor,
+                            };
+                          })
+                        }
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                      />
+                    </Field>
+
+                    <Field label="Background">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.transparent}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              transparent: e.target.checked,
+                            }))
+                          }
+                          title="Transparent background"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700">
+                          Transparent
+                        </span>
+                        <input
+                          type="color"
+                          value={settings.bgColor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              bgColor: e.target.value,
+                            }))
+                          }
+                          aria-disabled={settings.transparent}
+                          className={[
+                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                            settings.transparent
+                              ? "opacity-50 pointer-events-none"
+                              : "",
+                          ].join(" ")}
+                          title={
+                            settings.transparent
+                              ? "Uncheck to pick a background color"
+                              : "Pick background color"
+                          }
+                        />
+                      </div>
+                    </Field>
                   </div>
-                </Field>
+                )}
               </div>
-
               <div className="text-[13px] text-slate-600 mb-2">
                 Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
                 <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
@@ -1226,12 +1267,9 @@ export default function BlackAndWhiteImageToSvgConverter({
             </div>
 
             <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1523,10 +1561,14 @@ function SeoSections() {
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
                 Black and White Image to SVG Converter
               </h2>
-              <p className="text-slate-600 max-w-[75ch]">
+              <p className="text-slate-600 ">
                 Turn high-contrast art and scans into editable SVG paths. Binary
                 mode produces a true black/white input before tracing for
                 predictable results.
+              </p>
+              <p className="mt-1 text-slate-600">
+                Convert black and white PNG, JPEG, JPG, and WEBP images into
+                crisp vector SVG with live preview.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1547,7 +1589,21 @@ function SeoSections() {
               </div>
             </div>
           </header>
-
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-8"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           <section className="mt-10">
             <h3 className="text-lg font-bold">Tips for cleaner output</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">

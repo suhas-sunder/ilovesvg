@@ -1949,7 +1949,7 @@ function SeoSections() {
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
                 Sticker to SVG converter for clean, cut-friendly vectors
               </h2>
-              <p className="text-slate-600 max-w-[75ch]">
+              <p className="text-slate-600 ">
                 Turn sticker art into crisp SVG paths using Potrace. This page
                 is tuned for sticker-style graphics like bold outlines, flat
                 colors, and logo-like shapes. Live preview stays fast with

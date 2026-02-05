@@ -9,6 +9,7 @@ import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1373,7 +1374,19 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
   return (
     <>
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="block py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+              placeholderLabel="Sponsored"
+            />
+          </div>
           <header className="text-center mb-3">
             <h1 className="text-[34px] font-extrabold leading-none m-0">
               Emoji to SVG Converter

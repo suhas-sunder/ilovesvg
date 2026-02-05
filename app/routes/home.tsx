@@ -1209,10 +1209,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900 pt-6 lg:pt-0">
+      <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
-          <div className="hidden lg:block py-6">
-            {/* TOP: desktop only */}
+          <div className="block py-6">
             <AdSenseDelayed
               slot="6722780159"
               delayMs={1500}
@@ -1614,11 +1613,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
             {/* RESULTS */}
             <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
@@ -1691,21 +1688,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
-      {typeof document !== "undefined" && (
-        <div className="lg:hidden block py-6">
-          {/* Below Utility: Mobile only */}
-          <AdSenseDelayed
-            slot="9492413726"
-            delayMs={1500}
-            minHeight={90}
-            maxHeight={120}
-            format="horizontal"
-            fullWidth={true}
-            className="mx-auto w-full max-w-[970px]"
-            placeholderLabel="Sponsored"
-          />
-        </div>
-      )}
 
       <SeoSections />
       <OtherToolsLinks />
@@ -2055,8 +2037,7 @@ function SeoSections() {
             </div>
           </header>
           {typeof document !== "undefined" && (
-            <div className="hidden lg:block py-6">
-              {/* In-content: desktop only (between hero and sections) */}
+            <div className="block py-6">
               <AdSenseDelayed
                 slot="7336722354"
                 delayMs={2500}
@@ -2308,23 +2289,6 @@ function SeoSections() {
               ))}
             </div>
           </section>
-
-          {typeof document !== "undefined" && (
-            <div className="lg:hidden block py-6">
-              {/* Above FAQ: mobile only */}
-              <AdSenseDelayed
-                slot="1303030579"
-                delayMs={2500}
-                afterInteraction={true}
-                className="my-8"
-                format="rectangle"
-                fullWidth={false}
-                minHeight={250}
-                maxHeight={300}
-                placeholderLabel="Sponsored"
-              />
-            </div>
-          )}
 
           {/* FAQ */}
           <section

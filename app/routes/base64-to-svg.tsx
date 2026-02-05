@@ -182,13 +182,26 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
   return (
     <>
       <main className=" bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
-          <Breadcrumbs crumbs={crumbs} />
+        <div className="max-w-[1180px] mx-auto px-4 pt-6 lg:pt-0">
+          <div className="block py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+              placeholderLabel="Sponsored"
+            />
+          </div>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
+                <Breadcrumbs crumbs={crumbs} />
+
                 <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
                   <span className="text-[#0b2dff]">Base64</span>
                   <span className="text-slate-400">to</span>
@@ -221,21 +234,17 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
               />
 
               {err && <div className="mt-3 text-red-700 text-sm">{err}</div>}
-              <p className="mt-2 text-slate-600">
+              <p className="hidden md:block mt-2 text-slate-600">
                 Paste Base64, a <b>data:image/svg+xml</b> URL, an{" "}
                 <b>&lt;img src="..."&gt;</b> snippet, or CSS <b>url(...)</b>.
                 Runs fully client-side.
               </p>
 
-              <div className="mt-3 text-[13px] text-slate-600">
+              <div className="hidden md:block mt-3 text-[13px] text-slate-600">
                 Try this:
                 <code className="ml-1 break-all">
                   data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48L3N2Zz4=
                 </code>
-              </div>
-
-              <div className="mt-1 text-[13px] text-slate-600">
-                Tip: If you paste HTML or CSS, the data URL is auto-extracted.
               </div>
             </div>
 
@@ -566,11 +575,6 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-      {typeof document !== "undefined" && (
-        <div className="flex w-full justify-center items-center">
-          <AdSenseDelayed slot="7336722354" delayMs={2500} afterInteraction />
-        </div>
-      )}
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
@@ -1147,166 +1151,349 @@ function JsonLdFaq() {
   );
 }
 
-/* ========================
-   SEO sections
-======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
-            Base64 to SVG Converter (Decode Data URI)
-          </h2>
+      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
+        <article className="max-w-none">
+          {/* Header / Hero */}
+          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                Base64 / Data URI decoder
+              </p>
 
-          <p className="mt-3">
-            This tool converts <strong>Base64 to SVG</strong> so you can recover
-            the original SVG source from embedded icons and{" "}
-            <strong>data:image/svg+xml;base64</strong> URLs. Paste what you have
-            (Base64, a full data URL, an <code>&lt;img src="..."&gt;</code>{" "}
-            snippet, or CSS <code>url(...)</code>), optionally preview the
-            decoded SVG, then copy or download it as a normal <code>.svg</code>{" "}
-            file.
-          </p>
+              <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+                Base64 to SVG Converter: Decode, sanitize, and recover source
+              </h2>
 
-          <p>
-            It also supports decoding <strong>UTF-8 SVG data URIs</strong>{" "}
-            (percent-encoded) and includes optional sanitization to remove
-            scripts and event handlers before you reuse the SVG.
-          </p>
+              <p className="text-slate-600">
+                Paste Base64, a full <code>data:image/svg+xml;base64</code> URL,
+                an <code>&lt;img src="..."&gt;</code> snippet, or CSS{" "}
+                <code>url(...)</code>. This tool extracts the SVG, optionally
+                sanitizes it, and lets you copy or download a normal{" "}
+                <code>.svg</code> file.
+              </p>
 
+              <p className="text-slate-600">
+                Supports Base64 and UTF-8 (percent-encoded) SVG data URIs. Runs
+                fully client-side unless you enable server features elsewhere.
+              </p>
+
+              <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { k: "Extract SVG", v: "From data URIs, HTML, or CSS" },
+                  { k: "Sanitize", v: "Strip scripts and handlers" },
+                  { k: "Preview", v: "Validate output before saving" },
+                  { k: "Private", v: "Paste-only, no uploads required" },
+                ].map((x) => (
+                  <div
+                    key={x.k}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold">{x.k}</div>
+                    <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-8"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+
+          {/* Use cases */}
+          <section className="mt-10">
+            <h3 className="text-lg font-bold">Best for</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                "Embedded icons",
+                "Data URI cleanup",
+                "Copy/paste SVG recovery",
+                "Debugging broken SVGs",
+                "Sanitizing untrusted SVG",
+                "CSS background-image",
+              ].map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-slate-200 p-5">
+                <div className="text-sm font-semibold">Recover the source</div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Turn embedded <code>data:image/svg+xml;base64,...</code> into
+                  real, editable SVG markup you can paste into code or design
+                  tools.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-5">
+                <div className="text-sm font-semibold">
+                  Make it safe to reuse
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Remove <code>&lt;script&gt;</code>, event handlers, and risky
+                  links before previewing or embedding decoded SVGs.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* HowTo */}
           <section
-            className="mt-8"
             itemScope
             itemType="https://schema.org/HowTo"
+            className="mt-12"
           >
-            <h3 itemProp="name" className="m-0 font-bold">
-              How to Decode Base64 to SVG
-            </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">
-                Paste a Base64 string, data URL, or snippet that contains one.
-              </li>
-              <li itemProp="step">
-                If needed, switch <strong>Input type</strong> or{" "}
-                <strong>Decode mode</strong>.
-              </li>
-              <li itemProp="step">
-                Optionally sanitize the decoded SVG (recommended).
-              </li>
-              <li itemProp="step">Copy or download the recovered SVG.</li>
+            <div className="flex items-end justify-between gap-4">
+              <h3 itemProp="name" className="text-lg font-bold">
+                How to decode Base64 to SVG
+              </h3>
+              <span className="text-xs text-slate-500">
+                Paste → decode → sanitize → copy/download
+              </span>
+            </div>
+
+            <ol className="mt-4 grid gap-3">
+              {[
+                {
+                  title: "Paste the input",
+                  body: "Paste Base64, a full data URL, an HTML snippet, or CSS url(...). The tool auto-extracts the data URL when possible.",
+                },
+                {
+                  title: "Choose decode mode",
+                  body: "Pick Base64 or UTF-8 data URI decoding if the input is percent-encoded.",
+                },
+                {
+                  title: "Sanitize (recommended)",
+                  body: "Enable sanitization to strip scripts, inline event handlers, and risky javascript: links before previewing or saving.",
+                },
+                {
+                  title: "Copy or download",
+                  body: "Copy the recovered SVG markup or download a .svg file for use in apps, sites, and design tools.",
+                },
+              ].map((s, i) => (
+                <li
+                  key={s.title}
+                  itemScope
+                  itemType="https://schema.org/HowToStep"
+                  itemProp="step"
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex gap-3">
+                    <div className="shrink-0 h-8 w-8 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <div itemProp="name" className="font-semibold">
+                        {s.title}
+                      </div>
+                      <div
+                        itemProp="itemListElement"
+                        className="mt-1 text-sm text-slate-600"
+                      >
+                        {s.body}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
             </ol>
           </section>
 
-          <section className="mt-10">
-            <h3 className="m-0 font-bold">Examples (Input → Output)</h3>
-
-            <p className="mt-3">
-              These examples show what you can paste into the tool and what you
-              should expect to get back. Outputs are shortened for readability.
+          {/* Examples */}
+          <section className="mt-12">
+            <h3 className="text-lg font-bold">Examples (Input → Output)</h3>
+            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
+              These show what you can paste and what you’ll get back. Outputs
+              are shortened for readability.
             </p>
 
-            <h4 className="mt-6 mb-2 font-bold">
-              Example 1: Full Base64 data URL
-            </h4>
-            <p className="mt-0">
-              <strong>Input</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIvPjwvc3ZnPg==`}</code>
-            </pre>
-            <p>
-              <strong>Output</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+            <div className="mt-5 grid gap-4">
+              {[
+                {
+                  title: "Example 1: Full Base64 data URL",
+                  inputLabel: "Input",
+                  input: `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIvPjwvc3ZnPg==`,
+                  outputLabel: "Output",
+                  output: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
   <rect width="24" height="24" rx="4"/>
-</svg>`}</code>
-            </pre>
-
-            <h4 className="mt-6 mb-2 font-bold">
-              Example 2: HTML snippet with an embedded data URL
-            </h4>
-            <p className="mt-0">
-              <strong>Input</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`<img alt="icon" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjAiIHk9IjE0Ij5IZWxsbzwvdGV4dD48L3N2Zz4=" />`}</code>
-            </pre>
-            <p>
-              <strong>Output</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`<svg xmlns="http://www.w3.org/2000/svg">
+</svg>`,
+                },
+                {
+                  title: "Example 2: HTML snippet with embedded data URL",
+                  inputLabel: "Input",
+                  input: `<img alt="icon" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjAiIHk9IjE0Ij5IZWxsbzwvdGV4dD48L3N2Zz4=" />`,
+                  outputLabel: "Output",
+                  output: `<svg xmlns="http://www.w3.org/2000/svg">
   <text x="0" y="14">Hello</text>
-</svg>`}</code>
-            </pre>
-
-            <h4 className="mt-6 mb-2 font-bold">
-              Example 3: CSS url(...) with a data URL
-            </h4>
-            <p className="mt-0">
-              <strong>Input</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`.logo { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+"); }`}</code>
-            </pre>
-            <p>
-              <strong>Output</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`<svg xmlns="http://www.w3.org/2000/svg">
+</svg>`,
+                },
+                {
+                  title: "Example 3: CSS url(...) with a data URL",
+                  inputLabel: "Input",
+                  input: `.logo { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+"); }`,
+                  outputLabel: "Output",
+                  output: `<svg xmlns="http://www.w3.org/2000/svg">
   <circle cx="12" cy="12" r="10"/>
-</svg>`}</code>
-            </pre>
-
-            <h4 className="mt-6 mb-2 font-bold">
-              Example 4: UTF-8 (percent-encoded) SVG data URI
-            </h4>
-            <p className="mt-0">
-              <strong>Input</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M2%202h20v20H2z%22%2F%3E%3C%2Fsvg%3E`}</code>
-            </pre>
-            <p>
-              <strong>Output</strong>
-            </p>
-            <pre className="mt-2">
-              <code>{`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+</svg>`,
+                },
+                {
+                  title: "Example 4: UTF-8 (percent-encoded) SVG data URI",
+                  inputLabel: "Input",
+                  input: `data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M2%202h20v20H2z%22%2F%3E%3C%2Fsvg%3E`,
+                  outputLabel: "Output",
+                  output: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <path d="M2 2h20v20H2z"/>
-</svg>`}</code>
-            </pre>
+</svg>`,
+                },
+              ].map((ex) => (
+                <div
+                  key={ex.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold">{ex.title}</div>
+
+                  <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                        {ex.inputLabel}
+                      </div>
+
+                      {/* INPUT: use a normal block so it wraps cleanly on mobile */}
+                      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:p-3 max-w-full">
+                        <code className="block text-[12px] sm:text-[13px] leading-relaxed whitespace-normal break-all">
+                          {ex.input}
+                        </code>
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                        {ex.outputLabel}
+                      </div>
+
+                      {/* OUTPUT: keep <pre> for SVG formatting; wrap on mobile */}
+                      <pre className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:p-3 max-w-full overflow-hidden sm:overflow-x-auto">
+                        <code className="block text-[12px] sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words sm:whitespace-pre sm:break-normal">
+                          {ex.output}
+                        </code>
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
 
-          <section className="mt-10">
-            <h3 className="m-0 font-bold">Security Notes</h3>
-            <p className="mt-3">
-              SVG is XML and can include scripts, event handlers, and embedded
-              foreign content. If you didn’t create the SVG yourself, keep{" "}
-              <strong>Sanitize output</strong> enabled before previewing or
-              reusing the decoded SVG.
+          {/* Security Notes */}
+          <section className="mt-12">
+            <h3 className="text-lg font-bold">Security notes</h3>
+            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
+              SVG is XML and can include scripts, event handlers, foreignObject,
+              and external references. If you didn’t create the SVG, keep
+              sanitization enabled before previewing or reusing output.
             </p>
-            <ul className="mt-3 list-disc pl-5">
-              <li>
-                Keep <strong>Strip &lt;script&gt; blocks</strong> on unless you
-                fully trust the source.
-              </li>
-              <li>
-                Keep <strong>Strip on* event handlers</strong> on to remove
-                things like <code>onload</code> and <code>onclick</code>.
-              </li>
-              <li>
-                Strip <strong>javascript:</strong> links to prevent
-                click-triggered script execution.
-              </li>
-            </ul>
+
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              {[
+                {
+                  title: "Strip scripts",
+                  body: "Remove <script> blocks and other executable content unless you fully trust the source.",
+                },
+                {
+                  title: "Remove inline handlers",
+                  body: "Strip on* attributes like onload/onclick that can execute when the SVG is rendered.",
+                },
+                {
+                  title: "Block javascript: links",
+                  body: "Remove javascript: URLs and suspicious xlink:href/href values to prevent click-triggered execution.",
+                },
+                {
+                  title: "Preview cautiously",
+                  body: "Preview is useful for validation, but sanitized output should be your default when pasting unknown SVGs.",
+                },
+              ].map((c) => (
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold">{c.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
+            <h3 className="text-lg font-bold">Frequently asked questions</h3>
+
+            <div className="mt-4 grid gap-3">
+              {[
+                {
+                  q: "What inputs does this support?",
+                  a: "Base64 strings, full data:image/svg+xml;base64 URLs, HTML snippets that contain an <img src>, and CSS url(...) values. UTF-8 percent-encoded SVG data URIs are also supported.",
+                },
+                {
+                  q: "Why sanitize the output?",
+                  a: "SVG can contain scripts and event handlers. Sanitization removes common dangerous constructs so you can reuse the SVG more safely.",
+                },
+                {
+                  q: "Will this change my SVG visually?",
+                  a: "Sanitization aims to preserve visuals while removing executable parts. If the SVG relies on scripts or external content, the sanitized result may differ.",
+                },
+                {
+                  q: "Does this run client-side?",
+                  a: "Yes for decode and preview in typical implementations. If your app routes some actions server-side, that’s separate from the decoding logic here.",
+                },
+              ].map((x) => (
+                <article
+                  key={x.q}
+                  itemScope
+                  itemType="https://schema.org/Question"
+                  itemProp="mainEntity"
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <h4 itemProp="name" className="m-0 font-semibold">
+                    {x.q}
+                  </h4>
+                  <p
+                    itemScope
+                    itemType="https://schema.org/Answer"
+                    itemProp="acceptedAnswer"
+                    className="mt-2 text-sm text-slate-600"
+                  >
+                    <span itemProp="text">{x.a}</span>
+                  </p>
+                </article>
+              ))}
+            </div>
           </section>
         </article>
       </div>
-
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
     </section>
   );
 }

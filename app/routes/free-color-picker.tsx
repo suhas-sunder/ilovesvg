@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 /* ========================
    Meta
@@ -521,46 +522,50 @@ export default function FreeColorPicker() {
   return (
     <>
       <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
-        <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-8">
-          {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="text-sm text-slate-600 mb-3">
-            <ol className="flex items-center gap-2">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-              <li className="text-slate-300" aria-hidden>
-                /
-              </li>
-              <li className="text-slate-900 font-semibold">
-                Free Color Picker
-              </li>
-            </ol>
-          </nav>
-
-          {/* Header */}
-          <header className="mb-4">
-            <h1 className="text-2xl md:text-3xl font-extrabold leading-tight m-0">
-              Free Color Picker{" "}
-              <span className="text-slate-500 font-semibold">
-                + Palette Extractor (SVG & Images)
-              </span>
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[80ch]">
-              Pick a color, preview fills and strokes, copy HEX/RGB/HSL, and
-              extract palettes from SVG or images. Runs in your browser.
-            </p>
-          </header>
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="block py-6">
+            <AdSenseDelayed
+              slot="6722780159"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+              placeholderLabel="Sponsored"
+            />
+          </div>
 
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: Controls */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Picker</h2>
-
+              <nav
+                aria-label="Breadcrumb"
+                className="text-sm text-slate-600 mb-1"
+              >
+                <ol className="flex items-center gap-2">
+                  <li>
+                    <Link
+                      to="/"
+                      className="hover:text-slate-900 hover:underline underline-offset-4"
+                    >
+                      Home
+                    </Link>
+                  </li>
+                  <li className="text-slate-300" aria-hidden>
+                    /
+                  </li>
+                  <li className="text-slate-900 font-semibold">
+                    Free Color Picker
+                  </li>
+                </ol>
+              </nav>{" "}
+              <h1 className="text-2xl md:text-3xl font-extrabold leading-tight mb-2">
+                Free Color Picker{" "}
+                <span className="text-slate-500 text-base font-semibold">
+                  + Palette Extractor (SVG & Images)
+                </span>
+              </h1>
               {/* Upload palette extractor */}
               <div className="rounded-xl border border-slate-200 bg-white p-3 mb-3">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -630,7 +635,6 @@ export default function FreeColorPicker() {
                   </div>
                 )}
               </div>
-
               {/* Main picker row */}
               <div className="flex flex-col gap-3">
                 <label className="flex items-center gap-3 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
@@ -1003,11 +1007,16 @@ function SeoSections() {
             <h2 className="text-2xl md:text-3xl font-bold leading-tight">
               Pick colors fast, extract palettes from SVG and images
             </h2>
-            <p className="text-slate-600 max-w-[75ch] mt-2">
+            <p className="text-slate-600  mt-2">
               Use this free tool to choose a color, preview it as SVG
               fill/stroke, and copy HEX/RGB/HSL. You can also upload an SVG or
               image to extract a palette and click swatches to apply them
               instantly.
+            </p>
+
+            <p className="mt-2 text-slate-600 max-w-[80ch]">
+              Pick a color, preview fills and strokes, copy HEX/RGB/HSL, and
+              extract palettes from SVG or images. Runs in your browser.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1027,8 +1036,22 @@ function SeoSections() {
               ))}
             </div>
           </header>
-
-          <section className="mt-12">
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-8"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section className="">
             <h3 className="text-lg font-bold">How to use</h3>
             <ol className="mt-4 grid gap-3">
               {[
