@@ -1247,7 +1247,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
@@ -1278,7 +1278,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
                 Result
                 {busy && (

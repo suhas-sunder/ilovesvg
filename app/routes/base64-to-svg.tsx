@@ -179,7 +179,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
 
   return (
     <>
-      <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
+      <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           <Breadcrumbs crumbs={crumbs} />
 
@@ -242,7 +242,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50/10 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-hidden">
+            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
               <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
                 Decode Settings
               </h2>

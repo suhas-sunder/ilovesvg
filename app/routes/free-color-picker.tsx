@@ -585,7 +585,7 @@ export default function FreeColorPicker() {
                 </div>
 
                 <div className="mt-3 flex items-center gap-3 flex-wrap">
-                  <label className="px-3.5 py-2 rounded-lg font-bold border transition-colors text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0] cursor-pointer">
+                  <label className="w-full px-3.5 py-2 rounded-lg font-bold border transition-colors text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0] cursor-pointer">
                     {extracting ? "Extracting…" : "Upload SVG/Image"}
                     <input
                       type="file"
@@ -719,7 +719,7 @@ export default function FreeColorPicker() {
             </div>
 
             {/* RIGHT: Preview */}
-            <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0">
+            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
               <h2 className="m-0 mb-3 text-lg text-slate-900">Preview</h2>
 
               {/* File preview (if uploaded) */}

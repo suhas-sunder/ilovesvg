@@ -1023,7 +1023,7 @@ export default function PhotoToSvgOutline({
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={onDrop}
                   onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <div className="text-sm text-slate-600">
                     Click, drag & drop, or paste a JPG/PNG photo
@@ -1254,7 +1254,7 @@ export default function PhotoToSvgOutline({
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
@@ -1306,7 +1306,7 @@ export default function PhotoToSvgOutline({
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-scroll shadow-sm min-w-0">
+            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
                 Result
                 {busy && (

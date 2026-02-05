@@ -485,7 +485,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={onDrop}
                   onClick={() => document.getElementById("svg-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[10em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <div className="text-sm text-slate-600">
                     Click, drag and drop, or paste SVG markup
@@ -634,7 +634,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50/10 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-visible">
+            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
               <h2 className="m-0 mb-3 text-lg text-slate-900">
                 Recolor Settings
               </h2>
@@ -1019,7 +1019,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                     onClick={downloadSvg}
                     disabled={buttonDisabled}
                     className={[
-                      "px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
