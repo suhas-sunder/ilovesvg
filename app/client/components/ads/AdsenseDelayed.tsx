@@ -111,11 +111,17 @@ export function AdSenseDelayed({
       style={{ minHeight, overflow: "hidden" }}
       aria-label="Advertisement"
     >
+      // Inside your return block
       <ins
-        key={slot} // force <ins> remount when slot changes
-        ref={insRef}
+        key={slot}
+        ref={insRef as any}
         className="adsbygoogle"
-        style={{ display: "block", margin: "0 auto" }}
+        style={{
+          display: "block",
+          margin: "0 auto",
+          width: "100%", // Explicitly tell it to fill the container
+          minWidth: "250px", // Gives AdSense a hint of the smallest ad it can fit
+        }}
         data-ad-client="ca-pub-4810616735714570"
         data-ad-slot={slot}
         data-ad-format="auto"
