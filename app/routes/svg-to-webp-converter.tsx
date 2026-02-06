@@ -264,29 +264,6 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -677,10 +654,21 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -934,7 +922,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1048,6 +1039,7 @@ function SeoSections() {
           <h2 className="m-0 font-bold">
             SVG to WebP Converter (Free, Instant, Client-Side)
           </h2>
+
           <p className="mt-3">
             Use this <strong>SVG to WebP converter</strong> to export vector
             artwork to a modern, high-compression <strong>WebP</strong> image
@@ -1056,8 +1048,130 @@ function SeoSections() {
             HTML canvas and exporting it as WebP. You can set a custom{" "}
             <strong>width and height</strong>, lock aspect ratio, choose a{" "}
             <strong>transparent</strong> or <strong>solid</strong> background,
-            and control <strong>WebP quality</strong>.
+            and control <strong>WebP quality</strong> so the output matches your
+            exact use case.
           </p>
+
+          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Smaller images
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                WebP usually compresses better than PNG and JPG for typical web
+                assets, while still looking clean.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Transparency support
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Export transparent WebP for icons, overlays, and UI assets, or
+                flatten onto a solid background.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Output control
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Set pixel dimensions, lock aspect ratio, and adjust WebP quality
+                to hit a size target.
+              </div>
+            </div>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section>
+            <h3 className="m-0 font-bold">What the converter does</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <p>
+                SVG is vector, meaning it can scale cleanly at any size. WebP is
+                a raster image format, meaning the output is a fixed pixel grid.
+                Converting SVG to WebP is a rendering step: the browser draws
+                the SVG at your chosen dimensions (and pixel ratio), then
+                encodes the result as a WebP file.
+              </p>
+              <p>
+                This tool is useful when you want a modern, web-friendly asset
+                from an SVG without setting up an image pipeline. Because the
+                conversion runs client-side, you can iterate quickly: adjust
+                width/height, test different quality levels, switch between
+                transparent and solid backgrounds, preview the result, and
+                export again.
+              </p>
+              <p>
+                WebP is especially handy for preview images, marketing assets,
+                and UI graphics where you want good visual quality at smaller
+                file sizes. It is also a practical replacement for PNG when you
+                still need alpha transparency, as long as your target platform
+                supports WebP.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Quick presets (common workflows)
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Icons and UI assets
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use <strong>Transparent</strong> background, set pixel ratio
+                    to <strong>2×</strong>, then reduce WebP quality only if you
+                    need a smaller file.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Thumbnails and previews
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Reduce dimensions first, then lower{" "}
+                    <strong>WebP quality</strong> to reach a size target without
+                    obvious artifacts.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Solid-background exports
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Choose <strong>Solid</strong> background when the asset will
+                    sit on a known color, or when you want predictable edges on
+                    light/dark surfaces.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Fine text or thin strokes
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Export larger or increase pixel ratio. Compression cannot
+                    recover detail that was never rendered.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section
             className="mt-8"
@@ -1083,9 +1197,9 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section>
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3">
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Export SVG logos/icons to WebP for faster web pages</li>
               <li>Generate transparent WebP assets from SVG</li>
               <li>Create WebP previews for listings, blogs, and docs</li>
@@ -1093,17 +1207,17 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section>
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Tips for Best Results</h3>
-            <ul className="mt-3">
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
                 For sharper output, raise <strong>Quality (pixel ratio)</strong>{" "}
                 or export larger dimensions.
               </li>
               <li>
                 Use <strong>Transparent</strong> background for icons/stickers;
-                use <strong>Solid</strong> background for photos or when you
-                need a consistent backdrop.
+                use <strong>Solid</strong> background for assets that need a
+                consistent backdrop.
               </li>
               <li>
                 If your SVG uses external fonts/images, embed them for better

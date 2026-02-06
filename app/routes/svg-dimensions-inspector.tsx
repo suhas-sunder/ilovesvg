@@ -399,28 +399,6 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
@@ -951,7 +929,17 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <OtherToolsLinks />
@@ -1547,116 +1535,339 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <JsonLdFaq />
 
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        {/* Drop prose: it fights your app layout and makes spacing feel "off" */}
+        <article>
+          <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Dimensions Inspector (Check Width, Height, viewBox, and Pixel
             Size)
           </h2>
 
-          <p className="mt-3">
-            This <strong>SVG dimensions inspector</strong> helps you quickly
-            understand how an SVG is sized and why it may render differently
-            across browsers, design tools, and export pipelines. Upload an SVG
-            or paste the code to instantly read the <strong>width</strong>,{" "}
-            <strong>height</strong>, <strong>viewBox</strong>, and an estimated{" "}
-            <strong>rendered pixel size</strong>. Then apply common fixes like
-            adding a missing viewBox or normalizing width/height for consistent
-            results. Everything runs <strong>client-side</strong>.
+          <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+            This{" "}
+            <span className="font-semibold text-slate-900">
+              SVG dimensions inspector
+            </span>{" "}
+            shows how an SVG is sized and why it can render differently across
+            browsers, editors, and export pipelines. Upload an SVG or paste
+            markup to read the root{" "}
+            <span className="font-semibold text-slate-900">width</span>,{" "}
+            <span className="font-semibold text-slate-900">height</span>,{" "}
+            <span className="font-semibold text-slate-900">viewBox</span>,{" "}
+            <span className="font-semibold text-slate-900">
+              preserveAspectRatio
+            </span>
+            , and a practical{" "}
+            <span className="font-semibold text-slate-900">
+              pixel-size estimate
+            </span>
+            . Then apply common fixes like adding a missing viewBox or
+            normalizing width/height. Everything runs{" "}
+            <span className="font-semibold text-slate-900">client-side</span>.
           </p>
 
-          <section>
-            <h3 className="m-0 font-bold">What this tool checks</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                <strong>Width / Height</strong> (including units like px, in,
-                mm, pt, %, em/rem)
+          {/* Quick workflow */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="m-0 text-base font-extrabold text-slate-900">
+                  Quick workflow
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                  Use this when something looks “wrong size” and you need a fix
+                  that holds up in multiple tools.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Load SVG
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Inspect signals
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Apply fix
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Preview + export
+                </span>
+              </div>
+            </div>
+
+            <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  1) Check viewBox first
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  If <span className="font-semibold">viewBox</span> is missing,
+                  scaling is often unpredictable. Adding it is the
+                  highest-impact fix.
+                </div>
               </li>
-              <li>
-                <strong>viewBox</strong> values (min-x, min-y, width, height)
-                that define the SVG coordinate system
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  2) Verify width/height + units
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Units like <span className="font-semibold">mm</span>,{" "}
+                  <span className="font-semibold">in</span>,{" "}
+                  <span className="font-semibold">pt</span>, or{" "}
+                  <span className="font-semibold">%</span> change interpretation
+                  across tools.
+                </div>
               </li>
-              <li>
-                <strong>preserveAspectRatio</strong> behavior that affects
-                stretching/cropping
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  3) Look at preserveAspectRatio
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  This controls “meet vs slice”, alignment, and whether content
+                  gets letterboxed or cropped.
+                </div>
               </li>
-              <li>
-                A practical <strong>pixel-size estimate</strong> for how the SVG
-                may render on screens or in exports
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  4) Apply the smallest fix
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Add/normalize viewBox for scaling issues. Set width/height
+                  only when you need a fixed display size.
+                </div>
+              </li>
+            </ol>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          {/* What this tool checks */}
+          <section className="mt-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+              <span className="text-base">🔎</span>
+              Inspection
+            </div>
+            <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+              What this tool checks
+            </h3>
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    Width / Height
+                  </span>{" "}
+                  including units like <span className="font-semibold">px</span>
+                  , <span className="font-semibold">in</span>,{" "}
+                  <span className="font-semibold">mm</span>,{" "}
+                  <span className="font-semibold">pt</span>,{" "}
+                  <span className="font-semibold">%</span>,{" "}
+                  <span className="font-semibold">em/rem</span>.
+                </span>
+              </li>
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">viewBox</span>{" "}
+                  (min-x, min-y, width, height) which defines the internal
+                  coordinate system and the mapping to the rendered box.
+                </span>
+              </li>
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    preserveAspectRatio
+                  </span>{" "}
+                  behavior that drives stretching, alignment, and cropping in
+                  many embeds.
+                </span>
+              </li>
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  A practical{" "}
+                  <span className="font-semibold text-slate-900">
+                    pixel-size estimate
+                  </span>{" "}
+                  for how the SVG may render on screens or in export pipelines
+                  (based on the sizing signals you provide).
+                </span>
               </li>
             </ul>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">Note:</span> the
+              tool reports what the SVG declares plus a computed estimate.
+              Actual size can still change if a container (CSS/layout) overrides
+              it.
+            </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">
+          {/* Why confusing */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
               Why your SVG “size” can be confusing
             </h3>
-            <p className="mt-3">
-              SVG is vector, but rendering still happens into pixels. The “real”
-              size depends on which sizing signals exist and who is interpreting
-              them:
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+              SVG is vector, but it still renders into a box that ends up as
+              pixels. Different tools choose different sizing signals when they
+              exist (or when they’re missing). This is why the same SVG can look
+              “wrong” between browsers, Figma, Illustrator, Inkscape, and icon
+              pipelines.
             </p>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                If <strong>width/height</strong> are present, many tools use
-                them as the display size.
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  If{" "}
+                  <span className="font-semibold text-slate-900">
+                    width/height
+                  </span>{" "}
+                  exist, many tools treat them as the display size even when the
+                  viewBox implies a different coordinate scale.
+                </span>
               </li>
-              <li>
-                If <strong>viewBox</strong> is missing, scaling often breaks or
-                becomes unpredictable.
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  If{" "}
+                  <span className="font-semibold text-slate-900">viewBox</span>{" "}
+                  is missing, scaling often breaks because the renderer can’t
+                  map internal coordinates to the output box consistently.
+                </span>
               </li>
-              <li>
-                If sizing uses <strong>%</strong>, <strong>em</strong>, or{" "}
-                <strong>rem</strong>, the result depends on the container and
-                CSS.
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  If sizing uses <span className="font-semibold">%</span>,{" "}
+                  <span className="font-semibold">em</span>, or{" "}
+                  <span className="font-semibold">rem</span>, the final size
+                  depends on the container and CSS, not just the SVG file.
+                </span>
               </li>
-              <li>
-                Different apps make different choices, so the same SVG can look
-                “wrong” between Figma, Illustrator, Inkscape, browsers, and icon
-                pipelines.
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                  i
+                </span>
+                <span>
+                  Some pipelines assume a default pixel density when converting
+                  to raster or PDF. That can make “physical” units (in/mm/pt)
+                  appear inconsistent.
+                </span>
               </li>
             </ul>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Why viewBox matters (the #1 fix)</h3>
-            <p className="mt-3">
-              The <strong>viewBox</strong> defines the internal drawing space.
-              Without it, the browser or editor has to guess how to map your
-              vector coordinates to a display size, which leads to clipping,
-              weird scaling, or inconsistent behavior. If you want one fix that
-              usually makes SVG behave properly, it’s adding (or normalizing) a{" "}
-              <strong>viewBox</strong>.
+          {/* viewBox fix */}
+          <section className="mt-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+              <span className="text-base">🧭</span>
+              Fix
+            </div>
+            <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+              Why viewBox matters (the #1 fix)
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              The <span className="font-semibold text-slate-900">viewBox</span>{" "}
+              defines the internal drawing space. With a viewBox present, a
+              renderer can scale the SVG cleanly into any container size.
+              Without it, the renderer often guesses, which can lead to
+              clipping, odd scaling, or different results between tools.
+            </p>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              If you want one change that usually makes SVG behave predictably,
+              it is adding (or normalizing) a viewBox and then using
+              width/height only as a display hint.
             </p>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">How to use the fixes</h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2 text-slate-700">
+          {/* How to use fixes */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              How to use the fixes
+            </h3>
+            <ol className="mt-4 grid gap-2 list-decimal pl-5 text-[13px] leading-relaxed text-slate-700">
               <li>Upload or paste your SVG.</li>
               <li>
-                Check the detected <strong>width/height</strong> and{" "}
-                <strong>viewBox</strong>.
+                Review detected{" "}
+                <span className="font-semibold text-slate-900">
+                  width/height
+                </span>
+                , <span className="font-semibold text-slate-900">units</span>,{" "}
+                <span className="font-semibold text-slate-900">viewBox</span>,
+                and{" "}
+                <span className="font-semibold text-slate-900">
+                  preserveAspectRatio
+                </span>
+                .
               </li>
               <li>
                 If viewBox is missing or scaling is broken, choose{" "}
-                <strong>Add viewBox</strong> (best for scaling).
+                <span className="font-semibold text-slate-900">
+                  Add viewBox
+                </span>
+                .
               </li>
               <li>
                 If you need a fixed display size, choose{" "}
-                <strong>Set width and height</strong>.
+                <span className="font-semibold text-slate-900">
+                  Set width and height
+                </span>{" "}
+                (and pick units intentionally).
               </li>
               <li>
                 If you want consistent behavior across tools, choose{" "}
-                <strong>Normalize</strong>.
+                <span className="font-semibold text-slate-900">Normalize</span>{" "}
+                to align the sizing signals.
               </li>
               <li>Preview the output and download the updated SVG.</li>
             </ol>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">Tip:</span> if
+              you’re building an icon set, standardize on a single viewBox
+              (often 0 0 24 24 or 0 0 32 32) and keep width/height flexible for
+              CSS sizing.
+            </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Common use cases</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
+          {/* Use cases */}
+          <section className="mt-8">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Common use cases
+            </h3>
+            <ul className="mt-3 list-disc pl-5 text-[13px] leading-relaxed text-slate-700">
               <li>Fix SVGs that scale incorrectly in browsers</li>
               <li>Stop clipping when rotating, exporting, or embedding</li>
               <li>Normalize icons for a design system or UI library</li>
@@ -1667,21 +1878,22 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-12">
-            <h3 className="m-0 font-bold">FAQ</h3>
-            <div className="not-prose mt-4 grid gap-3">
+          {/* FAQ (leave content as-is; only minor styling fixes + hover/cursor) */}
+          <section className="mt-12" aria-label="Frequently asked questions">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
+            <div className="mt-4 grid gap-3">
               {faqs.map((f) => (
                 <details
                   key={f.q}
-                  className="group rounded-xl border border-slate-200 bg-white px-4 py-3"
+                  className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
                     <span>{f.q}</span>
-                    <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
                       +
                     </span>
                   </summary>
-                  <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  <div className="mt-3 text-slate-700 text-[13px] leading-relaxed">
                     {f.a}
                   </div>
                 </details>

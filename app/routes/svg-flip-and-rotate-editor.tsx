@@ -349,29 +349,6 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -832,10 +809,21 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <OtherToolsLinks />
+      <Breadcrumbs crumbs={crumbs} />
       <RelatedSites />
       <SocialLinks />
       <SiteFooter />
@@ -1221,7 +1209,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1320,70 +1311,259 @@ function SeoSections() {
       {/* JSON-LD for FAQ */}
       <JsonLdFaq />
 
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        {/* drop prose to fix layout/spacing and match your utility UI */}
+        <article>
+          <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Flip & Rotate Editor (Free, Client-Side)
           </h2>
 
-          <p className="mt-3">
-            Use this <strong>SVG flip and rotate editor</strong> to mirror and
-            rotate vector graphics instantly. Flip an SVG{" "}
-            <strong>horizontally</strong> (left ↔ right) or{" "}
-            <strong>vertically</strong> (top ↕ bottom), rotate by{" "}
-            <strong>any degree</strong> or quick 90° steps, preview the result
-            live, then copy or download the updated SVG.
+          <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+            Use this{" "}
+            <span className="font-semibold text-slate-900">
+              SVG flip and rotate editor
+            </span>{" "}
+            to mirror and rotate vector graphics instantly. Flip an SVG{" "}
+            <span className="font-semibold text-slate-900">horizontally</span>{" "}
+            (left ↔ right) or{" "}
+            <span className="font-semibold text-slate-900">vertically</span>{" "}
+            (top ↕ bottom), rotate by{" "}
+            <span className="font-semibold text-slate-900">any degree</span> or
+            quick 90° steps, preview the result live, then copy or download the
+            updated SVG.
           </p>
 
-          <p className="mt-3">
-            This is a <strong>browser-based SVG transformer</strong>: your file
-            stays on your device, and the tool updates your SVG by applying a{" "}
-            <strong>transform</strong> to your SVG content (no rasterization, no
-            quality loss).
+          <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+            This is a{" "}
+            <span className="font-semibold text-slate-900">
+              browser-based SVG transformer
+            </span>
+            . Your file stays on your device, and the tool updates your SVG by
+            applying a{" "}
+            <span className="font-semibold text-slate-900">transform</span> to
+            vector content (no rasterization, no quality loss).
           </p>
 
-          <section>
-            <h3 className="m-0 font-bold">What You Can Do</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Flip SVGs horizontally or vertically (mirror icons/logos)</li>
-              <li>Rotate SVGs by degrees or 90° steps</li>
-              <li>
-                Reduce clipping by expanding the viewBox (best-effort “Fit to
-                rotation”)
+          {/* Quick workflow */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="m-0 text-base font-extrabold text-slate-900">
+                  Quick workflow
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                  Use this flow when you want a clean rotation or mirror with
+                  minimal clipping.
+                </p>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Upload/paste
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Choose flip/angle
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Fit to rotation
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Preview + export
+                </span>
+              </div>
+            </div>
+            {typeof document !== "undefined" && (
+              <div className="block py-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
+            <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  1) Start with center rotation
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Most assets behave best when rotated around the center of the
+                  viewBox. If your SVG is offset, normalize it first.
+                </div>
               </li>
-              <li>Copy minified SVG output or download a new .svg file</li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  2) Use 90° steps for predictable layout
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  For icons and UI assets, 90° increments avoid fractional
+                  bounding boxes and usually reduce surprises.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  3) Enable “Fit to rotation” when needed
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Rotations can extend past the current viewBox. Fit-to-rotation
+                  expands the viewBox to reduce clipping (best-effort).
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  4) Export as SVG (no quality loss)
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  The tool applies transforms to vectors, so the result stays
+                  crisp at any size.
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          {/* What you can do */}
+          <section className="mt-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+              <span className="text-base">🧰</span>
+              Controls
+            </div>
+            <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+              What you can do
+            </h3>
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  Flip SVGs horizontally or vertically (mirror icons/logos)
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>Rotate by any degree or quick 90° steps</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  Reduce clipping by expanding the viewBox (best-effort{" "}
+                  <span className="font-semibold text-slate-900">
+                    Fit to rotation
+                  </span>
+                  )
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>Copy SVG output or download a new .svg file</span>
+              </li>
             </ul>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Mirror icons, logos, and illustrations</li>
-              <li>
-                Rotate SVGs for print layouts, stickers, and cutting tools
-              </li>
-              <li>Fix SVG orientation imported from design apps</li>
-              <li>Prep assets for UI, web, and design systems</li>
-            </ul>
+          {/* Common uses */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Common uses
+            </h3>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  UI and design systems
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Mirror directional icons (arrows, chevrons, next/prev), rotate
+                  assets to match layout direction, and keep everything as
+                  vectors for crisp rendering.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Print + export
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Rotate SVGs for stickers, cutting tools, and layout mockups
+                  without converting to PNG first.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Fix orientation issues
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Some editors import with unexpected orientation or coordinate
+                  assumptions. Flip/rotate with a preview to confirm the output.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Prep assets for web
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Rotate and mirror before embedding, then export SVG for your
+                  repo or pipeline.
+                </p>
+              </div>
+            </div>
           </section>
 
-          {/* Visible FAQ (bottom) */}
-          <section className="mt-12">
-            <h3 className="m-0 font-bold">FAQ</h3>
+          {/* Practical notes (utility-first) */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Why rotated SVGs get clipped
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              Clipping usually happens because the artwork rotates outside the
+              current viewBox bounds. A rotation transform changes the bounding
+              box of the drawing, but the original viewBox stays the same unless
+              you update it. The “Fit to rotation” option expands the viewBox to
+              better contain the rotated bounds (best-effort), which reduces
+              cropping in browsers and export pipelines.
+            </p>
 
-            <div className="not-prose mt-4 grid gap-3">
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">
+                Practical tip:
+              </span>{" "}
+              if an SVG has a tight viewBox, any rotation (even 5°) can clip.
+              Expand the viewBox a bit or enable fit-to-rotation before
+              exporting.
+            </div>
+          </section>
+
+          {/* Visible FAQ (bottom) - keep content as-is; just align styling */}
+          <section className="mt-12" aria-label="Frequently asked questions">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
+
+            <div className="mt-4 grid gap-3">
               {faqs.map((f) => (
                 <details
                   key={f.q}
-                  className="group rounded-xl border border-slate-200 bg-white px-4 py-3"
+                  className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
                     <span>{f.q}</span>
-                    <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
                       +
                     </span>
                   </summary>
-                  <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  <div className="mt-3 text-slate-700 text-[13px] leading-relaxed">
                     {f.a}
                   </div>
                 </details>

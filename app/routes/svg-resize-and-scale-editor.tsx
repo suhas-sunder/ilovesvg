@@ -300,10 +300,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -316,29 +313,6 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -362,7 +336,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
               </h2>
 
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />  
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -808,10 +782,22 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1124,8 +1110,6 @@ function NumInt({
   );
 }
 
- 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -1136,7 +1120,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1255,26 +1242,29 @@ function SeoSections() {
           </h2>
 
           <p className="mt-3">
-            Use this tool to <strong>resize an SVG</strong> by editing{" "}
-            <strong>width</strong> and <strong>height</strong>, or{" "}
-            <strong>scale an SVG</strong> using a percentage. You can also
-            control the <strong>viewBox</strong> and{" "}
-            <strong>preserveAspectRatio</strong> so the SVG behaves correctly in
-            browsers, design tools, and responsive layouts. Everything runs
-            locally in your browser, so your SVG file stays on your device.
+            This tool updates an SVG’s <strong>rendered size</strong> and, when
+            you choose, its <strong>internal coordinate system</strong>. Use it
+            to set exact <strong>width</strong>/<strong>height</strong>, scale
+            by a <strong>percentage</strong>, and control{" "}
+            <strong>viewBox</strong> plus <strong>preserveAspectRatio</strong>{" "}
+            so the output behaves predictably across browsers, design apps, and
+            responsive layouts. Processing happens{" "}
+            <strong>entirely in your browser</strong>, so the SVG never needs to
+            leave your device.
           </p>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">Resize</div>
               <div className="mt-1 text-sm text-slate-700">
-                Set exact width/height with optional aspect lock.
+                Set exact width/height and optionally lock the aspect ratio.
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">Scale</div>
               <div className="mt-1 text-sm text-slate-700">
-                Scale by percentage based on detected size or viewBox.
+                Apply a percentage scale using detected size or the viewBox as
+                the baseline.
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
@@ -1282,17 +1272,224 @@ function SeoSections() {
                 Fix viewBox
               </div>
               <div className="mt-1 text-sm text-slate-700">
-                Keep, match output, or scale the coordinate system.
+                Keep it, match it to the new output, or scale the coordinate
+                system on purpose.
               </div>
             </div>
           </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section >
+            <h3 className="m-0 font-bold">What this tool actually changes</h3>
+            <div className="mt-3 grid gap-3 text-slate-700">
+              <p>
+                SVG sizing is split into two separate layers: the{" "}
+                <strong>viewport</strong> (what the SVG claims as its rendered
+                size) and the <strong>viewBox</strong> (the coordinate space
+                that content is drawn in). Many “resizing” issues come from
+                changing one layer while the other stays the same, or from
+                missing size metadata entirely.
+              </p>
+              <p>
+                When you edit <code>width</code> and <code>height</code>, you
+                are changing the <strong>viewport</strong>. That affects how
+                large the SVG displays in a browser and how it is laid out by
+                HTML/CSS. When you edit <code>viewBox</code>, you are changing
+                the <strong>mapping</strong> between viewport pixels and
+                internal units, which can change how content scales, fits, or
+                appears to “crop” if the drawing doesn’t match the viewBox
+                bounds.
+              </p>
+              <p>
+                This tool is built for practical outcomes: normalize icon sizes,
+                make exports behave consistently in other apps, and produce
+                predictable responsive SVGs. It detects the best available
+                sizing reference (explicit width/height first, then viewBox when
+                needed), applies your chosen rules, and outputs a clean SVG you
+                can download and reuse.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Best practice defaults
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    For icons and UI
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Change <strong>width/height</strong>, keep the existing{" "}
+                    <strong>viewBox</strong>, and keep{" "}
+                    <code>preserveAspectRatio</code> on{" "}
+                    <code>xMidYMid meet</code>.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    For editing in design tools
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use <strong>Match output</strong> viewBox so coordinates
+                    align with the new size, especially when you need
+                    predictable measurement behavior.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    For responsive SVGs
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Remove <strong>width/height</strong> (Responsive SVG) and
+                    ensure a valid <strong>viewBox</strong> exists so CSS sizing
+                    works cleanly.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    For quick proportional changes
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use <strong>Scale (%)</strong> to apply consistent ratios
+                    like 50%, 200%, or 300% without hand-editing both
+                    dimensions.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h3 className="m-0 font-bold">Practical controls that matter</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">
+                  Resize by width/height (exact output)
+                </h4>
+                <p className="mt-1">
+                  Use this when you need a specific rendered size, like a 24×24
+                  icon or a 512×512 export. With{" "}
+                  <strong>Lock aspect ratio</strong> enabled, you can change one
+                  dimension and have the other follow, which avoids accidental
+                  distortion.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">
+                  Scale by percentage (fast normalization)
+                </h4>
+                <p className="mt-1">
+                  Scaling is the quickest way to apply consistent changes across
+                  a set of SVGs. If an SVG lacks explicit dimensions, the tool
+                  can use the <code>viewBox</code> as the reference. The result
+                  is still a standard SVG, but you avoid manual math and
+                  mismatched rounding across files.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">
+                  viewBox options (choose intentionally)
+                </h4>
+                <p className="mt-1">
+                  Keeping the viewBox preserves the original drawing space. That
+                  is usually what you want when the art is already correct and
+                  you are only changing display size.{" "}
+                  <strong>Match output</strong> updates the viewBox to{" "}
+                  <code>0 0 W H</code>, making the internal units line up with
+                  the new size, which is useful when other tools depend on
+                  coordinate measurements. A scaled viewBox can be useful when
+                  you want to preserve how the SVG “feels” internally while
+                  changing the viewport.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">
+                  preserveAspectRatio (fit behavior)
+                </h4>
+                <p className="mt-1">
+                  If an SVG is being fit into a box (HTML, design app frames,
+                  exports), <code>preserveAspectRatio</code> decides whether it
+                  letterboxes, crops, or stretches. <code>xMidYMid meet</code>{" "}
+                  is the safe default. Use <code>slice</code> only when you want
+                  a full-bleed fill and accept cropping. Use <code>none</code>{" "}
+                  only when stretching is desired.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Common output goals
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Standardize a whole icon set
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Set a consistent width/height (like 24×24 or 32×32), keep
+                    the viewBox, and lock aspect ratio when needed. This keeps
+                    icons visually consistent in UI layouts.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Prevent “mystery scaling” later
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    If your pipeline includes multiple apps, explicitly set
+                    width/height with <strong>px</strong> units and keep{" "}
+                    <code>preserveAspectRatio</code> on meet so the same file
+                    behaves consistently.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Make the SVG responsive
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Remove width/height and rely on a valid viewBox. Then
+                    control size with CSS (container width, max-width, height
+                    auto). This is the cleanest approach for web.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Match coordinates for editing
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use Match output viewBox so internal units map to the new
+                    size. This helps when you measure, align, or edit geometry
+                    in downstream tools.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* HowTo */}
-          <section
-            
-            itemScope
-            itemType="https://schema.org/HowTo"
-          >
+          <section itemScope itemType="https://schema.org/HowTo">
             <h3 itemProp="name" className="m-0 font-bold">
               How to Resize an SVG
             </h3>
@@ -1319,7 +1516,7 @@ function SeoSections() {
           </section>
 
           {/* Core concepts */}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Resize vs Scale vs viewBox</h3>
 
             <div className="mt-3 grid gap-5 text-slate-700">
@@ -1368,7 +1565,7 @@ function SeoSections() {
           </section>
 
           {/* Troubleshooting */}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">
               Common Resize Problems (and Fixes)
             </h3>
@@ -1428,7 +1625,7 @@ function SeoSections() {
           </section>
 
           {/* Quick reference table */}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Quick Reference</h3>
             <p className="mt-2 text-slate-700">
               Use this chart to pick the right setting fast.
@@ -1509,7 +1706,7 @@ function SeoSections() {
           </section>
 
           {/* Use cases */}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">When This Tool Is Useful</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Normalizing icon sizes across a design system</li>
@@ -1564,7 +1761,7 @@ function SeoSections() {
           </section>
 
           {/* FAQ (expanded, visible content for SEO + UX) */}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">FAQ</h3>
 
             <div className="not-prose mt-3 grid gap-3">
@@ -1655,7 +1852,7 @@ function SeoSections() {
           </section>
 
           {/* Bottom filler paragraph for adsense-friendly length */}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Tips for Best Results</h3>
             <div className="mt-3 grid gap-3 text-slate-700">
               <p>

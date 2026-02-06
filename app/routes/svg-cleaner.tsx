@@ -465,29 +465,6 @@ export default function SvgCleaner(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -1100,10 +1077,20 @@ export default function SvgCleaner(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
-      <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1674,8 +1661,11 @@ function Breadcrumbs({
   crumbs: Array<{ name: string; href: string }>;
 }) {
   return (
-    <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+    <div className="my-4">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1720,237 +1710,471 @@ function JsonLdBreadcrumbs() {
   );
 }
 
-/* ========================
-   FAQ JSON-LD
-======================== */
-function JsonLdFaq() {
-  const data = {
+type FaqItem = { q: string; a: string };
+
+function makeFaqJsonLd(faq: Array<{ q: string; a: string }>) {
+  return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
+    mainEntity: faq
+      .filter((x) => x?.q && x?.a)
+      .map((x) => ({
         "@type": "Question",
-        name: "Does cleaning an SVG change how it looks?",
+        name: String(x.q).trim(),
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Safe and Normal usually preserve rendering. Aggressive cleanup can change output if it removes ids, defs, or styling attributes the SVG relies on.",
+          text: String(x.a).trim(),
         },
-      },
-      {
-        "@type": "Question",
-        name: "Is this SVG cleaner private?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Everything runs in your browser. Your SVG content is not uploaded to a server.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What’s safe to remove for icons and logos?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Comments, metadata, editor namespaces, and XML/DOCTYPE wrappers are usually safe to remove. Be careful removing ids or defs if the SVG uses gradients, masks, clip-paths, or symbols.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why strip scripts and event handlers?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "SVG can include script blocks, on* event handlers, and JavaScript URLs. Stripping them reduces risk when previewing or embedding SVGs from unknown sources.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can this remove Inkscape or Illustrator junk?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. It targets common editor prefixes (like inkscape/sodipodi) and metadata blocks that often bloat exported SVG files.",
-        },
-      },
-    ],
+      })),
   };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
 }
 
-/* ========================
-   SEO sections
-======================== */
+function safeJsonLd(obj: unknown) {
+  return JSON.stringify(obj)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
 function SeoSections() {
+  const faq: FaqItem[] = [
+    {
+      q: "Does cleaning an SVG change how it looks?",
+      a: "Safe and Normal usually preserve rendering. Aggressive cleanup can change output if it removes ids, defs, or styling attributes the SVG relies on.",
+    },
+    {
+      q: "Is this SVG cleaner private?",
+      a: "Yes. Everything runs in your browser. Your SVG content is not uploaded to a server.",
+    },
+    {
+      q: "What’s safe to remove for icons and logos?",
+      a: "Comments, metadata, editor namespaces, and XML/DOCTYPE wrappers are usually safe to remove. Be careful removing ids or defs if the SVG uses gradients, masks, clip-paths, masks, symbols, or url(#id) references.",
+    },
+    {
+      q: "Why strip scripts and event handlers?",
+      a: "SVG can include <script> blocks, on* event handlers, and JavaScript URLs. Stripping them reduces risk when previewing or embedding SVGs from unknown sources.",
+    },
+    {
+      q: "Can this remove Inkscape or Illustrator junk?",
+      a: "Yes. It targets common editor prefixes (like inkscape/sodipodi) and metadata blocks that often bloat exported SVG files.",
+    },
+  ];
+
+  const faqJsonLd = makeFaqJsonLd(faq);
+
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
-            SVG Cleaner (Remove Metadata and Comments)
-          </h2>
-          <p className="mt-3">
-            This <strong>SVG cleaner</strong> removes common bloat like{" "}
-            <strong>metadata</strong>, <strong>comments</strong>, editor
-            namespaces, XML declarations, and other extra tags so your SVG is
-            smaller and easier to reuse in websites, apps, and design systems.
-            Paste an SVG or upload a file, preview the result, and download the
-            cleaned SVG. Everything runs <strong>client-side</strong>.
-          </p>
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        <article className="">
+          {/* JSON-LD FAQ (kept in the SEO block, no separate component) */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
+          />
 
-          <section
-            className="mt-8"
-            itemScope
-            itemType="https://schema.org/HowTo"
-          >
-            <h3 itemProp="name" className="m-0 font-bold">
-              How to Clean an SVG
-            </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">Upload an SVG or paste SVG code.</li>
-              <li itemProp="step">
-                Choose Safe, Normal, or Aggressive cleanup.
-              </li>
-              <li itemProp="step">
-                Enable options like removing metadata and comments.
-              </li>
-              <li itemProp="step">Copy or download the cleaned SVG.</li>
-            </ol>
+          {/* Header */}
+          <header>
+            <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
+              SVG Cleaner (Remove Metadata and Comments)
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+              This SVG cleaner removes common bloat like{" "}
+              <span className="font-semibold text-slate-900">metadata</span>,{" "}
+              <span className="font-semibold text-slate-900">comments</span>,
+              editor namespaces, XML declarations, and other extra tags so your
+              SVG is smaller, safer to preview, and easier to reuse in web apps,
+              icon systems, and design pipelines. Paste SVG markup or upload a
+              file, verify the preview, and export a cleaned SVG. Processing
+              runs entirely in your browser.
+            </p>
+
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 className="m-0 text-base font-extrabold text-slate-900">
+                    Quick workflow
+                  </h3>
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                    Use this checklist to get a clean export fast, without
+                    breaking references like gradients or clip paths.
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Upload or paste
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Pick mode
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Preview
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Export SVG
+                  </span>
+                </div>
+              </div>
+
+              <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    1) Start with Safe
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    Safe removes obvious bloat and strips risky script behavior
+                    while keeping ids/defs intact.
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    2) Compare preview
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    If the preview changes after cleaning, step back to Normal
+                    or disable aggressive options like id removal.
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    3) Clean for your target
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    For icons and web apps, light minification helps. For design
+                    handoff, keep readability and ids.
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    4) Export and reuse
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    Copy for inline SVG or download to commit to your repo and
+                    ship as assets.
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </header>
+
+          {typeof document !== "undefined" && (
+            <div className="block py-8">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+
+          {/* What it removes / keeps */}
+          <section className="mt-2 grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                <span className="text-base">🧹</span>
+                Removed
+              </div>
+              <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+                What gets removed
+              </h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+                The cleaner targets common export bloat and optional risky
+                behaviors. It does not “redesign” your SVG.
+              </p>
+
+              <ul className="mt-4 space-y-3 text-[13px] text-slate-700">
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    <span className="font-semibold text-slate-900">
+                      Comments and metadata:
+                    </span>{" "}
+                    XML comments,{" "}
+                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                      &lt;metadata&gt;
+                    </code>
+                    , RDF blocks, and editor notes.
+                  </span>
+                </li>
+
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    <span className="font-semibold text-slate-900">
+                      Editor namespaces:
+                    </span>{" "}
+                    common prefixes from Illustrator/Inkscape that inflate the
+                    file and add noise.
+                  </span>
+                </li>
+
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    <span className="font-semibold text-slate-900">
+                      XML/DOCTYPE wrappers:
+                    </span>{" "}
+                    optional removal for cleaner embeds and fewer strict-parser
+                    warnings.
+                  </span>
+                </li>
+
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                    i
+                  </span>
+                  <span>
+                    <span className="font-semibold text-slate-900">
+                      Safety stripping (optional):
+                    </span>{" "}
+                    removes{" "}
+                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                      &lt;script&gt;
+                    </code>
+                    ,{" "}
+                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                      on*
+                    </code>{" "}
+                    handlers, and javascript: URLs.
+                  </span>
+                </li>
+
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    <span className="font-semibold text-slate-900">
+                      Whitespace cleanup:
+                    </span>{" "}
+                    trims extra whitespace and optionally lightly minifies
+                    markup for smaller output.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                <span className="text-base">🛡️</span>
+                Preserved
+              </div>
+              <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+                What we keep untouched
+              </h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+                Rendering relies on references. The safest cleaner avoids
+                touching the parts that frequently break.
+              </p>
+
+              <ul className="mt-4 space-y-3 text-[13px] text-slate-700">
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    Geometry and shape content (paths, rects, circles, groups)
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    Styling that affects rendering: fills, strokes, gradients,
+                    patterns, filters
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    Reference systems: defs, symbols, clip-paths, masks, and{" "}
+                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                      url(#id)
+                    </code>{" "}
+                    links (unless you choose Aggressive options)
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                    i
+                  </span>
+                  <span>
+                    If you enable aggressive id/defs removal, verify preview
+                    before exporting. That is the #1 cause of “broken” SVGs.
+                  </span>
+                </li>
+              </ul>
+
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+                <span className="font-semibold text-slate-900">
+                  Practical rule:
+                </span>{" "}
+                if an SVG uses gradients, masks, clip-paths, symbols, or
+                filters, treat ids/defs as critical and avoid aggressive
+                stripping.
+              </div>
+            </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">What gets removed?</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>XML declaration and DOCTYPE (optional)</li>
-              <li>Comments, editor junk (Inkscape/Illustrator style)</li>
-              <li>&lt;metadata&gt; blocks and RDF metadata</li>
-              <li>
-                Optional stripping of scripts and event handlers for safety
-              </li>
-              <li>Whitespace cleanup and optional minification</li>
-            </ul>
+          {/* Modes details */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Mode behavior (what each one is for)
+            </h3>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">Safe</div>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                  Removes comments, obvious metadata, common editor prefixes,
+                  and optional XML/DOCTYPE wrappers. Safety stripping removes
+                  script behavior. Keeps ids, defs, and structure intact.
+                </p>
+                <div className="mt-3 text-[12px] text-slate-600">
+                  Best for unknown SVGs and anything you did not create.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">Normal</div>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                  Similar to Safe, with more consistent whitespace cleanup for
+                  web reuse. Usually the best default for icons and inline SVG
+                  in apps.
+                </p>
+                <div className="mt-3 text-[12px] text-slate-600">
+                  Good balance when you want smaller output without risk.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">Aggressive</div>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                  Maximum reduction. Can remove ids, unused defs, and extra
+                  attributes. Use only after confirming the cleaned preview
+                  matches the input.
+                </p>
+                <div className="mt-3 text-[12px] text-slate-600">
+                  Best for controlled assets after testing (design systems,
+                  pre-built icon sets).
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Common issues */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Troubleshooting checklist
+            </h3>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Gradients disappeared
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  You removed ids or defs. Keep ids/defs enabled and avoid
+                  aggressive removal on files that use{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    url(#...)
+                  </code>{" "}
+                  references.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Clip paths or masks broke
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Same root cause: broken references. Switch to Safe/Normal and
+                  re-run, or disable any option that removes ids.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Inline SVG styling is inconsistent
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Ensure the SVG has a valid{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    viewBox
+                  </code>
+                  . Missing viewBox leads to odd scaling behavior in HTML and
+                  React wrappers.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Unknown SVG feels risky
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Keep safety stripping on. SVGs can contain script blocks and
+                  event handlers. Stripping them reduces risk during preview and
+                  embedding.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">
+                Privacy note:
+              </span>{" "}
+              cleaning runs on-device in your browser. Your SVG content is not
+              uploaded to a server for conversion.
+            </div>
+          </section>
+
+          {/* FAQ (rendered + schema from same list) */}
+          <section className="mt-8" aria-label="Frequently asked questions">
+            <div className="flex items-end justify-between gap-3 flex-wrap">
+              <h3 className="m-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                <span className="text-base">❓</span>
+                FAQ
+              </h3>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {faq.map((item) => (
+                <details
+                  key={item.q}
+                  className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
+                    <span className="font-bold text-slate-900">{item.q}</span>
+                    <span className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 transition-transform group-open:rotate-45 hover:bg-slate-100 cursor-pointer">
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 text-[13px] leading-relaxed text-slate-600">
+                    {item.a}
+                  </p>
+                </details>
+              ))}
+            </div>
           </section>
         </article>
       </div>
 
-      <section>
-        <h3 className="m-0 font-bold">Why clean SVG files?</h3>
-        <p className="mt-3">
-          SVGs exported from tools like Illustrator and Inkscape often include
-          extra tags and attributes that are helpful for editing but unnecessary
-          in production. Cleaning can reduce file size, remove editor-only
-          namespaces, and make SVGs easier to inline in HTML, use in React, or
-          ship as icons in a design system.
-        </p>
-      </section>
-
-      <section>
-        <h3 className="m-0 font-bold">Safe vs Normal vs Aggressive</h3>
-        <div className="mt-3 grid gap-3">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h4 className="m-0 font-semibold">Safe</h4>
-            <p className="mt-2 text-slate-700">
-              Best for most SVGs. Removes obvious bloat (comments, metadata,
-              editor junk) while keeping structure that SVGs commonly rely on.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h4 className="m-0 font-semibold">Normal</h4>
-            <p className="mt-2 text-slate-700">
-              Recommended default. Similar to Safe, with a bit more cleanup for
-              reusable web SVGs. Usually keeps rendering intact.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h4 className="m-0 font-semibold">Aggressive</h4>
-            <p className="mt-2 text-slate-700">
-              For maximum reduction. Can remove ids, unused defs, and more
-              whitespace. Use carefully because it can break references like
-              gradients, clip-paths, masks, symbols, or <code>url(#id)</code>.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h3 className="m-0 font-bold">Common issues</h3>
-        <ul className="mt-3 text-slate-700 list-disc pl-5">
-          <li>
-            If an SVG looks different after cleaning, turn off options like
-            removing ids, removing unused defs, or removing presentation
-            attributes.
-          </li>
-          <li>
-            Inline SVGs often work best with a valid <code>viewBox</code>. If
-            yours is missing, use an SVG viewBox fixer or dimensions inspector.
-          </li>
-          <li>
-            If you didn’t create the SVG, keep Safety options enabled to strip
-            scripts and event handlers before previewing.
-          </li>
-        </ul>
-      </section>
-
-      <section aria-label="Frequently asked questions">
-        <h3 className="m-0 font-bold">FAQ</h3>
-
-        <details className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Does cleaning an SVG change how it looks?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            Safe and Normal usually preserve rendering. Aggressive cleanup can
-            change output if it removes ids, defs, or styling attributes the SVG
-            relies on.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Is this SVG cleaner private?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            Yes. Everything runs in your browser. Your SVG content is not
-            uploaded to a server.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            What’s safe to remove for icons and logos?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            Comments, metadata, editor namespaces, and XML/DOCTYPE wrappers are
-            usually safe to remove. Be careful removing ids or defs if the SVG
-            uses gradients, masks, clip-paths, or symbols.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Why strip scripts and event handlers?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            SVG can include <code>&lt;script&gt;</code>, <code>on*</code>{" "}
-            handlers, and JavaScript URLs. Stripping them reduces risk when
-            previewing or embedding SVGs from unknown sources.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Can this remove Inkscape or Illustrator junk?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            Yes. It targets common editor prefixes (like inkscape/sodipodi) and
-            metadata blocks that often bloat exported SVG files.
-          </p>
-        </details>
-      </section>
-
+      {/* Keep your other JSON-LD separate if you want */}
       <JsonLdBreadcrumbs />
-      <JsonLdFaq />
     </section>
   );
 }

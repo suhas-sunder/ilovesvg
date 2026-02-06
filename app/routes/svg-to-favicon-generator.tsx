@@ -527,29 +527,6 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -1105,9 +1082,20 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1184,45 +1172,189 @@ function SeoSections() {
           <p className="mt-3">
             This <strong>favicon generator</strong> creates a production-ready{" "}
             <strong>favicon.ico</strong> and a complete set of{" "}
-            <strong>app icons</strong> from an uploaded image. Convert{" "}
-            <strong>SVG to ICO</strong> (or <strong>PNG to ICO</strong>,{" "}
-            <strong>JPG to ICO</strong>, <strong>WEBP to ICO</strong>) and
-            export the exact sizes modern browsers and platforms expect. Preview
-            the output instantly, then download individual files or a single{" "}
-            <strong>ZIP</strong>. Everything runs client-side in your browser.
+            <strong>app icons</strong> from one uploaded image. It converts{" "}
+            <strong>SVG to ICO</strong> and also supports{" "}
+            <strong>PNG to ICO</strong>, <strong>JPG to ICO</strong>, and{" "}
+            <strong>WEBP to ICO</strong>, then exports the exact sizes modern
+            browsers and platforms expect. You get an instant preview, then you
+            can download individual files or a single <strong>ZIP</strong>.
+            Everything runs <strong>client-side</strong> in your browser, so the
+            source image is not uploaded.
           </p>
 
+          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                favicon.ico
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Multi-size ICO for maximum browser compatibility, including the{" "}
+                <code>/favicon.ico</code> convention.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                PNG icon set
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Common favicon sizes like <strong>16×16</strong> and{" "}
+                <strong>32×32</strong>, plus higher-res icons for different
+                surfaces.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                App & PWA icons
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Platform-ready sizes (including common <strong>192×192</strong>{" "}
+                and <strong>512×512</strong>) for install prompts and home
+                screens.
+              </div>
+            </div>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           <section>
+            <h3 className="m-0 font-bold">What you get after one upload</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">A real multi-size .ICO</h4>
+                <p className="mt-1">
+                  Browsers and tooling still treat <code>favicon.ico</code> as a
+                  special case. Many user agents will request{" "}
+                  <code>/favicon.ico</code> automatically, even when you provide
+                  other icon links. Generating a proper ICO (with multiple
+                  embedded sizes) reduces missing icons and avoids surprises
+                  when a browser falls back to the legacy path.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">PNG icons for targeted sizes</h4>
+                <p className="mt-1">
+                  Some platforms prefer (or heavily rely on) PNG icons at
+                  specific sizes. A clean <strong>16×16</strong> and{" "}
+                  <strong>32×32</strong> helps in tabs and bookmarks, while
+                  larger PNGs cover modern UI surfaces where the icon is shown
+                  at higher resolution. Exporting a set means you do not have to
+                  repeatedly resize and re-export as requirements change.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">
+                  App icons and PWA-ready assets
+                </h4>
+                <p className="mt-1">
+                  When users pin your site or install it as an app, platforms
+                  need larger square icons. This generator outputs the common
+                  sizes used by Apple touch icons and by Chrome/Android for
+                  installable web apps. You can drop them into your public
+                  folder and reference them from your head snippet and manifest
+                  without guessing the sizing grid.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Practical defaults that avoid bad results
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Start with a square source
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Favicons and app icons are square. If your source is not
+                    square, you will either get padding or cropping depending on
+                    settings. A centered square logo exports cleaner across all
+                    sizes.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Keep a safe margin
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Extremely tight artwork can look clipped at 16×16 and 32×32.
+                    A little breathing room keeps the small sizes readable and
+                    avoids edge artifacts.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Prefer simple shapes at tiny sizes
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Fine detail disappears at favicon sizes. A bold mark or
+                    single-letter monogram typically survives downscaling better
+                    than a detailed logo.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Test with a real tab preview
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    A preview image is helpful, but browser tabs are the real
+                    constraint. Use the preview to sanity-check contrast and
+                    legibility before downloading.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
             <h3 className="m-0 font-bold">
-              What a Favicon Is (and Why .ICO Still Matters)
+              What a favicon is (in practical terms)
             </h3>
             <p className="mt-3">
-              A <strong>favicon</strong> is the small icon shown in browser
-              tabs, bookmarks, and search results. Many browsers still look for{" "}
-              <code>/favicon.ico</code> automatically, so shipping a real{" "}
-              <strong>favicon.ico</strong> avoids missing icons and improves
-              compatibility. PNG icons are also useful, especially for specific
-              sizes like <strong>16×16</strong> and <strong>32×32</strong>.
+              A favicon is the small icon used to represent your site across a
+              bunch of UI surfaces: browser tabs, bookmarks, history lists, and
+              pinned shortcuts. The generator’s main job is to produce a set of
+              files that cover those surfaces without you having to manually
+              resize, export, and wire everything up. Shipping a proper{" "}
+              <code>favicon.ico</code> plus a small set of PNG sizes covers the
+              broadest range of environments with minimal maintenance.
             </p>
           </section>
 
           <section>
             <h3 className="m-0 font-bold">
-              App Icons, PWA Icons, and Platform Sizes
+              App icons, PWA icons, and why sizes matter
             </h3>
             <p className="mt-3">
-              App icons are the larger icons used when someone saves your site
-              to their home screen or installs it as a PWA. Typical requirements
-              include <strong>Apple touch icons</strong> (often 180×180) and{" "}
-              <strong>Android/Chrome icons</strong> (commonly 192×192 and
-              512×512). This tool exports those files so you do not have to
-              guess sizes or manually resize.
+              “App icon” usually means a larger square icon used when a site is
+              installed or saved to a home screen. PWAs and platform launchers
+              want higher-resolution icons so they look sharp on modern
+              displays. The generator exports the common install sizes so you
+              can use them in a web manifest and in platform-specific link tags,
+              instead of trying to remember a shifting list of required
+              dimensions.
             </p>
           </section>
 
           <section>
             <h3 className="m-0 font-bold">
-              How to Use the Generated Files in Production
+              How to use the generated files in production
             </h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2 text-slate-700">
               <li>
@@ -1254,7 +1386,7 @@ function SeoSections() {
 
           <section>
             <h3 className="m-0 font-bold">
-              Troubleshooting: “My Favicon Isn’t Changing”
+              Troubleshooting: “My favicon isn’t changing”
             </h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
@@ -1836,7 +1968,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">

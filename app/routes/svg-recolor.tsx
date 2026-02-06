@@ -385,10 +385,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -401,49 +398,6 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          {/* Breadcrumbs */}
-          <nav
-            aria-label="Breadcrumb"
-            className="text-[13px] text-slate-600 mb-3"
-          >
-            <ol className="flex flex-wrap items-center gap-2">
-              {breadcrumbs.map((b, i) => (
-                <li key={b.url} className="flex items-center gap-2">
-                  <a
-                    href={b.url}
-                    className="hover:text-slate-900 underline-offset-2 hover:underline"
-                  >
-                    {b.name}
-                  </a>
-                  {i < breadcrumbs.length - 1 && (
-                    <span className="text-slate-400">/</span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </nav>
 
           <header className="text-center mb-3">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -520,7 +474,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
               )}
 
               {!inSvg ? (
-               <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900">
@@ -847,7 +801,11 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                           className="flex items-center justify-center px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                                           title="Remove rule"
                                         >
-                                          <Icons name="trash" size={16} className="mr-1" />
+                                          <Icons
+                                            name="trash"
+                                            size={16}
+                                            className="mr-1"
+                                          />
                                           Remove
                                         </button>
                                       </div>
@@ -1163,9 +1121,40 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
               )}
             </div>
           </section>
-
+          <div className="block lg:hidden py-6">
+            <AdSenseDelayed
+              slot="6632213024"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={100}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[360px]"
+            />
+          </div>
           <SeoSections />
         </div>
+
+        <nav
+          aria-label="Breadcrumb"
+          className="text-[13px] text-slate-600 mb-3"
+        >
+          <ol className="flex flex-wrap items-center gap-2 max-w-[1180px] mx-auto px-4">
+            {breadcrumbs.map((b, i) => (
+              <li key={b.url} className="flex items-center gap-2">
+                <a
+                  href={b.url}
+                  className="hover:text-slate-900 underline-offset-2 hover:underline"
+                >
+                  {b.name}
+                </a>
+                {i < breadcrumbs.length - 1 && (
+                  <span className="text-slate-400">/</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
         <RelatedSites />
         <SocialLinks />
         <SiteFooter />
@@ -1213,7 +1202,21 @@ function SeoSections() {
               SVG you can download. Nothing is uploaded to a server.
             </p>
           </header>
-
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           {/* How it works */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -1545,8 +1548,6 @@ function PreviewFrame({
     </div>
   );
 }
-
- 
 
 /* ========================
    Palette extraction

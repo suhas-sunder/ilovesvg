@@ -964,28 +964,6 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
           <header className="text-center mb-3">
             <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
               Text to SVG Converter
@@ -1493,7 +1471,17 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1548,8 +1536,6 @@ function Num({
     />
   );
 }
-
- 
 
 function SeoSections() {
   const jsonLd = {
@@ -1658,13 +1644,13 @@ function SeoSections() {
 
             <p className="text-slate-600 max-w-[92ch] mt-2">
               This tool converts text into real vector outlines (SVG{" "}
-              <code>&lt;path&gt;</code>), so the result does not depend on fonts
+              <code>&lt;path&gt;</code>), so the export does not depend on fonts
               being installed. Upload a font file (TTF, OTF, or WOFF) or use
               builtin fonts, then export one SVG or split exports by line, word,
               or character.
             </p>
 
-            <div className="mt-5 lg:pt-0 lg:pb-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-semibold text-slate-900">
                   Supported uploads
@@ -1692,8 +1678,203 @@ function SeoSections() {
               </div>
             </div>
           </header>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          {/* Utility-first content (no blog filler) */}
+          <section>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="text-xl font-bold text-slate-900 m-0">
+                What this Text to SVG converter outputs
+              </h3>
 
-          {/* Visible FAQ (what you were missing) */}
+              <div className="mt-3 grid gap-4 text-slate-700">
+                <p className="m-0">
+                  The export from this tool is{" "}
+                  <strong>outlined geometry</strong>, not “live text.” When you
+                  convert, the tool loads the selected font, converts each glyph
+                  to one or more vector outlines, and writes those outlines as
+                  SVG <code>&lt;path&gt;</code> data. That means the result will
+                  render the same everywhere, even if the font is not installed
+                  on the target computer, and even if the SVG is imported into
+                  software that does not support font embedding.
+                </p>
+
+                <p className="m-0">
+                  You can treat the output like any other vector art: it can be
+                  scaled up without blur, imported into design apps, used for
+                  print and cutting workflows, or sent to someone else with zero
+                  dependency on font files. This is the main reason to convert
+                  text to paths when shipping assets, building stickers,
+                  creating logos, or handing off artwork to clients.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Consistent rendering
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    No missing fonts. The shapes are baked into the SVG as
+                    paths.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Cutter-friendly
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Outlines import cleanly into Cricut, laser, and plotter
+                    tools.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Split exports
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Export one SVG or split by line, word, or character.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="text-xl font-bold text-slate-900 m-0">
+                Font uploads and why WOFF2 is excluded
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700">
+                <p className="m-0">
+                  Outline conversion requires parsing the font’s glyph curves.
+                  This tool supports <strong>TTF</strong>, <strong>OTF</strong>,
+                  and <strong>WOFF</strong> because those formats can be parsed
+                  reliably for glyph outlines. <strong>WOFF2</strong> is not
+                  accepted for outlines here, so if you only have a WOFF2 file,
+                  grab the TTF/OTF version from the same font source and upload
+                  that instead.
+                </p>
+
+                <p className="m-0">
+                  In practical terms, TTF/OTF gives you the highest chance of
+                  importing cleanly into downstream tools (Illustrator,
+                  Inkscape, Figma import, Cricut Design Space, Silhouette
+                  Studio, laser software). WOFF is fine for conversion, but if
+                  you are doing cutter workflows, TTF/OTF is the safer input.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="text-xl font-bold text-slate-900 m-0">
+                Output structure: bounds, padding, and cut-safe shapes
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700">
+                <p className="m-0">
+                  When text becomes outlines, the most common “looks broken”
+                  issue is not the paths. It is the <strong>SVG bounds</strong>.
+                  Some viewers clip aggressively if the viewBox is tight or if a
+                  stroke extends outside the expected bounds. That shows up as
+                  cut-off descenders (like <code>g</code>, <code>y</code>,{" "}
+                  <code>p</code>) or chopped accents.
+                </p>
+
+                <p className="m-0">
+                  Padding exists to prevent that. If your export looks clipped
+                  in a specific app, increase <strong>Padding</strong> so the
+                  generated viewBox has extra room. If you enabled a stroke,
+                  remember that stroke extends outward from the path and can be
+                  clipped by strict importers. For cutters, the cleanest result
+                  is usually <strong>Stroke: None</strong> with filled outlines.
+                </p>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Cutter workflow default
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use a <strong>TTF/OTF</strong> font, set{" "}
+                    <strong>Stroke</strong> to <strong>None</strong>, add a bit
+                    of <strong>Padding</strong>, then export the SVG. Most
+                    cutter apps treat fills as cut boundaries.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="text-xl font-bold text-slate-900 m-0">
+                Split exports: line, word, and character
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700">
+                <p className="m-0">
+                  If you need individual assets, enable{" "}
+                  <strong>Individual SVGs</strong> and pick a split mode. Line
+                  split is best when you want stacked text as separate files.
+                  Word split is best for cut lettering or arranging words in a
+                  layout tool. Character split is best for monograms, custom
+                  spacing, or building letter sets.
+                </p>
+
+                <p className="m-0">
+                  Each exported SVG is still a proper outline export, meaning
+                  every file is made of paths and has its own bounds. This makes
+                  it easier to import into apps that do not handle multi-object
+                  SVGs well, and it avoids manual ungrouping and re-bounding.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Line
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Separate files per line for stacked layouts.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Word
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Separate files per word for arranging and cutting.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Character
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Separate files per glyph for custom spacing and sets.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Visible FAQ (unchanged) */}
           <section className="mt-8">
             <h3 className="text-xl font-bold text-slate-900">FAQ</h3>
             <div className="mt-3 grid gap-3">

@@ -1132,28 +1132,6 @@ export default function LineArtToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
           {/* Breadcrumbs (UI) */}
           <nav aria-label="Breadcrumb" className="mb-3">
             <ol className="flex items-center gap-2 text-[13px] text-slate-600">
@@ -1616,7 +1594,17 @@ export default function LineArtToSvgConverter({
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       {/* Route-specific SEO + FAQ render */}
       <SeoSectionsLineArt faq={FAQ} />
 
@@ -1757,7 +1745,17 @@ function SeoSectionsLineArt({ faq }: { faq: FaqItem[] }) {
               ))}
             </div>
           </header>
-
+          <div className="hidden lg:block py-6">
+            <AdSenseDelayed
+              slot="2090332782"
+              delayMs={1500}
+              minHeight={90}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+            />
+          </div>
           <section>
             <h3 className="text-lg font-bold">
               How to use this Line Art to SVG converter

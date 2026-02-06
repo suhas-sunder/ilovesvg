@@ -694,29 +694,6 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden ">
             {/* Top bar */}
@@ -1138,10 +1115,22 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1885,7 +1874,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4 py-2"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1984,83 +1976,413 @@ function JsonLdFaq() {
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">SVG Viewer (Client-Side)</h2>
-          <p className="mt-3">
-            This SVG viewer helps you inspect SVG files with intuitive zoom and
-            pan, an element picker, and metadata like width, height, and
-            viewBox. It runs fully client-side, so your SVG stays on your
-            device.
-          </p>
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        <article>
+          {/* Header / Hero */}
+          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+            <div className="flex flex-col gap-3">
+              <p className="m-0 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                PNG/JPEG to SVG vectorizer
+              </p>
 
+              <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight leading-tight text-slate-900">
+                Image to SVG Converter (PNG, JPG, JPEG, WebP)
+              </h2>
+
+              <p className="m-0 text-[15px] leading-relaxed text-slate-700">
+                Convert raster images into{" "}
+                <span className="font-semibold text-slate-900">
+                  clean, editable SVG paths
+                </span>
+                . This tool is tuned for logos, line art, scans, diagrams, and
+                photo-style edge extraction, with a fast preview loop and
+                practical controls for smoothing and cleanup.
+              </p>
+
+              <p className="m-0 text-[15px] leading-relaxed text-slate-700">
+                Upload a PNG/JPG/JPEG/WebP, pick a preset, tweak a few settings,
+                and export a scalable SVG you can recolor, edit, and embed
+                anywhere.
+              </p>
+
+              <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { k: "Clean SVG", v: "Editable paths and shapes" },
+                  { k: "Fast preview", v: "≤10 MB live updates" },
+                  { k: "Throttled tier", v: "Up to 25 MB preview" },
+                  { k: "Private by default", v: "Processed in memory" },
+                ].map((x) => (
+                  <div
+                    key={x.k}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold text-slate-900">
+                      {x.k}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+
+          {/* Use cases */}
+          <section className="mt-6">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Best for
+            </h3>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                "Logos",
+                "Line art",
+                "Scans",
+                "Whiteboards",
+                "Comics",
+                "Diagrams",
+                "Stickers",
+                "Photo edges",
+              ].map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">
+                  Line art and ink
+                </div>
+                <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                  Start with a lineart preset for crisp strokes and solid fills.
+                  Use a lower curve tolerance when you need detail, and raise
+                  turd size to remove dust and tiny specks.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">
+                  Logos and icons
+                </div>
+                <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                  Use a logo preset for smoother curves and fewer nodes.
+                  Threshold controls what becomes solid. If the SVG looks
+                  “blobby,” lower threshold or increase smoothing.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* HowTo */}
           <section
-            className="mt-8"
             itemScope
             itemType="https://schema.org/HowTo"
+            className="mt-12"
           >
-            <h3 itemProp="name" className="m-0 font-bold">
-              How to Inspect an SVG
-            </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">Open, drop, or paste an SVG file.</li>
-              <li itemProp="step">
-                Wheel to zoom and drag to pan. Hold Space to pan.
-              </li>
-              <li itemProp="step">
-                Enable Pick and click an element to inspect it.
-              </li>
-              <li itemProp="step">Copy or download the SVG source.</li>
+            <div className="flex items-end justify-between gap-4 flex-wrap">
+              <h3
+                itemProp="name"
+                className="m-0 text-lg font-extrabold text-slate-900"
+              >
+                How to convert PNG or JPEG to SVG
+              </h3>
+              <span className="text-xs text-slate-500">
+                Fast path: upload → preset → tweak → export
+              </span>
+            </div>
+
+            <ol className="mt-4 grid gap-3">
+              {[
+                {
+                  title: "Upload a PNG, JPG, JPEG, or WebP",
+                  body: "Drag and drop or use the picker. Large files may be auto-compressed on your device to help keep preview smooth up to 25 MB.",
+                },
+                {
+                  title: "Pick a preset that matches the image",
+                  body: "Lineart for ink and drawings, Logo for clean shapes, Photo Edge for contour extraction.",
+                },
+                {
+                  title: "Adjust the important controls",
+                  body: "Tune threshold (what counts as ink), curve tolerance (detail vs smoothness), turd size (speck removal), and turn policy (corner behavior).",
+                },
+                {
+                  title: "Set colors and background behavior",
+                  body: "Pick line color, invert when needed, and keep transparency or add a solid background.",
+                },
+                {
+                  title: "Export SVG",
+                  body: "Download or copy the SVG. It stays vector, so it scales cleanly and can be edited later.",
+                },
+              ].map((s, i) => (
+                <li
+                  key={s.title}
+                  itemScope
+                  itemType="https://schema.org/HowToStep"
+                  itemProp="step"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex gap-3">
+                    <div className="shrink-0 h-8 w-8 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <div
+                        itemProp="name"
+                        className="font-semibold text-slate-900"
+                      >
+                        {s.title}
+                      </div>
+                      <div
+                        itemProp="itemListElement"
+                        className="mt-1 text-sm text-slate-600 leading-relaxed"
+                      >
+                        {s.body}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
             </ol>
           </section>
+
+          {/* Settings */}
+          <section className="mt-12">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Settings explained
+            </h3>
+            <p className="mt-2 text-sm text-slate-600 leading-relaxed max-w-[80ch]">
+              These controls are the difference between “messy trace” and
+              “usable SVG.” Use them to balance detail, smoothness, and cleanup.
+            </p>
+
+            <div className="mt-5 grid md:grid-cols-2 gap-4">
+              {[
+                {
+                  title: "Preprocess",
+                  body: "None for logos and crisp ink. Edge mode for photos and paintings when you want outlines instead of filled regions.",
+                },
+                {
+                  title: "Threshold",
+                  body: "Controls what counts as ink. Higher includes lighter pixels; lower keeps only darker strokes. If you lose thin lines, raise threshold slightly.",
+                },
+                {
+                  title: "Curve tolerance",
+                  body: "Lower preserves detail (more nodes). Higher smooths curves (fewer nodes) and can reduce SVG size. For icons, a slightly higher value is usually better.",
+                },
+                {
+                  title: "Turd size",
+                  body: "Removes tiny specks and scanner dust. If your output has lots of dots, increase this first before touching other settings.",
+                },
+                {
+                  title: "Turn policy",
+                  body: "Decides how ambiguous corners resolve. Useful when corners look “wrong” or when the trace keeps rounding a shape you expect to stay sharp.",
+                },
+                {
+                  title: "Line color, invert, background",
+                  body: "Pick any stroke/fill color for the result. Invert is useful for white ink on dark backgrounds. Keep transparency or inject a solid background color.",
+                },
+                {
+                  title: "Edge boost and blur σ",
+                  body: "In Edge mode: blur reduces noise; edge boost amplifies contours before tracing. If edges look noisy, increase blur before increasing threshold.",
+                },
+              ].map((c) => (
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {c.title}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                    {c.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Performance */}
+          <section className="mt-12">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Performance and limits
+            </h3>
+
+            <div className="mt-4 grid lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">
+                  Specs
+                </div>
+                <dl className="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                    <dt className="text-slate-500">Max file size</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">
+                      30 MB per image
+                    </dd>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                    <dt className="text-slate-500">Resolution guard</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">
+                      ~30 MP per side
+                    </dd>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                    <dt className="text-slate-500">Preview tiers</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">
+                      Fast ≤10 MB, throttled ≤25 MB
+                    </dd>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                    <dt className="text-slate-500">Large files</dt>
+                    <dd className="mt-1 font-semibold text-slate-900">
+                      Auto-compress on-device when possible
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Server stability
+                </div>
+                <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+                  Vectorization is CPU heavy. We cap concurrent conversions.
+                  When busy, you may get{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    429
+                  </code>{" "}
+                  with{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    Retry-After
+                  </code>
+                  , and the client retries smoothly.
+                </p>
+                <p className="mt-3 text-sm text-slate-700 leading-relaxed">
+                  Batch conversion is off because this site is free and the load
+                  is not feasible.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Troubleshooting */}
+          <section className="mt-12">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Troubleshooting and tips
+            </h3>
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              {[
+                [
+                  "Image too large",
+                  "Downscale or crop unused borders before uploading.",
+                ],
+                [
+                  "Over 25 MB",
+                  "We try to compress locally. If it fails, resize and re-upload.",
+                ],
+                [
+                  "429 server busy",
+                  "Stability protection. The app retries after the suggested delay.",
+                ],
+                ["Blank or too light", "Lower threshold or disable invert."],
+                ["Jagged edges", "Increase curve tolerance slightly."],
+                [
+                  "Too many dots",
+                  "Raise turd size or try a scan cleanup preset.",
+                ],
+              ].map(([t, d]) => (
+                <div
+                  key={t}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {t}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                    {d}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* FAQ (structured data + visible content in one place) */}
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Frequently asked questions
+            </h3>
+
+            <div className="mt-4 grid gap-3">
+              {[
+                {
+                  q: "What file limits apply?",
+                  a: "PNG/JPEG up to 30 MB, ~30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+                },
+                {
+                  q: "What happens with files over 25 MB?",
+                  a: "We try to compress locally (PNG may become JPEG) to reach ≤25 MB for preview. If quality would drop too much, you will need to resize and re-upload.",
+                },
+                {
+                  q: "Why do I see “Server busy” with Retry-After?",
+                  a: "We cap concurrency to keep the site stable. When the queue is full the server responds 429 with Retry-After, and the app retries automatically.",
+                },
+                {
+                  q: "Can this handle photos?",
+                  a: "Yes. Use the Photo Edge presets to extract contours and stylized linework.",
+                },
+              ].map((x) => (
+                <article
+                  key={x.q}
+                  itemScope
+                  itemType="https://schema.org/Question"
+                  itemProp="mainEntity"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <h4
+                    itemProp="name"
+                    className="m-0 font-semibold text-slate-900"
+                  >
+                    {x.q}
+                  </h4>
+                  <p
+                    itemScope
+                    itemType="https://schema.org/Answer"
+                    itemProp="acceptedAnswer"
+                    className="mt-2 text-sm text-slate-600 leading-relaxed"
+                  >
+                    <span itemProp="text">{x.a}</span>
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
         </article>
-
-        <section aria-label="Frequently asked questions">
-          <h3 className="m-0 font-bold">FAQ</h3>
-
-          <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-            <summary className="cursor-pointer font-semibold">
-              Does this SVG viewer upload my file?
-            </summary>
-            <p className="mt-2 text-slate-700">
-              No. Everything runs locally in your browser. Nothing is uploaded
-              to a server.
-            </p>
-          </details>
-
-          <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-            <summary className="cursor-pointer font-semibold">
-              How do I zoom and pan?
-            </summary>
-            <p className="mt-2 text-slate-700">
-              Use the mouse wheel to zoom and drag to pan. Hold Space to pan
-              from anywhere. Double-click zooms in. Use Fit, Fill, or Actual to
-              reset the view.
-            </p>
-          </details>
-
-          <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-            <summary className="cursor-pointer font-semibold">
-              What is the element picker?
-            </summary>
-            <p className="mt-2 text-slate-700">
-              Turn on Pick, then click an element in the SVG to see its tag, id,
-              class, fill, stroke, path length (when available), and bounding
-              box.
-            </p>
-          </details>
-
-          <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-            <summary className="cursor-pointer font-semibold">
-              Why does the preview look different from my design tool?
-            </summary>
-            <p className="mt-2 text-slate-700">
-              Some SVGs rely on external fonts, CSS, or scripts. This viewer can
-              strip scripts and event handlers for safety, which may change
-              behavior. Try disabling the safety toggles to compare.
-            </p>
-          </details>
-        </section>
       </div>
     </section>
   );

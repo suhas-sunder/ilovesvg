@@ -358,29 +358,6 @@ export default function SvgToPdf(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -876,10 +853,21 @@ export default function SvgToPdf(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1335,8 +1323,6 @@ function Num({
   );
 }
 
- 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -1347,7 +1333,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1463,11 +1452,193 @@ function SeoSections() {
           </h2>
 
           <p className="mt-3">
-            Convert <strong>SVG to PDF</strong> instantly in your browser.
-            Choose paper size, orientation, margins, DPI, background, and fit
-            mode, then download a print-ready PDF. Your file stays on your
-            device with <strong>no uploads</strong>.
+            Convert <strong>SVG to PDF</strong> instantly in your browser and
+            download a print-ready file with predictable sizing. This converter
+            is designed for real output control: choose paper size, orientation,
+            margins, DPI, background, and fit mode, then export a PDF that
+            prints the way you expect. Everything runs on-device with{" "}
+            <strong>no uploads</strong>, so your SVG stays on your computer.
           </p>
+
+          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Page layout
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Paper size, orientation, and margins so the PDF matches your
+                target print format.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Fit mode
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Contain, cover, or actual-size output depending on whether you
+                want zero cropping, full bleed, or true scale.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">DPI</div>
+              <div className="mt-1 text-sm text-slate-700">
+                Control sharpness and file size by choosing an appropriate
+                render resolution.
+              </div>
+            </div>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section>
+            <h3 className="m-0 font-bold">What the converter does</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <p>
+                An SVG is a scalable vector format. A PDF is a page-based
+                document format meant for printing and sharing. Converting SVG
+                to PDF is about mapping your artwork to a page rectangle with
+                the right scale, margins, and background. If you have ever
+                exported a PDF that looked cropped, tiny, blurry, or oddly
+                positioned, the cause is almost always a mismatch between page
+                size, fit rules, and render DPI.
+              </p>
+              <p>
+                This tool gives you those controls explicitly. You choose the
+                paper size and orientation first (the physical page). Then you
+                pick margins (safe area). Then you choose how the artwork is
+                placed into that printable region: contain to guarantee nothing
+                is cut off, cover to fill the page area (with possible
+                cropping), or actual to keep a true scale relationship when you
+                want measurements to stay consistent. DPI controls how sharp the
+                output is when rasterization is involved and is the main lever
+                for balancing clarity against file size.
+              </p>
+              <p>
+                Because this runs client-side, you can test different settings
+                quickly, preview the result, and export again without uploading
+                files to a server or waiting on round trips. That is especially
+                useful when you are dialing in print output for logos,
+                illustrations, diagrams, stickers, or presentation handoffs.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Practical presets
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Print-ready (safe)
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    <strong>300 DPI</strong>, <strong>Contain</strong>, modest
+                    margins, and a <strong>white</strong> background for classic
+                    paper output with no cropping surprises.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Fast sharing (small file)
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    <strong>150 DPI</strong>, <strong>Contain</strong>, and a
+                    simple background. Reduce page size or margins before
+                    pushing quality too low.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Full-bleed look
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    <strong>Cover</strong> with minimal margins. Expect edge
+                    cropping if your SVG does not match the page aspect ratio.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Transparent background
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Choose <strong>Transparent</strong> when you want the SVG’s
+                    alpha preserved. Choose <strong>White</strong> when you want
+                    a paper-like page background.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h3 className="m-0 font-bold">
+              How the key settings affect output
+            </h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">
+                  Paper size, orientation, margins
+                </h4>
+                <p className="mt-1">
+                  Paper size and orientation define the page box. Margins shrink
+                  the usable area so content does not sit against the edge. If
+                  you are printing, margins also reduce the risk of printer
+                  clipping. If you are exporting for digital use (emailing a
+                  proof, attaching to a ticket), you can often reduce margins to
+                  make the artwork fill more of the page.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">Fit modes</h4>
+                <p className="mt-1">
+                  <strong>Contain</strong> scales the SVG so the entire artwork
+                  fits inside the printable area with no cropping.{" "}
+                  <strong>Cover</strong> fills the printable area completely,
+                  which can crop edges when aspect ratios differ.{" "}
+                  <strong>Actual</strong> aims to keep scale consistent rather
+                  than maximizing fill, which is useful when you care about
+                  true-size output relative to the chosen DPI and page.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">DPI (sharpness vs file size)</h4>
+                <p className="mt-1">
+                  Higher DPI increases the render resolution and typically
+                  increases PDF size. For most print workflows,{" "}
+                  <strong>300 DPI</strong> is the baseline. If you have very
+                  small text or fine strokes, <strong>600 DPI</strong> can help,
+                  but it will usually increase file size significantly. If you
+                  are just sharing a preview or a quick proof,{" "}
+                  <strong>150 DPI</strong> often looks fine and exports faster
+                  with smaller files.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">Background choice</h4>
+                <p className="mt-1">
+                  If your SVG has transparency, a PDF can either preserve it or
+                  flatten it onto a solid page background. Choose{" "}
+                  <strong>Transparent</strong> when the output will be layered
+                  elsewhere, and choose <strong>White</strong> when you want a
+                  paper-like result that prints consistently.
+                </p>
+              </div>
+            </div>
+          </section>
 
           <section
             className="mt-8"
@@ -1490,7 +1661,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Best Settings</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
@@ -1513,7 +1684,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Troubleshooting</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <div>
@@ -1539,7 +1710,7 @@ function SeoSections() {
             </div>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">FAQ</h3>
 
             <div className="not-prose mt-3 grid gap-3">

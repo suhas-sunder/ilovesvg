@@ -260,29 +260,6 @@ export default function SvgMinify(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -710,10 +687,21 @@ export default function SvgMinify(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -888,7 +876,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -984,32 +975,131 @@ function JsonLdFaq() {
   );
 }
 
-/* ========================
-   SEO sections
-======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">SVG Minify Tool (Client-Side)</h2>
-          <p className="mt-3">
-            This <strong>SVG minifier</strong> reduces file size by removing
-            safe bloat such as <strong>comments</strong>, extra{" "}
-            <strong>whitespace</strong>, and optional headers like{" "}
-            <strong>XML</strong> and <strong>DOCTYPE</strong>. Because it is{" "}
-            <strong>client-side</strong>, your SVG stays on your device.
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        {/* ditch prose: it causes the "off" look + uncontrolled typography */}
+        <article className="max-w-[920px]">
+          <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
+            SVG Minify Tool (Client-Side)
+          </h2>
+
+          <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+            This{" "}
+            <span className="font-semibold text-slate-900">SVG minifier</span>{" "}
+            reduces file size by removing safe bloat like{" "}
+            <span className="font-semibold text-slate-900">comments</span>,
+            extra{" "}
+            <span className="font-semibold text-slate-900">whitespace</span>,
+            and optional headers like{" "}
+            <span className="font-semibold text-slate-900">XML</span> and{" "}
+            <span className="font-semibold text-slate-900">DOCTYPE</span>. It is
+            intentionally{" "}
+            <span className="font-semibold text-slate-900">conservative</span>:
+            it focuses on safe reductions and does not rewrite path numbers or
+            transforms by default. Everything runs client-side, so your SVG
+            stays on your device.
           </p>
 
+          {/* Quick workflow */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="m-0 text-base font-extrabold text-slate-900">
+                  Quick workflow
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                  Use this when you want smaller SVGs without changing geometry.
+                </p>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Upload/paste
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Choose removals
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Preview
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Export SVG
+                </span>
+              </div>
+            </div>
+            {typeof document !== "undefined" && (
+              <div className="block py-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
+            <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  1) Start with the safe defaults
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Remove comments and collapse whitespace first. These are
+                  usually “free” savings.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  2) Strip XML/DOCTYPE only if you need to
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Helpful for cleaner embeds and fewer wrappers, but not
+                  required for most SVG usage.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  3) Keep text trimming off for text-heavy SVGs
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  SVG{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    &lt;text&gt;
+                  </code>{" "}
+                  can be sensitive to whitespace and spacing.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  4) If savings are tiny, the file is path-dominated
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  This tool avoids rewriting path numbers, so some SVGs won’t
+                  shrink much.
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          {/* HowTo (keep schema-friendly, but styled to match your UI) */}
           <section
             className="mt-8"
             itemScope
             itemType="https://schema.org/HowTo"
           >
-            <h3 itemProp="name" className="m-0 font-bold">
-              How to Minify an SVG
+            <h3
+              itemProp="name"
+              className="m-0 text-lg font-extrabold text-slate-900"
+            >
+              How to minify an SVG
             </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
+            <ol className="mt-3 grid gap-2 list-decimal pl-5 text-[13px] leading-relaxed text-slate-700">
               <li itemProp="step">Upload or paste an SVG file.</li>
               <li itemProp="step">
                 Choose what to remove (comments, whitespace, headers).
@@ -1017,97 +1107,223 @@ function SeoSections() {
               <li itemProp="step">Preview the minified result.</li>
               <li itemProp="step">Download the minified SVG.</li>
             </ol>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">Note:</span> this
+              minifier is conservative. It focuses on safe reductions and avoids
+              rewriting path data.
+            </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">What This Tool Changes</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Removes comments and collapses whitespace</li>
-              <li>Optionally strips XML declaration and DOCTYPE</li>
-              <li>Cleans style attributes and removes empty attributes</li>
-              <li>
-                Optionally removes metadata and common editor-only namespaces
+          {/* What changes */}
+          <section className="mt-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+              <span className="text-base">🧹</span>
+              Changes
+            </div>
+            <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+              What this tool changes
+            </h3>
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>Removes comments and collapses whitespace</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>Optionally strips XML declaration and DOCTYPE</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  Cleans{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    style=""
+                  </code>{" "}
+                  formatting and removes empty attributes (when safe)
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  Optionally removes metadata and common editor-only namespaces
+                </span>
               </li>
             </ul>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">When This Tool Is Useful</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Reducing SVG payload size for web performance</li>
-              <li>Cleaning exported SVGs from design tools</li>
-              <li>Normalizing SVG formatting across a codebase</li>
-              <li>Preparing icons and illustrations for shipping</li>
+          {/* When useful */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              When this tool is useful
+            </h3>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Web performance
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Reduce payload size for faster downloads and improved caching,
+                  especially for icon sets.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Design export cleanup
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Remove comments, metadata, and editor junk that inflates
+                  exports from design tools.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Repo normalization
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Standardize SVG formatting across a codebase so diffs are
+                  cleaner and reviews are easier.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Shipping assets
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Prepare icons and illustrations for production without
+                  rewriting geometry.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Common issues (this was outside the container before; keep it inside for consistent layout) */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Common issues
+            </h3>
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                  i
+                </span>
+                <span>
+                  If the output size barely changes, your SVG is probably
+                  already compact or most of the size is in path data. This
+                  conservative minifier does not rewrite path numbers.
+                </span>
+              </li>
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                  i
+                </span>
+                <span>
+                  If your SVG contains visible{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    &lt;text&gt;
+                  </code>{" "}
+                  content, keep “Trim text nodes” off to avoid spacing changes.
+                </span>
+              </li>
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                  i
+                </span>
+                <span>
+                  If you need bigger reductions, use an SVGO-based optimizer
+                  (WASM) that can rewrite paths more aggressively. That can
+                  change output, so always preview.
+                </span>
+              </li>
             </ul>
+          </section>
+
+          {/* FAQ - keep your existing questions/answers; just fix styling + cursor/hover */}
+          <section className="mt-12" aria-label="Frequently asked questions">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
+
+            <div className="mt-4 grid gap-3">
+              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
+                  <span>Does this SVG minify tool upload my file?</span>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+                  No. The SVG is processed locally in your browser. Nothing is
+                  uploaded to a server.
+                </p>
+              </details>
+
+              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
+                  <span>What does SVG minify do?</span>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+                  It removes safe bloat like comments and extra whitespace, and
+                  can optionally strip the XML/DOCTYPE header, clean{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    style=""
+                  </code>{" "}
+                  formatting, and remove empty attributes.
+                </p>
+              </details>
+
+              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
+                  <span>Can minifying break an SVG?</span>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+                  The default options are conservative and usually safe. The
+                  main risky option is trimming text nodes, which can affect
+                  SVGs that rely on exact spacing inside{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    &lt;text&gt;
+                  </code>
+                  .
+                </p>
+              </details>
+
+              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
+                  <span>Why is the output size sometimes unchanged?</span>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+                  Some SVGs are already compact, or their size is dominated by
+                  path data. This tool avoids rewriting paths and transforms, so
+                  savings can be small for certain files.
+                </p>
+              </details>
+            </div>
           </section>
         </article>
       </div>
-
-      <section className="">
-        <h3 className="m-0 font-bold">Common issues</h3>
-        <ul className="mt-3 text-slate-700 list-disc pl-5">
-          <li>
-            If the output size barely changes, your SVG is probably already
-            compact, or most of the size is in path data. This conservative
-            minifier does not rewrite path numbers.
-          </li>
-          <li>
-            If your SVG contains visible <code>&lt;text&gt;</code> content, keep
-            “Trim text nodes” off to avoid changing spacing.
-          </li>
-          <li>
-            If you need bigger reductions, use the SVGO WASM optimizer tool. It
-            can rewrite paths more aggressively.
-          </li>
-        </ul>
-      </section>
-
-      <section aria-label="Frequently asked questions">
-        <h3 className="m-0 font-bold">FAQ</h3>
-
-        <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Does this SVG minify tool upload my file?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            No. The SVG is processed locally in your browser. Nothing is
-            uploaded to a server.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            What does SVG minify do?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            It removes safe bloat like comments and extra whitespace, and can
-            optionally strip the XML/DOCTYPE header, clean <code>style=""</code>{" "}
-            formatting, and remove empty attributes.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Can minifying break an SVG?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            The default options are conservative and usually safe. The main
-            risky option is trimming text nodes, which can affect SVGs that rely
-            on exact spacing inside <code>&lt;text&gt;</code>.
-          </p>
-        </details>
-
-        <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer font-semibold">
-            Why is the output size sometimes unchanged?
-          </summary>
-          <p className="mt-2 text-slate-700">
-            Some SVGs are already compact, or their size is dominated by path
-            data. This tool avoids rewriting paths and transforms, so savings
-            can be small for certain files.
-          </p>
-        </details>
-      </section>
     </section>
   );
 }

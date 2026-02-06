@@ -1657,9 +1657,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       className="inline-block mr-1"
                     />
                   )}
-                  {busy
-                    ? "Converting…"
-                    : "Converted files appear here...  "}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>

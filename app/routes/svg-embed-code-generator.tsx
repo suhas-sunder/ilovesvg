@@ -373,28 +373,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
@@ -1303,7 +1281,17 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <FaqSection />
       <JsonLdBreadcrumbs />
@@ -2446,34 +2434,180 @@ function FaqSection() {
   );
 }
 
-/* ========================
-   SEO sections
-======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">SVG Embed Code Generator</h2>
-          <p className="mt-3">
-            Generate <strong>SVG embed code</strong> for the most common ways to
-            use SVG on the web. Upload or paste an SVG and instantly get
-            snippets for HTML <strong>&lt;img&gt;</strong>,{" "}
-            <strong>inline SVG</strong>, <strong>CSS background-image</strong>,{" "}
-            <strong>CSS mask-image</strong>, <strong>SVG data URIs</strong>{" "}
-            (UTF-8 or Base64), and <strong>React/JSX</strong>. Everything runs{" "}
-            <strong>client-side</strong>.
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        {/* drop prose; keep a controlled content column that matches the app UI */}
+        <article>
+          <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
+            SVG Embed Code Generator
+          </h2>
+
+          <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+            Generate{" "}
+            <span className="font-semibold text-slate-900">SVG embed code</span>{" "}
+            for the most common ways to use SVG on the web. Upload or paste an
+            SVG and get snippets for HTML{" "}
+            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              &lt;img&gt;
+            </code>
+            , <span className="font-semibold text-slate-900">inline SVG</span>,{" "}
+            <span className="font-semibold text-slate-900">
+              CSS background-image
+            </span>
+            ,{" "}
+            <span className="font-semibold text-slate-900">CSS mask-image</span>
+            , <span className="font-semibold text-slate-900">data URIs</span>{" "}
+            (UTF-8 or Base64), and{" "}
+            <span className="font-semibold text-slate-900">React/JSX</span>.
+            Everything runs{" "}
+            <span className="font-semibold text-slate-900">client-side</span>.
           </p>
 
+          {/* Quick picker: match the actual controls on the page */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="m-0 text-base font-extrabold text-slate-900">
+                  Which embed type should I choose?
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                  Pick based on how much styling control you need and where the
+                  SVG will live.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Simplest: img
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Most control: inline/React
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  CSS: background/mask
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Portable: data URI
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  HTML &lt;img&gt;
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Best when you want a simple embed and don’t need to style
+                  internal SVG parts. Good for caching and quick use in content.
+                </p>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  Use when: “just render the SVG”.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">Inline SVG</div>
+                <p className="mt-2 leading-relaxed">
+                  Best when you need styling control (CSS, hover states,
+                  currentColor) or accessibility attributes directly on
+                  elements.
+                </p>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  Use when: theming, animations, per-path styling.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  CSS background-image
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Best for decorative graphics. Works well with sizing,
+                  positioning, and repeating behavior, but you can’t style
+                  internal SVG parts.
+                </p>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  Use when: backgrounds, badges, UI decoration.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  CSS mask-image
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Best for single-color icons with{" "}
+                  <span className="font-semibold text-slate-900">
+                    currentColor
+                  </span>
+                  -style theming. The SVG becomes a mask; the element’s
+                  background sets the color.
+                </p>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  Use when: monochrome icons, easy theming.
+                </div>
+              </div>
+            </div>
+            {typeof document !== "undefined" && (
+              <div className="block py-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
+            <div className="mt-3 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  Data URI (UTF-8)
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Smaller and readable, but requires proper escaping. Best for
+                  CSS URLs when you want quick copy-paste without Base64.
+                </p>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  Use when: CSS embed and size matters.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  Data URI (Base64)
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  More compatible across older pipelines because it avoids
+                  escaping issues, but can be larger. Useful when UTF-8 encoding
+                  breaks.
+                </p>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  Use when: strict tooling or copy/paste issues.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* HowTo (keep, but make it match the utility style) */}
           <section
             className="mt-8"
             itemScope
             itemType="https://schema.org/HowTo"
           >
-            <h3 itemProp="name" className="m-0 font-bold">
+            <h3
+              itemProp="name"
+              className="m-0 text-lg font-extrabold text-slate-900"
+            >
               How to generate SVG embed code
             </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
+            <ol className="mt-3 grid gap-2 list-decimal pl-5 text-[13px] leading-relaxed text-slate-700">
               <li itemProp="step">Upload an SVG file or paste SVG markup.</li>
               <li itemProp="step">
                 Choose an embed type (img, inline, CSS, data URI, React).
@@ -2485,29 +2619,141 @@ function SeoSections() {
                 Copy the generated snippet into your project.
               </li>
             </ol>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">Tip:</span> If you
+              want styling control, choose Inline SVG or React. If you want the
+              simplest embed, choose HTML img.
+            </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Common searches this tool covers</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>SVG embed code generator</li>
-              <li>How to embed SVG in HTML</li>
-              <li>Inline SVG generator</li>
-              <li>SVG data URI generator</li>
-              <li>SVG Base64 data URI</li>
-              <li>CSS background SVG data URI</li>
-              <li>CSS mask SVG currentColor</li>
-              <li>Convert SVG to React component</li>
+          {/* Practical details (not keyword-stuffing) */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Sizing and viewBox (what actually affects rendering)
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+              Most “SVG doesn’t scale” issues come from missing or mismatched
+              sizing signals. Embed snippets often need a predictable viewBox
+              and either explicit sizing or CSS-driven sizing depending on where
+              you’re using the SVG.
+            </p>
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    Inline/React:
+                  </span>{" "}
+                  viewBox enables responsive scaling. Use CSS width/height for
+                  layout sizing.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    &lt;img&gt;:
+                  </span>{" "}
+                  the SVG’s intrinsic size can come from width/height or the
+                  image’s layout box.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    CSS background/mask:
+                  </span>{" "}
+                  use background-size / background-position (or mask-size /
+                  mask-position) to control layout behavior.
+                </span>
+              </li>
+            </ul>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">
+                If your SVG won’t scale:
+              </span>{" "}
+              verify it has a valid viewBox. If not, fix the SVG first, then
+              embed.
+            </div>
+          </section>
+
+          {/* Security notes (utility, not scary) */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Security notes for inline SVG and data URIs
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              SVG is XML and can contain scripts, event handlers, and external
+              references. If you did not create the SVG, sanitize before
+              inlining or embedding as a data URI.
+            </p>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Inline / React
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Highest control, but you are inserting markup into your page.
+                  Strip{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    &lt;script&gt;
+                  </code>{" "}
+                  and{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    on*
+                  </code>{" "}
+                  handlers on untrusted SVGs.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">Data URIs</div>
+                <p className="mt-2 leading-relaxed">
+                  Safer in the sense that it is not parsed as DOM elements, but
+                  it can still embed harmful or broken content if you ship
+                  untrusted files. Treat untrusted SVGs as untrusted input.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">Privacy:</span>{" "}
+              generation runs on-device in your browser. Files are not uploaded
+              to a server for conversion.
+            </div>
+          </section>
+
+          {/* Remove keyword-stuffing section; replace with practical "covers" */}
+          <section className="mt-8">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Snippets included
+            </h3>
+            <ul className="mt-3 list-disc pl-5 text-[13px] leading-relaxed text-slate-700">
+              <li>HTML image embed: &lt;img src="..." alt="..." /&gt;</li>
+              <li>Inline SVG with optional title/aria attributes</li>
+              <li>CSS background-image using a UTF-8 or Base64 data URI</li>
+              <li>CSS mask-image for single-color, themeable icons</li>
+              <li>React/JSX-friendly markup (attribute name normalization)</li>
             </ul>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Security notes</h3>
-            <p className="mt-3">
-              SVG is XML and can include scripts. If you did not create the SVG
-              yourself, keep sanitization enabled before inlining or turning it
-              into a data URI.
-            </p>
+          {/* Keep your FAQ component unchanged; only fix its styling wrapper if needed */}
+          <section className="mt-12" aria-label="Frequently asked questions">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
+            <div className="not-prose mt-4">
+              <JsonLdFaq />
+            </div>
           </section>
         </article>
       </div>

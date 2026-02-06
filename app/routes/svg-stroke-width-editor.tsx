@@ -399,29 +399,6 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -1018,9 +995,21 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
           className="absolute left-[-99999px] top-0 w-[1px] h-[1px] overflow-hidden"
         />
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
+
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1791,7 +1780,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4 py-2"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1896,14 +1888,195 @@ function SeoSections() {
           </h2>
 
           <p className="mt-3">
-            This <strong>SVG stroke width adjuster</strong> makes outlines
-            thicker or thinner in seconds, directly in your browser. It can{" "}
-            <strong>multiply</strong> existing stroke widths,{" "}
+            This tool changes <strong>line thickness</strong> in an SVG by
+            editing the SVG source in the places that actually control stroke
+            rendering. You can <strong>multiply</strong> existing widths,{" "}
             <strong>set</strong> a single uniform width, or{" "}
             <strong>add missing stroke-width</strong> values. Everything runs{" "}
             <strong>client-side</strong> with a live before/after preview, so
             your SVG never uploads to a server.
           </p>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Multiply
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Scale what exists (2×, 0.5×) while preserving relative
+                differences.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">Set</div>
+              <div className="mt-1 text-sm text-slate-700">
+                Force one thickness everywhere for consistent, predictable
+                output.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Add-missing
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Only writes stroke width where none exists, keeping existing
+                author intent.
+              </div>
+            </div>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section className="mt-8">
+            <h3 className="m-0 font-bold">What this tool edits in the SVG</h3>
+            <p className="mt-3">
+              SVG stroke width is not stored in one universal place. The same
+              image can define thickness through attributes, styles, CSS rules,
+              or inherited group settings. If you write a value to one place but
+              the rendering is controlled by another place, the preview can look
+              unchanged even though the file did change. This tool focuses on
+              editing the source in a way that matches how SVGs are commonly
+              authored and exported.
+            </p>
+
+            <div className="mt-4 grid gap-4 not-prose md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Attribute
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Writes <code>stroke-width="…"</code> directly on elements.
+                  Simple and portable, but can be overridden by styles.
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Inline style
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Writes <code>style="stroke-width: …;"</code>. Usually takes
+                  precedence over classes and attributes, so it is the most
+                  reliable option for “make it stick.”
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Embedded CSS
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Updates rules inside <code>&lt;style&gt;</code> blocks for
+                  class-based SVGs. Useful when you want clean output with fewer
+                  per-element overrides.
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Inheritance
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Handles cases where a parent <code>&lt;g&gt;</code> defines
+                  stroke properties that apply to children. This can affect what
+                  you should target and where you should write.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h3 className="m-0 font-bold">Pick the right mode fast</h3>
+            <p className="mt-3">
+              Different tasks need different semantics. Use the mode that
+              matches your intent so you do not accidentally flatten variations
+              or miss elements that need changes.
+            </p>
+
+            <div className="mt-4 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">Multiply (preserve variation)</h4>
+                <p className="mt-1">
+                  Best when the SVG already has a mix of thin and thick lines
+                  and you want to scale the entire drawing proportionally.
+                  Examples: “make everything 1.5× thicker” or “halve all strokes
+                  for a lighter look.” This keeps relative styling differences
+                  intact.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">Set (make it uniform)</h4>
+                <p className="mt-1">
+                  Best when you need consistent stroke width across many files
+                  or want a predictable output for UI and print. This forces one
+                  width, even if the source has many widths. It is also the most
+                  straightforward way to confirm the tool is targeting the
+                  elements you expect.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="m-0 font-bold">Add-missing (minimum change)</h4>
+                <p className="mt-1">
+                  Best when your SVG is inconsistent because some elements have
+                  a stroke width and others do not. Add-missing fills in blanks
+                  without touching explicit widths. If the SVG already defines
+                  widths everywhere (even indirectly via CSS), Add-missing can
+                  correctly report that nothing needed to change.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Reliable “make it work” recipe
+              </div>
+              <div className="mt-3 grid gap-2 text-sm text-slate-700">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="font-semibold text-slate-900">
+                    1) Apply to: Inline style
+                  </div>
+                  <div className="mt-1">
+                    Inline style tends to win over classes and attributes, so
+                    you see the change immediately and the exported SVG is hard
+                    to override by accident.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="font-semibold text-slate-900">
+                    2) Use Set to verify targeting
+                  </div>
+                  <div className="mt-1">
+                    Temporarily set an obvious width to confirm the right
+                    elements are being modified. Then switch to Multiply if you
+                    want proportional scaling.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="font-semibold text-slate-900">
+                    3) Rewrite embedded CSS (if supported)
+                  </div>
+                  <div className="mt-1">
+                    If the SVG is class-driven, updating the CSS rules reduces
+                    per-element noise and prevents conflicts between style
+                    layers.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <h3 className="mt-8 m-0 font-bold">What’s actually happening</h3>
           <p className="mt-3">
@@ -1991,24 +2164,53 @@ function SeoSections() {
             </li>
           </ul>
 
-          <section>
-            <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                Thicken icon outlines for better readability at small sizes
-              </li>
-              <li>Normalize stroke widths across mixed SVG assets and packs</li>
-              <li>
-                Prepare SVGs for print, cutting, plotting, Cricut, or laser
-                workflows
-              </li>
-              <li>
-                Fix SVGs that render with strokes too thin in specific apps or
-                browsers
-              </li>
-            </ul>
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Common Uses
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    UI and icons
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Thicken outlines so small icons stay readable and consistent
+                    across a design system.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Mixed asset packs
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Normalize strokes across SVGs that were exported from
+                    different sources or authors.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Print and cutting workflows
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Make lines visible and consistent for plotting, cutting,
+                    Cricut, and laser prep.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    App-specific rendering quirks
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Fix strokes that look too thin in certain viewers by writing
+                    stroke-width into the correct precedence layer.
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
 
+          {/* FAQ (do not change) */}
           <section>
             <h3 className="m-0 font-bold">FAQ</h3>
             <div className="not-prose mt-3 grid gap-3">

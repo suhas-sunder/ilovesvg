@@ -305,20 +305,28 @@ export default function SvgBackgroundPage({
 
   const faq = [
     {
-      q: "Does this upload my SVG to a server?",
-      a: "No. Everything runs in your browser. The SVG is parsed and edited locally, and you download the updated file.",
+      q: "Why doesn’t “remove background” change anything?",
+      a: "Most SVGs are transparent by default. If the original file doesn’t contain a full-canvas shape (usually a <rect>) then there is nothing to remove. Turn on Checkerboard or set a dark preview background to confirm transparency.",
     },
     {
-      q: "Why does background detection sometimes say “none”?",
-      a: "Many SVGs are transparent by design and do not include a full-canvas background element. That is normal, and the preview should still render.",
+      q: "Will this touch my artwork colors or strokes?",
+      a: "No. The tool only targets a likely full-canvas background element (when detected) and/or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
     },
     {
-      q: "What counts as a “background” in this tool?",
-      a: "We look for early elements (usually a <rect>) that cover the viewBox or the width/height canvas. If found, you can remove it, or replace it with a new color/opacity.",
+      q: "What if my SVG uses CSS, <style>, or classes?",
+      a: 'That’s fine. The inserted background uses explicit attributes (fill and fill-opacity) and pointer-events="none" so it won’t interfere with interactivity. We do not rewrite your CSS.',
     },
     {
-      q: "Can I paste SVG code instead of uploading?",
-      a: "Yes. Paste SVG markup on the page and it will load as input.",
+      q: "Can this remove a background that is not a single <rect>?",
+      a: "Sometimes. If the background is a full-canvas <path> or a <rect> wrapped in a group, it may be harder to reliably identify without risking false positives. In those cases, use Replace mode (add your own background) or edit the SVG manually.",
+    },
+    {
+      q: "Does adding a background affect printing or PDF export?",
+      a: "Usually it helps. Many print and PDF pipelines expect an explicit background if you want solid white (or any color). A real background <rect> ensures the color travels with the file instead of relying on viewer defaults.",
+    },
+    {
+      q: "Where is the background inserted?",
+      a: "By default, it is inserted right after <defs> when present (safe and predictable). If there is no <defs>, it becomes the first child of the root <svg> so it sits behind everything.",
     },
   ];
 
@@ -335,28 +343,6 @@ export default function SvgBackgroundPage({
               format="horizontal"
               fullWidth={true}
               className="mx-auto w-full max-w-[970px]"
-            />
-          </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
             />
           </div>
           {/* Breadcrumbs */}
@@ -858,6 +844,17 @@ export default function SvgBackgroundPage({
 
           <SeoSections />
         </div>
+        <div className="block lg:hidden py-6">
+          <AdSenseDelayed
+            slot="6632213024"
+            delayMs={1500}
+            minHeight={90}
+            maxHeight={100}
+            format="horizontal"
+            fullWidth={true}
+            className="mx-auto w-full max-w-[360px]"
+          />
+        </div>
         <OtherToolsLinks />
         <RelatedSites />
         <SocialLinks />
@@ -880,7 +877,7 @@ export default function SvgBackgroundPage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(makeFaqJsonLd(faq)),
+            __html: safeJsonLd(makeFaqJsonLd(faq)),
           }}
         />
       </main>
@@ -892,70 +889,163 @@ export default function SvgBackgroundPage({
    SEO sections
 ======================== */
 function SeoSections() {
+  const faq = [
+    {
+      q: "Why doesn’t “remove background” change anything?",
+      a: "Most SVGs are transparent by default. If the original file doesn’t contain a full-canvas shape (usually a <rect>) then there is nothing to remove. Turn on Checkerboard or set a dark preview background to confirm transparency.",
+    },
+    {
+      q: "Will this touch my artwork colors or strokes?",
+      a: "No. The tool only targets a likely full-canvas background element (when detected) and/or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
+    },
+    {
+      q: "What if my SVG uses CSS, <style>, or classes?",
+      a: 'That’s fine. The inserted background uses explicit attributes (fill and fill-opacity) and pointer-events="none" so it won’t interfere with interactivity. We do not rewrite your CSS.',
+    },
+    {
+      q: "Can this remove a background that is not a single <rect>?",
+      a: "Sometimes. If the background is a full-canvas <path> or a <rect> wrapped in a group, it may be harder to reliably identify without risking false positives. In those cases, use Replace mode (add your own background) or edit the SVG manually.",
+    },
+    {
+      q: "Does adding a background affect printing or PDF export?",
+      a: "Usually it helps. Many print and PDF pipelines expect an explicit background if you want solid white (or any color). A real background <rect> ensures the color travels with the file instead of relying on viewer defaults.",
+    },
+    {
+      q: "Where is the background inserted?",
+      a: "By default, it is inserted right after <defs> when present (safe and predictable). If there is no <defs>, it becomes the first child of the root <svg> so it sits behind everything.",
+    },
+  ];
+
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <div className="hidden lg:block py-6">
-          <AdSenseDelayed
-            slot="6722780159"
-            delayMs={1500}
-            minHeight={90}
-            maxHeight={120}
-            format="horizontal"
-            fullWidth={true}
-            className="mx-auto w-full max-w-[970px]"
-          />
-        </div>
-        <div className="hidden md:block lg:hidden py-6">
-          <AdSenseDelayed
-            slot="1303030579"
-            delayMs={1500}
-            minHeight={90}
-            maxHeight={100}
-            format="horizontal"
-            fullWidth={true}
-            className="mx-auto w-full max-w-[728px]"
-          />
-        </div>
-        <div className="block md:hidden py-6">
-          <AdSenseDelayed
-            slot="9492413726"
-            delayMs={1500}
-            minHeight={90}
-            maxHeight={100}
-            format="horizontal"
-            fullWidth={true}
-            className="mx-auto w-full max-w-[360px]"
-          />
-        </div>
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0">How SVG Background Add/Remove Works</h2>
-          <p className="mt-3">
-            SVGs are often transparent. When you see a “white background” in an
-            editor, it is frequently just the editor canvas, not real SVG
-            content. A true SVG background is usually a first-child{" "}
-            <code>&lt;rect&gt;</code> (or similar shape) that spans the entire
-            canvas. This tool parses your SVG, tries to detect that kind of
-            full-canvas element, and then either removes it or inserts a new
-            one.
-          </p>
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        <article className="max-w-[920px]">
+          {/* Title */}
+          <header>
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight m-0">
+              How SVG Background Add/Remove Works
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+              SVGs are often transparent. When you see a “white background” in
+              an editor, it is frequently the editor canvas, not real SVG
+              content. A true SVG background is usually an early, full-canvas
+              shape (most commonly a first-child{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                &lt;rect&gt;
+              </code>
+              ) that covers the entire drawing area. This tool parses your SVG,
+              tries to identify that kind of element, and then removes it,
+              replaces it, or inserts a new background behind your artwork.
+            </p>
 
-          <div className="mt-7 grid md:grid-cols-2 gap-6">
+            {/* Quick workflow */}
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 className="m-0 text-base font-extrabold text-slate-900">
+                    Quick workflow
+                  </h3>
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                    Use this when you just want the result without thinking
+                    about SVG internals.
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Upload or paste SVG
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Pick Mode
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Preview
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                    Download or Copy
+                  </span>
+                </div>
+              </div>
+
+              <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    1) Confirm transparency
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    Toggle <span className="font-semibold">Checkerboard</span>{" "}
+                    or set a dark preview background. This avoids the “looks the
+                    same” trap when your SVG is already transparent.
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    2) Remove or Replace
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    Use <span className="font-semibold">Remove</span> to strip
+                    an existing full-canvas background. Use{" "}
+                    <span className="font-semibold">Add/Replace</span> to
+                    guarantee a background for print, PDF, or stickers.
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    3) Set color and opacity
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    Pick the exact background color you want. Opacity is useful
+                    for watermark-style backdrops, but for print you usually
+                    want 100%.
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="font-semibold text-slate-900">
+                    4) Export cleanly
+                  </span>
+                  <div className="mt-1 leading-relaxed">
+                    Optional cleanup can remove XML/DOCTYPE and lightly minify
+                    whitespace. The output stays an SVG and remains editable.
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </header>
+
+          {typeof document !== "undefined" && (
+            <div className="block py-8">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+
+          {/* Main grid */}
+          <div className="mt-2 grid gap-6 md:grid-cols-2">
             {/* Detection */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    <span className="text-base">🔎</span>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-800">
+                      1
+                    </span>
                     Detection
                   </div>
                   <h3 className="mt-3 text-lg font-extrabold text-slate-900 m-0">
                     What we consider a background
                   </h3>
                   <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-                    We scan early shapes and look for an element that clearly
-                    covers the whole canvas. If we find it, you can remove or
-                    replace it.
+                    The goal is to remove only the “obvious” background, without
+                    risking deleting real artwork. That means we prefer
+                    high-confidence signals over aggressive guessing.
                   </p>
                 </div>
               </div>
@@ -966,19 +1056,28 @@ function SeoSections() {
                     ✓
                   </span>
                   <span>
-                    A{" "}
+                    Early full-canvas element, usually a{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       &lt;rect&gt;
                     </code>{" "}
-                    starting at{" "}
+                    near the top of the SVG content.
+                  </span>
+                </li>
+
+                <li className="flex gap-3">
+                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                    ✓
+                  </span>
+                  <span>
+                    Starts at{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       x=0
                     </code>{" "}
                     and{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       y=0
-                    </code>
-                    .
+                    </code>{" "}
+                    (or equivalent defaults).
                   </span>
                 </li>
 
@@ -1021,36 +1120,64 @@ function SeoSections() {
                     i
                   </span>
                   <span>
-                    If we don’t detect anything, that usually means the SVG is
-                    meant to be transparent.
+                    If nothing is detected, that usually means the SVG is meant
+                    to be transparent or the background is not a simple
+                    full-canvas shape.
                   </span>
                 </li>
               </ul>
 
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700">
-                <span className="font-semibold text-slate-900">Tip:</span> If
-                the output “looks the same,” try a non-white preview background
-                or enable checkerboard to reveal transparency.
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+                <div className="font-semibold text-slate-900">
+                  Common “miss” cases
+                </div>
+                <ul className="mt-2 space-y-2">
+                  <li>
+                    Background is a <span className="font-semibold">path</span>{" "}
+                    (not a rect) that happens to cover the canvas.
+                  </li>
+                  <li>
+                    Background lives inside a{" "}
+                    <span className="font-semibold">group with transforms</span>
+                    , making coverage ambiguous.
+                  </li>
+                  <li>
+                    Background is created by a{" "}
+                    <span className="font-semibold">
+                      pattern, mask, or filter
+                    </span>{" "}
+                    rather than a single shape.
+                  </li>
+                </ul>
+                <div className="mt-3">
+                  In those cases, use{" "}
+                  <span className="font-semibold">Add/Replace</span> to
+                  guarantee a background without deleting anything.
+                </div>
               </div>
-            </div>
+            </section>
 
             {/* Insertion */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    <span className="text-base">🧱</span>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-800">
+                      2
+                    </span>
                     Insertion
                   </div>
                   <h3 className="mt-3 text-lg font-extrabold text-slate-900 m-0">
                     What we add (and where it goes)
                   </h3>
                   <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-                    We add a single full-canvas{" "}
+                    When you add or replace a background, the tool inserts one
+                    full-canvas{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       &lt;rect&gt;
                     </code>{" "}
-                    behind your artwork, sized safely based on your SVG.
+                    behind your artwork. This is the most widely supported way
+                    to create a “real” SVG background.
                   </p>
                 </div>
               </div>
@@ -1065,11 +1192,11 @@ function SeoSections() {
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       viewBox
                     </code>{" "}
-                    when present. Otherwise we fall back to root{" "}
+                    when present. Otherwise it falls back to root{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       width/height
-                    </code>
-                    , then{" "}
+                    </code>{" "}
+                    and finally{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       100%
                     </code>
@@ -1088,7 +1215,7 @@ function SeoSections() {
                     <span className="font-semibold text-slate-900">
                       opacity
                     </span>
-                    . We set{" "}
+                    . The inserted rect uses{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       pointer-events="none"
                     </code>{" "}
@@ -1101,16 +1228,35 @@ function SeoSections() {
                     3
                   </span>
                   <span>
-                    Insert position is either{" "}
+                    Insert position is{" "}
                     <span className="font-semibold text-slate-900">after</span>{" "}
                     <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                       &lt;defs&gt;
                     </code>{" "}
-                    (recommended) or as the first child for maximum “behind
-                    everything” behavior.
+                    when present. This avoids interfering with definitions and
+                    keeps the background clearly “behind” the visible layers.
                   </span>
                 </li>
               </ol>
+
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+                <div className="font-semibold text-slate-900">
+                  Why a rect is the safest choice
+                </div>
+                <ul className="mt-2 space-y-2">
+                  <li>
+                    Works across browsers, editors, and print pipelines with
+                    minimal surprises.
+                  </li>
+                  <li>
+                    Does not depend on viewer defaults (no “white in one app,
+                    transparent in another”).
+                  </li>
+                  <li>
+                    Easy to remove later without damaging the rest of the SVG.
+                  </li>
+                </ul>
+              </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
@@ -1123,46 +1269,83 @@ function SeoSections() {
                   Clean export
                 </span>
               </div>
-            </div>
+            </section>
           </div>
 
-          {/* FAQ */}
-          <section>
-            <div className="flex items-end justify-between gap-3 flex-wrap">
-              <div>
-                <h3 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  <span className="text-base">❓</span>
-                  FAQ
-                </h3>
+          {/* Cleanup + privacy */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Cleanup options and what they actually do
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+              These switches are about output hygiene, not “optimizing” your
+              art. Use them when you need compatibility, smaller files, or
+              cleaner diffs.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900 text-[13px]">
+                  Remove XML declaration
+                </div>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                  Removes the{" "}
+                  <code className="px-1.5 py-0.5 rounded bg-white border border-slate-200">
+                    {"<?xml ...?>"}
+                  </code>{" "}
+                  header. Often unnecessary on the web, and some pipelines
+                  prefer it absent.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900 text-[13px]">
+                  Remove DOCTYPE
+                </div>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                  Removes the DOCTYPE line. This can reduce warnings in strict
+                  parsers and is usually safe for modern SVG.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900 text-[13px]">
+                  Minify whitespace (light)
+                </div>
+                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                  Trims excess whitespace without aggressive rewriting. This
+                  keeps the SVG readable while shrinking size a bit.
+                </p>
               </div>
             </div>
 
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">
+                On-device processing:
+              </span>{" "}
+              your SVG is parsed and modified in the browser. Files are not
+              uploaded to a server for conversion.
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section className="mt-8">
+            <div className="flex items-end justify-between gap-3 flex-wrap">
+              <h3 className="m-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                <span className="text-base">❓</span>
+                FAQ
+              </h3>
+            </div>
+
             <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "Why would I remove a background?",
-                  a: "For UI icons and overlays you usually want transparency. Removing a full-canvas rect makes the SVG truly transparent when placed over other backgrounds.",
-                },
-                {
-                  q: "Why add a background at all?",
-                  a: "Some export pipelines (PDF, certain editors, sticker/print workflows) need an explicit background. Adding a rect guarantees the background travels with the SVG.",
-                },
-                {
-                  q: "Will this break gradients or patterns?",
-                  a: "No. Background edits only target a likely full-canvas background element and/or insert a new one. Gradients/patterns inside your art stay untouched.",
-                },
-                {
-                  q: "Can I paste SVG code instead of uploading?",
-                  a: "Yes. Paste SVG markup on the page (or use the code box) and it will load.",
-                },
-              ].map((item) => (
+              {faq.map((item) => (
                 <details
                   key={item.q}
                   className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
                     <span className="font-bold text-slate-900">{item.q}</span>
-                    <span className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-open:rotate-45 transition-transform">
+                    <span className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform cursor-pointer">
                       +
                     </span>
                   </summary>
@@ -1171,6 +1354,58 @@ function SeoSections() {
                   </p>
                 </details>
               ))}
+            </div>
+          </section>
+
+          {/* Final utility note */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Troubleshooting checklist
+            </h3>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Output preview looks identical
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Toggle Checkerboard, switch preview background, and compare
+                  with a dark color. If there is no detected background, Remove
+                  mode will not change the file.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Background appears in the wrong layer
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Use Add/Replace, then ensure the rect is inserted as the first
+                  visible layer (typically after{" "}
+                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
+                    &lt;defs&gt;
+                  </code>
+                  ). The tool aims for “behind everything” behavior by default.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  SVG has no viewBox
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  The tool falls back to width/height. If neither is present, it
+                  uses 100% sizing. For predictable results, adding a viewBox in
+                  the source SVG is best.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Large files feel slow
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Parsing big SVGs is CPU-heavy. Use the built-in throttling and
+                  keep other tabs light. If the SVG is extremely large, consider
+                  simplifying paths in an editor first.
+                </p>
+              </div>
             </div>
           </section>
         </article>
@@ -1681,13 +1916,27 @@ function makeBreadcrumbJsonLd(items: Array<{ name: string; url: string }>) {
 }
 
 function makeFaqJsonLd(faq: Array<{ q: string; a: string }>) {
+  const clean = faq
+    .filter((x) => x?.q && x?.a)
+    .map((x) => ({
+      "@type": "Question",
+      name: String(x.q).trim(),
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: String(x.a).trim(),
+      },
+    }));
+
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: faq.map((x) => ({
-      "@type": "Question",
-      name: x.q,
-      acceptedAnswer: { "@type": "Answer", text: x.a },
-    })),
+    mainEntity: clean,
   };
+}
+
+function safeJsonLd(obj: unknown) {
+  return JSON.stringify(obj)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
 }

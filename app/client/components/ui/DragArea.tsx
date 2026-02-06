@@ -37,13 +37,7 @@ export default function DragArea({
             conversion.
           </span>
         </div>
-        <input
-          id="file-inp"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif,image/bmp,image/tiff,image/ico,sketch"
-          onChange={onPick}
-          className="hidden"
-        />
+        <input type="file" onChange={onPick} className="hidden" />
       </div>
     </>
   );

@@ -255,29 +255,6 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -640,10 +617,21 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -953,7 +941,6 @@ function NumInt({
   );
 }
 
- 
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -964,7 +951,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1084,14 +1074,129 @@ function SeoSections() {
           <h2 className="m-0 font-bold">
             SVG to PNG Converter (Free, Instant, Client-Side)
           </h2>
+
           <p className="mt-3">
             Use this <strong>SVG to PNG converter</strong> to export icons,
             logos, and vector art to a PNG image without uploading anything.
             Conversion happens <strong>fully in your browser</strong> by
             rendering the SVG onto an HTML canvas and exporting it as PNG. You
-            can set a custom <strong>width and height</strong>, lock aspect
-            ratio, keep transparency, or add a solid background color.
+            control the output in the ways that actually matter for production:
+            set a specific pixel size, keep transparency, add a solid background
+            when needed, and increase pixel ratio for sharper edges.
           </p>
+
+          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Exact pixel size
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Export a PNG at a specific width and height, with optional
+                aspect lock.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Transparency
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Keep alpha for stickers, overlays, UI icons, and assets that sit
+                on different backgrounds.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Sharpness control
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Increase pixel ratio (2x, 3x) to avoid soft edges and improve
+                small text clarity.
+              </div>
+            </div>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section>
+            <h3 className="m-0 font-bold">What the converter does</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <p>
+                SVG is a vector format, meaning it can scale cleanly to any
+                size. PNG is a raster image, meaning it is a fixed grid of
+                pixels. Converting SVG to PNG is a rendering step: the browser
+                draws the SVG at the size you choose, then exports the result as
+                a PNG file. The output quality depends mostly on two things: the
+                pixel dimensions you export and the pixel ratio you render at.
+              </p>
+              <p>
+                This tool is meant for practical exports where you need a
+                reliable PNG quickly. It avoids server round trips and keeps
+                files on-device, which is useful for sensitive assets, internal
+                logos, and fast iteration. It is also ideal when you need to
+                produce multiple sizes from the same SVG, because you can change
+                width/height and export again immediately.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Quick presets (common workflows)
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Icons for UI
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use transparency, export at the target pixel size, and set
+                    pixel ratio to <strong>2x</strong> for crisp edges.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Logos for docs/email
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Add a solid background if the destination isn’t guaranteed
+                    to support transparency, then export slightly larger to
+                    avoid softness.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Stickers and overlays
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Keep transparency, export larger than final display, and
+                    downscale in your app for cleaner results.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Fast thumbnails
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Reduce output dimensions first. Smaller pixel size is the
+                    most effective way to reduce PNG file size.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section
             className="mt-8"
@@ -1114,9 +1219,9 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3">
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
                 Export an SVG logo to PNG for social media or email signatures
               </li>
@@ -1126,9 +1231,9 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Tips for Best Quality</h3>
-            <ul className="mt-3">
+            <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
                 If the output looks soft, raise{" "}
                 <strong>Quality (pixel ratio)</strong> or export larger
@@ -1145,7 +1250,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">FAQ</h3>
             <div className="mt-3 grid gap-4">
               <details className="rounded-xl border border-slate-200 bg-white p-4">

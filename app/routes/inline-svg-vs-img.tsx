@@ -336,29 +336,6 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -491,7 +468,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS */}
-            <div className="mt-3 min-w-0">
+            <div className="mt-3 min-w-0 bg-white rounded-2xl border border-slate-200 min-h-[200px] p-4 shadow-sm">
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
@@ -1033,9 +1010,23 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               }
             />
           </section>
-
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           {/* COMPARISON */}
-          <section className="mt-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden">
+          <section className=" mb-6 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="m-0 font-bold text-lg text-slate-900">
                 Inline SVG vs {"<img>"} comparison
@@ -1152,10 +1143,21 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
-      <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
+      <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -2075,7 +2077,7 @@ function Breadcrumbs({
   crumbs: Array<{ name: string; href: string }>;
 }) {
   return (
-    <div className="mb-4">
+    <div className="mb-4 flex max-w-[1180px] mx-auto px-4">
       <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (

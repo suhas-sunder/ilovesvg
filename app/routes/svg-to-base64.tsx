@@ -330,10 +330,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -346,29 +343,6 @@ export default function SvgToBase64(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -390,7 +364,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
               </h2>
 
               {!file ? (
-               <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -810,7 +784,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                     disabled={!hydrated || !outText}
                     className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <Icons name="download" size={16} className="mr-1" />  
+                    <Icons name="download" size={16} className="mr-1" />
                     Download Output
                   </button>
 
@@ -910,10 +884,21 @@ export default function SvgToBase64(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1235,8 +1220,6 @@ function ToggleRow({
   );
 }
 
- 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -1247,7 +1230,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1362,39 +1348,135 @@ function SeoSections() {
 
           <p className="mt-3">
             Convert an <strong>SVG to Base64</strong> or generate a full{" "}
-            <strong>SVG data URI</strong> for HTML, CSS, and JavaScript. The
-            most common output format starts with{" "}
-            <code>data:image/svg+xml;base64,</code> followed by the
-            Base64-encoded SVG. Everything runs locally in your browser, so your
-            SVG is not uploaded.
+            <strong>SVG data URI</strong> for HTML, CSS, and JavaScript. This
+            tool is built for practical embedding workflows: you feed it SVG,
+            choose an output format, and it produces a copy-ready string that
+            you can paste into your codebase. The most common output starts with{" "}
+            <code>data:image/svg+xml;base64,</code> followed by the encoded SVG.
+            Everything runs locally in your browser, so your SVG is not
+            uploaded.
           </p>
 
           <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">HTML</div>
               <div className="mt-1 text-sm text-slate-700">
-                Use in <code>&lt;img src="..." /&gt;</code> or inline demos.
+                Use in <code>&lt;img src="..." /&gt;</code>, demos, or
+                documentation snippets.
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">CSS</div>
               <div className="mt-1 text-sm text-slate-700">
-                Use in <code>background-image: url(...)</code>.
+                Use in <code>background-image: url("...")</code> for icons and
+                UI patterns.
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">JS</div>
               <div className="mt-1 text-sm text-slate-700">
-                Store in JSON, configs, or UI theme assets.
+                Store in JSON, configs, or theme assets without separate files.
               </div>
             </div>
           </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section className="mt-8">
+            <h3 className="m-0 font-bold">Outputs you can generate</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">1) Data URI (Base64)</h4>
+                <p className="mt-1">
+                  Produces a full <code>data:</code> URL that you can paste
+                  directly into <code>src</code>, <code>href</code>, or CSS{" "}
+                  <code>url()</code>. This is the “least surprising” option for
+                  mixed environments because it avoids special character issues
+                  and tends to survive copy/paste across tools.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">2) Base64 only</h4>
+                <p className="mt-1">
+                  Produces just the encoded payload without the{" "}
+                  <code>data:image/svg+xml;base64,</code> prefix. This is useful
+                  when your app adds the prefix at runtime, when you store only
+                  the payload in a database/config, or when you need to compare
+                  or hash the output consistently.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">3) Data URI (UTF-8)</h4>
+                <p className="mt-1">
+                  Produces a URL-encoded UTF-8 data URI (non-Base64). For small,
+                  simple icons, this can be smaller than Base64 and remains
+                  readable. For CSS, the CSS-safe mode escapes additional
+                  characters that frequently break <code>url()</code> or get
+                  interpreted as CSS syntax.
+                </p>
+              </div>
+            </div>
+          </section>
 
-          <section
-            
-            itemScope
-            itemType="https://schema.org/HowTo"
-          >
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Best default choices
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Want maximum compatibility
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use <strong>Data URI (Base64)</strong>. It is larger, but it
+                    reduces encoding edge cases and tends to “just work.”
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Want smallest output for icons
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Try <strong>Data URI (UTF-8)</strong> with{" "}
+                    <strong>CSS-safe</strong> when targeting CSS usage.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Storing in configs or JSON
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use <strong>Base64 only</strong> and add the prefix only
+                    when you need a full data URI at runtime.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Avoid surprises in CSS
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Wrap the URI in quotes inside <code>url("...")</code> and
+                    prefer UTF-8 CSS-safe or Base64 if your pipeline is strict.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section itemScope itemType="https://schema.org/HowTo">
             <h3 itemProp="name" className="m-0 font-bold">
               How to Convert SVG to Base64
             </h3>
@@ -1417,7 +1499,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Base64 vs UTF-8 Data URI</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <div>
@@ -1440,7 +1522,55 @@ function SeoSections() {
             </div>
           </section>
 
-          <section >
+          <section className="mt-8">
+            <h3 className="m-0 font-bold">Where this is useful in real code</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <div>
+                <h4 className="m-0 font-bold">
+                  CSS background icons without extra requests
+                </h4>
+                <p className="mt-1">
+                  If you have small UI assets (like chevrons, checkmarks, or
+                  badges), a data URI removes the need for separate files and
+                  avoids additional network requests. This is especially useful
+                  in component libraries where you want a single exported CSS
+                  value.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">
+                  Single-file demos and sandboxes
+                </h4>
+                <p className="mt-1">
+                  Data URIs are ideal when you want a self-contained HTML file
+                  that can be shared or saved offline without an assets folder.
+                  A Base64 SVG in an <code>&lt;img&gt;</code> tag works in most
+                  environments with no extra setup.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">Theme/config storage</h4>
+                <p className="mt-1">
+                  If your app loads theme assets from JSON or a database, a
+                  Base64 payload can travel as plain text and be rehydrated into
+                  a data URI at runtime. This keeps distribution simple and
+                  avoids path and bundler edge cases.
+                </p>
+              </div>
+              <div>
+                <h4 className="m-0 font-bold">
+                  Quick snippets for docs and internal tools
+                </h4>
+                <p className="mt-1">
+                  When you need an instant, copyable snippet for documentation,
+                  issue trackers, or internal dashboards, a data URI is a fast
+                  “drop-in” asset that does not rely on a CDN or static hosting.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section>
             <h3 className="m-0 font-bold">Common Use Cases</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Embedding icons into CSS themes without separate files</li>
@@ -1455,7 +1585,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Security Notes</h3>
             <p className="mt-3">
               SVG can contain scripts, event handlers, and risky links. If you
@@ -1463,9 +1593,21 @@ function SeoSections() {
               remove <code>&lt;script&gt;</code>, inline <code>on*</code>{" "}
               handlers, and <code>javascript:</code> URLs before encoding.
             </p>
+
+            <div className="mt-4 not-prose">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Practical rule
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Do not Base64-encode SVG as a way to “hide” risky content. If
+                  the SVG is untrusted, sanitize first, then encode.
+                </div>
+              </div>
+            </div>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Troubleshooting</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <div>
@@ -1530,7 +1672,7 @@ function SeoSections() {
           </section>
         </article>
 
-        <section >
+        <section>
           <h3 className="m-0 font-bold">FAQ</h3>
 
           <div className="not-prose mt-3 grid gap-3">

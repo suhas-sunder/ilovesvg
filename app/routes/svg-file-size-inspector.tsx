@@ -267,10 +267,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -283,29 +280,6 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -664,10 +638,21 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <OtherToolsLinks />
+      <Breadcrumbs crumbs={crumbs} />
       <RelatedSites />
       <SocialLinks />
       <SiteFooter />
@@ -979,8 +964,6 @@ function NumInt({
   );
 }
 
- 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -991,7 +974,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1084,72 +1070,279 @@ function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <JsonLdFaq />
-      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
+
+      <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
+        {/* Drop prose to match your utility UI and fix the "off" spacing */}
+        <article>
+          <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Size Inspector (Width, Height, viewBox, Rendered Pixels)
           </h2>
 
-          <p className="mt-3">
-            Use this <strong>SVG size inspector</strong> to quickly answer the
-            question: <strong>“How big is this SVG?”</strong> It shows the raw{" "}
-            <code>width</code>, <code>height</code>, <code>viewBox</code>, and{" "}
-            <code>preserveAspectRatio</code> attributes, plus an estimated{" "}
-            <strong>rendered pixel size</strong>. Upload a file or paste SVG
-            source, preview it instantly, then copy the sizing details for
-            debugging or documentation. Everything runs locally in your browser.
+          <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+            Use this{" "}
+            <span className="font-semibold text-slate-900">
+              SVG size inspector
+            </span>{" "}
+            to quickly answer the question:{" "}
+            <span className="font-semibold text-slate-900">
+              “How big is this SVG?”
+            </span>{" "}
+            It shows the raw{" "}
+            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              width
+            </code>
+            ,{" "}
+            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              height
+            </code>
+            ,{" "}
+            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              viewBox
+            </code>
+            , and{" "}
+            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              preserveAspectRatio
+            </code>{" "}
+            attributes, plus an estimated{" "}
+            <span className="font-semibold text-slate-900">
+              rendered pixel size
+            </span>
+            . Upload a file or paste SVG source, preview it instantly, then copy
+            the sizing details for debugging or documentation. Everything runs
+            locally in your browser.
           </p>
 
-          <section >
-            <h3 className="m-0 font-bold">What “SVG size” really means</h3>
-            <p className="mt-3">
-              SVGs can be confusing because they have two layers of sizing: a{" "}
-              <strong>display size</strong> (<code>width</code> and{" "}
-              <code>height</code>) and an internal{" "}
-              <strong>coordinate system</strong> (<code>viewBox</code>). In most
-              real-world issues, the SVG scales poorly or gets clipped because
-              the viewBox is missing or too tight. That is why this tool
-              highlights viewBox and gives a computed pixel estimate.
+          {/* Quick workflow */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="m-0 text-base font-extrabold text-slate-900">
+                  Quick workflow
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+                  If your SVG looks huge, tiny, clipped, or inconsistent between
+                  apps, start here.
+                </p>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Upload/paste
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Read viewBox
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Check units
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
+                  Copy stats
+                </span>
+              </div>
+            </div>
+
+            <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  1) Look at viewBox
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Missing or overly tight viewBox is the most common cause of
+                  clipping and odd scaling.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  2) Check width/height units
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  <span className="font-semibold">%</span>,{" "}
+                  <span className="font-semibold">em/rem</span>, and{" "}
+                  <span className="font-semibold">mm/in/pt</span> often explain
+                  why apps disagree.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  3) Review preserveAspectRatio
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  Alignment and “meet vs slice” can letterbox or crop content
+                  inside a container.
+                </div>
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-white p-4">
+                <span className="font-semibold text-slate-900">
+                  4) Use the pixel estimate
+                </span>
+                <div className="mt-1 leading-relaxed">
+                  It’s a practical “what you’ll likely get” number for
+                  screenshots, exports, and docs.
+                </div>
+              </li>
+            </ol>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section className="mt-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+              <span className="text-base">📏</span>
+              Size model
+            </div>
+            <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
+              What “SVG size” really means
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              SVGs are confusing because they have two layers of sizing: a{" "}
+              <span className="font-semibold text-slate-900">display size</span>{" "}
+              (
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                width
+              </code>{" "}
+              and{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                height
+              </code>
+              ) and an internal{" "}
+              <span className="font-semibold text-slate-900">
+                coordinate system
+              </span>{" "}
+              (
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                viewBox
+              </code>
+              ). The viewBox tells renderers how to map your internal drawing
+              space into the displayed box. When viewBox is missing or too
+              tight, SVGs often scale poorly or get clipped.
             </p>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Display size (width/height)
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Controls the default rendered box. Units matter: px is
+                  straightforward, % depends on the container, em/rem depends on
+                  font-size, and mm/in/pt require a DPI assumption.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">
+                  Internal size (viewBox)
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Defines the coordinate space of the drawing. A stable viewBox
+                  is what makes responsive SVG possible without distortion or
+                  clipping.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">
+                Most common failure:
+              </span>{" "}
+              width/height exist but viewBox is missing, so different tools
+              “guess” differently when scaling.
+            </div>
           </section>
 
-          <section >
-            <h3 className="m-0 font-bold">
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
               Why your SVG size changes across apps
             </h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                <strong>Percent sizing</strong> depends on the container size.
+
+            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    Percent sizing
+                  </span>{" "}
+                  depends on the container size and layout rules.
+                </span>
               </li>
-              <li>
-                <strong>em/rem sizing</strong> depends on font-size context.
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    em/rem sizing
+                  </span>{" "}
+                  depends on font-size context, which changes between apps and
+                  pages.
+                </span>
               </li>
-              <li>
-                <strong>mm/in/pt</strong> need a DPI assumption for px
-                conversion.
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
+                  ✓
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">mm/in/pt</span>{" "}
+                  require a DPI assumption for px conversion, so exports may
+                  differ.
+                </span>
               </li>
-              <li>
-                <strong>Missing viewBox</strong> leads to inconsistent scaling
-                and cropping.
+
+              <li className="flex gap-3">
+                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+                  i
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    Missing viewBox
+                  </span>{" "}
+                  leads to inconsistent scaling and cropping because the
+                  renderer can’t map coordinates reliably.
+                </span>
               </li>
             </ul>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
+              <span className="font-semibold text-slate-900">Tip:</span> If your
+              SVG “looks fine” in one editor but breaks in a browser, compare
+              viewBox and preserveAspectRatio first. Those two explain most
+              cases.
+            </div>
           </section>
 
-          <section className="mt-12">
-            <h3 className="m-0 font-bold">FAQ</h3>
-            <div className="not-prose mt-4 grid gap-3">
+          {/* FAQ - keep content as-is; only fix styling consistency + pointer */}
+          <section className="mt-12" aria-label="Frequently asked questions">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
+
+            <div className="mt-4 grid gap-3">
               {faqs.map((f) => (
                 <details
                   key={f.q}
-                  className="group rounded-xl border border-slate-200 bg-white px-4 py-3"
+                  className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
                     <span>{f.q}</span>
-                    <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
                       +
                     </span>
                   </summary>
-                  <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  <div className="mt-3 text-slate-700 text-[13px] leading-relaxed">
                     {f.a}
                   </div>
                 </details>

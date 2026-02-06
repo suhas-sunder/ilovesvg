@@ -257,29 +257,6 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
             <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -641,10 +618,21 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+      <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -997,8 +985,6 @@ function NumInt({
   );
 }
 
- 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -1009,7 +995,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1126,11 +1115,129 @@ function SeoSections() {
           <h2 className="m-0 font-bold">SVG to JPG Converter (Client-Side)</h2>
 
           <p className="mt-3">
-            Convert <strong>SVG to JPG</strong> instantly in your browser. Set
-            an exact pixel size, lock aspect ratio, choose a background color,
-            and control JPEG compression. Files stay on your device with{" "}
-            <strong>no uploads</strong>.
+            Convert <strong>SVG to JPG</strong> instantly in your browser. This
+            tool rasterizes your SVG to a JPEG image with controls that matter
+            in real workflows: exact pixel dimensions, optional aspect lock,
+            background fill (JPG has no transparency), pixel ratio for sharp
+            edges, and JPEG compression for file size. Everything runs on-device
+            with <strong>no uploads</strong>, so the SVG never leaves your
+            computer.
           </p>
+
+          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Exact sizing
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Export a JPG at a specific width and height in pixels, with
+                optional aspect lock.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Clean background
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Pick a background color so transparent SVGs export correctly to
+                JPG.
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-900">
+                Quality control
+              </div>
+              <div className="mt-1 text-sm text-slate-700">
+                Tune pixel ratio for crisp edges, then set JPEG quality to hit a
+                size target.
+              </div>
+            </div>
+          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section>
+            <h3 className="m-0 font-bold">What the converter does</h3>
+            <div className="mt-3 grid gap-4 text-slate-700">
+              <p>
+                SVG is vector, meaning it scales without losing detail. JPG is
+                raster, meaning it is a fixed pixel grid. Converting SVG to JPG
+                is a deliberate “flattening” step where your SVG is rendered at
+                a chosen size and saved as a JPEG. That means your output is
+                only as sharp as the dimensions and pixel ratio you choose.
+              </p>
+              <p>
+                This tool focuses on the few settings that decide whether the
+                result looks professional or looks like a blurry thumbnail:
+                output width/height, the background fill color, the pixel ratio
+                (often called scale or DPR), and the JPEG quality slider. You
+                can treat it as a quick one-off export, or as a repeatable
+                workflow where you convert the same SVG into multiple JPG sizes
+                for different placements.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Fast presets that usually work
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Logos and UI marks
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use a solid background color, set pixel ratio to{" "}
+                    <strong>2×</strong>, then keep JPEG quality moderately high
+                    to avoid edge artifacts.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Thumbnails and previews
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Reduce dimensions first, then lower JPEG quality. Dimension
+                    reduction usually saves more bytes than aggressive quality
+                    loss.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Text-heavy SVGs
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Export larger than you think you need (or use{" "}
+                    <strong>3×</strong> pixel ratio) to keep small text and thin
+                    strokes readable.
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Background-sensitive assets
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Choose a background that matches the destination surface so
+                    the JPG doesn’t look “boxed” or mismatched.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section
             className="mt-8"
@@ -1151,7 +1258,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Best Uses</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Exporting SVG logos for platforms that only accept JPG</li>
@@ -1163,7 +1270,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Quality Tips</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
@@ -1182,7 +1289,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section className="mt-8">
             <h3 className="m-0 font-bold">Troubleshooting</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <div>
@@ -1210,7 +1317,7 @@ function SeoSections() {
             </div>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">FAQ</h3>
 
             <div className="not-prose mt-3 grid gap-3">
