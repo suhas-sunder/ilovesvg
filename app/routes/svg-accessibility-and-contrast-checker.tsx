@@ -340,7 +340,7 @@ export default function SvgAccessibilityAndContrastChecker() {
           </nav>
 
           <header className="text-center mb-4">
-            <h1 className="text-[28px] sm:text-[34px] font-extrabold leading-tight m-0">
+            <h1 className="text-[28px] sm:text-xl sm:text-3xl font-extrabold leading-tight m-0">
               SVG Accessibility and Contrast Checker
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
@@ -1151,7 +1151,7 @@ function SeoSections() {
             </div>
           </header>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">What this checks</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -1176,7 +1176,7 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">Best practices</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               {[

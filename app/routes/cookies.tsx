@@ -279,7 +279,7 @@ export default function CookiesPolicy() {
               </Section>
             </div>
 
-            <div className="mt-10">
+            <div >
               <SocialLinks />
             </div>
           </article>

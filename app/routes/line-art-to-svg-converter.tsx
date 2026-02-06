@@ -1167,7 +1167,7 @@ export default function LineArtToSvgConverter({
           </nav>
 
           <header className="text-center mb-2">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span className="text-slate-900">{ROUTE_NAME}</span>
             </h1>
             <p className="mt-1 text-slate-600 max-w-[80ch] mx-auto">
@@ -1776,7 +1776,7 @@ function SeoSectionsLineArt({ faq }: { faq: FaqItem[] }) {
             </div>
           </header>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">
               How to use this Line Art to SVG converter
             </h3>

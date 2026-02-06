@@ -1027,7 +1027,7 @@ export default function ImageToSvgOutline({
             />
           </div>
           <header className="text-center mb-2">
-            <h1 className="text-[34px] font-extrabold leading-none m-0">
+            <h1 className="text-xl sm:text-3xl font-extrabold leading-none m-0">
               Image to SVG Outline
             </h1>
             <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
@@ -1721,7 +1721,7 @@ function SeoSections() {
             </div>
           </header>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[

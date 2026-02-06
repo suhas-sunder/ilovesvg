@@ -491,7 +491,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span className="text-[#0b2dff]">SVG</span>
               <span className="text-slate-400">Cleaner</span>
             </h1>
@@ -1835,7 +1835,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">What gets removed?</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>XML declaration and DOCTYPE (optional)</li>
@@ -1850,7 +1850,7 @@ function SeoSections() {
         </article>
       </div>
 
-      <section className="mt-10">
+      <section >
         <h3 className="m-0 font-bold">Why clean SVG files?</h3>
         <p className="mt-3">
           SVGs exported from tools like Illustrator and Inkscape often include
@@ -1861,7 +1861,7 @@ function SeoSections() {
         </p>
       </section>
 
-      <section className="mt-10">
+      <section >
         <h3 className="m-0 font-bold">Safe vs Normal vs Aggressive</h3>
         <div className="mt-3 grid gap-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -1889,7 +1889,7 @@ function SeoSections() {
         </div>
       </section>
 
-      <section className="mt-10">
+      <section >
         <h3 className="m-0 font-bold">Common issues</h3>
         <ul className="mt-3 text-slate-700 list-disc pl-5">
           <li>
@@ -1908,7 +1908,7 @@ function SeoSections() {
         </ul>
       </section>
 
-      <section className="mt-10" aria-label="Frequently asked questions">
+      <section  aria-label="Frequently asked questions">
         <h3 className="m-0 font-bold">FAQ</h3>
 
         <details className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">

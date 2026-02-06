@@ -1112,7 +1112,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
             />
           </div>
           <header className="text-center mb-2">
-            <h1 className="text-[32px] md:text-[34px] font-extrabold leading-none m-0">
+            <h1 className="text-[32px] md:text-xl sm:text-3xl font-extrabold leading-none m-0">
               JPEG to SVG Converter
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
@@ -1820,7 +1820,7 @@ function JpegSeoSections() {
             </div>
           </header>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">
               Pick the right approach for JPEG
             </h3>

@@ -383,7 +383,7 @@ export default function SvgBackgroundPage({
           </nav>
 
           <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-[#0b2dff]">Background</span>
             </h1>
@@ -1146,7 +1146,7 @@ function SeoSections() {
           </div>
 
           {/* FAQ */}
-          <section className="mt-10">
+          <section >
             <div className="flex items-end justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">

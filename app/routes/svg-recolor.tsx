@@ -444,7 +444,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
           </nav>
 
           <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-[#0b2dff]">Recolor</span>
             </h1>

@@ -369,7 +369,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-slate-400">to</span>
               <span className="text-[#0b2dff]">Base64</span>
@@ -1402,7 +1402,7 @@ function SeoSections() {
           </div>
 
           <section
-            className="mt-10"
+            
             itemScope
             itemType="https://schema.org/HowTo"
           >
@@ -1428,7 +1428,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Base64 vs UTF-8 Data URI</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <div>
@@ -1451,7 +1451,7 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Common Use Cases</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Embedding icons into CSS themes without separate files</li>
@@ -1466,7 +1466,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Security Notes</h3>
             <p className="mt-3">
               SVG can contain scripts, event handlers, and risky links. If you
@@ -1476,7 +1476,7 @@ function SeoSections() {
             </p>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Troubleshooting</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <div>
@@ -1541,7 +1541,7 @@ function SeoSections() {
           </section>
         </article>
 
-        <section className="mt-10">
+        <section >
           <h3 className="m-0 font-bold">FAQ</h3>
 
           <div className="not-prose mt-3 grid gap-3">

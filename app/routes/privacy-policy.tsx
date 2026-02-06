@@ -689,7 +689,7 @@ export default function PrivacyPolicy() {
               </Section>
             </div>
 
-            <div className="mt-10">
+            <div >
               <SocialLinks />
             </div>
           </article>

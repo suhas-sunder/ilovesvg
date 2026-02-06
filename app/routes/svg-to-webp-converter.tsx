@@ -287,7 +287,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-slate-400">→</span>
               <span className="text-[#0b2dff]">WebP</span>
@@ -1098,7 +1098,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Common Uses</h3>
             <ul className="mt-3">
               <li>Export SVG logos/icons to WebP for faster web pages</li>
@@ -1108,7 +1108,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Tips for Best Results</h3>
             <ul className="mt-3">
               <li>
@@ -1127,7 +1127,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">FAQ</h3>
             <div className="mt-3 grid gap-4">
               <details className="rounded-xl border border-slate-200 bg-white p-4">

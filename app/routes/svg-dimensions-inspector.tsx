@@ -422,7 +422,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-slate-400">•</span>
               <span className="text-[#0b2dff]">Dimensions</span>
@@ -1577,7 +1577,7 @@ function SeoSections() {
             results. Everything runs <strong>client-side</strong>.
           </p>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">What this tool checks</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
@@ -1599,7 +1599,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">
               Why your SVG “size” can be confusing
             </h3>
@@ -1630,7 +1630,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Why viewBox matters (the #1 fix)</h3>
             <p className="mt-3">
               The <strong>viewBox</strong> defines the internal drawing space.
@@ -1642,7 +1642,7 @@ function SeoSections() {
             </p>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">How to use the fixes</h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2 text-slate-700">
               <li>Upload or paste your SVG.</li>
@@ -1666,7 +1666,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Common use cases</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Fix SVGs that scale incorrectly in browsers</li>

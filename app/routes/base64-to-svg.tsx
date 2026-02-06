@@ -202,7 +202,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <Breadcrumbs crumbs={crumbs} />
 
-                <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+                <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
                   <span className="text-[#0b2dff]">Base64</span>
                   <span className="text-slate-400">to</span>
                   <span>SVG</span>
@@ -1183,7 +1183,7 @@ function SeoSections() {
           )}
 
           {/* Use cases */}
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[

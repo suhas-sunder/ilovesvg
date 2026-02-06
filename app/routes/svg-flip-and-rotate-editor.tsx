@@ -372,7 +372,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-slate-400">•</span>
               <span className="text-[#0b2dff]">Flip & Rotate</span>
@@ -1354,7 +1354,7 @@ function SeoSections() {
             quality loss).
           </p>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">What You Can Do</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Flip SVGs horizontally or vertically (mirror icons/logos)</li>
@@ -1367,7 +1367,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Common Uses</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Mirror icons, logos, and illustrations</li>

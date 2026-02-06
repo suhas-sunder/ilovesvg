@@ -2012,7 +2012,7 @@ function SeoSections() {
           </section>
         </article>
 
-        <section className="mt-10" aria-label="Frequently asked questions">
+        <section  aria-label="Frequently asked questions">
           <h3 className="m-0 font-bold">FAQ</h3>
 
           <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">

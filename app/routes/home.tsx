@@ -1227,7 +1227,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pt-6 lg:pt-0 lg:pb-8">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h1 className="inline-flex mb-3 text-sky-600 items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+              <h1 className="inline-flex text-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
                 Free SVG Converter
               </h1>
 
@@ -1931,7 +1931,7 @@ function SeoSections() {
             </div>
           )}
           {/* Use cases */}
-          <section className="mt-10">
+          <section className="">
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
@@ -2263,7 +2263,7 @@ export function PresetPicker({
   return (
     <div className="mb-2 min-w-0">
       <label className="block text-sm font-medium text-slate-700 mb-1">
-        Preset
+        Conversion Preset Settings
       </label>
 
       {/* Always 2 columns */}

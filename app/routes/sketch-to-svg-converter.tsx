@@ -1101,7 +1101,7 @@ export default function SketchToSvgConverter({
           </div>
 
           <header className="text-center mb-2">
-            <h1 className="text-[34px] font-extrabold leading-none m-0">
+            <h1 className="text-xl sm:text-3xl font-extrabold leading-none m-0">
               Sketch to SVG Converter
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
@@ -1824,7 +1824,7 @@ function SeoSections() {
             </div>
           </header>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">
               Tips for better sketch results
             </h3>

@@ -339,7 +339,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-slate-400">Resize</span>
               <span className="text-slate-400">/</span>
@@ -1302,7 +1302,7 @@ function SeoSections() {
 
           {/* HowTo */}
           <section
-            className="mt-10"
+            
             itemScope
             itemType="https://schema.org/HowTo"
           >
@@ -1332,7 +1332,7 @@ function SeoSections() {
           </section>
 
           {/* Core concepts */}
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Resize vs Scale vs viewBox</h3>
 
             <div className="mt-3 grid gap-5 text-slate-700">
@@ -1381,7 +1381,7 @@ function SeoSections() {
           </section>
 
           {/* Troubleshooting */}
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">
               Common Resize Problems (and Fixes)
             </h3>
@@ -1441,7 +1441,7 @@ function SeoSections() {
           </section>
 
           {/* Quick reference table */}
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Quick Reference</h3>
             <p className="mt-2 text-slate-700">
               Use this chart to pick the right setting fast.
@@ -1522,7 +1522,7 @@ function SeoSections() {
           </section>
 
           {/* Use cases */}
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">When This Tool Is Useful</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Normalizing icon sizes across a design system</li>
@@ -1577,7 +1577,7 @@ function SeoSections() {
           </section>
 
           {/* FAQ (expanded, visible content for SEO + UX) */}
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">FAQ</h3>
 
             <div className="not-prose mt-3 grid gap-3">
@@ -1668,7 +1668,7 @@ function SeoSections() {
           </section>
 
           {/* Bottom filler paragraph for adsense-friendly length */}
-          <section className="mt-10">
+          <section >
             <h3 className="m-0 font-bold">Tips for Best Results</h3>
             <div className="mt-3 grid gap-3 text-slate-700">
               <p>

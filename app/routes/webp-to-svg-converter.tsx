@@ -1075,7 +1075,7 @@ export default function WebpToSvgConverter({
             />
           </div>
           <header className="text-center mb-2">
-            <h1 className="text-[34px] font-extrabold leading-none m-0">
+            <h1 className="text-xl sm:text-3xl font-extrabold leading-none m-0">
               WebP to SVG Converter
             </h1>
             <p className="mt-2 text-slate-600">
@@ -1743,7 +1743,7 @@ function SeoSectionsWebp() {
             </div>
           </header>
 
-          <section className="mt-10">
+          <section >
             <h3 className="text-lg font-bold">When WebP to SVG makes sense</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
