@@ -10,6 +10,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1371,6 +1372,8 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
 
   const buttonDisabled = isServer || !hydrated || busy;
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main className=" bg-slate-50 text-slate-900">
@@ -1447,7 +1450,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
             </button>
           </div>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
@@ -1467,239 +1470,283 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                     placeholder="Paste emoji like 😀🔥❤️"
                   />
 
-                  <div className="mt-3 grid gap-2">
-                    <Field label="Output">
-                      <select
-                        value={tset.outputMode}
-                        onChange={(e) =>
-                          setTset((s) => ({
-                            ...s,
-                            outputMode: e.target.value as any,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                  <div className="mt-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced((v) => !v)}
+                      className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                      aria-expanded={showAdvanced}
+                      aria-controls="advanced-settings"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        Advanced settings
+                      </span>
+                      <svg
+                        className={[
+                          "h-4 w-4 text-slate-500 transition-transform",
+                          showAdvanced ? "rotate-180" : "rotate-0",
+                        ].join(" ")}
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
                       >
-                        <option value="grouped">All together (one SVG)</option>
-                        <option value="individual">
-                          Each emoji individually
-                        </option>
-                      </select>
-                    </Field>
+                        <path
+                          fillRule="evenodd"
+                          d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
 
-                    {tset.outputMode === "grouped" && (
-                      <>
-                        <Field label="Layout">
+                    {showAdvanced && (
+                      <div
+                        id="advanced-settings"
+                        className="flex flex-col gap-2 min-w-0"
+                      >
+                        <Field label="Output">
                           <select
-                            value={tset.layout}
+                            value={tset.outputMode}
                             onChange={(e) =>
                               setTset((s) => ({
                                 ...s,
-                                layout: e.target.value as any,
+                                outputMode: e.target.value as any,
                               }))
                             }
-                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                           >
-                            <option value="grid">Grid</option>
-                            <option value="row">Row</option>
-                          </select>
-                        </Field>
-
-                        <Field label="Fit">
-                          <select
-                            value={tset.fit}
-                            onChange={(e) =>
-                              setTset((s) => ({
-                                ...s,
-                                fit: e.target.value as any,
-                              }))
-                            }
-                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          >
-                            <option value="center">Center the set</option>
-                            <option value="repeat">
-                              Repeat to fill canvas
+                            <option value="grouped">
+                              All together (one SVG)
+                            </option>
+                            <option value="individual">
+                              Each emoji individually
                             </option>
                           </select>
                         </Field>
 
-                        <Field label="Cell size (px)">
-                          <Num
-                            value={tset.cell}
-                            min={16}
-                            max={512}
-                            step={1}
-                            onChange={(v) =>
-                              setTset((s) => ({ ...s, cell: v }))
-                            }
-                          />
-                        </Field>
+                        {tset.outputMode === "grouped" && (
+                          <>
+                            <Field label="Layout">
+                              <select
+                                value={tset.layout}
+                                onChange={(e) =>
+                                  setTset((s) => ({
+                                    ...s,
+                                    layout: e.target.value as any,
+                                  }))
+                                }
+                                className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                              >
+                                <option value="grid">Grid</option>
+                                <option value="row">Row</option>
+                              </select>
+                            </Field>
 
-                        <Field label="Padding (px)">
-                          <Num
-                            value={tset.pad}
-                            min={0}
-                            max={256}
-                            step={1}
-                            onChange={(v) => setTset((s) => ({ ...s, pad: v }))}
-                          />
-                        </Field>
+                            <Field label="Fit">
+                              <select
+                                value={tset.fit}
+                                onChange={(e) =>
+                                  setTset((s) => ({
+                                    ...s,
+                                    fit: e.target.value as any,
+                                  }))
+                                }
+                                className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                              >
+                                <option value="center">Center the set</option>
+                                <option value="repeat">
+                                  Repeat to fill canvas
+                                </option>
+                              </select>
+                            </Field>
 
-                        {tset.layout === "grid" && (
-                          <Field label="Columns">
-                            <Num
-                              value={tset.cols}
-                              min={1}
-                              max={64}
-                              step={1}
-                              onChange={(v) =>
-                                setTset((s) => ({ ...s, cols: v }))
-                              }
-                            />
-                          </Field>
+                            <Field label="Cell size (px)">
+                              <Num
+                                value={tset.cell}
+                                min={16}
+                                max={512}
+                                step={1}
+                                onChange={(v) =>
+                                  setTset((s) => ({ ...s, cell: v }))
+                                }
+                              />
+                            </Field>
+
+                            <Field label="Padding (px)">
+                              <Num
+                                value={tset.pad}
+                                min={0}
+                                max={256}
+                                step={1}
+                                onChange={(v) =>
+                                  setTset((s) => ({ ...s, pad: v }))
+                                }
+                              />
+                            </Field>
+
+                            {tset.layout === "grid" && (
+                              <Field label="Columns">
+                                <Num
+                                  value={tset.cols}
+                                  min={1}
+                                  max={64}
+                                  step={1}
+                                  onChange={(v) =>
+                                    setTset((s) => ({ ...s, cols: v }))
+                                  }
+                                />
+                              </Field>
+                            )}
+
+                            <Field label="Margin (px)">
+                              <Num
+                                value={tset.margin}
+                                min={0}
+                                max={512}
+                                step={1}
+                                onChange={(v) =>
+                                  setTset((s) => ({ ...s, margin: v }))
+                                }
+                              />
+                            </Field>
+
+                            <Field label="Canvas">
+                              <select
+                                value={tset.canvasMode}
+                                onChange={(e) =>
+                                  setTset((s) => ({
+                                    ...s,
+                                    canvasMode: e.target.value as any,
+                                  }))
+                                }
+                                className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                              >
+                                <option value="auto">Auto (tight)</option>
+                                <option value="fixed">Fixed size</option>
+                              </select>
+                            </Field>
+
+                            {tset.canvasMode === "fixed" && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <Field label="Width">
+                                  <Num
+                                    value={tset.canvasW}
+                                    min={64}
+                                    max={8192}
+                                    step={1}
+                                    onChange={(v) =>
+                                      setTset((s) => ({ ...s, canvasW: v }))
+                                    }
+                                  />
+                                </Field>
+                                <Field label="Height">
+                                  <Num
+                                    value={tset.canvasH}
+                                    min={64}
+                                    max={8192}
+                                    step={1}
+                                    onChange={(v) =>
+                                      setTset((s) => ({ ...s, canvasH: v }))
+                                    }
+                                  />
+                                </Field>
+                              </div>
+                            )}
+
+                            <Field label="Background">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <select
+                                  value={tset.bg}
+                                  onChange={(e) =>
+                                    setTset((s) => ({
+                                      ...s,
+                                      bg: e.target.value as any,
+                                    }))
+                                  }
+                                  className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                                >
+                                  <option value="transparent">
+                                    Transparent
+                                  </option>
+                                  <option value="solid">Solid</option>
+                                </select>
+
+                                <input
+                                  type="color"
+                                  value={tset.bgColor}
+                                  onChange={(e) =>
+                                    setTset((s) => ({
+                                      ...s,
+                                      bgColor: e.target.value,
+                                    }))
+                                  }
+                                  aria-disabled={tset.bg !== "solid"}
+                                  className={[
+                                    "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                                    tset.bg !== "solid"
+                                      ? "opacity-50 pointer-events-none"
+                                      : "",
+                                  ].join(" ")}
+                                />
+                              </div>
+                            </Field>
+                          </>
                         )}
 
-                        <Field label="Margin (px)">
-                          <Num
-                            value={tset.margin}
-                            min={0}
-                            max={512}
-                            step={1}
-                            onChange={(v) =>
-                              setTset((s) => ({ ...s, margin: v }))
-                            }
-                          />
-                        </Field>
-
-                        <Field label="Canvas">
-                          <select
-                            value={tset.canvasMode}
+                        <Field label="Deduplicate">
+                          <input
+                            type="checkbox"
+                            checked={tset.dedupe}
                             onChange={(e) =>
                               setTset((s) => ({
                                 ...s,
-                                canvasMode: e.target.value as any,
+                                dedupe: e.target.checked,
                               }))
                             }
-                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          >
-                            <option value="auto">Auto (tight)</option>
-                            <option value="fixed">Fixed size</option>
-                          </select>
+                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700">
+                            Remove duplicates
+                          </span>
                         </Field>
 
-                        {tset.canvasMode === "fixed" && (
-                          <div className="grid grid-cols-2 gap-2">
-                            <Field label="Width">
-                              <Num
-                                value={tset.canvasW}
-                                min={64}
-                                max={8192}
-                                step={1}
-                                onChange={(v) =>
-                                  setTset((s) => ({ ...s, canvasW: v }))
-                                }
-                              />
-                            </Field>
-                            <Field label="Height">
-                              <Num
-                                value={tset.canvasH}
-                                min={64}
-                                max={8192}
-                                step={1}
-                                onChange={(v) =>
-                                  setTset((s) => ({ ...s, canvasH: v }))
-                                }
-                              />
-                            </Field>
-                          </div>
-                        )}
-
-                        <Field label="Background">
+                        <Field label="Recolor">
                           <div className="flex items-center gap-2 min-w-0">
-                            <select
-                              value={tset.bg}
+                            <input
+                              type="checkbox"
+                              checked={tset.recolor}
                               onChange={(e) =>
                                 setTset((s) => ({
                                   ...s,
-                                  bg: e.target.value as any,
+                                  recolor: e.target.checked,
                                 }))
                               }
-                              className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                            >
-                              <option value="transparent">Transparent</option>
-                              <option value="solid">Solid</option>
-                            </select>
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700">
+                              Single color
+                            </span>
 
                             <input
                               type="color"
-                              value={tset.bgColor}
+                              value={tset.recolorColor}
                               onChange={(e) =>
                                 setTset((s) => ({
                                   ...s,
-                                  bgColor: e.target.value,
+                                  recolorColor: e.target.value,
                                 }))
                               }
-                              aria-disabled={tset.bg !== "solid"}
+                              aria-disabled={!tset.recolor}
                               className={[
-                                "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                                tset.bg !== "solid"
+                                "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                                !tset.recolor
                                   ? "opacity-50 pointer-events-none"
                                   : "",
                               ].join(" ")}
                             />
                           </div>
                         </Field>
-                      </>
-                    )}
-
-                    <Field label="Deduplicate">
-                      <input
-                        type="checkbox"
-                        checked={tset.dedupe}
-                        onChange={(e) =>
-                          setTset((s) => ({ ...s, dedupe: e.target.checked }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff]"
-                      />
-                      <span className="text-[13px] text-slate-700">
-                        Remove duplicates
-                      </span>
-                    </Field>
-
-                    <Field label="Recolor">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={tset.recolor}
-                          onChange={(e) =>
-                            setTset((s) => ({
-                              ...s,
-                              recolor: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff]"
-                        />
-                        <span className="text-[13px] text-slate-700">
-                          Single color
-                        </span>
-                        <input
-                          type="color"
-                          value={tset.recolorColor}
-                          onChange={(e) =>
-                            setTset((s) => ({
-                              ...s,
-                              recolorColor: e.target.value,
-                            }))
-                          }
-                          aria-disabled={!tset.recolor}
-                          className={[
-                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                            !tset.recolor
-                              ? "opacity-50 pointer-events-none"
-                              : "",
-                          ].join(" ")}
-                        />
                       </div>
-                    </Field>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -1797,170 +1844,217 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                     </>
                   )}
 
-                  <div className="mt-3 flex flex-col gap-2 min-w-0">
-                    <Field label="Preprocess">
-                      <select
-                        value={iset.preprocess}
-                        onChange={(e) =>
-                          setIset((s) => ({
-                            ...s,
-                            preprocess: e.target.value as any,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                  <div className="mt-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced((v) => !v)}
+                      className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                      aria-expanded={showAdvanced}
+                      aria-controls="advanced-settings"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        Advanced settings
+                      </span>
+                      <svg
+                        className={[
+                          "h-4 w-4 text-slate-500 transition-transform",
+                          showAdvanced ? "rotate-180" : "rotate-0",
+                        ].join(" ")}
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
                       >
-                        <option value="none">None (clean art)</option>
-                        <option value="edge">Screenshot cleanup (edges)</option>
-                      </select>
-                    </Field>
+                        <path
+                          fillRule="evenodd"
+                          d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
 
-                    {iset.preprocess === "edge" && (
-                      <>
-                        <Field label={`Blur σ (${iset.blurSigma})`}>
-                          <Num
-                            value={iset.blurSigma}
+                    {showAdvanced && (
+                      <div
+                        id="advanced-settings"
+                        className="flex flex-col gap-2 min-w-0"
+                      >
+                        <Field label="Preprocess">
+                          <select
+                            value={iset.preprocess}
+                            onChange={(e) =>
+                              setIset((s) => ({
+                                ...s,
+                                preprocess: e.target.value as any,
+                              }))
+                            }
+                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value="none">None (clean art)</option>
+                            <option value="edge">
+                              Screenshot cleanup (edges)
+                            </option>
+                          </select>
+                        </Field>
+
+                        {iset.preprocess === "edge" && (
+                          <>
+                            <Field label={`Blur σ (${iset.blurSigma})`}>
+                              <Num
+                                value={iset.blurSigma}
+                                min={0}
+                                max={3}
+                                step={0.1}
+                                onChange={(v) =>
+                                  setIset((s) => ({ ...s, blurSigma: v }))
+                                }
+                              />
+                            </Field>
+
+                            <Field label={`Edge boost (${iset.edgeBoost})`}>
+                              <Num
+                                value={iset.edgeBoost}
+                                min={0.5}
+                                max={2.0}
+                                step={0.1}
+                                onChange={(v) =>
+                                  setIset((s) => ({ ...s, edgeBoost: v }))
+                                }
+                              />
+                            </Field>
+                          </>
+                        )}
+
+                        <Field label={`Threshold (${iset.threshold})`}>
+                          <input
+                            type="range"
                             min={0}
-                            max={3}
-                            step={0.1}
-                            onChange={(v) =>
-                              setIset((s) => ({ ...s, blurSigma: v }))
+                            max={255}
+                            step={1}
+                            value={iset.threshold}
+                            onChange={(e) =>
+                              setIset((s) => ({
+                                ...s,
+                                threshold: Number(e.target.value),
+                              }))
                             }
+                            className="w-full accent-[#0b2dff] cursor-pointer"
                           />
                         </Field>
-                        <Field label={`Edge boost (${iset.edgeBoost})`}>
+
+                        <Field label="Turd size (specks)">
                           <Num
-                            value={iset.edgeBoost}
-                            min={0.5}
-                            max={2.0}
-                            step={0.1}
+                            value={iset.turdSize}
+                            min={0}
+                            max={20}
+                            step={1}
                             onChange={(v) =>
-                              setIset((s) => ({ ...s, edgeBoost: v }))
+                              setIset((s) => ({ ...s, turdSize: v }))
                             }
                           />
                         </Field>
-                      </>
-                    )}
 
-                    <Field label={`Threshold (${iset.threshold})`}>
-                      <input
-                        type="range"
-                        min={0}
-                        max={255}
-                        step={1}
-                        value={iset.threshold}
-                        onChange={(e) =>
-                          setIset((s) => ({
-                            ...s,
-                            threshold: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full accent-[#0b2dff]"
-                      />
-                    </Field>
+                        <Field label="Curve tolerance">
+                          <Num
+                            value={iset.optTolerance}
+                            min={0.05}
+                            max={1.2}
+                            step={0.05}
+                            onChange={(v) =>
+                              setIset((s) => ({ ...s, optTolerance: v }))
+                            }
+                          />
+                        </Field>
 
-                    <Field label="Turd size (specks)">
-                      <Num
-                        value={iset.turdSize}
-                        min={0}
-                        max={20}
-                        step={1}
-                        onChange={(v) =>
-                          setIset((s) => ({ ...s, turdSize: v }))
-                        }
-                      />
-                    </Field>
+                        <Field label="Turn policy">
+                          <select
+                            value={iset.turnPolicy}
+                            onChange={(e) =>
+                              setIset((s) => ({
+                                ...s,
+                                turnPolicy: e.target.value as any,
+                              }))
+                            }
+                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value="black">black</option>
+                            <option value="white">white</option>
+                            <option value="left">left</option>
+                            <option value="right">right</option>
+                            <option value="minority">minority</option>
+                            <option value="majority">majority</option>
+                          </select>
+                        </Field>
 
-                    <Field label="Curve tolerance">
-                      <Num
-                        value={iset.optTolerance}
-                        min={0.05}
-                        max={1.2}
-                        step={0.05}
-                        onChange={(v) =>
-                          setIset((s) => ({ ...s, optTolerance: v }))
-                        }
-                      />
-                    </Field>
+                        <Field label="Line color">
+                          <input
+                            type="color"
+                            value={iset.lineColor}
+                            onChange={(e) =>
+                              setIset((s) => ({
+                                ...s,
+                                lineColor: e.target.value,
+                              }))
+                            }
+                            className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                          />
+                        </Field>
 
-                    <Field label="Turn policy">
-                      <select
-                        value={iset.turnPolicy}
-                        onChange={(e) =>
-                          setIset((s) => ({
-                            ...s,
-                            turnPolicy: e.target.value as any,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      >
-                        <option value="black">black</option>
-                        <option value="white">white</option>
-                        <option value="left">left</option>
-                        <option value="right">right</option>
-                        <option value="minority">minority</option>
-                        <option value="majority">majority</option>
-                      </select>
-                    </Field>
+                        <Field label="Invert">
+                          <input
+                            type="checkbox"
+                            checked={iset.invert}
+                            onChange={(e) =>
+                              setIset((s) => ({
+                                ...s,
+                                invert: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                          />
+                        </Field>
 
-                    <Field label="Line color">
-                      <input
-                        type="color"
-                        value={iset.lineColor}
-                        onChange={(e) =>
-                          setIset((s) => ({ ...s, lineColor: e.target.value }))
-                        }
-                        className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                      />
-                    </Field>
+                        <Field label="Background">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={iset.transparent}
+                              onChange={(e) =>
+                                setIset((s) => ({
+                                  ...s,
+                                  transparent: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700">
+                              Transparent
+                            </span>
 
-                    <Field label="Invert">
-                      <input
-                        type="checkbox"
-                        checked={iset.invert}
-                        onChange={(e) =>
-                          setIset((s) => ({ ...s, invert: e.target.checked }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff]"
-                      />
-                    </Field>
+                            <input
+                              type="color"
+                              value={iset.bgColor}
+                              onChange={(e) =>
+                                setIset((s) => ({
+                                  ...s,
+                                  bgColor: e.target.value,
+                                }))
+                              }
+                              aria-disabled={iset.transparent}
+                              className={[
+                                "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                                iset.transparent
+                                  ? "opacity-50 pointer-events-none"
+                                  : "",
+                              ].join(" ")}
+                            />
+                          </div>
+                        </Field>
 
-                    <Field label="Background">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={iset.transparent}
-                          onChange={(e) =>
-                            setIset((s) => ({
-                              ...s,
-                              transparent: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff]"
-                        />
-                        <span className="text-[13px] text-slate-700">
-                          Transparent
-                        </span>
-                        <input
-                          type="color"
-                          value={iset.bgColor}
-                          onChange={(e) =>
-                            setIset((s) => ({ ...s, bgColor: e.target.value }))
-                          }
-                          aria-disabled={iset.transparent}
-                          className={[
-                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                            iset.transparent
-                              ? "opacity-50 pointer-events-none"
-                              : "",
-                          ].join(" ")}
-                        />
+                        <div className="text-[13px] text-slate-600">
+                          Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                          <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b>
+                        </div>
                       </div>
-                    </Field>
-
-                    <div className="text-[13px] text-slate-600">
-                      Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                      <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b>
-                    </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -2008,13 +2102,10 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
             </div>
 
             {/* RIGHT: RESULT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {/* TEXT MODE RESULTS */}
               {mode === "text" ? (
@@ -2068,10 +2159,10 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                         )}
                       </div>
                     ) : (
-                      <p className="text-slate-600 m-0">
+                      <p className="text-white  m-0">
                         {busy
                           ? "Converting…"
-                          : "Your grouped SVG will appear here."}
+                          : "Your grouped SVG will appear here..."}
                       </p>
                     )
                   ) : textItems.length > 0 ? (
@@ -2183,10 +2274,10 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-slate-600 m-0">
+                    <p className="text-white m-0">
                       {busy
                         ? "Converting…"
-                        : "Your traced SVG will appear here."}
+                        : "Your traced SVG will appear here..."}
                     </p>
                   )}
                 </>
@@ -2201,7 +2292,17 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -2287,90 +2388,7 @@ function Num({
   );
 }
 
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-slate-600">
-            <span>© {new Date().getFullYear()} i🩵SVG</span>
-            <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">
-              Simple SVG tools, no accounts.
-            </span>
-          </div>
 
-          <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-              <li>
-                <Link
-                  to="/emoji-to-svg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Emoji to SVG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/logo-to-svg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Logo to SVG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/scan-to-svg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Scan to SVG
-                </Link>
-              </li>
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookies"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 /* ========================
    SEO section (kept short)
@@ -2378,22 +2396,261 @@ function SiteFooter() {
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
-        <article className="max-w-none">
-          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              emoji to svg converter
-            </p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-              Convert emoji to SVG from text or images
-            </h2>
-            <p className="text-slate-600 max-w-[90ch]">
-              Paste emoji text to get clean SVG from Twemoji, or upload an emoji
-              image to trace it into paths. Group multiple emojis into one SVG,
-              center them, or repeat to fill a canvas.
-            </p>
-          </header>
-        </article>
+      <div className="max-w-[1180px] mx-auto px-4 pt-8 text-slate-900">
+        <div className="grid">
+          {/* Main content */}
+          <article className=" ">
+            <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                Emoji to SVG Converter
+              </p>
+              <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight">
+                Convert emoji to SVG from text or images
+              </h2>
+              <p className="mt-3 text-slate-700 leading-relaxed">
+                This utility converts emoji into real SVG graphics that scale
+                cleanly in browsers, design tools, and print workflows. You can
+                generate SVG from emoji text using Twemoji’s vector sources, or
+                upload emoji images and trace them into editable vector paths.
+                The output is a single SVG file that you can drop into a design
+                system, inline in HTML, or export for downstream use.
+              </p>
+            </header>
+
+            {typeof document !== "undefined" && (
+              <div className="block py-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="text-xl font-bold">How the converter works</h3>
+
+              <div className="mt-4 space-y-5 text-slate-700 leading-relaxed">
+                <p>
+                  The converter supports two distinct pipelines: text-based
+                  conversion using Twemoji SVG sources, and image-based tracing
+                  for PNG or JPEG uploads. Both pipelines produce a standards-
+                  compliant SVG with a predictable viewBox, so the result can be
+                  resized without distortion and aligned cleanly inside layouts.
+                </p>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-semibold text-slate-900">
+                    1) Text → SVG (Twemoji pipeline)
+                  </p>
+                  <p className="mt-2">
+                    When you paste emoji characters, each emoji is resolved to
+                    its Twemoji vector source. The converter normalizes the
+                    geometry, applies consistent sizing, and optionally groups
+                    multiple emoji into a single SVG. This avoids platform-
+                    specific emoji fonts and guarantees consistent rendering
+                    across browsers and devices.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    <li>• Unicode emoji are mapped to vector sources</li>
+                    <li>• Geometry is normalized into a single SVG viewBox</li>
+                    <li>• Multiple emoji can be grouped into one file</li>
+                    <li>• Output remains sharp at any scale</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-semibold text-slate-900">
+                    2) Image → SVG (Tracing pipeline)
+                  </p>
+                  <p className="mt-2">
+                    When you upload an emoji image, the converter traces raster
+                    pixels into vector paths. This produces editable SVG paths
+                    that you can modify in vector editors. Tracing is best used
+                    when you need to preserve a specific emoji style or when the
+                    source is not available as Twemoji.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    <li>• PNG and JPEG inputs supported</li>
+                    <li>• Raster edges are converted into vector paths</li>
+                    <li>• Output paths are editable in design tools</li>
+                    <li>• Higher-resolution sources produce cleaner results</li>
+                  </ul>
+                </div>
+
+                <p>
+                  Both pipelines output a single SVG file with explicit width,
+                  height, and viewBox attributes. This ensures predictable
+                  scaling when the SVG is used inline, as an{" "}
+                  <code>{"<img />"}</code> source, or as a background asset in
+                  CSS.
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 my-6">
+              <h3 className="text-xl font-bold">
+                Layout, grouping, and canvas behavior
+              </h3>
+
+              <div className="mt-4 space-y-4 text-slate-700 leading-relaxed">
+                <p>
+                  The converter is utility-first. Instead of exporting isolated
+                  files only, it can assemble multiple emoji into a single SVG
+                  and place them inside a defined canvas. This reduces asset
+                  sprawl and makes it easier to manage composite graphics.
+                </p>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-900">Grouping</p>
+                    <p className="mt-1 text-sm">
+                      Multiple emoji pasted in sequence can be exported as one
+                      SVG. Internally, each emoji is wrapped and aligned, then
+                      combined into a single coordinate system. This is useful
+                      for headers, badges, or sticker-like composites.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-900">Centering</p>
+                    <p className="mt-1 text-sm">
+                      Centering repositions the content inside the SVG viewBox
+                      so the graphic sits in the middle when placed in a layout.
+                      This prevents off-center alignment when the SVG is used in
+                      buttons, cards, or icons.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-900">
+                      Repeat to fill
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Repetition tiles the emoji across a fixed canvas. This is
+                      designed for lightweight pattern backgrounds or decorative
+                      separators without shipping large raster images.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-900">
+                      Predictable sizing
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Output dimensions are explicit. You can scale the SVG with
+                      CSS or attributes without changing internal proportions.
+                    </p>
+                  </div>
+                </div>
+
+                <p>
+                  These layout controls are deterministic. The same inputs and
+                  settings always produce the same geometry, which is important
+                  for reproducible assets in design systems and CI pipelines.
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 mb-6">
+              <h3 className="text-xl font-bold">
+                Output guarantees and integration
+              </h3>
+
+              <div className="mt-4 space-y-4 text-slate-700 leading-relaxed">
+                <p>
+                  The exported SVG is standards-compliant and designed to drop
+                  into common workflows without cleanup. You can inline it in
+                  HTML, import it into React or Vue components, or open it in
+                  vector editors for further edits.
+                </p>
+
+                <ul className="space-y-2 text-sm">
+                  <li>
+                    <span className="font-semibold">Clean markup:</span> no
+                    platform emoji fonts or bitmap embeds.
+                  </li>
+                  <li>
+                    <span className="font-semibold">
+                      Deterministic viewBox:
+                    </span>{" "}
+                    consistent scaling and alignment.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Single-file export:</span>{" "}
+                    grouped emoji are exported together.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Editor-friendly:</span>{" "}
+                    paths can be edited in Figma, Illustrator, or Inkscape.
+                  </li>
+                  <li>
+                    <span className="font-semibold">Framework-ready:</span>{" "}
+                    usable as inline SVG in React, Remix, or static HTML.
+                  </li>
+                </ul>
+
+                <p>
+                  Because the output is geometry, not a font glyph, the SVG will
+                  render the same across browsers and operating systems. This is
+                  the primary reason to convert emoji to SVG instead of relying
+                  on native emoji fonts.
+                </p>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="text-xl font-bold">Performance and reliability</h3>
+
+              <div className="mt-4 space-y-4 text-slate-700 leading-relaxed">
+                <p>
+                  The converter is designed for predictable exports rather than
+                  heavy real-time rendering. In some deployments, live preview
+                  is disabled to protect server stability. This does not affect
+                  output quality. Settings are applied deterministically at
+                  export time.
+                </p>
+
+                <p>
+                  Image tracing is more expensive than text-based conversion.
+                  For batch work or automated workflows, text mode is faster and
+                  produces more consistent geometry. Tracing should be reserved
+                  for cases where you must preserve a specific raster style.
+                </p>
+
+                <p>
+                  The output SVG is lightweight compared to raster images at
+                  multiple resolutions. This reduces asset size in web projects
+                  and avoids shipping multiple PNG sizes for different screens.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 my-4">
+                <h3 className="text-lg font-bold">Workflow summary</h3>
+                <ol className="mt-3 space-y-2 text-sm text-slate-700 leading-relaxed list-decimal list-inside">
+                  <li>Choose text or image input</li>
+                  <li>Set layout options (group, center, repeat)</li>
+                  <li>Export a single SVG file</li>
+                  <li>Use inline or in your design system</li>
+                </ol>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 my-4">
+                <h3 className="text-lg font-bold">Best practice</h3>
+                <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+                  Default to text-based conversion for UI and product surfaces.
+                  Use image tracing only when you need to preserve a specific
+                  emoji style that is not available as vector sources.
+                </p>
+              </div>
+            </section>
+          </article>
+        </div>
       </div>
     </section>
   );

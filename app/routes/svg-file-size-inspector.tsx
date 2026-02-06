@@ -6,6 +6,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 /* ========================
    Meta
@@ -317,7 +318,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT + PREVIEW */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -989,48 +990,7 @@ function NumInt({
   );
 }
 
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-8">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <a href="/" className="font-extrabold tracking-tight text-slate-900">
-            i<span className="text-sky-600">🩵</span>SVG
-          </a>
-
-          <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookies"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}
+ 
 
 /* ========================
    Breadcrumbs UI + JSON-LD

@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/cookies";
 import SocialLinks from "../client/components/navigation/SocialLinks";
 import { OtherToolsLinks } from "../client/components/navigation/OtherToolsLinks";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 export const meta: Route.MetaFunction = () => {
   const canonical = "https://www.ilovesvg.com/cookies";
@@ -291,27 +292,6 @@ export default function CookiesPolicy() {
 
       <SiteFooter />
     </>
-  );
-}
-
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-6 text-sm text-slate-600 flex items-center justify-between">
-        <span>© {new Date().getFullYear()} i🩵SVG</span>
-        <span className="space-x-3">
-          <a href="/privacy-policy" className="hover:text-slate-900">
-            Privacy
-          </a>
-          <a href="/terms-of-service" className="hover:text-slate-900">
-            Terms
-          </a>
-          <a href="/cookies" className="hover:text-slate-900">
-            Cookies
-          </a>
-        </span>
-      </div>
-    </footer>
   );
 }
 

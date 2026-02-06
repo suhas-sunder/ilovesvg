@@ -11,6 +11,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1154,7 +1155,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
             </div>
           </header>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900">JPEG input</h2>
@@ -1777,73 +1778,14 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-slate-600">
-            <span>© {new Date().getFullYear()} i🩵SVG</span>
-            <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">
-              Simple SVG tools, no accounts.
-            </span>
-          </div>
-
-          <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookies"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
+ 
 /* ========================
    JPEG-specific SEO (unique content)
 ======================== */
 function JpegSeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
+      <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">

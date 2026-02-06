@@ -2,6 +2,7 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/terms-of-service";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 export const meta: Route.MetaFunction = () => {
   const canonical = "https://www.ilovesvg.com/terms";
@@ -152,6 +153,7 @@ export default function TermsOfService() {
 
         <SocialLinks />
       </main>
+      <SiteFooter />
     </div>
   );
 }

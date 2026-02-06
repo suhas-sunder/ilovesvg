@@ -11,6 +11,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import { PresetPicker } from "./home";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -966,7 +967,7 @@ export default function DrawingToSvgConverter({
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h1 className="text-[34px] font-extrabold text-sky-800 leading-none mb-4">
@@ -978,83 +979,6 @@ export default function DrawingToSvgConverter({
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />
-
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b>.
-              </div>
-
-              {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-lg text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
-                    <div className="text-sky-700 my-2 text-center text-xs">
-                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
-                      MB are auto-compressed on-device (if possible).
-                    </div>
-                  </div>
-                  <input
-                    id="file-inp"
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize && originalFileSize > file.size
-                          ? ` (shrunk from ${prettyBytes(originalFileSize)})`
-                          : ""}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
 
               {/* Settings */}
               <div className="mt-3 min-w-0">
@@ -1271,6 +1195,83 @@ export default function DrawingToSvgConverter({
                 )}
               </div>
 
+              <div className="text-[13px] text-slate-600 mb-2">
+                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b>.
+              </div>
+
+              {!file ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={onDrop}
+                  onClick={() => document.getElementById("file-inp")?.click()}
+                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <div className="text-lg text-slate-600">
+                    Click, drag & drop, or paste a PNG/JPEG
+                    <div className="text-sky-700 my-2 text-center text-xs">
+                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
+                      MB are auto-compressed on-device (if possible).
+                    </div>
+                  </div>
+                  <input
+                    id="file-inp"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={onPick}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize && originalFileSize > file.size
+                          ? ` (shrunk from ${prettyBytes(originalFileSize)})`
+                          : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
+
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
@@ -1307,32 +1308,13 @@ export default function DrawingToSvgConverter({
                   />
                 </div>
               )}
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <div className="text-sm font-semibold">Drawing tips</div>
-                <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
-                  <li>
-                    Pencil looks faint: raise <b>threshold</b>.
-                  </li>
-                  <li>
-                    Too many tiny dots: raise <b>turd size</b>.
-                  </li>
-                  <li>
-                    Photo of paper: switch <b>Preprocess</b> to <b>Edge</b>.
-                  </li>
-                </ul>
-              </div>
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
-
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
@@ -1387,7 +1369,7 @@ export default function DrawingToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
+                <p className="text-white m-0">
                   {busy ? "Converting…" : "Your drawing SVG will appear here."}
                 </p>
               )}
@@ -1593,118 +1575,15 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-slate-600">
-            <span>© {new Date().getFullYear()} i🩵SVG</span>
-            <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">
-              Simple SVG tools, no accounts.
-            </span>
-          </div>
 
-          <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
-                  to="/drawing-to-svg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Drawing to SVG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/scan-to-svg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Scan to SVG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/photo-to-svg-outline"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Photo Outline
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/image-to-svg-outline"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Image Outline
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/logo-to-svg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Logo to SVG
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookies"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 /* ===== SEO sections (drawing-specific) ===== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
+      <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:px-8">
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               drawing to svg converter
             </p>
@@ -1722,6 +1601,21 @@ function SeoSections() {
               Best for ink, pencil, and digital line drawings. Use Edge mode if
               it’s a photo of paper.
             </p>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="text-sm font-semibold">Drawing tips</div>
+              <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
+                <li>
+                  Pencil looks faint: raise <b>threshold</b>.
+                </li>
+                <li>
+                  Too many tiny dots: raise <b>turd size</b>.
+                </li>
+                <li>
+                  Photo of paper: switch <b>Preprocess</b> to <b>Edge</b>.
+                </li>
+              </ul>
+            </div>
 
             <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
@@ -1752,8 +1646,22 @@ function SeoSections() {
               ))}
             </div>
           </header>
-
-          <section className="mt-10">
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <section className="">
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[

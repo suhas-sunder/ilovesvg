@@ -11,6 +11,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import { ChevronDownIcon, PresetPicker } from "./home";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 const isServer = typeof document === "undefined";
 
@@ -901,7 +902,7 @@ export default function BlackAndWhiteImageToSvgConverter({
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex items-center gap-2 text-[34px] font-extrabold leading-none">
                 <span>Black</span>
@@ -1424,123 +1425,11 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-slate-600">
-            <span>© {new Date().getFullYear()} i🩵SVG</span>
-            <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">
-              Simple SVG tools, no accounts.
-            </span>
-          </div>
-
-          <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
-                  to="/svg-to-png-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  SVG to PNG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-to-jpg-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  SVG to JPG
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-to-webp-converter"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  SVG to WebP
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-background-editor"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Background
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-resize-and-scale-editor"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Resize / Scale
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/svg-recolor"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Recolor
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookies"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
+      <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
@@ -1584,7 +1473,7 @@ function SeoSections() {
                 slot="7336722354"
                 delayMs={2500}
                 afterInteraction={true}
-                className="my-8"
+                className="my-3"
                 format="rectangle"
                 fullWidth={false}
                 minHeight={250}

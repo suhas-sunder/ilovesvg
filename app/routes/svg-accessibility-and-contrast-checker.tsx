@@ -5,6 +5,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "./cookies";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 /* ========================
    Meta
@@ -416,7 +417,7 @@ export default function SvgAccessibilityAndContrastChecker() {
             </div>
           </section>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             {/* INPUT */}
             <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-start justify-between gap-3">
@@ -545,7 +546,7 @@ export default function SvgAccessibilityAndContrastChecker() {
 
                 <div className="grid gap-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 min-w-0">
-                    <div className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
+                    <div className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
                       <ColorField
                         label="Foreground"
                         value={fg}
@@ -558,7 +559,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       />
                     </div>
 
-                    <div className="mt-3 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="mt-3 lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="min-w-0">
                         <label className="text-sm font-semibold text-slate-700">
                           Apply scope
@@ -719,7 +720,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                   </div>
                 </div>
 
-                <div className="mt-3 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
+                <div className="mt-3 lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
                   <PreviewCard
                     title="Original SVG"
                     svg={safeOriginalSvg}
@@ -848,7 +849,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                           </div>
                         </div>
 
-                        <div className="mt-3 lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="mt-3 lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-2">
                           <SuggestionTile
                             disabled={!fgCandidate}
                             title="Adjust foreground"
@@ -1043,7 +1044,7 @@ function SuggestionTile(props: {
         )}
       </div>
 
-      <div className="mt-3 lg:pt-0 lg:pb-12 grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="mt-3 lg:pt-0 lg:pb-8 grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
           <div className="text-xs font-semibold text-slate-700">Current</div>
           <div className="mt-1 flex items-center gap-2 min-w-0">
@@ -1115,7 +1116,7 @@ function WcagPill({ ok, label }: { ok: boolean; label: string }) {
 function SeoSections() {
   return (
     <section className="mt-12 border-t border-slate-200 bg-white">
-      <div className="max-w-[1180px] mx-auto px-4 py-12 text-slate-800">
+      <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
@@ -1750,62 +1751,4 @@ function escapeReg(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function SiteFooter() {
-  return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-[1180px] mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-slate-600">
-            <span>© {new Date().getFullYear()} i🩵SVG</span>
-            <span className="mx-2 text-slate-300">•</span>
-            <span className="text-slate-500">
-              Simple SVG tools, no accounts.
-            </span>
-          </div>
-
-          <nav aria-label="Footer" className="text-sm">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-
-              <li className="text-slate-300" aria-hidden>
-                |
-              </li>
-
-              <li>
-                <Link
-                  to="/privacy-policy"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/terms-of-service"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/cookies"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
-    </footer>
-  );
-}
+ 
