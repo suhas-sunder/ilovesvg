@@ -459,7 +459,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-visible min-w-0">
+            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-visible min-w-0">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <h2 className="m-0 text-lg text-slate-900">Input SVG</h2>
 
@@ -651,7 +651,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
+            <div className="bg-slate-600 sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0 overflow-auto">
               <h2 className="m-0 mb-3 text-lg text-white font-semibold">
                 Recolor Settings
               </h2>

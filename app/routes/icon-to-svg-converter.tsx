@@ -1076,7 +1076,7 @@ export default function IconToSvgConverter({
           </div>
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
+            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex w-full text-sky-800 text-center justify-center items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none mb-2">
                 Icon to SVG
               </h1>

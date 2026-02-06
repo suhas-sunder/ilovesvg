@@ -1225,9 +1225,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pt-6 lg:pt-0 lg:pb-8">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start sm:pt-6 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
+            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
                 Free SVG Converter
               </h1>
@@ -1470,11 +1470,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
               </div>
 
-              {/* Limits helper */}
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
-              </div>
+              
 
               {/* Dropzone */}
               {!file ? (

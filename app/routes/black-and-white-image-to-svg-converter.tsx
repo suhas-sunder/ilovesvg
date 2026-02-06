@@ -904,7 +904,7 @@ export default function BlackAndWhiteImageToSvgConverter({
           </div>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
+            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-sky-950 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none">
                 Black & White to SVG
               </h1>
@@ -1129,13 +1129,15 @@ export default function BlackAndWhiteImageToSvgConverter({
                   </div>
                 )}
               </div>
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
-              </div>
 
               {!file ? (
-               <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1400,7 +1402,6 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
@@ -1457,7 +1458,7 @@ function SeoSections() {
               />
             </div>
           )}
-          <section >
+          <section>
             <h3 className="text-lg font-bold">Tips for cleaner output</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[

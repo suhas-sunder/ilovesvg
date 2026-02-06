@@ -538,7 +538,7 @@ export default function FreeColorPicker() {
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: Controls */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
+            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <nav
                 aria-label="Breadcrumb"
                 className="text-sm text-slate-600 mb-1"
@@ -711,7 +711,7 @@ export default function FreeColorPicker() {
             </div>
 
             {/* RIGHT: Preview */}
-            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
+            <div className="bg-slate-600 sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0 overflow-auto">
               {/* File preview (if uploaded) */}
               {preview.kind !== "none" && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 mb-4">
