@@ -383,7 +383,7 @@ export default function SvgBackgroundPage({
           </nav>
 
           <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-[#0b2dff]">Background</span>
             </h1>

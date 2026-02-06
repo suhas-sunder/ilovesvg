@@ -904,7 +904,7 @@ export default function BlackAndWhiteImageToSvgConverter({
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none">
+              <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none">
                 <span>Black</span>
                 <span className="text-[#0b2dff]">&</span>
                 <span>White</span>

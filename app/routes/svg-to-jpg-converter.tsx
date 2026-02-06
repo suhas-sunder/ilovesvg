@@ -280,7 +280,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
           <Breadcrumbs crumbs={crumbs} />
 
           <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
               <span>SVG</span>
               <span className="text-slate-400">→</span>
               <span className="text-[#0b2dff]">JPG</span>

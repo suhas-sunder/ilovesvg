@@ -1027,7 +1027,7 @@ export default function ImageToSvgOutline({
             />
           </div>
           <header className="text-center mb-2">
-            <h1 className="text-xl sm:text-3xl font-extrabold leading-none m-0">
+            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
               Image to SVG Outline
             </h1>
             <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">

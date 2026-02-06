@@ -1167,7 +1167,7 @@ export default function LineArtToSvgConverter({
           </nav>
 
           <header className="text-center mb-2">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
+            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
               <span className="text-slate-900">{ROUTE_NAME}</span>
             </h1>
             <p className="mt-1 text-slate-600 max-w-[80ch] mx-auto">

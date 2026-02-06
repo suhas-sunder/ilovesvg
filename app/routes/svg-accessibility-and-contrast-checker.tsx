@@ -340,7 +340,7 @@ export default function SvgAccessibilityAndContrastChecker() {
           </nav>
 
           <header className="text-center mb-4">
-            <h1 className="text-[28px] sm:text-xl sm:text-3xl font-extrabold leading-tight m-0">
+            <h1 className="text-[28px] sm:text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
               SVG Accessibility and Contrast Checker
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">

@@ -1412,7 +1412,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
             />
           </div>
           <header className="text-center mb-3">
-            <h1 className="text-xl sm:text-3xl font-extrabold leading-none m-0">
+            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
               Emoji to SVG Converter
             </h1>
             <p className="mt-2 text-slate-600 max-w-[90ch] mx-auto">

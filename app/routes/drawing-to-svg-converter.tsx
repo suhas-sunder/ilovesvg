@@ -970,7 +970,7 @@ export default function DrawingToSvgConverter({
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h1 className="text-xl sm:text-3xl font-extrabold text-sky-800 leading-none mb-4">
+              <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold text-sky-800 leading-none mb-4">
                 Drawing to SVG Converter
               </h1>
 
