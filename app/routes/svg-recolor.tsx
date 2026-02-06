@@ -378,10 +378,12 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
     { name: "SVG Recolor", url: "/svg-recolor" },
   ];
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -668,392 +670,443 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 mb-3 text-lg text-white font-semibold">
                 Recolor Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-visible">
-                <div className="grid gap-2">
-                  <Field label="Mode">
-                    <select
-                      value={settings.mode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          mode: e.target.value as RecolorMode,
-                        }))
-                      }
-                      className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
+                    </span>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      <option value="replace">Replace specific colors</option>
-                      <option value="global">
-                        Recolor everything to one color
-                      </option>
-                      <option value="currentColor">
-                        Convert to currentColor (CSS-driven)
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Apply to">
-                    <select
-                      value={settings.applyTo}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          applyTo: e.target.value as ApplyTo,
-                        }))
-                      }
-                      className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    >
-                      <option value="fill">Fill only</option>
-                      <option value="stroke">Stroke only</option>
-                      <option value="both">Fill and stroke</option>
-                    </select>
-                  </Field>
-
-                  {settings.mode === "global" && (
-                    <Field label="Global color">
-                      <input
-                        type="color"
-                        value={settings.globalColor}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            globalColor: e.target.value,
-                          }))
-                        }
-                        className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
                       />
-                      <span className="text-[13px] text-slate-600">
-                        Sets all targeted colors to one value
-                      </span>
-                    </Field>
-                  )}
+                    </svg>
+                  </button>
 
-                  {settings.mode === "replace" && (
-                    <>
-                      <Field label="Replace rules">
-                        <div className="flex flex-col gap-2 w-full min-w-0">
-                          {pairs.length === 0 ? (
-                            <div className="text-slate-600 text-sm">
-                              Add a rule by clicking a palette swatch, or press
-                              “Add rule”.
-                            </div>
-                          ) : (
-                            pairs.map((p) => {
-                              const selected = p.id === activePairId;
-                              return (
-                                <div
-                                  key={p.id}
-                                  className={[
-                                    "flex items-center gap-2 min-w-0 flex-wrap rounded-lg border p-2",
-                                    selected
-                                      ? "border-[#0b2dff] bg-[#f3f6ff]"
-                                      : "border-slate-200 bg-white",
-                                  ].join(" ")}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => setActivePairId(p.id)}
-                                    className="px-2 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
-                                    title="Select rule"
-                                  >
-                                    {selected ? "Selected" : "Select"}
-                                  </button>
-
-                                  <span className="text-[12px] text-slate-600">
-                                    From
-                                  </span>
-                                  <input
-                                    value={p.from}
-                                    onChange={(e) =>
-                                      setPair(p.id, { from: e.target.value })
-                                    }
-                                    className="w-[160px] max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 font-mono text-[12px]"
-                                    placeholder="#000000"
-                                  />
-                                  <input
-                                    type="color"
-                                    value={normalizeHexOrFallback(
-                                      p.from,
-                                      "#000000",
-                                    )}
-                                    onChange={(e) =>
-                                      setPair(p.id, { from: e.target.value })
-                                    }
-                                    className="w-10 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                                    title="Pick From color"
-                                  />
-
-                                  <span className="text-[12px] text-slate-600">
-                                    To
-                                  </span>
-                                  <input
-                                    value={p.to}
-                                    onChange={(e) =>
-                                      setPair(p.id, { to: e.target.value })
-                                    }
-                                    className="w-[160px] max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 font-mono text-[12px]"
-                                    placeholder="#0b2dff"
-                                  />
-                                  <input
-                                    type="color"
-                                    value={normalizeHexOrFallback(
-                                      p.to,
-                                      "#0b2dff",
-                                    )}
-                                    onChange={(e) =>
-                                      setPair(p.id, { to: e.target.value })
-                                    }
-                                    className="w-10 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                                    title="Pick To color"
-                                  />
-
-                                  <button
-                                    type="button"
-                                    onClick={() => removePair(p.id)}
-                                    className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
-                                    title="Remove rule"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              );
-                            })
-                          )}
-
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => addPair()}
-                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
-                            >
-                              Add rule
-                            </button>
-                            <span className="text-[13px] text-slate-600">
-                              Tip: click a palette swatch to set “From”.
-                            </span>
-                          </div>
-                        </div>
-                      </Field>
-
-                      <Field label="Safety">
-                        <div className="flex flex-col gap-2">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.keepNone}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  keepNone: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-[#0b2dff]"
-                            />
-                            <span className="text-[13px] text-slate-700">
-                              Preserve none (do not recolor fill="none" or
-                              stroke="none")
-                            </span>
-                          </label>
-
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.keepTransparent}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  keepTransparent: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-[#0b2dff]"
-                            />
-                            <span className="text-[13px] text-slate-700">
-                              Preserve transparent values
-                            </span>
-                          </label>
-                        </div>
-                      </Field>
-
-                      <Field label="Where to edit">
-                        <div className="flex flex-col gap-2">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.affectPresentationAttrs}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  affectPresentationAttrs: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-[#0b2dff]"
-                            />
-                            <span className="text-[13px] text-slate-700">
-                              Attributes (fill="", stroke="")
-                            </span>
-                          </label>
-
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.affectInlineStyle}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  affectInlineStyle: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-[#0b2dff]"
-                            />
-                            <span className="text-[13px] text-slate-700">
-                              Inline style (style="fill: ...")
-                            </span>
-                          </label>
-
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.affectStyleTags}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  affectStyleTags: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-[#0b2dff]"
-                            />
-                            <span className="text-[13px] text-slate-700">
-                              Style tags (&lt;style&gt;) best-effort
-                            </span>
-                          </label>
-                        </div>
-                      </Field>
-                    </>
-                  )}
-
-                  {settings.mode === "currentColor" && (
-                    <>
-                      <Field label="currentColor options">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.setRootColor}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  setRootColor: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-[#0b2dff]"
-                            />
-                            <span className="text-[13px] text-slate-700">
-                              Set root svg style color
-                            </span>
-                          </label>
-
-                          <input
-                            type="color"
-                            value={settings.rootColor}
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <div className="grid gap-2 min-w-0">
+                        <Field label="Mode">
+                          <select
+                            value={settings.mode}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                rootColor: e.target.value,
+                                mode: e.target.value as RecolorMode,
                               }))
                             }
-                            className={[
-                              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                              settings.setRootColor
-                                ? ""
-                                : "opacity-50 pointer-events-none",
-                            ].join(" ")}
+                            className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value="replace">
+                              Replace specific colors
+                            </option>
+                            <option value="global">
+                              Recolor everything to one color
+                            </option>
+                            <option value="currentColor">
+                              Convert to currentColor (CSS-driven)
+                            </option>
+                          </select>
+                        </Field>
+
+                        <Field label="Apply to">
+                          <select
+                            value={settings.applyTo}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                applyTo: e.target.value as ApplyTo,
+                              }))
+                            }
+                            className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value="fill">Fill only</option>
+                            <option value="stroke">Stroke only</option>
+                            <option value="both">Fill and stroke</option>
+                          </select>
+                        </Field>
+
+                        {settings.mode === "global" && (
+                          <Field label="Global color">
+                            <input
+                              type="color"
+                              value={settings.globalColor}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  globalColor: e.target.value,
+                                }))
+                              }
+                              className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-600">
+                              Sets all targeted colors to one value
+                            </span>
+                          </Field>
+                        )}
+
+                        {settings.mode === "replace" && (
+                          <>
+                            <Field label="Replace rules">
+                              <div className="flex flex-col gap-2 w-full min-w-0">
+                                {pairs.length === 0 ? (
+                                  <div className="text-slate-600 text-sm">
+                                    Add a rule by clicking a palette swatch, or
+                                    press “Add rule”.
+                                  </div>
+                                ) : (
+                                  pairs.map((p) => {
+                                    const selected = p.id === activePairId;
+                                    return (
+                                      <div
+                                        key={p.id}
+                                        className={[
+                                          "flex items-center gap-2 min-w-0 flex-wrap rounded-lg border p-2",
+                                          selected
+                                            ? "border-[#0b2dff] bg-[#f3f6ff]"
+                                            : "border-slate-200 bg-white",
+                                        ].join(" ")}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => setActivePairId(p.id)}
+                                          className="px-2 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors"
+                                          title="Select rule"
+                                        >
+                                          {selected ? "Selected" : "Select"}
+                                        </button>
+
+                                        <span className="text-[12px] text-slate-600">
+                                          From
+                                        </span>
+                                        <input
+                                          value={p.from}
+                                          onChange={(e) =>
+                                            setPair(p.id, {
+                                              from: e.target.value,
+                                            })
+                                          }
+                                          className="w-[160px] max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 font-mono text-[12px]"
+                                          placeholder="#000000"
+                                        />
+                                        <input
+                                          type="color"
+                                          value={normalizeHexOrFallback(
+                                            p.from,
+                                            "#000000",
+                                          )}
+                                          onChange={(e) =>
+                                            setPair(p.id, {
+                                              from: e.target.value,
+                                            })
+                                          }
+                                          className="w-10 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                                          title="Pick From color"
+                                        />
+
+                                        <span className="text-[12px] text-slate-600">
+                                          To
+                                        </span>
+                                        <input
+                                          value={p.to}
+                                          onChange={(e) =>
+                                            setPair(p.id, {
+                                              to: e.target.value,
+                                            })
+                                          }
+                                          className="w-[160px] max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 font-mono text-[12px]"
+                                          placeholder="#0b2dff"
+                                        />
+                                        <input
+                                          type="color"
+                                          value={normalizeHexOrFallback(
+                                            p.to,
+                                            "#0b2dff",
+                                          )}
+                                          onChange={(e) =>
+                                            setPair(p.id, {
+                                              to: e.target.value,
+                                            })
+                                          }
+                                          className="w-10 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                                          title="Pick To color"
+                                        />
+
+                                        <button
+                                          type="button"
+                                          onClick={() => removePair(p.id)}
+                                          className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                                          title="Remove rule"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                    );
+                                  })
+                                )}
+
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => addPair()}
+                                    className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                                  >
+                                    Add rule
+                                  </button>
+                                  <span className="text-[13px] text-slate-600">
+                                    Tip: click a palette swatch to set “From”.
+                                  </span>
+                                </div>
+                              </div>
+                            </Field>
+
+                            <Field label="Safety">
+                              <div className="flex flex-col gap-2">
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.keepNone}
+                                    onChange={(e) =>
+                                      setSettings((s) => ({
+                                        ...s,
+                                        keepNone: e.target.checked,
+                                      }))
+                                    }
+                                    className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                                  />
+                                  <span className="text-[13px] text-slate-700">
+                                    Preserve none (do not recolor fill="none" or
+                                    stroke="none")
+                                  </span>
+                                </label>
+
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.keepTransparent}
+                                    onChange={(e) =>
+                                      setSettings((s) => ({
+                                        ...s,
+                                        keepTransparent: e.target.checked,
+                                      }))
+                                    }
+                                    className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                                  />
+                                  <span className="text-[13px] text-slate-700">
+                                    Preserve transparent values
+                                  </span>
+                                </label>
+                              </div>
+                            </Field>
+
+                            <Field label="Where to edit">
+                              <div className="flex flex-col gap-2">
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.affectPresentationAttrs}
+                                    onChange={(e) =>
+                                      setSettings((s) => ({
+                                        ...s,
+                                        affectPresentationAttrs:
+                                          e.target.checked,
+                                      }))
+                                    }
+                                    className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                                  />
+                                  <span className="text-[13px] text-slate-700">
+                                    Attributes (fill="", stroke="")
+                                  </span>
+                                </label>
+
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.affectInlineStyle}
+                                    onChange={(e) =>
+                                      setSettings((s) => ({
+                                        ...s,
+                                        affectInlineStyle: e.target.checked,
+                                      }))
+                                    }
+                                    className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                                  />
+                                  <span className="text-[13px] text-slate-700">
+                                    Inline style (style="fill: ...")
+                                  </span>
+                                </label>
+
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.affectStyleTags}
+                                    onChange={(e) =>
+                                      setSettings((s) => ({
+                                        ...s,
+                                        affectStyleTags: e.target.checked,
+                                      }))
+                                    }
+                                    className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                                  />
+                                  <span className="text-[13px] text-slate-700">
+                                    Style tags (&lt;style&gt;) best-effort
+                                  </span>
+                                </label>
+                              </div>
+                            </Field>
+                          </>
+                        )}
+
+                        {settings.mode === "currentColor" && (
+                          <>
+                            <Field label="currentColor options">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={settings.setRootColor}
+                                    onChange={(e) =>
+                                      setSettings((s) => ({
+                                        ...s,
+                                        setRootColor: e.target.checked,
+                                      }))
+                                    }
+                                    className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                                  />
+                                  <span className="text-[13px] text-slate-700">
+                                    Set root svg style color
+                                  </span>
+                                </label>
+
+                                <input
+                                  type="color"
+                                  value={settings.rootColor}
+                                  onChange={(e) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      rootColor: e.target.value,
+                                    }))
+                                  }
+                                  className={[
+                                    "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                                    settings.setRootColor
+                                      ? ""
+                                      : "opacity-50 pointer-events-none",
+                                  ].join(" ")}
+                                />
+                              </div>
+                            </Field>
+
+                            <div className="text-[13px] text-slate-600">
+                              currentColor makes your SVG inherit CSS color.
+                              Example: set{" "}
+                              <code className="px-1 py-0.5 bg-slate-100 rounded">
+                                color: #0b2dff;
+                              </code>{" "}
+                              on a parent element.
+                            </div>
+                          </>
+                        )}
+
+                        <Field label="Preview background">
+                          <input
+                            type="color"
+                            value={settings.previewBg}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                previewBg: e.target.value,
+                              }))
+                            }
+                            className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                           />
-                        </div>
-                      </Field>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.showChecker}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  showChecker: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700">
+                              Checkerboard
+                            </span>
+                          </label>
+                        </Field>
 
-                      <div className="text-[13px] text-slate-600">
-                        currentColor makes your SVG inherit CSS color. Example:
-                        set{" "}
-                        <code className="px-1 py-0.5 bg-slate-100 rounded">
-                          color: #0b2dff;
-                        </code>{" "}
-                        on a parent element.
+                        <Field label="Output">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.optimizeWhitespace}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  optimizeWhitespace: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700">
+                              Minify whitespace (light)
+                            </span>
+                          </label>
+                        </Field>
+
+                        <Field label="Output filename">
+                          <input
+                            value={settings.fileName}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fileName: e.target.value,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="recolored"
+                          />
+                        </Field>
                       </div>
-                    </>
+                    </div>
                   )}
-
-                  <Field label="Preview background">
-                    <input
-                      type="color"
-                      value={settings.previewBg}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          previewBg: e.target.value,
-                        }))
-                      }
-                      className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                    />
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={settings.showChecker}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            showChecker: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff]"
-                      />
-                      <span className="text-[13px] text-slate-700">
-                        Checkerboard
-                      </span>
-                    </label>
-                  </Field>
-
-                  <Field label="Output">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={settings.optimizeWhitespace}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            optimizeWhitespace: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff]"
-                      />
-                      <span className="text-[13px] text-slate-700">
-                        Minify whitespace (light)
-                      </span>
-                    </label>
-                  </Field>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="recolored"
-                    />
-                  </Field>
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={downloadSvg}
                     disabled={buttonDisabled}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -1066,7 +1119,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                     onClick={copySvg}
                     disabled={buttonDisabled}
                     className={[
-                      "px-3.5 py-2 rounded-lg font-semibold border transition-colors",
+                      "px-3.5 py-2 rounded-lg font-semibold border transition-colors cursor-pointer",
                       "text-slate-900 bg-white border-slate-200 hover:bg-slate-50",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}

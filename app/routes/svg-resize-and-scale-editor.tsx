@@ -293,10 +293,12 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
     { name: "SVG Resize & Scale", href: "/svg-resize" },
   ];
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -457,247 +459,285 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Resize Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Units">
-                    <select
-                      value={settings.unit}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          unit: e.target.value as Units,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
+                    </span>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      <option value="px">px</option>
-                      <option value="em">em</option>
-                      <option value="rem">rem</option>
-                      <option value="pt">pt</option>
-                      <option value="pc">pc</option>
-                      <option value="cm">cm</option>
-                      <option value="mm">mm</option>
-                      <option value="in">in</option>
-                      <option value="%">%</option>
-                    </select>
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Most web SVGs use px
-                    </span>
-                  </Field>
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                  <Field label="Width">
-                    <NumInt
-                      value={settings.width}
-                      min={1}
-                      max={100000}
-                      step={1}
-                      onChange={onWidthChange}
-                    />
-                    <span className="text-[13px] text-slate-600 shrink-0">
-                      {settings.unit}
-                    </span>
-                  </Field>
-
-                  <Field label="Height">
-                    <NumInt
-                      value={settings.height}
-                      min={1}
-                      max={100000}
-                      step={1}
-                      onChange={onHeightChange}
-                    />
-                    <span className="text-[13px] text-slate-600 shrink-0">
-                      {settings.unit}
-                    </span>
-                  </Field>
-
-                  <Field label="Lock aspect ratio">
-                    <input
-                      type="checkbox"
-                      checked={settings.lockAspect}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          lockAspect: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Keep proportions when changing width/height
-                    </span>
-                  </Field>
-
-                  <Field label="Scale (%)">
-                    <NumInt
-                      value={settings.scalePct}
-                      min={1}
-                      max={1000}
-                      step={1}
-                      onChange={applyScalePct}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => applyScalePct(100)}
-                      className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 shrink-0"
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
                     >
-                      Reset
-                    </button>
-                  </Field>
-
-                  <Field label="viewBox handling">
-                    <select
-                      value={settings.viewBoxMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          viewBoxMode: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="keep">Keep existing viewBox</option>
-                      <option value="match-output">
-                        Set viewBox to 0 0 width height
-                      </option>
-                      <option value="scale-vb">
-                        Scale viewBox dimensions proportionally
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Responsive SVG">
-                    <input
-                      type="checkbox"
-                      checked={settings.makeResponsive}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          makeResponsive: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove width/height attributes (keeps viewBox)
-                    </span>
-                  </Field>
-
-                  <Field label="preserveAspectRatio">
-                    <select
-                      value={settings.setPreserveAspectRatio}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          setPreserveAspectRatio: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="xMidYMid meet">
-                        xMidYMid meet (default)
-                      </option>
-                      <option value="xMidYMid slice">xMidYMid slice</option>
-                      <option value="none">none</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Cleanup">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden">
-                      <label className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.stripSizeStyle}
+                      <Field label="Units">
+                        <select
+                          value={settings.unit}
                           onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripSizeStyle: e.target.checked,
+                              unit: e.target.value as Units,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove width/height from style=""
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="px">px</option>
+                          <option value="em">em</option>
+                          <option value="rem">rem</option>
+                          <option value="pt">pt</option>
+                          <option value="pc">pc</option>
+                          <option value="cm">cm</option>
+                          <option value="mm">mm</option>
+                          <option value="in">in</option>
+                          <option value="%">%</option>
+                        </select>
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          Most web SVGs use px
                         </span>
-                      </label>
+                      </Field>
 
-                      <label className="flex items-center gap-2 min-w-0">
+                      <Field label="Width">
+                        <NumInt
+                          value={settings.width}
+                          min={1}
+                          max={100000}
+                          step={1}
+                          onChange={onWidthChange}
+                        />
+                        <span className="text-[13px] text-slate-600 shrink-0">
+                          {settings.unit}
+                        </span>
+                      </Field>
+
+                      <Field label="Height">
+                        <NumInt
+                          value={settings.height}
+                          min={1}
+                          max={100000}
+                          step={1}
+                          onChange={onHeightChange}
+                        />
+                        <span className="text-[13px] text-slate-600 shrink-0">
+                          {settings.unit}
+                        </span>
+                      </Field>
+
+                      <Field label="Lock aspect ratio">
                         <input
                           type="checkbox"
-                          checked={settings.stripXmlDecl}
+                          checked={settings.lockAspect}
                           onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripXmlDecl: e.target.checked,
+                              lockAspect: e.target.checked,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove XML declaration
+                          Keep proportions when changing width/height
                         </span>
-                      </label>
+                      </Field>
 
-                      <label className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.stripDoctype}
+                      <Field label="Scale (%)">
+                        <NumInt
+                          value={settings.scalePct}
+                          min={1}
+                          max={1000}
+                          step={1}
+                          onChange={applyScalePct}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => applyScalePct(100)}
+                          className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 shrink-0 cursor-pointer transition-colors"
+                        >
+                          Reset
+                        </button>
+                      </Field>
+
+                      <Field label="viewBox handling">
+                        <select
+                          value={settings.viewBoxMode}
                           onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripDoctype: e.target.checked,
+                              viewBoxMode: e.target.value as any,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove DOCTYPE
-                        </span>
-                      </label>
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="keep">Keep existing viewBox</option>
+                          <option value="match-output">
+                            Set viewBox to 0 0 width height
+                          </option>
+                          <option value="scale-vb">
+                            Scale viewBox dimensions proportionally
+                          </option>
+                        </select>
+                      </Field>
 
-                      <label className="flex items-center gap-2 min-w-0">
+                      <Field label="Responsive SVG">
                         <input
                           type="checkbox"
-                          checked={settings.optimizeWhitespace}
+                          checked={settings.makeResponsive}
                           onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              optimizeWhitespace: e.target.checked,
+                              makeResponsive: e.target.checked,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Minify whitespace (light)
+                          Remove width/height attributes (keeps viewBox)
                         </span>
-                      </label>
+                      </Field>
+
+                      <Field label="preserveAspectRatio">
+                        <select
+                          value={settings.setPreserveAspectRatio}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              setPreserveAspectRatio: e.target.value as any,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="xMidYMid meet">
+                            xMidYMid meet (default)
+                          </option>
+                          <option value="xMidYMid slice">xMidYMid slice</option>
+                          <option value="none">none</option>
+                        </select>
+                      </Field>
+
+                      <Field label="Cleanup">
+                        <div className="flex flex-col gap-2 min-w-0 overflow-hidden">
+                          <label className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={settings.stripSizeStyle}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripSizeStyle: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700 min-w-0">
+                              Remove width/height from style=""
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={settings.stripXmlDecl}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripXmlDecl: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700 min-w-0">
+                              Remove XML declaration
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={settings.stripDoctype}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripDoctype: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700 min-w-0">
+                              Remove DOCTYPE
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={settings.optimizeWhitespace}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  optimizeWhitespace: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700 min-w-0">
+                              Minify whitespace (light)
+                            </span>
+                          </label>
+                        </div>
+                      </Field>
+
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="resized"
+                        />
+                      </Field>
                     </div>
-                  </Field>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="resized"
-                    />
-                  </Field>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={downloadResized}
                     disabled={!hydrated || !outSvg}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}

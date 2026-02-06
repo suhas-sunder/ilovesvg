@@ -379,10 +379,12 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
   // If we have an output preview, use it. Otherwise, show the input preview in the "After" slot too.
   const afterImgSrc = outPreviewUrl || previewUrl || null;
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -596,281 +598,330 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
             </div>
 
             {/* INSPECT + FIX */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Dimensions
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
+                Dimension Settings
               </h2>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="DPI for unit conversion">
-                    <Num
-                      value={settings.dpi}
-                      min={24}
-                      max={2400}
-                      step={1}
-                      onChange={(v) => setSettings((s) => ({ ...s, dpi: v }))}
+              <div className="mt-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  aria-expanded={showAdvanced}
+                  aria-controls="advanced-settings"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Advanced settings
+                  </span>
+
+                  <svg
+                    className={[
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
                     />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Used for mm/in/pt to px
-                    </span>
-                  </Field>
+                  </svg>
+                </button>
 
-                  <Field label="Fallback px if missing">
-                    <Num
-                      value={settings.defaultPxIfMissing}
-                      min={16}
-                      max={20000}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, defaultPxIfMissing: v }))
-                      }
-                    />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Only if width/height and viewBox missing
-                    </span>
-                  </Field>
-
-                  <div className="rounded-xl border border-slate-200 bg-[#fafcff] px-3 py-2">
-                    <div className="text-[13px] font-semibold text-slate-900">
-                      Detected
-                    </div>
-                    <div className="mt-2 grid gap-1 text-[13px] text-slate-700">
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        <span>
-                          width: <b>{parsed?.widthRaw ?? "?"}</b>
-                        </span>
-                        <span>
-                          height: <b>{parsed?.heightRaw ?? "?"}</b>
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        <span>
-                          viewBox: <b>{parsed?.viewBoxRaw ?? "?"}</b>
-                        </span>
-                        <span className="text-slate-500">
-                          preserveAspectRatio:{" "}
-                          <b>{parsed?.preserveAspectRatio ?? "default"}</b>
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        <span className="text-slate-500">
-                          file size:{" "}
-                          <b>{parsed ? formatBytes(parsed.bytes) : "?"}</b>
-                        </span>
-                        <span className="text-slate-500">
-                          aspect ratio:{" "}
-                          <b>
-                            {parsed?.aspectRatio
-                              ? roundN(parsed.aspectRatio, 4)
-                              : "?"}
-                          </b>
-                        </span>
-                      </div>
-
-                      <div className="mt-1">
-                        computed px:{" "}
-                        <b>
-                          {parsed?.inferredPx
-                            ? `${parsed.inferredPx.w} × ${parsed.inferredPx.h}`
-                            : "?"}
-                        </b>{" "}
-                        {parsed?.inferredPx ? (
-                          <span className="text-slate-500">
-                            ({parsed.inferredPx.source})
+                {showAdvanced && (
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
+                  >
+                    <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
+                      <div className="grid gap-2 min-w-0">
+                        <Field label="DPI for unit conversion">
+                          <Num
+                            value={settings.dpi}
+                            min={24}
+                            max={2400}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, dpi: v }))
+                            }
+                          />
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            Used for mm/in/pt to px
                           </span>
-                        ) : null}
+                        </Field>
+
+                        <Field label="Fallback px if missing">
+                          <Num
+                            value={settings.defaultPxIfMissing}
+                            min={16}
+                            max={20000}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                defaultPxIfMissing: v,
+                              }))
+                            }
+                          />
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            Only if width/height and viewBox missing
+                          </span>
+                        </Field>
+
+                        <div className="rounded-xl border border-slate-200 bg-[#fafcff] px-3 py-2">
+                          <div className="text-[13px] font-semibold text-slate-900">
+                            Detected
+                          </div>
+                          <div className="mt-2 grid gap-1 text-[13px] text-slate-700">
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              <span>
+                                width: <b>{parsed?.widthRaw ?? "?"}</b>
+                              </span>
+                              <span>
+                                height: <b>{parsed?.heightRaw ?? "?"}</b>
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              <span>
+                                viewBox: <b>{parsed?.viewBoxRaw ?? "?"}</b>
+                              </span>
+                              <span className="text-slate-500">
+                                preserveAspectRatio:{" "}
+                                <b>
+                                  {parsed?.preserveAspectRatio ?? "default"}
+                                </b>
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              <span className="text-slate-500">
+                                file size:{" "}
+                                <b>
+                                  {parsed ? formatBytes(parsed.bytes) : "?"}
+                                </b>
+                              </span>
+                              <span className="text-slate-500">
+                                aspect ratio:{" "}
+                                <b>
+                                  {parsed?.aspectRatio
+                                    ? roundN(parsed.aspectRatio, 4)
+                                    : "?"}
+                                </b>
+                              </span>
+                            </div>
+
+                            <div className="mt-1">
+                              computed px:{" "}
+                              <b>
+                                {parsed?.inferredPx
+                                  ? `${parsed.inferredPx.w} × ${parsed.inferredPx.h}`
+                                  : "?"}
+                              </b>{" "}
+                              {parsed?.inferredPx ? (
+                                <span className="text-slate-500">
+                                  ({parsed.inferredPx.source})
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+
+                        <Field label="Fix strategy">
+                          <select
+                            value={settings.fixStrategy}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fixStrategy: e.target
+                                  .value as Settings["fixStrategy"],
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value="none">None (inspect only)</option>
+                            <option value="add-viewbox">
+                              Add viewBox (best for scaling)
+                            </option>
+                            <option value="set-width-height">
+                              Set width and height attributes
+                            </option>
+                            <option value="normalize">
+                              Normalize (safe defaults)
+                            </option>
+                          </select>
+                        </Field>
+
+                        {(settings.fixStrategy === "add-viewbox" ||
+                          settings.fixStrategy === "normalize") && (
+                          <Field label="viewBox output">
+                            <input
+                              value={settings.viewBoxOut}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  viewBoxOut: e.target.value,
+                                }))
+                              }
+                              className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                              placeholder="e.g. 0 0 512 512"
+                            />
+                          </Field>
+                        )}
+
+                        {(settings.fixStrategy === "set-width-height" ||
+                          settings.fixStrategy === "normalize") && (
+                          <>
+                            <Field label="Width output">
+                              <input
+                                value={settings.widthOut}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    widthOut: e.target.value,
+                                  }))
+                                }
+                                className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="e.g. 512 or 512px or 100%"
+                              />
+                            </Field>
+                            <Field label="Height output">
+                              <input
+                                value={settings.heightOut}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    heightOut: e.target.value,
+                                  }))
+                                }
+                                className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="e.g. 512 or 512px or 100%"
+                              />
+                            </Field>
+                          </>
+                        )}
+
+                        {settings.fixStrategy === "normalize" && (
+                          <>
+                            <Field label="Normalize: remove px suffix">
+                              <input
+                                type="checkbox"
+                                checked={settings.normalizeRemovePxSuffix}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    normalizeRemovePxSuffix: e.target.checked,
+                                  }))
+                                }
+                                className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                              />
+                              <span className="text-[13px] text-slate-700 min-w-0">
+                                Turn 512px into 512
+                              </span>
+                            </Field>
+
+                            <Field label="Normalize: ensure xmlns">
+                              <input
+                                type="checkbox"
+                                checked={settings.normalizeAddMissingXmlns}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    normalizeAddMissingXmlns: e.target.checked,
+                                  }))
+                                }
+                                className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                              />
+                              <span className="text-[13px] text-slate-700 min-w-0">
+                                Adds xmlns if missing
+                              </span>
+                            </Field>
+                          </>
+                        )}
+
+                        <Field label="Output filename">
+                          <input
+                            value={settings.fileName}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fileName: e.target.value,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="svg-dimensions"
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={applyFixNow}
+                          disabled={
+                            !hydrated ||
+                            !svgText.trim() ||
+                            settings.fixStrategy === "none"
+                          }
+                          className={[
+                            "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
+                            "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
+                            "disabled:opacity-70 disabled:cursor-not-allowed",
+                          ].join(" ")}
+                        >
+                          Apply fix
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={downloadSvg}
+                          disabled={!hydrated || !svgText.trim()}
+                          className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                        >
+                          Download SVG
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={copySvg}
+                          disabled={!hydrated || !svgText.trim()}
+                          className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                        >
+                          Copy SVG
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = result?.svgText;
+                            if (!next) return;
+                            setSvgText(next);
+                            setResult(null);
+                            setOutPreviewUrl((u) => {
+                              if (u) URL.revokeObjectURL(u);
+                              return null;
+                            });
+                            showToast("Output moved to input");
+                          }}
+                          disabled={!hydrated || !result?.svgText}
+                          className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                        >
+                          Use output as input
+                        </button>
+                      </div>
+
+                      <div className="mt-3 text-[13px] text-slate-600">
+                        Tip: for most SVG workflows, <b>viewBox</b> is what
+                        makes scaling behave correctly. Width and height are
+                        often just display hints.
                       </div>
                     </div>
                   </div>
-
-                  <Field label="Fix strategy">
-                    <select
-                      value={settings.fixStrategy}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          fixStrategy: e.target
-                            .value as Settings["fixStrategy"],
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="none">None (inspect only)</option>
-                      <option value="add-viewbox">
-                        Add viewBox (best for scaling)
-                      </option>
-                      <option value="set-width-height">
-                        Set width and height attributes
-                      </option>
-                      <option value="normalize">
-                        Normalize (safe defaults)
-                      </option>
-                    </select>
-                  </Field>
-
-                  {(settings.fixStrategy === "add-viewbox" ||
-                    settings.fixStrategy === "normalize") && (
-                    <Field label="viewBox output">
-                      <input
-                        value={settings.viewBoxOut}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            viewBoxOut: e.target.value,
-                          }))
-                        }
-                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        placeholder="e.g. 0 0 512 512"
-                      />
-                    </Field>
-                  )}
-
-                  {(settings.fixStrategy === "set-width-height" ||
-                    settings.fixStrategy === "normalize") && (
-                    <>
-                      <Field label="Width output">
-                        <input
-                          value={settings.widthOut}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              widthOut: e.target.value,
-                            }))
-                          }
-                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="e.g. 512 or 512px or 100%"
-                        />
-                      </Field>
-                      <Field label="Height output">
-                        <input
-                          value={settings.heightOut}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              heightOut: e.target.value,
-                            }))
-                          }
-                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="e.g. 512 or 512px or 100%"
-                        />
-                      </Field>
-                    </>
-                  )}
-
-                  {settings.fixStrategy === "normalize" && (
-                    <>
-                      <Field label="Normalize: remove px suffix">
-                        <input
-                          type="checkbox"
-                          checked={settings.normalizeRemovePxSuffix}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              normalizeRemovePxSuffix: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Turn 512px into 512
-                        </span>
-                      </Field>
-
-                      <Field label="Normalize: ensure xmlns">
-                        <input
-                          type="checkbox"
-                          checked={settings.normalizeAddMissingXmlns}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              normalizeAddMissingXmlns: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Adds xmlns if missing
-                        </span>
-                      </Field>
-                    </>
-                  )}
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="svg-dimensions"
-                    />
-                  </Field>
-                </div>
-
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={applyFixNow}
-                    disabled={
-                      !hydrated ||
-                      !svgText.trim() ||
-                      settings.fixStrategy === "none"
-                    }
-                    className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
-                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
-                      "disabled:opacity-70 disabled:cursor-not-allowed",
-                    ].join(" ")}
-                  >
-                    Apply fix
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={downloadSvg}
-                    disabled={!hydrated || !svgText.trim()}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    Download SVG
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={copySvg}
-                    disabled={!hydrated || !svgText.trim()}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    Copy SVG
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = result?.svgText;
-                      if (!next) return;
-                      setSvgText(next);
-                      setResult(null);
-                      setOutPreviewUrl((u) => {
-                        if (u) URL.revokeObjectURL(u);
-                        return null;
-                      });
-                      showToast("Output moved to input");
-                    }}
-                    disabled={!hydrated || !result?.svgText}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    Use output as input
-                  </button>
-                </div>
-
-                <div className="mt-3 text-[13px] text-slate-600">
-                  Tip: for most SVG workflows, <b>viewBox</b> is what makes
-                  scaling behave correctly. Width and height are often just
-                  display hints.
-                </div>
+                )}
               </div>
 
               {/* Output SVG */}
@@ -920,7 +971,6 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <SiteFooter />
     </>
   );
 }

@@ -2333,7 +2333,7 @@ function SeoSections() {
   );
 }
 
-function ChevronDownIcon({ open }: { open: boolean }) {
+export function ChevronDownIcon({ open }: { open: boolean }) {
   return (
     <svg
       className={[
@@ -2353,7 +2353,7 @@ function ChevronDownIcon({ open }: { open: boolean }) {
   );
 }
 
-function PresetPicker({
+export function PresetPicker({
   presets,
   activePreset,
   applyPreset,

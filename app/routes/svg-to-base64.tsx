@@ -323,10 +323,12 @@ export default function SvgToBase64(_: Route.ComponentProps) {
           ? `data:${settings.mime};base64,${outText}`
           : "";
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -377,7 +379,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
             </p>
           </header>
 
-          <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
@@ -480,289 +482,334 @@ export default function SvgToBase64(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Output Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Output format">
-                    <select
-                      value={settings.output}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          output: e.target.value as OutputFormat,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="data-uri-base64">
-                        Data URI (Base64): data:image/svg+xml;base64,...
-                      </option>
-                      <option value="base64-only">Base64 only</option>
-                      <option value="data-uri-utf8">
-                        Data URI (UTF-8): data:image/svg+xml,...
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="MIME type">
-                    <select
-                      value={settings.mime}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          mime: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="image/svg+xml">image/svg+xml</option>
-                      <option value="image/svg+xml;charset=utf-8">
-                        image/svg+xml;charset=utf-8
-                      </option>
-                    </select>
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Common default
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
                     </span>
-                  </Field>
-
-                  {settings.output === "base64-only" && (
-                    <Field label="Include prefix">
-                      <input
-                        type="checkbox"
-                        checked={settings.includePrefix}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            includePrefix: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
                       />
-                      <span className="text-[13px] text-slate-700 min-w-0">
-                        Also generate data:...;base64, for previews/snippets
-                      </span>
-                    </Field>
-                  )}
+                    </svg>
+                  </button>
 
-                  {settings.output === "data-uri-utf8" && (
-                    <Field label="UTF-8 encode mode">
-                      <select
-                        value={settings.utf8EncodeMode}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            utf8EncodeMode: e.target.value as any,
-                          }))
-                        }
-                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                      >
-                        <option value="minimal">Minimal (safe in HTML)</option>
-                        <option value="css-safe">CSS-safe (escape more)</option>
-                      </select>
-                    </Field>
-                  )}
-
-                  <Field label="Sanitize">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={settings.sanitize}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            sanitize: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                      />
-                      <span className="text-[13px] text-slate-700 min-w-0">
-                        Remove risky content (recommended)
-                      </span>
-                    </div>
-                  </Field>
-
-                  {settings.sanitize && (
-                    <Field label="Sanitize options">
-                      <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                        <ToggleRow
-                          checked={settings.stripScripts}
-                          onChange={(v) =>
-                            setSettings((s) => ({ ...s, stripScripts: v }))
-                          }
-                          label="Strip <script> blocks"
-                        />
-                        <ToggleRow
-                          checked={settings.stripForeignObject}
-                          onChange={(v) =>
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <Field label="Output format">
+                        <select
+                          value={settings.output}
+                          onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripForeignObject: v,
+                              output: e.target.value as OutputFormat,
                             }))
                           }
-                          label="Strip <foreignObject>"
-                        />
-                        <ToggleRow
-                          checked={settings.stripEventHandlers}
-                          onChange={(v) =>
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="data-uri-base64">
+                            Data URI (Base64): data:image/svg+xml;base64,...
+                          </option>
+                          <option value="base64-only">Base64 only</option>
+                          <option value="data-uri-utf8">
+                            Data URI (UTF-8): data:image/svg+xml,...
+                          </option>
+                        </select>
+                      </Field>
+
+                      <Field label="MIME type">
+                        <select
+                          value={settings.mime}
+                          onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              stripEventHandlers: v,
+                              mime: e.target.value as any,
                             }))
                           }
-                          label="Strip on* event handlers"
-                        />
-                        <ToggleRow
-                          checked={settings.stripJavascriptHrefs}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              stripJavascriptHrefs: v,
-                            }))
-                          }
-                          label="Strip javascript: links"
-                        />
-                      </div>
-                    </Field>
-                  )}
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="image/svg+xml">image/svg+xml</option>
+                          <option value="image/svg+xml;charset=utf-8">
+                            image/svg+xml;charset=utf-8
+                          </option>
+                        </select>
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          Common default
+                        </span>
+                      </Field>
 
-                  <Field label="Minify">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.minifyWhitespace}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, minifyWhitespace: v }))
-                        }
-                        label="Minify whitespace (light)"
-                      />
-                      <ToggleRow
-                        checked={settings.collapseStyle}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, collapseStyle: v }))
-                        }
-                        label='Clean style="" spacing'
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Base64 options">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.urlSafe}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, urlSafe: v }))
-                        }
-                        label="URL-safe Base64 (base64url)"
-                      />
-                      <ToggleRow
-                        checked={settings.lineWrap}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, lineWrap: v }))
-                        }
-                        label="Wrap lines"
-                      />
-                      {settings.lineWrap && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] text-slate-600">
-                            Wrap at
-                          </span>
+                      {settings.output === "base64-only" && (
+                        <Field label="Include prefix">
                           <input
-                            type="number"
-                            min={20}
-                            max={200}
-                            value={settings.wrapAt}
+                            type="checkbox"
+                            checked={settings.includePrefix}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                wrapAt: clampInt(
-                                  Number(e.target.value),
-                                  20,
-                                  200,
-                                ),
+                                includePrefix: e.target.checked,
                               }))
                             }
-                            className="w-[92px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                           />
-                          <span className="text-[12px] text-slate-600">
-                            chars
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Also generate data:...;base64, for previews/snippets
                           </span>
-                        </div>
+                        </Field>
                       )}
-                    </div>
-                  </Field>
 
-                  <Field label="Preview">
-                    <input
-                      type="checkbox"
-                      checked={settings.showPreview}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          showPreview: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Show rendered preview
-                    </span>
-                  </Field>
-
-                  <Field label="Copy wrapping">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.copyWithQuotes}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, copyWithQuotes: v }))
-                        }
-                        label="Copy with quotes"
-                      />
-                      {settings.copyWithQuotes && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] text-slate-600">
-                            Quote style
-                          </span>
+                      {settings.output === "data-uri-utf8" && (
+                        <Field label="UTF-8 encode mode">
                           <select
-                            value={settings.quoteMode}
+                            value={settings.utf8EncodeMode}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                quoteMode: e.target.value as QuoteMode,
+                                utf8EncodeMode: e.target.value as any,
                               }))
                             }
-                            className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
                           >
-                            <option value="double">"</option>
-                            <option value="single">'</option>
-                            <option value="none">(none)</option>
+                            <option value="minimal">
+                              Minimal (safe in HTML)
+                            </option>
+                            <option value="css-safe">
+                              CSS-safe (escape more)
+                            </option>
                           </select>
-                        </div>
+                        </Field>
                       )}
-                    </div>
-                  </Field>
 
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="svg-base64"
-                    />
-                  </Field>
+                      <Field label="Sanitize">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={settings.sanitize}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                sanitize: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Remove risky content (recommended)
+                          </span>
+                        </div>
+                      </Field>
+
+                      {settings.sanitize && (
+                        <Field label="Sanitize options">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.stripScripts}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripScripts: v }))
+                              }
+                              label="Strip <script> blocks"
+                            />
+                            <ToggleRow
+                              checked={settings.stripForeignObject}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripForeignObject: v,
+                                }))
+                              }
+                              label="Strip <foreignObject>"
+                            />
+                            <ToggleRow
+                              checked={settings.stripEventHandlers}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripEventHandlers: v,
+                                }))
+                              }
+                              label="Strip on* event handlers"
+                            />
+                            <ToggleRow
+                              checked={settings.stripJavascriptHrefs}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripJavascriptHrefs: v,
+                                }))
+                              }
+                              label="Strip javascript: links"
+                            />
+                          </div>
+                        </Field>
+                      )}
+
+                      <Field label="Minify">
+                        <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                          <ToggleRow
+                            checked={settings.minifyWhitespace}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                minifyWhitespace: v,
+                              }))
+                            }
+                            label="Minify whitespace (light)"
+                          />
+                          <ToggleRow
+                            checked={settings.collapseStyle}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, collapseStyle: v }))
+                            }
+                            label='Clean style="" spacing'
+                          />
+                        </div>
+                      </Field>
+
+                      <Field label="Base64 options">
+                        <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                          <ToggleRow
+                            checked={settings.urlSafe}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, urlSafe: v }))
+                            }
+                            label="URL-safe Base64 (base64url)"
+                          />
+                          <ToggleRow
+                            checked={settings.lineWrap}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, lineWrap: v }))
+                            }
+                            label="Wrap lines"
+                          />
+                          {settings.lineWrap && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[12px] text-slate-600">
+                                Wrap at
+                              </span>
+                              <input
+                                type="number"
+                                min={20}
+                                max={200}
+                                value={settings.wrapAt}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    wrapAt: clampInt(
+                                      Number(e.target.value),
+                                      20,
+                                      200,
+                                    ),
+                                  }))
+                                }
+                                className="w-[92px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                              />
+                              <span className="text-[12px] text-slate-600">
+                                chars
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </Field>
+
+                      <Field label="Preview">
+                        <input
+                          type="checkbox"
+                          checked={settings.showPreview}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              showPreview: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Show rendered preview
+                        </span>
+                      </Field>
+
+                      <Field label="Copy wrapping">
+                        <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                          <ToggleRow
+                            checked={settings.copyWithQuotes}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, copyWithQuotes: v }))
+                            }
+                            label="Copy with quotes"
+                          />
+                          {settings.copyWithQuotes && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[12px] text-slate-600">
+                                Quote style
+                              </span>
+                              <select
+                                value={settings.quoteMode}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    quoteMode: e.target.value as QuoteMode,
+                                  }))
+                                }
+                                className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                              >
+                                <option value="double">"</option>
+                                <option value="single">'</option>
+                                <option value="none">(none)</option>
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </Field>
+
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="svg-base64"
+                        />
+                      </Field>
+                    </div>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={copyOutput}
                     disabled={!hydrated || !outText}
                     className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
+                      "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -774,7 +821,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadOutput}
                     disabled={!hydrated || !outText}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download Output
                   </button>
@@ -783,7 +830,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                     type="button"
                     onClick={copyCssSnippet}
                     disabled={!hydrated || !outText}
-                    className="px-3.5 py-2 rounded-xl font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                     title="Copy background-image: url(...)"
                   >
                     Copy CSS
@@ -793,7 +840,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                     type="button"
                     onClick={copyHtmlSnippet}
                     disabled={!hydrated || !outText}
-                    className="px-3.5 py-2 rounded-xl font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                     title="Copy <img src=...>"
                   >
                     Copy HTML
@@ -810,8 +857,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
 
                 <div className="mt-3 text-[13px] text-slate-600">
                   Notes: Base64 increases size by about 33%. If you are using
-                  CSS
-                  <code> url()</code>, consider <b>Data URI (UTF-8)</b> for
+                  CSS <code> url()</code>, consider <b>Data URI (UTF-8)</b> for
                   small SVGs.
                 </div>
               </div>

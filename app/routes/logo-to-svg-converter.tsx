@@ -970,9 +970,11 @@ export default function LogoToSvgConverter({
     navigator.clipboard.writeText(svg).then(() => showToast("SVG copied"));
   }
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
-      <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
+      <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -1124,173 +1126,219 @@ export default function LogoToSvgConverter({
               )}
 
               {/* Settings */}
-              <div className="mt-3 flex flex-col gap-2 min-w-0">
-                <Field label="Preprocess">
-                  <select
-                    value={settings.preprocess}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        preprocess: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+              <div className="mt-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  aria-expanded={showAdvanced}
+                  aria-controls="advanced-settings"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Advanced settings
+                  </span>
+
+                  <svg
+                    className={[
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
                   >
-                    <option value="none">None (best for logos)</option>
-                    <option value="edge">
-                      Edge (only if you uploaded a photo)
-                    </option>
-                  </select>
-                </Field>
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
 
-                {settings.preprocess === "edge" && (
-                  <>
-                    <Field label={`Blur σ (${settings.blurSigma})`}>
-                      <Num
-                        value={settings.blurSigma}
-                        min={0}
-                        max={3}
-                        step={0.1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, blurSigma: v }))
-                        }
-                      />
-                    </Field>
-                    <Field label={`Edge boost (${settings.edgeBoost})`}>
-                      <Num
-                        value={settings.edgeBoost}
-                        min={0.5}
-                        max={2.0}
-                        step={0.1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, edgeBoost: v }))
-                        }
-                      />
-                    </Field>
-                  </>
-                )}
-
-                <Field label={`Threshold (${settings.threshold})`}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={255}
-                    step={1}
-                    value={settings.threshold}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        threshold: Number(e.target.value),
-                      }))
-                    }
-                    className="w-full accent-[#0b2dff]"
-                  />
-                </Field>
-
-                <Field label="Turd size (speck removal)">
-                  <Num
-                    value={settings.turdSize}
-                    min={0}
-                    max={10}
-                    step={1}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, turdSize: v }))
-                    }
-                  />
-                </Field>
-
-                <Field label="Curve tolerance (smoothing)">
-                  <Num
-                    value={settings.optTolerance}
-                    min={0.05}
-                    max={1.2}
-                    step={0.05}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, optTolerance: v }))
-                    }
-                  />
-                </Field>
-
-                <Field label="Turn policy">
-                  <select
-                    value={settings.turnPolicy}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        turnPolicy: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                {showAdvanced && (
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
                   >
-                    <option value="black">black</option>
-                    <option value="white">white</option>
-                    <option value="left">left</option>
-                    <option value="right">right</option>
-                    <option value="minority">minority</option>
-                    <option value="majority">majority</option>
-                  </select>
-                </Field>
+                    <div className="mt-3 flex flex-col gap-2 min-w-0">
+                      <Field label="Preprocess">
+                        <select
+                          value={settings.preprocess}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              preprocess: e.target.value as any,
+                            }))
+                          }
+                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        >
+                          <option value="none">None (best for logos)</option>
+                          <option value="edge">
+                            Edge (only if you uploaded a photo)
+                          </option>
+                        </select>
+                      </Field>
 
-                <Field label="Fill color">
-                  <input
-                    type="color"
-                    value={settings.lineColor}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
-                    }
-                    className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                  />
-                </Field>
+                      {settings.preprocess === "edge" && (
+                        <>
+                          <Field label={`Blur σ (${settings.blurSigma})`}>
+                            <Num
+                              value={settings.blurSigma}
+                              min={0}
+                              max={3}
+                              step={0.1}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, blurSigma: v }))
+                              }
+                            />
+                          </Field>
+                          <Field label={`Edge boost (${settings.edgeBoost})`}>
+                            <Num
+                              value={settings.edgeBoost}
+                              min={0.5}
+                              max={2.0}
+                              step={0.1}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, edgeBoost: v }))
+                              }
+                            />
+                          </Field>
+                        </>
+                      )}
 
-                <Field label="Invert (white logo)">
-                  <input
-                    type="checkbox"
-                    checked={settings.invert}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, invert: e.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#0b2dff]"
-                  />
-                </Field>
+                      <Field label={`Threshold (${settings.threshold})`}>
+                        <input
+                          type="range"
+                          min={0}
+                          max={255}
+                          step={1}
+                          value={settings.threshold}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              threshold: Number(e.target.value),
+                            }))
+                          }
+                          className="w-full accent-[#0b2dff]"
+                        />
+                      </Field>
 
-                <Field label="Background">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={settings.transparent}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          transparent: e.target.checked,
-                        }))
-                      }
-                      title="Transparent background"
-                      className="h-4 w-4 accent-[#0b2dff]"
-                    />
-                    <span className="text-[13px] text-slate-700">
-                      Transparent
-                    </span>
-                    <input
-                      type="color"
-                      value={settings.bgColor}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
-                      }
-                      aria-disabled={settings.transparent}
-                      className={[
-                        "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent
-                          ? "opacity-50 pointer-events-none"
-                          : "",
-                      ].join(" ")}
-                      title={
-                        settings.transparent
-                          ? "Uncheck to pick a background color"
-                          : "Pick background color"
-                      }
-                    />
+                      <Field label="Turd size (speck removal)">
+                        <Num
+                          value={settings.turdSize}
+                          min={0}
+                          max={10}
+                          step={1}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, turdSize: v }))
+                          }
+                        />
+                      </Field>
+
+                      <Field label="Curve tolerance (smoothing)">
+                        <Num
+                          value={settings.optTolerance}
+                          min={0.05}
+                          max={1.2}
+                          step={0.05}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, optTolerance: v }))
+                          }
+                        />
+                      </Field>
+
+                      <Field label="Turn policy">
+                        <select
+                          value={settings.turnPolicy}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              turnPolicy: e.target.value as any,
+                            }))
+                          }
+                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        >
+                          <option value="black">black</option>
+                          <option value="white">white</option>
+                          <option value="left">left</option>
+                          <option value="right">right</option>
+                          <option value="minority">minority</option>
+                          <option value="majority">majority</option>
+                        </select>
+                      </Field>
+
+                      <Field label="Fill color">
+                        <input
+                          type="color"
+                          value={settings.lineColor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              lineColor: e.target.value,
+                            }))
+                          }
+                          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
+                        />
+                      </Field>
+
+                      <Field label="Invert (white logo)">
+                        <input
+                          type="checkbox"
+                          checked={settings.invert}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              invert: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff]"
+                        />
+                      </Field>
+
+                      <Field label="Background">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={settings.transparent}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                transparent: e.target.checked,
+                              }))
+                            }
+                            title="Transparent background"
+                            className="h-4 w-4 accent-[#0b2dff]"
+                          />
+                          <span className="text-[13px] text-slate-700">
+                            Transparent
+                          </span>
+                          <input
+                            type="color"
+                            value={settings.bgColor}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                bgColor: e.target.value,
+                              }))
+                            }
+                            aria-disabled={settings.transparent}
+                            className={[
+                              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
+                              settings.transparent
+                                ? "opacity-50 pointer-events-none"
+                                : "",
+                            ].join(" ")}
+                            title={
+                              settings.transparent
+                                ? "Uncheck to pick a background color"
+                                : "Pick background color"
+                            }
+                          />
+                        </div>
+                      </Field>
+                    </div>
                   </div>
-                </Field>
+                )}
               </div>
 
               {/* Convert button + status */}

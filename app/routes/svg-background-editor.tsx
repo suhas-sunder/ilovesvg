@@ -322,7 +322,7 @@ export default function SvgBackgroundPage({
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPasteAny}
       >
         <div className="max-w-[1180px] mx-auto px-4">

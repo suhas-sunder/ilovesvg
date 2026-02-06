@@ -507,10 +507,12 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
     { name: "Favicon Generator", href: "/svg-favicon-generator" },
   ];
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -644,262 +646,304 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 overflow-auto border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 overflow-auto border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Output Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Output intent">
-                    <div className="flex flex-col gap-2 w-full">
-                      <ToggleRow
-                        checked={settings.generateAllPlatforms}
-                        onChange={toggleAllPlatforms}
-                        label="Generate icons for Web, Android, Microsoft, and iOS"
-                      />
-                      <ToggleRow
-                        checked={settings.onlyIco16}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            onlyIco16: v,
-                            generateAllPlatforms: v
-                              ? false
-                              : s.generateAllPlatforms,
-                          }))
-                        }
-                        label="Generate only 16×16 favicon.ico"
-                      />
-                    </div>
-                  </Field>
-
-                  {!settings.generateAllPlatforms && !settings.onlyIco16 && (
-                    <Field label="Platforms">
-                      <div className="flex flex-col gap-2 w-full">
-                        <ToggleRow
-                          checked={settings.platforms.web}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              platforms: { ...s.platforms, web: v },
-                            }))
-                          }
-                          label="Web (favicon + Apple touch + Chrome icons)"
-                        />
-                        <ToggleRow
-                          checked={settings.platforms.android}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              platforms: { ...s.platforms, android: v },
-                            }))
-                          }
-                          label="Android (launcher icons)"
-                        />
-                        <ToggleRow
-                          checked={settings.platforms.ios}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              platforms: { ...s.platforms, ios: v },
-                            }))
-                          }
-                          label="iOS (Apple touch icons)"
-                        />
-                        <ToggleRow
-                          checked={settings.platforms.microsoft}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              platforms: { ...s.platforms, microsoft: v },
-                            }))
-                          }
-                          label="Microsoft (tiles/browserconfig)"
-                        />
-                      </div>
-                    </Field>
-                  )}
-
-                  <Field label="Maintain dimensions">
-                    <input
-                      type="checkbox"
-                      checked={settings.maintainAspect}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          maintainAspect: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Keep aspect ratio (don’t stretch)
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
                     </span>
-                  </Field>
-
-                  {settings.maintainAspect && (
-                    <Field label="Pad to square">
-                      <input
-                        type="checkbox"
-                        checked={settings.padToSquare}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            padToSquare: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                      />
-                      <span className="text-[13px] text-slate-700 min-w-0">
-                        Add padding instead of cropping
-                      </span>
-                    </Field>
-                  )}
-
-                  <Field label="Background">
-                    <select
-                      value={settings.background}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          background: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      <option value="transparent">Transparent</option>
-                      <option value="white">White</option>
-                      <option value="custom">Custom</option>
-                    </select>
-
-                    {settings.background === "custom" && (
-                      <input
-                        value={settings.backgroundCustom}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            backgroundCustom: e.target.value,
-                          }))
-                        }
-                        className="w-[140px] min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        placeholder="#ffffff"
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
                       />
-                    )}
-                  </Field>
+                    </svg>
+                  </button>
 
-                  <Field label="Master size">
-                    <NumInt
-                      value={settings.pngMasterSize}
-                      min={64}
-                      max={2048}
-                      step={64}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, pngMasterSize: v }))
-                      }
-                    />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Downscale source
-                    </span>
-                  </Field>
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <Field label="Output intent">
+                        <div className="flex flex-col gap-2 w-full">
+                          <ToggleRow
+                            checked={settings.generateAllPlatforms}
+                            onChange={toggleAllPlatforms}
+                            label="Generate icons for Web, Android, Microsoft, and iOS"
+                          />
+                          <ToggleRow
+                            checked={settings.onlyIco16}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                onlyIco16: v,
+                                generateAllPlatforms: v
+                                  ? false
+                                  : s.generateAllPlatforms,
+                              }))
+                            }
+                            label="Generate only 16×16 favicon.ico"
+                          />
+                        </div>
+                      </Field>
 
-                  {!settings.onlyIco16 && (
-                    <Field label="ICO sizes">
-                      <input
-                        value={settings.icoSizes.join(",")}
-                        onChange={(e) => {
-                          const sizes = parseSizeList(e.target.value);
-                          setSettings((s) => ({ ...s, icoSizes: sizes }));
-                        }}
-                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        placeholder="16,24,32,48,64,128,256"
-                      />
-                    </Field>
-                  )}
+                      {!settings.generateAllPlatforms &&
+                        !settings.onlyIco16 && (
+                          <Field label="Platforms">
+                            <div className="flex flex-col gap-2 w-full">
+                              <ToggleRow
+                                checked={settings.platforms.web}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    platforms: { ...s.platforms, web: v },
+                                  }))
+                                }
+                                label="Web (favicon + Apple touch + Chrome icons)"
+                              />
+                              <ToggleRow
+                                checked={settings.platforms.android}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    platforms: { ...s.platforms, android: v },
+                                  }))
+                                }
+                                label="Android (launcher icons)"
+                              />
+                              <ToggleRow
+                                checked={settings.platforms.ios}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    platforms: { ...s.platforms, ios: v },
+                                  }))
+                                }
+                                label="iOS (Apple touch icons)"
+                              />
+                              <ToggleRow
+                                checked={settings.platforms.microsoft}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    platforms: { ...s.platforms, microsoft: v },
+                                  }))
+                                }
+                                label="Microsoft (tiles/browserconfig)"
+                              />
+                            </div>
+                          </Field>
+                        )}
 
-                  <Field label="App name">
-                    <input
-                      value={settings.appName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, appName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    />
-                  </Field>
+                      <Field label="Maintain dimensions">
+                        <input
+                          type="checkbox"
+                          checked={settings.maintainAspect}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              maintainAspect: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Keep aspect ratio (don’t stretch)
+                        </span>
+                      </Field>
 
-                  <Field label="Theme color">
-                    <input
-                      value={settings.themeColor}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          themeColor: e.target.value,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    />
-                  </Field>
+                      {settings.maintainAspect && (
+                        <Field label="Pad to square">
+                          <input
+                            type="checkbox"
+                            checked={settings.padToSquare}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                padToSquare: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Add padding instead of cropping
+                          </span>
+                        </Field>
+                      )}
 
-                  <Field label="Microsoft tile color">
-                    <input
-                      value={settings.msTileColor}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          msTileColor: e.target.value,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    />
-                  </Field>
+                      <Field label="Background">
+                        <select
+                          value={settings.background}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              background: e.target.value as any,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="transparent">Transparent</option>
+                          <option value="white">White</option>
+                          <option value="custom">Custom</option>
+                        </select>
 
-                  <Field label="Output base name">
-                    <input
-                      value={settings.baseName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, baseName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    />
-                  </Field>
+                        {settings.background === "custom" && (
+                          <input
+                            value={settings.backgroundCustom}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                backgroundCustom: e.target.value,
+                              }))
+                            }
+                            className="w-[140px] min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="#ffffff"
+                          />
+                        )}
+                      </Field>
 
-                  <Field label="Manifest / msconfig">
-                    <div className="flex flex-col gap-2 w-full">
-                      <ToggleRow
-                        checked={settings.includeManifest}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, includeManifest: v }))
-                        }
-                        label="Include site.webmanifest in ZIP"
-                      />
-                      <ToggleRow
-                        checked={settings.includeMsConfig}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, includeMsConfig: v }))
-                        }
-                        label="Include browserconfig.xml in ZIP"
-                      />
+                      <Field label="Master size">
+                        <NumInt
+                          value={settings.pngMasterSize}
+                          min={64}
+                          max={2048}
+                          step={64}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, pngMasterSize: v }))
+                          }
+                        />
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          Downscale source
+                        </span>
+                      </Field>
+
+                      {!settings.onlyIco16 && (
+                        <Field label="ICO sizes">
+                          <input
+                            value={settings.icoSizes.join(",")}
+                            onChange={(e) => {
+                              const sizes = parseSizeList(e.target.value);
+                              setSettings((s) => ({ ...s, icoSizes: sizes }));
+                            }}
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="16,24,32,48,64,128,256"
+                          />
+                        </Field>
+                      )}
+
+                      <Field label="App name">
+                        <input
+                          value={settings.appName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              appName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        />
+                      </Field>
+
+                      <Field label="Theme color">
+                        <input
+                          value={settings.themeColor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              themeColor: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        />
+                      </Field>
+
+                      <Field label="Microsoft tile color">
+                        <input
+                          value={settings.msTileColor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              msTileColor: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        />
+                      </Field>
+
+                      <Field label="Output base name">
+                        <input
+                          value={settings.baseName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              baseName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                        />
+                      </Field>
+
+                      <Field label="Manifest / msconfig">
+                        <div className="flex flex-col gap-2 w-full">
+                          <ToggleRow
+                            checked={settings.includeManifest}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, includeManifest: v }))
+                            }
+                            label="Include site.webmanifest in ZIP"
+                          />
+                          <ToggleRow
+                            checked={settings.includeMsConfig}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, includeMsConfig: v }))
+                            }
+                            label="Include browserconfig.xml in ZIP"
+                          />
+                        </div>
+                      </Field>
+
+                      <Field label="Include in gallery">
+                        <input
+                          type="checkbox"
+                          checked={settings.includeInGallery}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              includeInGallery: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          UI flag only unless you wire uploads
+                        </span>
+                      </Field>
                     </div>
-                  </Field>
-
-                  <Field label="Include in gallery">
-                    <input
-                      type="checkbox"
-                      checked={settings.includeInGallery}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          includeInGallery: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      UI flag only unless you wire uploads
-                    </span>
-                  </Field>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
@@ -910,7 +954,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                       isWorking
                     }
                     className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
+                      "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -922,15 +966,16 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadAllIndividually}
                     disabled={!hydrated || !files?.length || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download all files (Recommended: Try Zip Download First)
                   </button>
+
                   <button
                     type="button"
                     onClick={downloadIcoOnly}
                     disabled={!hydrated || !files?.length || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download .ico
                   </button>
@@ -939,7 +984,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadZip}
                     disabled={!hydrated || !files?.length || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download ZIP
                   </button>

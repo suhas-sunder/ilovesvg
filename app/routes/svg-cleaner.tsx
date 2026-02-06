@@ -445,10 +445,12 @@ export default function SvgCleaner(_: Route.ComponentProps) {
     { name: "SVG Cleaner", href: "/svg-cleaner" },
   ];
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -603,380 +605,459 @@ export default function SvgCleaner(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Cleaner Settings
               </h2>
+              <div className="mt-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  aria-expanded={showAdvanced}
+                  aria-controls="advanced-settings"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Advanced settings
+                  </span>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Cleanup level">
-                    <select
-                      value={settings.level}
-                      onChange={(e) =>
-                        applyLevel(e.target.value as CleanupLevel)
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="safe">Safe</option>
-                      <option value="normal">Normal</option>
-                      <option value="aggressive">Aggressive</option>
-                    </select>
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Normal is recommended
-                    </span>
-                  </Field>
-
-                  <Field label="Remove wrappers">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.stripXmlDecl}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripXmlDecl: v }))
-                        }
-                        label="Remove XML declaration"
-                      />
-                      <ToggleRow
-                        checked={settings.stripDoctype}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripDoctype: v }))
-                        }
-                        label="Remove DOCTYPE"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Remove junk">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.removeComments}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeComments: v }))
-                        }
-                        label="Remove <!-- comments -->"
-                      />
-                      <ToggleRow
-                        checked={settings.removeMetadataTag}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeMetadataTag: v }))
-                        }
-                        label="Remove <metadata>"
-                      />
-                      <ToggleRow
-                        checked={settings.removeTitleDesc}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeTitleDesc: v }))
-                        }
-                        label="Remove <title> and <desc>"
-                      />
-                      <ToggleRow
-                        checked={settings.removeEditors}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeEditors: v }))
-                        }
-                        label="Remove editor namespaces/attrs (inkscape, sodipodi, etc.)"
-                      />
-                      <ToggleRow
-                        checked={settings.removeUnusedNamespaces}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            removeUnusedNamespaces: v,
-                          }))
-                        }
-                        label="Remove unused xmlns:* declarations (best-effort)"
-                      />
-                      <ToggleRow
-                        checked={settings.removeEmptyGroups}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeEmptyGroups: v }))
-                        }
-                        label="Remove empty <g> groups (best-effort)"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Attribute cleanup">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.stripDataAttrs}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripDataAttrs: v }))
-                        }
-                        label="Remove data-* attributes"
-                      />
-                      <ToggleRow
-                        checked={settings.stripAria}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripAria: v }))
-                        }
-                        label="Remove aria-* attributes"
-                      />
-                      <ToggleRow
-                        checked={settings.stripXmlSpace}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripXmlSpace: v }))
-                        }
-                        label='Remove xml:space="preserve"'
-                      />
-                      <ToggleRow
-                        checked={settings.stripEnableBackground}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            stripEnableBackground: v,
-                          }))
-                        }
-                        label="Remove enable-background"
-                      />
-                      <ToggleRow
-                        checked={settings.stripId}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripId: v }))
-                        }
-                        label="Remove id attributes (can break references)"
-                      />
-                      <ToggleRow
-                        checked={settings.stripClass}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripClass: v }))
-                        }
-                        label="Remove class attributes"
-                      />
-                      <ToggleRow
-                        checked={settings.stripInlineStyle}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, stripInlineStyle: v }))
-                        }
-                        label='Remove style="" attributes'
-                      />
-                      <ToggleRow
-                        checked={settings.stripPresentationAttrs}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            stripPresentationAttrs: v,
-                          }))
-                        }
-                        label="Remove presentation attrs (fill/stroke/etc.)"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Defs cleanup">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.removeEmptyDefs}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeEmptyDefs: v }))
-                        }
-                        label="Remove empty <defs>"
-                      />
-                      <ToggleRow
-                        checked={settings.removeUnusedDefs}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeUnusedDefs: v }))
-                        }
-                        label="Remove unused <defs> by id (#...) (best-effort)"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Whitespace">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.normalizeNewlines}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, normalizeNewlines: v }))
-                        }
-                        label="Normalize newlines"
-                      />
-                      <ToggleRow
-                        checked={settings.minifyWhitespace}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, minifyWhitespace: v }))
-                        }
-                        label="Minify whitespace (light)"
-                      />
-                      <ToggleRow
-                        checked={settings.pretty}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, pretty: v }))
-                        }
-                        label="Pretty format (best effort)"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Safety">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.sanitizeScripts}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, sanitizeScripts: v }))
-                        }
-                        label="Strip risky content (recommended)"
-                      />
-                      {settings.sanitizeScripts && (
-                        <div className="pl-6 flex flex-col gap-2">
-                          <ToggleRow
-                            checked={settings.stripScripts}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, stripScripts: v }))
-                            }
-                            label="Strip <script> blocks"
-                          />
-                          <ToggleRow
-                            checked={settings.stripEventHandlers}
-                            onChange={(v) =>
-                              setSettings((s) => ({
-                                ...s,
-                                stripEventHandlers: v,
-                              }))
-                            }
-                            label="Strip on* event handlers"
-                          />
-                          <ToggleRow
-                            checked={settings.stripJavascriptHrefs}
-                            onChange={(v) =>
-                              setSettings((s) => ({
-                                ...s,
-                                stripJavascriptHrefs: v,
-                              }))
-                            }
-                            label="Strip javascript: links"
-                          />
-                          <ToggleRow
-                            checked={settings.stripForeignObject}
-                            onChange={(v) =>
-                              setSettings((s) => ({
-                                ...s,
-                                stripForeignObject: v,
-                              }))
-                            }
-                            label="Strip <foreignObject>"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </Field>
-
-                  <Field label="Ensure xmlns">
-                    <input
-                      type="checkbox"
-                      checked={settings.ensureXmlns}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          ensureXmlns: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                  <svg
+                    className={[
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
                     />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Ensure xmlns on &lt;svg&gt;
-                    </span>
-                  </Field>
+                  </svg>
+                </button>
 
-                  <Field label="Preview">
-                    <input
-                      type="checkbox"
-                      checked={settings.showPreview}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          showPreview: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Render cleaned SVG
-                    </span>
-                  </Field>
-
-                  <Field label="Copy wrapping">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.copyWithQuotes}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, copyWithQuotes: v }))
-                        }
-                        label="Copy with quotes"
-                      />
-                      {settings.copyWithQuotes && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] text-slate-600">
-                            Quote style
-                          </span>
+                {showAdvanced && (
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
+                  >
+                    <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
+                      <div className="grid gap-2 min-w-0">
+                        <Field label="Cleanup level">
                           <select
-                            value={settings.quoteMode}
+                            value={settings.level}
+                            onChange={(e) =>
+                              applyLevel(e.target.value as CleanupLevel)
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value="safe">Safe</option>
+                            <option value="normal">Normal</option>
+                            <option value="aggressive">Aggressive</option>
+                          </select>
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            Normal is recommended
+                          </span>
+                        </Field>
+
+                        <Field label="Remove wrappers">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.stripXmlDecl}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripXmlDecl: v }))
+                              }
+                              label="Remove XML declaration"
+                            />
+                            <ToggleRow
+                              checked={settings.stripDoctype}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripDoctype: v }))
+                              }
+                              label="Remove DOCTYPE"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Remove junk">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.removeComments}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeComments: v,
+                                }))
+                              }
+                              label="Remove <!-- comments -->"
+                            />
+                            <ToggleRow
+                              checked={settings.removeMetadataTag}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeMetadataTag: v,
+                                }))
+                              }
+                              label="Remove <metadata>"
+                            />
+                            <ToggleRow
+                              checked={settings.removeTitleDesc}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeTitleDesc: v,
+                                }))
+                              }
+                              label="Remove <title> and <desc>"
+                            />
+                            <ToggleRow
+                              checked={settings.removeEditors}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, removeEditors: v }))
+                              }
+                              label="Remove editor namespaces/attrs (inkscape, sodipodi, etc.)"
+                            />
+                            <ToggleRow
+                              checked={settings.removeUnusedNamespaces}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeUnusedNamespaces: v,
+                                }))
+                              }
+                              label="Remove unused xmlns:* declarations (best-effort)"
+                            />
+                            <ToggleRow
+                              checked={settings.removeEmptyGroups}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeEmptyGroups: v,
+                                }))
+                              }
+                              label="Remove empty <g> groups (best-effort)"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Attribute cleanup">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.stripDataAttrs}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripDataAttrs: v,
+                                }))
+                              }
+                              label="Remove data-* attributes"
+                            />
+                            <ToggleRow
+                              checked={settings.stripAria}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripAria: v }))
+                              }
+                              label="Remove aria-* attributes"
+                            />
+                            <ToggleRow
+                              checked={settings.stripXmlSpace}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripXmlSpace: v }))
+                              }
+                              label='Remove xml:space="preserve"'
+                            />
+                            <ToggleRow
+                              checked={settings.stripEnableBackground}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripEnableBackground: v,
+                                }))
+                              }
+                              label="Remove enable-background"
+                            />
+                            <ToggleRow
+                              checked={settings.stripId}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripId: v }))
+                              }
+                              label="Remove id attributes (can break references)"
+                            />
+                            <ToggleRow
+                              checked={settings.stripClass}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, stripClass: v }))
+                              }
+                              label="Remove class attributes"
+                            />
+                            <ToggleRow
+                              checked={settings.stripInlineStyle}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripInlineStyle: v,
+                                }))
+                              }
+                              label='Remove style="" attributes'
+                            />
+                            <ToggleRow
+                              checked={settings.stripPresentationAttrs}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  stripPresentationAttrs: v,
+                                }))
+                              }
+                              label="Remove presentation attrs (fill/stroke/etc.)"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Defs cleanup">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.removeEmptyDefs}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeEmptyDefs: v,
+                                }))
+                              }
+                              label="Remove empty <defs>"
+                            />
+                            <ToggleRow
+                              checked={settings.removeUnusedDefs}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeUnusedDefs: v,
+                                }))
+                              }
+                              label="Remove unused <defs> by id (#...) (best-effort)"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Whitespace">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.normalizeNewlines}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  normalizeNewlines: v,
+                                }))
+                              }
+                              label="Normalize newlines"
+                            />
+                            <ToggleRow
+                              checked={settings.minifyWhitespace}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  minifyWhitespace: v,
+                                }))
+                              }
+                              label="Minify whitespace (light)"
+                            />
+                            <ToggleRow
+                              checked={settings.pretty}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, pretty: v }))
+                              }
+                              label="Pretty format (best effort)"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Safety">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.sanitizeScripts}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  sanitizeScripts: v,
+                                }))
+                              }
+                              label="Strip risky content (recommended)"
+                            />
+                            {settings.sanitizeScripts && (
+                              <div className="pl-6 flex flex-col gap-2">
+                                <ToggleRow
+                                  checked={settings.stripScripts}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripScripts: v,
+                                    }))
+                                  }
+                                  label="Strip <script> blocks"
+                                />
+                                <ToggleRow
+                                  checked={settings.stripEventHandlers}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripEventHandlers: v,
+                                    }))
+                                  }
+                                  label="Strip on* event handlers"
+                                />
+                                <ToggleRow
+                                  checked={settings.stripJavascriptHrefs}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripJavascriptHrefs: v,
+                                    }))
+                                  }
+                                  label="Strip javascript: links"
+                                />
+                                <ToggleRow
+                                  checked={settings.stripForeignObject}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripForeignObject: v,
+                                    }))
+                                  }
+                                  label="Strip <foreignObject>"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </Field>
+
+                        <Field label="Ensure xmlns">
+                          <input
+                            type="checkbox"
+                            checked={settings.ensureXmlns}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                quoteMode: e.target.value as QuoteMode,
+                                ensureXmlns: e.target.checked,
                               }))
                             }
-                            className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          >
-                            <option value="double">"</option>
-                            <option value="single">'</option>
-                          </select>
-                        </div>
-                      )}
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Ensure xmlns on &lt;svg&gt;
+                          </span>
+                        </Field>
+
+                        <Field label="Preview">
+                          <input
+                            type="checkbox"
+                            checked={settings.showPreview}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                showPreview: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Render cleaned SVG
+                          </span>
+                        </Field>
+
+                        <Field label="Copy wrapping">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.copyWithQuotes}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  copyWithQuotes: v,
+                                }))
+                              }
+                              label="Copy with quotes"
+                            />
+                            {settings.copyWithQuotes && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[12px] text-slate-600">
+                                  Quote style
+                                </span>
+                                <select
+                                  value={settings.quoteMode}
+                                  onChange={(e) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      quoteMode: e.target.value as QuoteMode,
+                                    }))
+                                  }
+                                  className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                                >
+                                  <option value="double">"</option>
+                                  <option value="single">'</option>
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        </Field>
+
+                        <Field label="Output filename">
+                          <input
+                            value={settings.fileName}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fileName: e.target.value,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="cleaned"
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={copyOut}
+                          disabled={!hydrated || !outSvg}
+                          className={[
+                            "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
+                            "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
+                            "disabled:opacity-70 disabled:cursor-not-allowed",
+                          ].join(" ")}
+                        >
+                          Copy Cleaned SVG
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={downloadOut}
+                          disabled={!hydrated || !outSvg}
+                          className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                        >
+                          Download SVG
+                        </button>
+
+                        {info && outSvg ? (
+                          <span className="text-[13px] text-slate-600">
+                            Saved:{" "}
+                            <b>{pctSaved(info.bytesIn, info.bytesOut)}%</b> (
+                            {formatBytes(info.bytesIn)} →{" "}
+                            {formatBytes(info.bytesOut)})
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 text-[13px] text-slate-600">
+                        Notes: “Remove id attributes” and “Remove unused defs”
+                        can break SVGs that rely on references like{" "}
+                        <code>url(#id)</code>, <code>clip-path</code>,{" "}
+                        <code>mask</code>, gradients, or symbols.
+                      </div>
                     </div>
-                  </Field>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="cleaned"
-                    />
-                  </Field>
-                </div>
-
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={copyOut}
-                    disabled={!hydrated || !outSvg}
-                    className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
-                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
-                      "disabled:opacity-70 disabled:cursor-not-allowed",
-                    ].join(" ")}
-                  >
-                    Copy Cleaned SVG
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={downloadOut}
-                    disabled={!hydrated || !outSvg}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    Download SVG
-                  </button>
-
-                  {info && outSvg ? (
-                    <span className="text-[13px] text-slate-600">
-                      Saved: <b>{pctSaved(info.bytesIn, info.bytesOut)}%</b> (
-                      {formatBytes(info.bytesIn)} → {formatBytes(info.bytesOut)}
-                      )
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-3 text-[13px] text-slate-600">
-                  Notes: “Remove id attributes” and “Remove unused defs” can
-                  break SVGs that rely on references like <code>url(#id)</code>,{" "}
-                  <code>clip-path</code>, <code>mask</code>, gradients, or
-                  symbols.
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* OUTPUT SOURCE */}

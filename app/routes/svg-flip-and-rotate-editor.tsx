@@ -329,12 +329,11 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
     }));
   }
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
-      <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className="bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -551,182 +550,226 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Transform Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Flip horizontal">
-                    <input
-                      type="checkbox"
-                      checked={settings.flipH}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, flipH: e.target.checked }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Mirror left ↔ right
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
                     </span>
-                  </Field>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                  <Field label="Flip vertical">
-                    <input
-                      type="checkbox"
-                      checked={settings.flipV}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, flipV: e.target.checked }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Mirror top ↕ bottom
-                    </span>
-                  </Field>
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <Field label="Flip horizontal">
+                        <input
+                          type="checkbox"
+                          checked={settings.flipH}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              flipH: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Mirror left ↔ right
+                        </span>
+                      </Field>
 
-                  <Field label="Rotate (degrees)">
-                    <Num
-                      value={settings.rotationDeg}
-                      min={-9999}
-                      max={9999}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, rotationDeg: v }))
-                      }
-                    />
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => rotateBy(-90)}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
-                      >
-                        -90°
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rotateBy(90)}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
-                      >
-                        +90°
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSettings((s) => ({ ...s, rotationDeg: 0 }))
-                        }
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
-                      >
-                        Reset
-                      </button>
+                      <Field label="Flip vertical">
+                        <input
+                          type="checkbox"
+                          checked={settings.flipV}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              flipV: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Mirror top ↕ bottom
+                        </span>
+                      </Field>
+
+                      <Field label="Rotate (degrees)">
+                        <Num
+                          value={settings.rotationDeg}
+                          min={-9999}
+                          max={9999}
+                          step={1}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, rotationDeg: v }))
+                          }
+                        />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => rotateBy(-90)}
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                          >
+                            -90°
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => rotateBy(90)}
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                          >
+                            +90°
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSettings((s) => ({ ...s, rotationDeg: 0 }))
+                            }
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </Field>
+
+                      <Field label="Rotate around">
+                        <select
+                          value={settings.anchor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              anchor: e.target.value as RotateAnchor,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="center">Center (recommended)</option>
+                          <option value="origin">Origin (0,0)</option>
+                        </select>
+                      </Field>
+
+                      <Field label="Fit to rotation">
+                        <input
+                          type="checkbox"
+                          checked={settings.fitToRotation}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fitToRotation: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Try to expand viewBox so rotated art isn’t clipped
+                        </span>
+                      </Field>
+
+                      <Field label="Sizing mode">
+                        <select
+                          value={settings.unitMode}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              unitMode: e.target.value as UnitMode,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="auto">
+                            Auto (viewBox → width/height → fallback)
+                          </option>
+                          <option value="px">
+                            Force px width/height if missing
+                          </option>
+                        </select>
+                      </Field>
+
+                      <Field label="Fallback size">
+                        <Num
+                          value={settings.fallbackSize}
+                          min={16}
+                          max={50000}
+                          step={1}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, fallbackSize: v }))
+                          }
+                        />
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          used if SVG has no size
+                        </span>
+                      </Field>
+
+                      <Field label="Copy minify">
+                        <input
+                          type="checkbox"
+                          checked={settings.copyMinify}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              copyMinify: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Minify when copying output
+                        </span>
+                      </Field>
+
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="flipped-rotated"
+                        />
+                      </Field>
                     </div>
-                  </Field>
-
-                  <Field label="Rotate around">
-                    <select
-                      value={settings.anchor}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          anchor: e.target.value as RotateAnchor,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="center">Center (recommended)</option>
-                      <option value="origin">Origin (0,0)</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Fit to rotation">
-                    <input
-                      type="checkbox"
-                      checked={settings.fitToRotation}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          fitToRotation: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Try to expand viewBox so rotated art isn’t clipped
-                    </span>
-                  </Field>
-
-                  <Field label="Sizing mode">
-                    <select
-                      value={settings.unitMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          unitMode: e.target.value as UnitMode,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="auto">
-                        Auto (viewBox → width/height → fallback)
-                      </option>
-                      <option value="px">
-                        Force px width/height if missing
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Fallback size">
-                    <Num
-                      value={settings.fallbackSize}
-                      min={16}
-                      max={50000}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, fallbackSize: v }))
-                      }
-                    />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      used if SVG has no size
-                    </span>
-                  </Field>
-
-                  <Field label="Copy minify">
-                    <input
-                      type="checkbox"
-                      checked={settings.copyMinify}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          copyMinify: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Minify when copying output
-                    </span>
-                  </Field>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="flipped-rotated"
-                    />
-                  </Field>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={applyNow}
                     disabled={!hydrated || !svgText.trim() || isWorking}
                     className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
+                      "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -738,7 +781,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadSvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download SVG
                   </button>
@@ -747,7 +790,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
                     type="button"
                     onClick={copySvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Copy SVG
                   </button>

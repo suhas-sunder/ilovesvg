@@ -10,6 +10,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import { PresetPicker } from "./home";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -947,6 +948,8 @@ export default function DrawingToSvgConverter({
     navigator.clipboard.writeText(svg).then(() => showToast("SVG copied"));
   }
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main className=" bg-slate-50 text-slate-900">
@@ -962,69 +965,23 @@ export default function DrawingToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-          <header className="text-center mb-2">
-            <h1 className="text-[34px] font-extrabold leading-none m-0">
-              Drawing to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
-              Convert sketches, drawings, and line art into clean SVG paths.
-              Best for ink, pencil, and digital line drawings. Use Edge mode if
-              it’s a photo of paper.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="text-[34px] font-extrabold text-sky-800 leading-none mb-4">
+                Drawing to SVG Converter
+              </h1>
 
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               <div className="text-[13px] text-slate-600 mb-2">
                 Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
                 <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b>.
-              </div>
-              <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview: fast ≤10 MB, throttled ≤25 MB. Above 30 MB we try
-                on-device compression.
               </div>
 
               {!file ? (
@@ -1036,8 +993,12 @@ export default function DrawingToSvgConverter({
                   onClick={() => document.getElementById("file-inp")?.click()}
                   className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
-                  <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste a drawing (PNG/JPEG)
+                  <div className="text-lg text-slate-600">
+                    Click, drag & drop, or paste a PNG/JPEG
+                    <div className="text-sky-700 my-2 text-center text-xs">
+                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
+                      MB are auto-compressed on-device (if possible).
+                    </div>
                   </div>
                   <input
                     id="file-inp"
@@ -1096,165 +1057,218 @@ export default function DrawingToSvgConverter({
               )}
 
               {/* Settings */}
-              <div className="mt-3 flex flex-col gap-2 min-w-0">
-                <Field label="Preprocess">
-                  <select
-                    value={settings.preprocess}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        preprocess: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="none">None (lineart)</option>
-                    <option value="edge">Edge (photo of paper)</option>
-                  </select>
-                </Field>
+              <div className="mt-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  aria-expanded={showAdvanced}
+                  aria-controls="advanced-settings"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Advanced settings
+                  </span>
 
-                {settings.preprocess === "edge" && (
-                  <>
-                    <Field label={`Blur σ (${settings.blurSigma})`}>
-                      <Num
-                        value={settings.blurSigma}
+                  <svg
+                    className={[
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+
+                {showAdvanced && (
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
+                  >
+                    {/* ⬇️ PASTE YOUR EXISTING BLOCK HERE ⬇️ */}
+
+                    <Field label="Preprocess">
+                      <select
+                        value={settings.preprocess}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            preprocess: e.target.value as any,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                      >
+                        <option value="none">None (lineart)</option>
+                        <option value="edge">Edge (photo of paper)</option>
+                      </select>
+                    </Field>
+
+                    {settings.preprocess === "edge" && (
+                      <>
+                        <Field label={`Blur σ (${settings.blurSigma})`}>
+                          <Num
+                            value={settings.blurSigma}
+                            min={0}
+                            max={3}
+                            step={0.1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, blurSigma: v }))
+                            }
+                          />
+                        </Field>
+
+                        <Field label={`Edge boost (${settings.edgeBoost})`}>
+                          <Num
+                            value={settings.edgeBoost}
+                            min={0.5}
+                            max={2.0}
+                            step={0.1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, edgeBoost: v }))
+                            }
+                          />
+                        </Field>
+                      </>
+                    )}
+
+                    <Field label={`Threshold (${settings.threshold})`}>
+                      <input
+                        type="range"
                         min={0}
-                        max={3}
-                        step={0.1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, blurSigma: v }))
+                        max={255}
+                        step={1}
+                        value={settings.threshold}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            threshold: Number(e.target.value),
+                          }))
                         }
+                        className="w-full accent-[#0b2dff] cursor-pointer"
                       />
                     </Field>
-                    <Field label={`Edge boost (${settings.edgeBoost})`}>
+
+                    <Field label="Turd size (specks)">
                       <Num
-                        value={settings.edgeBoost}
-                        min={0.5}
-                        max={2.0}
-                        step={0.1}
+                        value={settings.turdSize}
+                        min={0}
+                        max={10}
+                        step={1}
                         onChange={(v) =>
-                          setSettings((s) => ({ ...s, edgeBoost: v }))
+                          setSettings((s) => ({ ...s, turdSize: v }))
                         }
                       />
                     </Field>
-                  </>
-                )}
 
-                <Field label={`Threshold (${settings.threshold})`}>
-                  <input
-                    type="range"
-                    min={0}
-                    max={255}
-                    step={1}
-                    value={settings.threshold}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        threshold: Number(e.target.value),
-                      }))
-                    }
-                    className="w-full accent-[#0b2dff]"
-                  />
-                </Field>
+                    <Field label="Curve tolerance">
+                      <Num
+                        value={settings.optTolerance}
+                        min={0.05}
+                        max={1.2}
+                        step={0.05}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, optTolerance: v }))
+                        }
+                      />
+                    </Field>
 
-                <Field label="Turd size (specks)">
-                  <Num
-                    value={settings.turdSize}
-                    min={0}
-                    max={10}
-                    step={1}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, turdSize: v }))
-                    }
-                  />
-                </Field>
+                    <Field label="Turn policy">
+                      <select
+                        value={settings.turnPolicy}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            turnPolicy: e.target.value as any,
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                      >
+                        <option value="black">black</option>
+                        <option value="white">white</option>
+                        <option value="left">left</option>
+                        <option value="right">right</option>
+                        <option value="minority">minority</option>
+                        <option value="majority">majority</option>
+                      </select>
+                    </Field>
 
-                <Field label="Curve tolerance">
-                  <Num
-                    value={settings.optTolerance}
-                    min={0.05}
-                    max={1.2}
-                    step={0.05}
-                    onChange={(v) =>
-                      setSettings((s) => ({ ...s, optTolerance: v }))
-                    }
-                  />
-                </Field>
+                    <Field label="Line color">
+                      <input
+                        type="color"
+                        value={settings.lineColor}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            lineColor: e.target.value,
+                          }))
+                        }
+                        className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                      />
+                    </Field>
 
-                <Field label="Turn policy">
-                  <select
-                    value={settings.turnPolicy}
-                    onChange={(e) =>
-                      setSettings((s) => ({
-                        ...s,
-                        turnPolicy: e.target.value as any,
-                      }))
-                    }
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="black">black</option>
-                    <option value="white">white</option>
-                    <option value="left">left</option>
-                    <option value="right">right</option>
-                    <option value="minority">minority</option>
-                    <option value="majority">majority</option>
-                  </select>
-                </Field>
+                    <Field label="Invert">
+                      <input
+                        type="checkbox"
+                        checked={settings.invert}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            invert: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                      />
+                    </Field>
 
-                <Field label="Line color">
-                  <input
-                    type="color"
-                    value={settings.lineColor}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, lineColor: e.target.value }))
-                    }
-                    className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                  />
-                </Field>
-
-                <Field label="Invert">
-                  <input
-                    type="checkbox"
-                    checked={settings.invert}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, invert: e.target.checked }))
-                    }
-                    className="h-4 w-4 accent-[#0b2dff]"
-                  />
-                </Field>
-
-                <Field label="Background">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={settings.transparent}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          transparent: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff]"
-                    />
-                    <span className="text-[13px] text-slate-700">
-                      Transparent
-                    </span>
-                    <input
-                      type="color"
-                      value={settings.bgColor}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
-                      }
-                      aria-disabled={settings.transparent}
-                      className={[
-                        "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                        settings.transparent
-                          ? "opacity-50 pointer-events-none"
-                          : "",
-                      ].join(" ")}
-                    />
+                    <Field label="Background">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.transparent}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              transparent: e.target.checked,
+                            }))
+                          }
+                          title="Transparent background"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700">
+                          Transparent
+                        </span>
+                        <input
+                          type="color"
+                          value={settings.bgColor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              bgColor: e.target.value,
+                            }))
+                          }
+                          aria-disabled={settings.transparent}
+                          className={[
+                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                            settings.transparent
+                              ? "opacity-50 pointer-events-none"
+                              : "",
+                          ].join(" ")}
+                          title={
+                            settings.transparent
+                              ? "Uncheck to pick a background color"
+                              : "Pick background color"
+                          }
+                        />
+                      </div>
+                    </Field>
                   </div>
-                </Field>
+                )}
               </div>
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -1387,7 +1401,17 @@ export default function DrawingToSvgConverter({
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1684,13 +1708,19 @@ function SeoSections() {
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               drawing to svg converter
             </p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+            <h2 className="text-2xl md:text-3xl font-bold leading-tight my-2">
               Turn drawings and sketches into scalable SVG
             </h2>
-            <p className="text-slate-600 max-w-[85ch]">
+            <p className="text-slate-600 ">
               This page is tuned for drawings and line art. It converts PNG/JPEG
               sketches into editable vector paths and supports photos of paper
               using Edge mode for cleaner outlines.
+            </p>
+
+            <p className="mt-2 text-slate-600 mx-auto">
+              Convert sketches, drawings, and line art into clean SVG paths.
+              Best for ink, pencil, and digital line drawings. Use Edge mode if
+              it’s a photo of paper.
             </p>
 
             <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">

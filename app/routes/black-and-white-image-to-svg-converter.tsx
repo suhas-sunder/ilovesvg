@@ -10,6 +10,7 @@ import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks"
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import { ChevronDownIcon, PresetPicker } from "./home";
 
 const isServer = typeof document === "undefined";
 
@@ -899,28 +900,6 @@ export default function BlackAndWhiteImageToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
 
           <section className="lg:pt-0 lg:pb-12 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
@@ -932,33 +911,11 @@ export default function BlackAndWhiteImageToSvgConverter({
                 <span className="text-[#0b2dff]">SVG</span>
               </h1>
 
-              <div className="my-2 min-w-0">
-                <label htmlFor="preset-select" className="sr-only">
-                  Presets
-                </label>
-
-                <select
-                  id="preset-select"
-                  value={activePreset ?? ""}
-                  onChange={(e) => {
-                    const selected = PRESETS.find(
-                      (p) => p.id === e.target.value,
-                    );
-                    if (selected) applyPreset(selected);
-                  }}
-                  className="w-full px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b2dff]"
-                >
-                  <option value="" disabled>
-                    Select a preset…
-                  </option>
-
-                  {PRESETS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               <div className="my-3 min-w-0">
                 <button
@@ -967,7 +924,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                   aria-expanded={showTraceSettings}
                   aria-controls="trace-settings-panel"
                   className={[
-                    "w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors",
+                    "w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-[#dbe3ef] bg-sky-50 text-slate-900 cursor-pointer transition-colors",
                     "hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b2dff]",
                   ].join(" ")}
                 >
@@ -1288,7 +1245,7 @@ export default function BlackAndWhiteImageToSvgConverter({
               )}
             </div>
 
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
               {busy && (
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
               )}
@@ -1346,10 +1303,10 @@ export default function BlackAndWhiteImageToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
+                <p className="text-white m-0">
                   {busy
                     ? "Converting…"
-                    : "Your converted file will appear here."}
+                    : "Your converted file will appear here..."}
                 </p>
               )}
             </div>
@@ -1362,7 +1319,17 @@ export default function BlackAndWhiteImageToSvgConverter({
           </div>
         )}
       </main>
-
+      <div className="block lg:hidden py-6">
+        <AdSenseDelayed
+          slot="6632213024"
+          delayMs={1500}
+          minHeight={90}
+          maxHeight={100}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full max-w-[360px]"
+        />
+      </div>
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

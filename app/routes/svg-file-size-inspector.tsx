@@ -260,10 +260,12 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
     { name: "SVG Size Inspector", href: "/svg-file-size-inspector" },
   ];
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -425,166 +427,212 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
             </div>
 
             {/* STATS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Size Details
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Unit conversion">
-                    <select
-                      value={settings.unitMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          unitMode: e.target.value as UnitMode,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
+                    </span>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      <option value="css-96dpi">CSS default (96 DPI)</option>
-                      <option value="custom-dpi">Custom DPI</option>
-                    </select>
-                  </Field>
-
-                  {settings.unitMode === "custom-dpi" ? (
-                    <Field label="DPI">
-                      <NumInt
-                        value={settings.dpi}
-                        min={36}
-                        max={1200}
-                        step={1}
-                        onChange={(v) => setSettings((s) => ({ ...s, dpi: v }))}
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
                       />
-                      <span className="text-[12px] text-slate-500 shrink-0">
-                        Used for in/cm/mm/pt
-                      </span>
-                    </Field>
-                  ) : null}
+                    </svg>
+                  </button>
 
-                  <Field label="Fallback px if missing">
-                    <NumInt
-                      value={settings.fallbackPx}
-                      min={1}
-                      max={100000}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, fallbackPx: v }))
-                      }
-                    />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Only if size cannot be inferred
-                    </span>
-                  </Field>
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <Field label="Unit conversion">
+                        <select
+                          value={settings.unitMode}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              unitMode: e.target.value as UnitMode,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                        >
+                          <option value="css-96dpi">
+                            CSS default (96 DPI)
+                          </option>
+                          <option value="custom-dpi">Custom DPI</option>
+                        </select>
+                      </Field>
 
-                  <Field label="Preview safety">
-                    <input
-                      type="checkbox"
-                      checked={settings.sanitizePreview}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          sanitizePreview: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Strip scripts and event handlers in preview
-                    </span>
-                  </Field>
+                      {settings.unitMode === "custom-dpi" ? (
+                        <Field label="DPI">
+                          <NumInt
+                            value={settings.dpi}
+                            min={36}
+                            max={1200}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, dpi: v }))
+                            }
+                          />
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            Used for in/cm/mm/pt
+                          </span>
+                        </Field>
+                      ) : null}
 
-                  <div className="mt-2 border border-slate-200 rounded-2xl bg-white p-3">
-                    <div className="font-bold text-slate-900">Detected</div>
+                      <Field label="Fallback px if missing">
+                        <NumInt
+                          value={settings.fallbackPx}
+                          min={1}
+                          max={100000}
+                          step={1}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, fallbackPx: v }))
+                          }
+                        />
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          Only if size cannot be inferred
+                        </span>
+                      </Field>
 
-                    <div className="mt-2 grid gap-1 text-[14px] text-slate-800">
-                      <div>
-                        width:{" "}
-                        <b>{stats?.widthRaw ? stats.widthRaw : "missing"}</b>
-                      </div>
-                      <div>
-                        height:{" "}
-                        <b>{stats?.heightRaw ? stats.heightRaw : "missing"}</b>
-                      </div>
-                      <div className="truncate">
-                        viewBox:{" "}
-                        <b>{stats?.viewBox ? stats.viewBox : "missing"}</b>
-                      </div>
-                      <div className="truncate">
-                        preserveAspectRatio:{" "}
-                        <b>
-                          {stats?.preserveAspectRatio
-                            ? stats.preserveAspectRatio
-                            : "default"}
-                        </b>
-                      </div>
-                      <div>
-                        file size:{" "}
-                        <b>{stats ? formatBytes(stats.bytes) : "?"}</b>
+                      <Field label="Preview safety">
+                        <input
+                          type="checkbox"
+                          checked={settings.sanitizePreview}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              sanitizePreview: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Strip scripts and event handlers in preview
+                        </span>
+                      </Field>
+
+                      <div className="mt-2 border border-slate-200 rounded-2xl bg-white p-3">
+                        <div className="font-bold text-slate-900">Detected</div>
+
+                        <div className="mt-2 grid gap-1 text-[14px] text-slate-800">
+                          <div>
+                            width:{" "}
+                            <b>
+                              {stats?.widthRaw ? stats.widthRaw : "missing"}
+                            </b>
+                          </div>
+                          <div>
+                            height:{" "}
+                            <b>
+                              {stats?.heightRaw ? stats.heightRaw : "missing"}
+                            </b>
+                          </div>
+                          <div className="truncate">
+                            viewBox:{" "}
+                            <b>{stats?.viewBox ? stats.viewBox : "missing"}</b>
+                          </div>
+                          <div className="truncate">
+                            preserveAspectRatio:{" "}
+                            <b>
+                              {stats?.preserveAspectRatio
+                                ? stats.preserveAspectRatio
+                                : "default"}
+                            </b>
+                          </div>
+                          <div>
+                            file size:{" "}
+                            <b>{stats ? formatBytes(stats.bytes) : "?"}</b>
+                          </div>
+
+                          <div className="mt-2 pt-2 border-t border-slate-200">
+                            computed px:{" "}
+                            <b>
+                              {stats
+                                ? `${stats.computedWpx} × ${stats.computedHpx}`
+                                : "?"}
+                            </b>
+                          </div>
+                          <div className="text-[13px] text-slate-600">
+                            {stats?.widthPxFrom || stats?.heightPxFrom ? (
+                              <>
+                                Source:{" "}
+                                <span className="text-slate-700">
+                                  {stats.widthPxFrom || "?"}
+                                  {stats.heightPxFrom
+                                    ? `, ${stats.heightPxFrom}`
+                                    : ""}
+                                </span>
+                              </>
+                            ) : (
+                              "Source: ?"
+                            )}
+                          </div>
+                          <div className="text-[13px] text-slate-600">
+                            aspect ratio:{" "}
+                            <b className="text-slate-900">
+                              {stats ? round(stats.aspectRatio, 4) : "?"}
+                            </b>
+                          </div>
+                        </div>
+
+                        {stats?.warnings?.length ? (
+                          <div className="mt-3 text-[13px] text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                            <div className="font-semibold mb-1">Notes</div>
+                            <ul className="list-disc pl-5 grid gap-1">
+                              {stats.warnings.map((w, i) => (
+                                <li key={i}>{w}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
                       </div>
 
-                      <div className="mt-2 pt-2 border-t border-slate-200">
-                        computed px:{" "}
-                        <b>
-                          {stats
-                            ? `${stats.computedWpx} × ${stats.computedHpx}`
-                            : "?"}
-                        </b>
-                      </div>
-                      <div className="text-[13px] text-slate-600">
-                        {stats?.widthPxFrom || stats?.heightPxFrom ? (
-                          <>
-                            Source:{" "}
-                            <span className="text-slate-700">
-                              {stats.widthPxFrom || "?"}
-                              {stats.heightPxFrom
-                                ? `, ${stats.heightPxFrom}`
-                                : ""}
-                            </span>
-                          </>
-                        ) : (
-                          "Source: ?"
-                        )}
-                      </div>
-                      <div className="text-[13px] text-slate-600">
-                        aspect ratio:{" "}
-                        <b className="text-slate-900">
-                          {stats ? round(stats.aspectRatio, 4) : "?"}
-                        </b>
-                      </div>
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="inspected"
+                        />
+                      </Field>
                     </div>
-
-                    {stats?.warnings?.length ? (
-                      <div className="mt-3 text-[13px] text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                        <div className="font-semibold mb-1">Notes</div>
-                        <ul className="list-disc pl-5 grid gap-1">
-                          {stats.warnings.map((w, i) => (
-                            <li key={i}>{w}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="inspected"
-                    />
-                  </Field>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={copyStats}
                     disabled={!hydrated || !stats}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Copy stats
                   </button>
@@ -605,7 +653,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                       showToast("Downloaded");
                     }}
                     disabled={!hydrated || !svgText.trim()}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download SVG
                   </button>

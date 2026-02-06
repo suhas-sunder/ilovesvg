@@ -945,9 +945,11 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
 
   const showUpload = fontSource === "upload";
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
-      <main className="min-h-[100dvh] bg-slate-50 text-slate-900">
+      <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -1010,7 +1012,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                   <select
                     value={outputMode}
                     onChange={(e) => setOutputMode(e.target.value as any)}
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                   >
                     <option value="grouped">All together (one SVG)</option>
                     <option value="individual">Individual SVGs</option>
@@ -1022,7 +1024,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                     <select
                       value={splitMode}
                       onChange={(e) => setSplitMode(e.target.value as any)}
-                      className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                      className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                     >
                       <option value="line">Line</option>
                       <option value="word">Word</option>
@@ -1038,7 +1040,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                       setFontSource(e.target.value as any);
                       setErr(null);
                     }}
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                   >
                     <option value="builtin">Builtin fonts</option>
                     <option value="upload">Upload font file</option>
@@ -1050,7 +1052,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                     <select
                       value={builtinFont}
                       onChange={(e) => setBuiltinFont(e.target.value as any)}
-                      className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                      className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                     >
                       {BUILTIN_FONTS.map((f) => (
                         <option key={f.id} value={f.id}>
@@ -1061,219 +1063,264 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                   </Field>
                 )}
 
-                {showUpload && (
-                  <div className="grid gap-2">
-                    <Field label="Upload font">
-                      <input
-                        type="file"
-                        // Accept a lot, but we only convert TTF/OTF/WOFF. WOFF2/EOT/SVG will show a server error.
-                        accept=".ttf,.otf,.woff,.woff2,.eot,.svg,font/*,application/octet-stream"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] || null;
-                          setFontFile(f);
-                          setErr(null);
-                        }}
-                        className="w-full text-sm"
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
+                    </span>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
                       />
-                    </Field>
-                    <div className="text-[12px] text-slate-600 px-3">
-                      Supported for conversion: <b>TTF</b>, <b>OTF</b>,{" "}
-                      <b>WOFF</b>. WOFF2 is not supported for path conversion.
+                    </svg>
+                  </button>
+
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      {showUpload && (
+                        <div className="grid gap-2">
+                          <Field label="Upload font">
+                            <input
+                              type="file"
+                              accept=".ttf,.otf,.woff,.woff2,.eot,.svg,font/*,application/octet-stream"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0] || null;
+                                setFontFile(f);
+                                setErr(null);
+                              }}
+                              className="w-full text-sm"
+                            />
+                          </Field>
+                          <div className="text-[12px] text-slate-600 px-3">
+                            Supported for conversion: <b>TTF</b>, <b>OTF</b>,{" "}
+                            <b>WOFF</b>. WOFF2 is not supported for path
+                            conversion.
+                          </div>
+                        </div>
+                      )}
+
+                      <Field label="Wrap">
+                        <select
+                          value={wrapMode}
+                          onChange={(e) => setWrapMode(e.target.value as any)}
+                          className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="none">No wrap</option>
+                          <option value="wrap">Wrap to width</option>
+                        </select>
+                        {wrapMode === "wrap" && (
+                          <>
+                            <span className="text-[13px] text-slate-700">
+                              Width
+                            </span>
+                            <Num
+                              value={wrapWidth}
+                              min={64}
+                              max={20000}
+                              step={1}
+                              onChange={setWrapWidth}
+                            />
+                          </>
+                        )}
+                      </Field>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <Field label="Font size">
+                          <Num
+                            value={fontSize}
+                            min={8}
+                            max={512}
+                            step={1}
+                            onChange={setFontSize}
+                          />
+                        </Field>
+                        <Field label="Line height">
+                          <Num
+                            value={lineHeight}
+                            min={0.8}
+                            max={3}
+                            step={0.05}
+                            onChange={setLineHeight}
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <Field label="Letter spacing">
+                          <Num
+                            value={letterSpacing}
+                            min={-50}
+                            max={200}
+                            step={1}
+                            onChange={setLetterSpacing}
+                          />
+                        </Field>
+                        <Field label="Word spacing">
+                          <Num
+                            value={wordSpacing}
+                            min={-50}
+                            max={200}
+                            step={1}
+                            onChange={setWordSpacing}
+                          />
+                        </Field>
+                      </div>
+
+                      <Field label="Align">
+                        <select
+                          value={align}
+                          onChange={(e) => setAlign(e.target.value as any)}
+                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="left">Left</option>
+                          <option value="center">Center</option>
+                          <option value="right">Right</option>
+                        </select>
+                      </Field>
+
+                      <Field label="Fill">
+                        <input
+                          type="color"
+                          value={fill}
+                          onChange={(e) => setFill(e.target.value)}
+                          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                        />
+                      </Field>
+
+                      <Field label="Stroke">
+                        <select
+                          value={stroke}
+                          onChange={(e) => setStroke(e.target.value)}
+                          className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="none">None</option>
+                          <option value="#000000">Black</option>
+                          <option value="#ffffff">White</option>
+                        </select>
+                        <span className="text-[13px] text-slate-700">
+                          Width
+                        </span>
+                        <Num
+                          value={strokeWidth}
+                          min={0}
+                          max={50}
+                          step={0.5}
+                          onChange={setStrokeWidth}
+                        />
+                      </Field>
+
+                      <Field label="Padding">
+                        <Num
+                          value={pad}
+                          min={0}
+                          max={500}
+                          step={1}
+                          onChange={setPad}
+                        />
+                      </Field>
+
+                      <Field label="Canvas">
+                        <select
+                          value={canvasMode}
+                          onChange={(e) => setCanvasMode(e.target.value as any)}
+                          className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="auto">Auto (tight)</option>
+                          <option value="fixed">Fixed size</option>
+                        </select>
+                      </Field>
+
+                      {canvasMode === "fixed" && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Field label="Width">
+                            <Num
+                              value={canvasW}
+                              min={64}
+                              max={20000}
+                              step={1}
+                              onChange={setCanvasW}
+                            />
+                          </Field>
+                          <Field label="Height">
+                            <Num
+                              value={canvasH}
+                              min={64}
+                              max={20000}
+                              step={1}
+                              onChange={setCanvasH}
+                            />
+                          </Field>
+                        </div>
+                      )}
+
+                      <Field label="Fit">
+                        <select
+                          value={fit}
+                          onChange={(e) => setFit(e.target.value as any)}
+                          className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="center">Center</option>
+                          <option value="repeat">Repeat to fill</option>
+                        </select>
+                        <span className="text-[13px] text-slate-700">
+                          Repeat gap
+                        </span>
+                        <Num
+                          value={repeatPad}
+                          min={0}
+                          max={500}
+                          step={1}
+                          onChange={setRepeatPad}
+                        />
+                      </Field>
+
+                      <Field label="Background">
+                        <select
+                          value={bg}
+                          onChange={(e) => setBg(e.target.value as any)}
+                          className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="transparent">Transparent</option>
+                          <option value="solid">Solid</option>
+                        </select>
+                        <input
+                          type="color"
+                          value={bgColor}
+                          onChange={(e) => setBgColor(e.target.value)}
+                          aria-disabled={bg !== "solid"}
+                          className={[
+                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                            bg !== "solid"
+                              ? "opacity-50 pointer-events-none"
+                              : "",
+                          ].join(" ")}
+                        />
+                      </Field>
                     </div>
-                  </div>
-                )}
-
-                <Field label="Wrap">
-                  <select
-                    value={wrapMode}
-                    onChange={(e) => setWrapMode(e.target.value as any)}
-                    className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="none">No wrap</option>
-                    <option value="wrap">Wrap to width</option>
-                  </select>
-                  {wrapMode === "wrap" && (
-                    <>
-                      <span className="text-[13px] text-slate-700">Width</span>
-                      <Num
-                        value={wrapWidth}
-                        min={64}
-                        max={20000}
-                        step={1}
-                        onChange={setWrapWidth}
-                      />
-                    </>
                   )}
-                </Field>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Font size">
-                    <Num
-                      value={fontSize}
-                      min={8}
-                      max={512}
-                      step={1}
-                      onChange={setFontSize}
-                    />
-                  </Field>
-                  <Field label="Line height">
-                    <Num
-                      value={lineHeight}
-                      min={0.8}
-                      max={3}
-                      step={0.05}
-                      onChange={setLineHeight}
-                    />
-                  </Field>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Letter spacing">
-                    <Num
-                      value={letterSpacing}
-                      min={-50}
-                      max={200}
-                      step={1}
-                      onChange={setLetterSpacing}
-                    />
-                  </Field>
-                  <Field label="Word spacing">
-                    <Num
-                      value={wordSpacing}
-                      min={-50}
-                      max={200}
-                      step={1}
-                      onChange={setWordSpacing}
-                    />
-                  </Field>
-                </div>
-
-                <Field label="Align">
-                  <select
-                    value={align}
-                    onChange={(e) => setAlign(e.target.value as any)}
-                    className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                  </select>
-                </Field>
-
-                <Field label="Fill">
-                  <input
-                    type="color"
-                    value={fill}
-                    onChange={(e) => setFill(e.target.value)}
-                    className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                  />
-                </Field>
-
-                <Field label="Stroke">
-                  <select
-                    value={stroke}
-                    onChange={(e) => setStroke(e.target.value)}
-                    className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="none">None</option>
-                    <option value="#000000">Black</option>
-                    <option value="#ffffff">White</option>
-                  </select>
-                  <span className="text-[13px] text-slate-700">Width</span>
-                  <Num
-                    value={strokeWidth}
-                    min={0}
-                    max={50}
-                    step={0.5}
-                    onChange={setStrokeWidth}
-                  />
-                </Field>
-
-                <Field label="Padding">
-                  <Num
-                    value={pad}
-                    min={0}
-                    max={500}
-                    step={1}
-                    onChange={setPad}
-                  />
-                </Field>
-
-                <Field label="Canvas">
-                  <select
-                    value={canvasMode}
-                    onChange={(e) => setCanvasMode(e.target.value as any)}
-                    className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="auto">Auto (tight)</option>
-                    <option value="fixed">Fixed size</option>
-                  </select>
-                </Field>
-
-                {canvasMode === "fixed" && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Field label="Width">
-                      <Num
-                        value={canvasW}
-                        min={64}
-                        max={20000}
-                        step={1}
-                        onChange={setCanvasW}
-                      />
-                    </Field>
-                    <Field label="Height">
-                      <Num
-                        value={canvasH}
-                        min={64}
-                        max={20000}
-                        step={1}
-                        onChange={setCanvasH}
-                      />
-                    </Field>
-                  </div>
-                )}
-
-                <Field label="Fit">
-                  <select
-                    value={fit}
-                    onChange={(e) => setFit(e.target.value as any)}
-                    className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="center">Center</option>
-                    <option value="repeat">Repeat to fill</option>
-                  </select>
-                  <span className="text-[13px] text-slate-700">Repeat gap</span>
-                  <Num
-                    value={repeatPad}
-                    min={0}
-                    max={500}
-                    step={1}
-                    onChange={setRepeatPad}
-                  />
-                </Field>
-
-                <Field label="Background">
-                  <select
-                    value={bg}
-                    onChange={(e) => setBg(e.target.value as any)}
-                    className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                  >
-                    <option value="transparent">Transparent</option>
-                    <option value="solid">Solid</option>
-                  </select>
-                  <input
-                    type="color"
-                    value={bgColor}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    aria-disabled={bg !== "solid"}
-                    className={[
-                      "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
-                      bg !== "solid" ? "opacity-50 pointer-events-none" : "",
-                    ].join(" ")}
-                  />
-                </Field>
               </div>
 
+              {/* Actions stay outside advanced panel */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
@@ -1281,7 +1328,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
@@ -1348,14 +1395,14 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                           a.remove();
                           URL.revokeObjectURL(u);
                         }}
-                        className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                        className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer transition-colors"
                       >
                         Download SVG
                       </button>
                       <button
                         type="button"
                         onClick={() => copyText(groupedSvg)}
-                        className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                        className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                       >
                         Copy SVG
                       </button>
@@ -1386,7 +1433,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                           <button
                             type="button"
                             onClick={() => copyText(it.svg)}
-                            className="px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer text-sm"
+                            className="px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors text-sm"
                           >
                             Copy
                           </button>
@@ -1405,7 +1452,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-2.5 py-1.5 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer text-sm"
+                            className="px-2.5 py-1.5 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer transition-colors text-sm"
                           >
                             Download
                           </button>

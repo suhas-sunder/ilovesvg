@@ -338,13 +338,11 @@ export default function SvgToPdf(_: Route.ComponentProps) {
     settings.stripEventHandlers,
     settings.stripJavascriptHrefs,
   ]);
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
 
   return (
     <>
-      <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -518,291 +516,336 @@ export default function SvgToPdf(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 overflow-auto border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 overflow-auto border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 PDF Settings
               </h2>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Paper">
-                    <select
-                      value={settings.paper}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          paper: e.target.value as PaperSize,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="A4">A4</option>
-                      <option value="Letter">Letter</option>
-                      <option value="Legal">Legal</option>
-                      <option value="A3">A3</option>
-                      <option value="A5">A5</option>
-                      <option value="Tabloid">Tabloid</option>
-                    </select>
-                  </Field>
+              <div className="mt-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                  aria-expanded={showAdvanced}
+                  aria-controls="advanced-settings"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Advanced settings
+                  </span>
 
-                  <Field label="Orientation">
-                    <select
-                      value={settings.orientation}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          orientation: e.target.value as Orientation,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="portrait">Portrait</option>
-                      <option value="landscape">Landscape</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Units">
-                    <select
-                      value={settings.unit}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          unit: e.target.value as Unit,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="mm">mm</option>
-                      <option value="in">in</option>
-                      <option value="pt">pt</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Margin">
-                    <Num
-                      value={settings.margin}
-                      min={0}
-                      max={200}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, margin: v }))
-                      }
-                    />
-                    <span className="text-[13px] text-slate-600 shrink-0">
-                      {settings.unit}
-                    </span>
-                  </Field>
-
-                  <Field label="Fit">
-                    <select
-                      value={settings.fit}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          fit: e.target.value as FitMode,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="contain">Fit (contain)</option>
-                      <option value="cover">Fill (cover)</option>
-                      <option value="actual">Actual size</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Raster DPI">
-                    <Num
-                      value={settings.dpi}
-                      min={72}
-                      max={1200}
-                      step={1}
-                      onChange={(v) => setSettings((s) => ({ ...s, dpi: v }))}
-                    />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      Higher is sharper, larger PDF
-                    </span>
-                  </Field>
-
-                  <Field label="Background">
-                    <select
-                      value={settings.background}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          background: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="transparent">Transparent</option>
-                      <option value="white">White</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Image format">
-                    <select
-                      value={settings.imageFormat}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          imageFormat: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="png">PNG (lossless)</option>
-                      <option value="jpeg">JPEG (smaller)</option>
-                    </select>
-                    {settings.imageFormat === "jpeg" ? (
-                      <span className="text-[12px] text-slate-500 shrink-0">
-                        Quality {Math.round(settings.jpegQuality * 100)}%
-                      </span>
-                    ) : null}
-                  </Field>
-
-                  {settings.imageFormat === "jpeg" && (
-                    <Field label="JPEG quality">
-                      <input
-                        type="range"
-                        min={0.5}
-                        max={1}
-                        step={0.01}
-                        value={settings.jpegQuality}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            jpegQuality: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full"
-                      />
-                    </Field>
-                  )}
-
-                  <Field label="Sanitize">
-                    <input
-                      type="checkbox"
-                      checked={settings.sanitize}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          sanitize: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Strip risky SVG content
-                    </span>
-                  </Field>
-
-                  {settings.sanitize && (
-                    <Field label="Sanitize options">
-                      <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                        <ToggleRow
-                          checked={settings.stripScripts}
-                          onChange={(v) =>
-                            setSettings((s) => ({ ...s, stripScripts: v }))
-                          }
-                          label="Strip <script> blocks"
-                        />
-                        <ToggleRow
-                          checked={settings.stripForeignObject}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              stripForeignObject: v,
-                            }))
-                          }
-                          label="Strip <foreignObject>"
-                        />
-                        <ToggleRow
-                          checked={settings.stripEventHandlers}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              stripEventHandlers: v,
-                            }))
-                          }
-                          label="Strip on* event handlers"
-                        />
-                        <ToggleRow
-                          checked={settings.stripJavascriptHrefs}
-                          onChange={(v) =>
-                            setSettings((s) => ({
-                              ...s,
-                              stripJavascriptHrefs: v,
-                            }))
-                          }
-                          label="Strip javascript: links"
-                        />
-                      </div>
-                    </Field>
-                  )}
-
-                  <Field label="PDF preview">
-                    <input
-                      type="checkbox"
-                      checked={settings.showPdfPreview}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          showPdfPreview: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Show inline PDF preview
-                    </span>
-                  </Field>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="converted"
-                    />
-                  </Field>
-                </div>
-
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={convertNow}
-                    disabled={!hydrated || !svgText.trim() || isWorking}
+                  <svg
                     className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
-                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
-                      "disabled:opacity-70 disabled:cursor-not-allowed",
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
                     ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
                   >
-                    {isWorking ? "Converting..." : "Convert to PDF"}
-                  </button>
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={downloadPdf}
-                    disabled={!hydrated || !pdfBytes || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                {showAdvanced && (
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
                   >
-                    Download PDF
-                  </button>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
+                      <div className="grid gap-2 min-w-0">
+                        <Field label="Paper">
+                          <select
+                            value={settings.paper}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                paper: e.target.value as PaperSize,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="A4">A4</option>
+                            <option value="Letter">Letter</option>
+                            <option value="Legal">Legal</option>
+                            <option value="A3">A3</option>
+                            <option value="A5">A5</option>
+                            <option value="Tabloid">Tabloid</option>
+                          </select>
+                        </Field>
 
-                  {!err && pdfBytes ? (
-                    <span className="text-[13px] text-slate-600">
-                      PDF size: <b>{formatBytes(pdfBytes.byteLength)}</b>
-                    </span>
-                  ) : null}
-                </div>
+                        <Field label="Orientation">
+                          <select
+                            value={settings.orientation}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                orientation: e.target.value as Orientation,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="portrait">Portrait</option>
+                            <option value="landscape">Landscape</option>
+                          </select>
+                        </Field>
 
-                <div className="mt-3 text-[13px] text-slate-600">
-                  Notes: This converter rasterizes the SVG at your chosen DPI
-                  and embeds it into a PDF page.
-                </div>
+                        <Field label="Units">
+                          <select
+                            value={settings.unit}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                unit: e.target.value as Unit,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="mm">mm</option>
+                            <option value="in">in</option>
+                            <option value="pt">pt</option>
+                          </select>
+                        </Field>
+
+                        <Field label="Margin">
+                          <Num
+                            value={settings.margin}
+                            min={0}
+                            max={200}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, margin: v }))
+                            }
+                          />
+                          <span className="text-[13px] text-slate-600 shrink-0">
+                            {settings.unit}
+                          </span>
+                        </Field>
+
+                        <Field label="Fit">
+                          <select
+                            value={settings.fit}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fit: e.target.value as FitMode,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="contain">Fit (contain)</option>
+                            <option value="cover">Fill (cover)</option>
+                            <option value="actual">Actual size</option>
+                          </select>
+                        </Field>
+
+                        <Field label="Raster DPI">
+                          <Num
+                            value={settings.dpi}
+                            min={72}
+                            max={1200}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, dpi: v }))
+                            }
+                          />
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            Higher is sharper, larger PDF
+                          </span>
+                        </Field>
+
+                        <Field label="Background">
+                          <select
+                            value={settings.background}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                background: e.target.value as any,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="transparent">Transparent</option>
+                            <option value="white">White</option>
+                          </select>
+                        </Field>
+
+                        <Field label="Image format">
+                          <select
+                            value={settings.imageFormat}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                imageFormat: e.target.value as any,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="png">PNG (lossless)</option>
+                            <option value="jpeg">JPEG (smaller)</option>
+                          </select>
+                          {settings.imageFormat === "jpeg" ? (
+                            <span className="text-[12px] text-slate-500 shrink-0">
+                              Quality {Math.round(settings.jpegQuality * 100)}%
+                            </span>
+                          ) : null}
+                        </Field>
+
+                        {settings.imageFormat === "jpeg" && (
+                          <Field label="JPEG quality">
+                            <input
+                              type="range"
+                              min={0.5}
+                              max={1}
+                              step={0.01}
+                              value={settings.jpegQuality}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  jpegQuality: Number(e.target.value),
+                                }))
+                              }
+                              className="w-full"
+                            />
+                          </Field>
+                        )}
+
+                        <Field label="Sanitize">
+                          <input
+                            type="checkbox"
+                            checked={settings.sanitize}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                sanitize: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                          />
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Strip risky SVG content
+                          </span>
+                        </Field>
+
+                        {settings.sanitize && (
+                          <Field label="Sanitize options">
+                            <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                              <ToggleRow
+                                checked={settings.stripScripts}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    stripScripts: v,
+                                  }))
+                                }
+                                label="Strip <script> blocks"
+                              />
+                              <ToggleRow
+                                checked={settings.stripForeignObject}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    stripForeignObject: v,
+                                  }))
+                                }
+                                label="Strip <foreignObject>"
+                              />
+                              <ToggleRow
+                                checked={settings.stripEventHandlers}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    stripEventHandlers: v,
+                                  }))
+                                }
+                                label="Strip on* event handlers"
+                              />
+                              <ToggleRow
+                                checked={settings.stripJavascriptHrefs}
+                                onChange={(v) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    stripJavascriptHrefs: v,
+                                  }))
+                                }
+                                label="Strip javascript: links"
+                              />
+                            </div>
+                          </Field>
+                        )}
+
+                        <Field label="PDF preview">
+                          <input
+                            type="checkbox"
+                            checked={settings.showPdfPreview}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                showPdfPreview: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                          />
+                          <span className="text-[13px] text-slate-700 min-w-0">
+                            Show inline PDF preview
+                          </span>
+                        </Field>
+
+                        <Field label="Output filename">
+                          <input
+                            value={settings.fileName}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fileName: e.target.value,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="converted"
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={convertNow}
+                          disabled={!hydrated || !svgText.trim() || isWorking}
+                          className={[
+                            "px-3.5 py-2 rounded-xl font-bold border transition-colors",
+                            "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
+                            "disabled:opacity-70 disabled:cursor-not-allowed",
+                          ].join(" ")}
+                        >
+                          {isWorking ? "Converting..." : "Convert to PDF"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={downloadPdf}
+                          disabled={!hydrated || !pdfBytes || isWorking}
+                          className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                          Download PDF
+                        </button>
+
+                        {!err && pdfBytes ? (
+                          <span className="text-[13px] text-slate-600">
+                            PDF size: <b>{formatBytes(pdfBytes.byteLength)}</b>
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 text-[13px] text-slate-600">
+                        Notes: This converter rasterizes the SVG at your chosen
+                        DPI and embeds it into a PDF page.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* PDF PREVIEW */}

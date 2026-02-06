@@ -379,10 +379,12 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
     settings.forceStrokeColor,
   ]);
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -601,309 +603,349 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Stroke Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Mode">
-                    <select
-                      value={settings.mode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          mode: e.target.value as Mode,
-                        }))
-                      }
-                      className="w-full max-w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
+                    </span>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      <option value="multiply">Multiply thickness</option>
-                      <option value="set">Set thickness to a value</option>
-                      <option value="add-missing">
-                        Add thickness only if missing
-                      </option>
-                    </select>
-                  </Field>
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                  <Field label="Targets">
-                    <select
-                      value={settings.target}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          target: e.target.value as Target,
-                        }))
-                      }
-                      className="w-full max-w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
                     >
-                      <option value="stroked-only">
-                        Only stroked elements
-                      </option>
-                      <option value="all">All common drawable elements</option>
-                      <option value="paths-only">Paths only</option>
-                      <option value="shapes-only">
-                        Shapes only (rect/circle/etc.)
-                      </option>
-                    </select>
-                  </Field>
+                      <Field label="Mode">
+                        <select
+                          value={settings.mode}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              mode: e.target.value as Mode,
+                            }))
+                          }
+                          className="w-full max-w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="multiply">Multiply thickness</option>
+                          <option value="set">Set thickness to a value</option>
+                          <option value="add-missing">
+                            Add thickness only if missing
+                          </option>
+                        </select>
+                      </Field>
 
-                  {settings.mode === "multiply" ? (
-                    <Field label="Multiplier">
-                      <Num
-                        value={settings.multiplier}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, multiplier: v }))
-                        }
-                      />
-                      <span className="text-[12px] text-slate-500 shrink-0">
-                        2 = double
-                      </span>
-                    </Field>
-                  ) : (
-                    <Field label="Thickness">
-                      <Num
-                        value={settings.setWidth}
-                        min={0}
-                        max={9999}
-                        step={0.25}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, setWidth: v }))
-                        }
-                      />
-                      <span className="text-[12px] text-slate-500 shrink-0">
-                        unitless (SVG)
-                      </span>
-                    </Field>
+                      <Field label="Targets">
+                        <select
+                          value={settings.target}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              target: e.target.value as Target,
+                            }))
+                          }
+                          className="w-full max-w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="stroked-only">
+                            Only stroked elements
+                          </option>
+                          <option value="all">
+                            All common drawable elements
+                          </option>
+                          <option value="paths-only">Paths only</option>
+                          <option value="shapes-only">
+                            Shapes only (rect/circle/etc.)
+                          </option>
+                        </select>
+                      </Field>
+
+                      {settings.mode === "multiply" ? (
+                        <Field label="Multiplier">
+                          <Num
+                            value={settings.multiplier}
+                            min={0}
+                            max={100}
+                            step={0.1}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, multiplier: v }))
+                            }
+                          />
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            2 = double
+                          </span>
+                        </Field>
+                      ) : (
+                        <Field label="Thickness">
+                          <Num
+                            value={settings.setWidth}
+                            min={0}
+                            max={9999}
+                            step={0.25}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, setWidth: v }))
+                            }
+                          />
+                          <span className="text-[12px] text-slate-500 shrink-0">
+                            unitless (SVG)
+                          </span>
+                        </Field>
+                      )}
+
+                      <Field label="Clamp min">
+                        <Num
+                          value={settings.minClamp}
+                          min={0}
+                          max={9999}
+                          step={0.25}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, minClamp: v }))
+                          }
+                        />
+                      </Field>
+
+                      <Field label="Clamp max">
+                        <Num
+                          value={settings.maxClamp}
+                          min={0}
+                          max={9999}
+                          step={0.25}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, maxClamp: v }))
+                          }
+                        />
+                      </Field>
+
+                      <Field label="Apply to">
+                        <select
+                          value={settings.applyWhere}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              applyWhere: e.target.value as ApplyWhere,
+                            }))
+                          }
+                          className="w-full max-w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="style">
+                            Inline style (most reliable)
+                          </option>
+                          <option value="both">Attribute + inline style</option>
+                          <option value="attr">Attribute only</option>
+                        </select>
+                      </Field>
+
+                      <Field label="CSS-aware base">
+                        <input
+                          type="checkbox"
+                          checked={settings.cssAware}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              cssAware: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Reads computed strokes for multiply (best-effort)
+                        </span>
+                      </Field>
+
+                      <Field label="Rewrite <style> rules">
+                        <input
+                          type="checkbox"
+                          checked={settings.rewriteStyleTags}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              rewriteStyleTags: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Updates stroke-width in embedded CSS
+                        </span>
+                      </Field>
+
+                      <Field label="Force override">
+                        <input
+                          type="checkbox"
+                          checked={settings.forceInlineOverride}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              forceInlineOverride: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Writes inline style so output always changes visually
+                        </span>
+                      </Field>
+
+                      <Field label="Remove non-scaling stroke">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeNonScalingStroke}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeNonScalingStroke: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Removes vector-effect=&quot;non-scaling-stroke&quot;
+                        </span>
+                      </Field>
+
+                      <Field label="Force stroke if missing">
+                        <input
+                          type="checkbox"
+                          checked={settings.forceStrokeIfMissing}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              forceStrokeIfMissing: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Adds stroke color when elements have no stroke
+                        </span>
+                      </Field>
+
+                      {settings.forceStrokeIfMissing ? (
+                        <Field label="Stroke color">
+                          <input
+                            value={settings.forceStrokeColor}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                forceStrokeColor: e.target.value,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="#000000 or currentColor"
+                          />
+                        </Field>
+                      ) : null}
+
+                      <Field label="Include selector">
+                        <input
+                          value={settings.includeSelector}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              includeSelector: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder='Optional, e.g. "#logo *"'
+                        />
+                      </Field>
+
+                      <Field label="Exclude selector">
+                        <input
+                          value={settings.excludeSelector}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              excludeSelector: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder='Optional, e.g. ".keep"'
+                        />
+                      </Field>
+
+                      <Field label="Rounding">
+                        <NumInt
+                          value={settings.decimals}
+                          min={0}
+                          max={6}
+                          step={1}
+                          onChange={(v) =>
+                            setSettings((s) => ({ ...s, decimals: v }))
+                          }
+                        />
+                        <span className="text-[12px] text-slate-500 shrink-0">
+                          decimals
+                        </span>
+                      </Field>
+
+                      <Field label="Copy minify">
+                        <input
+                          type="checkbox"
+                          checked={settings.copyMinify}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              copyMinify: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Minify when copying output
+                        </span>
+                      </Field>
+
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="stroke-adjusted"
+                        />
+                      </Field>
+                    </div>
                   )}
-
-                  <Field label="Clamp min">
-                    <Num
-                      value={settings.minClamp}
-                      min={0}
-                      max={9999}
-                      step={0.25}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, minClamp: v }))
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Clamp max">
-                    <Num
-                      value={settings.maxClamp}
-                      min={0}
-                      max={9999}
-                      step={0.25}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, maxClamp: v }))
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Apply to">
-                    <select
-                      value={settings.applyWhere}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          applyWhere: e.target.value as ApplyWhere,
-                        }))
-                      }
-                      className="w-full max-w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    >
-                      <option value="style">
-                        Inline style (most reliable)
-                      </option>
-                      <option value="both">Attribute + inline style</option>
-                      <option value="attr">Attribute only</option>
-                    </select>
-                  </Field>
-
-                  <Field label="CSS-aware base">
-                    <input
-                      type="checkbox"
-                      checked={settings.cssAware}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          cssAware: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Reads computed strokes for multiply (best-effort)
-                    </span>
-                  </Field>
-
-                  <Field label="Rewrite <style> rules">
-                    <input
-                      type="checkbox"
-                      checked={settings.rewriteStyleTags}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          rewriteStyleTags: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Updates stroke-width in embedded CSS
-                    </span>
-                  </Field>
-
-                  <Field label="Force override">
-                    <input
-                      type="checkbox"
-                      checked={settings.forceInlineOverride}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          forceInlineOverride: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Writes inline style so output always changes visually
-                    </span>
-                  </Field>
-
-                  <Field label="Remove non-scaling stroke">
-                    <input
-                      type="checkbox"
-                      checked={settings.removeNonScalingStroke}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          removeNonScalingStroke: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Removes vector-effect=&quot;non-scaling-stroke&quot;
-                    </span>
-                  </Field>
-
-                  <Field label="Force stroke if missing">
-                    <input
-                      type="checkbox"
-                      checked={settings.forceStrokeIfMissing}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          forceStrokeIfMissing: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Adds stroke color when elements have no stroke
-                    </span>
-                  </Field>
-
-                  {settings.forceStrokeIfMissing ? (
-                    <Field label="Stroke color">
-                      <input
-                        value={settings.forceStrokeColor}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            forceStrokeColor: e.target.value,
-                          }))
-                        }
-                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        placeholder="#000000 or currentColor"
-                      />
-                    </Field>
-                  ) : null}
-
-                  <Field label="Include selector">
-                    <input
-                      value={settings.includeSelector}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          includeSelector: e.target.value,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder='Optional, e.g. "#logo *"'
-                    />
-                  </Field>
-
-                  <Field label="Exclude selector">
-                    <input
-                      value={settings.excludeSelector}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          excludeSelector: e.target.value,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder='Optional, e.g. ".keep"'
-                    />
-                  </Field>
-
-                  <Field label="Rounding">
-                    <NumInt
-                      value={settings.decimals}
-                      min={0}
-                      max={6}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, decimals: v }))
-                      }
-                    />
-                    <span className="text-[12px] text-slate-500 shrink-0">
-                      decimals
-                    </span>
-                  </Field>
-
-                  <Field label="Copy minify">
-                    <input
-                      type="checkbox"
-                      checked={settings.copyMinify}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          copyMinify: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Minify when copying output
-                    </span>
-                  </Field>
-
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="stroke-adjusted"
-                    />
-                  </Field>
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={convertNow}
                     disabled={!hydrated || !svgText.trim() || isWorking}
                     className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors",
+                      "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -915,7 +957,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadSvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Download SVG
                   </button>
@@ -924,7 +966,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                     type="button"
                     onClick={copySvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     Copy SVG
                   </button>

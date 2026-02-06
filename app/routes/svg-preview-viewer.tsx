@@ -680,10 +680,10 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
-        <div className="max-w-[1180px] mx-auto px-4">
+        <div className="max-w-[1180px] mx-auto px-4 pb-8">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="2090332782"
@@ -719,12 +719,12 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
           </div>
           <Breadcrumbs crumbs={crumbs} />
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden ">
             {/* Top bar */}
-            <div className="border-b border-slate-200 bg-white">
-              <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="border-b border-slate-200 bg-white ">
+              <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap ">
                 <div className="flex items-center gap-3 min-w-0">
-                  <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 px-3  py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer">
                     <span className="font-semibold text-slate-900 text-[14px]">
                       Open SVG
                     </span>
@@ -991,9 +991,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                       >
                         <div
                           className={
-                            settings.bounds
-                              ? "outline outline-sky-300"
-                              : ""
+                            settings.bounds ? "outline outline-sky-300" : ""
                           }
                           style={{
                             width: `${intrinsicSize().w}px`,

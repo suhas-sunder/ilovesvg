@@ -316,10 +316,12 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     blobUrl,
   ]);
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -497,443 +499,510 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Comparison Settings
-              </h2>
+            <div className="mt-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                aria-expanded={showAdvanced}
+                aria-controls="advanced-settings"
+              >
+                <span className="inline-flex items-center gap-2">
+                  Advanced settings
+                </span>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Sizing mode">
-                    <select
-                      value={settings.responsiveMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          responsiveMode: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="fixed">
-                        Fixed (width/height attributes)
-                      </option>
-                      <option value="responsive">
-                        Responsive (CSS width:100%)
-                      </option>
-                    </select>
-                  </Field>
+                <svg
+                  className={[
+                    "h-4 w-4 text-slate-500 transition-transform",
+                    showAdvanced ? "rotate-180" : "rotate-0",
+                  ].join(" ")}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
 
-                  <Field label="Width">
-                    <NumInt
-                      value={settings.width}
-                      min={1}
-                      max={100000}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({
-                          ...s,
-                          width: clampInt(v, 1, 100000),
-                        }))
-                      }
-                    />
-                    <UnitSelect
-                      value={settings.unit}
-                      onChange={(u) => setSettings((s) => ({ ...s, unit: u }))}
-                    />
-                    <TogglePill
-                      checked={settings.useWidth}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, useWidth: v }))
-                      }
-                      label="Use"
-                    />
-                  </Field>
+              {showAdvanced && (
+                <div
+                  id="advanced-settings"
+                  className="flex flex-col gap-2 min-w-0"
+                >
+                  <div className="bg-sky-50 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
+                    <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+                      Comparison Settings
+                    </h2>
 
-                  <Field label="Height">
-                    <NumInt
-                      value={settings.height}
-                      min={1}
-                      max={100000}
-                      step={1}
-                      onChange={(v) =>
-                        setSettings((s) => ({
-                          ...s,
-                          height: clampInt(v, 1, 100000),
-                        }))
-                      }
-                    />
-                    <UnitSelect
-                      value={settings.unit}
-                      onChange={(u) => setSettings((s) => ({ ...s, unit: u }))}
-                    />
-                    <TogglePill
-                      checked={settings.useHeight}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, useHeight: v }))
-                      }
-                      label="Use"
-                    />
-                  </Field>
-
-                  <Field label="Object fit">
-                    <select
-                      value={settings.fitMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          fitMode: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="contain">contain</option>
-                      <option value="cover">cover</option>
-                      <option value="none">none</option>
-                    </select>
-                  </Field>
-
-                  <Field label="Accessibility">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <label className="flex items-center gap-2 min-w-0">
-                        <span className="text-[12px] text-slate-600 min-w-[70px]">
-                          Alt
-                        </span>
-                        <input
-                          value={settings.altText}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              altText: e.target.value,
-                            }))
-                          }
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="Icon"
-                        />
-                      </label>
-
-                      <label className="flex items-center gap-2 min-w-0">
-                        <span className="text-[12px] text-slate-600 min-w-[70px]">
-                          Title
-                        </span>
-                        <input
-                          value={settings.titleText}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              titleText: e.target.value,
-                            }))
-                          }
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="Optional"
-                        />
-                      </label>
-
-                      <ToggleRow
-                        checked={settings.decorative}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, decorative: v }))
-                        }
-                        label="Decorative (aria-hidden for inline, empty alt for <img>)"
-                      />
-                      <ToggleRow
-                        checked={settings.roleImgInline}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, roleImgInline: v }))
-                        }
-                        label='Inline: role="img"'
-                      />
-                      <ToggleRow
-                        checked={settings.focusableFalse}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, focusableFalse: v }))
-                        }
-                        label='Inline: focusable="false"'
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Safety / cleanup">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.sanitize}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, sanitize: v }))
-                        }
-                        label="Sanitize (recommended)"
-                      />
-                      {settings.sanitize && (
-                        <div className="pl-6 flex flex-col gap-2">
-                          <ToggleRow
-                            checked={settings.stripScripts}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, stripScripts: v }))
+                    <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
+                      <div className="grid gap-2 min-w-0">
+                        <Field label="Sizing mode">
+                          <select
+                            value={settings.responsiveMode}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                responsiveMode: e.target.value as any,
+                              }))
                             }
-                            label="Strip <script>"
-                          />
-                          <ToggleRow
-                            checked={settings.stripEventHandlers}
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="fixed">
+                              Fixed (width/height attributes)
+                            </option>
+                            <option value="responsive">
+                              Responsive (CSS width:100%)
+                            </option>
+                          </select>
+                        </Field>
+
+                        <Field label="Width">
+                          <NumInt
+                            value={settings.width}
+                            min={1}
+                            max={100000}
+                            step={1}
                             onChange={(v) =>
                               setSettings((s) => ({
                                 ...s,
-                                stripEventHandlers: v,
+                                width: clampInt(v, 1, 100000),
                               }))
                             }
-                            label="Strip on* handlers"
                           />
-                          <ToggleRow
-                            checked={settings.stripJavascriptHrefs}
+                          <UnitSelect
+                            value={settings.unit}
+                            onChange={(u) =>
+                              setSettings((s) => ({ ...s, unit: u }))
+                            }
+                          />
+                          <TogglePill
+                            checked={settings.useWidth}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, useWidth: v }))
+                            }
+                            label="Use"
+                          />
+                        </Field>
+
+                        <Field label="Height">
+                          <NumInt
+                            value={settings.height}
+                            min={1}
+                            max={100000}
+                            step={1}
                             onChange={(v) =>
                               setSettings((s) => ({
                                 ...s,
-                                stripJavascriptHrefs: v,
+                                height: clampInt(v, 1, 100000),
                               }))
                             }
-                            label="Strip javascript: hrefs"
                           />
-                          <ToggleRow
-                            checked={settings.stripForeignObject}
+                          <UnitSelect
+                            value={settings.unit}
+                            onChange={(u) =>
+                              setSettings((s) => ({ ...s, unit: u }))
+                            }
+                          />
+                          <TogglePill
+                            checked={settings.useHeight}
                             onChange={(v) =>
+                              setSettings((s) => ({ ...s, useHeight: v }))
+                            }
+                            label="Use"
+                          />
+                        </Field>
+
+                        <Field label="Object fit">
+                          <select
+                            value={settings.fitMode}
+                            onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                stripForeignObject: v,
+                                fitMode: e.target.value as any,
                               }))
                             }
-                            label="Strip <foreignObject>"
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="contain">contain</option>
+                            <option value="cover">cover</option>
+                            <option value="none">none</option>
+                          </select>
+                        </Field>
+
+                        <Field label="Accessibility">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <label className="flex items-center gap-2 min-w-0">
+                              <span className="text-[12px] text-slate-600 min-w-[70px]">
+                                Alt
+                              </span>
+                              <input
+                                value={settings.altText}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    altText: e.target.value,
+                                  }))
+                                }
+                                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="Icon"
+                              />
+                            </label>
+
+                            <label className="flex items-center gap-2 min-w-0">
+                              <span className="text-[12px] text-slate-600 min-w-[70px]">
+                                Title
+                              </span>
+                              <input
+                                value={settings.titleText}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    titleText: e.target.value,
+                                  }))
+                                }
+                                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="Optional"
+                              />
+                            </label>
+
+                            <ToggleRow
+                              checked={settings.decorative}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, decorative: v }))
+                              }
+                              label="Decorative (aria-hidden for inline, empty alt for <img>)"
+                            />
+                            <ToggleRow
+                              checked={settings.roleImgInline}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, roleImgInline: v }))
+                              }
+                              label='Inline: role="img"'
+                            />
+                            <ToggleRow
+                              checked={settings.focusableFalse}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  focusableFalse: v,
+                                }))
+                              }
+                              label='Inline: focusable="false"'
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Safety / cleanup">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.sanitize}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, sanitize: v }))
+                              }
+                              label="Sanitize (recommended)"
+                            />
+                            {settings.sanitize && (
+                              <div className="pl-6 flex flex-col gap-2">
+                                <ToggleRow
+                                  checked={settings.stripScripts}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripScripts: v,
+                                    }))
+                                  }
+                                  label="Strip <script>"
+                                />
+                                <ToggleRow
+                                  checked={settings.stripEventHandlers}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripEventHandlers: v,
+                                    }))
+                                  }
+                                  label="Strip on* handlers"
+                                />
+                                <ToggleRow
+                                  checked={settings.stripJavascriptHrefs}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripJavascriptHrefs: v,
+                                    }))
+                                  }
+                                  label="Strip javascript: hrefs"
+                                />
+                                <ToggleRow
+                                  checked={settings.stripForeignObject}
+                                  onChange={(v) =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      stripForeignObject: v,
+                                    }))
+                                  }
+                                  label="Strip <foreignObject>"
+                                />
+                              </div>
+                            )}
+                            <ToggleRow
+                              checked={settings.removeComments}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeComments: v,
+                                }))
+                              }
+                              label="Remove comments"
+                            />
+                            <ToggleRow
+                              checked={settings.removeMetadata}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeMetadata: v,
+                                }))
+                              }
+                              label="Remove <metadata> blocks"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Normalize">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <ToggleRow
+                              checked={settings.ensureXmlns}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, ensureXmlns: v }))
+                              }
+                              label="Ensure xmlns on <svg>"
+                            />
+                            <ToggleRow
+                              checked={settings.addViewBoxIfMissing}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  addViewBoxIfMissing: v,
+                                }))
+                              }
+                              label="Add viewBox if missing"
+                            />
+                            <ToggleRow
+                              checked={settings.removeWidthHeightFromSvg}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeWidthHeightFromSvg: v,
+                                }))
+                              }
+                              label="Remove width/height from SVG source"
+                            />
+                            <ToggleRow
+                              checked={settings.setCurrentColor}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  setCurrentColor: v,
+                                }))
+                              }
+                              label="Replace fill/stroke with currentColor (best-effort)"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="Styling demo">
+                          <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
+                            <label className="flex items-center gap-2 min-w-0">
+                              <span className="text-[12px] text-slate-600 min-w-[90px]">
+                                Color
+                              </span>
+                              <input
+                                type="color"
+                                value={settings.demoColor}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    demoColor: e.target.value,
+                                  }))
+                                }
+                                className="h-8 w-12 border border-slate-200 rounded-md bg-white"
+                              />
+                              <input
+                                value={settings.demoColor}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    demoColor: e.target.value,
+                                  }))
+                                }
+                                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="#0b2dff"
+                              />
+                            </label>
+
+                            <label className="flex items-center gap-2 min-w-0">
+                              <span className="text-[12px] text-slate-600 min-w-[90px]">
+                                Background
+                              </span>
+                              <input
+                                type="color"
+                                value={settings.demoBg}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    demoBg: e.target.value,
+                                  }))
+                                }
+                                className="h-8 w-12 border border-slate-200 rounded-md bg-white"
+                              />
+                              <input
+                                value={settings.demoBg}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    demoBg: e.target.value,
+                                  }))
+                                }
+                                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="#ffffff"
+                              />
+                            </label>
+
+                            <label className="flex items-center gap-2 min-w-0">
+                              <span className="text-[12px] text-slate-600 min-w-[90px]">
+                                Class
+                              </span>
+                              <input
+                                value={settings.demoClassName}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    demoClassName: sanitizeClassName(
+                                      e.target.value,
+                                    ),
+                                  }))
+                                }
+                                className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                                placeholder="icon"
+                              />
+                            </label>
+
+                            <ToggleRow
+                              checked={settings.demoBorder}
+                              onChange={(v) =>
+                                setSettings((s) => ({ ...s, demoBorder: v }))
+                              }
+                              label="Show border around preview"
+                            />
+                          </div>
+                        </Field>
+
+                        <Field label="<img> src type">
+                          <select
+                            value={settings.imgSrcMode}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                imgSrcMode: e.target.value as any,
+                              }))
+                            }
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          >
+                            <option value="file-url">
+                              File URL (best for caching)
+                            </option>
+                            <option value="blob-url">
+                              Blob URL (local preview)
+                            </option>
+                            <option value="data-uri-utf8">
+                              Data URI (UTF-8)
+                            </option>
+                            <option value="data-uri-base64">
+                              Data URI (Base64)
+                            </option>
+                          </select>
+                        </Field>
+
+                        {settings.imgSrcMode === "file-url" && (
+                          <Field label="File URL">
+                            <input
+                              value={settings.assetUrl}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  assetUrl: e.target.value,
+                                }))
+                              }
+                              className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                              placeholder="/icons/icon.svg"
+                            />
+                          </Field>
+                        )}
+
+                        {settings.imgSrcMode === "data-uri-utf8" && (
+                          <Field label="UTF-8 header">
+                            <input
+                              type="checkbox"
+                              checked={settings.includeUtf8Charset}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  includeUtf8Charset: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                            />
+                            <span className="text-[13px] text-slate-700 min-w-0">
+                              Include charset=utf-8
+                            </span>
+                          </Field>
+                        )}
+
+                        <Field label="Format">
+                          <select
+                            value={settings.indent}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                indent: e.target.value as any,
+                              }))
+                            }
+                            className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          >
+                            <option value="2">2 spaces</option>
+                            <option value="4">4 spaces</option>
+                            <option value="tab">Tabs</option>
+                          </select>
+                          <select
+                            value={settings.quoteMode}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                quoteMode: e.target.value as any,
+                              }))
+                            }
+                            className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          >
+                            <option value="double">"</option>
+                            <option value="single">'</option>
+                          </select>
+                          <TogglePill
+                            checked={settings.wrapInHtmlDoc}
+                            onChange={(v) =>
+                              setSettings((s) => ({ ...s, wrapInHtmlDoc: v }))
+                            }
+                            label="Wrap in HTML doc"
                           />
-                        </div>
-                      )}
-                      <ToggleRow
-                        checked={settings.removeComments}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeComments: v }))
-                        }
-                        label="Remove comments"
-                      />
-                      <ToggleRow
-                        checked={settings.removeMetadata}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, removeMetadata: v }))
-                        }
-                        label="Remove <metadata> blocks"
-                      />
+                        </Field>
+                      </div>
                     </div>
-                  </Field>
-
-                  <Field label="Normalize">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <ToggleRow
-                        checked={settings.ensureXmlns}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, ensureXmlns: v }))
-                        }
-                        label="Ensure xmlns on <svg>"
-                      />
-                      <ToggleRow
-                        checked={settings.addViewBoxIfMissing}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, addViewBoxIfMissing: v }))
-                        }
-                        label="Add viewBox if missing"
-                      />
-                      <ToggleRow
-                        checked={settings.removeWidthHeightFromSvg}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            removeWidthHeightFromSvg: v,
-                          }))
-                        }
-                        label="Remove width/height from SVG source"
-                      />
-                      <ToggleRow
-                        checked={settings.setCurrentColor}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, setCurrentColor: v }))
-                        }
-                        label="Replace fill/stroke with currentColor (best-effort)"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="Styling demo">
-                    <div className="flex flex-col gap-2 min-w-0 overflow-hidden w-full">
-                      <label className="flex items-center gap-2 min-w-0">
-                        <span className="text-[12px] text-slate-600 min-w-[90px]">
-                          Color
-                        </span>
-                        <input
-                          type="color"
-                          value={settings.demoColor}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              demoColor: e.target.value,
-                            }))
-                          }
-                          className="h-8 w-12 border border-slate-200 rounded-md bg-white"
-                        />
-                        <input
-                          value={settings.demoColor}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              demoColor: e.target.value,
-                            }))
-                          }
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="#0b2dff"
-                        />
-                      </label>
-
-                      <label className="flex items-center gap-2 min-w-0">
-                        <span className="text-[12px] text-slate-600 min-w-[90px]">
-                          Background
-                        </span>
-                        <input
-                          type="color"
-                          value={settings.demoBg}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              demoBg: e.target.value,
-                            }))
-                          }
-                          className="h-8 w-12 border border-slate-200 rounded-md bg-white"
-                        />
-                        <input
-                          value={settings.demoBg}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              demoBg: e.target.value,
-                            }))
-                          }
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="#ffffff"
-                        />
-                      </label>
-
-                      <label className="flex items-center gap-2 min-w-0">
-                        <span className="text-[12px] text-slate-600 min-w-[90px]">
-                          Class
-                        </span>
-                        <input
-                          value={settings.demoClassName}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              demoClassName: sanitizeClassName(e.target.value),
-                            }))
-                          }
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                          placeholder="icon"
-                        />
-                      </label>
-
-                      <ToggleRow
-                        checked={settings.demoBorder}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, demoBorder: v }))
-                        }
-                        label="Show border around preview"
-                      />
-                    </div>
-                  </Field>
-
-                  <Field label="<img> src type">
-                    <select
-                      value={settings.imgSrcMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          imgSrcMode: e.target.value as any,
-                        }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
-                    >
-                      <option value="file-url">
-                        File URL (best for caching)
-                      </option>
-                      <option value="blob-url">Blob URL (local preview)</option>
-                      <option value="data-uri-utf8">Data URI (UTF-8)</option>
-                      <option value="data-uri-base64">Data URI (Base64)</option>
-                    </select>
-                  </Field>
-
-                  {settings.imgSrcMode === "file-url" && (
-                    <Field label="File URL">
-                      <input
-                        value={settings.assetUrl}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            assetUrl: e.target.value,
-                          }))
-                        }
-                        className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        placeholder="/icons/icon.svg"
-                      />
-                    </Field>
-                  )}
-
-                  {settings.imgSrcMode === "data-uri-utf8" && (
-                    <Field label="UTF-8 header">
-                      <input
-                        type="checkbox"
-                        checked={settings.includeUtf8Charset}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            includeUtf8Charset: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                      />
-                      <span className="text-[13px] text-slate-700 min-w-0">
-                        Include charset=utf-8
-                      </span>
-                    </Field>
-                  )}
-
-                  <Field label="Format">
-                    <select
-                      value={settings.indent}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          indent: e.target.value as any,
-                        }))
-                      }
-                      className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    >
-                      <option value="2">2 spaces</option>
-                      <option value="4">4 spaces</option>
-                      <option value="tab">Tabs</option>
-                    </select>
-                    <select
-                      value={settings.quoteMode}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          quoteMode: e.target.value as any,
-                        }))
-                      }
-                      className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                    >
-                      <option value="double">"</option>
-                      <option value="single">'</option>
-                    </select>
-                    <TogglePill
-                      checked={settings.wrapInHtmlDoc}
-                      onChange={(v) =>
-                        setSettings((s) => ({ ...s, wrapInHtmlDoc: v }))
-                      }
-                      label="Wrap in HTML doc"
-                    />
-                  </Field>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
 

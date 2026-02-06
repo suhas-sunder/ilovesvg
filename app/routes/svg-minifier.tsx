@@ -240,10 +240,12 @@ export default function SvgMinify(_: Route.ComponentProps) {
     { name: "SVG Minify", href: "/svg-minify" },
   ];
 
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
   return (
     <>
       <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        className=" bg-slate-50 text-slate-900"
         onPaste={onPaste}
       >
         <div className="max-w-[1180px] mx-auto px-4">
@@ -403,202 +405,240 @@ export default function SvgMinify(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 shadow-sm min-w-0 overflow-auto">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white">
                 Minify Settings
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-hidden">
-                <div className="grid gap-2 min-w-0">
-                  <Field label="Strip XML declaration">
-                    <input
-                      type="checkbox"
-                      checked={settings.stripXmlDecl}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          stripXmlDecl: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove {"<?xml ...?>"} header
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
                     </span>
-                  </Field>
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                  <Field label="Strip DOCTYPE">
-                    <input
-                      type="checkbox"
-                      checked={settings.stripDoctype}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          stripDoctype: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove {"<!DOCTYPE ...>"}
-                    </span>
-                  </Field>
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <Field label="Strip XML declaration">
+                        <input
+                          type="checkbox"
+                          checked={settings.stripXmlDecl}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              stripXmlDecl: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove {"<?xml ...?>"} header
+                        </span>
+                      </Field>
 
-                  <Field label="Remove comments">
-                    <input
-                      type="checkbox"
-                      checked={settings.removeComments}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          removeComments: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove {"<!-- ... -->"}
-                    </span>
-                  </Field>
+                      <Field label="Strip DOCTYPE">
+                        <input
+                          type="checkbox"
+                          checked={settings.stripDoctype}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              stripDoctype: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove {"<!DOCTYPE ...>"}
+                        </span>
+                      </Field>
 
-                  <Field label="Whitespace between tags">
-                    <input
-                      type="checkbox"
-                      checked={settings.collapseWhitespaceBetweenTags}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          collapseWhitespaceBetweenTags: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Collapse {">   <"} to {"><"}
-                    </span>
-                  </Field>
+                      <Field label="Remove comments">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeComments}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeComments: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove {"<!-- ... -->"}
+                        </span>
+                      </Field>
 
-                  <Field label="Collapse repeated spaces">
-                    <input
-                      type="checkbox"
-                      checked={settings.collapseRunsOfSpaces}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          collapseRunsOfSpaces: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Reduce obvious markup spacing
-                    </span>
-                  </Field>
+                      <Field label="Whitespace between tags">
+                        <input
+                          type="checkbox"
+                          checked={settings.collapseWhitespaceBetweenTags}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              collapseWhitespaceBetweenTags: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Collapse {">   <"} to {"><"}
+                        </span>
+                      </Field>
 
-                  <Field label="Optimize style attribute">
-                    <input
-                      type="checkbox"
-                      checked={settings.optimizeStyleAttr}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          optimizeStyleAttr: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Clean style="a:1; b:2 ;"
-                    </span>
-                  </Field>
+                      <Field label="Collapse repeated spaces">
+                        <input
+                          type="checkbox"
+                          checked={settings.collapseRunsOfSpaces}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              collapseRunsOfSpaces: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Reduce obvious markup spacing
+                        </span>
+                      </Field>
 
-                  <Field label="Remove empty attributes">
-                    <input
-                      type="checkbox"
-                      checked={settings.removeEmptyAttrs}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          removeEmptyAttrs: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove attr=""
-                    </span>
-                  </Field>
+                      <Field label="Optimize style attribute">
+                        <input
+                          type="checkbox"
+                          checked={settings.optimizeStyleAttr}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              optimizeStyleAttr: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Clean style="a:1; b:2 ;"
+                        </span>
+                      </Field>
 
-                  <Field label="Remove metadata tag">
-                    <input
-                      type="checkbox"
-                      checked={settings.removeMetadataTag}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          removeMetadataTag: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove {"<metadata>...</metadata>"}
-                    </span>
-                  </Field>
+                      <Field label="Remove empty attributes">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeEmptyAttrs}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeEmptyAttrs: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove attr=""
+                        </span>
+                      </Field>
 
-                  <Field label="Remove editor namespaces">
-                    <input
-                      type="checkbox"
-                      checked={settings.removeEditorsNamespaces}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          removeEditorsNamespaces: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      Remove inkscape/sodipodi attrs
-                    </span>
-                  </Field>
+                      <Field label="Remove metadata tag">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeMetadataTag}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeMetadataTag: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove {"<metadata>...</metadata>"}
+                        </span>
+                      </Field>
 
-                  <Field label="Trim text nodes">
-                    <input
-                      type="checkbox"
-                      checked={settings.trimTextNodes}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          trimTextNodes: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff] shrink-0"
-                    />
-                    <span className="text-[13px] text-slate-700 min-w-0">
-                      May affect {"<text>"} in rare cases
-                    </span>
-                  </Field>
+                      <Field label="Remove editor namespaces">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeEditorsNamespaces}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeEditorsNamespaces: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove inkscape/sodipodi attrs
+                        </span>
+                      </Field>
 
-                  <Field label="Output filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="minified"
-                    />
-                  </Field>
+                      <Field label="Trim text nodes">
+                        <input
+                          type="checkbox"
+                          checked={settings.trimTextNodes}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              trimTextNodes: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          May affect {"<text>"} in rare cases
+                        </span>
+                      </Field>
+
+                      <Field label="Output filename">
+                        <input
+                          value={settings.fileName}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              fileName: e.target.value,
+                            }))
+                          }
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          placeholder="minified"
+                        />
+                      </Field>
+                    </div>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={downloadMinified}
                     disabled={!hydrated || !outSvg}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}

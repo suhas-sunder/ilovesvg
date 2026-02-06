@@ -234,7 +234,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
     { name: "SVG to JPG", href: "/svg-to-jpg-converter" },
   ];
 
-  const buttonDisabled = !hydrated || busy || !svgText;
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
 
   return (
     <>
@@ -394,8 +394,8 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + RESULT */}
-            <div className="bg-sky-50 overflow-auto border border-slate-200 rounded-xl p-4 shadow-sm min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900 flex items-center gap-2">
+            <div className="bg-slate-600 overflow-auto border border-slate-200 rounded-xl p-4 shadow-sm min-w-0">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
                 Convert & Download
                 {busy && (
                   <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
@@ -403,143 +403,188 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-xl p-3">
-                <div className="grid gap-2">
-                  <Field label="Output width (px)">
-                    <NumInt
-                      value={settings.width}
-                      min={16}
-                      max={16384}
-                      step={1}
-                      onChange={onWidthChange}
-                    />
-                  </Field>
-
-                  <Field label="Output height (px)">
-                    <NumInt
-                      value={settings.height}
-                      min={16}
-                      max={16384}
-                      step={1}
-                      onChange={onHeightChange}
-                    />
-                  </Field>
-
-                  <Field label="Lock aspect ratio">
-                    <input
-                      type="checkbox"
-                      checked={settings.lockAspect}
-                      onChange={(e) =>
-                        setSettings((s) => {
-                          const lockAspect = e.target.checked;
-                          if (!lockAspect) return { ...s, lockAspect };
-                          if (!svgInfo) return { ...s, lockAspect };
-                          const height = clampInt(
-                            Math.round(s.width / svgInfo.aspect),
-                            16,
-                            16384,
-                          );
-                          return { ...s, lockAspect, height };
-                        })
-                      }
-                      className="h-4 w-4 accent-[#0b2dff]"
-                    />
-                    <span className="text-[13px] text-slate-700">
-                      Keep original proportions
+                <div className="mt-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    aria-expanded={showAdvanced}
+                    aria-controls="advanced-settings"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      Advanced settings
                     </span>
-                  </Field>
-
-                  <Field label="Quality (pixel ratio)">
-                    <select
-                      value={settings.dpiScale}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          dpiScale: clampDpiScale(Number(e.target.value)),
-                        }))
-                      }
-                      className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                    <svg
+                      className={[
+                        "h-4 w-4 text-slate-500 transition-transform",
+                        showAdvanced ? "rotate-180" : "rotate-0",
+                      ].join(" ")}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
                     >
-                      <option value={1}>1x (smallest)</option>
-                      <option value={2}>2x (sharper)</option>
-                      <option value={3}>3x</option>
-                      <option value={4}>4x (largest)</option>
-                    </select>
-                    <span className="text-[12px] text-slate-500">
-                      Renders higher-res JPG
-                    </span>
-                  </Field>
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                  <Field label="Background color">
-                    <input
-                      type="color"
-                      value={settings.bgColor}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, bgColor: e.target.value }))
-                      }
-                      className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                      title="Pick background color"
-                    />
-                    <span className="text-[12px] text-slate-500">
-                      JPG does not support transparency
-                    </span>
-                  </Field>
+                  {showAdvanced && (
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
+                      <div className="grid gap-2">
+                        <Field label="Output width (px)">
+                          <NumInt
+                            value={settings.width}
+                            min={16}
+                            max={16384}
+                            step={1}
+                            onChange={onWidthChange}
+                          />
+                        </Field>
 
-                  <Field label="JPEG quality">
-                    <input
-                      type="range"
-                      min={0.1}
-                      max={1}
-                      step={0.05}
-                      value={settings.jpegQuality}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          jpegQuality: clampJpegQuality(Number(e.target.value)),
-                        }))
-                      }
-                      className="w-full accent-[#0b2dff]"
-                    />
-                    <span className="text-[12px] text-slate-700 w-[64px] text-right">
-                      {(settings.jpegQuality * 100).toFixed(0)}%
-                    </span>
-                  </Field>
+                        <Field label="Output height (px)">
+                          <NumInt
+                            value={settings.height}
+                            min={16}
+                            max={16384}
+                            step={1}
+                            onChange={onHeightChange}
+                          />
+                        </Field>
 
-                  <Field label="Anti-aliasing">
-                    <input
-                      type="checkbox"
-                      checked={settings.antiAlias}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          antiAlias: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 accent-[#0b2dff]"
-                    />
-                    <span className="text-[13px] text-slate-700">
-                      Smoother edges
-                    </span>
-                  </Field>
+                        <Field label="Lock aspect ratio">
+                          <input
+                            type="checkbox"
+                            checked={settings.lockAspect}
+                            onChange={(e) =>
+                              setSettings((s) => {
+                                const lockAspect = e.target.checked;
+                                if (!lockAspect) return { ...s, lockAspect };
+                                if (!svgInfo) return { ...s, lockAspect };
+                                const height = clampInt(
+                                  Math.round(s.width / svgInfo.aspect),
+                                  16,
+                                  16384,
+                                );
+                                return { ...s, lockAspect, height };
+                              })
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700">
+                            Keep original proportions
+                          </span>
+                        </Field>
 
-                  <Field label="JPG filename">
-                    <input
-                      value={settings.fileName}
-                      onChange={(e) =>
-                        setSettings((s) => ({ ...s, fileName: e.target.value }))
-                      }
-                      className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                      placeholder="converted"
-                    />
-                  </Field>
+                        <Field label="Quality (pixel ratio)">
+                          <select
+                            value={settings.dpiScale}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                dpiScale: clampDpiScale(Number(e.target.value)),
+                              }))
+                            }
+                            className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                          >
+                            <option value={1}>1x (smallest)</option>
+                            <option value={2}>2x (sharper)</option>
+                            <option value={3}>3x</option>
+                            <option value={4}>4x (largest)</option>
+                          </select>
+                          <span className="text-[12px] text-slate-500">
+                            Renders higher-res JPG
+                          </span>
+                        </Field>
+
+                        <Field label="Background color">
+                          <input
+                            type="color"
+                            value={settings.bgColor}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                bgColor: e.target.value,
+                              }))
+                            }
+                            className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                            title="Pick background color"
+                          />
+                          <span className="text-[12px] text-slate-500">
+                            JPG does not support transparency
+                          </span>
+                        </Field>
+
+                        <Field label="JPEG quality">
+                          <input
+                            type="range"
+                            min={0.1}
+                            max={1}
+                            step={0.05}
+                            value={settings.jpegQuality}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                jpegQuality: clampJpegQuality(
+                                  Number(e.target.value),
+                                ),
+                              }))
+                            }
+                            className="w-full accent-[#0b2dff] cursor-pointer"
+                          />
+                          <span className="text-[12px] text-slate-700 w-[64px] text-right">
+                            {(settings.jpegQuality * 100).toFixed(0)}%
+                          </span>
+                        </Field>
+
+                        <Field label="Anti-aliasing">
+                          <input
+                            type="checkbox"
+                            checked={settings.antiAlias}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                antiAlias: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                          />
+                          <span className="text-[13px] text-slate-700">
+                            Smoother edges
+                          </span>
+                        </Field>
+
+                        <Field label="JPG filename">
+                          <input
+                            value={settings.fileName}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                fileName: e.target.value,
+                              }))
+                            }
+                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            placeholder="converted"
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
+                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
                     onClick={convert}
                     disabled={!hydrated || busy || !svgText}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -552,7 +597,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                     onClick={downloadJpg}
                     disabled={!result || busy}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
