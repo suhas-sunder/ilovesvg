@@ -12,6 +12,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -2120,15 +2121,25 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons
+                              name="download"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Download SVG
                           </button>
                           <button
                             type="button"
                             onClick={() => copyText(groupedSvg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons
+                              name="copy"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Copy SVG
                           </button>
                         </div>

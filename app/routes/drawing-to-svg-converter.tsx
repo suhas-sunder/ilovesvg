@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import { PresetPicker } from "./home";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1196,9 +1197,14 @@ export default function DrawingToSvgConverter({
                 )}
               </div>
 
-
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} MAX_MP={MAX_MP} MAX_SIDE={MAX_SIDE} MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1327,15 +1333,25 @@ export default function DrawingToSvgConverter({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons
+                              name="download"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Download SVG
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons
+                              name="copy"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Copy SVG
                           </button>
                         </div>

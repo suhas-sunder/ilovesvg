@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -680,10 +681,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4 pb-8">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -923,18 +921,20 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => copy(svgText)}
                     disabled={!hydrated || !svgText}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className=" inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Copy source"
                   >
+                    <Icons name="copy" size={16} className="mr-1" />
                     Copy source
                   </button>
                   <button
                     type="button"
                     onClick={downloadSource}
                     disabled={!hydrated || !svgText}
-                    className="px-3 py-2 rounded-xl font-semibold border border-sky-600 text-white bg-sky-500 hover:bg-sky-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl font-semibold border border-sky-600 text-white bg-sky-500 hover:bg-sky-600 disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Download original source"
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download SVG
                   </button>
                 </div>
@@ -1310,8 +1310,9 @@ function ElementsPanel({
             <button
               type="button"
               onClick={onClearPick}
-              className="mt-1 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+              className="inline-flex items-center justify-center mt-1 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
             >
+              <Icons name="trash" size={16} className="mr-1" />
               Clear selection
             </button>
           </div>
@@ -1396,16 +1397,18 @@ function SourcePanel({
             type="button"
             onClick={onCopySource}
             disabled={!hydrated || !svgText}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
           >
+            <Icons name="copy" size={16} className="mr-1" />
             Copy source
           </button>
           <button
             type="button"
             onClick={onCopyPreview}
             disabled={!hydrated || !safeSvg}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
           >
+            <Icons name="copy" size={16} className="mr-1" />
             Copy preview
           </button>
         </div>
@@ -2012,7 +2015,7 @@ function SeoSections() {
           </section>
         </article>
 
-        <section  aria-label="Frequently asked questions">
+        <section aria-label="Frequently asked questions">
           <h3 className="m-0 font-bold">FAQ</h3>
 
           <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -2062,8 +2065,6 @@ function SeoSections() {
     </section>
   );
 }
-
- 
 
 /* ========================
    Filename helpers

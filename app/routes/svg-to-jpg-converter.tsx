@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -395,7 +396,8 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center">
+                      <Icons name="settings" size={16} className="mr-1" />
                       Advanced settings
                     </span>
                     <svg
@@ -568,11 +570,12 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                     onClick={convert}
                     disabled={!hydrated || busy || !svgText}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                      "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="convert" size={20} className="mr-1" />
                     {busy ? "Converting…" : "Convert to JPG"}
                   </button>
 
@@ -581,11 +584,12 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                     onClick={downloadJpg}
                     disabled={!result || busy}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                      "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="download" size={20} className="mr-1" />
                     Download JPG
                   </button>
 

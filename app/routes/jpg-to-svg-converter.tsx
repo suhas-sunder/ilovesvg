@@ -12,6 +12,9 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import { PresetPicker } from "./home";
+import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1083,54 +1086,20 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900">JPG input</h2>
 
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b> longest side
-              </div>
-
-              <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview tiers: fast ≤10 MB, throttled ≤25 MB. Large files
-                may be compressed on-device.
-              </div>
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
+                <DragArea
+                  onPick={onPick}
                   onDrop={onDrop}
-                  onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click or drag and drop a JPG
-                  </div>
-                  <input
-                    id="file-inp"
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1187,7 +1156,8 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center">
+                    <Icons name="settings" size={16} className="mr-1" />
                     Advanced settings
                   </span>
 
@@ -1400,11 +1370,12 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
+                  <Icons name="convert" size={16} className="mr-1" />
                   {busy ? "Converting..." : "Convert JPG to SVG"}
                 </button>
 
@@ -1475,15 +1446,17 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons name="download" size={16} className="mr-1" />
                             Download SVG
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
                           </button>
                         </div>
@@ -1686,8 +1659,6 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
- 
-
 /* ========================
    JPG-specific SEO (unique)
 ======================== */
@@ -1728,7 +1699,7 @@ function JpgSeoSections() {
             </div>
           </header>
 
-          <section >
+          <section>
             <h3 className="text-lg font-bold">JPG tips that actually help</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5">

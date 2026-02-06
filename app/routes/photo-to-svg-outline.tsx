@@ -12,6 +12,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1109,7 +1110,8 @@ export default function PhotoToSvgOutline({
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center">
+                    <Icons name="settings" className="mr-1" />
                     Advanced settings
                   </span>
 
@@ -1318,11 +1320,12 @@ export default function PhotoToSvgOutline({
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
+                  <Icons name="convert" size={20} className="mr-1" />
                   {busy ? "Converting…" : "Convert photo to outline"}
                 </button>
 
@@ -1415,15 +1418,17 @@ export default function PhotoToSvgOutline({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons name="download" size={16} className="mr-1" />
                             Download SVG
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
                           </button>
                         </div>

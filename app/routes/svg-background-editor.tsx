@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 const isServer = typeof document === "undefined";
 
@@ -423,20 +424,60 @@ export default function SvgBackgroundPage({
                         setErr(er?.message || "Invalid SVG markup.");
                       }
                     }}
-                    className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   >
-                    Paste SVG
+                    <Icons name="example" size={16} className="mr-1" />
+                    Paste SVG Example
                   </button>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                   >
+                    <Icons name="trash" size={16} className="mr-1" />
                     Clear
                   </button>
                 </div>
               </div>
 
+              {/* Optional paste box */}
+              <details className="my-3 rounded-xl border border-slate-200 bg-white">
+                <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900 bg-sky-50">
+                  Paste or edit input SVG code
+                </summary>
+                <div className="px-4 pb-4">
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setInputText(next);
+
+                      // Update input preview from what user typed (best-effort),
+                      // but DO NOT let settings changes affect this.
+                      setInPreviewSrc(
+                        makeSvgDataUrl(bestEffortSvgForPreview(next)),
+                      );
+
+                      // Only update processing pipeline when valid
+                      try {
+                        const normalized = normalizeAndValidateSvg(next);
+                        setInputSvgValid(normalized);
+                        setInPreviewSrc(makeSvgDataUrl(normalized));
+                        setErr(null);
+                      } catch (er: any) {
+                        // Keep last valid inputSvgValid so output stays stable while editing
+                        setErr(er?.message || "Invalid SVG markup.");
+                      }
+                    }}
+                    className="mt-2 w-full h-[220px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
+                    spellCheck={false}
+                  />
+                  <div className="mt-2 text-[12px] text-slate-600">
+                    Tip: If your SVG includes XML/DOCTYPE headers, that is fine.
+                    We strip them on export if you enable cleanup.
+                  </div>
+                </div>
+              </details>
               {!inputText ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
@@ -493,45 +534,6 @@ export default function SvgBackgroundPage({
                       )}
                     </div>
                   </div>
-
-                  {/* Optional paste box */}
-                  <details className="mt-3 rounded-xl border border-slate-200 bg-white">
-                    <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
-                      Paste or edit input SVG code
-                    </summary>
-                    <div className="px-4 pb-4">
-                      <textarea
-                        value={inputText}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setInputText(next);
-
-                          // Update input preview from what user typed (best-effort),
-                          // but DO NOT let settings changes affect this.
-                          setInPreviewSrc(
-                            makeSvgDataUrl(bestEffortSvgForPreview(next)),
-                          );
-
-                          // Only update processing pipeline when valid
-                          try {
-                            const normalized = normalizeAndValidateSvg(next);
-                            setInputSvgValid(normalized);
-                            setInPreviewSrc(makeSvgDataUrl(normalized));
-                            setErr(null);
-                          } catch (er: any) {
-                            // Keep last valid inputSvgValid so output stays stable while editing
-                            setErr(er?.message || "Invalid SVG markup.");
-                          }
-                        }}
-                        className="mt-2 w-full h-[220px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
-                        spellCheck={false}
-                      />
-                      <div className="mt-2 text-[12px] text-slate-600">
-                        Tip: If your SVG includes XML/DOCTYPE headers, that is
-                        fine. We strip them on export if you enable cleanup.
-                      </div>
-                    </div>
-                  </details>
                 </>
               )}
             </div>
@@ -782,11 +784,12 @@ export default function SvgBackgroundPage({
                     onClick={downloadSvg}
                     disabled={buttonDisabled}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download SVG
                   </button>
 
@@ -795,11 +798,12 @@ export default function SvgBackgroundPage({
                     onClick={copySvg}
                     disabled={buttonDisabled}
                     className={[
-                      "px-3.5 py-2 rounded-lg font-semibold border transition-colors",
+                      "flex items-center justify-center px-3.5 py-2 rounded-lg font-semibold border transition-colors",
                       "text-slate-900 bg-white border-slate-200 hover:bg-slate-50",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="copy" size={16} className="mr-1" />
                     Copy SVG
                   </button>
 

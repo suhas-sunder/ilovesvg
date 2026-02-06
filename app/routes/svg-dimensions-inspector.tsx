@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -446,22 +447,24 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                   >
+                    <Icons name="example" size={16} className="mr-1" />
                     Load example
                   </button>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   >
+                    <Icons name="trash" size={16} className="mr-1" />
                     Clear
                   </button>
                 </div>
               </div>
 
               {!file && !svgText.trim() ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />  
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   {file ? (
@@ -592,7 +595,8 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center">
+                    <Icons name="settings" size={16} className="mr-1" />
                     Advanced settings
                   </span>
 
@@ -849,7 +853,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                             settings.fixStrategy === "none"
                           }
                           className={[
-                            "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
+                            " px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                             "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                             "disabled:opacity-70 disabled:cursor-not-allowed",
                           ].join(" ")}
@@ -861,8 +865,9 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           type="button"
                           onClick={downloadSvg}
                           disabled={!hydrated || !svgText.trim()}
-                          className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
                         >
+                          <Icons name="download" size={16} className="mr-1" />
                           Download SVG
                         </button>
 
@@ -1560,7 +1565,7 @@ function SeoSections() {
             results. Everything runs <strong>client-side</strong>.
           </p>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">What this tool checks</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
@@ -1582,7 +1587,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">
               Why your SVG “size” can be confusing
             </h3>
@@ -1613,7 +1618,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Why viewBox matters (the #1 fix)</h3>
             <p className="mt-3">
               The <strong>viewBox</strong> defines the internal drawing space.
@@ -1625,7 +1630,7 @@ function SeoSections() {
             </p>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">How to use the fixes</h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2 text-slate-700">
               <li>Upload or paste your SVG.</li>
@@ -1649,7 +1654,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Common use cases</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Fix SVGs that scale incorrectly in browsers</li>

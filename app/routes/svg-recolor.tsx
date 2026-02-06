@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 const isServer = typeof document === "undefined";
 
@@ -467,8 +468,9 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={() => setShowPasteBox((v) => !v)}
-                    className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="cursor-pointer flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                   >
+                    <Icons name="copy" size={16} className="mr-1" />
                     {showPasteBox ? "Hide paste box" : "Paste SVG"}
                   </button>
 
@@ -477,11 +479,12 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                     disabled={!inSvg || isServer || !hydrated}
                     onClick={copyInputSvg}
                     className={[
-                      "px-3 py-2 rounded-lg font-semibold border transition-colors",
+                      "cursor-pointer flex items-center justify-center px-3 py-2 rounded-lg font-semibold border transition-colors",
                       "text-slate-900 bg-white border-slate-200 hover:bg-slate-50",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="copy" size={16} className="mr-1" />
                     Copy input
                   </button>
                 </div>
@@ -665,7 +668,8 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center">
+                      <Icons name="settings" size={16} className="mr-1" />
                       Advanced settings
                     </span>
                     <svg
@@ -840,9 +844,10 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                         <button
                                           type="button"
                                           onClick={() => removePair(p.id)}
-                                          className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                                          className="flex items-center justify-center px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                                           title="Remove rule"
                                         >
+                                          <Icons name="trash" size={16} className="mr-1" />
                                           Remove
                                         </button>
                                       </div>
@@ -1087,11 +1092,12 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                     onClick={downloadSvg}
                     disabled={buttonDisabled}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                      "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download SVG
                   </button>
 
@@ -1100,11 +1106,12 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                     onClick={copySvg}
                     disabled={buttonDisabled}
                     className={[
-                      "px-3.5 py-2 rounded-lg font-semibold border transition-colors cursor-pointer",
+                      "flex items-center justify-center px-3.5 py-2 rounded-lg font-semibold border transition-colors cursor-pointer",
                       "text-slate-900 bg-white border-slate-200 hover:bg-slate-50",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="copy" size={16} className="mr-1" />
                     Copy SVG
                   </button>
 

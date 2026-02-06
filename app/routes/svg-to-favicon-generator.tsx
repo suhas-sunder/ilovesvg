@@ -8,6 +8,7 @@ import { zipSync, strToU8 } from "fflate";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -571,15 +572,17 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                   >
+                    <Icons name="example" size={16} className="mr-1" />
                     Load example
                   </button>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   >
+                    <Icons name="trash" size={16} className="mr-1" />
                     Clear
                   </button>
                 </div>
@@ -641,7 +644,8 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center">
+                      <Icons name="settings" size={16} className="mr-1" />
                       Advanced settings
                     </span>
                     <svg
@@ -935,11 +939,12 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                       isWorking
                     }
                     className={[
-                      "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
+                      "inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="convert" size={20} className="mr-1" />
                     {isWorking ? "Generating..." : "Generate icons"}
                   </button>
 
@@ -947,8 +952,9 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadAllIndividually}
                     disabled={!hydrated || !files?.length || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download all files (Recommended: Try Zip Download First)
                   </button>
 
@@ -956,8 +962,9 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadIcoOnly}
                     disabled={!hydrated || !files?.length || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download .ico
                   </button>
 
@@ -965,8 +972,9 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadZip}
                     disabled={!hydrated || !files?.length || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download ZIP
                   </button>
 
@@ -1041,8 +1049,9 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                         <button
                           type="button"
                           onClick={copySnippet}
-                          className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                          className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                         >
+                          <Icons name="copy" size={16} className="mr-1" />
                           Copy snippet
                         </button>
                         <span className="text-[12px] text-slate-600">

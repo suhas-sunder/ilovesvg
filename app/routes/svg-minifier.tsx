@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -246,10 +247,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -307,7 +305,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
               </h2>
 
               {!file ? (
-               <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -403,7 +401,8 @@ export default function SvgMinify(_: Route.ComponentProps) {
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center">
+                      <Icons name="settings" size={16} className="mr-1" />
                       Advanced settings
                     </span>
                     <svg
@@ -622,11 +621,12 @@ export default function SvgMinify(_: Route.ComponentProps) {
                     onClick={downloadMinified}
                     disabled={!hydrated || !outSvg}
                     className={[
-                      "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                      "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download Minified SVG
                   </button>
 
@@ -692,8 +692,9 @@ export default function SvgMinify(_: Route.ComponentProps) {
                           .writeText(outSvg)
                           .then(() => showToast("Copied"));
                       }}
-                      className="mt-2 px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                      className="inline-flex items-center justify-center mt-2 px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                     >
+                      <Icons name="copy" size={16} className="mr-1" />
                       Copy SVG
                     </button>
                   </div>
@@ -716,7 +717,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
-      <SiteFooter  />
+      <SiteFooter />
     </>
   );
 }
@@ -877,8 +878,6 @@ function Field({
   );
 }
 
- 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -1020,7 +1019,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">What This Tool Changes</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Removes comments and collapses whitespace</li>
@@ -1032,7 +1031,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">When This Tool Is Useful</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Reducing SVG payload size for web performance</li>
@@ -1063,7 +1062,7 @@ function SeoSections() {
         </ul>
       </section>
 
-      <section  aria-label="Frequently asked questions">
+      <section aria-label="Frequently asked questions">
         <h3 className="m-0 font-bold">FAQ</h3>
 
         <details className="mt-3 rounded-xl border border-slate-200 bg-white p-4">

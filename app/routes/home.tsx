@@ -13,6 +13,7 @@ import { useState } from "react";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1470,11 +1471,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
               </div>
 
-              
-
               {/* Dropzone */}
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES} MAX_MP={MAX_MP} MAX_SIDE={MAX_SIDE} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1530,11 +1535,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
+                  <Icons
+                    name="convert"
+                    size={18}
+                    className="mr-1"
+                    title="Convert"
+                  />
                   {busy ? "Converting…" : "Convert to SVG"}
                 </button>
 
@@ -1602,15 +1613,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             a.remove();
                             URL.revokeObjectURL(u);
                           }}
-                          className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                         >
+                          <Icons
+                            name="download"
+                            size={16}
+                            className="inline-block mr-1"
+                          />
                           Download SVG
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCopySvg(item.svg)}
-                          className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                          className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         >
+                          <Icons
+                            name="copy"
+                            size={16}
+                            className="inline-block mr-1"
+                          />
                           Copy SVG
                         </button>
                       </div>
@@ -1628,10 +1649,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-white m-0">
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
                   {busy
                     ? "Converting…"
-                    : "Your converted file will appear here...  "}
+                    : "Converted files appear here...  "}
                 </p>
               )}
             </div>
@@ -2271,7 +2299,8 @@ export function PresetPicker({
           aria-expanded={expanded}
           className="mt-2 w-full inline-flex items-center justify-between px-3 py-2 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
         >
-          <span className="text-sm font-medium">
+          <span className="flex items-center justify-center text-sm font-medium">
+            <Icons name="sliders" size={16} className="inline-block mr-1" />
             {expanded
               ? "Show fewer presets"
               : `Show ${presets.length - DEFAULT_VISIBLE} more presets`}

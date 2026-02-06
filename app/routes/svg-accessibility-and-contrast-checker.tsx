@@ -6,6 +6,7 @@ import { RelatedSites } from "./cookies";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -287,7 +288,6 @@ export default function SvgAccessibilityAndContrastChecker() {
     () => sanitizeSvgString(workingSvg),
     [workingSvg],
   );
-  
 
   return (
     <>
@@ -340,7 +340,7 @@ export default function SvgAccessibilityAndContrastChecker() {
           </nav>
 
           <header className="text-center mb-4">
-            <h1 className="text-[28px] sm:text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
+            <h1 className="text-[28px] text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
               SVG Accessibility and Contrast Checker
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
@@ -408,8 +408,9 @@ export default function SvgAccessibilityAndContrastChecker() {
                     type="button"
                     onClick={downloadSvg}
                     disabled={!workingSvg.trim()}
-                    className="px-3 py-2 rounded-xl font-semibold border bg-[#0b2dff] text-white border-[#0a24da] hover:bg-[#0a24da] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl font-semibold border bg-[#0b2dff] text-white border-[#0a24da] hover:bg-[#0a24da] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download updated SVG
                   </button>
                 </div>
@@ -434,8 +435,9 @@ export default function SvgAccessibilityAndContrastChecker() {
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold"
                   >
+                    <Icons name="trash" size={16} className="mr-1" />
                     Clear
                   </button>
                 </div>
@@ -1151,7 +1153,7 @@ function SeoSections() {
             </div>
           </header>
 
-          <section >
+          <section>
             <h3 className="text-lg font-bold">What this checks</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -1176,7 +1178,7 @@ function SeoSections() {
             </div>
           </section>
 
-          <section >
+          <section>
             <h3 className="text-lg font-bold">Best practices</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               {[
@@ -1750,5 +1752,3 @@ function clamp(n: number) {
 function escapeReg(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
- 

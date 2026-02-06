@@ -7,6 +7,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -576,8 +577,9 @@ export default function FreeColorPicker() {
                     <button
                       type="button"
                       onClick={clearUpload}
-                      className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                      className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                     >
+                      <Icons name="trash" className="w-4 h-4 mr-1" />
                       Clear
                     </button>
                   )}
@@ -911,8 +913,9 @@ function CopyRow({
       <button
         type="button"
         onClick={onCopy}
-        className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
+        className=" flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
       >
+        <Icons name="copy" size={16} className="inline-block mr-1" />
         Copy
       </button>
     </div>
@@ -939,8 +942,6 @@ function sanitizeInlineSvg(svgText: string) {
 
   return s;
 }
-
- 
 
 /* ========================
    SEO sections (below tool)

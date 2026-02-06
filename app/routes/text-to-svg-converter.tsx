@@ -11,6 +11,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import Icons from "~/client/assets/icons/Icons";
 
 const isServer = typeof document === "undefined";
 
@@ -1072,7 +1073,8 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center">
+                      <Icons name="settings" size={16} className="mr-1" />
                       Advanced settings
                     </span>
                     <svg
@@ -1329,11 +1331,12 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                    "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
+                  <Icons name="convert" size={16} className="mr-1" />
                   {busy ? "Converting…" : "Convert text to SVG"}
                 </button>
 
@@ -1396,15 +1399,17 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                           a.remove();
                           URL.revokeObjectURL(u);
                         }}
-                        className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer transition-colors"
+                        className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer transition-colors"
                       >
+                        <Icons name="download" size={16} className="mr-1" />
                         Download SVG
                       </button>
                       <button
                         type="button"
                         onClick={() => copyText(groupedSvg)}
-                        className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                        className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                       >
+                        <Icons name="copy" size={16} className="mr-1" />
                         Copy SVG
                       </button>
                     </div>
@@ -1434,8 +1439,9 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                           <button
                             type="button"
                             onClick={() => copyText(it.svg)}
-                            className="px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors text-sm"
+                            className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors text-sm"
                           >
+                            <Icons name="copy" size={16} className="mr-1" />
                             Copy
                           </button>
                           <button
@@ -1453,8 +1459,9 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-2.5 py-1.5 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer transition-colors text-sm"
+                            className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer transition-colors text-sm"
                           >
+                            <Icons name="download" size={16} className="mr-1" />
                             Download
                           </button>
                         </div>

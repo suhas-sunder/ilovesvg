@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -254,7 +255,14 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                   aria-expanded={showDecodeMenu}
                   aria-controls="decode-menu"
                 >
-                  <span className="font-medium">Decode & sanitize options</span>
+                  <span className="flex items-center justify-center font-medium">
+                    <Icons
+                      name="settings"
+                      size={16}
+                      className="inline-block mr-1"
+                    />
+                    Decode & sanitize options
+                  </span>
 
                   <svg
                     className={[
@@ -487,11 +495,16 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                         onClick={copySvg}
                         disabled={!hydrated || !outSvg}
                         className={[
-                          "px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
+                          "flex justify-center items-center px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
                           "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                           "disabled:opacity-70 disabled:cursor-not-allowed",
                         ].join(" ")}
                       >
+                        <Icons
+                          name="copy"
+                          size={16}
+                          className="inline-block mr-1"
+                        />
                         Copy SVG
                       </button>
 
@@ -499,8 +512,13 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                         type="button"
                         onClick={downloadSvg}
                         disabled={!hydrated || !outSvg}
-                        className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="flex justify-center items-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                       >
+                        <Icons
+                          name="download"
+                          size={16}
+                          className="inline-block mr-1"
+                        />
                         Download SVG
                       </button>
 

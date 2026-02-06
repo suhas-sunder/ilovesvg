@@ -12,6 +12,8 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
+import { PresetPicker } from "./home";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1183,80 +1185,11 @@ export default function LineArtToSvgConverter({
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
 
-              {/* Presets */}
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Dropzone */}
-              {!file ? (
-                <DragArea
-                  onPick={onPick}
-                  onDrop={onDrop}
-                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
-                  MAX_MP={MAX_MP}
-                  MAX_SIDE={MAX_SIDE}
-                />
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize && originalFileSize > file.size
-                          ? ` (shrunk from ${prettyBytes(originalFileSize)})`
-                          : ""}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               {/* Settings */}
               <div className="mt-3 min-w-0">
@@ -1267,7 +1200,8 @@ export default function LineArtToSvgConverter({
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center">
+                    <Icons name="settings" size={16} className="mr-1" />
                     Advanced settings
                   </span>
 
@@ -1489,6 +1423,61 @@ export default function LineArtToSvgConverter({
                   </div>
                 )}
               </div>
+              {/* Dropzone */}
+              {!file ? (
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize && originalFileSize > file.size
+                          ? ` (shrunk from ${prettyBytes(originalFileSize)})`
+                          : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Convert button + errors + tier hints */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -1498,11 +1487,12 @@ export default function LineArtToSvgConverter({
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
+                  <Icons name="convert" size={20} className="mr-1" />
                   {busy ? "Converting…" : "Convert"}
                 </button>
 
@@ -1577,15 +1567,25 @@ export default function LineArtToSvgConverter({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className=" flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons
+                              name="download"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Download SVG
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons
+                              name="copy"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Copy SVG
                           </button>
                         </div>
@@ -1594,10 +1594,15 @@ export default function LineArtToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
-                  {busy
-                    ? "Converting…"
-                    : "Your converted file will appear here."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>

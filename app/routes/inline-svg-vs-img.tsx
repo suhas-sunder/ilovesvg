@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -322,10 +323,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -385,22 +383,32 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                   >
+                    <Icons
+                      name="example"
+                      size={16}
+                      className="inline-block mr-1"
+                    />
                     Load example
                   </button>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   >
+                    <Icons
+                      name="trash"
+                      size={16}
+                      className="inline-block mr-1"
+                    />
                     Clear
                   </button>
                 </div>
               </div>
 
               {!file && !svgText.trim() ? (
-               <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   {file ? (
@@ -491,7 +499,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                 aria-expanded={showAdvanced}
                 aria-controls="advanced-settings"
               >
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center justify-center">
+                  <Icons name="settings" size={16} className=" mr-1" />
                   Advanced settings
                 </span>
 
@@ -1186,11 +1195,12 @@ function CompareCard({
           onClick={onCopy}
           disabled={!code}
           className={[
-            "px-3 py-2 rounded-xl font-bold border transition-colors",
+            "flex items-center justify-center px-3 py-2 rounded-xl font-bold border transition-colors",
             "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
             "disabled:opacity-70 disabled:cursor-not-allowed",
           ].join(" ")}
         >
+          <Icons name="copy" size={16} className="inline-block mr-1" />
           Copy snippet
         </button>
       </div>
@@ -2055,8 +2065,6 @@ function UnitSelect({
     </select>
   );
 }
-
- 
 
 /* ========================
    Breadcrumbs UI + JSON-LD

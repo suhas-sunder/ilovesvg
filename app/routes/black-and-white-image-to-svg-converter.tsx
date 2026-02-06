@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import { ChevronDownIcon, PresetPicker } from "./home";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 const isServer = typeof document === "undefined";
 
@@ -926,7 +927,14 @@ export default function BlackAndWhiteImageToSvgConverter({
                     "hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#0b2dff]",
                   ].join(" ")}
                 >
-                  <span className="text-sm font-semibold">Trace settings</span>
+                  <span className="flex items-center justify-center text-sm font-semibold">
+                    <Icons
+                      name="settings"
+                      size={16}
+                      className="inline-block mr-1"
+                    />
+                    Trace settings
+                  </span>
                   <span
                     className={[
                       "text-slate-600 transition-transform",
@@ -1264,15 +1272,25 @@ export default function BlackAndWhiteImageToSvgConverter({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons
+                              name="download"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Download SVG
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons
+                              name="copy"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
                             Copy SVG
                           </button>
                         </div>
@@ -1281,10 +1299,15 @@ export default function BlackAndWhiteImageToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-white m-0">
-                  {busy
-                    ? "Converting…"
-                    : "Your converted file will appear here..."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>

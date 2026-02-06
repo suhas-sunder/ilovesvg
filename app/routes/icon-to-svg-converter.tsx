@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import { PresetPicker } from "./home";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1096,7 +1097,8 @@ export default function IconToSvgConverter({
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span className="flex justify-center items-centerinline-flex items-center">
+                    <Icons name="settings" size={16} className="mr-1" />
                     Advanced settings
                   </span>
 
@@ -1396,12 +1398,13 @@ export default function IconToSvgConverter({
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
-                  {busy ? "Converting…" : "Convert icon"}
+                  <Icons name="convert" size={16} className="mr-1" />
+                  {busy ? "Converting…" : "Convert to SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1425,23 +1428,6 @@ export default function IconToSvgConverter({
                   />
                 </div>
               )}
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700">
-                <div className="font-semibold mb-1">Icon-specific tips</div>
-                <ul className="list-disc ml-5 space-y-1">
-                  <li>
-                    Want fewer nodes? Increase Curve tolerance (try 0.55–0.85).
-                  </li>
-                  <li>
-                    Thin strokes disappearing? Raise Threshold and lower Turd
-                    size.
-                  </li>
-                  <li>
-                    Blobby edges? Lower Threshold or switch Turn policy to
-                    minority.
-                  </li>
-                </ul>
-              </div>
             </div>
 
             {/* RESULTS */}
@@ -1487,16 +1473,18 @@ export default function IconToSvgConverter({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            className="px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
+                            <Icons name="download" size={16} className="mr-1" />
                             Download SVG
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
+                            <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
                           </button>
                         </div>
@@ -1505,10 +1493,15 @@ export default function IconToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-white m-0">
-                  {busy
-                    ? "Converting…"
-                    : "Your converted SVG will appear here."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>
@@ -1738,6 +1731,23 @@ function SeoSections() {
               Presets are tuned for flat shapes and crisp edges, with live
               preview and droplet-safe limits.
             </p>
+
+            <div className=" mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700">
+              <div className="font-semibold mb-1">Icon-specific tips</div>
+              <ul className="list-disc ml-5 space-y-1">
+                <li>
+                  Want fewer nodes? Increase Curve tolerance (try 0.55–0.85).
+                </li>
+                <li>
+                  Thin strokes disappearing? Raise Threshold and lower Turd
+                  size.
+                </li>
+                <li>
+                  Blobby edges? Lower Threshold or switch Turn policy to
+                  minority.
+                </li>
+              </ul>
+            </div>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[

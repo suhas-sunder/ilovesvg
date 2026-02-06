@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import Icons from "~/client/assets/icons/Icons";
 
 /* ========================
    Meta
@@ -445,15 +446,17 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
                   >
+                    <Icons name="example" size={16} className="mr-1" />
                     Load example
                   </button>
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   >
+                    <Icons name="trash" size={16} className="mr-1" />
                     Clear
                   </button>
                 </div>
@@ -598,7 +601,8 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center">
+                      <Icons name="settings" size={16} className="mr-1" />
                       Advanced settings
                     </span>
                     <svg
@@ -938,8 +942,9 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadSvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
+                    <Icons name="download" size={16} className="mr-1" />
                     Download SVG
                   </button>
 
@@ -947,8 +952,9 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                     type="button"
                     onClick={copySvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
+                    <Icons name="copy" size={16} className="mr-1" />
                     Copy SVG
                   </button>
 
