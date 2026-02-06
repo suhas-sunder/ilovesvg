@@ -1268,15 +1268,15 @@ export default function StickerToSvgConverter({
                 ))}
               </div>
 
-              {/* Limits helper */}
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
-              </div>
-
               {/* Dropzone */}
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">

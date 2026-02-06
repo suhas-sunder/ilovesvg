@@ -1,11 +1,21 @@
-export default function DragArea({ onPick, onDrop, MAX_UPLOAD_BYTES, MAX_MP, MAX_SIDE }: any) {
+export default function DragArea({
+  onPick,
+  onDrop,
+  MAX_UPLOAD_BYTES,
+  MAX_MP,
+  MAX_SIDE,
+}: any) {
   return (
     <>
       {/* Limits helper */}
-      <div className="text-[13px] text-slate-600 mb-2 hidden sm:flex gap-1">
-        Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-        <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
-      </div>
+      {MAX_MP ? (
+        <div className="text-[13px] text-slate-600 mb-2 hidden sm:flex gap-1">
+          Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+          <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
+        </div>
+      ) : (
+        <div className="mt-3"></div>
+      )}
       <div
         role="button"
         tabIndex={0}

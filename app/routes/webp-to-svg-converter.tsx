@@ -1110,19 +1110,15 @@ export default function WebpToSvgConverter({
                 ))}
               </div>
 
-              {/* Limits helper */}
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b>
-              </div>
-              <div className="text-sky-700 mb-2 text-center text-sm">
-                Live preview: fast ≤10 MB, throttled ≤25 MB. Over 30 MB tries
-                on-device compression first.
-              </div>
-
               {/* Dropzone */}
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1685,8 +1681,6 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
- 
-
 /* ===== SEO sections (unique content for this route) ===== */
 function SeoSectionsWebp() {
   return (
@@ -1724,7 +1718,7 @@ function SeoSectionsWebp() {
             </div>
           </header>
 
-          <section >
+          <section>
             <h3 className="text-lg font-bold">When WebP to SVG makes sense</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
