@@ -11,6 +11,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -827,9 +828,9 @@ export default function WebpToSvgConverter({
       setHistory((prev) =>
         [
           {
-            svg: fetcher.data.svg!,
-            width: fetcher.data.width ?? 0,
-            height: fetcher.data.height ?? 0,
+            svg: fetcher?.data?.svg!,
+            width: fetcher?.data?.width ?? 0,
+            height: fetcher?.data?.height ?? 0,
             stamp: Date.now(),
           },
           ...prev,
@@ -1121,27 +1122,7 @@ export default function WebpToSvgConverter({
 
               {/* Dropzone */}
               {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() =>
-                    document.getElementById("file-inp-webp")?.click()
-                  }
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click, drag and drop, or paste a WebP
-                  </div>
-                  <input
-                    id="file-inp-webp"
-                    type="file"
-                    accept="image/webp"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">

@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 /* ========================
    Meta
@@ -281,7 +282,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
       if (!svgText.trim()) throw new Error("Upload or paste an SVG first.");
 
       const cleaned = ensureSvgHasXmlns(svgText);
-      const out = adjustStrokeWidths(cleaned, settings, hiddenMountRef);
+      const out = adjustStrokeWidths(cleaned, settings, hiddenMountRef as any);
 
       setResult(out);
 
@@ -384,10 +385,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -462,25 +460,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
               </div>
 
               {!file && !svgText.trim() ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("svg-inp")?.click()}
-                  className="mt-3 border border-dashed border-[#c8d3ea] rounded-2xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste an SVG file
-                  </div>
-                  <input
-                    id="svg-inp"
-                    type="file"
-                    accept="image/svg+xml,.svg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   {file ? (
@@ -1795,7 +1775,6 @@ function NumInt({
   );
 }
 
- 
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -2006,7 +1985,7 @@ function SeoSections() {
             </li>
           </ul>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Common Uses</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
@@ -2024,7 +2003,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">FAQ</h3>
             <div className="not-prose mt-3 grid gap-3">
               <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">

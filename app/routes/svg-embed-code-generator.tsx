@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 /* ========================
    Meta
@@ -358,10 +359,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -436,25 +434,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
               </div>
 
               {!file && !svgText.trim() ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("svg-inp")?.click()}
-                  className="mt-3 border border-dashed border-[#c8d3ea] rounded-2xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click, drag and drop, or paste an SVG file
-                  </div>
-                  <input
-                    id="svg-inp"
-                    type="file"
-                    accept="image/svg+xml,.svg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   {file ? (
@@ -1749,8 +1729,8 @@ function parseSvgInfo(svg: string): SvgInfo {
   const heightRaw = matchAttr(open, "height") || undefined;
   const viewBox = matchAttr(open, "viewBox") || undefined;
 
-  const width = widthRaw ? parseLen(widthRaw) : undefined;
-  const height = heightRaw ? parseLen(heightRaw) : undefined;
+  const width = widthRaw ? (parseLen(widthRaw) ?? undefined) : undefined;
+  const height = heightRaw ? (parseLen(heightRaw) ?? undefined) : undefined;
 
   const hasScripts = /<script\b/i.test(svg) || /\son[a-z]+\s*=\s*/i.test(svg);
   const hasForeignObject = /<foreignObject\b/i.test(svg);
@@ -2286,7 +2266,6 @@ function UnitSelect({
   );
 }
 
-
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -2498,7 +2477,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Common searches this tool covers</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>SVG embed code generator</li>
@@ -2512,7 +2491,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Security notes</h3>
             <p className="mt-3">
               SVG is XML and can include scripts. If you did not create the SVG

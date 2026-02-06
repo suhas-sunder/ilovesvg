@@ -12,6 +12,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { useState } from "react";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1477,29 +1478,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               {/* Dropzone */}
               {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-lg text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
-                    <div className="text-sky-700 my-2 text-center text-xs">
-                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
-                      MB are auto-compressed on-device (if possible).
-                    </div>
-                  </div>
-                  <input
-                    id="file-inp"
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -2261,11 +2240,7 @@ export function PresetPicker({
   const showToggle = presets.length > DEFAULT_VISIBLE;
 
   return (
-    <div className="mb-2 min-w-0">
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        Conversion Preset Settings
-      </label>
-
+    <div className="mb-2 mt-[.67rem] min-w-0">
       {/* Always 2 columns */}
       <div className="grid sm:grid-cols-2 gap-2">
         {visiblePresets.map((p) => {
@@ -2280,11 +2255,11 @@ export function PresetPicker({
               title={p.label}
               className={[
                 "px-3 py-2 rounded-md border transition cursor-pointer",
-                "text-[13px] sm:text-sm leading-snug text-center",
+                "text-[13px] sm:text-sm leading-snug text-center font-semibold",
                 "break-words min-h-[2.75rem]",
                 isActive
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50",
+                  ? "bg-sky-200  border-sky-200"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50",
               ].join(" ")}
             >
               {p.label}

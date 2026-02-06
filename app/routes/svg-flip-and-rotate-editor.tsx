@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 /* ========================
    Meta
@@ -409,25 +410,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
               </div>
 
               {!file && !svgText.trim() ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("svg-inp")?.click()}
-                  className="mt-3 border border-dashed border-[#c8d3ea] rounded-2xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste an SVG file
-                  </div>
-                  <input
-                    id="svg-inp"
-                    type="file"
-                    accept="image/svg+xml,.svg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   {file ? (
@@ -873,7 +856,7 @@ function flipRotateSvg(svgText: string, settings: Settings): Result {
   }
 
   // Determine bounds for anchor
-  const bounds = getSvgBoundsForTransform(svg, settings);
+  const bounds = getSvgBoundsForTransform(svg as any, settings);
   const w = bounds.w;
   const h = bounds.h;
   const cx = bounds.x + w / 2;
@@ -1222,7 +1205,6 @@ function Num({
   );
 }
 
- 
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
@@ -1354,7 +1336,7 @@ function SeoSections() {
             quality loss).
           </p>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">What You Can Do</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Flip SVGs horizontally or vertically (mirror icons/logos)</li>
@@ -1367,7 +1349,7 @@ function SeoSections() {
             </ul>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">Common Uses</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>Mirror icons, logos, and illustrations</li>

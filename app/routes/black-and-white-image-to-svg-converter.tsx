@@ -12,6 +12,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import { ChevronDownIcon, PresetPicker } from "./home";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 const isServer = typeof document === "undefined";
 
@@ -904,12 +905,8 @@ export default function BlackAndWhiteImageToSvgConverter({
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none">
-                <span>Black</span>
-                <span className="text-[#0b2dff]">&</span>
-                <span>White</span>
-                <span className="text-slate-400">→</span>
-                <span className="text-[#0b2dff]">SVG</span>
+              <h1 className="inline-flex text-sky-950 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none">
+                Black & White to SVG
               </h1>
 
               <PresetPicker
@@ -1138,29 +1135,7 @@ export default function BlackAndWhiteImageToSvgConverter({
               </div>
 
               {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-lg text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
-                    <div className="text-sky-700 my-2 text-center text-xs">
-                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
-                      MB are auto-compressed on-device (if possible).
-                    </div>
-                  </div>
-                  <input
-                    id="file-inp"
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+               <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">

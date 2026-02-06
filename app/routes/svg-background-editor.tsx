@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 const isServer = typeof document === "undefined";
 
@@ -322,10 +323,7 @@ export default function SvgBackgroundPage({
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPasteAny}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPasteAny}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -440,28 +438,7 @@ export default function SvgBackgroundPage({
               </div>
 
               {!inputText ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("svg-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click, drag and drop, or paste SVG markup
-                    <div className="text-[12px] text-slate-500 mt-1">
-                      Accepted: .svg
-                    </div>
-                  </div>
-                  <input
-                    id="svg-inp"
-                    type="file"
-                    accept="image/svg+xml,.svg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900">
@@ -1146,7 +1123,7 @@ function SeoSections() {
           </div>
 
           {/* FAQ */}
-          <section >
+          <section>
             <div className="flex items-end justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
@@ -1295,7 +1272,6 @@ function PreviewFrame({
   );
 }
 
- 
 /* ========================
    SVG validation + normalization
 ======================== */
@@ -1336,7 +1312,7 @@ function detectBackground(svgText: string): BgDetection {
   const doc = parseSvg(svgText);
   const svg = doc.documentElement;
 
-  const dims = getSvgCanvasDims(svg);
+  const dims = getSvgCanvasDims(svg as any);
 
   const children = Array.from(svg.children);
   const interesting = children.filter(
@@ -1378,15 +1354,15 @@ function applyBackgroundEdits(inputSvgText: string, s: Settings): string {
   const doc = parseSvg(inputSvgText);
   const svg = doc.documentElement;
 
-  const dims = getSvgCanvasDims(svg);
+  const dims = getSvgCanvasDims(svg as any);
 
   if (s.mode === "remove") {
-    removeDetectedBackground(svg, dims);
+    removeDetectedBackground(svg as any, dims);
   } else if (s.mode === "add") {
-    insertBackground(svg, dims, s);
+    insertBackground(svg as any, dims, s);
   } else if (s.mode === "replace") {
-    removeDetectedBackground(svg, dims);
-    insertBackground(svg, dims, s);
+    removeDetectedBackground(svg as any, dims);
+    insertBackground(svg as any, dims, s);
   }
 
   let out = new XMLSerializer().serializeToString(svg);

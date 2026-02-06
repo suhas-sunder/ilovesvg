@@ -200,29 +200,9 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <Breadcrumbs crumbs={crumbs} />
-
-                <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-                  <span className="text-[#0b2dff]">Base64</span>
-                  <span className="text-slate-400">to</span>
-                  <span>SVG</span>
+                <h1 className="inline-flex text-sky-950 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  Base64 to SVG
                 </h1>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={pasteExample}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
-                  >
-                    Load example
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
-                  >
-                    Clear
-                  </button>
-                </div>
               </div>
 
               <textarea
@@ -233,6 +213,22 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                 spellCheck={false}
               />
 
+              <div className="flex justify-end w-full gap-2">
+                <button
+                  type="button"
+                  onClick={pasteExample}
+                  className="cursor-pointer px-3 py-2 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-900"
+                >
+                  Load example
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="cursor-pointer px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                >
+                  Clear
+                </button>
+              </div>
               {err && <div className="mt-3 text-red-700 text-sm">{err}</div>}
               <p className="hidden md:block mt-2 text-slate-600">
                 Paste Base64, a <b>data:image/svg+xml</b> URL, an{" "}
@@ -587,6 +583,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
         />
       </div>
       <SeoSections />
+      <Breadcrumbs crumbs={crumbs} />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
       <OtherToolsLinks />
@@ -1015,7 +1012,7 @@ function Breadcrumbs({
   crumbs: Array<{ name: string; href: string }>;
 }) {
   return (
-    <div className="hidden md:flex mb-4">
+    <div className="hidden md:flex max-w-[1100px] mx-auto">
       <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
@@ -1183,7 +1180,7 @@ function SeoSections() {
           )}
 
           {/* Use cases */}
-          <section >
+          <section>
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[

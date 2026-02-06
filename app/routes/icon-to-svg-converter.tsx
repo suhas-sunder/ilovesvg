@@ -12,6 +12,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import { PresetPicker } from "./home";
+import DragArea from "~/client/components/ui/DragArea";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1331,29 +1332,7 @@ export default function IconToSvgConverter({
 
               {/* Dropzone */}
               {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("file-inp")?.click()}
-                  className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-lg text-slate-600">
-                    Click, drag & drop, or paste a PNG/JPEG
-                    <div className="text-sky-700 my-2 text-center text-xs">
-                      Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30
-                      MB are auto-compressed on-device (if possible).
-                    </div>
-                  </div>
-                  <input
-                    id="file-inp"
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1466,14 +1445,10 @@ export default function IconToSvgConverter({
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
-
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
@@ -1530,7 +1505,7 @@ export default function IconToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
+                <p className="text-white m-0">
                   {busy
                     ? "Converting…"
                     : "Your converted SVG will appear here."}

@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { zipSync, strToU8 } from "fflate";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import DragArea from "~/client/components/ui/DragArea";
 
 /* ========================
    Meta
@@ -512,10 +513,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className=" bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -588,25 +586,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
               </div>
 
               {!file && !srcImageUrl && !srcSvgText.trim() ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={onDrop}
-                  onClick={() => document.getElementById("ico-inp")?.click()}
-                  className="mt-3 border border-dashed border-[#c8d3ea] rounded-2xl p-4 text-center cursor-pointer min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <div className="text-sm text-slate-600">
-                    Click, drag & drop, or paste an image (SVG/PNG/JPG/WEBP)
-                  </div>
-                  <input
-                    id="ico-inp"
-                    type="file"
-                    accept="image/svg+xml,image/png,image/jpeg,image/webp,.svg,.png,.jpg,.jpeg,.webp"
-                    onChange={onPick}
-                    className="hidden"
-                  />
-                </div>
+                <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
                   {file ? (
@@ -1203,7 +1183,7 @@ function SeoSections() {
             <strong>ZIP</strong>. Everything runs client-side in your browser.
           </p>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">
               What a Favicon Is (and Why .ICO Still Matters)
             </h3>
@@ -1217,7 +1197,7 @@ function SeoSections() {
             </p>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">
               App Icons, PWA Icons, and Platform Sizes
             </h3>
@@ -1231,7 +1211,7 @@ function SeoSections() {
             </p>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">
               How to Use the Generated Files in Production
             </h3>
@@ -1263,7 +1243,7 @@ function SeoSections() {
             </ol>
           </section>
 
-          <section >
+          <section>
             <h3 className="m-0 font-bold">
               Troubleshooting: “My Favicon Isn’t Changing”
             </h3>
@@ -1503,7 +1483,9 @@ async function canvasToPngFile(
 
 function canvasToObjectUrl(canvas: HTMLCanvasElement, mime: string) {
   const bytes = canvasToPngBytes(canvas);
-  return URL.createObjectURL(new Blob([bytes.buffer.slice(0)], { type: mime }));
+  return URL.createObjectURL(
+    new Blob([bytes.buffer.slice(0) as any], { type: mime }),
+  );
 }
 
 function canvasToPngBytes(canvas: HTMLCanvasElement): Uint8Array {
@@ -1703,7 +1685,7 @@ function downloadBytes(bytes: Uint8Array, filename: string, mime: string) {
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength,
   );
-  const blob = new Blob([ab], { type: mime });
+  const blob = new Blob([ab as any], { type: mime });
 
   const url = URL.createObjectURL(blob);
 
@@ -1838,7 +1820,6 @@ function PreviewTile({
   );
 }
 
- 
 function Breadcrumbs({
   crumbs,
 }: {
