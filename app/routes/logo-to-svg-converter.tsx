@@ -24,7 +24,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Logo to SVG Converter (Clean, Editable Logos)";
   const description =
     "Convert logo PNG or JPG files into clean, scalable SVG with iLoveSVG. Optimized for logos using Potrace-style vectorization with smooth curves and fewer nodes. Live preview, privacy-friendly in-browser processing.";
-  const canonical = "https://ilovesvg.com/logo-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/logo-to-svg-converter";
 
   return [
     { title },

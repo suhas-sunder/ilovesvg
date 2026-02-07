@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG to WebP Converter (Resize & Quality)";
   const description =
     "Convert SVG to WebP instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose solid or transparent backgrounds, set WebP quality, and download the result. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-to-webp-converter";
+  const canonical = "https://www.ilovesvg.com/svg-to-webp-converter";
 
   return [
     { title },
@@ -930,7 +930,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

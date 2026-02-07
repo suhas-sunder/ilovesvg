@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Color Picker & Palette Extractor (PNG, JPG)";
   const description =
     "Pick colors and extract palettes from SVG and images with iLoveSVG. Preview fills and strokes, copy HEX, RGB, or HSL values, and generate palettes from SVG, PNG, JPG, or WebP. Free, fast, runs entirely in your browser.";
-  const canonical = "https://ilovesvg.com/free-color-picker";
+  const canonical = "https://www.ilovesvg.com/free-color-picker";
 
   return [
     { title },

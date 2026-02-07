@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Recolor Tool (Replace Fill & Stroke Colors)";
   const description =
     "Recolor SVGs instantly with iLoveSVG. Automatically extract the SVG color palette, replace specific fill and stroke colors, convert icons to currentColor, and download a clean updated SVG. Paste or upload SVG markup. Free, client-side only, no server.";
-  const canonical = "https://ilovesvg.com/svg-recolor";
+  const canonical = "https://www.ilovesvg.com/svg-recolor";
 
   return [
     { title },

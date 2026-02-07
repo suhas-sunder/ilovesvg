@@ -25,7 +25,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | WebP to SVG Converter (Clean Vector Paths)";
   const description =
     "Convert WebP images to clean, editable SVG paths with iLoveSVG. Live preview, strict size guards, and fast in-memory processing for accurate vectorization. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/webp-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/webp-to-svg-converter";
 
   return [
     { title },

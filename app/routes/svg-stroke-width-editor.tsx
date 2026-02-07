@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Stroke Width Editor (Live Preview)";
   const description =
     "Adjust stroke width in SVG files instantly with iLoveSVG. Multiply stroke widths, set exact values, add missing stroke-width, clamp min or max values, target specific paths or shapes, and preview changes live. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-stroke-width-editor";
+  const canonical = "https://www.ilovesvg.com/svg-stroke-width-editor";
 
   return [
     { title },
@@ -1790,7 +1790,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

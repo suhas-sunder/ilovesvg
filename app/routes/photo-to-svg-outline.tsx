@@ -24,7 +24,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Photo to SVG Outline Converter (Contours)";
   const description =
     "Convert photos (JPG or PNG) into clean outline-only SVG with iLoveSVG. Extract clear contour lines for tracing, laser cutting, or design work with live preview and privacy-friendly in-browser processing.";
-  const canonical = "https://ilovesvg.com/photo-to-svg-outline";
+  const canonical = "https://www.ilovesvg.com/photo-to-svg-outline";
 
   return [
     { title },

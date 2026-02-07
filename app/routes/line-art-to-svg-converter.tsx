@@ -31,7 +31,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Line Art to SVG Converter (Ink Drawings & Scans)";
   const description =
     "Convert line art (ink drawings, sketches, and scans) into clean, editable SVG paths with iLoveSVG. Choose presets for bold or fine lines, scan cleanup, and gap sealing with live preview. Fast, privacy-friendly, in-browser processing.";
-  const canonical = "https://ilovesvg.com/line-art-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/line-art-to-svg-converter";
 
   return [
     { title },

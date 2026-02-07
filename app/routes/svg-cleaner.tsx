@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Cleaner & Optimizer (Remove Metadata, Junk)";
   const description =
     "Clean and optimize SVG files instantly in your browser with iLoveSVG. Remove metadata, comments, editor namespaces, XML declarations, DOCTYPE, unused defs, and hidden junk. Preview changes and download a clean SVG. Free, client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-cleaner";
+  const canonical = "https://www.ilovesvg.com/svg-cleaner";
 
   return [
     { title },
@@ -1675,7 +1675,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

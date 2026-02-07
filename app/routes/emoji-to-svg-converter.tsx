@@ -24,7 +24,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Emoji to SVG Converter (Text & Twemoji)";
   const description =
     "Convert emoji to SVG instantly with ilovesvg. Paste emoji text to export clean Twemoji SVG, or convert emoji images (PNG or JPEG) into vector paths. Supports layouts, recoloring, backgrounds, and fast in-browser processing. Free, no uploads.";
-  const canonical = "https://ilovesvg.com/emoji-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/emoji-to-svg-converter";
 
   return [
     { title },

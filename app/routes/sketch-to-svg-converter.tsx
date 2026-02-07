@@ -21,7 +21,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Sketch to SVG Converter (Hand-Drawn Sketches)";
   const description =
     "Convert hand-drawn sketches (pencil, pen, or marker) into clean, editable SVG with iLoveSVG. Sketch-tuned presets for cleanup and smoothing, live preview, and fast, privacy-friendly in-browser processing.";
-  const canonical = "https://ilovesvg.com/sketch-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/sketch-to-svg-converter";
 
   return [
     { title },

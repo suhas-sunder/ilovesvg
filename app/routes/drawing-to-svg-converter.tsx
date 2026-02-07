@@ -25,7 +25,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Drawing to SVG Converter (Sketches & Line Art)";
   const description =
     "Convert drawings, sketches, and line art from PNG or JPEG into clean, editable SVG with ilovesvg. Built for line art: live preview, adjustable cleanup, and fast in-browser conversion. Free, client-side only, no uploads, no server.";
-  const canonical = "https://ilovesvg.com/drawing-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/drawing-to-svg-converter";
 
   return [
     { title },

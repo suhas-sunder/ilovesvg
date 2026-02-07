@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Background Remover & Editor";
   const description =
     "Remove or add an SVG background instantly with iLoveSVG. Automatically detects full-canvas background rectangles, lets you set solid or transparent backgrounds, preserves viewBox sizing, and exports a clean SVG. Free, client-side only, no server.";
-  const canonical = "https://ilovesvg.com/svg-background-editor";
+  const canonical = "https://www.ilovesvg.com/svg-background-editor";
 
   return [
     { title },

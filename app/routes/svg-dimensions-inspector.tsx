@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Dimensions Inspector (Width, Height, viewBox)";
   const description =
     "Inspect SVG dimensions instantly with iLoveSVG. Paste or upload an SVG to read width, height, and viewBox, compute pixel size, detect sizing issues, and apply fixes like adding a viewBox or setting explicit dimensions. Live preview. Free, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-dimensions-inspector";
+  const canonical = "https://www.ilovesvg.com/svg-dimensions-inspector";
 
   return [
     { title },
@@ -1447,7 +1447,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

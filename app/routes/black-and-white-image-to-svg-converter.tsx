@@ -22,7 +22,7 @@ export function meta({}: Route.MetaArgs) {
   const description =
     "Convert black and white PNG or JPEG images to clean SVG instantly with ilovesvg. Live preview, threshold control, noise cleanup, and one-click SVG export. Free, runs fully in your browser, no uploads.";
   const canonical =
-    "https://ilovesvg.com/black-and-white-image-to-svg-converter";
+    "https://www.ilovesvg.com/black-and-white-image-to-svg-converter";
 
   return [
     { title },

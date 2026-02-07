@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
     "iLoveSVG | SVG File Size Inspector (KB, Compression, Optimize)";
   const description =
     "Inspect SVG file size instantly with iLoveSVG. See exact KB/MB size, detect bloat, estimate compression savings, and identify heavy elements. Paste or upload SVG files. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-file-size-inspector";
+  const canonical = "https://www.ilovesvg.com/svg-file-size-inspector";
 
   return [
     { title },
@@ -983,7 +983,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

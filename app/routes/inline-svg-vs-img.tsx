@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Inline SVG vs IMG Tag (Comparison & Code)";
   const description =
     "Compare inline SVG vs the img tag with iLoveSVG and generate the correct embed code. Paste an SVG to preview both approaches side by side, test CSS styling like currentColor, accessibility options, and caching tradeoffs, then copy ready-to-use snippets. Runs entirely in your browser.";
-  const canonical = "https://ilovesvg.com/inline-svg-vs-img";
+  const canonical = "https://www.ilovesvg.com/inline-svg-vs-img";
 
   return [
     { title },
@@ -2097,7 +2097,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

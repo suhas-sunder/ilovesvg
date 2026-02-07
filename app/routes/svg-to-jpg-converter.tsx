@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG to JPG Converter (Resize & Background)";
   const description =
     "Convert SVG to JPG instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose a background color, set JPEG quality, and download the result. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-to-jpg-converter";
+  const canonical = "https://www.ilovesvg.com/svg-to-jpg-converter";
 
   return [
     { title },
@@ -1003,7 +1003,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

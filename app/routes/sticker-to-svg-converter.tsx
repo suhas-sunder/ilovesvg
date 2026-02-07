@@ -30,7 +30,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Sticker to SVG Converter (Cut-Ready Vectors)";
   const description =
     "Convert sticker PNG or JPEG images into clean, cut-ready SVG vectors with iLoveSVG. Optimized for stickers, logos, and decals with smooth edges, live preview, and fast, privacy-friendly in-browser processing.";
-  const canonical = "https://ilovesvg.com/sticker-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/sticker-to-svg-converter";
 
   return [
     { title },

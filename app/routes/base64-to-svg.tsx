@@ -15,7 +15,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Base64 to SVG Decoder (Data URI to SVG)";
   const description =
     "Decode Base64 or Data URI SVG instantly in your browser with ilovesvg. Paste a Base64 string, <img src>, CSS url(...), or data:image/svg+xml;base64 value. Preview safely, sanitize the SVG, and download the file. Free, client-side only, no uploads.";
-  const canonical = "https://ilovesvg.com/base64-to-svg";
+  const canonical = "https://www.ilovesvg.com/base64-to-svg";
 
   return [
     { title },
@@ -1050,7 +1050,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

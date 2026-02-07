@@ -26,7 +26,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | PNG to SVG Converter (Logos, Icons, Line Art)";
   const description =
     "Convert PNG to SVG with iLoveSVG and get clean, editable output with live preview. Great for transparent logos, icons, and line art, with cleaner paths and fewer nodes. Fast, privacy-friendly, runs entirely in your browser.";
-  const canonical = "https://ilovesvg.com/png-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/png-to-svg-converter";
 
   return [
     { title },
@@ -1944,7 +1944,7 @@ function SeoSections() {
                 name: "PNG to SVG Converter",
                 description:
                   "Convert PNG to SVG with live preview, transparency support, and presets for logos and icons.",
-                url: "https://ilovesvg.com/png-to-svg-converter",
+                url: "https://www.ilovesvg.com/png-to-svg-converter",
               },
               null,
               2,

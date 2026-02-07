@@ -17,7 +17,7 @@ export function meta({}: Route.MetaArgs) {
   const description =
     "Check SVG color contrast against WCAG AA/AAA with iLoveSVG. Preview common color blindness modes, generate higher-contrast color options, and apply changes directly to download an updated SVG.";
   const canonical =
-    "https://ilovesvg.com/svg-accessibility-and-contrast-checker";
+    "https://www.ilovesvg.com/svg-accessibility-and-contrast-checker";
 
   return [
     { title },

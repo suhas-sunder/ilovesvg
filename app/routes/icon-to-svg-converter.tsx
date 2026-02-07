@@ -25,7 +25,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Icon to SVG Converter (PNG/JPEG Icons)";
   const description =
     "Convert icon images (PNG or JPEG) into clean, scalable SVG with iLoveSVG. Optimized for app icons, logos, and UI glyphs with live preview and fast in-browser vectorization. Free, client-side only, no uploads.";
-  const canonical = "https://ilovesvg.com/icon-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/icon-to-svg-converter";
 
   return [
     { title },

@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG to PNG Converter (Resize & Transparency)";
   const description =
     "Convert SVG to PNG instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose transparent or colored backgrounds, and download the PNG. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-to-png-converter";
+  const canonical = "https://www.ilovesvg.com/svg-to-png-converter";
 
   return [
     { title },
@@ -960,7 +960,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

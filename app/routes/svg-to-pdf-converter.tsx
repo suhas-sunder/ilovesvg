@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG to PDF Converter";
   const description =
     "Convert SVG to PDF instantly with iLoveSVG. Paste or upload an SVG, choose paper size, orientation, margins, and DPI, preview the result, and download the PDF. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-to-pdf-converter";
+  const canonical = "https://www.ilovesvg.com/svg-to-pdf-converter";
 
   return [
     { title },
@@ -1342,7 +1342,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

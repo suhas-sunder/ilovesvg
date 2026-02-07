@@ -15,7 +15,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Viewer (Zoom, Pan, Inspect)";
   const description =
     "Inspect SVG files instantly with iLoveSVG. Zoom and pan intuitively, fit to view, pick elements, inspect metadata, and view source. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-preview-viewer";
+  const canonical = "https://www.ilovesvg.com/svg-preview-viewer";
 
   return [
     { title },
@@ -1896,7 +1896,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

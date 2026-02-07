@@ -25,7 +25,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Image to SVG Outline Converter (Line Art & CNC)";
   const description =
     "Convert images (PNG or JPG) into clean outline-only SVG with iLoveSVG. Extract line art and outlines from photos, drawings, or paintings with live preview and fast in-browser processing. Ideal for laser cutting, CNC, and line art cleanup. Free, no uploads.";
-  const canonical = "https://ilovesvg.com/image-to-svg-outline";
+  const canonical = "https://www.ilovesvg.com/image-to-svg-outline";
 
   return [
     { title },

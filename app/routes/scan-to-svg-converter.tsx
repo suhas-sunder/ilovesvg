@@ -25,7 +25,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Scan to SVG Converter (Scanned Drawings & Docs)";
   const description =
     "Convert scanned drawings, documents, and line art into clean, editable SVG with iLoveSVG. Remove speckles, seal gaps, and smooth paths using live preview and fast, privacy-friendly in-browser processing.";
-  const canonical = "https://ilovesvg.com/scan-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/scan-to-svg-converter";
 
   return [
     { title },

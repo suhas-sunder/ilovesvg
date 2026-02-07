@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Embed Code Generator (IMG, Inline, CSS, React)";
   const description =
     "Generate SVG embed code instantly in your browser with iLoveSVG. Create HTML <img>, inline SVG, CSS background or mask, Data URI (UTF-8 or Base64), React/JSX, and <object> or <iframe> snippets. Control sizing and accessibility. Free, client-side only, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-embed-code-generator";
+  const canonical = "https://www.ilovesvg.com/svg-embed-code-generator";
 
   return [
     { title },
@@ -2285,7 +2285,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

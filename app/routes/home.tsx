@@ -25,7 +25,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | PNG to SVG Converter - Free Online Image to SVG";
   const description =
     "Convert PNG and JPG images to clean, scalable SVG instantly. Live preview, fast processing, and no uploads required. Free online PNG to SVG converter by iLoveSVG.";
-  const canonical = "https://ilovesvg.com";
+  const canonical = "https://www.ilovesvg.com";
 
   return [
     { title },

@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Flip & Rotate Editor (Live Preview)";
   const description =
     "Flip or rotate an SVG instantly with iLoveSVG. Paste or upload SVG, flip horizontally or vertically, rotate by degrees or 90° steps, preview changes live, then copy or download the updated SVG. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-flip-and-rotate-editor";
+  const canonical = "https://www.ilovesvg.com/svg-flip-and-rotate-editor";
 
   return [
     { title },
@@ -1219,7 +1219,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

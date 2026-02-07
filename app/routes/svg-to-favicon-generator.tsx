@@ -17,7 +17,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | Favicon Generator (ICO & App Icons)";
   const description =
     "Generate a favicon.ico and full app icon set with iLoveSVG. Create 16x16 to 256x256 ICO files, Apple touch icons, Android and Chrome icons, Microsoft tiles, plus a production-ready HTML snippet. Free, runs 100% in your browser.";
-  const canonical = "https://ilovesvg.com/svg-to-favicon-generator";
+  const canonical = "https://www.ilovesvg.com/svg-to-favicon-generator";
 
   return [
     { title },
@@ -1980,7 +1980,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

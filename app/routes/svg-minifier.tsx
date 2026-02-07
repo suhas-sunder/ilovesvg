@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Minify Tool (Client-Side SVG Minifier)";
   const description =
     "Minify SVG files instantly with iLoveSVG. Remove comments, collapse whitespace, optionally strip XML or DOCTYPE, clean style attributes, and download the optimized SVG. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-minifier";
+  const canonical = "https://www.ilovesvg.com/svg-minifier";
 
   return [
     { title },
@@ -891,7 +891,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

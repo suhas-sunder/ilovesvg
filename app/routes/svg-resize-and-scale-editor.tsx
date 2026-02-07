@@ -16,7 +16,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Resize & Scale Tool (Width, Height, viewBox)";
   const description =
     "Resize and scale SVG files instantly with iLoveSVG. Change width and height, preserve aspect ratio, scale by percentage, update the viewBox, and download the resized SVG. Free, fully client-side, no uploads.";
-  const canonical = "https://ilovesvg.com/svg-resize-and-scale-editor";
+  const canonical = "https://www.ilovesvg.com/svg-resize-and-scale-editor";
 
   return [
     { title },
@@ -1128,7 +1128,7 @@ function Breadcrumbs({
 }
 
 function JsonLdBreadcrumbs() {
-  const baseUrl = "https://ilovesvg.com";
+  const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",

@@ -26,7 +26,7 @@ export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | JPG to SVG Converter (Photos & Scans)";
   const description =
     "Convert JPG images to clean, editable SVG with iLoveSVG. Works for photos, screenshots, scans, and whiteboards using outline or ink-style presets with live preview. Fast, accurate, and runs entirely in your browser.";
-  const canonical = "https://ilovesvg.com/jpg-to-svg-converter";
+  const canonical = "https://www.ilovesvg.com/jpg-to-svg-converter";
 
   return [
     { title },
@@ -1803,7 +1803,7 @@ function JpgSeoSections() {
                 name: "JPG to SVG Converter",
                 description:
                   "Convert JPG images to SVG using scan presets or optional edge extraction for photo outlines.",
-                url: "https://ilovesvg.com/jpg-to-svg-converter",
+                url: "https://www.ilovesvg.com/jpg-to-svg-converter",
               },
               null,
               2,
