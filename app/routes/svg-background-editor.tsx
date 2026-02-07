@@ -345,46 +345,14 @@ export default function SvgBackgroundPage({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          {/* Breadcrumbs */}
-          <nav
-            aria-label="Breadcrumb"
-            className="text-[13px] text-slate-600 mb-3"
-          >
-            <ol className="flex flex-wrap items-center gap-2">
-              {breadcrumbs.map((b, i) => (
-                <li key={b.url} className="flex items-center gap-2">
-                  <a
-                    href={b.url}
-                    className="hover:text-slate-900 underline-offset-2 hover:underline"
-                  >
-                    {b.name}
-                  </a>
-                  {i < breadcrumbs.length - 1 && (
-                    <span className="text-slate-400">/</span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </nav>
-
-          <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-[#0b2dff]">Background</span>
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[900px] mx-auto">
-              Add, remove, or replace an SVG background without a server. We
-              parse your SVG, detect full-canvas background elements (when they
-              exist), and export a cleaned SVG. Upload a file or paste SVG
-              markup.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-visible min-w-0">
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                <h2 className="m-0 text-lg text-slate-900">Input SVG</h2>
+                <h1 className="mb-1 text-sky-800 inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Background Editor
+                </h1>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -410,7 +378,7 @@ export default function SvgBackgroundPage({
                         setErr(er?.message || "Invalid SVG markup.");
                       }
                     }}
-                    className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="flex cursor-pointer items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-50 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Paste SVG Example
@@ -418,7 +386,7 @@ export default function SvgBackgroundPage({
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="trash" size={16} className="mr-1" />
                     Clear
@@ -526,7 +494,7 @@ export default function SvgBackgroundPage({
 
             {/* SETTINGS + OUTPUT */}
             <div className="bg-sky-50 sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">
+              <h2 className="m-0 mb-3 text-lg text-slate-900 font-semibold">
                 Background Settings
               </h2>
 
@@ -857,6 +825,27 @@ export default function SvgBackgroundPage({
         </div>
         <OtherToolsLinks />
         <RelatedSites />
+        {/* Breadcrumbs */}
+        <nav
+          aria-label="Breadcrumb"
+          className="text-[13px] text-slate-600 mb-3 max-w-[1180px] mx-auto px-4"
+        >
+          <ol className="flex flex-wrap items-center gap-2">
+            {breadcrumbs.map((b, i) => (
+              <li key={b.url} className="flex items-center gap-2">
+                <a
+                  href={b.url}
+                  className="hover:text-slate-900 underline-offset-2 hover:underline"
+                >
+                  {b.name}
+                </a>
+                {i < breadcrumbs.length - 1 && (
+                  <span className="text-slate-400">/</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
         <SocialLinks />
         <SiteFooter />
 
@@ -919,7 +908,7 @@ function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
-        <article className="max-w-[920px]">
+        <article>
           {/* Title */}
           <header>
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight m-0">
@@ -937,9 +926,30 @@ function SeoSections() {
               tries to identify that kind of element, and then removes it,
               replaces it, or inserts a new background behind your artwork.
             </p>
+            <p className="mt-2 text-slate-600  mx-auto">
+              Add, remove, or replace an SVG background without a server. We
+              parse your SVG, detect full-canvas background elements (when they
+              exist), and export a cleaned SVG. Upload a file or paste SVG
+              markup.
+            </p>
 
+            {typeof document !== "undefined" && (
+              <div className="block py-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
             {/* Quick workflow */}
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className=" rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <h3 className="m-0 text-base font-extrabold text-slate-900">
@@ -1010,22 +1020,6 @@ function SeoSections() {
               </ol>
             </div>
           </header>
-
-          {typeof document !== "undefined" && (
-            <div className="block py-8">
-              <AdSenseDelayed
-                slot="7336722354"
-                delayMs={2500}
-                afterInteraction={true}
-                className="my-3"
-                format="rectangle"
-                fullWidth={false}
-                minHeight={250}
-                maxHeight={300}
-                placeholderLabel="Sponsored"
-              />
-            </div>
-          )}
 
           {/* Main grid */}
           <div className="mt-2 grid gap-6 md:grid-cols-2">

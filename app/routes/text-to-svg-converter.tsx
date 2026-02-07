@@ -964,20 +964,13 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-3">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Text to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[92ch] mx-auto">
-              Exports true SVG outline paths using your selected font file.
-              Upload TTF, OTF, or WOFF for best results.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="text-xl text-center mb-3 text-sky-800 sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                Text to SVG Converter
+              </h1>
 
               <textarea
                 value={text}
@@ -1341,14 +1334,10 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
-
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
               {outputMode === "grouped" ? (
                 groupedSvg ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-2">
@@ -1385,7 +1374,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                       <button
                         type="button"
                         onClick={() => copyText(groupedSvg)}
-                        className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                        className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                       >
                         <Icons name="copy" size={16} className="mr-1" />
                         Copy SVG
@@ -1393,8 +1382,15 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-slate-600 m-0">
-                    {busy ? "Converting…" : "Your SVG will appear here."}
+                  <p className="justify-center items-center flex text-white m-0 font-semibold">
+                    {!busy && (
+                      <Icons
+                        name="success"
+                        size={20}
+                        className="inline-block mr-1"
+                      />
+                    )}
+                    {busy ? "Converting…" : "Converted files appear here...  "}
                   </p>
                 )
               ) : items.length > 0 ? (
@@ -1417,7 +1413,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                           <button
                             type="button"
                             onClick={() => copyText(it.svg)}
-                            className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors text-sm"
+                            className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors text-sm"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy
@@ -1642,14 +1638,17 @@ function SeoSections() {
               Upload fonts and export true SVG outline paths
             </h2>
 
-            <p className="text-slate-600 max-w-[92ch] mt-2">
+            <p className="text-slate-600  mt-2">
               This tool converts text into real vector outlines (SVG{" "}
               <code>&lt;path&gt;</code>), so the export does not depend on fonts
               being installed. Upload a font file (TTF, OTF, or WOFF) or use
               builtin fonts, then export one SVG or split exports by line, word,
               or character.
             </p>
-
+            <p className="mt-2 text-slate-600 mx-auto">
+              Exports true SVG outline paths using your selected font file.
+              Upload TTF, OTF, or WOFF for best results.
+            </p>
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-semibold text-slate-900">

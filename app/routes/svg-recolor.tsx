@@ -399,30 +399,18 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-[#0b2dff]">Recolor</span>
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[900px] mx-auto">
-              Upload an SVG or paste SVG markup. This tool extracts the{" "}
-              <b>actual palette</b> (fill and stroke), lets you replace specific
-              colors, recolor everything to one color, or convert icons to{" "}
-              <b>currentColor</b> for CSS theming. Runs client-side.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-visible min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <h2 className="m-0 text-lg text-slate-900">Input SVG</h2>
-
+              <div className="flex flex-col items-center justify-between gap-2 mb-3">
+                <h1 className="inline-flex mb-1 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Recolor
+                </h1>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   <button
                     type="button"
                     onClick={() => setShowPasteBox((v) => !v)}
-                    className="cursor-pointer flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="cursor-pointer flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="copy" size={16} className="mr-1" />
                     {showPasteBox ? "Hide paste box" : "Paste SVG"}
@@ -552,7 +540,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                             <button
                               type="button"
                               onClick={addRulesForAllPaletteColors}
-                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                             >
                               Add rules for all colors
                             </button>
@@ -798,7 +786,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                         <button
                                           type="button"
                                           onClick={() => removePair(p.id)}
-                                          className="flex items-center justify-center px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                                          className="flex items-center justify-center px-2 py-1 rounded-md border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                                           title="Remove rule"
                                         >
                                           <Icons
@@ -817,7 +805,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                   <button
                                     type="button"
                                     onClick={() => addPair()}
-                                    className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                                    className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
                                   >
                                     Add rule
                                   </button>
@@ -1191,7 +1179,7 @@ function SeoSections() {
   return (
     <section className="bg-white border-t mt-6 border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-4 text-slate-900">
-        <div className="max-w-[980px]">
+        <div>
           <header className="mb-8">
             <h2 className="m-0 text-[26px] font-extrabold tracking-tight">
               SVG Recolor Guide
@@ -1200,6 +1188,13 @@ function SeoSections() {
               This page edits the SVG <b>as text</b> in your browser. It
               extracts a palette, applies replacements, and outputs a cleaned
               SVG you can download. Nothing is uploaded to a server.
+            </p>
+
+            <p className="mt-2 text-slate-600  mx-auto">
+              Upload an SVG or paste SVG markup. This tool extracts the{" "}
+              <b>actual palette</b> (fill and stroke), lets you replace specific
+              colors, recolor everything to one color, or convert icons to{" "}
+              <b>currentColor</b> for CSS theming. Runs client-side.
             </p>
           </header>
           {typeof document !== "undefined" && (

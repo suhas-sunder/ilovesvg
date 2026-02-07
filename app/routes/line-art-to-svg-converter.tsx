@@ -1557,7 +1557,7 @@ export default function LineArtToSvgConverter({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons
                               name="copy"

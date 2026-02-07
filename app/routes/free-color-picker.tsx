@@ -540,28 +540,7 @@ export default function FreeColorPicker() {
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: Controls */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <nav
-                aria-label="Breadcrumb"
-                className="text-sm text-slate-600 mb-1"
-              >
-                <ol className="flex items-center gap-2">
-                  <li>
-                    <Link
-                      to="/"
-                      className="hover:text-slate-900 hover:underline underline-offset-4"
-                    >
-                      Home
-                    </Link>
-                  </li>
-                  <li className="text-slate-300" aria-hidden>
-                    /
-                  </li>
-                  <li className="text-slate-900 font-semibold">
-                    Free Color Picker
-                  </li>
-                </ol>
-              </nav>{" "}
-              <h1 className="text-2xl md:text-3xl font-extrabold leading-tight mb-2">
+              <h1 className="text-2xl text-sky-800 md:text-3xl font-extrabold leading-tight mb-2">
                 Free Color Picker{" "}
                 <span className="text-slate-500 text-base font-semibold">
                   + Palette Extractor (SVG & Images)
@@ -862,7 +841,6 @@ export default function FreeColorPicker() {
           dangerouslySetInnerHTML={{ __html: faqJsonLd() }}
         />
       </main>
-
       {/* Toast */}
       {toast && (
         <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
@@ -881,6 +859,25 @@ export default function FreeColorPicker() {
         />
       </div>
       <OtherToolsLinks />
+      <nav
+        aria-label="Breadcrumb"
+        className="text-sm text-slate-600 mb-1 max-w-[1180px] mx-auto px-4"
+      >
+        <ol className="flex items-center gap-2">
+          <li>
+            <Link
+              to="/"
+              className="hover:text-slate-900 hover:underline underline-offset-4"
+            >
+              Home
+            </Link>
+          </li>
+          <li className="text-slate-300" aria-hidden>
+            /
+          </li>
+          <li className="text-slate-900 font-semibold">Free Color Picker</li>
+        </ol>
+      </nav>{" "}
       <RelatedSites />
       <SocialLinks />
       <SiteFooter />

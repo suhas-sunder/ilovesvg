@@ -700,7 +700,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
             <div className="border-b border-slate-200 bg-white ">
               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap ">
                 <div className="flex items-center gap-3 min-w-0">
-                  <label className="inline-flex items-center gap-2 px-3  py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 px-3  py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 cursor-pointer">
                     <span className="font-semibold text-slate-900 text-[14px]">
                       Open SVG
                     </span>
@@ -739,7 +739,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => zoomAtCenter(scale / 1.15)}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Zoom out (Ctrl + -)"
                   >
                     −
@@ -749,7 +749,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => zoomAtCenter(scale * 1.15)}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Zoom in (Ctrl + +)"
                   >
                     +
@@ -794,7 +794,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={resetView}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Reset view"
                   >
                     Reset
@@ -812,7 +812,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                       "px-3 py-2 rounded-xl border transition-colors",
                       settings.picker
                         ? "border-sky-300 bg-sky-50 text-slate-900"
-                        : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900",
+                        : "border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900",
                       "disabled:opacity-60 disabled:cursor-not-allowed",
                     ].join(" ")}
                     title="Element picker (P). Click an element to inspect."
@@ -832,7 +832,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     className={[
                       "px-3 py-2 rounded-xl border transition-colors",
                       settings.showInspector
-                        ? "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                        ? "border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                         : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
                     ].join(" ")}
                     title="Toggle inspector (I)"
@@ -898,7 +898,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => copy(svgText)}
                     disabled={!hydrated || !svgText}
-                    className=" inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className=" inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Copy source"
                   >
                     <Icons name="copy" size={16} className="mr-1" />
@@ -1038,7 +1038,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                         onClick={() =>
                           setSettings((s) => ({ ...s, showInspector: false }))
                         }
-                        className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                        className="px-2 py-1 rounded-lg border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                         title="Hide"
                       >
                         ×
@@ -1299,7 +1299,7 @@ function ElementsPanel({
             <button
               type="button"
               onClick={onClearPick}
-              className="inline-flex items-center justify-center mt-1 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+              className="inline-flex items-center justify-center mt-1 px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
             >
               <Icons name="trash" size={16} className="mr-1" />
               Clear selection
@@ -1386,7 +1386,7 @@ function SourcePanel({
             type="button"
             onClick={onCopySource}
             disabled={!hydrated || !svgText}
-            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Icons name="copy" size={16} className="mr-1" />
             Copy source
@@ -1395,7 +1395,7 @@ function SourcePanel({
             type="button"
             onClick={onCopyPreview}
             disabled={!hydrated || !safeSvg}
-            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Icons name="copy" size={16} className="mr-1" />
             Copy preview
@@ -1985,9 +1985,9 @@ function SeoSections() {
                 PNG/JPEG to SVG vectorizer
               </p>
 
-              <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight leading-tight text-slate-900">
+              <h1 className="m-0 text-2xl text-sky-800 md:text-3xl font-extrabold tracking-tight leading-tight">
                 Image to SVG Converter (PNG, JPG, JPEG, WebP)
-              </h2>
+              </h1>
 
               <p className="m-0 text-[15px] leading-relaxed text-slate-700">
                 Convert raster images into{" "}

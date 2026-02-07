@@ -14,6 +14,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { PresetPicker } from "./home";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1073,121 +1074,19 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-2">
-            <h1 className="text-[32px] md:text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              PNG to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
-              Vectorize PNGs into clean, editable SVG paths. This page is tuned
-              for transparent PNGs, logos, icons, and crisp line art. For soft
-              edges or glow, start with a PNG Icon preset and adjust threshold.
-            </p>
-
-            <div className="mt-3 flex flex-wrap gap-2 justify-center text-sm">
-              <a
-                href="/"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                Image to SVG (general)
-              </a>
-              <a
-                href="/svg-to-png-converter"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                SVG to PNG
-              </a>
-              <a
-                href="/svg-to-jpg-converter"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                SVG to JPG
-              </a>
-              <a
-                href="/svg-recolor"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                Recolor SVG
-              </a>
-            </div>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="text-[32px] flex mb-3 text-sky-800 text-xl md:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                PNG to SVG Converter
+              </h1>
 
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {!file ? (
-                <DragArea
-                  onPick={onPick}
-                  onDrop={onDrop}
-                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
-                  MAX_MP={MAX_MP}
-                  MAX_SIDE={MAX_SIDE}
-                />
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize &&
-                          originalFileSize > file.size &&
-                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               <div className="mt-3 min-w-0">
                 <button
@@ -1197,7 +1096,8 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center">
+                    <Icons name="settings" size={16} className="mr-1" />
                     Advanced settings
                   </span>
 
@@ -1403,6 +1303,60 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                   </div>
                 )}
               </div>
+              {!file ? (
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize &&
+                          originalFileSize > file.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
@@ -1411,11 +1365,12 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
+                  <Icons name="convert" size={16} className="mr-1" />
                   {busy ? "Converting..." : "Convert PNG to SVG"}
                 </button>
 
@@ -1443,13 +1398,10 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1496,7 +1448,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
@@ -1539,7 +1491,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-      <PngSeoSections />
+      <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1730,7 +1682,7 @@ function prettyBytes(bytes: number) {
 /* ========================
    PNG-specific SEO (unique)
 ======================== */
-function PngSeoSections() {
+function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -1739,17 +1691,27 @@ function PngSeoSections() {
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               PNG vectorizer for logos, icons, and transparency
             </p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+
+            <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight text-slate-900">
               PNG to SVG for clean assets and transparent backgrounds
             </h2>
-            <p className="mt-2 text-slate-600 max-w-[85ch]">
-              PNG is the go-to format for UI icons, app assets, and logos with
-              transparency. This page focuses on that use case: predictable
-              edges, controllable smoothing, speck cleanup, and a transparent
-              output option so your SVG layers cleanly.
+
+            <p className="mt-3 text-slate-700  leading-relaxed">
+              PNG is the default format for UI icons, app assets, and logos with
+              transparency. This page is tuned for that workflow: clean edges,
+              controllable smoothing, speck cleanup, and an output that layers
+              nicely on any background. Use the presets as a starting point,
+              then adjust the few controls that matter for PNGs: what counts as
+              ink, how aggressively curves are simplified, and how much tiny
+              noise is removed.
+            </p>
+            <p className="mt-2 text-slate-600  mx-auto">
+              Vectorize PNGs into clean, editable SVG paths. This page is tuned
+              for transparent PNGs, logos, icons, and crisp line art. For soft
+              edges or glow, start with a PNG Icon preset and adjust threshold.
             </p>
 
-            <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { k: "Transparency-aware", v: "Keep overlay-friendly output" },
                 { k: "Logo presets", v: "Cleaner shapes with fewer nodes" },
@@ -1760,12 +1722,15 @@ function PngSeoSections() {
                   key={x.k}
                   className="rounded-xl border border-slate-200 bg-white p-4"
                 >
-                  <div className="text-sm font-semibold">{x.k}</div>
-                  <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {x.k}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">{x.v}</div>
                 </div>
               ))}
             </div>
           </header>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1781,37 +1746,151 @@ function PngSeoSections() {
               />
             </div>
           )}
+
+          {/* Utility-first content (PNG-specific, not bloggy) */}
           <section>
-            <h3 className="text-lg font-bold">When PNG converts best</h3>
-            <div className="mt-3 grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold">
-                  Logos on transparency
-                </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  This is also a transparent png to svg converter. In most
-                  cases, transparent PNG logos usually trace cleanly. Keep
-                  Background set to Transparent and start with PNG Logo to get
-                  Clean shapes.
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="m-0 text-xl font-bold text-slate-900">
+                PNG → SVG: what to optimize for
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700 leading-relaxed">
+                <p className="m-0">
+                  PNG is raster. SVG is vector. The conversion step is deciding
+                  what pixels become shapes and how complex those shapes should
+                  be. For most PNG logos and icons, the best SVG is not the
+                  “most accurate” trace. It is the one that has{" "}
+                  <strong>smooth curves</strong>,{" "}
+                  <strong>minimal node count</strong>, and{" "}
+                  <strong>correct bounds</strong> so it is easy to edit and
+                  scales cleanly.
+                </p>
+
+                <p className="m-0">
+                  The most important control is <strong>threshold</strong>.
+                  Threshold decides which parts of the PNG are considered ink
+                  (kept) vs background (ignored). If thin features disappear,
+                  threshold is usually too strict. If edges get fat or holes
+                  fill in, threshold is usually too permissive. Once the
+                  silhouette is correct, use <strong>curve tolerance</strong> to
+                  reduce point noise and smooth paths without rounding
+                  intentional corners. Finally, use{" "}
+                  <strong>speck cleanup</strong> (turd size) to remove isolated
+                  blobs caused by antialiasing or compression.
+                </p>
+
+                <p className="m-0">
+                  Transparency is where PNG shines. If your logo sits on a
+                  transparent background, keep Background set to{" "}
+                  <strong>Transparent</strong> so the SVG overlays cleanly in UI
+                  comps and on the web. If you imported a PNG with a baked-in
+                  background, switch to a solid background mode or clean the PNG
+                  first so the trace does not pick up background texture.
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="text-sm font-semibold">Icons and UI assets</div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Thin details can disappear if threshold is too low. Use PNG
-                  Icon - Thin details, then adjust threshold and curve
-                  tolerance.
-                </p>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 1: Lock the silhouette
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Adjust threshold until thin strokes and counters are present
+                    without merging or filling holes.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 2: Reduce nodes
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase curve tolerance to smooth edges and cut node count.
+                    Stop when geometry starts drifting.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 3: Remove specks
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase turd size to remove isolated dots from antialiasing
+                    and noisy edges.
+                  </div>
+                </div>
               </div>
             </div>
           </section>
 
+          <section className="mt-8">
+            <h3 className="text-lg font-bold text-slate-900">
+              When PNG converts best
+            </h3>
+
+            <div className="mt-3 grid md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Logos on transparency
+                </div>
+                <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                  Transparent PNG logos usually trace cleanly because the
+                  background is unambiguous. Keep Background set to Transparent
+                  and start with PNG Logo (Clean shapes). Then adjust threshold
+                  until counters and small gaps are preserved.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Icons and UI assets
+                </div>
+                <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                  Thin details can disappear if threshold is too aggressive.
+                  Start with PNG Icon (Thin details), then fine-tune threshold
+                  and curve tolerance so strokes stay visible without adding
+                  jagged edges.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid md:grid-cols-3 gap-4">
+              {[
+                {
+                  title: "Crisp edges (no fuzz)",
+                  body: "If edges look fuzzy, reduce threshold slightly and increase tolerance a bit. Fuzz usually comes from tracing antialiasing.",
+                },
+                {
+                  title: "Keep small gaps and counters",
+                  body: "If holes fill in (like inside letters), lower threshold or switch to a thin-details preset before increasing tolerance.",
+                },
+                {
+                  title: "Editable in design tools",
+                  body: "Lower node count makes editing easier. Increase tolerance until handles feel manageable without changing the silhouette.",
+                },
+              ].map((c) => (
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {c.title}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    {c.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* FAQ unchanged */}
           <section
             className="mt-12"
             itemScope
             itemType="https://schema.org/FAQPage"
           >
-            <h3 className="text-lg font-bold">PNG to SVG FAQ</h3>
+            <h3 className="text-lg font-bold text-slate-900">PNG to SVG FAQ</h3>
             <div className="mt-4 grid gap-3">
               {[
                 {
@@ -1834,14 +1913,17 @@ function PngSeoSections() {
                   itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
+                  <h4
+                    itemProp="name"
+                    className="m-0 font-semibold text-slate-900"
+                  >
                     {x.q}
                   </h4>
                   <p
                     itemScope
                     itemType="https://schema.org/Answer"
                     itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
+                    className="mt-2 text-sm text-slate-700 leading-relaxed"
                   >
                     <span itemProp="text">{x.a}</span>
                   </p>

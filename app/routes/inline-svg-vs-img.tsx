@@ -360,7 +360,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons
                       name="example"
@@ -1011,7 +1011,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
             />
           </section>
           {typeof document !== "undefined" && (
-            <div className="block py-6">
+            <div className="block pb-6">
               <AdSenseDelayed
                 slot="7336722354"
                 delayMs={2500}
@@ -1026,7 +1026,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
             </div>
           )}
           {/* COMPARISON */}
-          <section className=" mb-6 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden">
+          <section className="mb-6 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="m-0 font-bold text-lg text-slate-900">
                 Inline SVG vs {"<img>"} comparison
@@ -2188,33 +2188,213 @@ function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
-            Inline SVG vs {"<img>"}: Which should you use?
-          </h2>
-          <p className="mt-3">
-            People searching for <strong>inline SVG vs img</strong> usually want
-            one thing: the right embed method for icons, logos, and UI graphics.
-            Inline SVG gives you full control over styling and accessibility
-            because the SVG markup lives in the DOM. The {"<img>"} tag is simple
-            and cache-friendly because it references a file URL (or a data URI)
-            but you cannot style the internal SVG paths with CSS.
-          </p>
-          <p>
-            This page lets you <strong>preview both methods</strong>, test{" "}
-            <strong>currentColor</strong> behavior, generate clean snippets, and
-            apply safe sanitization options before you ship.
-          </p>
+        <article className="max-w-none">
+          {/* Header */}
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              inline svg vs img
+            </p>
 
+            <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight text-slate-900">
+              Inline SVG vs {"<img>"}: which should you use?
+            </h2>
+
+            <p className="mt-3 text-slate-700 max-w-[92ch] leading-relaxed">
+              If you’re choosing between <strong>inline SVG</strong> and the{" "}
+              <strong>{"<img>"}</strong> tag, the decision is mostly about{" "}
+              <strong>styling control</strong> vs <strong>simplicity</strong>.
+              Inline SVG lives in the DOM so you can style fills/strokes and use{" "}
+              <strong>currentColor</strong>. {"<img>"} is cache-friendly and
+              clean, but you can’t reliably style internal SVG paths with CSS.
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Need theming
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Use inline SVG for <code>currentColor</code>, hover, active,
+                  and per-path styling.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Need caching
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Use {"<img>"} for URL-based reuse across pages and bundles.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Want clean DOM
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  {"<img>"} keeps SVG markup out of your HTML and components.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Untrusted SVG
+                </div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Keep sanitization on before you inline anything.
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Two-column comparison */}
+          <section className="mt-8 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <h3 className="text-lg font-bold text-slate-900 m-0">
+                Inline SVG
+              </h3>
+              <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+                Best when the SVG is part of your UI system and needs to respond
+                to theme colors, hover states, and component props.
+              </p>
+
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    What you can control
+                  </div>
+                  <ul className="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+                    <li>
+                      Target internal nodes (<code>path</code>,{" "}
+                      <code>circle</code>, <code>stroke</code>,{" "}
+                      <code>fill</code>)
+                    </li>
+                    <li>
+                      Use <code>currentColor</code> for themeable icons
+                    </li>
+                    <li>
+                      Add <code>aria-label</code>, <code>&lt;title&gt;</code>,{" "}
+                      <code>&lt;desc&gt;</code> for accessibility
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Trade-offs
+                  </div>
+                  <ul className="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+                    <li>More DOM nodes and bigger HTML if repeated</li>
+                    <li>Requires sanitization for untrusted SVG markup</li>
+                    <li>
+                      IDs can collide if you inline the same SVG many times
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <h3 className="text-lg font-bold text-slate-900 m-0">
+                {"<img>"} (file URL or data URI)
+              </h3>
+              <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+                Best when you want a simple, cacheable asset that you place like
+                any other image.
+              </p>
+
+              <div className="mt-4 grid gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    What you get
+                  </div>
+                  <ul className="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+                    <li>Easy caching and reuse across pages</li>
+                    <li>Cleaner DOM (no inline markup)</li>
+                    <li>
+                      Standard accessibility via <code>alt</code>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Limits
+                  </div>
+                  <ul className="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+                    <li>Cannot style internal paths with CSS</li>
+                    <li>
+                      Theme color changes require separate files or
+                      preprocessing
+                    </li>
+                    <li>
+                      Data URIs can bloat CSS/HTML and are harder to debug
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Quick decision grid */}
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+            <h3 className="m-0 text-xl font-bold text-slate-900">
+              Quick decision rules
+            </h3>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Choose inline SVG if…
+                </div>
+                <ul className="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+                  <li>
+                    You need themeable icons with <code>currentColor</code>
+                  </li>
+                  <li>
+                    You want hover/active states that change fills/strokes
+                  </li>
+                  <li>You need SVG-specific accessibility markup</li>
+                  <li>You need to tweak viewBox, IDs, or classes in-place</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <div className="text-sm font-semibold text-slate-900">
+                  Choose {"<img>"} if…
+                </div>
+                <ul className="mt-2 text-sm text-slate-700 list-disc pl-5 space-y-1">
+                  <li>You want maximum caching and reuse</li>
+                  <li>The icon is decorative and does not need theming</li>
+                  <li>You want minimal DOM and simpler components</li>
+                  <li>You’re embedding the same asset many times</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* HowTo */}
           <section
-            className="mt-8"
+            className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 md:p-8"
             itemScope
             itemType="https://schema.org/HowTo"
           >
-            <h3 itemProp="name" className="m-0 font-bold">
+            <h3
+              itemProp="name"
+              className="m-0 text-xl font-bold text-slate-900"
+            >
               How to choose between inline SVG and {"<img>"}
             </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
+
+            <p className="mt-2 text-sm text-slate-700 max-w-[92ch] leading-relaxed">
+              Use the preview on this page to validate the exact behavior you
+              care about: theming with <code>currentColor</code>, styling
+              constraints, and whether your SVG has any unsafe markup that
+              should be removed before shipping.
+            </p>
+
+            <ol className="mt-4 grid gap-2 list-decimal pl-5 text-sm text-slate-700">
               <li itemProp="step">Paste or upload an SVG.</li>
               <li itemProp="step">
                 Enable currentColor if you want themeable icons.

@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { PresetPicker } from "./home";
 
 const isServer = typeof document === "undefined";
 
@@ -1072,108 +1073,18 @@ export default function SketchToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="text-[13px] text-slate-600 mb-3">
-            <Link to="/" className="hover:underline underline-offset-4">
-              Home
-            </Link>{" "}
-            <span className="mx-1 text-slate-300">/</span>{" "}
-            <span className="text-slate-700">{breadcrumbName}</span>
-          </div>
+         
 
-          <header className="text-center mb-2">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Sketch to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
-              Convert photos or scans of sketches into clean, editable SVG. Use
-              sketch-tuned presets for pencil, pen, marker, and whiteboard
-              input, with live preview and on-device compression for large
-              images.
-            </p>
-          </header>
-
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-3 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
-
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="text-[13px] text-slate-600 mb-2">
-                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
-                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b> longest side
-              </div>
-
-              {!fileRef.current ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span
-                        title={fileRef.current?.name || ""}
-                        className="truncate"
-                      >
-                        {fileRef.current?.name} •{" "}
-                        {prettyBytes(fileRef.current?.size || 0)}
-                        {originalFileSize &&
-                          fileRef.current &&
-                          originalFileSize > fileRef.current.size &&
-                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        fileRef.current = null;
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                        setHistory([]);
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
+              <h1 className="flex text-center text-sky-800 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none mb-3">
+                Sketch to SVG Converter
+              </h1>
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               <div className="mt-3 min-w-0">
                 <button
@@ -1404,6 +1315,66 @@ export default function SketchToSvgConverter({
                   </div>
                 )}
               </div>
+              <div className="text-[13px] text-slate-600 mb-2">
+                Limits: <b>{MAX_UPLOAD_BYTES / (1024 * 1024)} MB</b> •{" "}
+                <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px</b> longest side
+              </div>
+
+              {!fileRef.current ? (
+                <DragArea onPick={onPick} onDrop={onDrop} />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span
+                        title={fileRef.current?.name || ""}
+                        className="truncate"
+                      >
+                        {fileRef.current?.name} •{" "}
+                        {prettyBytes(fileRef.current?.size || 0)}
+                        {originalFileSize &&
+                          fileRef.current &&
+                          originalFileSize > fileRef.current.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        fileRef.current = null;
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                        setHistory([]);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
@@ -1444,13 +1415,10 @@ export default function SketchToSvgConverter({
               )}
             </div>
 
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1496,7 +1464,7 @@ export default function SketchToSvgConverter({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
@@ -1764,13 +1732,18 @@ function SeoSections() {
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
                 Turn sketches into clean SVG paths
               </h2>
-              <p className="text-slate-600 max-w-[80ch]">
+              <p className="text-slate-600 ">
                 This tool is tuned for pencil and ink drawings, scanned notes,
                 and whiteboard photos. Use edge preprocessing for faint lines,
                 increase turd size to remove dust, and adjust curve tolerance to
                 balance detail and smoothness.
               </p>
-
+              <p className="mt-2 text-slate-600 mx-auto">
+                Convert photos or scans of sketches into clean, editable SVG.
+                Use sketch-tuned presets for pencil, pen, marker, and whiteboard
+                input, with live preview and on-device compression for large
+                images.
+              </p>
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {

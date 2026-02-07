@@ -258,25 +258,12 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">→</span>
-              <span className="text-[#0b2dff]">JPG</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Instant <b>SVG to JPG</b> conversion in your browser. Resize
-              width/height, pick a background color, set JPEG quality, and
-              download. <b>No uploads</b>, no server processing.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Upload SVG
-              </h2>
+              <h1 className="inline-flex mb-1 text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                SVG to JPG Converter
+              </h1>
 
               {!file ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
@@ -313,7 +300,6 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                   )}
                 </>
               )}
-
               {/* Live upload preview only */}
               {previewSvgUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
@@ -1112,7 +1098,9 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">SVG to JPG Converter (Client-Side)</h2>
+          <h2 className="m-0 font-bold text-2xl">
+            SVG to JPG Converter (Client-Side)
+          </h2>
 
           <p className="mt-3">
             Convert <strong>SVG to JPG</strong> instantly in your browser. This
@@ -1122,6 +1110,11 @@ function SeoSections() {
             edges, and JPEG compression for file size. Everything runs on-device
             with <strong>no uploads</strong>, so the SVG never leaves your
             computer.
+          </p>
+          <p className="mt-2 text-slate-600">
+            Instant <b>SVG to JPG</b> conversion in your browser. Resize
+            width/height, pick a background color, set JPEG quality, and
+            download.
           </p>
 
           <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">

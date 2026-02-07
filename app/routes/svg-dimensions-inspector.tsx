@@ -399,33 +399,19 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <Breadcrumbs crumbs={crumbs} />
-
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">•</span>
-              <span className="text-[#0b2dff]">Dimensions</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and the
-              computed pixel size. Apply common fixes and preview instantly.
-              Runs fully client-side.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">
-                  SVG Input
-                </h2>
+                <h1 className="inline-flex mb-1 text-center text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Dimension Inspector
+                </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -843,7 +829,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           type="button"
                           onClick={downloadSvg}
                           disabled={!hydrated || !svgText.trim()}
-                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer transition-colors"
                         >
                           <Icons name="download" size={16} className="mr-1" />
                           Download SVG
@@ -944,6 +930,8 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
       <JsonLdBreadcrumbs />
       <OtherToolsLinks />
       <RelatedSites />
+
+      <Breadcrumbs crumbs={crumbs} />
       <SocialLinks />
       <SiteFooter />
     </>
@@ -1437,7 +1425,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] mx-auto px-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -1564,6 +1555,12 @@ function SeoSections() {
             . Then apply common fixes like adding a missing viewBox or
             normalizing width/height. Everything runs{" "}
             <span className="font-semibold text-slate-900">client-side</span>.
+          </p>
+
+          <p className="mt-2 text-slate-600">
+            Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and the
+            computed pixel size. Apply common fixes and preview instantly. Runs
+            fully client-side.
           </p>
 
           {/* Quick workflow */}

@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { PresetPicker } from "./home";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1191,120 +1192,19 @@ export default function StickerToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          {/* Breadcrumb */}
-          <nav
-            aria-label="Breadcrumb"
-            className="mb-3 text-[13px] text-slate-600"
-          >
-            <ol className="flex items-center gap-2 flex-wrap">
-              <li>
-                <Link
-                  to="/"
-                  className="hover:text-slate-900 hover:underline underline-offset-4"
-                >
-                  Home
-                </Link>
-              </li>
-              <li aria-hidden className="text-slate-300">
-                /
-              </li>
-              <li className="text-slate-800 font-semibold">{ROUTE_LABEL}</li>
-            </ol>
-          </nav>
-
-          <header className="text-center mb-2">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Sticker to SVG Converter
-            </h1>
-            <p className="mt-1 text-slate-600">
-              Convert sticker PNG/JPEG images into clean SVG vectors with live
-              preview. Sticker presets focus on smooth edges and cut-friendly
-              shapes.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="flex text-center mb-3 text-sky-800 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                Sticker to SVG Converter
+              </h1>
 
               {/* Presets */}
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Dropzone */}
-              {!file ? (
-                <DragArea
-                  onPick={onPick}
-                  onDrop={onDrop}
-                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
-                  MAX_MP={MAX_MP}
-                  MAX_SIDE={MAX_SIDE}
-                />
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize &&
-                          originalFileSize > file.size &&
-                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                        setHistory([]);
-                        setSettings(DEFAULTS);
-                        setActivePreset("sticker-clean");
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               {/* Settings */}
               <div className="mt-3 min-w-0">
@@ -1540,6 +1440,64 @@ export default function StickerToSvgConverter({
                   </div>
                 )}
               </div>
+              {/* Dropzone */}
+              {!file ? (
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize &&
+                          originalFileSize > file.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                        setHistory([]);
+                        setSettings(DEFAULTS);
+                        setActivePreset("sticker-clean");
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Convert button + errors + tier hints */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -1584,13 +1542,10 @@ export default function StickerToSvgConverter({
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1638,7 +1593,7 @@ export default function StickerToSvgConverter({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
@@ -1695,6 +1650,26 @@ export default function StickerToSvgConverter({
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
+      {/* Breadcrumb */}
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-3 text-[13px] text-slate-600 min-w-[1180px] py-4"
+      >
+        <ol className="flex items-center gap-2 flex-wrap">
+          <li>
+            <Link
+              to="/"
+              className="hover:text-slate-900 hover:underline underline-offset-4"
+            >
+              Home
+            </Link>
+          </li>
+          <li aria-hidden className="text-slate-300">
+            /
+          </li>
+          <li className="text-slate-800 font-semibold">{ROUTE_LABEL}</li>
+        </ol>
+      </nav>
       <SocialLinks />
       <SiteFooter />
     </>
@@ -1901,7 +1876,11 @@ function SeoSections() {
                 device-side auto-compress and a server concurrency gate to keep
                 the droplet stable.
               </p>
-
+              <p className="mt-1 text-slate-600">
+                Convert sticker PNG/JPEG images into clean SVG vectors with live
+                preview. Sticker presets focus on smooth edges and cut-friendly
+                shapes.
+              </p>
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {

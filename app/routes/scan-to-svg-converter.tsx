@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { PresetPicker } from "./home";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -973,95 +974,18 @@ export default function ScanToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-2">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Scan to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
-              Vectorize scanned drawings and documents into clean SVG. Built for
-              scans with speck removal, smoother curves, and presets that help
-              close tiny gaps.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="text-xl mb-3 text-sky-800 flex sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                Scan to SVG Converter
+              </h1>
 
-              <div className="flex flex-wrap gap-2 mb-2 min-w-0">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className={[
-                      "px-3 py-1.5 rounded-md border text-slate-900 cursor-pointer transition-colors",
-                      activePreset === p.id
-                        ? "bg-[#e7eeff] border-[#0b2dff]"
-                        : "bg-white border-slate-200 hover:bg-slate-50",
-                    ].join(" ")}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
-              {!file ? (
-                <DragArea
-                  onPick={onPick}
-                  onDrop={onDrop}
-                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
-                  MAX_MP={MAX_MP}
-                  MAX_SIDE={MAX_SIDE}
-                />
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
-                    <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && (
-                        <img
-                          src={previewUrl}
-                          alt=""
-                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
-                        />
-                      )}
-                      <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize && originalFileSize > file.size
-                          ? ` (shrunk from ${prettyBytes(originalFileSize)})`
-                          : ""}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        setFile(null);
-                        setPreviewUrl(null);
-                        setAutoMode("off");
-                        setDims(null);
-                        setErr(null);
-                        setInfo(null);
-                        setOriginalFileSize(null);
-                      }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  {dims && (
-                    <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size:{" "}
-                      <b>
-                        {dims.w}×{dims.h}
-                      </b>{" "}
-                      (~{dims.mp.toFixed(1)} MP)
-                    </div>
-                  )}
-                </>
-              )}
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               {/* Settings */}
               <div className="mt-3 min-w-0">
@@ -1272,6 +1196,62 @@ export default function ScanToSvgConverter({
                 )}
               </div>
 
+              {!file ? (
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                  MAX_MP={MAX_MP}
+                  MAX_SIDE={MAX_SIDE}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
+                      <span title={file?.name || ""} className="truncate">
+                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {originalFileSize && originalFileSize > file.size
+                          ? ` (shrunk from ${prettyBytes(originalFileSize)})`
+                          : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setAutoMode("off");
+                        setDims(null);
+                        setErr(null);
+                        setInfo(null);
+                        setOriginalFileSize(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {dims && (
+                    <div className="mt-2 text-[13px] text-slate-700">
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
+                    </div>
+                  )}
+                </>
+              )}
+
               {/* Convert + status */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
@@ -1310,33 +1290,13 @@ export default function ScanToSvgConverter({
                   />
                 </div>
               )}
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <div className="text-sm font-semibold">Scan cleanup tips</div>
-                <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
-                  <li>
-                    Speckles: increase <b>turd size</b>.
-                  </li>
-                  <li>
-                    Gaps: lower <b>threshold</b>, raise <b>curve tolerance</b>,
-                    and try <b>Turn policy: black</b>.
-                  </li>
-                  <li>
-                    Thin details disappearing: increase <b>threshold</b> and
-                    lower <b>turd size</b>.
-                  </li>
-                </ul>
-              </div>
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1383,7 +1343,7 @@ export default function ScanToSvgConverter({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
@@ -1394,8 +1354,15 @@ export default function ScanToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
-                  {busy ? "Converting…" : "Your scan SVG will appear here."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>
@@ -1611,16 +1578,22 @@ function SeoSections() {
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               scan to svg converter
             </p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+
+            <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight text-slate-900">
               Convert scanned drawings into clean, editable SVG
             </h2>
-            <p className="text-slate-600 max-w-[85ch]">
-              This page is tuned for scans. It normalizes the scan (grayscale
-              and cleanup), removes tiny speckles, and vectorizes the result
-              into smooth SVG paths you can edit and scale.
+
+            <p className="mt-3 text-slate-700 max-w-[92ch] leading-relaxed">
+              This page is tuned for scans: pencil sketches, ink drawings,
+              worksheets, and handwritten notes. Scans usually fail for two
+              reasons: uneven lighting and scanner dust. The pipeline here
+              normalizes the image, suppresses background paper texture, removes
+              speckles, and then traces the remaining ink into SVG paths. The
+              goal is an SVG you can actually edit, recolor, and scale without
+              thousands of noisy points.
             </p>
 
-            <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 {
                   k: "Scan cleanup",
@@ -1640,12 +1613,15 @@ function SeoSections() {
                   key={x.k}
                   className="rounded-xl border border-slate-200 bg-white p-4"
                 >
-                  <div className="text-sm font-semibold">{x.k}</div>
-                  <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {x.k}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">{x.v}</div>
                 </div>
               ))}
             </div>
           </header>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1661,8 +1637,104 @@ function SeoSections() {
               />
             </div>
           )}
+
+          {/* Utility-first content (scan-specific) */}
           <section>
-            <h3 className="text-lg font-bold">Best for</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="m-0 text-xl font-bold text-slate-900">
+                Scan → SVG: what to fix before tracing
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700 leading-relaxed">
+                <p className="mt-2 text-slate-600 ">
+                  Vectorize scanned drawings and documents into clean SVG. Built
+                  for scans with speck removal, smoother curves, and presets
+                  that help close tiny gaps.
+                </p>
+                <p className="m-0">
+                  A scan is not “clean ink on white.” It usually includes
+                  shadows, paper grain, faint pencil noise, and random dust that
+                  becomes tiny blobs after thresholding. If you trace that
+                  directly, you get messy outlines and a huge node count. The
+                  clean approach is: normalize the scan, decide what counts as
+                  ink, then smooth and simplify the result.
+                </p>
+
+                <p className="m-0">
+                  Start with a preset that matches your scan quality. If the
+                  preview shows dots everywhere, treat it as a cleanup problem
+                  first: increase <strong>turd size</strong> (speck removal) and
+                  raise blur/normalization so the paper texture stops producing
+                  edges. If the preview shows broken strokes, switch to an{" "}
+                  <strong>Aggressive</strong> preset that seals small gaps, then
+                  fine-tune <strong>threshold</strong> so faint strokes stay
+                  connected without turning the background into noise.
+                </p>
+
+                <p className="m-0">
+                  Once the drawing is “correct,” reduce node count so editing is
+                  sane. Increase <strong>curve tolerance</strong> until jagged
+                  edges become smooth, but stop before corners and intentional
+                  angles start rounding off. If you’re exporting for cutting or
+                  plotters, fewer nodes also improves performance in cutter
+                  software.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 1: Remove dust
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase turd size until isolated dots disappear, without
+                    removing intentional tiny marks.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 2: Keep strokes connected
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Use Aggressive for small breaks, then adjust threshold so
+                    faint lines survive.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 3: Smooth and simplify
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase curve tolerance to reduce jaggedness and node
+                    count, then stop before shape drift.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="text-sm font-semibold">Scan cleanup tips</div>
+            <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
+              <li>
+                Speckles: increase <b>turd size</b>.
+              </li>
+              <li>
+                Gaps: lower <b>threshold</b>, raise <b>curve tolerance</b>, and
+                try <b>Turn policy: black</b>.
+              </li>
+              <li>
+                Thin details disappearing: increase <b>threshold</b> and lower{" "}
+                <b>turd size</b>.
+              </li>
+            </ul>
+          </div>
+
+          <section className="mt-8">
+            <h3 className="text-lg font-bold text-slate-900">Best for</h3>
+
             <div className="mt-3 flex flex-wrap gap-2">
               {[
                 "Scanned sketches",
@@ -1684,30 +1756,64 @@ function SeoSections() {
               {[
                 {
                   title: "If your scan has dots everywhere",
-                  body: "Use Speck killer or increase turd size until dust disappears.",
+                  body: "Use Speck killer or increase turd size until dust disappears. If dots persist, increase blur/normalization so paper texture stops becoming edges.",
                 },
                 {
                   title: "If your scan has broken lines",
-                  body: "Use Aggressive to close small gaps, then adjust threshold slightly.",
+                  body: "Use Aggressive to close small gaps, then lower threshold slightly until faint strokes reconnect without pulling in background noise.",
                 },
               ].map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold">{c.title}</div>
-                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {c.title}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    {c.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 grid md:grid-cols-3 gap-4">
+              {[
+                {
+                  title: "Uneven scan lighting",
+                  body: "If one side looks darker, increase normalization/contrast so the background becomes consistent before tracing.",
+                },
+                {
+                  title: "Pencil is too faint",
+                  body: "Lower threshold a bit and use stronger edge settings so light graphite becomes ink without amplifying paper grain.",
+                },
+                {
+                  title: "Paths are too complex",
+                  body: "Increase curve tolerance until edits are manageable. Node count matters more than micro-detail for clean SVG line art.",
+                },
+              ].map((c) => (
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {c.title}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    {c.body}
+                  </p>
                 </div>
               ))}
             </div>
           </section>
 
+          {/* FAQ unchanged */}
           <section
             className="mt-12"
             itemScope
             itemType="https://schema.org/FAQPage"
           >
-            <h3 className="text-lg font-bold">FAQ</h3>
+            <h3 className="text-lg font-bold text-slate-900">FAQ</h3>
             <div className="mt-4 grid gap-3">
               {[
                 {
@@ -1730,14 +1836,17 @@ function SeoSections() {
                   itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
+                  <h4
+                    itemProp="name"
+                    className="m-0 font-semibold text-slate-900"
+                  >
                     {x.q}
                   </h4>
                   <p
                     itemScope
                     itemType="https://schema.org/Answer"
                     itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
+                    className="mt-2 text-sm text-slate-700 leading-relaxed"
                   >
                     <span itemProp="text">{x.a}</span>
                   </p>

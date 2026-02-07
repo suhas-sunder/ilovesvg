@@ -906,7 +906,7 @@ export default function BlackAndWhiteImageToSvgConverter({
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h1 className="inline-flex text-sky-950 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none">
+              <h1 className="inline-flex text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none">
                 Black & White to SVG
               </h1>
 

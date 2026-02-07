@@ -261,25 +261,18 @@ export default function SvgMinify(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">Minify</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Minify an SVG by removing safe bloat like <b>comments</b> and
-              extra <b>whitespace</b>, and optionally stripping <b>XML</b>/
-              <b>DOCTYPE</b> and cleaning <b>style</b>. This runs fully
-              client-side.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Upload SVG
-              </h2>
+              <h1 className="inline-flex text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                SVG Minify
+              </h1>
+              <p className="mt-2 text-slate-600">
+                Minify an SVG by removing safe bloat like <b>comments</b> and
+                extra <b>whitespace</b>, and optionally stripping <b>XML</b>/
+                <b>DOCTYPE</b> and cleaning <b>style</b>. This runs fully
+                client-side.
+              </p>
 
               {!file ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
@@ -669,7 +662,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
                           .writeText(outSvg)
                           .then(() => showToast("Copied"));
                       }}
-                      className="inline-flex items-center justify-center mt-2 px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                      className="inline-flex items-center justify-center mt-2 px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                     >
                       <Icons name="copy" size={16} className="mr-1" />
                       Copy SVG
@@ -980,7 +973,7 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
         {/* ditch prose: it causes the "off" look + uncontrolled typography */}
-        <article className="max-w-[920px]">
+        <article>
           <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Minify Tool (Client-Side)
           </h2>

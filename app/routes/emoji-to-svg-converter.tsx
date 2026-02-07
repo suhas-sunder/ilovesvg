@@ -1413,50 +1413,41 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[360px]"
             />
           </div>
-          <header className="text-center mb-3">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Emoji to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[90ch] mx-auto">
-              Convert emoji to SVG from pasted emoji text (Twemoji SVG) or from
-              emoji images (PNG/JPEG traced to editable paths). Live preview is
-              disabled here to keep the server stable.
-            </p>
-          </header>
 
           {/* Mode selector */}
-          <div className="flex flex-wrap gap-2 justify-center mb-4">
-            <button
-              type="button"
-              onClick={() => setMode("text")}
-              className={[
-                "px-3 py-2 rounded-lg border font-semibold",
-                mode === "text"
-                  ? "bg-[#e7eeff] border-[#0b2dff]"
-                  : "bg-white border-slate-200 hover:bg-slate-50",
-              ].join(" ")}
-            >
-              Text Emoji
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("image")}
-              className={[
-                "px-3 py-2 rounded-lg border font-semibold",
-                mode === "image"
-                  ? "bg-[#e7eeff] border-[#0b2dff]"
-                  : "bg-white border-slate-200 hover:bg-slate-50",
-              ].join(" ")}
-            >
-              Emoji Image
-            </button>
-          </div>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
-
+              <h1 className="flex mb-3 text-sky-800 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                Emoji to SVG Converter
+              </h1>
+              <div className="flex flex-wrap gap-2 justify-center my-4">
+                <button
+                  type="button"
+                  onClick={() => setMode("text")}
+                  className={[
+                    "px-3 py-2 rounded-lg border font-semibold",
+                    mode === "text"
+                      ? "bg-[#e7eeff] border-[#0b2dff]"
+                      : "bg-white border-slate-200 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  Text Emoji
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("image")}
+                  className={[
+                    "px-3 py-2 rounded-lg border font-semibold",
+                    mode === "image"
+                      ? "bg-[#e7eeff] border-[#0b2dff]"
+                      : "bg-white border-slate-200 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  Emoji Image
+                </button>
+              </div>
               {mode === "text" ? (
                 <>
                   <div className="text-sm text-slate-600 mb-2">
@@ -2404,6 +2395,11 @@ function SeoSections() {
                 upload emoji images and trace them into editable vector paths.
                 The output is a single SVG file that you can drop into a design
                 system, inline in HTML, or export for downstream use.
+              </p>
+              <p className="mt-2 text-slate-600  mx-auto">
+                Convert emoji to SVG from pasted emoji text (Twemoji SVG) or
+                from emoji images (PNG/JPEG traced to editable paths). Live
+                preview is disabled here to keep the server stable.
               </p>
             </header>
 

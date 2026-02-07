@@ -373,32 +373,19 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <Breadcrumbs crumbs={crumbs} />
-
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span className="text-[#0b2dff]">SVG</span>
-              <span className="text-slate-400">Embed</span>
-              <span>Code Generator</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Upload or paste an SVG and generate embed snippets for HTML, CSS,
-              React/JSX, and Data URIs. Client-side only.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">
-                  Input SVG
-                </h2>
+                <h1 className="inline-flex mb-1 text-sky-800 text-center items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Embed Code Generator
+                </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -1212,7 +1199,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadSnippet}
                     disabled={!hydrated || !outCode}
-                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 transition-colors cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 transition-colors cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <Icons name="download" size={16} className="mr-1" />
                     Download Snippet
@@ -1298,6 +1285,8 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
       <JsonLdFaq />
       <OtherToolsLinks />
       <RelatedSites />
+
+      <Breadcrumbs crumbs={crumbs} />
       <SocialLinks />
       <SiteFooter />
     </>
@@ -2274,7 +2263,10 @@ function Breadcrumbs({
 }) {
   return (
     <div className="mb-4">
-      <nav aria-label="Breadcrumb" className="text-[13px] text-slate-600">
+      <nav
+        aria-label="Breadcrumb"
+        className="text-[13px] text-slate-600 max-w-[1180px] py-4"
+      >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
@@ -2465,6 +2457,11 @@ function SeoSections() {
             <span className="font-semibold text-slate-900">client-side</span>.
           </p>
 
+          <p className="mt-2 text-slate-600">
+            Upload or paste an SVG and generate embed snippets for HTML, CSS,
+            React/JSX, and Data URIs. 
+          </p>
+
           {/* Quick picker: match the actual controls on the page */}
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -2493,6 +2490,21 @@ function SeoSections() {
               </div>
             </div>
 
+            {typeof document !== "undefined" && (
+              <div className="block py-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
             <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
@@ -2550,21 +2562,6 @@ function SeoSections() {
                 </div>
               </div>
             </div>
-            {typeof document !== "undefined" && (
-              <div className="block py-6">
-                <AdSenseDelayed
-                  slot="7336722354"
-                  delayMs={2500}
-                  afterInteraction={true}
-                  className="my-3"
-                  format="rectangle"
-                  fullWidth={false}
-                  minHeight={250}
-                  maxHeight={300}
-                  placeholderLabel="Sponsored"
-                />
-              </div>
-            )}
             <div className="mt-3 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">

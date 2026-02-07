@@ -1367,13 +1367,10 @@ export default function LogoToSvgConverter({
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1420,7 +1417,7 @@ export default function LogoToSvgConverter({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
@@ -1431,8 +1428,15 @@ export default function LogoToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
-                  {busy ? "Converting…" : "Your logo SVG will appear here."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>
@@ -1651,16 +1655,22 @@ function SeoSections() {
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               Logo PNG/JPG to SVG
             </p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+
+            <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight text-slate-900">
               Convert logos to SVG the clean way
             </h2>
-            <p className="text-slate-600 max-w-[80ch]">
+
+            <p className="mt-3 text-slate-700 max-w-[88ch] leading-relaxed">
               This page is tuned specifically for logos, icons, and brand marks.
-              The goal is smooth curves, fewer nodes, and a vector that is easy
-              to edit in Figma, Illustrator, Inkscape, or on the web.
+              The goal is a vector you can actually use: smooth curves, fewer
+              nodes, correct bounds, and an SVG that imports cleanly into Figma,
+              Illustrator, Inkscape, and cutting tools. Instead of “make it
+              vector” in the abstract, the controls here map to the problems
+              logos usually have: jagged edges, missing thin details, speck
+              noise, and weird bounding boxes.
             </p>
 
-            <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { k: "Smooth curves", v: "Raise tolerance to reduce nodes" },
                 { k: "Speck cleanup", v: "Turd size removes dust" },
@@ -1671,12 +1681,15 @@ function SeoSections() {
                   key={x.k}
                   className="rounded-xl border border-slate-200 bg-white p-4"
                 >
-                  <div className="text-sm font-semibold">{x.k}</div>
-                  <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {x.k}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">{x.v}</div>
                 </div>
               ))}
             </div>
           </header>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1692,44 +1705,126 @@ function SeoSections() {
               />
             </div>
           )}
+
+          {/* Utility-first guidance (logo-specific, non-bloggy) */}
           <section>
-            <h3 className="text-lg font-bold">Best results checklist</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="m-0 text-xl font-bold text-slate-900">
+                Logo-first vectorization: how to get a clean SVG
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700 leading-relaxed">
+                <p className="m-0">
+                  Logo conversion is not the same as converting a photo. For a
+                  logo, you typically want <strong>one clean silhouette</strong>{" "}
+                  (or a small number of shapes), smooth curves, and minimal
+                  point noise so the SVG is easy to edit and scales cleanly.
+                  This tool uses threshold-based vectorization and smoothing
+                  controls so you can decide what becomes “ink,” how
+                  aggressively edges are simplified, and how much dust gets
+                  removed.
+                </p>
+
+                <p className="m-0">
+                  A good workflow is to lock down the shape first, then refine
+                  smoothness. Start with a high-contrast source, pick a preset,
+                  adjust <strong>threshold</strong> until the mark is complete,
+                  then increase <strong>curve tolerance</strong> until the
+                  output is smooth without warping corners or flattening
+                  intentional geometry. If you see tiny dots and freckles,
+                  increase <strong>turd size</strong> to strip specks without
+                  destroying small features.
+                </p>
+
+                <p className="m-0">
+                  Most “bad SVG” outcomes come from pushing the wrong control.
+                  Threshold is for deciding what is included. Tolerance is for
+                  reducing nodes. Turd size is for removing isolated blobs. If
+                  you change all three at once, it is hard to diagnose. Make one
+                  change, check preview, then move to the next problem.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 1: Set threshold
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Raise threshold if parts disappear. Lower it if blobs merge
+                    or counters fill in.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 2: Smooth with tolerance
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase tolerance to reduce nodes. Stop before corners and
+                    sharp angles start rounding off.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Step 3: Clean specks
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase turd size to remove isolated dots. Keep it low if
+                    the logo has intentional tiny details.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h3 className="text-lg font-bold text-slate-900">
+              Best results checklist
+            </h3>
+
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               {[
                 {
                   title: "Use a clean source",
-                  body: "High contrast logo on a plain background converts best. Crop extra whitespace.",
+                  body: "High contrast logo on a plain background converts best. Crop extra whitespace so bounds match the mark.",
                 },
                 {
                   title: "Pick the right preset first",
-                  body: "Start with Clean shapes. Only use Edge mode if the source is a photo.",
+                  body: "Start with Clean shapes for logos. Only use Edge mode when the input is a photo-like image.",
                 },
                 {
                   title: "Control what becomes solid",
-                  body: "Threshold decides what is included. If details vanish, raise it. If blobs form, lower it.",
+                  body: "Threshold decides what is treated as ink. If details vanish, raise it. If blobs form or holes fill in, lower it.",
                 },
                 {
                   title: "Reduce nodes without losing the mark",
-                  body: "Curve tolerance smooths curves. For most logos, 0.35 to 0.6 is the sweet spot.",
+                  body: "Curve tolerance smooths curves and reduces points. For many logos, 0.35 to 0.6 is a practical range.",
                 },
               ].map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold">{c.title}</div>
-                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {c.title}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    {c.body}
+                  </p>
                 </div>
               ))}
             </div>
           </section>
 
+          {/* FAQ unchanged */}
           <section
             className="mt-12"
             itemScope
             itemType="https://schema.org/FAQPage"
           >
-            <h3 className="text-lg font-bold">FAQ</h3>
+            <h3 className="text-lg font-bold text-slate-900">FAQ</h3>
 
             <div className="mt-4 grid gap-3">
               {[
@@ -1757,14 +1852,17 @@ function SeoSections() {
                   itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
+                  <h4
+                    itemProp="name"
+                    className="m-0 font-semibold text-slate-900"
+                  >
                     {x.q}
                   </h4>
                   <p
                     itemScope
                     itemType="https://schema.org/Answer"
                     itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
+                    className="mt-2 text-sm text-slate-700 leading-relaxed"
                   >
                     <span itemProp="text">{x.a}</span>
                   </p>

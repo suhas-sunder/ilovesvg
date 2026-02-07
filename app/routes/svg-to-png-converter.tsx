@@ -256,25 +256,12 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">→</span>
-              <span className="text-[#0b2dff]">PNG</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Instant <b>SVG to PNG</b> conversion in your browser. Resize
-              width/height, keep transparency, or add a background.{" "}
-              <b>No uploads</b>, no server processing.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Upload SVG
-              </h2>
+              <h1 className="inline-flex text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                SVG to PNG Converter
+              </h1>
 
               {!file ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
@@ -1084,7 +1071,11 @@ function SeoSections() {
             set a specific pixel size, keep transparency, add a solid background
             when needed, and increase pixel ratio for sharper edges.
           </p>
-
+          <p className="mt-2 text-slate-600">
+            Instant <b>SVG to PNG</b> conversion in your browser. Resize
+            width/height, keep transparency, or add a background.{" "}
+            <b>No uploads</b>, no server processing.
+          </p>
           <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">

@@ -314,26 +314,12 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-3">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">Resize</span>
-              <span className="text-slate-400">/</span>
-              <span className="text-[#0b2dff]">Scale</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Resize an SVG by changing <b>width</b>/<b>height</b>, scaling by
-              percentage, and optionally updating <b>viewBox</b> and{" "}
-              <b>preserveAspectRatio</b>. This runs fully client-side.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Upload SVG
-              </h2>
+              <h1 className="inline-flex text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                SVG Resize & Scale
+              </h1>
 
               {!file ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
@@ -538,7 +524,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                         <button
                           type="button"
                           onClick={() => applyScalePct(100)}
-                          className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 shrink-0 cursor-pointer transition-colors"
+                          className="px-2 py-1 rounded-md border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 shrink-0 cursor-pointer transition-colors"
                         >
                           Reset
                         </button>
@@ -764,7 +750,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                           .writeText(outSvg)
                           .then(() => showToast("Copied"));
                       }}
-                      className="flex items-center justify-center mt-2 px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                      className="flex items-center justify-center mt-2 px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                     >
                       <Icons name="copy" size={16} className="mr-1" />
                       Copy SVG
@@ -1237,7 +1223,7 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
+          <h2 className="m-0 font-bold text-2xl">
             SVG Resize / Scale Tool (Client-Side)
           </h2>
 
@@ -1252,7 +1238,11 @@ function SeoSections() {
             <strong>entirely in your browser</strong>, so the SVG never needs to
             leave your device.
           </p>
-
+          <p className="mt-2 text-slate-600">
+            Resize an SVG by changing <b>width</b>/<b>height</b>, scaling by
+            percentage, and optionally updating <b>viewBox</b> and{" "}
+            <b>preserveAspectRatio</b>. This runs fully client-side.
+          </p>
           <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">Resize</div>
@@ -1292,7 +1282,7 @@ function SeoSections() {
               />
             </div>
           )}
-          <section >
+          <section>
             <h3 className="m-0 font-bold">What this tool actually changes</h3>
             <div className="mt-3 grid gap-3 text-slate-700">
               <p>

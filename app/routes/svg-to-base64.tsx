@@ -344,24 +344,12 @@ export default function SvgToBase64(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">to</span>
-              <span className="text-[#0b2dff]">Base64</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Convert SVG files into Base64 or Data URI strings instantly. Runs
-              fully client-side, no uploads.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-slate-900">
-                Upload SVG
-              </h2>
+              <h1 className="inline-flex text-sky-800 mb-1 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                SVG to Base64
+              </h1>
 
               {!file ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
@@ -442,7 +430,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
 
             {/* SETTINGS + OUTPUT */}
             <div className="bg-slate-600 border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0 overflow-auto">
-              <h2 className="m-0 font-bold mb-3 text-lg text-white">
+              <h2 className="m-0 font-bold mb-3 text-base text-white">
                 Output Settings
               </h2>
 
@@ -782,7 +770,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadOutput}
                     disabled={!hydrated || !outText}
-                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <Icons name="download" size={16} className="mr-1" />
                     Download Output

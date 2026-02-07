@@ -1404,7 +1404,7 @@ export default function PhotoToSvgOutline({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />
                             Copy SVG
@@ -1415,10 +1415,15 @@ export default function PhotoToSvgOutline({
                   ))}
                 </div>
               ) : (
-                <p className="text-slate-600 m-0">
-                  {busy
-                    ? "Converting…"
-                    : "Your photo outline SVG will appear here."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>
@@ -1693,16 +1698,21 @@ function SeoSections() {
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               photo to svg outline
             </p>
-            <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+
+            <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight text-slate-900">
               Turn photos into clean outline SVGs
             </h2>
-            <p className="text-slate-600 max-w-[85ch]">
-              This tool is tuned for photographs. It extracts contours first
-              (edge mode) to reduce texture and convert the scene into
-              simplified vector outlines you can edit, recolor, and scale.
+
+            <p className="mt-3 text-slate-700 max-w-[88ch] leading-relaxed">
+              This tool is tuned for photographs, not logos. It runs an{" "}
+              <strong>edge-first</strong> pipeline to extract contours and
+              suppress texture, then vectorizes the result into SVG paths. The
+              goal is a clean outline you can edit, recolor, and scale without
+              the “hairy” line noise that happens when you trace a photo
+              directly.
             </p>
 
-            <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { k: "Photo-first", v: "Edge preprocessing tuned for photos" },
                 { k: "Noise control", v: "Blur and speck removal presets" },
@@ -1719,12 +1729,15 @@ function SeoSections() {
                   key={x.k}
                   className="rounded-xl border border-slate-200 bg-white p-4"
                 >
-                  <div className="text-sm font-semibold">{x.k}</div>
-                  <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {x.k}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">{x.v}</div>
                 </div>
               ))}
             </div>
           </header>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1740,8 +1753,81 @@ function SeoSections() {
               />
             </div>
           )}
+
+          {/* Utility-first content (photo-specific) */}
           <section>
-            <h3 className="text-lg font-bold">Best for</h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+              <h3 className="m-0 text-xl font-bold text-slate-900">
+                How to get a clean outline from a photo
+              </h3>
+
+              <div className="mt-3 grid gap-4 text-slate-700 leading-relaxed">
+                <p className="m-0">
+                  Photos contain texture: skin pores, fabric weave, grass,
+                  noise, compression artifacts, and background detail. If you
+                  trace that directly, the SVG turns into thousands of tiny
+                  edges. The “clean outline” look comes from doing the opposite:
+                  reduce detail first, then trace only the strongest contours.
+                </p>
+
+                <p className="m-0">
+                  Start by choosing a preset that matches your input. For busy
+                  scenes and noisy images, begin with a <strong>Soft</strong>{" "}
+                  outline preset that uses more blur and stronger speck removal.
+                  For simple subjects on plain backgrounds, use{" "}
+                  <strong>Strong edges</strong> to keep bold contours. Then use
+                  the preview to balance three controls: blur (remove texture),
+                  threshold (what counts as an edge), and cleanup (remove small
+                  isolated blobs).
+                </p>
+
+                <p className="m-0">
+                  If you want a drawing-like outline, you usually want{" "}
+                  <strong>fewer</strong> lines, not more. Increase blur until
+                  the interior texture disappears, then raise edge strength
+                  slightly to bring back only the main shape. Once the contour
+                  is stable, increase curve tolerance to reduce nodes and smooth
+                  the paths so the SVG edits cleanly in design tools.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Blur reduces texture
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Raise blur when you see “hairy” noise lines from skin,
+                    fabric, grass, or JPEG artifacts.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Threshold selects edges
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Raise threshold to keep only stronger contours. Lower it if
+                    the outline is missing key parts.
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Cleanup removes specks
+                  </div>
+                  <div className="mt-1 text-sm text-slate-700">
+                    Increase speck removal (turd size) when you see random dots
+                    and isolated blobs.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h3 className="text-lg font-bold text-slate-900">Best for</h3>
+
             <div className="mt-3 flex flex-wrap gap-2">
               {[
                 "Portrait outlines",
@@ -1764,30 +1850,35 @@ function SeoSections() {
               {[
                 {
                   title: "Cleaner outputs",
-                  body: "Use Soft for noisy photos and busy backgrounds.",
+                  body: "Use Soft for noisy photos and busy backgrounds. It increases blur and speck removal to suppress texture.",
                 },
                 {
                   title: "Stronger contours",
-                  body: "Use Strong edges when the outline is too faint.",
+                  body: "Use Strong edges when the outline is too faint. Then raise threshold slightly to avoid pulling in texture.",
                 },
               ].map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold">{c.title}</div>
-                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                  <div className="text-sm font-semibold text-slate-900">
+                    {c.title}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    {c.body}
+                  </p>
                 </div>
               ))}
             </div>
           </section>
 
+          {/* FAQ unchanged */}
           <section
             className="mt-12"
             itemScope
             itemType="https://schema.org/FAQPage"
           >
-            <h3 className="text-lg font-bold">FAQ</h3>
+            <h3 className="text-lg font-bold text-slate-900">FAQ</h3>
             <div className="mt-4 grid gap-3">
               {[
                 {
@@ -1810,14 +1901,17 @@ function SeoSections() {
                   itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
+                  <h4
+                    itemProp="name"
+                    className="m-0 font-semibold text-slate-900"
+                  >
                     {x.q}
                   </h4>
                   <p
                     itemScope
                     itemType="https://schema.org/Answer"
                     itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
+                    className="mt-2 text-sm text-slate-700 leading-relaxed"
                   >
                     <span itemProp="text">{x.a}</span>
                   </p>

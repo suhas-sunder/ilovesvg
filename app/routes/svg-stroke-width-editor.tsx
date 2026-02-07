@@ -400,30 +400,18 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">•</span>
-              <span className="text-[#0b2dff]">Stroke Width</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Make SVG lines thicker or thinner. Updates happen client-side with
-              live preview.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">
-                  SVG Input
-                </h2>
+                <h1 className="inline-flex text-sky-800 mb-1 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Stroke Width Editor
+                </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -919,7 +907,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadSvg}
                     disabled={!hydrated || !result?.svgText || isWorking}
-                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <Icons name="download" size={16} className="mr-1" />
                     Download SVG

@@ -304,29 +304,6 @@ export default function SvgAccessibilityAndContrastChecker() {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="text-sm text-slate-600 mb-4">
-            <Link to="/" className="hover:underline underline-offset-4">
-              Home
-            </Link>{" "}
-            <span className="text-slate-300" aria-hidden>
-              /
-            </span>{" "}
-            <span className="text-slate-900 font-semibold">
-              SVG Accessibility and Contrast Checker
-            </span>
-          </nav>
-
-          <header className="text-center mb-4">
-            <h1 className="text-[28px] text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
-              SVG Accessibility and Contrast Checker
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
-              Check WCAG contrast (AA/AAA), preview common color blindness
-              modes, generate higher-contrast options, apply them to your SVG,
-              and download the updated file.
-            </p>
-          </header>
 
           {/* Status banner */}
           <section className="mb-4">
@@ -400,7 +377,9 @@ export default function SvgAccessibilityAndContrastChecker() {
             {/* INPUT */}
             <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="m-0 text-lg text-slate-900">Input</h2>
+                <h1 className="flex text-sky-800 text-[28px] text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
+                  SVG Accessibility and Contrast Checker
+                </h1>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -522,8 +501,6 @@ export default function SvgAccessibilityAndContrastChecker() {
             <div className="lg:col-span-7 grid gap-4 min-w-0">
               {/* CONTROLS */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0">
-                <h2 className="m-0 mb-3 text-lg text-slate-900">Check</h2>
-
                 <div className="grid gap-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 min-w-0">
                     <div className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
@@ -910,6 +887,21 @@ export default function SvgAccessibilityAndContrastChecker() {
       </div>
       <OtherToolsLinks />
       <RelatedSites />
+      {/* Breadcrumbs */}
+      <nav
+        aria-label="Breadcrumb"
+        className="text-sm text-slate-600 mb-4 max-w-[1180px] py-4"
+      >
+        <Link to="/" className="hover:underline underline-offset-4">
+          Home
+        </Link>{" "}
+        <span className="text-slate-300" aria-hidden>
+          /
+        </span>{" "}
+        <span className="text-slate-900 font-semibold">
+          SVG Accessibility and Contrast Checker
+        </span>
+      </nav>
       <SocialLinks />
 
       <SiteFooter />
@@ -1117,14 +1109,18 @@ function SeoSections() {
             <h2 className="text-2xl md:text-3xl font-bold leading-tight mt-2">
               Make your SVG colors readable and accessible
             </h2>
-            <p className="mt-2 text-slate-600 max-w-[80ch]">
+            <p className="mt-2 text-slate-600 ">
               This tool checks color contrast for foreground and background
               pairs against common WCAG targets (AA and AAA). It also previews
               how your chosen colors may appear under common color blindness
               modes, and generates higher-contrast alternatives you can apply to
               your SVG and download.
             </p>
-
+            <p className="mt-2 text-slate-600 mx-auto">
+              Check WCAG contrast (AA/AAA), preview common color blindness
+              modes, generate higher-contrast options, apply them to your SVG,
+              and download the updated file.
+            </p>
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { k: "WCAG checks", v: "AA and AAA thresholds" },

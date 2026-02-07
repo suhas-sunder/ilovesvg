@@ -281,31 +281,18 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">•</span>
-              <span className="text-[#0b2dff]">Size Inspector</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and{" "}
-              <b>computed pixel size</b>. Upload or paste an SVG. Runs fully
-              client-side.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT + PREVIEW */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">
-                  SVG Input
-                </h2>
+                <h1 className="inline-flex mb-1 text-center text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Size Inspector
+                </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -616,7 +603,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                       showToast("Downloaded");
                     }}
                     disabled={!hydrated || !svgText.trim()}
-                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     <Icons name="download" size={16} className="mr-1" />
                     Download SVG
@@ -1111,9 +1098,28 @@ function SeoSections() {
             the sizing details for debugging or documentation. Everything runs
             locally in your browser.
           </p>
-
+          <p className="mt-2 text-slate-600">
+            Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and{" "}
+            <b>computed pixel size</b>. Upload or paste an SVG. Runs fully
+            client-side.
+          </p>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           {/* Quick workflow */}
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          <div className=" rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h3 className="m-0 text-base font-extrabold text-slate-900">
@@ -1182,21 +1188,7 @@ function SeoSections() {
               </li>
             </ol>
           </div>
-          {typeof document !== "undefined" && (
-            <div className="block py-6">
-              <AdSenseDelayed
-                slot="7336722354"
-                delayMs={2500}
-                afterInteraction={true}
-                className="my-3"
-                format="rectangle"
-                fullWidth={false}
-                minHeight={250}
-                maxHeight={300}
-                placeholderLabel="Sponsored"
-              />
-            </div>
-          )}
+
           <section className="mt-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
               <span className="text-base">📏</span>

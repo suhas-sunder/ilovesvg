@@ -1055,21 +1055,13 @@ export default function WebpToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-2">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              WebP to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600">
-              This page is dedicated to WebP inputs only. It keeps the droplet
-              safe with strict size and resolution guards, and it converts in
-              memory.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Upload WebP</h2>
+              <h1 className="text-xl mb-1 text-sky-800 sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                WebP to SVG Converter
+              </h1>
 
               <PresetPicker
                 presets={PRESETS}
@@ -1441,7 +1433,7 @@ export default function WebpToSvgConverter({
                           <button
                             type="button"
                             onClick={() => handleCopySvg(item.svg)}
-                            className="inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                            className="inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={20} className="mr-1" />
                             Copy SVG
@@ -1452,10 +1444,15 @@ export default function WebpToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="text-white m-0">
-                  {busy
-                    ? "Converting…"
-                    : "Upload a WebP and your SVG will show here..."}
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy ? "Converting…" : "Converted files appear here...  "}
                 </p>
               )}
             </div>
@@ -1675,10 +1672,16 @@ function SeoSectionsWebp() {
             <h2 className="text-2xl md:text-3xl font-bold leading-tight">
               Turn WebP images into editable SVG paths
             </h2>
-            <p className="text-slate-600 max-w-[78ch] mt-2">
+            <p className="text-slate-600 mt-2">
               WebP is great for web delivery, but not great when you need
               scalable paths. This tool decodes WebP, optionally extracts edges,
               and traces to SVG with hard limits designed for small servers.
+            </p>
+
+            <p className="mt-2 text-slate-600">
+              This page is dedicated to WebP inputs only. It keeps the droplet
+              safe with strict size and resolution guards, and it converts in
+              memory.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">

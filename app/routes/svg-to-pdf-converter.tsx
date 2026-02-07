@@ -359,31 +359,18 @@ export default function SvgToPdf(_: Route.ComponentProps) {
             />
           </div>
 
-          <header className="text-center mb-4">
-            <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              <span>SVG</span>
-              <span className="text-slate-400">to</span>
-              <span className="text-[#0b2dff]">PDF</span>
-            </h1>
-            <p className="mt-2 text-slate-600">
-              Convert an SVG into a downloadable PDF. Upload or paste SVG source
-              and choose paper size, DPI, margins, and fit. Runs fully
-              client-side.
-            </p>
-          </header>
-
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="m-0 font-bold text-lg text-slate-900">
-                  SVG Input
-                </h2>
+                 <h1 className="inline-flex mb-1 text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+             SVG to PDF Converter
+            </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -793,7 +780,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                           type="button"
                           onClick={downloadPdf}
                           disabled={!hydrated || !pdfBytes || isWorking}
-                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                           <Icons name="download" size={20} className="mr-1" />
                           Download PDF
@@ -1459,7 +1446,11 @@ function SeoSections() {
             prints the way you expect. Everything runs on-device with{" "}
             <strong>no uploads</strong>, so your SVG stays on your computer.
           </p>
-
+          <p className="mt-2 text-slate-600">
+            Convert an SVG into a downloadable PDF. Upload or paste SVG source
+            and choose paper size, DPI, margins, and fit. Runs fully
+            client-side.
+          </p>
           <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">
