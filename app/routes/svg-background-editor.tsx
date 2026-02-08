@@ -3,13 +3,48 @@ import type { Route } from "./+types/svg-background-editor";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 
 const isServer = typeof document === "undefined";
+const SITE_URL = "https://www.ilovesvg.com";
+
+const FAQ_ITEMS = [
+  {
+    q: "Why doesn’t “remove background” change anything?",
+    a: "Most SVGs are transparent by default. If the original file doesn’t contain a full-canvas shape (usually a <rect>) then there is nothing to remove. Turn on the checkerboard preview to confirm transparency.",
+  },
+  {
+    q: "Will this change my artwork colors or strokes?",
+    a: "No. The tool only targets a likely full-canvas background element (when detected) and or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
+  },
+  {
+    q: "What does Replace background do now?",
+    a: "Replace mode removes a detected background from your main SVG, then places an uploaded SVG underlay behind your artwork (still exports as SVG). This is useful when you want a patterned or illustrated backdrop instead of a solid color.",
+  },
+  {
+    q: "Does Replace mode keep the output as SVG?",
+    a: "Yes. The underlay must be an SVG. We embed it as a nested SVG layer behind your artwork so the exported file remains SVG.",
+  },
+  {
+    q: "What if my SVG uses CSS, <style>, or classes?",
+    a: 'That’s fine. The inserted background uses explicit attributes (fill and fill-opacity) and pointer-events="none" so it won’t interfere with clicks. We do not rewrite your CSS.',
+  },
+  {
+    q: "Can this remove a background that is not a single <rect>?",
+    a: "Sometimes, but not reliably without risking false positives. If the background is a full-canvas path or produced via masks, patterns, or filters, use manual selection or edit the SVG in an editor.",
+  },
+  {
+    q: "Does adding a background affect printing or PDF export?",
+    a: "Usually it helps. Many print and PDF pipelines expect an explicit background if you want solid white (or any color). A real background <rect> ensures the color travels with the file instead of relying on viewer defaults.",
+  },
+  {
+    q: "Where is the background inserted?",
+    a: "By default, it is inserted right after <defs> when present. If there is no <defs>, it becomes the first child of the root <svg> so it sits behind everything.",
+  },
+];
 
 /* ========================
    Meta
@@ -17,7 +52,7 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Background Remover & Editor";
   const description =
-    "Remove or add an SVG background instantly with iLoveSVG. Automatically detects full-canvas background rectangles, lets you set solid or transparent backgrounds, preserves viewBox sizing, and exports a clean SVG. Free, client-side only, no server.";
+    "Remove or add an SVG background instantly with iLoveSVG. Detects full-canvas background rectangles, supports transparent export, adds solid backgrounds, and can replace backgrounds by removing the original and placing an SVG underlay behind your artwork. Free, client-side only.";
   const canonical = "https://www.ilovesvg.com/svg-background-editor";
 
   return [
@@ -47,10 +82,15 @@ type Mode = "remove" | "add" | "replace";
 type Settings = {
   mode: Mode;
 
-  // add/replace
+  // Add background properties
+  transparent: boolean;
   color: string; // hex
   opacityPct: number; // 0..100
   cornerRadius: number; // px in SVG user units (viewBox units)
+
+  // Replace (SVG underlay)
+  underlaySvg: string; // normalized svg markup ("" = none)
+  underlayName: string; // filename for display
 
   // insertion behavior
   insertPosition: "as-first-child" | "after-defs";
@@ -62,25 +102,38 @@ type Settings = {
   optimizeWhitespace: boolean;
 
   // preview
-  previewBg: string;
   showChecker: boolean;
 
   // output
   fileName: string;
+
+  // manual target (fallback)
+  manualRemoveKey: string; // "" | "bg-<idx>"
+};
+
+type BgCandidate = {
+  key: string; // "bg-<idx>"
+  label: string;
+  score: number;
 };
 
 type BgDetection = {
   found: boolean;
   reason: string;
-  kind: "rect" | "path" | "none";
   countCandidates: number;
+  candidates: BgCandidate[];
 };
 
 const DEFAULTS: Settings = {
   mode: "remove",
+
+  transparent: false,
   color: "#ffffff",
   opacityPct: 100,
   cornerRadius: 0,
+
+  underlaySvg: "",
+  underlayName: "",
 
   insertPosition: "after-defs",
   setShapeRendering: false,
@@ -89,35 +142,27 @@ const DEFAULTS: Settings = {
   stripDoctype: true,
   optimizeWhitespace: false,
 
-  previewBg: "#ffffff",
   showChecker: true,
 
   fileName: "svg-background",
+
+  manualRemoveKey: "",
 };
+
+const TOOL_BG_ATTR = "data-ilovesvg-bg";
+const TOOL_UNDERLAY_ATTR = "data-ilovesvg-underlay";
 
 /* ========================
    Page
 ======================== */
-export default function SvgBackgroundPage({
-  loaderData,
-}: Route.ComponentProps) {
+export default function SvgBackgroundPage({}: Route.ComponentProps) {
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
-
   const [fileName, setFileName] = React.useState<string | null>(null);
 
-  /**
-   * IMPORTANT FIX:
-   * Keep "what user typed / uploaded" separate from "what we process for output".
-   *
-   * - inputText: what the textarea shows (can be invalid while editing)
-   * - inputSvgValid: last valid normalized SVG used for detection/output (never mutated by output)
-   * - inPreviewSrc: ALWAYS derived from inputText (or best-effort wrapper), so it never changes
-   *   when settings change.
-   */
   const [inputText, setInputText] = React.useState<string>("");
   const [inputSvgValid, setInputSvgValid] = React.useState<string>("");
   const [outSvg, setOutSvg] = React.useState<string>("");
@@ -127,13 +172,14 @@ export default function SvgBackgroundPage({
   const [detect, setDetect] = React.useState<BgDetection>({
     found: false,
     reason: "Upload an SVG to detect background.",
-    kind: "none",
     countCandidates: 0,
+    candidates: [],
   });
 
-  // Previews
   const [inPreviewSrc, setInPreviewSrc] = React.useState<string | null>(null);
   const [outPreviewSrc, setOutPreviewSrc] = React.useState<string | null>(null);
+
+  const underlayInputRef = React.useRef<HTMLInputElement | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -165,14 +211,12 @@ export default function SvgBackgroundPage({
       setErr(null);
       setFileName("pasted.svg");
 
-      // Validate/normalize once, then store into BOTH inputText and inputSvgValid
       try {
         const normalized = normalizeAndValidateSvg(trimmed);
         setInputText(normalized);
         setInputSvgValid(normalized);
         setInPreviewSrc(makeSvgDataUrl(normalized));
       } catch (er: any) {
-        // Keep raw text visible, but processing stays empty
         setInputText(trimmed);
         setInputSvgValid("");
         setInPreviewSrc(makeSvgDataUrl(bestEffortSvgForPreview(trimmed)));
@@ -201,33 +245,66 @@ export default function SvgBackgroundPage({
       const normalized = normalizeAndValidateSvg(trimmed);
       setFileName(f.name);
 
-      // Store input separately from output pipeline
       setInputText(normalized);
       setInputSvgValid(normalized);
       setInPreviewSrc(makeSvgDataUrl(normalized));
     } catch (e: any) {
       setErr(e?.message || "That file does not look like a valid SVG.");
-      // show something in preview anyway
       setInputText(trimmed);
       setInputSvgValid("");
       setInPreviewSrc(makeSvgDataUrl(bestEffortSvgForPreview(trimmed)));
+    }
+  }
+
+  async function onPickUnderlay(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    e.currentTarget.value = "";
+
+    const isSvg =
+      f.type === "image/svg+xml" ||
+      f.name.toLowerCase().endsWith(".svg") ||
+      f.type === "";
+
+    if (!isSvg) {
+      setErr("Underlay must be an SVG file.");
       return;
     }
+
+    try {
+      const raw = (await f.text()).trim();
+      const normalized = normalizeAndValidateSvg(raw);
+      setSettings((s) => ({
+        ...s,
+        underlaySvg: normalized,
+        underlayName: f.name,
+      }));
+      showToast("Underlay added");
+    } catch (e: any) {
+      setErr(e?.message || "Invalid underlay SVG.");
+    }
+  }
+
+  function clearUnderlay() {
+    setSettings((s) => ({ ...s, underlaySvg: "", underlayName: "" }));
+    showToast("Underlay cleared");
   }
 
   function clearAll() {
     setErr(null);
+    setToast(null);
     setFileName(null);
     setInputText("");
     setInputSvgValid("");
     setOutSvg("");
     setInPreviewSrc(null);
     setOutPreviewSrc(null);
+    setSettings(DEFAULTS);
     setDetect({
       found: false,
       reason: "Upload an SVG to detect background.",
-      kind: "none",
       countCandidates: 0,
+      candidates: [],
     });
   }
 
@@ -237,8 +314,8 @@ export default function SvgBackgroundPage({
       setDetect({
         found: false,
         reason: "Upload an SVG to detect background.",
-        kind: "none",
         countCandidates: 0,
+        candidates: [],
       });
       return;
     }
@@ -246,18 +323,26 @@ export default function SvgBackgroundPage({
       const d = detectBackground(inputSvgValid);
       setDetect(d);
       setErr(null);
+
+      setSettings((s) => {
+        if (!s.manualRemoveKey) return s;
+        const stillThere = d.candidates.some(
+          (c) => c.key === s.manualRemoveKey,
+        );
+        return stillThere ? s : { ...s, manualRemoveKey: "" };
+      });
     } catch (e: any) {
       setDetect({
         found: false,
         reason: "Could not analyze background (SVG parse failed).",
-        kind: "none",
         countCandidates: 0,
+        candidates: [],
       });
       setErr(e?.message || "Invalid SVG.");
     }
   }, [hydrated, inputSvgValid]);
 
-  // Apply background edit whenever settings or VALID input changes
+  // Apply edits whenever settings or VALID input changes
   React.useEffect(() => {
     if (!hydrated || !inputSvgValid) {
       setOutSvg("");
@@ -299,40 +384,18 @@ export default function SvgBackgroundPage({
   const buttonDisabled = isServer || !hydrated || !outSvg;
 
   const breadcrumbs = [
-    { name: "Home", url: "/" },
-    { name: "SVG Background Editor", url: "/svg-background-editor" },
+    { name: "Home", url: `${SITE_URL}/` },
+    { name: "SVG Background Editor", url: `${SITE_URL}/svg-background-editor` },
   ];
 
-  const faq = [
-    {
-      q: "Why doesn’t “remove background” change anything?",
-      a: "Most SVGs are transparent by default. If the original file doesn’t contain a full-canvas shape (usually a <rect>) then there is nothing to remove. Turn on Checkerboard or set a dark preview background to confirm transparency.",
-    },
-    {
-      q: "Will this touch my artwork colors or strokes?",
-      a: "No. The tool only targets a likely full-canvas background element (when detected) and/or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
-    },
-    {
-      q: "What if my SVG uses CSS, <style>, or classes?",
-      a: 'That’s fine. The inserted background uses explicit attributes (fill and fill-opacity) and pointer-events="none" so it won’t interfere with interactivity. We do not rewrite your CSS.',
-    },
-    {
-      q: "Can this remove a background that is not a single <rect>?",
-      a: "Sometimes. If the background is a full-canvas <path> or a <rect> wrapped in a group, it may be harder to reliably identify without risking false positives. In those cases, use Replace mode (add your own background) or edit the SVG manually.",
-    },
-    {
-      q: "Does adding a background affect printing or PDF export?",
-      a: "Usually it helps. Many print and PDF pipelines expect an explicit background if you want solid white (or any color). A real background <rect> ensures the color travels with the file instead of relying on viewer defaults.",
-    },
-    {
-      q: "Where is the background inserted?",
-      a: "By default, it is inserted right after <defs> when present (safe and predictable). If there is no <defs>, it becomes the first child of the root <svg> so it sits behind everything.",
-    },
-  ];
+  const showManualPicker = !!inputSvgValid && detect.candidates.length > 0;
+
+  const showAddControls = settings.mode === "add";
+  const showReplaceControls = settings.mode === "replace";
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPasteAny}>
+      <main className="bg-slate-50 text-slate-900" onPaste={onPasteAny}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -386,7 +449,7 @@ export default function SvgBackgroundPage({
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                    className="flex cursor-pointer items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-sky-100 text-slate-900"
                   >
                     <Icons name="trash" size={16} className="mr-1" />
                     Clear
@@ -394,7 +457,6 @@ export default function SvgBackgroundPage({
                 </div>
               </div>
 
-              {/* Optional paste box */}
               <details className="my-3 rounded-xl border border-slate-200 bg-white">
                 <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900 bg-sky-50">
                   Paste or edit input SVG code
@@ -406,20 +468,16 @@ export default function SvgBackgroundPage({
                       const next = e.target.value;
                       setInputText(next);
 
-                      // Update input preview from what user typed (best-effort),
-                      // but DO NOT let settings changes affect this.
                       setInPreviewSrc(
                         makeSvgDataUrl(bestEffortSvgForPreview(next)),
                       );
 
-                      // Only update processing pipeline when valid
                       try {
                         const normalized = normalizeAndValidateSvg(next);
                         setInputSvgValid(normalized);
                         setInPreviewSrc(makeSvgDataUrl(normalized));
                         setErr(null);
                       } catch (er: any) {
-                        // Keep last valid inputSvgValid so output stays stable while editing
                         setErr(er?.message || "Invalid SVG markup.");
                       }
                     }}
@@ -427,11 +485,12 @@ export default function SvgBackgroundPage({
                     spellCheck={false}
                   />
                   <div className="mt-2 text-[12px] text-slate-600">
-                    Tip: If your SVG includes XML/DOCTYPE headers, that is fine.
-                    We strip them on export if you enable cleanup.
+                    Tip: If your SVG includes XML or DOCTYPE headers, that is
+                    fine. Cleanup options can strip them on export.
                   </div>
                 </div>
               </details>
+
               {!inputText ? (
                 <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
@@ -452,7 +511,6 @@ export default function SvgBackgroundPage({
                     </button>
                   </div>
 
-                  {/* Detection status */}
                   <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                     <div className="text-[13px] text-slate-600 mb-1">
                       Background detection:
@@ -462,13 +520,12 @@ export default function SvgBackgroundPage({
                         ? detect.reason
                         : "Fix the SVG to detect background."}
                       <div className="text-[12px] text-slate-500 mt-1">
-                        Candidates scanned:{" "}
+                        Candidates found:{" "}
                         {inputSvgValid ? detect.countCandidates : 0}
                       </div>
                     </div>
                   </div>
 
-                  {/* Input preview (never depends on settings.output) */}
                   <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
                     <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
                       Input preview
@@ -477,9 +534,8 @@ export default function SvgBackgroundPage({
                       {inPreviewSrc ? (
                         <PreviewFrame
                           src={inPreviewSrc}
-                          bg="#ffffff"
                           checker={true}
-                          alt="Input SVG preview (always checkerboard)"
+                          alt="Input SVG preview (checkerboard)"
                         />
                       ) : (
                         <div className="text-slate-600 text-sm">
@@ -507,149 +563,237 @@ export default function SvgBackgroundPage({
                         setSettings((s) => ({
                           ...s,
                           mode: e.target.value as Mode,
+                          // keep add settings intact, but remove confusion
+                          manualRemoveKey:
+                            e.target.value === "remove"
+                              ? s.manualRemoveKey
+                              : "",
                         }))
                       }
-                      className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                      className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer"
                     >
-                      <option value="remove">
-                        Remove background (if detected)
-                      </option>
-                      <option value="add">Add background (insert rect)</option>
+                      <option value="remove">Remove background</option>
+                      <option value="add">Add background</option>
                       <option value="replace">
-                        Replace background (remove then add)
+                        Replace background (SVG underlay)
                       </option>
                     </select>
                   </Field>
 
-                  {(settings.mode === "add" || settings.mode === "replace") && (
-                    <>
-                      <Field label="Background color">
-                        <input
-                          type="color"
-                          value={settings.color}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              color: e.target.value,
-                            }))
-                          }
-                          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                        />
-                        <span className="text-[13px] text-slate-600">
-                          Inserted as a full-canvas &lt;rect&gt;
-                        </span>
-                      </Field>
-
-                      <Field label={`Opacity (${settings.opacityPct}%)`}>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={settings.opacityPct}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              opacityPct: Number(e.target.value),
-                            }))
-                          }
-                          className="w-full accent-[#0b2dff]"
-                        />
-                      </Field>
-                      <Field
-                        label={`Corner radius (${settings.cornerRadius}px)`}
+                  {showManualPicker && settings.mode === "remove" && (
+                    <Field label="Manual remove">
+                      <select
+                        value={settings.manualRemoveKey}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            manualRemoveKey: e.target.value,
+                          }))
+                        }
+                        className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer"
                       >
-                        <input
-                          type="range"
-                          min={0}
-                          max={60}
-                          step={1}
-                          value={settings.cornerRadius}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              cornerRadius: Number(e.target.value),
-                            }))
-                          }
-                          className="w-full accent-[#0b2dff]"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          max={9999}
-                          value={settings.cornerRadius}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              cornerRadius: Math.max(
-                                0,
-                                Number(e.target.value || 0),
-                              ),
-                            }))
-                          }
-                          className="w-24 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        />
-                        <span className="text-[13px] text-slate-600">
-                          Sets <code>rx</code> and <code>ry</code> on the
-                          background rect
-                        </span>
-                      </Field>
-
-                      <Field label="Insert position">
-                        <select
-                          value={settings.insertPosition}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              insertPosition: e.target.value as any,
-                            }))
-                          }
-                          className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                        >
-                          <option value="after-defs">
-                            After &lt;defs&gt; (recommended)
+                        <option value="">Auto (best match)</option>
+                        {detect.candidates.map((c) => (
+                          <option key={c.key} value={c.key}>
+                            {c.label}
                           </option>
-                          <option value="as-first-child">
-                            As first child of &lt;svg&gt;
-                          </option>
-                        </select>
-                      </Field>
+                        ))}
+                      </select>
+                    </Field>
+                  )}
 
-                      <Field label="Rendering hint">
-                        <label className="flex items-center gap-2">
+                  {showAddControls && (
+                    <>
+                      <Field label="Transparent background">
+                        <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={settings.setShapeRendering}
+                            checked={settings.transparent}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                setShapeRendering: e.target.checked,
+                                transparent: e.target.checked,
                               }))
                             }
-                            className="h-4 w-4 accent-[#0b2dff]"
+                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                           />
                           <span className="text-[13px] text-slate-700">
-                            Set <code>shape-rendering="crispEdges"</code> on
-                            background rect
+                            Insert no background fill (keeps SVG transparent)
                           </span>
                         </label>
+                      </Field>
+
+                      {!settings.transparent && (
+                        <>
+                          <Field label="Background color">
+                            <input
+                              type="color"
+                              value={settings.color}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  color: e.target.value,
+                                }))
+                              }
+                              className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-600">
+                              Added as a full-canvas &lt;rect&gt;
+                            </span>
+                          </Field>
+
+                          <Field label={`Opacity (${settings.opacityPct}%)`}>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={settings.opacityPct}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  opacityPct: Number(e.target.value),
+                                }))
+                              }
+                              className="w-full accent-[#0b2dff] cursor-pointer"
+                            />
+                          </Field>
+
+                          <Field
+                            label={`Corner radius (${settings.cornerRadius}px)`}
+                          >
+                            <input
+                              type="range"
+                              min={0}
+                              max={60}
+                              step={1}
+                              value={settings.cornerRadius}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  cornerRadius: Number(e.target.value),
+                                }))
+                              }
+                              className="w-full accent-[#0b2dff] cursor-pointer"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              max={9999}
+                              value={settings.cornerRadius}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  cornerRadius: Math.max(
+                                    0,
+                                    Number(e.target.value || 0),
+                                  ),
+                                }))
+                              }
+                              className="w-24 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            />
+                            <span className="text-[13px] text-slate-600">
+                              Sets <code>rx</code> and <code>ry</code> on the
+                              background rect
+                            </span>
+                          </Field>
+
+                          <Field label="Rendering hint">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={settings.setShapeRendering}
+                                onChange={(e) =>
+                                  setSettings((s) => ({
+                                    ...s,
+                                    setShapeRendering: e.target.checked,
+                                  }))
+                                }
+                                className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                              />
+                              <span className="text-[13px] text-slate-700">
+                                Set <code>shape-rendering="crispEdges"</code> on
+                                background rect
+                              </span>
+                            </label>
+                          </Field>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {showReplaceControls && (
+                    <>
+                      <Field label="Underlay SVG">
+                        <input
+                          ref={underlayInputRef}
+                          type="file"
+                          accept="image/svg+xml,.svg"
+                          onChange={onPickUnderlay}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => underlayInputRef.current?.click()}
+                          className="flex cursor-pointer items-center justify-center px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-50 text-slate-900"
+                        >
+                          <Icons name="upload" size={16} className="mr-1" />
+                          Upload underlay SVG
+                        </button>
+
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="text-[13px] text-slate-700 truncate"
+                            title={settings.underlayName}
+                          >
+                            {settings.underlayName
+                              ? settings.underlayName
+                              : "None selected"}
+                          </span>
+                          {settings.underlaySvg ? (
+                            <button
+                              type="button"
+                              onClick={clearUnderlay}
+                              className="px-2 py-1 rounded-md border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 text-slate-900"
+                              title="Clear underlay"
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <span className="text-[13px] text-slate-600">
+                          Replace mode removes the main SVG background, then
+                          inserts the underlay behind it.
+                        </span>
                       </Field>
                     </>
                   )}
 
-                  <Field label="Preview background">
-                    <input
-                      type="color"
-                      value={settings.previewBg}
-                      onChange={(e) =>
-                        setSettings((s) => ({
-                          ...s,
-                          previewBg: e.target.value,
-                        }))
-                      }
-                      className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
-                    />
-                    <label className="flex items-center gap-2">
+                  {(settings.mode === "add" || settings.mode === "replace") && (
+                    <Field label="Insert position">
+                      <select
+                        value={settings.insertPosition}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            insertPosition: e.target.value as any,
+                          }))
+                        }
+                        className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer"
+                      >
+                        <option value="after-defs">
+                          After &lt;defs&gt; (recommended)
+                        </option>
+                        <option value="as-first-child">
+                          As first child of &lt;svg&gt;
+                        </option>
+                      </select>
+                    </Field>
+                  )}
+
+                  <Field label="Preview">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={settings.showChecker}
@@ -659,7 +803,7 @@ export default function SvgBackgroundPage({
                             showChecker: e.target.checked,
                           }))
                         }
-                        className="h-4 w-4 accent-[#0b2dff]"
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
                       <span className="text-[13px] text-slate-700">
                         Checkerboard
@@ -669,7 +813,7 @@ export default function SvgBackgroundPage({
 
                   <Field label="Cleanup">
                     <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={settings.stripXmlDecl}
@@ -679,13 +823,13 @@ export default function SvgBackgroundPage({
                               stripXmlDecl: e.target.checked,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff]"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700">
                           Remove XML declaration
                         </span>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={settings.stripDoctype}
@@ -695,13 +839,13 @@ export default function SvgBackgroundPage({
                               stripDoctype: e.target.checked,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff]"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700">
                           Remove DOCTYPE
                         </span>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={settings.optimizeWhitespace}
@@ -711,7 +855,7 @@ export default function SvgBackgroundPage({
                               optimizeWhitespace: e.target.checked,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff]"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700">
                           Minify whitespace (light)
@@ -738,7 +882,7 @@ export default function SvgBackgroundPage({
                     onClick={downloadSvg}
                     disabled={buttonDisabled}
                     className={[
-                      "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                      "flex cursor-pointer items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -752,7 +896,7 @@ export default function SvgBackgroundPage({
                     onClick={copySvg}
                     disabled={buttonDisabled}
                     className={[
-                      "flex items-center justify-center px-3.5 py-2 rounded-lg font-semibold border transition-colors",
+                      "flex cursor-pointer items-center justify-center px-3.5 py-2 rounded-lg font-semibold border transition-colors",
                       "text-slate-900 bg-white border-slate-200 hover:bg-slate-50",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
@@ -770,7 +914,6 @@ export default function SvgBackgroundPage({
                 </div>
               </div>
 
-              {/* OUTPUT PREVIEW */}
               <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
                 <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
                   Output preview
@@ -779,7 +922,6 @@ export default function SvgBackgroundPage({
                   {outPreviewSrc ? (
                     <PreviewFrame
                       src={outPreviewSrc}
-                      bg={settings.previewBg}
                       checker={settings.showChecker}
                       alt="Output SVG preview"
                     />
@@ -791,7 +933,6 @@ export default function SvgBackgroundPage({
                 </div>
               </div>
 
-              {/* OUTPUT SOURCE */}
               {outSvg && (
                 <details className="mt-3 rounded-xl border border-slate-200 bg-white">
                   <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
@@ -810,8 +951,9 @@ export default function SvgBackgroundPage({
             </div>
           </section>
 
-          <SeoSections />
+          <SeoSections faq={FAQ_ITEMS} />
         </div>
+
         <div className="block lg:hidden py-6">
           <AdSenseDelayed
             slot="6632213024"
@@ -823,9 +965,10 @@ export default function SvgBackgroundPage({
             className="mx-auto w-full max-w-[360px]"
           />
         </div>
+
         <OtherToolsLinks />
         <RelatedSites />
-        {/* Breadcrumbs */}
+
         <nav
           aria-label="Breadcrumb"
           className="text-[13px] text-slate-600 mb-3 max-w-[1180px] mx-auto px-4"
@@ -846,17 +989,16 @@ export default function SvgBackgroundPage({
             ))}
           </ol>
         </nav>
+
         <SocialLinks />
         <SiteFooter />
 
-        {/* Toast */}
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
             {toast}
           </div>
         )}
 
-        {/* JSON-LD: Breadcrumbs + FAQ */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -866,7 +1008,7 @@ export default function SvgBackgroundPage({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd(makeFaqJsonLd(faq)),
+            __html: safeJsonLd(makeFaqJsonLd(FAQ_ITEMS)),
           }}
         />
       </main>
@@ -875,63 +1017,120 @@ export default function SvgBackgroundPage({
 }
 
 /* ========================
-   SEO sections
+   SEO sections (800 to 1200 words)
 ======================== */
-function SeoSections() {
-  const faq = [
-    {
-      q: "Why doesn’t “remove background” change anything?",
-      a: "Most SVGs are transparent by default. If the original file doesn’t contain a full-canvas shape (usually a <rect>) then there is nothing to remove. Turn on Checkerboard or set a dark preview background to confirm transparency.",
-    },
-    {
-      q: "Will this touch my artwork colors or strokes?",
-      a: "No. The tool only targets a likely full-canvas background element (when detected) and/or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
-    },
-    {
-      q: "What if my SVG uses CSS, <style>, or classes?",
-      a: 'That’s fine. The inserted background uses explicit attributes (fill and fill-opacity) and pointer-events="none" so it won’t interfere with interactivity. We do not rewrite your CSS.',
-    },
-    {
-      q: "Can this remove a background that is not a single <rect>?",
-      a: "Sometimes. If the background is a full-canvas <path> or a <rect> wrapped in a group, it may be harder to reliably identify without risking false positives. In those cases, use Replace mode (add your own background) or edit the SVG manually.",
-    },
-    {
-      q: "Does adding a background affect printing or PDF export?",
-      a: "Usually it helps. Many print and PDF pipelines expect an explicit background if you want solid white (or any color). A real background <rect> ensures the color travels with the file instead of relying on viewer defaults.",
-    },
-    {
-      q: "Where is the background inserted?",
-      a: "By default, it is inserted right after <defs> when present (safe and predictable). If there is no <defs>, it becomes the first child of the root <svg> so it sits behind everything.",
-    },
-  ];
-
+function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
         <article>
-          {/* Title */}
           <header>
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight m-0">
-              How SVG Background Add/Remove Works
+              SVG Background Editor: Remove, Add, and Replace with an SVG
+              Underlay
             </h2>
+
             <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
-              SVGs are often transparent. When you see a “white background” in
-              an editor, it is frequently the editor canvas, not real SVG
-              content. A true SVG background is usually an early, full-canvas
-              shape (most commonly a first-child{" "}
+              SVG background issues are usually caused by a mismatch between
+              what the file actually contains and what a viewer chooses to
+              display behind it. Many editors show a white canvas even when the
+              SVG is fully transparent. Web pages show the page background
+              behind your artwork. Some export pipelines introduce a white page
+              when converting to PDF. If you are trying to control what users
+              see and what gets exported, you need the background to be a real
+              element in the SVG, not a viewer default.
+            </p>
+
+            <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+              This tool focuses on the most common, lowest-risk background
+              pattern: a full-canvas shape near the top of the SVG that exists
+              only to paint a background. In practice this is usually a{" "}
               <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
                 &lt;rect&gt;
+              </code>{" "}
+              that starts at the origin and covers the canvas. Sometimes it
+              matches the{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                viewBox
               </code>
-              ) that covers the entire drawing area. This tool parses your SVG,
-              tries to identify that kind of element, and then removes it,
-              replaces it, or inserts a new background behind your artwork.
+              , sometimes it uses{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                width="100%"
+              </code>{" "}
+              and{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                height="100%"
+              </code>
+              . This page detects likely candidates and removes them when you
+              choose Remove mode. If detection is unsure, you can manually
+              select a candidate so you stay in control.
             </p>
-            <p className="mt-2 text-slate-600  mx-auto">
-              Add, remove, or replace an SVG background without a server. We
-              parse your SVG, detect full-canvas background elements (when they
-              exist), and export a cleaned SVG. Upload a file or paste SVG
-              markup.
+
+            <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
+              The editor is intentionally narrow. It does not try to rewrite
+              your artwork, expand CSS, merge groups, flatten filters, or
+              convert paths. Backgrounds can be intertwined with real artwork in
+              complex SVGs, and aggressive heuristics can delete meaningful
+              shapes. Instead, the tool uses conservative detection, a manual
+              fallback, and a predictable insertion strategy when you add new
+              background layers.
             </p>
+
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <h3 className="m-0 text-lg font-extrabold text-slate-900">
+                What each mode does
+              </h3>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="font-semibold text-slate-900">
+                    Remove background
+                  </div>
+                  <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                    Removes one likely full-canvas background rectangle. This is
+                    ideal when the SVG already contains a background shape you
+                    do not want. If the tool is not confident, you can manually
+                    pick a candidate. The result is a transparent SVG, assuming
+                    nothing else is painting the full canvas.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="font-semibold text-slate-900">
+                    Add background
+                  </div>
+                  <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                    Inserts a full-canvas background rectangle behind the
+                    artwork. Use this when the SVG is transparent and you need a
+                    predictable solid background for print, PDF export,
+                    thumbnails, sticker mockups, or editor previews. The
+                    inserted rect is tagged so it can be removed cleanly later.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="font-semibold text-slate-900">
+                    Replace background (SVG underlay)
+                  </div>
+                  <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+                    Removes a detected background from your main SVG, then
+                    places an uploaded SVG underlay behind your artwork. This
+                    keeps the output as SVG while giving you an illustrated or
+                    patterned backdrop instead of a flat color. It is also
+                    useful when you want a reusable background asset across
+                    multiple SVGs.
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-4 text-[13px] leading-relaxed text-slate-700">
+                Replace mode is intentionally SVG-only. If you need to place a
+                JPG or PNG behind your artwork, that is still an SVG file, but
+                it is no longer purely vector. For iLoveSVG, keeping this
+                workflow SVG-only avoids surprises and preserves editability
+                across vector tools.
+              </p>
+            </div>
 
             {typeof document !== "undefined" && (
               <div className="block py-6">
@@ -948,381 +1147,98 @@ function SeoSections() {
                 />
               </div>
             )}
-            {/* Quick workflow */}
-            <div className=" rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div>
-                  <h3 className="m-0 text-base font-extrabold text-slate-900">
-                    Quick workflow
-                  </h3>
-                  <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
-                    Use this when you just want the result without thinking
-                    about SVG internals.
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    Upload or paste SVG
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    Pick Mode
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    Preview
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    Download or Copy
-                  </span>
-                </div>
-              </div>
 
-              <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
-                <li className="rounded-xl border border-slate-200 bg-white p-4">
-                  <span className="font-semibold text-slate-900">
-                    1) Confirm transparency
-                  </span>
-                  <div className="mt-1 leading-relaxed">
-                    Toggle <span className="font-semibold">Checkerboard</span>{" "}
-                    or set a dark preview background. This avoids the “looks the
-                    same” trap when your SVG is already transparent.
-                  </div>
-                </li>
-                <li className="rounded-xl border border-slate-200 bg-white p-4">
-                  <span className="font-semibold text-slate-900">
-                    2) Remove or Replace
-                  </span>
-                  <div className="mt-1 leading-relaxed">
-                    Use <span className="font-semibold">Remove</span> to strip
-                    an existing full-canvas background. Use{" "}
-                    <span className="font-semibold">Add/Replace</span> to
-                    guarantee a background for print, PDF, or stickers.
-                  </div>
-                </li>
-                <li className="rounded-xl border border-slate-200 bg-white p-4">
-                  <span className="font-semibold text-slate-900">
-                    3) Set color and opacity
-                  </span>
-                  <div className="mt-1 leading-relaxed">
-                    Pick the exact background color you want. Opacity is useful
-                    for watermark-style backdrops, but for print you usually
-                    want 100%.
-                  </div>
-                </li>
-                <li className="rounded-xl border border-slate-200 bg-white p-4">
-                  <span className="font-semibold text-slate-900">
-                    4) Export cleanly
-                  </span>
-                  <div className="mt-1 leading-relaxed">
-                    Optional cleanup can remove XML/DOCTYPE and lightly minify
-                    whitespace. The output stays an SVG and remains editable.
-                  </div>
-                </li>
-              </ol>
+            <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
+              How background detection works
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              Detection is based on safe signals: position, size coverage, and
+              typical ordering. The tool scans early children of the root{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                &lt;svg&gt;
+              </code>{" "}
+              while ignoring non-visual tags like{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                &lt;defs&gt;
+              </code>
+              ,{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                &lt;metadata&gt;
+              </code>
+              , and{" "}
+              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                &lt;title&gt;
+              </code>
+              . It then scores rectangles that appear to cover the full canvas
+              using viewBox sizing, root width and height, or common percentage
+              sizing. Rectangles with fill set to none, transparent, or zero
+              opacity are not treated as backgrounds. If the tool cannot find a
+              strong match, it still lists candidates so you can select one
+              manually.
+            </p>
+
+            <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
+              How Replace mode inserts an SVG underlay
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              Replace mode always starts by removing the detected background
+              from your main SVG, plus any background shapes that were
+              previously inserted by this tool. Then it embeds your uploaded
+              underlay as a nested SVG positioned behind the artwork. The nested
+              SVG is sized to match the main SVG canvas so it fills the same
+              drawing area. This approach keeps the output as SVG and preserves
+              the underlay’s vector content, including its own fills, gradients,
+              and shapes.
+            </p>
+
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              When you combine two SVGs, ID collisions can happen if both files
+              use the same IDs for gradients, clips, or masks. To reduce that
+              risk, the tool prefixes IDs inside the underlay and updates common
+              references (like url(#id) and href="#id") before inserting it.
+              This keeps the underlay self-contained and makes it less likely to
+              interfere with your original artwork.
+            </p>
+
+            <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
+              Why the inserted background is a rectangle
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              A single full-canvas rectangle is the most compatible way to
+              represent a solid background across browsers and editors. It does
+              not depend on viewer defaults. It remains easy to remove later.
+              When inserted, the rectangle is marked with a tool attribute so it
+              can be removed cleanly if you switch modes. It also uses
+              pointer-events="none" so it does not block clicks in interactive
+              SVG usage.
+            </p>
+
+            <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
+              Output cleanup and compatibility
+            </h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              Cleanup options are output hygiene features. Removing the XML
+              declaration and DOCTYPE can reduce warnings in strict parsers and
+              make the SVG easier to embed inline in HTML. Light whitespace
+              minification reduces file size without heavily rewriting your
+              markup. These switches do not optimize paths or alter visual
+              fidelity. The tool preserves your original structure and only
+              touches the minimum elements needed to achieve background removal,
+              solid background insertion, or underlay embedding.
+            </p>
+
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-[13px] leading-relaxed text-slate-700">
+              <div className="font-semibold text-slate-900">
+                On-device processing
+              </div>
+              <div className="mt-2">
+                Your SVG is parsed and modified in your browser. Files are not
+                uploaded to a server for conversion. Download and copy actions
+                export the locally generated SVG text.
+              </div>
             </div>
           </header>
 
-          {/* Main grid */}
-          <div className="mt-2 grid gap-6 md:grid-cols-2">
-            {/* Detection */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-800">
-                      1
-                    </span>
-                    Detection
-                  </div>
-                  <h3 className="mt-3 text-lg font-extrabold text-slate-900 m-0">
-                    What we consider a background
-                  </h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-                    The goal is to remove only the “obvious” background, without
-                    risking deleting real artwork. That means we prefer
-                    high-confidence signals over aggressive guessing.
-                  </p>
-                </div>
-              </div>
-
-              <ul className="mt-4 space-y-3 text-[13px] text-slate-700">
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                    ✓
-                  </span>
-                  <span>
-                    Early full-canvas element, usually a{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      &lt;rect&gt;
-                    </code>{" "}
-                    near the top of the SVG content.
-                  </span>
-                </li>
-
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                    ✓
-                  </span>
-                  <span>
-                    Starts at{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      x=0
-                    </code>{" "}
-                    and{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      y=0
-                    </code>{" "}
-                    (or equivalent defaults).
-                  </span>
-                </li>
-
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                    ✓
-                  </span>
-                  <span>
-                    Covers the canvas via{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      viewBox
-                    </code>{" "}
-                    or root{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      width/height
-                    </code>
-                    .
-                  </span>
-                </li>
-
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                    ✓
-                  </span>
-                  <span>
-                    Accepts common cover values like{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      width="100%"
-                    </code>{" "}
-                    and{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      height="100%"
-                    </code>
-                    .
-                  </span>
-                </li>
-
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-50 text-amber-700 border border-amber-100">
-                    i
-                  </span>
-                  <span>
-                    If nothing is detected, that usually means the SVG is meant
-                    to be transparent or the background is not a simple
-                    full-canvas shape.
-                  </span>
-                </li>
-              </ul>
-
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-                <div className="font-semibold text-slate-900">
-                  Common “miss” cases
-                </div>
-                <ul className="mt-2 space-y-2">
-                  <li>
-                    Background is a <span className="font-semibold">path</span>{" "}
-                    (not a rect) that happens to cover the canvas.
-                  </li>
-                  <li>
-                    Background lives inside a{" "}
-                    <span className="font-semibold">group with transforms</span>
-                    , making coverage ambiguous.
-                  </li>
-                  <li>
-                    Background is created by a{" "}
-                    <span className="font-semibold">
-                      pattern, mask, or filter
-                    </span>{" "}
-                    rather than a single shape.
-                  </li>
-                </ul>
-                <div className="mt-3">
-                  In those cases, use{" "}
-                  <span className="font-semibold">Add/Replace</span> to
-                  guarantee a background without deleting anything.
-                </div>
-              </div>
-            </section>
-
-            {/* Insertion */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-800">
-                      2
-                    </span>
-                    Insertion
-                  </div>
-                  <h3 className="mt-3 text-lg font-extrabold text-slate-900 m-0">
-                    What we add (and where it goes)
-                  </h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-                    When you add or replace a background, the tool inserts one
-                    full-canvas{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      &lt;rect&gt;
-                    </code>{" "}
-                    behind your artwork. This is the most widely supported way
-                    to create a “real” SVG background.
-                  </p>
-                </div>
-              </div>
-
-              <ol className="mt-4 space-y-3 text-[13px] text-slate-700">
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-white text-[12px] font-bold">
-                    1
-                  </span>
-                  <span>
-                    Size uses{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      viewBox
-                    </code>{" "}
-                    when present. Otherwise it falls back to root{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      width/height
-                    </code>{" "}
-                    and finally{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      100%
-                    </code>
-                    .
-                  </span>
-                </li>
-
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-white text-[12px] font-bold">
-                    2
-                  </span>
-                  <span>
-                    You control{" "}
-                    <span className="font-semibold text-slate-900">color</span>{" "}
-                    and{" "}
-                    <span className="font-semibold text-slate-900">
-                      opacity
-                    </span>
-                    . The inserted rect uses{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      pointer-events="none"
-                    </code>{" "}
-                    so it won’t block clicks in browsers.
-                  </span>
-                </li>
-
-                <li className="flex gap-3">
-                  <span className="mt-[2px] inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-white text-[12px] font-bold">
-                    3
-                  </span>
-                  <span>
-                    Insert position is{" "}
-                    <span className="font-semibold text-slate-900">after</span>{" "}
-                    <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                      &lt;defs&gt;
-                    </code>{" "}
-                    when present. This avoids interfering with definitions and
-                    keeps the background clearly “behind” the visible layers.
-                  </span>
-                </li>
-              </ol>
-
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-                <div className="font-semibold text-slate-900">
-                  Why a rect is the safest choice
-                </div>
-                <ul className="mt-2 space-y-2">
-                  <li>
-                    Works across browsers, editors, and print pipelines with
-                    minimal surprises.
-                  </li>
-                  <li>
-                    Does not depend on viewer defaults (no “white in one app,
-                    transparent in another”).
-                  </li>
-                  <li>
-                    Easy to remove later without damaging the rest of the SVG.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
-                  Preserves artwork
-                </span>
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
-                  Safer for print/PDF
-                </span>
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
-                  Clean export
-                </span>
-              </div>
-            </section>
-          </div>
-
-          {/* Cleanup + privacy */}
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Cleanup options and what they actually do
-            </h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-              These switches are about output hygiene, not “optimizing” your
-              art. Use them when you need compatibility, smaller files, or
-              cleaner diffs.
-            </p>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900 text-[13px]">
-                  Remove XML declaration
-                </div>
-                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
-                  Removes the{" "}
-                  <code className="px-1.5 py-0.5 rounded bg-white border border-slate-200">
-                    {"<?xml ...?>"}
-                  </code>{" "}
-                  header. Often unnecessary on the web, and some pipelines
-                  prefer it absent.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900 text-[13px]">
-                  Remove DOCTYPE
-                </div>
-                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
-                  Removes the DOCTYPE line. This can reduce warnings in strict
-                  parsers and is usually safe for modern SVG.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900 text-[13px]">
-                  Minify whitespace (light)
-                </div>
-                <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
-                  Trims excess whitespace without aggressive rewriting. This
-                  keeps the SVG readable while shrinking size a bit.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-              <span className="font-semibold text-slate-900">
-                On-device processing:
-              </span>{" "}
-              your SVG is parsed and modified in the browser. Files are not
-              uploaded to a server for conversion.
-            </div>
-          </section>
-
-          {/* FAQ */}
           <section className="mt-8">
             <div className="flex items-end justify-between gap-3 flex-wrap">
               <h3 className="m-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
@@ -1350,83 +1266,9 @@ function SeoSections() {
               ))}
             </div>
           </section>
-
-          {/* Final utility note */}
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Troubleshooting checklist
-            </h3>
-            <div className="mt-3 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">
-                  Output preview looks identical
-                </div>
-                <p className="mt-2 leading-relaxed">
-                  Toggle Checkerboard, switch preview background, and compare
-                  with a dark color. If there is no detected background, Remove
-                  mode will not change the file.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">
-                  Background appears in the wrong layer
-                </div>
-                <p className="mt-2 leading-relaxed">
-                  Use Add/Replace, then ensure the rect is inserted as the first
-                  visible layer (typically after{" "}
-                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
-                    &lt;defs&gt;
-                  </code>
-                  ). The tool aims for “behind everything” behavior by default.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">
-                  SVG has no viewBox
-                </div>
-                <p className="mt-2 leading-relaxed">
-                  The tool falls back to width/height. If neither is present, it
-                  uses 100% sizing. For predictable results, adding a viewBox in
-                  the source SVG is best.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">
-                  Large files feel slow
-                </div>
-                <p className="mt-2 leading-relaxed">
-                  Parsing big SVGs is CPU-heavy. Use the built-in throttling and
-                  keep other tabs light. If the SVG is extremely large, consider
-                  simplifying paths in an editor first.
-                </p>
-              </div>
-            </div>
-          </section>
         </article>
       </div>
     </section>
-  );
-}
-
-function FaqItem({ q, a }: { q: string; a: string }) {
-  return (
-    <article
-      itemScope
-      itemType="https://schema.org/Question"
-      itemProp="mainEntity"
-    >
-      <h4 itemProp="name" className="m-0">
-        {q}
-      </h4>
-      <p
-        itemScope
-        itemType="https://schema.org/Answer"
-        itemProp="acceptedAnswer"
-        className="mt-2"
-      >
-        <span itemProp="text">{a}</span>
-      </p>
-    </article>
   );
 }
 
@@ -1454,12 +1296,10 @@ function Field({
 
 function PreviewFrame({
   src,
-  bg,
   checker,
   alt,
 }: {
   src: string;
-  bg: string;
   checker: boolean;
   alt: string;
 }) {
@@ -1470,7 +1310,7 @@ function PreviewFrame({
     <div
       className="rounded-xl border border-slate-200 overflow-hidden"
       style={{
-        backgroundColor: bg,
+        backgroundColor: "#ffffff",
         backgroundImage: checker
           ? `linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%),
              linear-gradient(-45deg, rgba(0,0,0,0.05) 25%, transparent 25%),
@@ -1543,59 +1383,54 @@ function bestEffortSvgForPreview(maybeSvg: string): string {
 ======================== */
 function detectBackground(svgText: string): BgDetection {
   const doc = parseSvg(svgText);
-  const svg = doc.documentElement;
+  const svg = doc.documentElement as any as SVGSVGElement;
+  const dims = getSvgCanvasDims(svg);
 
-  const dims = getSvgCanvasDims(svg as any);
+  const candidates = findBackgroundRectCandidates(svg, dims);
+  const best = candidates[0];
 
-  const children = Array.from(svg.children);
-  const interesting = children.filter(
-    (el) =>
-      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase()),
-  );
-
-  const N = Math.min(8, interesting.length);
-  let candidates = 0;
-
-  for (let i = 0; i < N; i++) {
-    const el = interesting[i];
-    const tag = el.tagName.toLowerCase();
-
-    if (tag === "rect") {
-      candidates++;
-      if (isFullCanvasRect(el as any, dims)) {
-        return {
-          found: true,
-          kind: "rect",
-          countCandidates: candidates,
-          reason: "Detected a full-canvas <rect> that looks like a background.",
-        };
-      }
-    } else if (tag === "path") {
-      candidates++;
-    }
+  if (best && best.score >= 6) {
+    return {
+      found: true,
+      reason: "Detected a likely full-canvas background rectangle.",
+      countCandidates: candidates.length,
+      candidates: candidates.map((c, idx) => ({ ...c, key: `bg-${idx}` })),
+    };
   }
 
   return {
     found: false,
-    kind: "none",
-    countCandidates: candidates,
-    reason: "No obvious full-canvas background rect detected.",
+    reason: candidates.length
+      ? "No obvious background detected. If this SVG has a background layer, use Manual remove."
+      : "No obvious background detected.",
+    countCandidates: candidates.length,
+    candidates: candidates.map((c, idx) => ({ ...c, key: `bg-${idx}` })),
   };
 }
 
 function applyBackgroundEdits(inputSvgText: string, s: Settings): string {
   const doc = parseSvg(inputSvgText);
-  const svg = doc.documentElement;
-
-  const dims = getSvgCanvasDims(svg as any);
+  const svg = doc.documentElement as any as SVGSVGElement;
+  const dims = getSvgCanvasDims(svg);
 
   if (s.mode === "remove") {
-    removeDetectedBackground(svg as any, dims);
+    removeDetectedOrManualBackground(svg, dims, s.manualRemoveKey);
+    removeInsertedBackgroundByTool(svg);
+    removeInsertedUnderlayByTool(svg);
   } else if (s.mode === "add") {
-    insertBackground(svg as any, dims, s);
+    removeInsertedBackgroundByTool(svg);
+    removeInsertedUnderlayByTool(svg);
+    if (!s.transparent) {
+      insertBackground(svg, s);
+    }
   } else if (s.mode === "replace") {
-    removeDetectedBackground(svg as any, dims);
-    insertBackground(svg as any, dims, s);
+    // Replace mode now means: remove background from main svg, then add SVG underlay behind.
+    removeInsertedBackgroundByTool(svg);
+    removeInsertedUnderlayByTool(svg);
+    removeDetectedOrManualBackground(svg, dims, "");
+    if (s.underlaySvg) {
+      insertUnderlaySvg(svg, dims, s.underlaySvg, s.insertPosition);
+    }
   }
 
   let out = new XMLSerializer().serializeToString(svg);
@@ -1608,27 +1443,41 @@ function applyBackgroundEdits(inputSvgText: string, s: Settings): string {
   return out;
 }
 
-function removeDetectedBackground(svg: SVGSVGElement, dims: CanvasDims) {
-  const children = Array.from(svg.children);
-
-  const interesting = children.filter(
-    (el) =>
-      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase()),
-  );
-
-  const N = Math.min(12, interesting.length);
-  for (let i = 0; i < N; i++) {
-    const el = interesting[i];
-    if (el.tagName.toLowerCase() !== "rect") continue;
-
-    if (isFullCanvasRect(el as any, dims)) {
-      el.remove();
-      break;
+function removeDetectedOrManualBackground(
+  svg: SVGSVGElement,
+  dims: CanvasDims,
+  manualKey: string,
+) {
+  if (manualKey && manualKey.startsWith("bg-")) {
+    const candidates = findBackgroundRectCandidates(svg, dims);
+    const idx = Number(manualKey.slice("bg-".length));
+    const picked = Number.isFinite(idx) ? candidates[idx] : undefined;
+    if (picked?.element) {
+      picked.element.remove();
+      return;
     }
+  }
+
+  const candidates = findBackgroundRectCandidates(svg, dims);
+  const best = candidates[0];
+  if (best?.element && best.score >= 6) {
+    best.element.remove();
   }
 }
 
-function insertBackground(svg: SVGSVGElement, dims: CanvasDims, s: Settings) {
+function removeInsertedBackgroundByTool(svg: SVGSVGElement) {
+  const rects = Array.from(svg.querySelectorAll(`rect[${TOOL_BG_ATTR}="1"]`));
+  rects.forEach((r) => r.remove());
+}
+
+function removeInsertedUnderlayByTool(svg: SVGSVGElement) {
+  const nodes = Array.from(
+    svg.querySelectorAll(`svg[${TOOL_UNDERLAY_ATTR}="1"]`),
+  );
+  nodes.forEach((n) => n.remove());
+}
+
+function insertBackground(svg: SVGSVGElement, s: Settings) {
   const rect = svg.ownerDocument!.createElementNS(
     "http://www.w3.org/2000/svg",
     "rect",
@@ -1666,21 +1515,277 @@ function insertBackground(svg: SVGSVGElement, dims: CanvasDims, s: Settings) {
   rect.setAttribute("pointer-events", "none");
   if (s.setShapeRendering) rect.setAttribute("shape-rendering", "crispEdges");
 
+  rect.setAttribute(TOOL_BG_ATTR, "1");
+
+  insertNodeAtPosition(svg, rect, s.insertPosition);
+}
+
+function insertUnderlaySvg(
+  svg: SVGSVGElement,
+  dims: CanvasDims,
+  underlaySvgText: string,
+  pos: "as-first-child" | "after-defs",
+) {
+  // Parse and prefix IDs in underlay to reduce collisions, then embed as nested <svg>.
+  const underlayDoc = parseSvg(underlaySvgText);
+  const underlayRoot = underlayDoc.documentElement as any as SVGSVGElement;
+
+  const prefix = `ilovesvg-ul-${Math.random().toString(16).slice(2, 10)}`;
+  prefixSvgIdsInPlace(underlayRoot, prefix);
+
+  const targetBox = getTargetBox(svg, dims);
+  const underlayVb = parseViewBox(underlayRoot.getAttribute("viewBox"));
+  const underlayW = parseNumericLen(underlayRoot.getAttribute("width"));
+  const underlayH = parseNumericLen(underlayRoot.getAttribute("height"));
+
+  const embedded = svg.ownerDocument!.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "svg",
+  );
+  embedded.setAttribute(TOOL_UNDERLAY_ATTR, "1");
+  embedded.setAttribute("pointer-events", "none");
+  embedded.setAttribute("x", String(targetBox.minX));
+  embedded.setAttribute("y", String(targetBox.minY));
+  embedded.setAttribute("width", String(targetBox.width));
+  embedded.setAttribute("height", String(targetBox.height));
+  embedded.setAttribute("preserveAspectRatio", "none");
+
+  if (underlayVb) {
+    embedded.setAttribute(
+      "viewBox",
+      `${underlayVb.minX} ${underlayVb.minY} ${underlayVb.width} ${underlayVb.height}`,
+    );
+  } else if (
+    underlayW != null &&
+    underlayH != null &&
+    underlayW > 0 &&
+    underlayH > 0
+  ) {
+    embedded.setAttribute("viewBox", `0 0 ${underlayW} ${underlayH}`);
+  } else {
+    // Fallback: match target viewBox so content that uses percentages has a predictable viewport
+    embedded.setAttribute(
+      "viewBox",
+      `${targetBox.minX} ${targetBox.minY} ${targetBox.width} ${targetBox.height}`,
+    );
+  }
+
+  // Import underlay children into embedded svg
+  const importedChildren = Array.from(underlayRoot.childNodes).map((n) =>
+    svg.ownerDocument!.importNode(n, true),
+  );
+  importedChildren.forEach((n) => embedded.appendChild(n));
+
+  insertNodeAtPosition(svg, embedded, pos);
+}
+
+function insertNodeAtPosition(
+  svg: SVGSVGElement,
+  node: Element,
+  pos: "as-first-child" | "after-defs",
+) {
   const children = Array.from(svg.children);
-  if (s.insertPosition === "after-defs") {
+  if (pos === "after-defs") {
     const defs = children.find((c) => c.tagName.toLowerCase() === "defs");
     if (defs && defs.nextSibling) {
-      svg.insertBefore(rect, defs.nextSibling);
+      svg.insertBefore(node, defs.nextSibling);
     } else if (defs) {
-      svg.appendChild(rect);
+      svg.appendChild(node);
     } else if (svg.firstChild) {
-      svg.insertBefore(rect, svg.firstChild);
+      svg.insertBefore(node, svg.firstChild);
     } else {
-      svg.appendChild(rect);
+      svg.appendChild(node);
     }
   } else {
-    if (svg.firstChild) svg.insertBefore(rect, svg.firstChild);
-    else svg.appendChild(rect);
+    if (svg.firstChild) svg.insertBefore(node, svg.firstChild);
+    else svg.appendChild(node);
+  }
+}
+
+/* ========================
+   Candidate scoring
+======================== */
+function findBackgroundRectCandidates(
+  svg: SVGSVGElement,
+  dims: CanvasDims,
+): Array<{ element: SVGRectElement; label: string; score: number }> {
+  const children = Array.from(svg.children);
+  const interesting = children.filter(
+    (el) =>
+      !["defs", "title", "desc", "metadata"].includes(el.tagName.toLowerCase()),
+  );
+
+  const scanN = Math.min(18, interesting.length);
+  const rects: SVGRectElement[] = [];
+
+  for (let i = 0; i < scanN; i++) {
+    const el = interesting[i];
+    if (el.tagName.toLowerCase() === "rect")
+      rects.push(el as any as SVGRectElement);
+  }
+
+  const scored = rects
+    .map((r, idx) => {
+      const score = scoreRectAsBackground(r, dims, idx);
+      const w = (r.getAttribute("width") ?? "").trim() || "?";
+      const h = (r.getAttribute("height") ?? "").trim() || "?";
+      const fill = (r.getAttribute("fill") ?? "").trim() || "(none)";
+      const fo = (r.getAttribute("fill-opacity") ?? "").trim();
+      const label = `Rect ${idx + 1} (score:${score}, w:${w}, h:${h}, fill:${fill}${fo ? `, op:${fo}` : ""})`;
+      return { element: r, label, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored;
+}
+
+function scoreRectAsBackground(
+  rect: SVGRectElement,
+  dims: CanvasDims,
+  orderIndex: number,
+): number {
+  let score = 0;
+
+  const fillRaw = (rect.getAttribute("fill") ?? "").trim().toLowerCase();
+  const opacityRaw = (rect.getAttribute("fill-opacity") ?? "").trim();
+  const style = (rect.getAttribute("style") ?? "").toLowerCase();
+
+  if (fillRaw === "none" || fillRaw === "transparent") return 0;
+  if (opacityRaw && Number(opacityRaw) === 0) return 0;
+  if (style.includes("fill:none")) return 0;
+
+  const x = (rect.getAttribute("x") ?? "0").trim();
+  const y = (rect.getAttribute("y") ?? "0").trim();
+
+  if (x === "" || x === "0" || x === "0%") score += 2;
+  if (y === "" || y === "0" || y === "0%") score += 2;
+
+  const w = (rect.getAttribute("width") ?? "").trim();
+  const h = (rect.getAttribute("height") ?? "").trim();
+
+  const covers = rectCoversCanvas(w, h, dims);
+  if (covers) score += 4;
+
+  if (orderIndex === 0) score += 2;
+  if (orderIndex === 1) score += 1;
+
+  const pe = (rect.getAttribute("pointer-events") ?? "").trim().toLowerCase();
+  if (pe === "none") score += 1;
+
+  const id = (rect.getAttribute("id") ?? "").toLowerCase();
+  const cls = (rect.getAttribute("class") ?? "").toLowerCase();
+  if (
+    id.includes("bg") ||
+    id.includes("background") ||
+    cls.includes("bg") ||
+    cls.includes("background")
+  ) {
+    score += 1;
+  }
+
+  return score;
+}
+
+function rectCoversCanvas(w: string, h: string, dims: CanvasDims): boolean {
+  if (!w || !h) return false;
+
+  const wNorm = w.trim();
+  const hNorm = h.trim();
+
+  if (wNorm === "100%" && hNorm === "100%") return true;
+
+  if (
+    (wNorm === "100%" || wNorm === "100") &&
+    (hNorm === "100%" || hNorm === "100")
+  )
+    return true;
+
+  if (dims.viewBox) {
+    const vb = dims.viewBox;
+    const wOk = approxLenEquals(wNorm, vb.width) || wNorm === String(vb.width);
+    const hOk =
+      approxLenEquals(hNorm, vb.height) || hNorm === String(vb.height);
+    if (wOk && hOk) return true;
+  }
+
+  const rootW = parseNumericLen(dims.widthAttr);
+  const rootH = parseNumericLen(dims.heightAttr);
+  const rectW = parseNumericLen(wNorm);
+  const rectH = parseNumericLen(hNorm);
+
+  if (rootW != null && rootH != null && rectW != null && rectH != null) {
+    if (approx(rectW, rootW) && approx(rectH, rootH)) return true;
+  }
+
+  if (
+    wNorm === "100%" &&
+    rectH != null &&
+    rootH != null &&
+    approx(rectH, rootH)
+  )
+    return true;
+  if (
+    hNorm === "100%" &&
+    rectW != null &&
+    rootW != null &&
+    approx(rectW, rootW)
+  )
+    return true;
+
+  return false;
+}
+
+/* ========================
+   Underlay ID prefixing
+======================== */
+function prefixSvgIdsInPlace(svgRoot: SVGSVGElement, prefix: string) {
+  const idMap = new Map<string, string>();
+  const all = Array.from(svgRoot.querySelectorAll("*"));
+
+  // collect ids
+  for (const el of all) {
+    const id = el.getAttribute("id");
+    if (id) {
+      const next = `${prefix}-${id}`;
+      idMap.set(id, next);
+      el.setAttribute("id", next);
+    }
+  }
+
+  if (idMap.size === 0) return;
+
+  const replaceInValue = (v: string) => {
+    let out = v;
+    for (const [oldId, newId] of idMap.entries()) {
+      out = out
+        .replaceAll(`url(#${oldId})`, `url(#${newId})`)
+        .replaceAll(`href="#${oldId}"`, `href="#${newId}"`)
+        .replaceAll(`xlink:href="#${oldId}"`, `xlink:href="#${newId}"`);
+    }
+    return out;
+  };
+
+  // attributes
+  for (const el of all) {
+    for (const attr of Array.from(el.attributes)) {
+      const val = attr.value;
+      if (!val) continue;
+      const next = replaceInValue(val);
+      if (next !== val) el.setAttribute(attr.name, next);
+    }
+  }
+
+  // style blocks (best effort)
+  const styleEls = Array.from(svgRoot.querySelectorAll("style"));
+  for (const st of styleEls) {
+    const txt = st.textContent || "";
+    if (!txt) continue;
+    let next = txt;
+    for (const [oldId, newId] of idMap.entries()) {
+      next = next.replaceAll(`url(#${oldId})`, `url(#${newId})`);
+    }
+    if (next !== txt) st.textContent = next;
   }
 }
 
@@ -1714,6 +1819,19 @@ function getSvgCanvasDims(svg: SVGSVGElement): CanvasDims {
   };
 }
 
+function getTargetBox(svg: SVGSVGElement, dims: CanvasDims): ViewBox {
+  if (dims.viewBox) return dims.viewBox;
+
+  const w = parseNumericLen(dims.widthAttr);
+  const h = parseNumericLen(dims.heightAttr);
+  if (w != null && h != null && w > 0 && h > 0) {
+    return { minX: 0, minY: 0, width: w, height: h };
+  }
+
+  // last resort
+  return { minX: 0, minY: 0, width: 100, height: 100 };
+}
+
 function parseViewBox(v: string | null): ViewBox | null {
   if (!v) return null;
   const parts = v.trim().replace(/,/g, " ").split(/\s+/).filter(Boolean);
@@ -1723,58 +1841,6 @@ function parseViewBox(v: string | null): ViewBox | null {
   const [minX, minY, width, height] = nums;
   if (width <= 0 || height <= 0) return null;
   return { minX, minY, width, height };
-}
-
-/* ========================
-   Full-canvas rect heuristics
-======================== */
-function isFullCanvasRect(rect: SVGRectElement, dims: CanvasDims): boolean {
-  const x = (rect.getAttribute("x") ?? "0").trim();
-  const y = (rect.getAttribute("y") ?? "0").trim();
-  const w = (rect.getAttribute("width") ?? "").trim();
-  const h = (rect.getAttribute("height") ?? "").trim();
-
-  const xOk = x === "0" || x === "0%" || x === "";
-  const yOk = y === "0" || y === "0%" || y === "";
-  if (!xOk || !yOk) return false;
-
-  const fill = (rect.getAttribute("fill") ?? "").trim().toLowerCase();
-  const opacity = (rect.getAttribute("fill-opacity") ?? "").trim();
-  if (fill === "none") return false;
-  if (fill === "transparent") return false;
-  if (opacity && Number(opacity) === 0) return false;
-
-  if ((w === "100%" || w === "100") && (h === "100%" || h === "100"))
-    return true;
-  if (w === "100%" && h === "100%") return true;
-
-  if (dims.viewBox) {
-    const vb = dims.viewBox;
-    const wOk = approxLenEquals(w, vb.width) || w === String(vb.width);
-    const hOk = approxLenEquals(h, vb.height) || h === String(vb.height);
-    if (wOk && hOk) return true;
-  }
-
-  const rootW = parseNumericLen(dims.widthAttr);
-  const rootH = parseNumericLen(dims.heightAttr);
-  const rectW = parseNumericLen(w);
-  const rectH = parseNumericLen(h);
-  if (rootW != null && rootH != null && rectW != null && rectH != null) {
-    if (approx(rectW, rootW) && approx(rectH, rootH)) return true;
-  }
-
-  if ((w === "100%" && h) || (h === "100%" && w)) {
-    if (w === "100%") {
-      if (dims.viewBox && approxLenEquals(h, dims.viewBox.height)) return true;
-      if (rootH != null && rectH != null && approx(rectH, rootH)) return true;
-    }
-    if (h === "100%") {
-      if (dims.viewBox && approxLenEquals(w, dims.viewBox.width)) return true;
-      if (rootW != null && rectW != null && approx(rectW, rootW)) return true;
-    }
-  }
-
-  return false;
 }
 
 function parseNumericLen(v: string | null): number | null {

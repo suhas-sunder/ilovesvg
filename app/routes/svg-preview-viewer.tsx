@@ -114,6 +114,32 @@ const DEFAULTS: Settings = {
 };
 
 /* ========================
+   Shared FAQ (visible + JSON-LD)
+======================== */
+const FAQ = [
+  {
+    q: "Does this SVG viewer upload my file?",
+    a: "No. Everything runs locally in your browser. Nothing is uploaded to a server.",
+  },
+  {
+    q: "How do I zoom without the page scrolling?",
+    a: "Use Ctrl (or Cmd) + mouse wheel / trackpad pinch to zoom. Regular scrolling will scroll the page as normal.",
+  },
+  {
+    q: "How do I pan around the SVG?",
+    a: "Drag to pan when zoomed in. You can also hold Space and drag to pan from anywhere, or use the middle mouse button.",
+  },
+  {
+    q: "What is the element picker?",
+    a: "Enable Pick and click an element to see its tag, id, class, fill, stroke, and bounding box (when available).",
+  },
+  {
+    q: "Why does the preview look different from my design tool?",
+    a: "Some SVGs rely on external fonts, CSS, or scripts. This viewer can strip scripts and event handlers for safety, which may change behavior. Toggle the safety options to compare.",
+  },
+];
+
+/* ========================
    Page
 ======================== */
 export default function SvgPreviewViewer(_: Route.ComponentProps) {
@@ -154,11 +180,10 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     baseTy: 0,
   });
 
+  const didPanRef = React.useRef(false);
+
   const [picked, setPicked] = React.useState<Picked | null>(null);
   const [pickedOutline, setPickedOutline] = React.useState<string | null>(null);
-
-  // minimap
-  const minimapRef = React.useRef<HTMLDivElement | null>(null);
 
   // tabs
   const [tab, setTab] = React.useState<"details" | "elements" | "source">(
@@ -167,7 +192,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(null), 1400);
+    window.setTimeout(() => setToast(null), 1400);
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -230,6 +255,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     setScale(1);
     setTx(0);
     setTy(0);
+
     requestAnimationFrame(() => {
       const m = settings.fitMode;
       if (m === "actual") setActual();
@@ -286,12 +312,30 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     svgText,
   ]);
 
+  // Make cursor reflect pan affordance when zoomed
+  React.useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    if (!safeSvg) {
+      vp.style.cursor = "";
+      return;
+    }
+    if (settings.picker) {
+      vp.style.cursor = "crosshair";
+      return;
+    }
+    if (isSpaceDown) {
+      vp.style.cursor = "grab";
+      return;
+    }
+    vp.style.cursor = scale > 1.01 ? "grab" : "";
+  }, [safeSvg, settings.picker, isSpaceDown, scale]);
+
   // Keyboard shortcuts
   React.useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === " " && !e.repeat) {
         setIsSpaceDown(true);
-        if (viewportRef.current) viewportRef.current.style.cursor = "grab";
       }
 
       if (!safeSvg) return;
@@ -361,7 +405,6 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     function onKeyUp(e: KeyboardEvent) {
       if (e.key === " ") {
         setIsSpaceDown(false);
-        if (viewportRef.current) viewportRef.current.style.cursor = "";
       }
     }
 
@@ -400,10 +443,6 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   function clamp(n: number, lo: number, hi: number) {
     return Math.max(lo, Math.min(hi, n));
-  }
-
-  function round2(n: number) {
-    return Math.round(n * 100) / 100;
   }
 
   function centerAtScale(nextScale: number) {
@@ -471,6 +510,14 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   function onWheel(e: React.WheelEvent) {
     if (!safeSvg) return;
+
+    // Intuitive UX:
+    // - Regular wheel scroll should scroll the page (do not hijack).
+    // - Ctrl/Cmd wheel or trackpad pinch should zoom in the viewer.
+    // - Alt wheel also zooms for users who prefer it.
+    const zoomIntent = e.ctrlKey || e.metaKey || e.altKey;
+    if (!zoomIntent) return;
+
     e.preventDefault();
 
     // Trackpads often send small deltas, this curve feels natural
@@ -482,14 +529,19 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
   function onPointerDown(e: React.PointerEvent) {
     if (!safeSvg) return;
 
-    // Picker mode: do not start pan
-    if (settings.picker) return;
+    // Allow panning even while picker is enabled if Space is held or middle mouse.
+    // Also allow intuitive left-drag panning when zoomed in.
+    const isTouch = e.pointerType === "touch";
 
-    // Spacebar drag also pans
-    const shouldPan = isSpaceDown || e.button === 1; // middle mouse
+    const shouldPan =
+      isTouch ||
+      isSpaceDown ||
+      e.button === 1 ||
+      (e.button === 0 && scale > 1.01 && !settings.picker);
 
     if (!shouldPan) return;
 
+    didPanRef.current = false;
     (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
     panRef.current = {
       active: true,
@@ -500,8 +552,8 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
       baseTy: ty,
     };
 
-    if (isSpaceDown && viewportRef.current)
-      viewportRef.current.style.cursor = "grabbing";
+    const vp = viewportRef.current;
+    if (vp) vp.style.cursor = "grabbing";
   }
 
   function onPointerMove(e: React.PointerEvent) {
@@ -510,6 +562,11 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     if (p.pointerId !== e.pointerId) return;
     const dx = e.clientX - p.startX;
     const dy = e.clientY - p.startY;
+
+    if (!didPanRef.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      didPanRef.current = true;
+    }
+
     setTx(p.baseTx + dx);
     setTy(p.baseTy + dy);
   }
@@ -521,12 +578,18 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     panRef.current.active = false;
     panRef.current.pointerId = null;
 
-    if (viewportRef.current && isSpaceDown)
-      viewportRef.current.style.cursor = "grab";
+    const vp = viewportRef.current;
+    if (!vp) return;
+
+    if (settings.picker) vp.style.cursor = "crosshair";
+    else if (isSpaceDown || scale > 1.01) vp.style.cursor = "grab";
+    else vp.style.cursor = "";
   }
 
   function onDoubleClick(e: React.MouseEvent) {
     if (!safeSvg) return;
+    // Double click zooms in, but keep it from selecting text.
+    e.preventDefault();
     zoomAtScreenPoint(e.clientX, e.clientY, scale * 1.35);
   }
 
@@ -585,6 +648,9 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     if (!host) return;
 
     function handler(ev: MouseEvent) {
+      // If user just panned, do not treat as a pick click.
+      if (didPanRef.current || panRef.current.active || isSpaceDown) return;
+
       if (!settings.picker) return;
       const target = ev.target as Element | null;
       if (!target) return;
@@ -636,7 +702,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
     host.addEventListener("click", handler, true);
     return () => host.removeEventListener("click", handler, true);
-  }, [settings.picker, settings.showInspector]);
+  }, [settings.picker, settings.showInspector, isSpaceDown]);
 
   // Update minimap viewbox overlay by computing viewport in SVG coords
   const minimap = React.useMemo(() => {
@@ -700,7 +766,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
             <div className="border-b border-slate-200 bg-white ">
               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap ">
                 <div className="flex items-center gap-3 min-w-0">
-                  <label className="inline-flex items-center gap-2 px-3  py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 cursor-pointer">
                     <span className="font-semibold text-slate-900 text-[14px]">
                       Open SVG
                     </span>
@@ -739,8 +805,8 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => zoomAtCenter(scale / 1.15)}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Zoom out (Ctrl + -)"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Zoom out (Ctrl/Cmd + wheel, Ctrl + -)"
                   >
                     −
                   </button>
@@ -749,8 +815,8 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => zoomAtCenter(scale * 1.15)}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Zoom in (Ctrl + +)"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Zoom in (Ctrl/Cmd + wheel, Ctrl + +)"
                   >
                     +
                   </button>
@@ -773,7 +839,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                         zoomAtCenter(val);
                       }}
                       disabled={!hydrated || !safeSvg}
-                      className="w-[180px]"
+                      className="w-[180px] cursor-pointer disabled:cursor-not-allowed"
                       title="Zoom"
                     />
                   </div>
@@ -782,7 +848,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     value={settings.fitMode}
                     onChange={(e) => setFitMode(e.target.value as FitMode)}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Fit mode (F, A, Ctrl+0)"
                   >
                     <option value="fit">Fit</option>
@@ -794,7 +860,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={resetView}
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Reset view"
                   >
                     Reset
@@ -809,7 +875,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     }
                     disabled={!hydrated || !safeSvg}
                     className={[
-                      "px-3 py-2 rounded-xl border transition-colors",
+                      "px-3 py-2 rounded-xl border transition-colors cursor-pointer",
                       settings.picker
                         ? "border-sky-300 bg-sky-50 text-slate-900"
                         : "border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900",
@@ -830,10 +896,11 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     }
                     disabled={!hydrated}
                     className={[
-                      "px-3 py-2 rounded-xl border transition-colors",
+                      "px-3 py-2 rounded-xl border transition-colors cursor-pointer",
                       settings.showInspector
                         ? "border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                         : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
+                      "disabled:opacity-60 disabled:cursor-not-allowed",
                     ].join(" ")}
                     title="Toggle inspector (I)"
                   >
@@ -844,7 +911,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={clearAll}
                     disabled={!hydrated || (!file && !svgText)}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Clear"
                   >
                     Clear
@@ -883,7 +950,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                       }))
                     }
                     disabled={!hydrated || !safeSvg}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Background"
                   >
                     <option value="checker">Checker</option>
@@ -898,7 +965,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={() => copy(svgText)}
                     disabled={!hydrated || !svgText}
-                    className=" inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className=" inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Copy source"
                   >
                     <Icons name="copy" size={16} className="mr-1" />
@@ -908,7 +975,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                     type="button"
                     onClick={downloadSource}
                     disabled={!hydrated || !svgText}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl font-semibold border border-sky-600 text-white bg-sky-500 hover:bg-sky-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl font-semibold border border-sky-600 text-white bg-sky-500 hover:bg-sky-600 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     title="Download original source"
                   >
                     <Icons name="download" size={16} className="mr-1" />
@@ -952,8 +1019,8 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                           Open, drop, or paste an SVG.
                         </div>
                         <div className="mt-4 text-[13px] text-slate-500">
-                          Wheel to zoom. Drag to pan. Hold Space to pan from
-                          anywhere.
+                          Ctrl/Cmd + wheel (or pinch) to zoom. Drag to pan when
+                          zoomed. Hold Space to pan anytime.
                         </div>
                       </div>
                     </div>
@@ -997,9 +1064,20 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                       <div className="absolute left-3 top-3 flex items-center gap-2">
                         <div className="px-3 py-2 rounded-xl bg-white/90 border border-slate-200 text-[12px] text-slate-700 shadow-sm">
                           {settings.picker ? (
-                            <span>Picker on: click an element. Esc exits.</span>
+                            <span>
+                              Picker on: click an element. Drag to pan with
+                              Space. Esc exits.
+                            </span>
+                          ) : scale > 1.01 ? (
+                            <span>
+                              Ctrl/Cmd + wheel to zoom. Drag to pan. Space pans
+                              from anywhere.
+                            </span>
                           ) : (
-                            <span>Wheel zoom. Drag pan. Space pan.</span>
+                            <span>
+                              Ctrl/Cmd + wheel to zoom. Space pan, or zoom in to
+                              drag-pan.
+                            </span>
                           )}
                         </div>
                       </div>
@@ -1038,7 +1116,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                         onClick={() =>
                           setSettings((s) => ({ ...s, showInspector: false }))
                         }
-                        className="px-2 py-1 rounded-lg border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                        className="px-2 py-1 rounded-lg border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         title="Hide"
                       >
                         ×
@@ -1115,6 +1193,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1126,6 +1205,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
@@ -1197,7 +1277,7 @@ function DetailsPanel({
             onChange={(e) =>
               setSettings((s) => ({ ...s, stripScripts: e.target.checked }))
             }
-            className="h-4 w-4 accent-[#0b2dff]"
+            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
           />
         </label>
 
@@ -1214,7 +1294,7 @@ function DetailsPanel({
                 stripForeignObject: e.target.checked,
               }))
             }
-            className="h-4 w-4 accent-[#0b2dff]"
+            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
           />
         </label>
 
@@ -1231,7 +1311,7 @@ function DetailsPanel({
                 stripEventHandlers: e.target.checked,
               }))
             }
-            className="h-4 w-4 accent-[#0b2dff]"
+            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
           />
         </label>
 
@@ -1248,7 +1328,7 @@ function DetailsPanel({
                 stripJavascriptHrefs: e.target.checked,
               }))
             }
-            className="h-4 w-4 accent-[#0b2dff]"
+            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
           />
         </label>
       </InfoCard>
@@ -1292,14 +1372,16 @@ function ElementsPanel({
               label="bbox"
               value={
                 picked.bbox
-                  ? `${round3(picked.bbox.x)}, ${round3(picked.bbox.y)}  ${round3(picked.bbox.w)}×${round3(picked.bbox.h)}`
+                  ? `${round3(picked.bbox.x)}, ${round3(
+                      picked.bbox.y,
+                    )}  ${round3(picked.bbox.w)}×${round3(picked.bbox.h)}`
                   : "(n/a)"
               }
             />
             <button
               type="button"
               onClick={onClearPick}
-              className="inline-flex items-center justify-center mt-1 px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+              className="inline-flex items-center justify-center mt-1 px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
             >
               <Icons name="trash" size={16} className="mr-1" />
               Clear selection
@@ -1386,7 +1468,7 @@ function SourcePanel({
             type="button"
             onClick={onCopySource}
             disabled={!hydrated || !svgText}
-            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Icons name="copy" size={16} className="mr-1" />
             Copy source
@@ -1395,7 +1477,7 @@ function SourcePanel({
             type="button"
             onClick={onCopyPreview}
             disabled={!hydrated || !safeSvg}
-            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Icons name="copy" size={16} className="mr-1" />
             Copy preview
@@ -1759,7 +1841,7 @@ function TogglePill({
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       className={[
-        "px-3 py-2 rounded-xl border text-[14px] font-semibold transition-colors",
+        "px-3 py-2 rounded-xl border text-[14px] font-semibold transition-colors cursor-pointer",
         checked
           ? "border-sky-300 bg-sky-50 text-slate-900"
           : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
@@ -1786,11 +1868,12 @@ function TabPill({
       type="button"
       onClick={onClick}
       className={[
-        "px-3 py-2 rounded-xl border text-[13px] font-semibold transition-colors",
+        "px-3 py-2 rounded-xl border text-[13px] font-semibold transition-colors cursor-pointer",
         active
           ? "border-sky-300 bg-sky-50 text-slate-900"
           : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
       ].join(" ")}
+      aria-pressed={active}
     >
       {children}
     </button>
@@ -1926,40 +2009,11 @@ function JsonLdFaq() {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Does this SVG viewer upload my file?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. Everything runs locally in your browser. Nothing is uploaded to a server.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How do I zoom and pan?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Use the mouse wheel to zoom and drag to pan. Hold Space to pan from anywhere. Double-click zooms in. Use Fit, Fill, or Actual to reset the view.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What is the element picker?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Enable Pick and click an element to see its tag, id, class, fill, stroke, and bounding box (when available).",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why does the preview look different from my design tool?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Some SVGs rely on external fonts, CSS, or scripts. This viewer can strip scripts and event handlers for safety, which may change behavior. Toggle the safety options to compare.",
-        },
-      },
-    ],
+    mainEntity: FAQ.map((x) => ({
+      "@type": "Question",
+      name: x.q,
+      acceptedAnswer: { "@type": "Answer", text: x.a },
+    })),
   };
 
   return (
@@ -1971,58 +2025,46 @@ function JsonLdFaq() {
 }
 
 /* ========================
-   SEO sections
+   SEO sections (correct for SVG Viewer)
 ======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
         <article>
-          {/* Header / Hero */}
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
-            <div className="flex flex-col gap-3">
-              <p className="m-0 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                PNG/JPEG to SVG vectorizer
-              </p>
+            <p className="m-0 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              SVG inspection tool
+            </p>
 
-              <h1 className="m-0 text-2xl text-sky-800 md:text-3xl font-extrabold tracking-tight leading-tight">
-                Image to SVG Converter (PNG, JPG, JPEG, WebP)
-              </h1>
+            <h2 className="m-0 text-2xl text-sky-800 md:text-3xl font-extrabold tracking-tight leading-tight">
+              SVG Viewer (Zoom, Pan, Inspect)
+            </h2>
 
-              <p className="m-0 text-[15px] leading-relaxed text-slate-700">
-                Convert raster images into{" "}
-                <span className="font-semibold text-slate-900">
-                  clean, editable SVG paths
-                </span>
-                . This tool is tuned for logos, line art, scans, diagrams, and
-                photo-style edge extraction, with a fast preview loop and
-                practical controls for smoothing and cleanup.
-              </p>
+            <p className="mt-3 m-0 text-[15px] leading-relaxed text-slate-700">
+              Open an SVG and inspect it fast. Zoom and pan for detailed
+              checking, pick elements to see attributes, review basic stats like
+              viewBox and dimensions, and copy the source. Everything runs
+              client-side.
+            </p>
 
-              <p className="m-0 text-[15px] leading-relaxed text-slate-700">
-                Upload a PNG/JPG/JPEG/WebP, pick a preset, tweak a few settings,
-                and export a scalable SVG you can recolor, edit, and embed
-                anywhere.
-              </p>
-
-              <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { k: "Clean SVG", v: "Editable paths and shapes" },
-                  { k: "Fast preview", v: "≤10 MB live updates" },
-                  { k: "Throttled tier", v: "Up to 25 MB preview" },
-                  { k: "Private by default", v: "Processed in memory" },
-                ].map((x) => (
-                  <div
-                    key={x.k}
-                    className="rounded-xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="text-sm font-semibold text-slate-900">
-                      {x.k}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+            <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { k: "Private", v: "No uploads, runs in your browser" },
+                { k: "Zoom + pan", v: "Ctrl/Cmd + wheel to zoom, drag to pan" },
+                { k: "Element picker", v: "Click elements to inspect details" },
+                { k: "Source access", v: "Copy or download the original SVG" },
+              ].map((x) => (
+                <div
+                  key={x.k}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {x.k}
                   </div>
-                ))}
-              </div>
+                  <div className="mt-1 text-sm text-slate-600">{x.v}</div>
+                </div>
+              ))}
             </div>
           </header>
 
@@ -2042,103 +2084,36 @@ function SeoSections() {
             </div>
           )}
 
-          {/* Use cases */}
-          <section className="mt-6">
+          <section className="mt-10">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Best for
+              How to use the SVG viewer
             </h3>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                "Logos",
-                "Line art",
-                "Scans",
-                "Whiteboards",
-                "Comics",
-                "Diagrams",
-                "Stickers",
-                "Photo edges",
-              ].map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="text-sm font-semibold text-slate-900">
-                  Line art and ink
-                </div>
-                <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                  Start with a lineart preset for crisp strokes and solid fills.
-                  Use a lower curve tolerance when you need detail, and raise
-                  turd size to remove dust and tiny specks.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="text-sm font-semibold text-slate-900">
-                  Logos and icons
-                </div>
-                <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                  Use a logo preset for smoother curves and fewer nodes.
-                  Threshold controls what becomes solid. If the SVG looks
-                  “blobby,” lower threshold or increase smoothing.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* HowTo */}
-          <section
-            itemScope
-            itemType="https://schema.org/HowTo"
-            className="mt-12"
-          >
-            <div className="flex items-end justify-between gap-4 flex-wrap">
-              <h3
-                itemProp="name"
-                className="m-0 text-lg font-extrabold text-slate-900"
-              >
-                How to convert PNG or JPEG to SVG
-              </h3>
-              <span className="text-xs text-slate-500">
-                Fast path: upload → preset → tweak → export
-              </span>
-            </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a PNG, JPG, JPEG, or WebP",
-                  body: "Drag and drop or use the picker. Large files may be auto-compressed on your device to help keep preview smooth up to 25 MB.",
+                  title: "Open, drop, or paste an SVG",
+                  body: "Use the file picker, drag and drop, or paste an SVG file from your clipboard.",
                 },
                 {
-                  title: "Pick a preset that matches the image",
-                  body: "Lineart for ink and drawings, Logo for clean shapes, Photo Edge for contour extraction.",
+                  title: "Zoom intentionally",
+                  body: "Use Ctrl/Cmd + mouse wheel or trackpad pinch to zoom the SVG without hijacking normal page scrolling.",
                 },
                 {
-                  title: "Adjust the important controls",
-                  body: "Tune threshold (what counts as ink), curve tolerance (detail vs smoothness), turd size (speck removal), and turn policy (corner behavior).",
+                  title: "Pan to inspect",
+                  body: "Drag to pan when zoomed in. Hold Space to pan from anywhere. Use middle mouse if you prefer.",
                 },
                 {
-                  title: "Set colors and background behavior",
-                  body: "Pick line color, invert when needed, and keep transparency or add a solid background.",
+                  title: "Pick elements to inspect",
+                  body: "Turn on Pick, click an element, and review its tag, id, class, fill/stroke, and bounding box when available.",
                 },
                 {
-                  title: "Export SVG",
-                  body: "Download or copy the SVG. It stays vector, so it scales cleanly and can be edited later.",
+                  title: "Copy or download source",
+                  body: "Copy the original SVG source, or download it with the filename you want.",
                 },
               ].map((s, i) => (
                 <li
                   key={s.title}
-                  itemScope
-                  itemType="https://schema.org/HowToStep"
-                  itemProp="step"
                   className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
                   <div className="flex gap-3">
@@ -2146,16 +2121,10 @@ function SeoSections() {
                       {i + 1}
                     </div>
                     <div>
-                      <div
-                        itemProp="name"
-                        className="font-semibold text-slate-900"
-                      >
+                      <div className="font-semibold text-slate-900">
                         {s.title}
                       </div>
-                      <div
-                        itemProp="itemListElement"
-                        className="mt-1 text-sm text-slate-600 leading-relaxed"
-                      >
+                      <div className="mt-1 text-sm text-slate-600 leading-relaxed">
                         {s.body}
                       </div>
                     </div>
@@ -2165,170 +2134,6 @@ function SeoSections() {
             </ol>
           </section>
 
-          {/* Settings */}
-          <section className="mt-12">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Settings explained
-            </h3>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed max-w-[80ch]">
-              These controls are the difference between “messy trace” and
-              “usable SVG.” Use them to balance detail, smoothness, and cleanup.
-            </p>
-
-            <div className="mt-5 grid md:grid-cols-2 gap-4">
-              {[
-                {
-                  title: "Preprocess",
-                  body: "None for logos and crisp ink. Edge mode for photos and paintings when you want outlines instead of filled regions.",
-                },
-                {
-                  title: "Threshold",
-                  body: "Controls what counts as ink. Higher includes lighter pixels; lower keeps only darker strokes. If you lose thin lines, raise threshold slightly.",
-                },
-                {
-                  title: "Curve tolerance",
-                  body: "Lower preserves detail (more nodes). Higher smooths curves (fewer nodes) and can reduce SVG size. For icons, a slightly higher value is usually better.",
-                },
-                {
-                  title: "Turd size",
-                  body: "Removes tiny specks and scanner dust. If your output has lots of dots, increase this first before touching other settings.",
-                },
-                {
-                  title: "Turn policy",
-                  body: "Decides how ambiguous corners resolve. Useful when corners look “wrong” or when the trace keeps rounding a shape you expect to stay sharp.",
-                },
-                {
-                  title: "Line color, invert, background",
-                  body: "Pick any stroke/fill color for the result. Invert is useful for white ink on dark backgrounds. Keep transparency or inject a solid background color.",
-                },
-                {
-                  title: "Edge boost and blur σ",
-                  body: "In Edge mode: blur reduces noise; edge boost amplifies contours before tracing. If edges look noisy, increase blur before increasing threshold.",
-                },
-              ].map((c) => (
-                <div
-                  key={c.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                  <div className="text-sm font-semibold text-slate-900">
-                    {c.title}
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                    {c.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Performance */}
-          <section className="mt-12">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Performance and limits
-            </h3>
-
-            <div className="mt-4 grid lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="text-sm font-semibold text-slate-900">
-                  Specs
-                </div>
-                <dl className="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Max file size</dt>
-                    <dd className="mt-1 font-semibold text-slate-900">
-                      30 MB per image
-                    </dd>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Resolution guard</dt>
-                    <dd className="mt-1 font-semibold text-slate-900">
-                      ~30 MP per side
-                    </dd>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Preview tiers</dt>
-                    <dd className="mt-1 font-semibold text-slate-900">
-                      Fast ≤10 MB, throttled ≤25 MB
-                    </dd>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Large files</dt>
-                    <dd className="mt-1 font-semibold text-slate-900">
-                      Auto-compress on-device when possible
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-sm font-semibold text-slate-900">
-                  Server stability
-                </div>
-                <p className="mt-2 text-sm text-slate-700 leading-relaxed">
-                  Vectorization is CPU heavy. We cap concurrent conversions.
-                  When busy, you may get{" "}
-                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
-                    429
-                  </code>{" "}
-                  with{" "}
-                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
-                    Retry-After
-                  </code>
-                  , and the client retries smoothly.
-                </p>
-                <p className="mt-3 text-sm text-slate-700 leading-relaxed">
-                  Batch conversion is off because this site is free and the load
-                  is not feasible.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Troubleshooting */}
-          <section className="mt-12">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Troubleshooting and tips
-            </h3>
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
-              {[
-                [
-                  "Image too large",
-                  "Downscale or crop unused borders before uploading.",
-                ],
-                [
-                  "Over 25 MB",
-                  "We try to compress locally. If it fails, resize and re-upload.",
-                ],
-                [
-                  "429 server busy",
-                  "Stability protection. The app retries after the suggested delay.",
-                ],
-                ["Blank or too light", "Lower threshold or disable invert."],
-                ["Jagged edges", "Increase curve tolerance slightly."],
-                [
-                  "Too many dots",
-                  "Raise turd size or try a scan cleanup preset.",
-                ],
-              ].map(([t, d]) => (
-                <div
-                  key={t}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                  <div className="text-sm font-semibold text-slate-900">
-                    {t}
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                    {d}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* FAQ (structured data + visible content in one place) */}
           <section
             className="mt-12"
             itemScope
@@ -2339,24 +2144,7 @@ function SeoSections() {
             </h3>
 
             <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "What file limits apply?",
-                  a: "PNG/JPEG up to 30 MB, ~30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
-                },
-                {
-                  q: "What happens with files over 25 MB?",
-                  a: "We try to compress locally (PNG may become JPEG) to reach ≤25 MB for preview. If quality would drop too much, you will need to resize and re-upload.",
-                },
-                {
-                  q: "Why do I see “Server busy” with Retry-After?",
-                  a: "We cap concurrency to keep the site stable. When the queue is full the server responds 429 with Retry-After, and the app retries automatically.",
-                },
-                {
-                  q: "Can this handle photos?",
-                  a: "Yes. Use the Photo Edge presets to extract contours and stylized linework.",
-                },
-              ].map((x) => (
+              {FAQ.map((x) => (
                 <article
                   key={x.q}
                   itemScope

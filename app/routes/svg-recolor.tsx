@@ -3,7 +3,6 @@ import type { Route } from "./+types/svg-recolor";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -64,8 +63,11 @@ type Settings = {
   setRootColor: boolean; // set svg style color: ...
   rootColor: string;
 
-  // Preview
-  previewBg: string;
+  // Background (single option for output preview + export)
+  backgroundColor: string; // used for output preview and baked export background
+  includeBackground: boolean; // if true, bake background rect into output SVG
+
+  // Preview helper
   showChecker: boolean;
 
   // Output
@@ -75,7 +77,7 @@ type Settings = {
 type ReplacePair = { id: string; from: string; to: string };
 
 type PaletteItem = {
-  value: string; // normalized color token (emphasis on #rrggbb or rgb()/etc normalized)
+  value: string; // normalized color token
   count: number;
 };
 
@@ -118,7 +120,9 @@ const DEFAULTS: Settings = {
   setRootColor: false,
   rootColor: "#0b2dff",
 
-  previewBg: "#ffffff",
+  backgroundColor: "#ffffff",
+  includeBackground: false,
+
   showChecker: true,
 
   fileName: "recolored",
@@ -127,7 +131,7 @@ const DEFAULTS: Settings = {
 /* ========================
    Page
 ======================== */
-export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
+export default function SvgRecolorPage({}: Route.ComponentProps) {
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -145,20 +149,9 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
 
   const [palette, setPalette] = React.useState<PaletteItem[]>([]);
 
-  const [inPreviewUrl, setInPreviewUrl] = React.useState<string | null>(null);
-  const [outPreviewUrl, setOutPreviewUrl] = React.useState<string | null>(null);
-
   // Optional paste box
   const [pasteBox, setPasteBox] = React.useState<string>("");
   const [showPasteBox, setShowPasteBox] = React.useState<boolean>(false);
-
-  // revoke blob urls
-  React.useEffect(() => {
-    return () => {
-      if (inPreviewUrl) URL.revokeObjectURL(inPreviewUrl);
-      if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
-    };
-  }, [inPreviewUrl, outPreviewUrl]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -205,10 +198,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
   function applyInputSvg(svgText: string, name?: string | null) {
     setErr(null);
     setFileName(name || "input.svg");
-    setInSvg(svgText);
-
-    if (inPreviewUrl) URL.revokeObjectURL(inPreviewUrl);
-    setInPreviewUrl(makeSvgObjectUrl(svgText));
+    setInSvg(ensureSvgHasXmlns(svgText));
   }
 
   async function handleNewFile(f: File) {
@@ -229,7 +219,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
     applyInputSvg(coerced, f.name);
   }
 
-  // ===== Palette extraction whenever input changes OR scope toggles in future
+  // ===== Palette extraction whenever input changes
   React.useEffect(() => {
     if (!hydrated || !inSvg) {
       setPalette([]);
@@ -268,23 +258,15 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
   React.useEffect(() => {
     if (!hydrated || !inSvg) {
       setOutSvg("");
-      if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
-      setOutPreviewUrl(null);
       return;
     }
 
     try {
       const result = recolorSvg(inSvg, settings, pairs);
       setOutSvg(result);
-
-      if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
-      setOutPreviewUrl(makeSvgObjectUrl(result));
-
       setErr(null);
     } catch (e: any) {
       setOutSvg("");
-      if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
-      setOutPreviewUrl(null);
       setErr(e?.message || "Could not recolor this SVG.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -341,9 +323,21 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
   }
 
   function downloadSvg() {
-    if (!outSvg) return;
+    if (!hydrated || isServer || !inSvg) return;
+
+    // Regenerate at click time so export cannot be stale.
+    let exportSvg = "";
+    try {
+      exportSvg = recolorSvg(inSvg, settings, pairs);
+    } catch (e: any) {
+      setErr(e?.message || "Could not recolor this SVG.");
+      return;
+    }
+
+    if (!exportSvg) return;
+
     const nameBase = safeBaseName(settings.fileName || "recolored");
-    const blob = new Blob([outSvg], { type: "image/svg+xml;charset=utf-8" });
+    const blob = new Blob([exportSvg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -374,14 +368,25 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
     showToast("SVG applied");
   }
 
-  const buttonDisabled = isServer || !hydrated || !outSvg;
+  const SITE_URL = "https://www.ilovesvg.com";
 
   const breadcrumbs = [
-    { name: "Home", url: "/" },
-    { name: "SVG Recolor", url: "/svg-recolor" },
+    { name: "Home", url: `${SITE_URL}/` },
+    { name: "SVG Recolor", url: `${SITE_URL}/svg-recolor` },
   ];
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+
+  // INPUT preview must remain neutral (never mirror export background)
+  const inputPreviewBg = "#ffffff";
+  const inputPreviewChecker = settings.showChecker;
+
+  // OUTPUT preview should reflect export background behavior
+  const outputPreviewBg = settings.includeBackground
+    ? settings.backgroundColor
+    : settings.backgroundColor; // still useful as "canvas color" even if not baked
+  const outputPreviewChecker =
+    settings.showChecker && !settings.includeBackground;
 
   return (
     <>
@@ -449,7 +454,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                       <button
                         type="button"
                         onClick={applyPasteBox}
-                        className="px-3 py-2 rounded-lg font-bold border transition-colors text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da]"
+                        className="px-3 py-2 rounded-lg font-bold border transition-colors text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] cursor-pointer"
                       >
                         Apply
                       </button>
@@ -482,10 +487,6 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                         setPairs([]);
                         setActivePairId(null);
                         setPasteBox("");
-                        if (inPreviewUrl) URL.revokeObjectURL(inPreviewUrl);
-                        if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
-                        setInPreviewUrl(null);
-                        setOutPreviewUrl(null);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -514,7 +515,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                 key={c.value}
                                 type="button"
                                 onClick={() => usePaletteColorAsFrom(c.value)}
-                                className="group inline-flex items-center gap-2 px-2 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50"
+                                className="group inline-flex items-center gap-2 px-2 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
                                 title={`Use ${c.value} as From (seen ${c.count} times)`}
                               >
                                 <span
@@ -540,7 +541,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                             <button
                               type="button"
                               onClick={addRulesForAllPaletteColors}
-                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                             >
                               Add rules for all colors
                             </button>
@@ -548,7 +549,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                             <button
                               type="button"
                               onClick={() => setAllToColor("#0b2dff")}
-                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                              className="px-3 py-2 rounded-lg font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
                             >
                               Set all To to #0b2dff
                             </button>
@@ -561,7 +562,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                 type="color"
                                 defaultValue={"#0b2dff"}
                                 onChange={(e) => setAllToColor(e.target.value)}
-                                className="w-12 h-8 rounded-md border border-[#dbe3ef] bg-white"
+                                className="w-12 h-8 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                                 title="Set all To to color"
                               />
                             </div>
@@ -577,11 +578,11 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                       Input preview
                     </div>
                     <div className="p-3">
-                      {inPreviewUrl ? (
+                      {inSvg ? (
                         <PreviewFrame
-                          url={inPreviewUrl}
-                          bg={settings.previewBg}
-                          checker={settings.showChecker}
+                          svg={inSvg}
+                          bg={inputPreviewBg}
+                          checker={inputPreviewChecker}
                           alt="Input SVG preview"
                         />
                       ) : (
@@ -786,7 +787,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                                         <button
                                           type="button"
                                           onClick={() => removePair(p.id)}
-                                          className="flex items-center justify-center px-2 py-1 rounded-md border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer transition-colors"
+                                          className="flex items-center justify-center px-2 py-1 rounded-md border border-slate-200 bg-sky-50 hover:bg-sky-100 text-slate-900 cursor-pointer transition-colors"
                                           title="Remove rule"
                                         >
                                           <Icons
@@ -964,18 +965,39 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                           </>
                         )}
 
-                        <Field label="Preview background">
+                        {/* Background controls (single background for output preview + export) */}
+                        <Field label="Background">
                           <input
                             type="color"
-                            value={settings.previewBg}
+                            value={settings.backgroundColor}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                previewBg: e.target.value,
+                                backgroundColor: e.target.value,
+                                includeBackground: true,
                               }))
                             }
                             className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+                            title="Background color (output preview + export)"
                           />
+
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.includeBackground}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  includeBackground: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                            <span className="text-[13px] text-slate-700">
+                              Bake into downloaded SVG
+                            </span>
+                          </label>
+
                           <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
@@ -992,6 +1014,11 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                               Checkerboard
                             </span>
                           </label>
+
+                          <span className="text-[12px] text-slate-600">
+                            Input preview stays neutral. Output preview matches
+                            export.
+                          </span>
                         </Field>
 
                         <Field label="Output">
@@ -1036,7 +1063,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={downloadSvg}
-                    disabled={buttonDisabled}
+                    disabled={!outSvg || isServer || !hydrated}
                     className={[
                       "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
@@ -1050,7 +1077,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={copySvg}
-                    disabled={buttonDisabled}
+                    disabled={!outSvg || isServer || !hydrated}
                     className={[
                       "flex items-center justify-center px-3.5 py-2 rounded-lg font-semibold border transition-colors cursor-pointer",
                       "text-slate-900 bg-white border-slate-200 hover:bg-slate-50",
@@ -1076,11 +1103,11 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
                   Output preview
                 </div>
                 <div className="p-3">
-                  {outPreviewUrl ? (
+                  {outSvg ? (
                     <PreviewFrame
-                      url={outPreviewUrl}
-                      bg={settings.previewBg}
-                      checker={settings.showChecker}
+                      svg={outSvg}
+                      bg={outputPreviewBg}
+                      checker={outputPreviewChecker}
                       alt="Recolored SVG preview"
                     />
                   ) : (
@@ -1109,6 +1136,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
               )}
             </div>
           </section>
+
           <div className="block lg:hidden py-6">
             <AdSenseDelayed
               slot="6632213024"
@@ -1120,6 +1148,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
               className="mx-auto w-full max-w-[360px]"
             />
           </div>
+
           <SeoSections />
         </div>
 
@@ -1143,6 +1172,7 @@ export default function SvgRecolorPage({ loaderData }: Route.ComponentProps) {
             ))}
           </ol>
         </nav>
+
         <RelatedSites />
         <SocialLinks />
         <SiteFooter />
@@ -1212,6 +1242,7 @@ function SeoSections() {
               />
             </div>
           )}
+
           {/* How it works */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -1370,118 +1401,6 @@ function SeoSections() {
             </div>
           </div>
 
-          {/* Normalization + matching */}
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <h3 className="m-0 text-lg font-bold">
-                Color normalization and matching
-              </h3>
-              <p className="mt-2 text-slate-600 leading-relaxed">
-                To make replacements reliable, values are normalized into a
-                consistent form before matching.
-              </p>
-
-              <ul className="mt-3 grid gap-2 text-[14px] text-slate-700">
-                <li className="flex items-start gap-2">
-                  <span className="mt-[6px] h-2 w-2 rounded-full bg-slate-400 shrink-0" />
-                  <span>
-                    <b>Hex</b> tokens like <code>#fff</code> become{" "}
-                    <code>#ffffff</code>
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-[6px] h-2 w-2 rounded-full bg-slate-400 shrink-0" />
-                  <span>
-                    <b>RGBA alpha</b> in <code>#RRGGBBAA</code> is dropped to
-                    match solid colors consistently
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-[6px] h-2 w-2 rounded-full bg-slate-400 shrink-0" />
-                  <span>
-                    <b>rgb()</b> and <b>hsl()</b> are converted to hex for
-                    stable matching
-                  </span>
-                </li>
-              </ul>
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[13px] text-slate-700 leading-relaxed">
-                If a color is defined as a CSS variable like{" "}
-                <code className="px-1 py-0.5 bg-white border border-slate-200 rounded">
-                  var(--brand)
-                </code>
-                , it can’t be matched as a literal color unless you replace the
-                variable itself (that’s a different feature).
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <h3 className="m-0 text-lg font-bold">
-                Why “preserve none” matters
-              </h3>
-              <p className="mt-2 text-slate-600 leading-relaxed">
-                Many icons rely on{" "}
-                <code className="px-1 py-0.5 bg-slate-50 border border-slate-200 rounded">
-                  fill="none"
-                </code>{" "}
-                or{" "}
-                <code className="px-1 py-0.5 bg-slate-50 border border-slate-200 rounded">
-                  stroke="none"
-                </code>{" "}
-                to create outlines and cutouts. Recoloring those can break the
-                drawing.
-              </p>
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <h4 className="m-0 text-[14px] font-bold">Recommendation</h4>
-                <p className="mt-2 text-[13px] text-slate-700 leading-relaxed">
-                  Keep “preserve none” enabled unless you know the SVG doesn’t
-                  use it intentionally. If parts disappear or fill incorrectly,
-                  this toggle is usually the first thing to check.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* FAQ */}
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="m-0 text-lg font-bold text-slate-900">
-                Frequently Asked Questions
-              </h3>
-              <span className="text-[13px] text-slate-600">
-                Quick answers to common issues
-              </span>
-            </div>
-
-            <div className="mt-4 grid gap-2">
-              {faq.map((x) => (
-                <details
-                  key={x.q}
-                  className="group rounded-xl border border-slate-200 bg-white overflow-hidden"
-                >
-                  <summary className="cursor-pointer list-none px-4 py-3 flex items-start justify-between gap-3 hover:bg-slate-50">
-                    <span className="text-[15px] font-bold text-slate-900 leading-snug">
-                      {x.q}
-                    </span>
-                    <span className="mt-[2px] shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] text-slate-600 group-open:hidden">
-                      +
-                    </span>
-                    <span className="mt-[2px] shrink-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] text-slate-600 hidden group-open:inline">
-                      −
-                    </span>
-                  </summary>
-
-                  <div className="px-4 pb-4">
-                    <p className="mt-0 text-[14px] text-slate-700 leading-relaxed">
-                      {x.a}
-                    </p>
-                  </div>
-                </details>
-              ))}
-            </div>
-          </div>
-
           <OtherToolsLinks />
         </div>
       </div>
@@ -1512,19 +1431,25 @@ function Field({
 }
 
 function PreviewFrame({
-  url,
+  svg,
   bg,
   checker,
   alt,
 }: {
-  url: string;
+  svg: string;
   bg: string;
   checker: boolean;
   alt: string;
 }) {
+  const html = React.useMemo(() => {
+    if (!svg) return "";
+    return sanitizeSvgForInlinePreview(svg);
+  }, [svg]);
+
   return (
     <div
       className="rounded-xl border border-slate-200 overflow-hidden"
+      aria-label={alt}
       style={{
         backgroundColor: bg,
         backgroundImage: checker
@@ -1539,9 +1464,55 @@ function PreviewFrame({
           : undefined,
       }}
     >
-      <img src={url} alt={alt} className="w-full h-auto block" />
+      <div className="w-full" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
+}
+
+function sanitizeSvgForInlinePreview(svgText: string): string {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, "image/svg+xml");
+    if (doc.querySelector("parsererror")) return "";
+
+    const svg = doc.documentElement;
+    if (!svg || svg.nodeName.toLowerCase() !== "svg") return "";
+
+    // Remove scripts
+    doc.querySelectorAll("script").forEach((n) => n.remove());
+
+    // Remove event handler attrs and javascript: urls
+    const all = Array.from(svg.querySelectorAll("*"));
+    for (const el of all) {
+      for (const attr of Array.from(el.attributes)) {
+        const name = attr.name.toLowerCase();
+        const val = (attr.value || "").trim().toLowerCase();
+
+        if (name.startsWith("on")) el.removeAttribute(attr.name);
+
+        if (
+          (name === "href" || name === "xlink:href") &&
+          val.startsWith("javascript:")
+        ) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    }
+
+    // Ensure xmlns
+    if (!svg.getAttribute("xmlns")) {
+      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    }
+
+    // Make it responsive in the preview
+    const prevStyle = svg.getAttribute("style") || "";
+    const style = `${prevStyle};width:100%;height:auto;display:block;`.trim();
+    svg.setAttribute("style", style);
+
+    return new XMLSerializer().serializeToString(svg);
+  } catch {
+    return "";
+  }
 }
 
 /* ========================
@@ -1563,14 +1534,10 @@ function extractPalette(
 
   const counts = new Map<string, number>();
 
-  // Fill/stroke attributes + inline style
   const all = Array.from(svg.querySelectorAll("*"));
   for (const el of all) {
     bump(el.getAttribute("fill"));
     bump(el.getAttribute("stroke"));
-
-    // NOTE: many SVGs use stop-color (gradients), we don't include these in palette
-    // unless you want gradient recolor, which is a separate feature.
 
     const style = el.getAttribute("style");
     if (style) {
@@ -1579,7 +1546,6 @@ function extractPalette(
     }
   }
 
-  // Style tag tokens (best-effort)
   if (opts.includeStyleTags) {
     const styleTags = Array.from(doc.getElementsByTagName("style"));
     for (const tag of styleTags) {
@@ -1591,12 +1557,8 @@ function extractPalette(
 
   function bump(v: string | null | undefined) {
     if (!v) return;
-
-    // split if author put multiple paints (rare, but seen in SVG text dumps)
     const raw = v.trim();
     if (!raw) return;
-
-    // skip refs
     if (/^url\(/i.test(raw)) return;
 
     const n = normalizeColorToken(raw);
@@ -1615,24 +1577,20 @@ function extractPalette(
 function extractColorTokensFromCss(css: string): string[] {
   const out: string[] = [];
 
-  // hex (#RGB, #RRGGBB, #RRGGBBAA)
   out.push(...(css.match(/#[0-9a-fA-F]{3,8}\b/g) || []));
 
-  // rgb / rgba
   out.push(
     ...(css.match(
       /rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*[\d.]+)?\s*\)/gi,
     ) || []),
   );
 
-  // hsl/hsla (common in exported svgs)
   out.push(
     ...(css.match(
       /hsla?\(\s*[\d.]+\s*(?:deg|rad|turn)?\s*,\s*[\d.]+%\s*,\s*[\d.]+%(?:\s*,\s*[\d.]+)?\s*\)/gi,
     ) || []),
   );
 
-  // named colors (small set only)
   out.push(...(css.match(/\b(black|white|transparent)\b/gi) || []));
 
   return out;
@@ -1652,7 +1610,11 @@ function recolorSvg(input: string, s: Settings, pairs: ReplacePair[]): string {
     throw new Error("Invalid SVG root element.");
   }
 
-  // Prebuild replace map once
+  // Ensure xmlns (important for downstream rendering)
+  if (!svg.getAttribute("xmlns")) {
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  }
+
   const replaceMap = new Map<string, string>();
   if (s.mode === "replace") {
     for (const p of pairs) {
@@ -1662,7 +1624,6 @@ function recolorSvg(input: string, s: Settings, pairs: ReplacePair[]): string {
     }
   }
 
-  // Style tag edits (best-effort)
   if (s.affectStyleTags && (s.mode === "replace" || s.mode === "global")) {
     const styleTags = Array.from(doc.getElementsByTagName("style"));
     for (const tag of styleTags) {
@@ -1716,15 +1677,48 @@ function recolorSvg(input: string, s: Settings, pairs: ReplacePair[]): string {
     }
   }
 
-  // Optional root color for currentColor mode
   if (s.mode === "currentColor" && s.setRootColor) {
     const prev = svg.getAttribute("style") || "";
     const withColor = setCssProp(prev, "color", s.rootColor);
     svg.setAttribute("style", withColor);
   }
 
+  // Background bake
+  if (s.includeBackground) {
+    bakeBackgroundRect(svg, s.backgroundColor);
+  } else {
+    const existing = svg.querySelector(':scope > rect[data-ilovesvg-bg="1"]');
+    if (existing) existing.remove();
+  }
+
   const out = new XMLSerializer().serializeToString(doc);
   return s.optimizeWhitespace ? lightMinify(out) : out;
+}
+
+function bakeBackgroundRect(svg: Element, color: string) {
+  const doc = svg.ownerDocument;
+  if (!doc) return;
+
+  const existing = svg.querySelector(':scope > rect[data-ilovesvg-bg="1"]');
+  if (existing) existing.remove();
+
+  const rect = doc.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("data-ilovesvg-bg", "1");
+  rect.setAttribute("x", "0");
+  rect.setAttribute("y", "0");
+  rect.setAttribute("width", "100%");
+  rect.setAttribute("height", "100%");
+  rect.setAttribute("fill", normalizeHexOrFallback(color, "#ffffff"));
+
+  const kids = Array.from(svg.childNodes);
+  const insertBefore = kids.find((n) => {
+    if (n.nodeType !== 1) return false;
+    const name = (n as Element).nodeName.toLowerCase();
+    return !["defs", "metadata", "title", "desc"].includes(name);
+  }) as ChildNode | undefined;
+
+  if (insertBefore) svg.insertBefore(rect, insertBefore);
+  else svg.insertBefore(rect, svg.firstChild);
 }
 
 function applyCurrentColor(el: Element, s: Settings) {
@@ -1788,7 +1782,6 @@ function recolorColorValue(
   if (s.keepNone && isNone(v)) return v;
   if (s.keepTransparent && isTransparent(v)) return v;
 
-  // Gradients/pattern refs
   if (/^url\(/i.test(v)) return v;
 
   if (s.mode === "global") {
@@ -1858,13 +1851,10 @@ function normalizeColorToken(token: string): string | null {
 
   const v = raw.toLowerCase();
 
-  // ignore paint servers in replace-map normalization
   if (/^url\(/i.test(v)) return v;
 
-  // hex
   if (/^#[0-9a-f]{3,8}$/.test(v)) return normalizeHex(v);
 
-  // rgb/rgba
   const rgb = v.match(
     /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+))?\s*\)$/i,
   );
@@ -1875,7 +1865,6 @@ function normalizeColorToken(token: string): string | null {
     return toHex(r, g, b);
   }
 
-  // hsl/hsla → convert (so palette/replacements match)
   const hsl = v.match(
     /^hsla?\(\s*([0-9.]+)\s*(?:deg|rad|turn)?\s*,\s*([0-9.]+)%\s*,\s*([0-9.]+)%(?:\s*,\s*([0-9.]+))?\s*\)$/i,
   );
@@ -1893,7 +1882,6 @@ function normalizeColorToken(token: string): string | null {
   if (v === "none") return "none";
   if (v === "currentcolor") return "currentcolor";
 
-  // If it's something else (e.g. var(--x)), keep it as-is, but we can't safely match it.
   return null;
 }
 
@@ -1906,7 +1894,7 @@ function normalizeHex(hex: string): string {
     return `#${r}${r}${g}${g}${b}${b}`;
   }
   if (h.length === 7) return h;
-  if (h.length === 9) return `#${h.slice(1, 7)}`; // drop alpha
+  if (h.length === 9) return `#${h.slice(1, 7)}`;
   return h;
 }
 
@@ -1941,7 +1929,6 @@ function isTransparent(v: string) {
 }
 
 function hslToRgb(h: number, s: number, l: number) {
-  // h can be any range
   let hh = ((h % 360) + 360) % 360;
   hh /= 360;
 
@@ -1977,7 +1964,6 @@ function isProbablySvg(file: File) {
   const nameOk = /\.svg$/i.test(file.name || "");
   const type = (file.type || "").toLowerCase();
 
-  // Browsers often provide text/plain, text/xml, empty, or image/svg+xml
   const typeOk =
     type.includes("svg") ||
     type.includes("xml") ||
@@ -1988,23 +1974,33 @@ function isProbablySvg(file: File) {
   return nameOk || typeOk;
 }
 
+function ensureSvgHasXmlns(svgText: string) {
+  const t = (svgText || "").trim();
+  if (!t) return t;
+  const idx = t.toLowerCase().indexOf("<svg");
+  if (idx < 0) return t;
+
+  const openTag = t.slice(idx).match(/<svg\b[^>]*>/i)?.[0];
+  if (!openTag) return t;
+
+  const hasXmlns = /\sxmlns\s*=\s*["'][^"']+["']/i.test(openTag);
+  if (hasXmlns) return t;
+
+  return t.replace(/<svg\b/i, `<svg xmlns="http://www.w3.org/2000/svg"`);
+}
+
 function coerceSvgText(text: string): string | null {
   const t = (text || "").trim();
   if (!t) return null;
 
-  // strip UTF-8 BOM
   const noBom = t.replace(/^\uFEFF/, "");
-
-  // allow XML declaration and comments before <svg>
   const idx = noBom.toLowerCase().indexOf("<svg");
   if (idx < 0) return null;
 
   const sliced = noBom.slice(idx);
 
-  // quick sanity: should have a closing </svg>
   if (!/<\/svg\s*>/i.test(sliced)) return null;
 
-  // lightweight parse to ensure it's at least parseable
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(sliced, "image/svg+xml");
@@ -2022,11 +2018,6 @@ function coerceSvgText(text: string): string | null {
 /* ========================
    Output helpers
 ======================== */
-function makeSvgObjectUrl(svg: string) {
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  return URL.createObjectURL(blob);
-}
-
 function lightMinify(svg: string) {
   return svg
     .replace(/>\s+</g, "><")

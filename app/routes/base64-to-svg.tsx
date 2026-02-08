@@ -3,7 +3,6 @@ import type { Route } from "./+types/base64-to-svg";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
@@ -99,6 +98,29 @@ const DEFAULTS: Settings = {
   quoteMode: "double",
 };
 
+const FAQ_ITEMS = [
+  {
+    q: "What can I paste into this Base64 to SVG tool?",
+    a: 'You can paste a Base64 string, a full data:image/svg+xml;base64 URL, an <img src="..."> snippet, CSS url("data:...") text, or a larger chunk of code that contains a data URL. The tool will automatically extract the SVG data and decode it.',
+  },
+  {
+    q: "Can this decode an SVG data URI that is not Base64?",
+    a: "Yes. If the data URI is UTF-8 or percent-encoded (data:image/svg+xml,<svg...>), the tool can decode it and restore the SVG.",
+  },
+  {
+    q: "Why does my decoded SVG look broken?",
+    a: "Some Base64 strings were created with a different character encoding. Try switching Decode mode to UTF-8 or Latin-1. Also disable sanitization if it removed scripts or foreignObject that your SVG depends on.",
+  },
+  {
+    q: "Does this tool upload my Base64 or SVG?",
+    a: "No. Everything runs client-side in your browser. Nothing is uploaded to a server.",
+  },
+  {
+    q: "Is it safe to decode and preview SVGs?",
+    a: "SVG can contain scripts or event handlers. Use the sanitization options to strip risky content before previewing or downloading.",
+  },
+];
+
 /* ========================
    Page
 ======================== */
@@ -116,9 +138,22 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
 
+  const toastTimerRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (toastTimerRef.current != null) {
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
+  }, []);
+
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(null), 1500);
+    if (toastTimerRef.current != null)
+      window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 1500);
   }
 
   function clearAll() {
@@ -158,7 +193,11 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
     const t = settings.copyWithQuotes
       ? wrapQuotes(outSvg, settings.quoteMode)
       : outSvg;
-    navigator.clipboard.writeText(t).then(() => showToast("Copied"));
+
+    navigator.clipboard
+      .writeText(t)
+      .then(() => showToast("Copied"))
+      .catch(() => showToast("Copy failed"));
   }
 
   function downloadSvg() {
@@ -296,7 +335,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                               sourceMode: e.target.value as SourceMode,
                             }))
                           }
-                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer hover:bg-slate-50"
                         >
                           <option value="auto">Auto detect</option>
                           <option value="data-uri">Data URI</option>
@@ -313,7 +352,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                               decodeMode: e.target.value as DecodeMode,
                             }))
                           }
-                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                          className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer hover:bg-slate-50"
                         >
                           <option value="auto">Auto (recommended)</option>
                           <option value="utf8">UTF-8</option>
@@ -463,7 +502,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                                     quoteMode: e.target.value as QuoteMode,
                                   }))
                                 }
-                                className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer"
+                                className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer hover:bg-slate-50"
                               >
                                 <option value="double">"</option>
                                 <option value="single">'</option>
@@ -552,43 +591,47 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                   />
                 </div>
               </div>
-
-              {/* PREVIEW */}
-              {settings.showPreview && (
-                <div className="mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                  <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
-                    Preview
-                  </div>
-                  <div className="p-3">
-                    {outSvg ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                        <SvgPreview svg={outSvg} />
-                      </div>
-                    ) : (
-                      <div className="text-slate-600 text-sm">
-                        Paste input to preview the decoded SVG.
-                      </div>
-                    )}
-
-                    {info && (info.hasScripts || info.hasForeignObject) ? (
-                      <div className="mt-3 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                        Detected potentially risky content in the decoded SVG.
-                        Use Sanitize output to strip it.
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              )}
             </div>
           </section>
         </div>
+        {/* PREVIEW */}
+        {settings.showPreview && (
+          <div className="flex w-full flex-col mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-slate-800 max-w-[1180px] mx-auto">
+            <div className="px-3 py-2 text-sm text-white border-b border-slate-200 bg-slate-600">
+              Preview
+            </div>
+            <div className="flex mx-auto p-3">
+              {outSvg ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <SvgPreview svg={outSvg} />
+                </div>
+              ) : (
+                <div className="text-slate-600 text-sm text-white font-semibold flex items-center justify-center">
+                  <Icons
+                    name="success"
+                    size={20}
+                    className="inline-block mr-1"
+                  />
+                  Paste input to preview the decoded SVG.
+                </div>
+              )}
 
+              {info && (info.hasScripts || info.hasForeignObject) ? (
+                <div className="mt-3 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  Detected potentially risky content in the decoded SVG. Use
+                  Sanitize output to strip it.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
             {toast}
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -600,7 +643,8 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-      <SeoSections />
+
+      <SeoSections hydrated={hydrated} />
       <Breadcrumbs crumbs={crumbs} />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
@@ -1009,12 +1053,12 @@ function ToggleRow({
   label: string;
 }) {
   return (
-    <label className="flex items-center gap-2 min-w-0">
+    <label className="flex items-center gap-2 min-w-0 cursor-pointer">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-[#0b2dff] shrink-0"
+        className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
       />
       <span className="text-[13px] text-slate-700 min-w-0">{label}</span>
     </label>
@@ -1083,58 +1127,24 @@ function JsonLdFaq() {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What can I paste into this Base64 to SVG tool?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: 'You can paste a Base64 string, a full data:image/svg+xml;base64, URL, an <img src="..."> snippet, CSS url("data:...") text, or a larger chunk of code that contains a data URL. The tool will automatically extract the SVG data and decode it.',
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can this decode an SVG data URI that is not Base64?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. If the data URI is UTF-8 / percent-encoded (data:image/svg+xml,<svg...>), the tool can decode it and restore the SVG.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why does my decoded SVG look broken?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Some Base64 strings were created with a different character encoding. Try switching Decode mode to UTF-8 or Latin-1. Also disable sanitization if it removed scripts or foreignObject that your SVG depends on.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does this tool upload my Base64 or SVG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. Everything runs client-side in your browser. Nothing is uploaded to a server.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is it safe to decode and preview SVGs?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "SVG can contain scripts or event handlers. Use the sanitization options to strip risky content before previewing or downloading.",
-        },
-      },
-    ],
+    mainEntity: FAQ_ITEMS.map((x) => ({
+      "@type": "Question",
+      name: x.q,
+      acceptedAnswer: { "@type": "Answer", text: x.a },
+    })),
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }
 
-function SeoSections() {
+function SeoSections({ hydrated }: { hydrated: boolean }) {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -1181,7 +1191,8 @@ function SeoSections() {
               </div>
             </div>
           </header>
-          {typeof document !== "undefined" && (
+
+          {hydrated && (
             <div className="block py-6">
               <AdSenseDelayed
                 slot="7336722354"
@@ -1360,7 +1371,6 @@ function SeoSections() {
                         {ex.inputLabel}
                       </div>
 
-                      {/* INPUT: use a normal block so it wraps cleanly on mobile */}
                       <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:p-3 max-w-full">
                         <code className="block text-[12px] sm:text-[13px] leading-relaxed whitespace-normal break-all">
                           {ex.input}
@@ -1373,7 +1383,6 @@ function SeoSections() {
                         {ex.outputLabel}
                       </div>
 
-                      {/* OUTPUT: keep <pre> for SVG formatting; wrap on mobile */}
                       <pre className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:p-3 max-w-full overflow-hidden sm:overflow-x-auto">
                         <code className="block text-[12px] sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words sm:whitespace-pre sm:break-normal">
                           {ex.output}
@@ -1425,51 +1434,18 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* FAQ */}
-          <section
-            className="mt-12"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-          >
+          {/* FAQ (visual only, JSON-LD handled by <JsonLdFaq /> to avoid duplicate FAQPage schema) */}
+          <section className="mt-12">
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "What inputs does this support?",
-                  a: "Base64 strings, full data:image/svg+xml;base64 URLs, HTML snippets that contain an <img src>, and CSS url(...) values. UTF-8 percent-encoded SVG data URIs are also supported.",
-                },
-                {
-                  q: "Why sanitize the output?",
-                  a: "SVG can contain scripts and event handlers. Sanitization removes common dangerous constructs so you can reuse the SVG more safely.",
-                },
-                {
-                  q: "Will this change my SVG visually?",
-                  a: "Sanitization aims to preserve visuals while removing executable parts. If the SVG relies on scripts or external content, the sanitized result may differ.",
-                },
-                {
-                  q: "Does this run client-side?",
-                  a: "Yes for decode and preview in typical implementations. If your app routes some actions server-side, that’s separate from the decoding logic here.",
-                },
-              ].map((x) => (
+              {FAQ_ITEMS.map((x) => (
                 <article
                   key={x.q}
-                  itemScope
-                  itemType="https://schema.org/Question"
-                  itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
-                    {x.q}
-                  </h4>
-                  <p
-                    itemScope
-                    itemType="https://schema.org/Answer"
-                    itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
-                  >
-                    <span itemProp="text">{x.a}</span>
-                  </p>
+                  <h4 className="m-0 font-semibold">{x.q}</h4>
+                  <p className="mt-2 text-sm text-slate-600">{x.a}</p>
                 </article>
               ))}
             </div>

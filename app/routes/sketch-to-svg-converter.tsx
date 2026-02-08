@@ -42,10 +42,9 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
   return {
-    origin: url.origin,
-    canonicalUrl: `${url.origin}/sketch-to-svg-converter`,
+    origin: "https://www.ilovesvg.com",
+    canonicalUrl: `https://www.ilovesvg.com/sketch-to-svg-converter`,
   };
 }
 
@@ -998,7 +997,7 @@ export default function SketchToSvgConverter({
   }
 
   const breadcrumbName = "Sketch to SVG Converter";
-  const origin = loaderData?.origin || "";
+  const origin = "https://www.ilovesvg.com";
 
   const faq = [
     {
@@ -1073,7 +1072,6 @@ export default function SketchToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-         
 
           <section className="lg:pt-0 lg:pb-3 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
@@ -1538,13 +1536,18 @@ export default function SketchToSvgConverter({
       <SocialLinks />
       <SiteFooter />
 
+      {faq.length > 0 && (
+        <script
+          key="ld-faq"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
+
       <script
+        key="ld-breadcrumbs"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
     </>
   );

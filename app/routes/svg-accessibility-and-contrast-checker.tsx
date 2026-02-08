@@ -49,6 +49,14 @@ export default function SvgAccessibilityAndContrastChecker() {
   const [fg, setFg] = React.useState<string>("#0b2dff");
   const [bg, setBg] = React.useState<string>("#ffffff");
 
+  // Prevent auto-detection from snapping user choices back.
+  const [fgSource, setFgSource] = React.useState<"default" | "auto" | "user">(
+    "default",
+  );
+  const [bgSource, setBgSource] = React.useState<"default" | "auto" | "user">(
+    "default",
+  );
+
   // Which attribute set should be affected when applying suggestions
   const [applyScope, setApplyScope] = React.useState<
     "fill" | "stroke" | "both"
@@ -65,13 +73,11 @@ export default function SvgAccessibilityAndContrastChecker() {
   const [showCheckerSample, setShowCheckerSample] =
     React.useState<boolean>(true);
 
-  const activeSvg = previewMode === "original" ? originalSvg : workingSvg;
-
   const parsed = React.useMemo(() => {
     return parseSvgAndExtractColors(workingSvg);
   }, [workingSvg]);
 
-  // When SVG changes, try to auto-select sensible fg/bg.
+  // When SVG changes, try to auto-select sensible fg/bg, but never override user changes.
   React.useEffect(() => {
     if (!workingSvg.trim()) {
       setErr(null);
@@ -86,26 +92,38 @@ export default function SvgAccessibilityAndContrastChecker() {
 
     setErr(null);
 
-    // Auto-pick bg if a full-size rect is detected, else keep current.
-    if (parsed.autoBg && isHex(parsed.autoBg)) {
+    // Auto-pick bg if a full-size rect is detected, but only if user has not set bg manually.
+    if (parsed.autoBg && isHex(parsed.autoBg) && bgSource !== "user") {
       const next = normalizeHex(parsed.autoBg);
       setBg(next);
+      setBgSource("auto");
       setInfo("Detected a likely background color from the SVG.");
     } else {
       setInfo(null);
     }
 
-    // Auto pick a foreground if we can find a non-background prominent color.
-    if (parsed.colors.length > 0) {
+    // Auto pick a foreground if we can find a non-background prominent color,
+    // but only if user has not set fg manually.
+    if (fgSource !== "user" && parsed.colors.length > 0) {
       const normalized = parsed.colors.map((c) => normalizeHex(c));
       const bgN = normalizeHex(bg);
       const firstNonBg =
         normalized.find((c) => c.toLowerCase() !== bgN.toLowerCase()) ??
         normalized[0];
-      if (firstNonBg && isHex(firstNonBg)) setFg(firstNonBg);
+      if (firstNonBg && isHex(firstNonBg)) {
+        setFg(firstNonBg);
+        setFgSource("auto");
+      }
     }
-    // We intentionally include bg so foreground choice stays consistent with current bg.
-  }, [workingSvg, parsed.ok, parsed.autoBg, parsed.colors, bg]);
+  }, [
+    workingSvg,
+    parsed.ok,
+    parsed.autoBg,
+    parsed.colors,
+    bg,
+    bgSource,
+    fgSource,
+  ]);
 
   const ratio = React.useMemo(() => contrastRatio(fg, bg), [fg, bg]);
 
@@ -175,9 +193,14 @@ export default function SvgAccessibilityAndContrastChecker() {
 
   const palette = parsed.ok ? parsed.colors : [];
 
-  function setSvgTextBoth(next: string) {
-    setWorkingSvg(next);
-    if (!originalSvg.trim()) setOriginalSvg(next);
+  function onFgChange(next: string) {
+    setFg(normalizeHex(next));
+    setFgSource("user");
+  }
+
+  function onBgChange(next: string) {
+    setBg(normalizeHex(next));
+    setBgSource("user");
   }
 
   function onUploadSvg(e: React.ChangeEvent<HTMLInputElement>) {
@@ -195,6 +218,9 @@ export default function SvgAccessibilityAndContrastChecker() {
       setPreviewMode("updated");
       setErr(null);
       setInfo("SVG loaded.");
+      // Let auto-detection run for the initial load (unless user already set values).
+      if (fgSource !== "user") setFgSource("default");
+      if (bgSource !== "user") setBgSource("default");
     };
     reader.onerror = () => setErr("Could not read file.");
     reader.readAsText(f);
@@ -214,11 +240,16 @@ export default function SvgAccessibilityAndContrastChecker() {
     setWorkingSvg("");
     setErr(null);
     setInfo(null);
+    setFg("#0b2dff");
+    setBg("#ffffff");
+    setFgSource("default");
+    setBgSource("default");
+    setPreviewMode("updated");
   }
 
   function setFromPalette(color: string) {
     const c = normalizeHex(color);
-    setFg(c);
+    onFgChange(c);
   }
 
   function applySuggestion(args: {
@@ -239,20 +270,22 @@ export default function SvgAccessibilityAndContrastChecker() {
 
     if (args.kind === "foreground") {
       nextSvg = replaceSvgColorBestEffort(nextSvg, fg, args.to, applyScope);
-      setFg(args.to);
       setWorkingSvg(nextSvg);
       setPreviewMode("updated");
+      onFgChange(args.to);
       setInfo(
         `Applied foreground update for ${args.targetLabel} (${args.targetValue}:1).`,
       );
       return;
     }
 
-    // Background change: update likely bg rect if present. Otherwise only the checker bg changes.
+    // Background change:
+    // 1) Update likely bg rect if present (DOM-based when available, regex fallback otherwise).
+    // 2) Ensure we do not snap back by marking bg as user-set.
     const updated = replaceLikelyBackgroundFill(nextSvg, bg, args.to);
-    setBg(args.to);
     setWorkingSvg(updated);
     setPreviewMode("updated");
+    onBgChange(args.to);
     setInfo(
       `Applied background update where possible for ${args.targetLabel} (${args.targetValue}:1).`,
     );
@@ -263,6 +296,9 @@ export default function SvgAccessibilityAndContrastChecker() {
     setWorkingSvg(originalSvg);
     setPreviewMode("updated");
     setInfo("Reset updated SVG back to the original.");
+    // Re-enable auto-detection after reset unless user explicitly set the colors.
+    if (fgSource !== "user") setFgSource("default");
+    if (bgSource !== "user") setBgSource("default");
   }
 
   function downloadSvg() {
@@ -363,7 +399,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                     type="button"
                     onClick={downloadSvg}
                     disabled={!workingSvg.trim()}
-                    className="flex items-center justify-center px-3 py-2 rounded-xl font-semibold border bg-[#0b2dff] text-white border-[#0a24da] hover:bg-[#0a24da] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl font-semibold border bg-[#0b2dff] text-white border-[#0a24da] hover:bg-[#0a24da] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Icons name="download" size={16} className="mr-1" />
                     Download updated SVG
@@ -380,24 +416,6 @@ export default function SvgAccessibilityAndContrastChecker() {
                 <h1 className="flex text-sky-800 text-[28px] text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
                   SVG Accessibility and Contrast Checker
                 </h1>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={resetToOriginal}
-                    disabled={!originalSvg.trim()}
-                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    Reset updated
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearAll}
-                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold"
-                  >
-                    <Icons name="trash" size={16} className="mr-1" />
-                    Clear
-                  </button>
-                </div>
               </div>
 
               <div className="mt-3 flex flex-col gap-3 min-w-0">
@@ -422,7 +440,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       onChange={(e) =>
                         setPreviewMode(e.target.value as typeof previewMode)
                       }
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold cursor-pointer"
                       disabled={!originalSvg.trim() && !workingSvg.trim()}
                     >
                       <option value="updated">Preview: Updated SVG</option>
@@ -442,7 +460,24 @@ export default function SvgAccessibilityAndContrastChecker() {
                     className="mt-2 w-full min-h-[240px] rounded-2xl border border-slate-200 bg-white p-3 text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-300"
                   />
                 </div>
-
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={resetToOriginal}
+                    disabled={!originalSvg.trim()}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Reset updated
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold cursor-pointer"
+                  >
+                    <Icons name="trash" size={16} className="mr-1" />
+                    Clear
+                  </button>
+                </div>
                 {err && <div className="text-red-700 text-sm">{err}</div>}
                 {!err && info && (
                   <div className="text-slate-600 text-sm">{info}</div>
@@ -469,7 +504,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                               key={c}
                               type="button"
                               onClick={() => setFromPalette(n)}
-                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 hover:bg-slate-50"
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 hover:bg-slate-50 cursor-pointer"
                               title={`Use ${n} as foreground`}
                             >
                               <span
@@ -507,12 +542,12 @@ export default function SvgAccessibilityAndContrastChecker() {
                       <ColorField
                         label="Foreground"
                         value={fg}
-                        onChange={setFg}
+                        onChange={onFgChange}
                       />
                       <ColorField
                         label="Background"
                         value={bg}
-                        onChange={setBg}
+                        onChange={onBgChange}
                       />
                     </div>
 
@@ -526,7 +561,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                           onChange={(e) =>
                             setApplyScope(e.target.value as typeof applyScope)
                           }
-                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
+                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm cursor-pointer"
                         >
                           <option value="both">fill + stroke</option>
                           <option value="fill">fill only</option>
@@ -541,7 +576,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                         <select
                           value={blindMode}
                           onChange={(e) => setBlindMode(e.target.value as any)}
-                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
+                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm cursor-pointer"
                         >
                           <option value="none">None</option>
                           <option value="protanopia">
@@ -566,7 +601,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                         <button
                           type="button"
                           onClick={() => setShowCheckerSample((v) => !v)}
-                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold"
+                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold cursor-pointer"
                         >
                           {showCheckerSample
                             ? "Hide sample text"
@@ -747,7 +782,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       type="button"
                       onClick={() => setPreviewMode("original")}
                       disabled={!originalSvg.trim()}
-                      className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                     >
                       Show original
                     </button>
@@ -755,7 +790,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       type="button"
                       onClick={() => setPreviewMode("updated")}
                       disabled={!workingSvg.trim()}
-                      className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                     >
                       Show updated
                     </button>
@@ -930,7 +965,7 @@ function ColorField(props: {
         type="color"
         value={isHex(props.value) ? normalizeHex(props.value) : "#000000"}
         onChange={(e) => props.onChange(normalizeHex(e.target.value))}
-        className="w-14 h-9 rounded-lg border border-slate-200 bg-white"
+        className="w-14 h-9 rounded-lg border border-slate-200 bg-white cursor-pointer"
         aria-label={`${props.label} color`}
       />
       <input
@@ -1068,7 +1103,7 @@ function SuggestionTile(props: {
         type="button"
         onClick={props.onApply}
         disabled={props.disabled}
-        className="mt-3 w-full px-3 py-2 rounded-xl font-semibold border bg-white border-slate-200 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="mt-3 w-full px-3 py-2 rounded-xl font-semibold border bg-white border-slate-200 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
       >
         Apply suggestion to updated SVG
       </button>
@@ -1364,16 +1399,23 @@ function parseSvgAndExtractColors(svgText: string): {
     let autoBg: string | null = null;
     const rects = Array.from(doc.querySelectorAll("rect"));
     for (const r of rects) {
-      const x = r.getAttribute("x") ?? "0";
-      const y = r.getAttribute("y") ?? "0";
-      const w = r.getAttribute("width") ?? "";
-      const h = r.getAttribute("height") ?? "";
+      const x = (r.getAttribute("x") ?? "0").trim();
+      const y = (r.getAttribute("y") ?? "0").trim();
+      const w = (r.getAttribute("width") ?? "").trim();
+      const h = (r.getAttribute("height") ?? "").trim();
+
       const fill = r.getAttribute("fill") ?? "";
-      const maybeFill = normalizeColorToken(fill);
+      const style = r.getAttribute("style") ?? "";
+
+      const maybeFill =
+        normalizeColorToken(fill) ??
+        extractFillFromStyle(style) ??
+        normalizeColorToken(style);
 
       const x0 = x === "0" || x === "0%";
       const y0 = y === "0" || y === "0%";
       const whFull = w === "100%" && h === "100%";
+
       if (x0 && y0 && whFull && maybeFill) {
         autoBg = maybeFill;
         break;
@@ -1406,6 +1448,12 @@ function extractColorsFromStyle(style: string): string[] {
     if (maybe) out.push(maybe);
   }
   return out;
+}
+
+function extractFillFromStyle(style: string): string | null {
+  const m = /(?:^|;)\s*fill\s*:\s*([^;]+)\s*(?:;|$)/i.exec(style ?? "");
+  if (!m) return null;
+  return normalizeColorToken(m[1].trim());
 }
 
 /* ========================
@@ -1585,11 +1633,70 @@ function replaceLikelyBackgroundFill(
   const from = normalizeHex(fromHex).toLowerCase();
   const to = normalizeHex(toHex);
 
+  // Prefer DOM update when available (handles attribute order and style variants reliably).
+  if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+    try {
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+      const parserErr = doc.querySelector("parsererror");
+      if (!parserErr) {
+        const rects = Array.from(doc.querySelectorAll("rect"));
+        for (const r of rects) {
+          const x = (r.getAttribute("x") ?? "0").trim();
+          const y = (r.getAttribute("y") ?? "0").trim();
+          const w = (r.getAttribute("width") ?? "").trim();
+          const h = (r.getAttribute("height") ?? "").trim();
+          const x0 = x === "0" || x === "0%";
+          const y0 = y === "0" || y === "0%";
+          const whFull = w === "100%" && h === "100%";
+          if (!x0 || !y0 || !whFull) continue;
+
+          const fillAttr = r.getAttribute("fill") ?? "";
+          const styleAttr = r.getAttribute("style") ?? "";
+          const fillFromAttr = normalizeColorToken(fillAttr);
+          const fillFromStyle = extractFillFromStyle(styleAttr);
+
+          const matchesFrom =
+            (fillFromAttr &&
+              normalizeHex(fillFromAttr).toLowerCase() === from) ||
+            (fillFromStyle &&
+              normalizeHex(fillFromStyle).toLowerCase() === from) ||
+            // If we do not find "from" in the rect (because user picked a BG not matching),
+            // still treat the 100% rect as the background target.
+            false;
+
+          // If fill is present, replace it. If style has fill, replace style fill.
+          // If neither exists, set fill.
+          if (matchesFrom || true) {
+            if (fillAttr) {
+              r.setAttribute("fill", to);
+            } else if (styleAttr && /fill\s*:/i.test(styleAttr)) {
+              const nextStyle = styleAttr.replace(
+                /(^|;)\s*fill\s*:\s*[^;]+/i,
+                `$1 fill: ${to}`,
+              );
+              r.setAttribute("style", nextStyle);
+            } else {
+              r.setAttribute("fill", to);
+            }
+            break;
+          }
+        }
+
+        const serializer = new XMLSerializer();
+        return serializer.serializeToString(doc);
+      }
+    } catch {
+      // fall through to regex approach
+    }
+  }
+
+  // Regex fallback: keep original behavior, but do not depend on attribute order.
   let out = svg;
 
+  // Fill attribute on a full-size rect
   out = out.replace(
     new RegExp(
-      `(<rect\\b[^>]*\\bwidth\\s*=\\s*["']100%["'][^>]*\\bheight\\s*=\\s*["']100%["'][^>]*\\bfill\\s*=\\s*["'])\\s*${escapeReg(
+      `(<rect\\b[^>]*\\bx\\s*=\\s*["']0%?["'][^>]*\\by\\s*=\\s*["']0%?["'][^>]*\\bwidth\\s*=\\s*["']100%["'][^>]*\\bheight\\s*=\\s*["']100%["'][^>]*\\bfill\\s*=\\s*["'])\\s*${escapeReg(
         from,
       )}\\s*(["'][^>]*>)`,
       "gi",
@@ -1597,14 +1704,36 @@ function replaceLikelyBackgroundFill(
     `$1${to}$2`,
   );
 
+  // Style fill on a full-size rect
   out = out.replace(
     new RegExp(
-      `(<rect\\b[^>]*\\bwidth\\s*=\\s*["']100%["'][^>]*\\bheight\\s*=\\s*["']100%["'][^>]*\\bstyle\\s*=\\s*["'][^"']*fill\\s*:\\s*)${escapeReg(
+      `(<rect\\b[^>]*\\bx\\s*=\\s*["']0%?["'][^>]*\\by\\s*=\\s*["']0%?["'][^>]*\\bwidth\\s*=\\s*["']100%["'][^>]*\\bheight\\s*=\\s*["']100%["'][^>]*\\bstyle\\s*=\\s*["'][^"']*fill\\s*:\\s*)${escapeReg(
         from,
       )}([^"']*["'][^>]*>)`,
       "gi",
     ),
     `$1${to}$2`,
+  );
+
+  // If we did not match "from", attempt a broader replacement on any full-size rect style fill.
+  out = out.replace(
+    /(<rect\b[^>]*\bx\s*=\s*["']0%?["'][^>]*\by\s*=\s*["']0%?["'][^>]*\bwidth\s*=\s*["']100%["'][^>]*\bheight\s*=\s*["']100%["'][^>]*\bstyle\s*=\s*["'])([^"']*)(["'][^>]*>)/gi,
+    (_m, p1, style, p3) => {
+      if (/fill\s*:/i.test(style)) {
+        const nextStyle = style.replace(
+          /(^|;)\s*fill\s*:\s*[^;]+/i,
+          `$1 fill: ${to}`,
+        );
+        return `${p1}${nextStyle}${p3}`;
+      }
+      return `${p1}${style}; fill: ${to}${p3}`;
+    },
+  );
+
+  // If we did not match "from", attempt a broader replacement on any full-size rect without fill.
+  out = out.replace(
+    /(<rect\b[^>]*\bx\s*=\s*["']0%?["'][^>]*\by\s*=\s*["']0%?["'][^>]*\bwidth\s*=\s*["']100%["'][^>]*\bheight\s*=\s*["']100%["'][^>]*)(?![^>]*\bfill\s*=)([^>]*>)/gi,
+    `$1 fill="${to}"$2`,
   );
 
   return out;

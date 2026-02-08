@@ -3,7 +3,6 @@ import type { Route } from "./+types/svg-embed-code-generator";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -48,12 +47,16 @@ type EmbedKind =
   | "react-jsx"
   | "react-component";
 
+type EmbedSourceMode = "file-url" | "data-uri";
 type QuoteMode = "double" | "single";
 type CssProp = "background-image" | "mask-image";
 type DataUriCharset = "utf8" | "base64";
 
 type Settings = {
   embedKind: EmbedKind;
+
+  // NEW: controls whether file-based embeds use URL or embed as data URI
+  embedSource: EmbedSourceMode;
 
   // sizing
   width: number;
@@ -93,7 +96,7 @@ type Settings = {
   iframeSandboxValue: string;
 
   // css options
-  cssProp: CssProp;
+  cssProp: CssProp; // kept for compatibility/future use
   cssSelector: string;
   cssSizeMode: "contain" | "cover" | "auto";
   cssRepeat: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
@@ -111,7 +114,7 @@ type Settings = {
   reactForwardProps: boolean;
   reactJsxWrap: boolean;
 
-  // preview behavior
+  // preview behavior (kept and now applies to INPUT preview)
   previewUseLocalBlobForFileEmbeds: boolean;
   previewBackground: "grid" | "plain";
 };
@@ -129,6 +132,7 @@ type SvgInfo = {
 
 const DEFAULTS: Settings = {
   embedKind: "img",
+  embedSource: "file-url",
 
   width: 128,
   height: 128,
@@ -200,7 +204,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
   const [toast, setToast] = React.useState<string | null>(null);
 
   const [outCode, setOutCode] = React.useState<string>("");
-  const [outHtmlPreview, setOutHtmlPreview] = React.useState<string>("");
 
   React.useEffect(() => {
     return () => {
@@ -287,7 +290,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
     setPreviewUrl(null);
     setErr(null);
     setOutCode("");
-    setOutHtmlPreview("");
   }
 
   function loadExample() {
@@ -329,7 +331,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
   React.useEffect(() => {
     if (!svgText.trim()) {
       setOutCode("");
-      setOutHtmlPreview("");
       setErr(null);
       return;
     }
@@ -337,19 +338,15 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
     setErr(null);
     try {
       const prepared = prepareSvg(svgText, settings);
-      const { code, htmlPreview } = generateEmbed(prepared, settings, {
-        previewUrl,
-      });
+      const { code } = generateEmbed(prepared, settings);
       setOutCode(code);
-      setOutHtmlPreview(htmlPreview);
       setInfo(parseSvgInfo(prepared));
     } catch (e: any) {
       setErr(e?.message || "Generate failed.");
       setOutCode("");
-      setOutHtmlPreview("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svgText, settings, previewUrl]);
+  }, [svgText, settings]);
 
   const crumbs = [
     { name: "Home", href: "/" },
@@ -358,9 +355,30 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
 
+  const inputPreviewBgClass =
+    settings.previewBackground === "grid"
+      ? "bg-[linear-gradient(0deg,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[size:16px_16px]"
+      : "bg-white";
+
+  const inputPreviewSrc =
+    previewUrl && settings.previewUseLocalBlobForFileEmbeds
+      ? previewUrl
+      : (settings.assetUrl || "").trim()
+        ? settings.assetUrl.trim()
+        : previewUrl;
+
+  const embedKindPills: Array<{ kind: EmbedKind; label: string }> = [
+    { kind: "img", label: "HTML img" },
+    { kind: "inline", label: "Inline SVG" },
+    { kind: "css-bg", label: "CSS bg" },
+    { kind: "css-mask", label: "CSS mask" },
+    { kind: "data-uri-utf8", label: "Data URI" },
+    { kind: "react-jsx", label: "React/JSX" },
+  ];
+
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main className="bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -385,7 +403,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -393,7 +411,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
                   >
                     <Icons name="trash" size={16} className="mr-1" />
                     Clear
@@ -422,41 +440,27 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                       </button>
                     </div>
                   ) : null}
-
-                  <details className="mt-3 rounded-2xl border border-slate-200 bg-white">
-                    <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
-                      Advanced: Edit SVG source
-                    </summary>
-                    <div className="px-4 pb-4">
-                      <p className="text-[13px] text-slate-600 mt-2">
-                        Optional. Changes apply instantly.
-                      </p>
-                      <textarea
-                        value={svgText}
-                        onChange={(e) =>
-                          setSvgText(ensureSvgHasXmlns(e.target.value))
-                        }
-                        className="mt-2 w-full h-[300px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
-                        spellCheck={false}
-                        placeholder="<svg ...>...</svg>"
-                      />
-                    </div>
-                  </details>
                 </>
               )}
 
-              {previewUrl && (
+              {inputPreviewSrc && (
                 <div className="mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-white">
                   <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
                     Input preview
                   </div>
-                  <div className="p-3">
+                  <div className={`p-3 ${inputPreviewBgClass}`}>
                     <img
-                      src={previewUrl}
+                      src={inputPreviewSrc}
                       alt="Input SVG"
                       className="w-full h-auto block"
                     />
                   </div>
+                  {!settings.previewUseLocalBlobForFileEmbeds && (
+                    <div className="px-3 pb-3 text-[12px] text-slate-600">
+                      Showing File URL (snippet). If this path is not served,
+                      the preview can be broken even though your SVG is valid.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -485,7 +489,32 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
-                {/* Advanced settings disclosure (canonical pattern) */}
+                {/* Quick embed type pills */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {embedKindPills.map((p) => (
+                    <button
+                      key={p.kind}
+                      type="button"
+                      onClick={() =>
+                        setSettings((s) => ({
+                          ...s,
+                          embedKind: p.kind,
+                        }))
+                      }
+                      className={[
+                        "px-3 py-1 rounded-full border text-[12px] font-semibold cursor-pointer transition-colors",
+                        settings.embedKind === p.kind
+                          ? "bg-[#eff4ff] border-[#d6e4ff] text-slate-900 hover:bg-[#e5eeff]"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
+                      ].join(" ")}
+                      aria-pressed={settings.embedKind === p.kind}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Advanced settings disclosure */}
                 <div className="mt-3 min-w-0">
                   <button
                     type="button"
@@ -536,16 +565,16 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                           className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
                         >
                           <option value="img">
-                            HTML &lt;img&gt; (file URL)
+                            HTML &lt;img&gt; (file URL or data URI)
                           </option>
                           <option value="inline">
                             Inline SVG (paste &lt;svg&gt;)
                           </option>
                           <option value="object">
-                            &lt;object&gt; (file URL)
+                            &lt;object&gt; (file URL or data URI)
                           </option>
                           <option value="iframe">
-                            &lt;iframe&gt; (file URL)
+                            &lt;iframe&gt; (file URL or data URI)
                           </option>
                           <option value="css-bg">
                             CSS background-image (Data URI)
@@ -566,57 +595,46 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                         </select>
                       </Field>
 
-                      <Field label="Preview">
-                        <div className="flex flex-col gap-2 w-full min-w-0">
-                          <ToggleRow
-                            checked={settings.previewUseLocalBlobForFileEmbeds}
-                            onChange={(v) =>
-                              setSettings((s) => ({
-                                ...s,
-                                previewUseLocalBlobForFileEmbeds: v,
-                              }))
-                            }
-                            label="For file-based embeds, preview using the uploaded SVG (no server path needed)"
-                          />
-
-                          <label className="flex items-center gap-2 min-w-0">
-                            <span className="text-[12px] text-slate-600 min-w-[120px]">
-                              Background
-                            </span>
-                            <select
-                              value={settings.previewBackground}
-                              onChange={(e) =>
-                                setSettings((s) => ({
-                                  ...s,
-                                  previewBackground: e.target.value as any,
-                                }))
-                              }
-                              className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                            >
-                              <option value="grid">Grid</option>
-                              <option value="plain">Plain</option>
-                            </select>
-                          </label>
-                        </div>
-                      </Field>
-
                       {(settings.embedKind === "img" ||
                         settings.embedKind === "object" ||
                         settings.embedKind === "iframe") && (
-                        <Field label="File URL (snippet)">
-                          <input
-                            value={settings.assetUrl}
+                        <Field label="Embed source">
+                          <select
+                            value={settings.embedSource}
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                assetUrl: e.target.value,
+                                embedSource: e.target.value as EmbedSourceMode,
                               }))
                             }
-                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                            placeholder="/icons/icon.svg"
-                          />
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                          >
+                            <option value="file-url">File URL</option>
+                            <option value="data-uri">
+                              Data URI (embed SVG)
+                            </option>
+                          </select>
                         </Field>
                       )}
+
+                      {(settings.embedKind === "img" ||
+                        settings.embedKind === "object" ||
+                        settings.embedKind === "iframe") &&
+                        settings.embedSource === "file-url" && (
+                          <Field label="File URL (snippet)">
+                            <input
+                              value={settings.assetUrl}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  assetUrl: e.target.value,
+                                }))
+                              }
+                              className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                              placeholder="/icons/icon.svg"
+                            />
+                          </Field>
+                        )}
 
                       {(settings.embedKind === "img" ||
                         settings.embedKind === "inline" ||
@@ -774,53 +792,31 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                             }
                             label='aria-hidden="true" (decorative)'
                           />
-                          <ToggleRow
-                            checked={settings.roleImg}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, roleImg: v }))
-                            }
-                            label='role="img" (inline)'
-                          />
-                          <ToggleRow
-                            checked={settings.focusableFalse}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, focusableFalse: v }))
-                            }
-                            label='focusable="false" (SVG)'
-                          />
                         </div>
                       </Field>
 
-                      {(settings.embedKind === "data-uri-utf8" ||
-                        settings.embedKind === "data-uri-base64" ||
-                        settings.embedKind === "css-bg" ||
-                        settings.embedKind === "css-mask") && (
+                      {shouldShowDataUriControls(settings) && (
                         <>
-                          {(settings.embedKind === "css-bg" ||
-                            settings.embedKind === "css-mask") && (
-                            <Field label="Data URI encoding">
-                              <select
-                                value={settings.dataUriCharset}
-                                onChange={(e) =>
-                                  setSettings((s) => ({
-                                    ...s,
-                                    dataUriCharset: e.target
-                                      .value as DataUriCharset,
-                                  }))
-                                }
-                                className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
-                              >
-                                <option value="utf8">
-                                  UTF-8 (percent-encoded)
-                                </option>
-                                <option value="base64">Base64</option>
-                              </select>
-                            </Field>
-                          )}
+                          <Field label="Data URI encoding">
+                            <select
+                              value={settings.dataUriCharset}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  dataUriCharset: e.target
+                                    .value as DataUriCharset,
+                                }))
+                              }
+                              className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 truncate"
+                            >
+                              <option value="utf8">
+                                UTF-8 (percent-encoded)
+                              </option>
+                              <option value="base64">Base64</option>
+                            </select>
+                          </Field>
 
-                          {(settings.embedKind === "data-uri-utf8" ||
-                            settings.embedKind === "css-bg" ||
-                            settings.embedKind === "css-mask") && (
+                          {settings.dataUriCharset === "utf8" && (
                             <Field label="UTF-8 header">
                               <input
                                 type="checkbox"
@@ -1218,6 +1214,26 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                 </div>
               </div>
 
+              <details className="mt-3 rounded-2xl border border-slate-200 bg-white">
+                <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
+                  Advanced: Edit SVG source
+                </summary>
+                <div className="px-4 pb-4">
+                  <p className="text-[13px] text-slate-600 mt-2">
+                    Optional. Changes apply instantly.
+                  </p>
+                  <textarea
+                    value={svgText}
+                    onChange={(e) =>
+                      setSvgText(ensureSvgHasXmlns(e.target.value))
+                    }
+                    className="mt-2 w-full h-[300px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
+                    spellCheck={false}
+                    placeholder="<svg ...>...</svg>"
+                  />
+                </div>
+              </details>
+
               {/* OUTPUT CODE */}
               <div className="mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-white">
                 <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
@@ -1232,32 +1248,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                   />
                 </div>
               </div>
-
-              {/* PREVIEW */}
-              <div className="mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
-                  Preview
-                </div>
-                <div className="p-3">
-                  {outHtmlPreview ? (
-                    <EmbedPreview
-                      html={outHtmlPreview}
-                      background={settings.previewBackground}
-                    />
-                  ) : (
-                    <div className="text-slate-600 text-sm">
-                      Upload/paste an SVG to generate preview.
-                    </div>
-                  )}
-
-                  {info && (info.hasScripts || info.hasForeignObject) ? (
-                    <div className="mt-3 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                      This SVG contains potentially risky content. Keep
-                      sanitization enabled before inlining.
-                    </div>
-                  ) : null}
-                </div>
-              </div>
             </div>
           </section>
         </div>
@@ -1268,6 +1258,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1279,13 +1270,17 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
+      {/* SEO + FAQ (single instances; no duplicates) */}
       <SeoSections />
       <FaqSection />
+
+      {/* Single JSON-LD instances */}
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+
       <OtherToolsLinks />
       <RelatedSites />
-
       <Breadcrumbs crumbs={crumbs} />
       <SocialLinks />
       <SiteFooter />
@@ -1299,7 +1294,6 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 function prepareSvg(svgText: string, settings: Settings) {
   let svg = String(svgText || "");
 
-  // strip BOM
   svg = svg.replace(/^\uFEFF/, "");
 
   if (settings.sanitize) {
@@ -1347,10 +1341,9 @@ function prepareSvg(svgText: string, settings: Settings) {
   }
 
   if (settings.prettySvg && !settings.minifySvg) {
-    svg = prettySvg(svg);
+    svg = prettySvg(svg, getIndentStr(settings));
   }
 
-  // sanity
   if (!/<svg\b/i.test(svg)) {
     throw new Error("Input does not contain an <svg> tag.");
   }
@@ -1361,11 +1354,9 @@ function prepareSvg(svgText: string, settings: Settings) {
 function generateEmbed(
   svg: string,
   settings: Settings,
-  ctx: { previewUrl: string | null },
 ): { code: string; htmlPreview: string } {
   const q = settings.quoteMode === "single" ? "'" : '"';
-  const indent =
-    settings.indent === "tab" ? "\t" : " ".repeat(Number(settings.indent));
+  const indentStr = getIndentStr(settings);
 
   const w = `${settings.width}${settings.unit}`;
   const h = `${settings.height}${settings.unit}`;
@@ -1385,6 +1376,14 @@ function generateEmbed(
     const charset = settings.includeUtf8Charset ? ";charset=utf-8" : "";
     return `data:image/svg+xml${charset},${payload}`;
   };
+
+  const isFileBasedKind =
+    kind === "img" || kind === "object" || kind === "iframe";
+
+  const fileBasedSrc =
+    settings.embedSource === "data-uri"
+      ? makeDataUri()
+      : escapeAttr((settings.assetUrl || "/icon.svg").trim() || "/icon.svg");
 
   const sizeForHtmlAttrs = () => {
     if (!settings.useWidth && !settings.useHeight)
@@ -1408,72 +1407,61 @@ function generateEmbed(
     };
   };
 
-  const choosePreviewSrcForFileEmbeds = () => {
-    if (settings.previewUseLocalBlobForFileEmbeds && ctx.previewUrl)
-      return ctx.previewUrl;
-    return settings.assetUrl || "/icons/icon.svg";
-  };
-
   if (kind === "img") {
     const attrs: string[] = [];
-    attrs.push(`src=${q}${escapeAttr(settings.assetUrl || "/icon.svg")}${q}`);
-    attrs.push(`alt=${q}${escapeAttr(alt || "")}${q}`);
-    if (title) attrs.push(`title=${q}${escapeAttr(title)}${q}`);
+    const srcVal =
+      settings.embedSource === "data-uri" ? makeDataUri() : fileBasedSrc;
+    attrs.push(`src=${q}${srcVal}${q}`);
+
+    if (settings.ariaHidden) {
+      attrs.push(`alt=${q}${q}`);
+      attrs.push(`aria-hidden=${q}true${q}`);
+    } else {
+      attrs.push(`alt=${q}${escapeAttr(alt || "")}${q}`);
+      if (title) attrs.push(`title=${q}${escapeAttr(title)}${q}`);
+    }
+
     const sz = sizeForHtmlAttrs();
     if (sz.attrs) attrs.push(sz.attrs);
     if (sz.style) attrs.push(sz.style);
+
     const code = `<img ${attrs.join(" ")} />`;
-
-    const pAttrs: string[] = [];
-    pAttrs.push(`src=${q}${escapeAttr(choosePreviewSrcForFileEmbeds())}${q}`);
-    pAttrs.push(`alt=${q}${escapeAttr(alt || "")}${q}`);
-    if (title) pAttrs.push(`title=${q}${escapeAttr(title)}${q}`);
-    if (sz.attrs) pAttrs.push(sz.attrs);
-    if (sz.style) pAttrs.push(sz.style);
-    const htmlPreview = `<img ${pAttrs.join(" ")} />`;
-
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "object") {
     const attrs: string[] = [];
-    attrs.push(`data=${q}${escapeAttr(settings.assetUrl || "/icon.svg")}${q}`);
+    const dataVal =
+      settings.embedSource === "data-uri" ? makeDataUri() : fileBasedSrc;
+    attrs.push(`data=${q}${dataVal}${q}`);
     if (settings.objectType)
       attrs.push(`type=${q}${escapeAttr(settings.objectType)}${q}`);
 
     const sz = sizeForHtmlAttrs();
     if (settings.unit === "px") {
-      if (settings.useWidth)
+      if (_toggleOn(settings.useWidth))
         attrs.push(`width=${q}${String(settings.width)}${q}`);
-      if (settings.useHeight)
+      if (toggleOn(settings.useHeight))
         attrs.push(`height=${q}${String(settings.height)}${q}`);
     } else if (sz.style) {
       attrs.push(sz.style);
     }
 
-    const inner = alt ? escapeHtml(alt) : "SVG";
+    if (settings.ariaHidden) attrs.push(`aria-hidden=${q}true${q}`);
+    if (!settings.ariaHidden && title)
+      attrs.push(`title=${q}${escapeAttr(title)}${q}`);
+
+    const inner = settings.ariaHidden ? "" : alt ? escapeHtml(alt) : "SVG";
     const code = `<object ${attrs.join(" ")}>${inner}</object>`;
-
-    const pAttrs: string[] = [];
-    pAttrs.push(`data=${q}${escapeAttr(choosePreviewSrcForFileEmbeds())}${q}`);
-    if (settings.objectType)
-      pAttrs.push(`type=${q}${escapeAttr(settings.objectType)}${q}`);
-    if (settings.unit === "px") {
-      if (settings.useWidth)
-        pAttrs.push(`width=${q}${String(settings.width)}${q}`);
-      if (settings.useHeight)
-        pAttrs.push(`height=${q}${String(settings.height)}${q}`);
-    } else if (sz.style) {
-      pAttrs.push(sz.style);
-    }
-
-    const htmlPreview = `<object ${pAttrs.join(" ")}>${inner}</object>`;
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "iframe") {
     const attrs: string[] = [];
-    attrs.push(`src=${q}${escapeAttr(settings.assetUrl || "/icon.svg")}${q}`);
+    const srcVal =
+      settings.embedSource === "data-uri" ? makeDataUri() : fileBasedSrc;
+    attrs.push(`src=${q}${srcVal}${q}`);
+
     if (settings.iframeSandbox) {
       const s = (settings.iframeSandboxValue || "").trim();
       attrs.push(`sandbox=${q}${escapeAttr(s)}${q}`);
@@ -1485,6 +1473,7 @@ function generateEmbed(
         attrs.push(`width=${q}${String(settings.width)}${q}`);
       if (settings.useHeight)
         attrs.push(`height=${q}${String(settings.height)}${q}`);
+      attrs.push(`style=${q}border:0;${q}`);
     } else if (sz.style) {
       const st = sz.style.replace(/^style=/, "");
       attrs.push(`style=${q}border:0;${st.slice(1, -1)}${q}`);
@@ -1492,29 +1481,12 @@ function generateEmbed(
       attrs.push(`style=${q}border:0;${q}`);
     }
 
+    if (settings.ariaHidden) attrs.push(`aria-hidden=${q}true${q}`);
+    if (!settings.ariaHidden && title)
+      attrs.push(`title=${q}${escapeAttr(title)}${q}`);
+
     const code = `<iframe ${attrs.join(" ")}></iframe>`;
-
-    const pAttrs: string[] = [];
-    pAttrs.push(`src=${q}${escapeAttr(choosePreviewSrcForFileEmbeds())}${q}`);
-    if (settings.iframeSandbox) {
-      const s = (settings.iframeSandboxValue || "").trim();
-      pAttrs.push(`sandbox=${q}${escapeAttr(s)}${q}`);
-    }
-    if (settings.unit === "px") {
-      if (settings.useWidth)
-        pAttrs.push(`width=${q}${String(settings.width)}${q}`);
-      if (settings.useHeight)
-        pAttrs.push(`height=${q}${String(settings.height)}${q}`);
-      pAttrs.push(`style=${q}border:0;${q}`);
-    } else if (sz.style) {
-      const st = sz.style.replace(/^style=/, "");
-      pAttrs.push(`style=${q}border:0;${st.slice(1, -1)}${q}`);
-    } else {
-      pAttrs.push(`style=${q}border:0;${q}`);
-    }
-
-    const htmlPreview = `<iframe ${pAttrs.join(" ")}></iframe>`;
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "inline") {
@@ -1549,46 +1521,19 @@ function generateEmbed(
     }
 
     const code = inlineSvg;
-    const htmlPreview = inlineSvg;
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "data-uri-base64") {
     const dataUri = makeDataUri("base64");
     const code = dataUri;
-
-    const sz = sizeForHtmlAttrs();
-    const attrs = [
-      `src=${q}${escapeAttr(dataUri)}${q}`,
-      `alt=${q}${escapeAttr(alt || "")}${q}`,
-      title ? `title=${q}${escapeAttr(title)}${q}` : "",
-      sz.attrs,
-      sz.style,
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    const htmlPreview = `<img ${attrs} />`;
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "data-uri-utf8") {
     const dataUri = makeDataUri("utf8");
     const code = dataUri;
-
-    const sz = sizeForHtmlAttrs();
-    const attrs = [
-      `src=${q}${escapeAttr(dataUri)}${q}`,
-      `alt=${q}${escapeAttr(alt || "")}${q}`,
-      title ? `title=${q}${escapeAttr(title)}${q}` : "",
-      sz.attrs,
-      sz.style,
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    const htmlPreview = `<img ${attrs} />`;
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "css-bg" || kind === "css-mask") {
@@ -1602,39 +1547,31 @@ function generateEmbed(
     const codeLines: string[] = [];
     codeLines.push(`${settings.cssSelector} {`);
     if (settings.cssIncludeDisplayBlock)
-      codeLines.push(`${indent}display: block;`);
-    if (settings.useWidth) codeLines.push(`${indent}width: ${w};`);
-    if (settings.useHeight) codeLines.push(`${indent}height: ${h};`);
-    codeLines.push(`${indent}${prop}: url(${q}${dataUri}${q});`);
+      codeLines.push(`${indentStr}display: block;`);
+    if (settings.useWidth) codeLines.push(`${indentStr}width: ${w};`);
+    if (settings.useHeight) codeLines.push(`${indentStr}height: ${h};`);
+    codeLines.push(`${indentStr}${prop}: url(${q}${dataUri}${q});`);
     codeLines.push(
-      `${indent}${kind === "css-mask" ? "mask-repeat" : "background-repeat"}: ${settings.cssRepeat};`,
+      `${indentStr}${kind === "css-mask" ? "mask-repeat" : "background-repeat"}: ${settings.cssRepeat};`,
     );
     codeLines.push(
-      `${indent}${kind === "css-mask" ? "mask-position" : "background-position"}: ${pos};`,
+      `${indentStr}${kind === "css-mask" ? "mask-position" : "background-position"}: ${pos};`,
     );
     codeLines.push(
-      `${indent}${kind === "css-mask" ? "mask-size" : "background-size"}: ${settings.cssSizeMode};`,
+      `${indentStr}${kind === "css-mask" ? "mask-size" : "background-size"}: ${settings.cssSizeMode};`,
     );
     if (kind === "css-mask") {
-      codeLines.push(`${indent}background-color: currentColor;`);
-      codeLines.push(`${indent}-webkit-mask-image: url(${q}${dataUri}${q});`);
-      codeLines.push(`${indent}-webkit-mask-repeat: ${settings.cssRepeat};`);
-      codeLines.push(`${indent}-webkit-mask-position: ${pos};`);
-      codeLines.push(`${indent}-webkit-mask-size: ${settings.cssSizeMode};`);
+      codeLines.push(`${indentStr}background-color: currentColor;`);
+      codeLines.push(
+        `${indentStr}-webkit-mask-image: url(${q}${dataUri}${q});`,
+      );
+      codeLines.push(`${indentStr}-webkit-mask-repeat: ${settings.cssRepeat};`);
+      codeLines.push(`${indentStr}-webkit-mask-position: ${pos};`);
+      codeLines.push(`${indentStr}-webkit-mask-size: ${settings.cssSizeMode};`);
     }
     codeLines.push(`}`);
     const code = codeLines.join("\n");
-
-    const wStyle = settings.useWidth ? `width:${escapeAttr(w)};` : "";
-    const hStyle = settings.useHeight ? `height:${escapeAttr(h)};` : "";
-    const base = `${wStyle}${hStyle}`;
-
-    const htmlPreview =
-      kind === "css-mask"
-        ? `<div style="${base}background-color:#0b2dff;-webkit-mask-image:url('${dataUri}');mask-image:url('${dataUri}');-webkit-mask-repeat:${settings.cssRepeat};mask-repeat:${settings.cssRepeat};-webkit-mask-position:${escapeAttr(pos)};mask-position:${escapeAttr(pos)};-webkit-mask-size:${settings.cssSizeMode};mask-size:${settings.cssSizeMode};"></div>`
-        : `<div style="${base}background-image:url('${dataUri}');background-repeat:${settings.cssRepeat};background-position:${escapeAttr(pos)};background-size:${settings.cssSizeMode};"></div>`;
-
-    return { code, htmlPreview };
+    return { code, htmlPreview: "" };
   }
 
   if (kind === "react-jsx") {
@@ -1648,6 +1585,7 @@ function generateEmbed(
       height: settings.useHeight ? h : "",
       useCurrentColor: settings.reactUseCurrentColor,
       forwardProps: settings.reactForwardProps && settings.reactJsxWrap,
+      indentStr,
     });
 
     const componentName =
@@ -1657,13 +1595,12 @@ function generateEmbed(
       ? `import * as React from "react";
 
 export const ${componentName} = (props: React.SVGProps<SVGSVGElement>) => (
-${indentBlock(jsxSvg, "  ")}
+${indentBlock(jsxSvg, indentStr)}
 );
 `
       : jsxSvg;
 
-    const htmlPreview = `<div>${svg}</div>`;
-    return { code: code.trim() + "\n", htmlPreview };
+    return { code: code.trim() + "\n", htmlPreview: "" };
   }
 
   const component = svgToReactComponent(svg, {
@@ -1677,33 +1614,41 @@ ${indentBlock(jsxSvg, "  ")}
     height: settings.useHeight ? h : "",
     useCurrentColor: settings.reactUseCurrentColor,
     forwardProps: settings.reactForwardProps,
+    indentStr,
   });
 
-  const htmlPreview = `<div>${svg}</div>`;
-  return { code: component, htmlPreview };
+  return { code: component, htmlPreview: "" };
+
+  function _toggleOn(v: boolean) {
+    return Boolean(v);
+  }
+  function toggleOn(v: boolean) {
+    return Boolean(v);
+  }
 }
 
-/* ========================
-   Preview
-======================== */
-function EmbedPreview({
-  html,
-  background,
-}: {
-  html: string;
-  background: Settings["previewBackground"];
-}) {
-  const bg =
-    background === "grid"
-      ? "bg-[linear-gradient(0deg,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[size:16px_16px]"
-      : "bg-white";
+function shouldShowDataUriControls(settings: Settings) {
+  if (
+    settings.embedKind === "data-uri-utf8" ||
+    settings.embedKind === "data-uri-base64" ||
+    settings.embedKind === "css-bg" ||
+    settings.embedKind === "css-mask"
+  )
+    return true;
 
-  return (
-    <div className={`rounded-2xl border border-slate-200 p-3 ${bg}`}>
-      {/* eslint-disable-next-line react/no-danger */}
-      <div dangerouslySetInnerHTML={{ __html: html }} />
-    </div>
-  );
+  if (
+    (settings.embedKind === "img" ||
+      settings.embedKind === "object" ||
+      settings.embedKind === "iframe") &&
+    settings.embedSource === "data-uri"
+  )
+    return true;
+
+  return false;
+}
+
+function getIndentStr(settings: Settings) {
+  return settings.indent === "tab" ? "\t" : " ".repeat(Number(settings.indent));
 }
 
 /* ========================
@@ -1830,6 +1775,7 @@ function svgToJsx(
     height: string;
     useCurrentColor: boolean;
     forwardProps: boolean;
+    indentStr: string;
   },
 ) {
   let s = svg.trim();
@@ -1895,7 +1841,7 @@ function svgToJsx(
     s = replaceSvgColorsWithCurrentColor(s);
   }
 
-  s = prettyXmlLike(s, "  ");
+  s = prettyXmlLike(s, opts.indentStr);
   return s;
 }
 
@@ -1912,6 +1858,7 @@ function svgToReactComponent(
     height: string;
     useCurrentColor: boolean;
     forwardProps: boolean;
+    indentStr: string;
   },
 ) {
   const name = sanitizeJsIdentifier(opts.name || "Icon") || "Icon";
@@ -1920,11 +1867,12 @@ function svgToReactComponent(
     forwardProps: opts.forwardProps,
   });
 
+  const innerIndent = opts.indentStr;
   const code = `import * as React from "react";
 
 export default function ${name}(props: React.SVGProps<SVGSVGElement>) {
   return (
-${indentBlock(jsx, "    ")}
+${indentBlock(jsx, innerIndent)}
   );
 }
 `;
@@ -2026,7 +1974,7 @@ function escapeRegExp(s: string) {
 /* ========================
    SVG formatting helpers
 ======================== */
-function prettySvg(svg: string) {
+function prettySvg(svg: string, indentStr: string) {
   const s = svg.replace(/>\s*</g, ">\n<");
   const lines = s.split("\n");
   let indent = 0;
@@ -2041,7 +1989,7 @@ function prettySvg(svg: string) {
     const isSelf = /\/>$/.test(line) || /^<\?/.test(line) || /^<!/.test(line);
 
     if (isClose) indent = Math.max(0, indent - 1);
-    out.push("  ".repeat(indent) + line);
+    out.push(indentStr.repeat(indent) + line);
     if (isOpen && !isSelf) indent += 1;
   }
 
@@ -2166,12 +2114,12 @@ function ToggleRow({
   label: string;
 }) {
   return (
-    <label className="flex items-center gap-2 min-w-0">
+    <label className="flex items-center gap-2 min-w-0 cursor-pointer">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-[#0b2dff] shrink-0"
+        className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
       />
       <span className="text-[13px] text-slate-700 min-w-0">{label}</span>
     </label>
@@ -2192,9 +2140,9 @@ function TogglePill({
       type="button"
       onClick={() => onChange(!checked)}
       className={[
-        "px-2 py-1 rounded-lg border text-[12px] font-semibold",
+        "px-2 py-1 rounded-lg border text-[12px] font-semibold cursor-pointer transition-colors",
         checked
-          ? "bg-[#eff4ff] border-[#d6e4ff] text-slate-900"
+          ? "bg-[#eff4ff] border-[#d6e4ff] text-slate-900 hover:bg-[#e5eeff]"
           : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
       ].join(" ")}
       aria-pressed={checked}
@@ -2241,7 +2189,7 @@ function UnitSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as any)}
-      className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+      className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
     >
       <option value="px">px</option>
       <option value="em">em</option>
@@ -2265,7 +2213,7 @@ function Breadcrumbs({
     <div className="mb-4">
       <nav
         aria-label="Breadcrumb"
-        className="text-[13px] text-slate-600 max-w-[1180px] py-4"
+        className="text-[13px] text-slate-600 max-w-[1180px] py-4 mx-auto px-4"
       >
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
@@ -2337,10 +2285,10 @@ function JsonLdFaq() {
       },
       {
         "@type": "Question",
-        name: "Why is my <img> preview broken?",
+        name: "Why does my file URL not load in preview?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "If the src points to a file path that is not actually served by your site, the browser will show a broken image. This generator can preview using your uploaded SVG (local blob URL) so the preview works even if your production path is different.",
+          text: "If the URL points to a path your site does not serve, the browser will show a broken image. Keep input preview set to use the uploaded SVG when you want reliable preview, and switch to File URL preview when you want to test production paths.",
         },
       },
       {
@@ -2361,10 +2309,13 @@ function JsonLdFaq() {
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }
@@ -2426,11 +2377,13 @@ function FaqSection() {
   );
 }
 
+/* ========================
+   SEO Sections (no FAQ + no JSON-LD here to avoid duplicates)
+======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
-        {/* drop prose; keep a controlled content column that matches the app UI */}
         <article>
           <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Embed Code Generator
@@ -2459,10 +2412,9 @@ function SeoSections() {
 
           <p className="mt-2 text-slate-600">
             Upload or paste an SVG and generate embed snippets for HTML, CSS,
-            React/JSX, and Data URIs. 
+            React/JSX, and Data URIs.
           </p>
 
-          {/* Quick picker: match the actual controls on the page */}
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
@@ -2505,17 +2457,18 @@ function SeoSections() {
                 />
               </div>
             )}
+
             <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
                   HTML &lt;img&gt;
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Best when you want a simple embed and don’t need to style
+                  Best when you want a simple embed and do not need to style
                   internal SVG parts. Good for caching and quick use in content.
                 </p>
                 <div className="mt-2 text-[12px] text-slate-600">
-                  Use when: “just render the SVG”.
+                  Use when: just render the SVG.
                 </div>
               </div>
 
@@ -2537,7 +2490,7 @@ function SeoSections() {
                 </div>
                 <p className="mt-2 leading-relaxed">
                   Best for decorative graphics. Works well with sizing,
-                  positioning, and repeating behavior, but you can’t style
+                  positioning, and repeating behavior, but you cannot style
                   internal SVG parts.
                 </p>
                 <div className="mt-2 text-[12px] text-slate-600">
@@ -2554,7 +2507,7 @@ function SeoSections() {
                   <span className="font-semibold text-slate-900">
                     currentColor
                   </span>
-                  -style theming. The SVG becomes a mask; the element’s
+                  -style theming. The SVG becomes a mask; the element&apos;s
                   background sets the color.
                 </p>
                 <div className="mt-2 text-[12px] text-slate-600">
@@ -2562,6 +2515,7 @@ function SeoSections() {
                 </div>
               </div>
             </div>
+
             <div className="mt-3 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
@@ -2592,7 +2546,6 @@ function SeoSections() {
             </div>
           </div>
 
-          {/* HowTo (keep, but make it match the utility style) */}
           <section
             className="mt-8"
             itemScope
@@ -2623,140 +2576,8 @@ function SeoSections() {
               simplest embed, choose HTML img.
             </div>
           </section>
-
-          {/* Practical details (not keyword-stuffing) */}
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Sizing and viewBox (what actually affects rendering)
-            </h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-              Most “SVG doesn’t scale” issues come from missing or mismatched
-              sizing signals. Embed snippets often need a predictable viewBox
-              and either explicit sizing or CSS-driven sizing depending on where
-              you’re using the SVG.
-            </p>
-
-            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>
-                  <span className="font-semibold text-slate-900">
-                    Inline/React:
-                  </span>{" "}
-                  viewBox enables responsive scaling. Use CSS width/height for
-                  layout sizing.
-                </span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>
-                  <span className="font-semibold text-slate-900">
-                    &lt;img&gt;:
-                  </span>{" "}
-                  the SVG’s intrinsic size can come from width/height or the
-                  image’s layout box.
-                </span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>
-                  <span className="font-semibold text-slate-900">
-                    CSS background/mask:
-                  </span>{" "}
-                  use background-size / background-position (or mask-size /
-                  mask-position) to control layout behavior.
-                </span>
-              </li>
-            </ul>
-
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-              <span className="font-semibold text-slate-900">
-                If your SVG won’t scale:
-              </span>{" "}
-              verify it has a valid viewBox. If not, fix the SVG first, then
-              embed.
-            </div>
-          </section>
-
-          {/* Security notes (utility, not scary) */}
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Security notes for inline SVG and data URIs
-            </h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
-              SVG is XML and can contain scripts, event handlers, and external
-              references. If you did not create the SVG, sanitize before
-              inlining or embedding as a data URI.
-            </p>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">
-                  Inline / React
-                </div>
-                <p className="mt-2 leading-relaxed">
-                  Highest control, but you are inserting markup into your page.
-                  Strip{" "}
-                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
-                    &lt;script&gt;
-                  </code>{" "}
-                  and{" "}
-                  <code className="px-1 py-0.5 rounded bg-white border border-slate-200">
-                    on*
-                  </code>{" "}
-                  handlers on untrusted SVGs.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">Data URIs</div>
-                <p className="mt-2 leading-relaxed">
-                  Safer in the sense that it is not parsed as DOM elements, but
-                  it can still embed harmful or broken content if you ship
-                  untrusted files. Treat untrusted SVGs as untrusted input.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-              <span className="font-semibold text-slate-900">Privacy:</span>{" "}
-              generation runs on-device in your browser. Files are not uploaded
-              to a server for conversion.
-            </div>
-          </section>
-
-          {/* Remove keyword-stuffing section; replace with practical "covers" */}
-          <section className="mt-8">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Snippets included
-            </h3>
-            <ul className="mt-3 list-disc pl-5 text-[13px] leading-relaxed text-slate-700">
-              <li>HTML image embed: &lt;img src="..." alt="..." /&gt;</li>
-              <li>Inline SVG with optional title/aria attributes</li>
-              <li>CSS background-image using a UTF-8 or Base64 data URI</li>
-              <li>CSS mask-image for single-color, themeable icons</li>
-              <li>React/JSX-friendly markup (attribute name normalization)</li>
-            </ul>
-          </section>
-
-          {/* Keep your FAQ component unchanged; only fix its styling wrapper if needed */}
-          <section className="mt-12" aria-label="Frequently asked questions">
-            <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
-            <div className="not-prose mt-4">
-              <JsonLdFaq />
-            </div>
-          </section>
         </article>
       </div>
-
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
     </section>
   );
 }

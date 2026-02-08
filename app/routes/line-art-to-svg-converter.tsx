@@ -38,6 +38,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+    { name: "robots", content: "index,follow" },
 
     // Keywords are ignored by Google but harmless
     {
@@ -62,8 +63,11 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-  return { message: context.VALUE_FROM_EXPRESS };
+export function loader({ request }: Route.LoaderArgs) {
+  return {
+    origin: "https://www.ilovesvg.com",
+    canonicalUrl: "https://www.ilovesvg.com/line-art-to-svg-converter",
+  };
 }
 
 /* ========================
@@ -858,16 +862,23 @@ const FAQ: FaqItem[] = [
 ];
 
 function makeBreadcrumbJsonLd() {
+  const SITE_URL = "https://www.ilovesvg.com";
+
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${SITE_URL}/`,
+      },
       {
         "@type": "ListItem",
         position: 2,
         name: ROUTE_NAME,
-        item: ROUTE_PATH,
+        item: `${SITE_URL}${ROUTE_PATH}`,
       },
     ],
   };
@@ -894,9 +905,7 @@ function JsonLd({ data }: { data: any }) {
   );
 }
 
-export default function LineArtToSvgConverter({
-  loaderData,
-}: Route.ComponentProps) {
+export default function LineArtToSvgConverter({}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1499,13 +1508,10 @@ export default function LineArtToSvgConverter({
             </div>
 
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
-                Result
-                {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
@@ -1837,32 +1843,16 @@ function SeoSectionsLineArt({ faq }: { faq: FaqItem[] }) {
             </div>
           </section>
 
-          <section
-            className="mt-12"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-          >
+          <section className="mt-12">
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
             <div className="mt-4 grid gap-3">
               {faq.map((x) => (
                 <article
                   key={x.q}
-                  itemScope
-                  itemType="https://schema.org/Question"
-                  itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
-                    {x.q}
-                  </h4>
-                  <p
-                    itemScope
-                    itemType="https://schema.org/Answer"
-                    itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
-                  >
-                    <span itemProp="text">{x.a}</span>
-                  </p>
+                  <h4 className="m-0 font-semibold">{x.q}</h4>
+                  <p className="mt-2 text-sm text-slate-600">{x.a}</p>
                 </article>
               ))}
             </div>

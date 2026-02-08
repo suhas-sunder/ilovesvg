@@ -15,7 +15,7 @@ import Icons from "~/client/assets/icons/Icons";
 export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | SVG Minify Tool (Client-Side SVG Minifier)";
   const description =
-    "Minify SVG files instantly with iLoveSVG. Remove comments, collapse whitespace, optionally strip XML or DOCTYPE, clean style attributes, and download the optimized SVG. Free, fully client-side, no uploads.";
+    "Minify SVG files instantly with iLoveSVG. Remove comments, collapse whitespace, optionally strip XML or DOCTYPE, clean style attributes, minify path/transform spacing, remove metadata, and download the optimized SVG. Free, fully client-side, no uploads.";
   const canonical = "https://www.ilovesvg.com/svg-minifier";
 
   return [
@@ -34,19 +34,56 @@ export function meta({}: Route.MetaArgs) {
 }
 
 /* ========================
+   FAQ (single source of truth)
+======================== */
+const FAQ_ITEMS = [
+  {
+    q: "Does this SVG minify tool upload my file?",
+    a: "No. The SVG is processed locally in your browser. Nothing is uploaded to a server.",
+  },
+  {
+    q: "What does SVG minify do?",
+    a: "It removes safe bloat like comments and extra whitespace, and can optionally strip the XML/DOCTYPE header, clean style formatting, remove empty attributes, remove metadata/title/desc, and minify path/transform spacing without changing geometry.",
+  },
+  {
+    q: "Can minifying break an SVG?",
+    a: "The default options are conservative and usually safe. The main risky content is visible <text> that depends on exact spacing; keep text trimming off if your SVG uses precise spacing.",
+  },
+  {
+    q: "Why is the output size sometimes unchanged?",
+    a: "Some SVGs are already compact, or their size is dominated by path data. This tool does not rewrite numbers or apply lossy rounding by default, so savings can be small on certain files.",
+  },
+];
+
+/* ========================
    Types
 ======================== */
 type Settings = {
   stripXmlDecl: boolean;
   stripDoctype: boolean;
+
   removeComments: boolean;
+  removeCdataSections: boolean;
+
   collapseWhitespaceBetweenTags: boolean;
-  collapseRunsOfSpaces: boolean;
+  collapseRunsOfSpacesInTags: boolean;
+  normalizeNewlines: boolean;
+
   optimizeStyleAttr: boolean;
   removeEmptyAttrs: boolean;
 
   removeMetadataTag: boolean;
+  removeTitleDesc: boolean;
+
   removeEditorsNamespaces: boolean;
+  removeEditorsAttrs: boolean;
+  removeXmlSpaceAttr: boolean;
+
+  removeEmptyContainers: boolean;
+
+  minifyPathDataSpacing: boolean;
+  minifyPointsSpacing: boolean;
+  minifyTransformSpacing: boolean;
 
   trimTextNodes: boolean;
 
@@ -63,14 +100,29 @@ type SvgInfo = {
 const DEFAULTS: Settings = {
   stripXmlDecl: true,
   stripDoctype: true,
+
   removeComments: true,
+  removeCdataSections: false,
+
   collapseWhitespaceBetweenTags: true,
-  collapseRunsOfSpaces: true,
+  collapseRunsOfSpacesInTags: true,
+  normalizeNewlines: true,
+
   optimizeStyleAttr: true,
   removeEmptyAttrs: true,
 
   removeMetadataTag: false,
-  removeEditorsNamespaces: false,
+  removeTitleDesc: false,
+
+  removeEditorsNamespaces: true,
+  removeEditorsAttrs: true,
+  removeXmlSpaceAttr: false,
+
+  removeEmptyContainers: false,
+
+  minifyPathDataSpacing: true,
+  minifyPointsSpacing: true,
+  minifyTransformSpacing: true,
 
   trimTextNodes: false,
 
@@ -240,7 +292,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG Minify", href: "/svg-minify" },
+    { name: "SVG Minify", href: "/svg-minifier" },
   ];
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -269,9 +321,9 @@ export default function SvgMinify(_: Route.ComponentProps) {
               </h1>
               <p className="mt-2 text-slate-600">
                 Minify an SVG by removing safe bloat like <b>comments</b> and
-                extra <b>whitespace</b>, and optionally stripping <b>XML</b>/
-                <b>DOCTYPE</b> and cleaning <b>style</b>. This runs fully
-                client-side.
+                extra <b>whitespace</b>, cleaning <b>style</b>, and minifying
+                common attribute formatting (like <b>path d</b> spacing) without
+                changing geometry. This runs fully client-side.
               </p>
 
               {!file ? (
@@ -448,6 +500,23 @@ export default function SvgMinify(_: Route.ComponentProps) {
                         </span>
                       </Field>
 
+                      <Field label="Remove CDATA blocks">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeCdataSections}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeCdataSections: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove {"<![CDATA[ ... ]]>"}
+                        </span>
+                      </Field>
+
                       <Field label="Whitespace between tags">
                         <input
                           type="checkbox"
@@ -461,24 +530,41 @@ export default function SvgMinify(_: Route.ComponentProps) {
                           className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Collapse {">   <"} to {"><"}
+                          Collapse {">   <"} to {"><"} (safe for markup)
                         </span>
                       </Field>
 
-                      <Field label="Collapse repeated spaces">
+                      <Field label="Collapse spaces in tags">
                         <input
                           type="checkbox"
-                          checked={settings.collapseRunsOfSpaces}
+                          checked={settings.collapseRunsOfSpacesInTags}
                           onChange={(e) =>
                             setSettings((s) => ({
                               ...s,
-                              collapseRunsOfSpaces: e.target.checked,
+                              collapseRunsOfSpacesInTags: e.target.checked,
                             }))
                           }
                           className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Reduce obvious markup spacing
+                          Reduce spacing inside {"<...>"} only
+                        </span>
+                      </Field>
+
+                      <Field label="Normalize newlines">
+                        <input
+                          type="checkbox"
+                          checked={settings.normalizeNewlines}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              normalizeNewlines: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Collapse repeated blank lines
                         </span>
                       </Field>
 
@@ -533,6 +619,23 @@ export default function SvgMinify(_: Route.ComponentProps) {
                         </span>
                       </Field>
 
+                      <Field label="Remove title/desc">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeTitleDesc}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeTitleDesc: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove {"<title>"} / {"<desc>"} (a11y tradeoff)
+                        </span>
+                      </Field>
+
                       <Field label="Remove editor namespaces">
                         <input
                           type="checkbox"
@@ -546,7 +649,109 @@ export default function SvgMinify(_: Route.ComponentProps) {
                           className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove inkscape/sodipodi attrs
+                          Remove inkscape/sodipodi xmlns:*
+                        </span>
+                      </Field>
+
+                      <Field label="Remove editor attributes">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeEditorsAttrs}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeEditorsAttrs: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove inkscape/sodipodi:* attrs
+                        </span>
+                      </Field>
+
+                      <Field label="Remove xml:space">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeXmlSpaceAttr}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeXmlSpaceAttr: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove xml:space="preserve" (can affect text)
+                        </span>
+                      </Field>
+
+                      <Field label="Remove empty containers">
+                        <input
+                          type="checkbox"
+                          checked={settings.removeEmptyContainers}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              removeEmptyContainers: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove empty {"<g/>"} / {"<defs/>"} / {"<symbol/>"}
+                        </span>
+                      </Field>
+
+                      <Field label="Minify path d spacing">
+                        <input
+                          type="checkbox"
+                          checked={settings.minifyPathDataSpacing}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              minifyPathDataSpacing: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Remove redundant spaces/commas (no rounding)
+                        </span>
+                      </Field>
+
+                      <Field label="Minify points spacing">
+                        <input
+                          type="checkbox"
+                          checked={settings.minifyPointsSpacing}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              minifyPointsSpacing: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Clean points="x,y x,y"
+                        </span>
+                      </Field>
+
+                      <Field label="Minify transform spacing">
+                        <input
+                          type="checkbox"
+                          checked={settings.minifyTransformSpacing}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              minifyTransformSpacing: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700 min-w-0">
+                          Clean transform="translate(1, 2) ..."
                         </span>
                       </Field>
 
@@ -563,7 +768,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
                           className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          May affect {"<text>"} in rare cases
+                          May affect {"<text>"} spacing
                         </span>
                       </Field>
 
@@ -616,9 +821,9 @@ export default function SvgMinify(_: Route.ComponentProps) {
                 </div>
 
                 <div className="mt-3 text-[13px] text-slate-600">
-                  Notes: This minifier is conservative. It focuses on safe size
-                  reductions like whitespace, comments, and simple attribute
-                  cleanup. It does not rewrite paths or transforms.
+                  Notes: Defaults aim for meaningful size reduction without
+                  altering geometry. For bigger wins, you need an SVGO-style
+                  optimizer that rewrites path numbers, which can be risky.
                 </div>
               </div>
 
@@ -680,6 +885,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -691,6 +897,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
@@ -704,17 +911,29 @@ export default function SvgMinify(_: Route.ComponentProps) {
 }
 
 /* ========================
-   Core minify logic (string-based)
+   Core minify logic (robust + conservative)
 ======================== */
 function minifySvg(svgText: string, settings: Settings): { svg: string } {
   let svg = ensureSvgHasXmlns(svgText);
 
-  // normalize newlines
+  // normalize newlines early (optional)
   svg = svg.replace(/\r\n?/g, "\n");
 
-  if (settings.stripXmlDecl) svg = svg.replace(/^\s*<\?xml[\s\S]*?\?>\s*/i, "");
-  if (settings.stripDoctype)
+  if (settings.stripXmlDecl) {
+    // remove xml decl even if preceded by BOM/whitespace
+    svg = svg.replace(/^\uFEFF?\s*<\?xml[\s\S]*?\?>\s*/i, "");
+  }
+
+  if (settings.stripDoctype) {
+    // remove doctype near the top (common), but also handle stray occurrences
     svg = svg.replace(/^\s*<!DOCTYPE[\s\S]*?>\s*/i, "");
+    svg = svg.replace(/<!DOCTYPE[\s\S]*?>/gi, "");
+  }
+
+  // remove CDATA (rare in SVG; more common with embedded CSS/scripts)
+  if (settings.removeCdataSections) {
+    svg = svg.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+  }
 
   // remove comments
   if (settings.removeComments) {
@@ -725,12 +944,30 @@ function minifySvg(svgText: string, settings: Settings): { svg: string } {
     svg = svg.replace(/<metadata\b[\s\S]*?<\/metadata>/gi, "");
   }
 
+  if (settings.removeTitleDesc) {
+    // Title/desc can be used for accessibility; leave off by default
+    svg = svg.replace(/<title\b[\s\S]*?<\/title>/gi, "");
+    svg = svg.replace(/<desc\b[\s\S]*?<\/desc>/gi, "");
+  }
+
   if (settings.removeEditorsNamespaces) {
+    // common editor namespaces (not only inkscape/sodipodi)
     svg = svg.replace(/\sxmlns:(inkscape|sodipodi)\s*=\s*["'][^"']*["']/gi, "");
+    svg = svg.replace(/\sxmlns:(cc|dc|rdf)\s*=\s*["'][^"']*["']/gi, "");
+  }
+
+  if (settings.removeEditorsAttrs) {
+    // editor attrs (InkScape/Sodipodi)
     svg = svg.replace(
-      /\s(?:inkscape|sodipodi):[a-zA-Z0-9_-]+\s*=\s*["'][^"']*["']/gi,
+      /\s(?:inkscape|sodipodi):[a-zA-Z0-9_.:-]+\s*=\s*["'][^"']*["']/gi,
       "",
     );
+    // some editor-only attrs without namespaces (safe-ish)
+    svg = svg.replace(/\s(?:enable-background)\s*=\s*["'][^"']*["']/gi, "");
+  }
+
+  if (settings.removeXmlSpaceAttr) {
+    svg = svg.replace(/\sxml:space\s*=\s*["'][^"']*["']/gi, "");
   }
 
   // style cleanup
@@ -752,21 +989,66 @@ function minifySvg(svgText: string, settings: Settings): { svg: string } {
     });
   }
 
+  // Minify transform spacing (no numeric changes)
+  if (settings.minifyTransformSpacing) {
+    svg = svg.replace(/\stransform\s*=\s*["']([^"']*)["']/gi, (m, val) => {
+      const cleaned = minifyTransformValue(String(val));
+      return cleaned ? ` transform="${escapeAttr(cleaned)}"` : m;
+    });
+  }
+
+  // Minify points spacing (no numeric changes)
+  if (settings.minifyPointsSpacing) {
+    svg = svg.replace(/\spoints\s*=\s*["']([^"']*)["']/gi, (m, val) => {
+      const cleaned = minifyPointsValue(String(val));
+      return cleaned ? ` points="${escapeAttr(cleaned)}"` : m;
+    });
+  }
+
+  // Minify path "d" spacing (no numeric changes / no rounding)
+  if (settings.minifyPathDataSpacing) {
+    svg = svg.replace(/\sd\s*=\s*["']([^"']*)["']/gi, (m, val) => {
+      const cleaned = minifyPathDataValue(String(val));
+      return cleaned ? ` d="${escapeAttr(cleaned)}"` : m;
+    });
+  }
+
   // remove empty attributes attr=""
   if (settings.removeEmptyAttrs) {
     svg = svg.replace(/\s[a-zA-Z_:][a-zA-Z0-9_.:-]*\s*=\s*["']\s*["']/g, "");
   }
 
   if (settings.collapseWhitespaceBetweenTags) {
+    // remove ONLY whitespace that exists between tag close/open boundaries
     svg = svg.replace(/>\s+</g, "><");
   }
 
-  if (settings.collapseRunsOfSpaces) {
-    svg = svg.replace(/[ \t]{2,}/g, " ").replace(/\n{2,}/g, "\n");
+  if (settings.collapseRunsOfSpacesInTags) {
+    // collapse runs of spaces INSIDE tags only to avoid changing text nodes
+    svg = svg.replace(/<[^>]+>/g, (tag) =>
+      tag
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\s*=\s*/g, "=") // safe inside tag: a = "b" -> a="b"
+        .replace(/\s+>/g, ">"),
+    );
+  }
+
+  if (settings.normalizeNewlines) {
+    svg = svg.replace(/\n{2,}/g, "\n");
   }
 
   if (settings.trimTextNodes) {
+    // This can change visual spacing in <text>. Off by default.
     svg = svg.replace(/>([^<]+)</g, (m, text) => `>${String(text).trim()}<`);
+  }
+
+  if (settings.removeEmptyContainers) {
+    // conservative: remove truly empty containers (no text/children)
+    svg = svg.replace(/<g\b[^>]*>\s*<\/g>/gi, "");
+    svg = svg.replace(/<defs\b[^>]*>\s*<\/defs>/gi, "");
+    svg = svg.replace(/<symbol\b[^>]*>\s*<\/symbol>/gi, "");
+    svg = svg.replace(/<clipPath\b[^>]*>\s*<\/clipPath>/gi, "");
+    svg = svg.replace(/<mask\b[^>]*>\s*<\/mask>/gi, "");
   }
 
   svg = svg.trim();
@@ -807,6 +1089,61 @@ function ensureSvgHasXmlns(svg: string) {
 
 function escapeAttr(v: string) {
   return String(v).replace(/"/g, "&quot;");
+}
+
+/* ========================
+   Value minifiers (no numeric rounding)
+======================== */
+function minifyTransformValue(input: string) {
+  // Normalize commas/spaces but do not change numbers.
+  // Example: "translate(1, 2) rotate( 45 )" -> "translate(1 2) rotate(45)"
+  let s = input.trim();
+  // remove newlines/tabs
+  s = s.replace(/[\n\r\t]+/g, " ");
+  // remove spaces around parentheses
+  s = s.replace(/\s*\(\s*/g, "(").replace(/\s*\)\s*/g, ")");
+  // commas to spaces inside args
+  s = s.replace(/,/g, " ");
+  // collapse spaces
+  s = s.replace(/[ ]{2,}/g, " ");
+  // remove space between command and '(' already handled; ensure ")( " patterns
+  s = s.replace(/\)\s+(?=[a-zA-Z])/g, ") ");
+  return s.trim();
+}
+
+function minifyPointsValue(input: string) {
+  // points="x,y x,y" -> "x y x y" (commas not needed), collapse spaces
+  let s = input.trim();
+  s = s.replace(/[\n\r\t]+/g, " ");
+  s = s.replace(/,/g, " ");
+  s = s.replace(/[ ]{2,}/g, " ");
+  return s.trim();
+}
+
+function minifyPathDataValue(input: string) {
+  // Conservative path minify:
+  // - collapse whitespace
+  // - convert commas to spaces
+  // - remove spaces around +/- where safe
+  // - remove spaces before command letters
+  // No rounding, no number rewriting.
+  let s = input.trim();
+  s = s.replace(/[\n\r\t]+/g, " ");
+  s = s.replace(/,/g, " ");
+  s = s.replace(/[ ]{2,}/g, " ");
+
+  // Remove spaces before commands: "  L" -> "L"
+  s = s.replace(/\s+([a-zA-Z])/g, "$1");
+
+  // Remove space before minus sign when it separates numbers: "10 -5" -> "10-5"
+  // Keep space after command letters intact because we just removed it above.
+  s = s.replace(/(\d)\s+(-)/g, "$1$2");
+
+  // Remove space after minus sign? No.
+  // Remove space before decimal leading dot? "0 .5" is weird but handle ".5"
+  s = s.replace(/(\d)\s+(\.)/g, "$1$2");
+
+  return s.trim();
 }
 
 /* ========================
@@ -902,7 +1239,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG Minify",
-        item: `${baseUrl}/svg-minify`,
+        item: `${baseUrl}/svg-minifier`,
       },
     ],
   };
@@ -918,46 +1255,17 @@ function JsonLdBreadcrumbs() {
 }
 
 /* ========================
-   FAQ JSON-LD
+   FAQ JSON-LD (derived from FAQ_ITEMS)
 ======================== */
 function JsonLdFaq() {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Does this SVG minify tool upload my file?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. The SVG is processed locally in your browser. Nothing is uploaded to a server.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What does SVG minify do?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "It removes safe bloat like comments and extra whitespace, and can optionally strip the XML/DOCTYPE header, clean style formatting, and remove empty attributes.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can minifying break an SVG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "The default options are conservative and usually safe. Trimming text nodes can affect SVGs that rely on exact spacing inside <text>.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why is the output size sometimes unchanged?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Some SVGs are already compact, or their size is dominated by path data. This tool avoids rewriting paths and transforms, so savings can be small for certain files.",
-        },
-      },
-    ],
+    mainEntity: FAQ_ITEMS.map((x) => ({
+      "@type": "Question",
+      name: x.q,
+      acceptedAnswer: { "@type": "Answer", text: x.a },
+    })),
   };
 
   return (
@@ -968,60 +1276,107 @@ function JsonLdFaq() {
   );
 }
 
+/* ========================
+   SEO sections (single visible FAQ, no duplicates)
+======================== */
 function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
-        {/* ditch prose: it causes the "off" look + uncontrolled typography */}
         <article>
           <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Minify Tool (Client-Side)
           </h2>
 
+          {/* Core intro (tight, relevant) */}
           <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
-            This{" "}
-            <span className="font-semibold text-slate-900">SVG minifier</span>{" "}
-            reduces file size by removing safe bloat like{" "}
-            <span className="font-semibold text-slate-900">comments</span>,
-            extra{" "}
-            <span className="font-semibold text-slate-900">whitespace</span>,
-            and optional headers like{" "}
-            <span className="font-semibold text-slate-900">XML</span> and{" "}
-            <span className="font-semibold text-slate-900">DOCTYPE</span>. It is
-            intentionally{" "}
-            <span className="font-semibold text-slate-900">conservative</span>:
-            it focuses on safe reductions and does not rewrite path numbers or
-            transforms by default. Everything runs client-side, so your SVG
-            stays on your device.
+            This tool reduces SVG size by stripping non-visual bloat: comments,
+            editor metadata, redundant whitespace, and noisy attribute
+            formatting. It runs entirely in your browser, so your file never
+            leaves your device. The defaults are conservative and aim to
+            preserve rendering while still producing meaningful savings for
+            typical exports from design tools.
           </p>
 
-          {/* Quick workflow */}
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+          {/* What it does (practical, not bloggy) */}
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
+              <div className="min-w-0">
                 <h3 className="m-0 text-base font-extrabold text-slate-900">
-                  Quick workflow
+                  What gets reduced (and why it is usually safe)
                 </h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
-                  Use this when you want smaller SVGs without changing geometry.
+                  SVGs often grow because tools export extra markup that does
+                  not affect the final pixels. Removing that bloat shrinks files
+                  without changing the shapes.
                 </p>
               </div>
 
               <div className="flex gap-2 flex-wrap">
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Upload/paste
+                  No uploads
                 </span>
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Choose removals
+                  Conservative defaults
                 </span>
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Preview
-                </span>
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Export SVG
+                  Preview + export
                 </span>
               </div>
             </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">Comments</div>
+                <p className="mt-2 leading-relaxed">
+                  Designers and libraries sometimes leave{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    &lt;!-- ... --&gt;
+                  </code>{" "}
+                  blocks for humans. Browsers ignore them, so removing comments
+                  typically saves bytes with no visual impact.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">Whitespace</div>
+                <p className="mt-2 leading-relaxed">
+                  Extra spacing between tags and inside markup can add up fast,
+                  especially in large icon sets. Collapsing markup whitespace is
+                  generally safe because browsers treat it as insignificant
+                  outside text nodes.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  Style attribute cleanup
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Exports often include messy{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    style=""
+                  </code>{" "}
+                  strings with inconsistent spacing. Normalizing the formatting
+                  reduces size while preserving the same declarations.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-slate-900">
+                  Editor-only metadata
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  Tools like Inkscape or Illustrator may add{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    &lt;metadata&gt;
+                  </code>{" "}
+                  blocks and editor namespaces. Removing those can materially
+                  shrink files, especially for assets exported in bulk.
+                </p>
+              </div>
+            </div>
+
             {typeof document !== "undefined" && (
               <div className="block py-6">
                 <AdSenseDelayed
@@ -1037,50 +1392,9 @@ function SeoSections() {
                 />
               </div>
             )}
-            <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
-              <li className="rounded-xl border border-slate-200 bg-white p-4">
-                <span className="font-semibold text-slate-900">
-                  1) Start with the safe defaults
-                </span>
-                <div className="mt-1 leading-relaxed">
-                  Remove comments and collapse whitespace first. These are
-                  usually “free” savings.
-                </div>
-              </li>
-              <li className="rounded-xl border border-slate-200 bg-white p-4">
-                <span className="font-semibold text-slate-900">
-                  2) Strip XML/DOCTYPE only if you need to
-                </span>
-                <div className="mt-1 leading-relaxed">
-                  Helpful for cleaner embeds and fewer wrappers, but not
-                  required for most SVG usage.
-                </div>
-              </li>
-              <li className="rounded-xl border border-slate-200 bg-white p-4">
-                <span className="font-semibold text-slate-900">
-                  3) Keep text trimming off for text-heavy SVGs
-                </span>
-                <div className="mt-1 leading-relaxed">
-                  SVG{" "}
-                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
-                    &lt;text&gt;
-                  </code>{" "}
-                  can be sensitive to whitespace and spacing.
-                </div>
-              </li>
-              <li className="rounded-xl border border-slate-200 bg-white p-4">
-                <span className="font-semibold text-slate-900">
-                  4) If savings are tiny, the file is path-dominated
-                </span>
-                <div className="mt-1 leading-relaxed">
-                  This tool avoids rewriting path numbers, so some SVGs won’t
-                  shrink much.
-                </div>
-              </li>
-            </ol>
-          </div>
+          </section>
 
-          {/* HowTo (keep schema-friendly, but styled to match your UI) */}
+          {/* Workflow (direct, tool-centric) */}
           <section
             className="mt-8"
             itemScope
@@ -1092,118 +1406,130 @@ function SeoSections() {
             >
               How to minify an SVG
             </h3>
+
             <ol className="mt-3 grid gap-2 list-decimal pl-5 text-[13px] leading-relaxed text-slate-700">
               <li itemProp="step">Upload or paste an SVG file.</li>
               <li itemProp="step">
-                Choose what to remove (comments, whitespace, headers).
+                Leave the defaults on for a safe first pass (comments + markup
+                whitespace + style cleanup).
               </li>
-              <li itemProp="step">Preview the minified result.</li>
-              <li itemProp="step">Download the minified SVG.</li>
+              <li itemProp="step">
+                Toggle additional removals if your SVG is an export (metadata,
+                editor namespaces, empty attributes, path/transform spacing).
+              </li>
+              <li itemProp="step">
+                Compare the input and output previews, then download the
+                minified SVG.
+              </li>
             </ol>
 
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-              <span className="font-semibold text-slate-900">Note:</span> this
-              minifier is conservative. It focuses on safe reductions and avoids
-              rewriting path data.
+              <span className="font-semibold text-slate-900">Tip:</span> If your
+              file includes visible{" "}
+              <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                &lt;text&gt;
+              </code>{" "}
+              content, keep “Trim text nodes” and “Remove xml:space” off unless
+              you have verified spacing remains correct.
             </div>
           </section>
 
-          {/* What changes */}
+          {/* Options (dense, relevant, not educational fluff) */}
           <section className="mt-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-              <span className="text-base">🧹</span>
-              Changes
-            </div>
-            <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
-              What this tool changes
-            </h3>
-
-            <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>Removes comments and collapses whitespace</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>Optionally strips XML declaration and DOCTYPE</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>
-                  Cleans{" "}
-                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
-                    style=""
-                  </code>{" "}
-                  formatting and removes empty attributes (when safe)
-                </span>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
-                </span>
-                <span>
-                  Optionally removes metadata and common editor-only namespaces
-                </span>
-              </li>
-            </ul>
-          </section>
-
-          {/* When useful */}
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              When this tool is useful
+              Settings that usually matter for file size
             </h3>
+
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              Not every switch is worth it. The items below tend to produce real
+              savings across common SVGs while staying non-destructive. The goal
+              is to reduce markup and formatting noise, not to rewrite geometry.
+              If you need aggressive compression (rounding path numbers, merging
+              paths, converting shapes), that is a different class of optimizer
+              and can change output. This tool stays on the safe side.
+            </p>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
-                  Web performance
+                  Markup whitespace cleanup
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Reduce payload size for faster downloads and improved caching,
-                  especially for icon sets.
+                  Collapsing whitespace between tags and inside tags removes a
+                  lot of export noise. It typically has no rendering effect
+                  because browsers ignore formatting whitespace in markup.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
-                  Design export cleanup
+                  Path / points / transform spacing
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Remove comments, metadata, and editor junk that inflates
-                  exports from design tools.
+                  Many SVGs are dominated by attribute text like{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    d=""
+                  </code>{" "}
+                  and{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    transform=""
+                  </code>
+                  . Minifying spacing (commas, redundant spaces) reduces bytes
+                  without rounding numbers or changing geometry.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
-                  Repo normalization
+                  Remove editor namespaces / attributes
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Standardize SVG formatting across a codebase so diffs are
-                  cleaner and reviews are easier.
+                  Inkscape and similar tools attach editor-only attributes that
+                  do not affect rendering in a browser. Removing these is often
+                  a solid win for exported assets.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-slate-900">
-                  Shipping assets
+                  Remove metadata and empty attributes
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Prepare icons and illustrations for production without
-                  rewriting geometry.
+                  Metadata blocks and empty{" "}
+                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                    attr=""
+                  </code>{" "}
+                  attributes are common in exports. If you are shipping icons or
+                  illustrations, removing these is usually safe.
                 </p>
               </div>
             </div>
+
+            <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-[13px] text-slate-700">
+              <div className="font-semibold text-slate-900">
+                Things intentionally treated as “advanced”
+              </div>
+              <p className="mt-2 leading-relaxed">
+                Removing{" "}
+                <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                  &lt;title&gt;
+                </code>{" "}
+                and{" "}
+                <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                  &lt;desc&gt;
+                </code>{" "}
+                can shrink files, but it can reduce accessibility and tooltips
+                in some contexts. Trimming text nodes and removing{" "}
+                <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
+                  xml:space
+                </code>{" "}
+                can affect text rendering for files that rely on precise
+                spacing.
+              </p>
+            </div>
           </section>
 
-          {/* Common issues (this was outside the container before; keep it inside for consistent layout) */}
+          {/* Common issues (practical only) */}
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">
               Common issues
@@ -1215,9 +1541,10 @@ function SeoSections() {
                   i
                 </span>
                 <span>
-                  If the output size barely changes, your SVG is probably
-                  already compact or most of the size is in path data. This
-                  conservative minifier does not rewrite path numbers.
+                  If the output size barely changes, your SVG may already be
+                  compact or dominated by path numbers. Spacing cleanup helps,
+                  but bigger gains usually require numeric optimization (which
+                  can change output).
                 </span>
               </li>
 
@@ -1226,11 +1553,8 @@ function SeoSections() {
                   i
                 </span>
                 <span>
-                  If your SVG contains visible{" "}
-                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
-                    &lt;text&gt;
-                  </code>{" "}
-                  content, keep “Trim text nodes” off to avoid spacing changes.
+                  If you see unexpected text spacing changes, turn off “Trim
+                  text nodes” and “Remove xml:space”, then re-check the preview.
                 </span>
               </li>
 
@@ -1239,80 +1563,34 @@ function SeoSections() {
                   i
                 </span>
                 <span>
-                  If you need bigger reductions, use an SVGO-based optimizer
-                  (WASM) that can rewrite paths more aggressively. That can
-                  change output, so always preview.
+                  If your SVG uses embedded scripts or complex CDATA, avoid
+                  removing CDATA unless you know it is safe for your asset.
                 </span>
               </li>
             </ul>
           </section>
 
-          {/* FAQ - keep your existing questions/answers; just fix styling + cursor/hover */}
+          {/* FAQ (kept short, tool-focused) */}
           <section className="mt-12" aria-label="Frequently asked questions">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
 
             <div className="mt-4 grid gap-3">
-              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
-                  <span>Does this SVG minify tool upload my file?</span>
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
-                  No. The SVG is processed locally in your browser. Nothing is
-                  uploaded to a server.
-                </p>
-              </details>
-
-              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
-                  <span>What does SVG minify do?</span>
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
-                  It removes safe bloat like comments and extra whitespace, and
-                  can optionally strip the XML/DOCTYPE header, clean{" "}
-                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
-                    style=""
-                  </code>{" "}
-                  formatting, and remove empty attributes.
-                </p>
-              </details>
-
-              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
-                  <span>Can minifying break an SVG?</span>
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
-                  The default options are conservative and usually safe. The
-                  main risky option is trimming text nodes, which can affect
-                  SVGs that rely on exact spacing inside{" "}
-                  <code className="px-1 py-0.5 rounded bg-slate-100 border border-slate-200">
-                    &lt;text&gt;
-                  </code>
-                  .
-                </p>
-              </details>
-
-              <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
-                  <span>Why is the output size sometimes unchanged?</span>
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
-                  Some SVGs are already compact, or their size is dominated by
-                  path data. This tool avoids rewriting paths and transforms, so
-                  savings can be small for certain files.
-                </p>
-              </details>
+              {FAQ_ITEMS.map((x) => (
+                <details
+                  key={x.q}
+                  className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <summary className="cursor-pointer list-none flex items-center justify-between gap-3 font-semibold text-slate-900">
+                    <span>{x.q}</span>
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 group-hover:bg-slate-100 group-open:rotate-45 transition-transform select-none cursor-pointer">
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+                    {x.a}
+                  </p>
+                </details>
+              ))}
             </div>
           </section>
         </article>

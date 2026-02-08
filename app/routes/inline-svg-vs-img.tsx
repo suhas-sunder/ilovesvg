@@ -3,7 +3,6 @@ import type { Route } from "./+types/inline-svg-vs-img";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -36,15 +35,13 @@ export function meta({}: Route.MetaArgs) {
 /* ========================
    Types
 ======================== */
-type SizeUnit = "px" | "em" | "rem" | "%" | "vh" | "vw";
+type SizeUnit = "px" | "pt" | "em" | "rem" | "%" | "vh" | "vw";
 type QuoteMode = "double" | "single";
 
 type Settings = {
   width: number;
   height: number;
   unit: SizeUnit;
-  useWidth: boolean;
-  useHeight: boolean;
   responsiveMode: "fixed" | "responsive";
   fitMode: "contain" | "cover" | "none";
 
@@ -105,8 +102,6 @@ const DEFAULTS: Settings = {
   width: 128,
   height: 128,
   unit: "px",
-  useWidth: true,
-  useHeight: true,
   responsiveMode: "fixed",
   fitMode: "contain",
 
@@ -166,6 +161,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
 
+  const lastAutoSizeKeyRef = React.useRef<string>("");
+
   React.useEffect(() => {
     return () => {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -209,6 +206,27 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     }
   }
 
+  function maybeAutoSetSizeFromSvgText(rawSvg: string) {
+    const key = autoSizeKey(rawSvg);
+    if (!key) return;
+    if (lastAutoSizeKeyRef.current === key) return;
+
+    const inferred = inferSvgDimensions(rawSvg);
+    if (!inferred) {
+      lastAutoSizeKeyRef.current = key;
+      return;
+    }
+
+    lastAutoSizeKeyRef.current = key;
+
+    setSettings((s) => ({
+      ...s,
+      width: clampInt(inferred.width, 1, 100000),
+      height: clampInt(inferred.height, 1, 100000),
+      unit: inferred.unit,
+    }));
+  }
+
   async function handleNewFile(f: File) {
     setErr(null);
     if (
@@ -221,6 +239,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     const text = await f.text();
     setFile(f);
     setSvgText(text);
+
+    maybeAutoSetSizeFromSvgText(text);
 
     if (blobUrl) URL.revokeObjectURL(blobUrl);
     const url = URL.createObjectURL(
@@ -239,6 +259,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     setInlineCode("");
     setImgCode("");
     setErr(null);
+    lastAutoSizeKeyRef.current = "";
+    setSettings(DEFAULTS);
   }
 
   function loadExample() {
@@ -246,6 +268,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     setErr(null);
     setFile(null);
     setSvgText(example);
+
+    maybeAutoSetSizeFromSvgText(example);
 
     if (blobUrl) URL.revokeObjectURL(blobUrl);
     const url = URL.createObjectURL(
@@ -264,6 +288,11 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
       setImgCode("");
       setErr(null);
       return;
+    }
+
+    // If user pasted raw SVG into textarea (not via file/example), set size once for that new SVG.
+    if (!file) {
+      maybeAutoSetSizeFromSvgText(svgText);
     }
 
     try {
@@ -290,7 +319,10 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
 
   function copyText(t: string) {
     if (!t || !hydrated) return;
-    navigator.clipboard.writeText(t).then(() => showToast("Copied"));
+    navigator.clipboard
+      .writeText(t)
+      .then(() => showToast("Copied"))
+      .catch(() => setErr("Clipboard copy failed (browser blocked it)."));
   }
 
   const crumbs = [
@@ -318,6 +350,41 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     settings.includeUtf8Charset,
     blobUrl,
   ]);
+
+  // Always-visible payload stats (not hidden in advanced)
+  const payloadStats = React.useMemo(() => {
+    if (!preparedSvg) {
+      return {
+        preparedBytes: 0,
+        inlineBytes: 0,
+        imgBytes: 0,
+        dataUtf8Bytes: 0,
+        dataB64Bytes: 0,
+        dataUtf8Len: 0,
+        dataB64Len: 0,
+      };
+    }
+
+    const preparedBytes = new Blob([preparedSvg]).size;
+    const inlineBytes = inlineCode ? utf8ByteLength(inlineCode) : 0;
+    const imgBytes = imgCode ? utf8ByteLength(imgCode) : 0;
+
+    const dataUtf8 = toDataUriUtf8(preparedSvg, settings.includeUtf8Charset);
+    const dataB64 = toDataUriBase64(preparedSvg);
+
+    const dataUtf8Bytes = utf8ByteLength(dataUtf8);
+    const dataB64Bytes = utf8ByteLength(dataB64);
+
+    return {
+      preparedBytes,
+      inlineBytes,
+      imgBytes,
+      dataUtf8Bytes,
+      dataB64Bytes,
+      dataUtf8Len: dataUtf8.length,
+      dataB64Len: dataB64.length,
+    };
+  }, [preparedSvg, inlineCode, imgCode, settings.includeUtf8Charset]);
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
 
@@ -360,7 +427,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                   >
                     <Icons
                       name="example"
@@ -372,7 +439,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
                   >
                     <Icons
                       name="trash"
@@ -399,6 +466,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                         type="button"
                         onClick={clearAll}
                         className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                        aria-label="Clear"
                       >
                         ×
                       </button>
@@ -445,6 +513,12 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                     ) : null}
                   </div>
 
+                  {/* Preview of actual input image under detected line */}
+                  <DetectedInputPreview
+                    svg={preparedSvg || svgText}
+                    settings={settings}
+                  />
+
                   {(info.hasScripts ||
                     info.hasForeignObject ||
                     info.hasEvents) && (
@@ -467,12 +541,124 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               )}
             </div>
 
-            {/* SETTINGS */}
-            <div className="mt-3 min-w-0 bg-white rounded-2xl border border-slate-200 min-h-[200px] p-4 shadow-sm">
+            {/* SETTINGS + ALWAYS VISIBLE STATS */}
+            <div className="min-w-0 bg-white rounded-2xl border border-slate-200 min-h-[200px] p-4 shadow-sm">
+              {/* Always visible: Size + payload info */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <h2 className="m-0 font-bold text-lg text-slate-900">
+                    Size and payload
+                  </h2>
+                  {info ? (
+                    <span className="text-[13px] text-slate-600">
+                      SVG size: <b>{formatBytes(info.bytes)}</b>
+                    </span>
+                  ) : (
+                    <span className="text-[13px] text-slate-600">
+                      Upload or paste an SVG
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-3 grid gap-2 text-[13px] text-slate-700">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="font-semibold text-slate-900">
+                      Prepared SVG (after settings)
+                    </div>
+                    <div className="mt-1">
+                      {preparedSvg ? (
+                        <b>{formatBytes(payloadStats.preparedBytes)}</b>
+                      ) : (
+                        "?"
+                      )}
+                    </div>
+                    <div className="mt-1 text-[12px] text-slate-500">
+                      This is what the tool uses to generate both snippets.
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="font-semibold text-slate-900">
+                        Inline snippet size
+                      </div>
+                      <div className="mt-1">
+                        {inlineCode ? (
+                          <b>{formatBytes(payloadStats.inlineBytes)}</b>
+                        ) : (
+                          "?"
+                        )}
+                      </div>
+                      <div className="mt-1 text-[12px] text-slate-500">
+                        Approx UTF-8 bytes of the generated markup.
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="font-semibold text-slate-900">
+                        IMG snippet size
+                      </div>
+                      <div className="mt-1">
+                        {imgCode ? (
+                          <b>{formatBytes(payloadStats.imgBytes)}</b>
+                        ) : (
+                          "?"
+                        )}
+                      </div>
+                      <div className="mt-1 text-[12px] text-slate-500">
+                        Often small unless you embed a Data URI.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="font-semibold text-slate-900">
+                      Data URI payload sizes (if you use Data URI mode)
+                    </div>
+                    <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                      <div>
+                        UTF-8 Data URI:{" "}
+                        <b>
+                          {preparedSvg
+                            ? formatBytes(payloadStats.dataUtf8Bytes)
+                            : "?"}
+                        </b>{" "}
+                        <span className="text-slate-500">
+                          (
+                          {preparedSvg
+                            ? `${payloadStats.dataUtf8Len} chars`
+                            : "?"}
+                          )
+                        </span>
+                      </div>
+                      <div>
+                        Base64 Data URI:{" "}
+                        <b>
+                          {preparedSvg
+                            ? formatBytes(payloadStats.dataB64Bytes)
+                            : "?"}
+                        </b>{" "}
+                        <span className="text-slate-500">
+                          (
+                          {preparedSvg
+                            ? `${payloadStats.dataB64Len} chars`
+                            : "?"}
+                          )
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-[12px] text-slate-500">
+                      If you care about caching and bundle size, prefer a file
+                      URL when possible.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                className="mt-3 mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                 aria-expanded={showAdvanced}
                 aria-controls="advanced-settings"
               >
@@ -519,7 +705,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                 responsiveMode: e.target.value as any,
                               }))
                             }
-                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer transition-colors hover:bg-slate-50"
                           >
                             <option value="fixed">
                               Fixed (width/height attributes)
@@ -549,13 +735,6 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                               setSettings((s) => ({ ...s, unit: u }))
                             }
                           />
-                          <TogglePill
-                            checked={settings.useWidth}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, useWidth: v }))
-                            }
-                            label="Use"
-                          />
                         </Field>
 
                         <Field label="Height">
@@ -577,13 +756,6 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                               setSettings((s) => ({ ...s, unit: u }))
                             }
                           />
-                          <TogglePill
-                            checked={settings.useHeight}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, useHeight: v }))
-                            }
-                            label="Use"
-                          />
                         </Field>
 
                         <Field label="Object fit">
@@ -595,7 +767,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                 fitMode: e.target.value as any,
                               }))
                             }
-                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer transition-colors hover:bg-slate-50"
                           >
                             <option value="contain">contain</option>
                             <option value="cover">cover</option>
@@ -799,7 +971,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                     demoColor: e.target.value,
                                   }))
                                 }
-                                className="h-8 w-12 border border-slate-200 rounded-md bg-white"
+                                className="h-8 w-12 border border-slate-200 rounded-md bg-white cursor-pointer"
                               />
                               <input
                                 value={settings.demoColor}
@@ -827,7 +999,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                     demoBg: e.target.value,
                                   }))
                                 }
-                                className="h-8 w-12 border border-slate-200 rounded-md bg-white"
+                                className="h-8 w-12 border border-slate-200 rounded-md bg-white cursor-pointer"
                               />
                               <input
                                 value={settings.demoBg}
@@ -880,7 +1052,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                 imgSrcMode: e.target.value as any,
                               }))
                             }
-                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate"
+                            className="w-full min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 truncate cursor-pointer transition-colors hover:bg-slate-50"
                           >
                             <option value="file-url">
                               File URL (best for caching)
@@ -924,7 +1096,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                   includeUtf8Charset: e.target.checked,
                                 }))
                               }
-                              className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                              className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                             />
                             <span className="text-[13px] text-slate-700 min-w-0">
                               Include charset=utf-8
@@ -941,7 +1113,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                 indent: e.target.value as any,
                               }))
                             }
-                            className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                           >
                             <option value="2">2 spaces</option>
                             <option value="4">4 spaces</option>
@@ -955,7 +1127,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                                 quoteMode: e.target.value as any,
                               }))
                             }
-                            className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                            className="min-w-0 px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                           >
                             <option value="double">"</option>
                             <option value="single">'</option>
@@ -976,55 +1148,6 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
             </div>
           </section>
 
-          {/* PREVIEWS */}
-          <section className="mt-4 lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CompareCard
-              title="Inline SVG"
-              badge="Styleable, best control"
-              code={inlineCode}
-              onCopy={() => copyText(inlineCode)}
-              preview={
-                preparedSvg ? (
-                  <InlinePreview svg={inlinePreview} settings={settings} />
-                ) : (
-                  <EmptyState />
-                )
-              }
-            />
-            <CompareCard
-              title="<img>"
-              badge="Simple, cache-friendly"
-              code={imgCode}
-              onCopy={() => copyText(imgCode)}
-              preview={
-                preparedSvg ? (
-                  <ImgPreview
-                    src={imgPreviewSrc}
-                    settings={settings}
-                    alt={settings.decorative ? "" : settings.altText}
-                    title={settings.titleText}
-                  />
-                ) : (
-                  <EmptyState />
-                )
-              }
-            />
-          </section>
-          {typeof document !== "undefined" && (
-            <div className="block pb-6">
-              <AdSenseDelayed
-                slot="7336722354"
-                delayMs={2500}
-                afterInteraction={true}
-                className="my-3"
-                format="rectangle"
-                fullWidth={false}
-                minHeight={250}
-                maxHeight={300}
-                placeholderLabel="Sponsored"
-              />
-            </div>
-          )}
           {/* COMPARISON */}
           <section className="mb-6 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1098,6 +1221,21 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               </table>
             </div>
 
+            {typeof document !== "undefined" && (
+              <div className="block pb-6">
+                <AdSenseDelayed
+                  slot="7336722354"
+                  delayMs={2500}
+                  afterInteraction={true}
+                  className="my-3"
+                  format="rectangle"
+                  fullWidth={false}
+                  minHeight={250}
+                  maxHeight={300}
+                  placeholderLabel="Sponsored"
+                />
+              </div>
+            )}
             <div className="mt-4 lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <h3 className="m-0 font-bold text-slate-900">
@@ -1143,6 +1281,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1154,6 +1293,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <JsonLdFaq />
       <Breadcrumbs crumbs={crumbs} />
@@ -1197,7 +1337,7 @@ function CompareCard({
           onClick={onCopy}
           disabled={!code}
           className={[
-            "flex items-center justify-center px-3 py-2 rounded-xl font-bold border transition-colors",
+            "flex items-center justify-center px-3 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
             "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
             "disabled:opacity-70 disabled:cursor-not-allowed",
           ].join(" ")}
@@ -1345,10 +1485,78 @@ function Row({
 }
 
 /* ========================
+   Detected input preview
+======================== */
+function DetectedInputPreview({
+  svg,
+  settings,
+}: {
+  svg: string;
+  settings: Settings;
+}) {
+  const safe = React.useMemo(() => {
+    const s = String(svg || "").trim();
+    if (!s) return "";
+    let v = s;
+    v = stripXmlProlog(v);
+    v = ensureSvgHasXmlns(v);
+    v = removeInlineTitle(v);
+    v = removeAttrOnSvg(v, "class");
+    v = removeAttrOnSvg(v, "style");
+    v = removeAttrOnSvg(v, "width");
+    v = removeAttrOnSvg(v, "height");
+    // Ensure it lays out nicely in a fixed preview box
+    v = setOrReplaceAttrOnSvg(
+      v,
+      "style",
+      mergeStyleAttr(
+        getAttrFromSvg(v, "style"),
+        "display:block;max-width:100%;height:auto;",
+      ),
+    );
+    return v;
+  }, [svg]);
+
+  if (!safe) return null;
+
+  const wrapStyle = {
+    background: "white",
+    border: "1px solid rgb(226 232 240)",
+    borderRadius: "16px",
+    padding: "10px",
+    overflow: "hidden",
+    maxWidth: "100%",
+  } as React.CSSProperties;
+
+  return (
+    <div style={wrapStyle}>
+      <div className="text-[12px] text-slate-500 mb-2">Input preview</div>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "360px",
+          margin: "0",
+        }}
+      >
+        <div
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: safe }}
+        />
+      </div>
+      {settings.setCurrentColor ? (
+        <div className="mt-2 text-[12px] text-slate-600">
+          currentColor preview may differ if the SVG had fixed fills/strokes and
+          you enabled replacement.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ========================
    Snippet generation
 ======================== */
 function generateInlineSnippet(svg: string, settings: Settings) {
-  const q = settings.quoteMode === "single" ? "'" : '"';
   const w = `${settings.width}${settings.unit}`;
   const h = `${settings.height}${settings.unit}`;
 
@@ -1391,11 +1599,8 @@ function generateInlineSnippet(svg: string, settings: Settings) {
       ),
     );
   } else {
-    if (settings.useWidth) s = setOrReplaceAttrOnSvg(s, "width", w);
-    else s = removeAttrOnSvg(s, "width");
-
-    if (settings.useHeight) s = setOrReplaceAttrOnSvg(s, "height", h);
-    else s = removeAttrOnSvg(s, "height");
+    s = setOrReplaceAttrOnSvg(s, "width", w);
+    s = setOrReplaceAttrOnSvg(s, "height", h);
   }
 
   // Demo className for people who want to style it
@@ -1411,8 +1616,8 @@ function generateInlineSnippet(svg: string, settings: Settings) {
     settings.indent === "tab" ? "\t" : " ".repeat(Number(settings.indent));
   s = prettyXmlLike(s, indentStr);
 
-  // Use selected quote mode (convert double quotes to single if requested)
-  if (q === "'") s = swapQuotesToSingle(s);
+  // Quote mode
+  if (settings.quoteMode === "single") s = swapQuotesToSingle(s);
 
   return s.trim();
 }
@@ -1446,8 +1651,8 @@ function generateImgSnippet(
     const style = `display:block;width:100%;height:auto;object-fit:${settings.fitMode === "none" ? "initial" : settings.fitMode};`;
     attrs.push(`style=${q}${escapeAttr(style)}${q}`);
   } else {
-    if (settings.useWidth) attrs.push(`width=${q}${escapeAttr(w)}${q}`);
-    if (settings.useHeight) attrs.push(`height=${q}${escapeAttr(h)}${q}`);
+    attrs.push(`width=${q}${escapeAttr(w)}${q}`);
+    attrs.push(`height=${q}${escapeAttr(h)}${q}`);
     if (settings.fitMode !== "none") {
       attrs.push(
         `style=${q}${escapeAttr(`object-fit:${settings.fitMode};`)}${q}`,
@@ -1455,27 +1660,21 @@ function generateImgSnippet(
     }
   }
 
-  const code = `<img ${attrs.filter(Boolean).join(" ")} />`;
-  return code;
+  return `<img ${attrs.filter(Boolean).join(" ")} />`;
 }
 
 function applyInlinePreviewAttrs(svg: string, settings: Settings) {
   let s = svg;
 
-  // demo: if currentColor mode on, set wrapper color and replace fills/strokes already done in normalization
-  // ensure preview has a single root <svg> and is safe to inject
   s = stripXmlProlog(s);
   s = ensureSvgHasXmlns(s);
 
-  // Ensure focusable in preview for consistency
   if (settings.focusableFalse)
     s = setOrReplaceAttrOnSvg(s, "focusable", "false");
 
-  // Ensure class for demo styling
   const cls = (settings.demoClassName || "").trim();
   if (cls) s = setOrReplaceAttrOnSvg(s, "class", cls);
 
-  // Remove width/height if responsive mode
   if (settings.responsiveMode === "responsive") {
     s = removeAttrOnSvg(s, "width");
     s = removeAttrOnSvg(s, "height");
@@ -1501,13 +1700,13 @@ function previewSizeStyle(settings: Settings) {
   }
 
   const style: React.CSSProperties = {};
-  if (settings.useWidth) style.width = w;
-  if (settings.useHeight) style.height = h;
+  style.width = w;
+  style.height = h;
   return style;
 }
 
 function wrapInDoc(snippet: string) {
-  const html = `<!doctype html>
+  return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -1521,7 +1720,6 @@ function wrapInDoc(snippet: string) {
 ${snippet}
 </body>
 </html>`;
-  return html;
 }
 
 /* ========================
@@ -1531,10 +1729,8 @@ function normalizeSvg(svgText: string, settings: Settings) {
   let svg = String(svgText || "").trim();
   if (!svg) throw new Error("Paste an SVG first.");
 
-  // Users might paste an <img ...> or a data URI. Try to recover the SVG.
   svg = coerceToSvgMarkup(svg);
 
-  // Basic sanity
   if (!/<svg\b/i.test(svg))
     throw new Error("Could not find an <svg> root tag.");
 
@@ -1543,63 +1739,85 @@ function normalizeSvg(svgText: string, settings: Settings) {
   }
 
   if (settings.removeMetadata) {
-    svg = svg.replace(/<metadata\b[\s\S]*?<\/metadata>/gi, "");
+    svg = svg.replace(/<metadata\b[\s\S]*?<\/metadata\s*>/gi, "");
   }
 
   if (settings.sanitize) {
-    if (settings.stripScripts)
-      svg = svg.replace(/<script\b[\s\S]*?<\/script>/gi, "");
-    if (settings.stripForeignObject)
-      svg = svg.replace(/<foreignObject\b[\s\S]*?<\/foreignObject>/gi, "");
-    if (settings.stripEventHandlers) {
-      svg = svg.replace(/\son[a-z]+\s*=\s*["'][^"']*["']/gi, "");
-      svg = svg.replace(/\son[a-z]+\s*=\s*[^>\s]+/gi, "");
+    if (settings.stripScripts) {
+      svg = svg
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "")
+        .replace(/<script\b[^>]*\/\s*>/gi, "");
     }
-    if (settings.stripJavascriptHrefs) {
+
+    if (settings.stripForeignObject) {
       svg = svg.replace(
-        /\s(?:href|xlink:href)\s*=\s*["']\s*javascript:[^"']*["']/gi,
+        /<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi,
         "",
       );
-      svg = svg.replace(/\s(?:href|xlink:href)\s*=\s*javascript:[^>\s]+/gi, "");
+    }
+
+    if (settings.stripEventHandlers) {
+      // Remove on* handlers in any case, quoted or unquoted
+      svg = svg.replace(
+        /\s(on[a-zA-Z]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/g,
+        "",
+      );
+    }
+
+    if (settings.stripJavascriptHrefs) {
+      // Remove href/xlink:href that resolve to javascript:
+      svg = svg.replace(
+        /\s(?:href|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi,
+        (m0, a, b, c) => {
+          const raw = String(a ?? b ?? c ?? "")
+            .trim()
+            .replace(/^['"]|['"]$/g, "");
+
+          const normalized = raw.toLowerCase().replace(/\s+/g, "");
+
+          const decodedOnce = safeDecodeURIComponent(normalized);
+
+          if (
+            normalized.startsWith("javascript:") ||
+            decodedOnce.startsWith("javascript:")
+          ) {
+            return "";
+          }
+
+          return m0;
+        },
+      );
     }
   }
 
   if (settings.ensureXmlns) svg = ensureSvgHasXmlns(svg);
 
-  // Optional: remove width/height from source
   if (settings.removeWidthHeightFromSvg) {
     svg = removeAttrOnSvg(svg, "width");
     svg = removeAttrOnSvg(svg, "height");
   }
 
-  // Ensure viewBox if missing
   if (settings.addViewBoxIfMissing) {
     svg = ensureViewBox(svg, settings.width, settings.height);
   }
 
-  // currentColor best-effort
   if (settings.setCurrentColor) {
     svg = replaceSvgColorsWithCurrentColor(svg);
   }
 
-  svg = svg.trim();
-
-  return svg;
+  return svg.trim();
 }
 
 function coerceToSvgMarkup(input: string) {
   let t = String(input || "").trim();
 
-  // If it's an <img src="data:image/svg+xml...">
   const imgSrc = t.match(/<img\b[^>]*\ssrc\s*=\s*["']([^"']+)["'][^>]*>/i)?.[1];
   if (imgSrc) t = imgSrc.trim();
 
-  // If it's a data URI
   if (/^data:image\/svg\+xml/i.test(t)) {
     return decodeSvgDataUriToSvg(t);
   }
 
-  // If it's a quoted SVG
   if (
     (t.startsWith('"') && t.endsWith('"')) ||
     (t.startsWith("'") && t.endsWith("'"))
@@ -1607,7 +1825,6 @@ function coerceToSvgMarkup(input: string) {
     t = t.slice(1, -1).trim();
   }
 
-  // If they pasted HTML wrapper
   const svgMatch = t.match(/<svg\b[\s\S]*<\/svg>/i);
   if (svgMatch) return svgMatch[0];
 
@@ -1669,7 +1886,6 @@ function decodeBase64ToString(b64: string) {
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 0xff;
 
-  // Try UTF-8, fall back to Latin-1
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
@@ -1702,13 +1918,8 @@ function toDataUriUtf8(svg: string, includeCharset: boolean) {
 }
 
 function encodeSvgForUtf8DataUri(svg: string) {
-  return encodeURIComponent(svg)
-    .replace(/%0A/g, "")
-    .replace(/%20/g, " ")
-    .replace(/%3D/g, "=")
-    .replace(/%3A/g, ":")
-    .replace(/%2F/g, "/")
-    .replace(/%22/g, "'");
+  // Keep this conservative. Do not rewrite quotes.
+  return encodeURIComponent(svg).replace(/%0A/g, "");
 }
 
 function stripXmlProlog(svg: string) {
@@ -1721,18 +1932,60 @@ function stripXmlProlog(svg: string) {
 function replaceSvgColorsWithCurrentColor(svg: string) {
   let s = svg;
 
-  const repl = (m0: string, attr: string, val: string) => {
+  const replAttr = (_m0: string, attr: string, val: string) => {
     const v = String(val || "").trim();
-    if (!v) return m0;
-    if (/^none$/i.test(v)) return m0;
-    if (/^url\(/i.test(v)) return m0;
-    if (/^currentColor$/i.test(v)) return m0;
+    if (!v) return _m0;
+    if (/^none$/i.test(v)) return _m0;
+    if (/^url\(/i.test(v)) return _m0;
+    if (/^currentColor$/i.test(v)) return _m0;
     return ` ${attr}="currentColor"`;
   };
 
-  s = s.replace(/\s(fill)\s*=\s*["']([^"']+)["']/gi, repl as any);
-  s = s.replace(/\s(stroke)\s*=\s*["']([^"']+)["']/gi, repl as any);
+  // fill="..." and stroke="..."
+  s = s.replace(/\s(fill)\s*=\s*["']([^"']+)["']/gi, replAttr as any);
+  s = s.replace(/\s(stroke)\s*=\s*["']([^"']+)["']/gi, replAttr as any);
+
+  // style="...fill:...; stroke:...;"
+  s = s.replace(/\sstyle\s*=\s*["']([^"']*)["']/gi, (_m, css) => {
+    const orig = String(css || "");
+    let next = orig;
+
+    next = next.replace(/(^|;)\s*fill\s*:\s*([^;]+)\s*/gi, (m0, p1, v) => {
+      const vv = String(v || "").trim();
+      if (
+        !vv ||
+        /^none$/i.test(vv) ||
+        /^url\(/i.test(vv) ||
+        /^currentColor$/i.test(vv)
+      )
+        return m0;
+      return `${p1} fill: currentColor `;
+    });
+
+    next = next.replace(/(^|;)\s*stroke\s*:\s*([^;]+)\s*/gi, (m0, p1, v) => {
+      const vv = String(v || "").trim();
+      if (
+        !vv ||
+        /^none$/i.test(vv) ||
+        /^url\(/i.test(vv) ||
+        /^currentColor$/i.test(vv)
+      )
+        return m0;
+      return `${p1} stroke: currentColor `;
+    });
+
+    return ` style="${escapeAttr(next)}"`;
+  });
+
   return s;
+}
+
+function safeDecodeURIComponent(s: string) {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }
 
 /* ========================
@@ -1747,7 +2000,7 @@ function parseSvgInfo(svg: string): SvgInfo {
 
   const hasScripts = /<script\b/i.test(svg);
   const hasForeignObject = /<foreignObject\b/i.test(svg);
-  const hasEvents = /\son[a-z]+\s*=\s*/i.test(svg);
+  const hasEvents = /\son[a-zA-Z]+\s*=\s*/.test(svg);
   const hasComments = /<!--[\s\S]*?-->/.test(svg);
   const hasMetadata = /<metadata\b/i.test(svg);
 
@@ -1864,7 +2117,6 @@ function removeInlineTitle(svg: string) {
 }
 
 function swapQuotesToSingle(markup: string) {
-  // Best-effort, avoids breaking already-escaped quotes
   return markup.replace(
     /="([^"]*)"/g,
     (_m, v) => `='${String(v).replace(/'/g, "&#39;")}'`,
@@ -1924,6 +2176,14 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function utf8ByteLength(s: string) {
+  try {
+    return new TextEncoder().encode(String(s || "")).length;
+  } catch {
+    return String(s || "").length;
+  }
 }
 
 /* ========================
@@ -1986,7 +2246,7 @@ function ToggleRow({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-[#0b2dff] shrink-0"
+        className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
       />
       <span className="text-[13px] text-slate-700 min-w-0">{label}</span>
     </label>
@@ -2007,9 +2267,9 @@ function TogglePill({
       type="button"
       onClick={() => onChange(!checked)}
       className={[
-        "px-2 py-1 rounded-lg border text-[12px] font-semibold",
+        "px-2 py-1 rounded-lg border text-[12px] font-semibold cursor-pointer transition-colors",
         checked
-          ? "bg-[#eff4ff] border-[#d6e4ff] text-slate-900"
+          ? "bg-[#eff4ff] border-[#d6e4ff] text-slate-900 hover:bg-[#e9f0ff]"
           : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50",
       ].join(" ")}
       aria-pressed={checked}
@@ -2056,9 +2316,10 @@ function UnitSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as any)}
-      className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+      className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
     >
       <option value="px">px</option>
+      <option value="pt">pt</option>
       <option value="em">em</option>
       <option value="rem">rem</option>
       <option value="%">%</option>
@@ -2189,7 +2450,6 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="max-w-none">
-          {/* Header */}
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               inline svg vs img
@@ -2248,7 +2508,6 @@ function SeoSections() {
             </div>
           </header>
 
-          {/* Two-column comparison */}
           <section className="mt-8 grid gap-4 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-6">
               <h3 className="text-lg font-bold text-slate-900 m-0">
@@ -2337,7 +2596,6 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* Quick decision grid */}
           <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
             <h3 className="m-0 text-xl font-bold text-slate-900">
               Quick decision rules
@@ -2374,7 +2632,6 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* HowTo */}
           <section
             className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 md:p-8"
             itemScope
@@ -2409,9 +2666,106 @@ function SeoSections() {
           </section>
         </article>
       </div>
-
-      <JsonLdBreadcrumbs />
-      <JsonLdFaq />
     </section>
   );
+}
+
+/* ========================
+   Auto-dimension inference
+======================== */
+function autoSizeKey(svgText: string) {
+  const t = String(svgText || "").trim();
+  if (!t) return "";
+  // Good enough: stable per SVG content, cheap, no crypto.
+  return `${t.length}:${t.slice(0, 200)}:${t.slice(-200)}`;
+}
+
+function inferSvgDimensions(
+  svgText: string,
+): { width: number; height: number; unit: SizeUnit } | null {
+  const coerced = coerceToSvgMarkup(String(svgText || ""));
+  const open = coerced.match(/<svg\b[^>]*>/i)?.[0] || "";
+  if (!open) return null;
+
+  const widthRaw = matchAttr(open, "width") || "";
+  const heightRaw = matchAttr(open, "height") || "";
+  const viewBoxRaw = matchAttr(open, "viewBox") || "";
+
+  const wParsed = parseLengthWithUnit(widthRaw);
+  const hParsed = parseLengthWithUnit(heightRaw);
+
+  // Prefer explicit width/height if present and valid
+  if (wParsed?.value && hParsed?.value) {
+    const unit = (
+      wParsed.unit && hParsed.unit && wParsed.unit === hParsed.unit
+        ? wParsed.unit
+        : "px"
+    ) as SizeUnit;
+    return {
+      width: Math.max(1, wParsed.value),
+      height: Math.max(1, hParsed.value),
+      unit,
+    };
+  }
+
+  // Fall back to viewBox
+  if (viewBoxRaw) {
+    const parts = viewBoxRaw
+      .trim()
+      .split(/[\s,]+/g)
+      .map((x) => Number(x));
+    if (parts.length >= 4 && parts.every((n) => Number.isFinite(n))) {
+      const vw = Math.abs(parts[2]);
+      const vh = Math.abs(parts[3]);
+      if (vw > 0 && vh > 0) {
+        return { width: Math.max(1, vw), height: Math.max(1, vh), unit: "px" };
+      }
+    }
+  }
+
+  // As a last resort, if only one dimension exists, still use it
+  if (wParsed?.value && !hParsed?.value)
+    return {
+      width: Math.max(1, wParsed.value),
+      height: DEFAULTS.height,
+      unit: (wParsed.unit || "px") as SizeUnit,
+    };
+  if (!wParsed?.value && hParsed?.value)
+    return {
+      width: DEFAULTS.width,
+      height: Math.max(1, hParsed.value),
+      unit: (hParsed.unit || "px") as SizeUnit,
+    };
+
+  return null;
+}
+
+function parseLengthWithUnit(
+  raw: string,
+): { value: number; unit: SizeUnit | null } | null {
+  const t = String(raw || "").trim();
+  if (!t) return null;
+
+  const m = t.match(/^(-?\d+(?:\.\d+)?)([a-z%]+)?$/i);
+  if (!m) {
+    const v = parseLen(t);
+    return v ? { value: v, unit: null } : null;
+  }
+
+  const value = Number(m[1]);
+  if (!Number.isFinite(value) || value === 0) return null;
+
+  const unitRaw = String(m[2] || "").toLowerCase();
+  const allowed: Record<string, SizeUnit> = {
+    px: "px",
+    pt: "pt",
+    em: "em",
+    rem: "rem",
+    "%": "%",
+    vh: "vh",
+    vw: "vw",
+  };
+
+  const unit = unitRaw ? (allowed[unitRaw] ?? null) : null;
+  return { value: Math.abs(value), unit };
 }

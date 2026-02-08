@@ -3,7 +3,6 @@ import type { Route } from "./+types/svg-to-png-converter";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -40,7 +39,7 @@ type Settings = {
   width: number;
   height: number;
   lockAspect: boolean;
-  dpiScale: number; // 1..4 (simple "quality" knob)
+  dpiScale: number; // 1..4
   background: "transparent" | "solid";
   bgColor: string;
   antiAlias: boolean;
@@ -55,10 +54,10 @@ type SvgInfo = {
 };
 
 type Result = {
-  dataUrl: string;
+  blobUrl: string;
   width: number;
   height: number;
-  bytesEstimate?: number;
+  bytes: number;
 };
 
 const DEFAULTS: Settings = {
@@ -72,7 +71,7 @@ const DEFAULTS: Settings = {
   fileName: "converted",
 };
 
-const MAX_CANVAS_PIXELS = 80_000_000; // avoids tab-death on huge renders
+const MAX_CANVAS_PIXELS = 80_000_000;
 
 export default function SvgToPngConverter(_: Route.ComponentProps) {
   const [hydrated, setHydrated] = React.useState(false);
@@ -82,22 +81,40 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   const [svgText, setSvgText] = React.useState<string>("");
   const [svgInfo, setSvgInfo] = React.useState<SvgInfo | null>(null);
 
-  // Live preview only for upload/input
+  // Live SVG preview (upload/input)
   const [previewSvgUrl, setPreviewSvgUrl] = React.useState<string | null>(null);
 
-  // Only convert on demand (no live conversion on settings changes)
+  // Live PNG preview (auto-recomputed)
+  const [liveResult, setLiveResult] = React.useState<Result | null>(null);
+
+  // "Final" result (after Convert button) for download/toast, etc.
   const [result, setResult] = React.useState<Result | null>(null);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [busy, setBusy] = React.useState(false);
+  const [liveBusy, setLiveBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
+
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
 
   React.useEffect(() => {
     return () => {
       if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
     };
   }, [previewSvgUrl]);
+
+  React.useEffect(() => {
+    return () => {
+      if (result?.blobUrl) URL.revokeObjectURL(result.blobUrl);
+    };
+  }, [result?.blobUrl]);
+
+  React.useEffect(() => {
+    return () => {
+      if (liveResult?.blobUrl) URL.revokeObjectURL(liveResult.blobUrl);
+    };
+  }, [liveResult?.blobUrl]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -136,31 +153,54 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     }
   }
 
+  function revokeLiveAndFinal() {
+    if (liveResult?.blobUrl) URL.revokeObjectURL(liveResult.blobUrl);
+    if (result?.blobUrl) URL.revokeObjectURL(result.blobUrl);
+    setLiveResult(null);
+    setResult(null);
+  }
+
+  function updatePreviewFromSvgText(nextText: string) {
+    setErr(null);
+    revokeLiveAndFinal();
+
+    const safeText = ensureSvgHasXmlns(nextText);
+    setSvgText(safeText);
+
+    const info =
+      parseSvgSize(safeText) || ({ width: 1024, height: 1024, aspect: 1 } as SvgInfo);
+    setSvgInfo(info);
+
+    setSettings((s) => {
+      if (!s.lockAspect) return s;
+      const width = clampInt(s.width, 16, 16384);
+      const height = clampInt(Math.round(width / info.aspect), 16, 16384);
+      return { ...s, height };
+    });
+
+    if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
+    const url = URL.createObjectURL(new Blob([safeText], { type: "image/svg+xml" }));
+    setPreviewSvgUrl(url);
+  }
+
   async function handleNewFile(f: File) {
     setErr(null);
-    setResult(null);
+    revokeLiveAndFinal();
 
-    if (
-      !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
-    ) {
+    if (!(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))) {
       setErr("Please choose an SVG file.");
       return;
     }
 
     if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
-
     setFile(f);
 
     const text = await f.text();
     const safeText = ensureSvgHasXmlns(text);
-
     setSvgText(safeText);
 
-    const info = parseSvgSize(safeText) || {
-      width: 1024,
-      height: 1024,
-      aspect: 1,
-    };
+    const info =
+      parseSvgSize(safeText) || ({ width: 1024, height: 1024, aspect: 1 } as SvgInfo);
     setSvgInfo(info);
 
     const baseName = stripExt(f.name) || "converted";
@@ -172,19 +212,17 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
       lockAspect: true,
     }));
 
-    const url = URL.createObjectURL(
-      new Blob([safeText], { type: "image/svg+xml" }),
-    );
+    const url = URL.createObjectURL(new Blob([safeText], { type: "image/svg+xml" }));
     setPreviewSvgUrl(url);
   }
 
   function clearAll() {
     if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
+    revokeLiveAndFinal();
     setFile(null);
     setSvgText("");
     setSvgInfo(null);
     setPreviewSvgUrl(null);
-    setResult(null);
     setErr(null);
   }
 
@@ -206,6 +244,47 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     });
   }
 
+  // ========================
+  // LIVE PNG PREVIEW (auto)
+  // ========================
+  const liveTimer = React.useRef<number | null>(null);
+  const liveJobId = React.useRef(0);
+
+  React.useEffect(() => {
+    if (!hydrated) return;
+    if (!svgText) {
+      if (liveTimer.current) window.clearTimeout(liveTimer.current);
+      setLiveBusy(false);
+      return;
+    }
+
+    if (liveTimer.current) window.clearTimeout(liveTimer.current);
+    const jobId = ++liveJobId.current;
+
+    liveTimer.current = window.setTimeout(async () => {
+      setLiveBusy(true);
+      try {
+        const r = await svgToPngBlobUrl(svgText, svgInfo, settings);
+        if (jobId !== liveJobId.current) {
+          URL.revokeObjectURL(r.blobUrl);
+          return;
+        }
+        setLiveResult((prev) => {
+          if (prev?.blobUrl) URL.revokeObjectURL(prev.blobUrl);
+          return r;
+        });
+      } catch {
+        // keep last good preview; don't spam errors while typing/toggling
+      } finally {
+        if (jobId === liveJobId.current) setLiveBusy(false);
+      }
+    }, 250);
+
+    return () => {
+      if (liveTimer.current) window.clearTimeout(liveTimer.current);
+    };
+  }, [hydrated, svgText, svgInfo, settings]);
+
   async function convert() {
     if (!svgText) {
       setErr("Paste or upload an SVG first.");
@@ -213,11 +292,15 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     }
     setBusy(true);
     setErr(null);
+
+    if (result?.blobUrl) URL.revokeObjectURL(result.blobUrl);
+
     try {
-      const r = await svgToPngDataUrl(svgText, svgInfo, settings);
+      const r = await svgToPngBlobUrl(svgText, svgInfo, settings);
       setResult(r);
       showToast("Converted");
     } catch (e: any) {
+      setResult(null);
       setErr(e?.message || "Conversion failed.");
     } finally {
       setBusy(false);
@@ -225,10 +308,11 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   }
 
   function downloadPng() {
-    if (!result) return;
+    const src = result || liveResult;
+    if (!src) return;
     const name = (settings.fileName || "converted").trim() || "converted";
     const filename = `${safeFileName(name)}.png`;
-    downloadDataUrl(result.dataUrl, filename);
+    downloadObjectUrl(src.blobUrl, filename);
   }
 
   const crumbs = [
@@ -237,8 +321,8 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;
-
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const previewSrc = liveResult?.blobUrl || result?.blobUrl || null;
+  const previewMeta = liveResult || result;
 
   return (
     <>
@@ -299,7 +383,6 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 </>
               )}
 
-              {/* Live upload preview only */}
               {previewSvgUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
                   <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
@@ -315,7 +398,6 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 </div>
               )}
 
-              {/* Optional: show SVG text but collapsed (people search for “edit svg”, “fix svg”, etc.) */}
               {file && (
                 <details className="mt-3 rounded-xl border border-slate-200 bg-white">
                   <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
@@ -323,16 +405,11 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </summary>
                   <div className="px-4 pb-4">
                     <p className="text-[13px] text-slate-600 mt-2">
-                      Editing is optional. Most users can just upload and
-                      convert.
+                      Editing is optional. Most users can just upload and convert.
                     </p>
                     <textarea
                       value={svgText}
-                      onChange={(e) => {
-                        setSvgText(ensureSvgHasXmlns(e.target.value));
-                        setResult(null);
-                        setErr(null);
-                      }}
+                      onChange={(e) => updatePreviewFromSvgText(e.target.value)}
                       className="mt-2 w-full h-[240px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
                       spellCheck={false}
                     />
@@ -345,7 +422,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
             <div className="bg-slate-600 overflow-auto sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0">
               <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
                 Convert Settings
-                {busy && (
+                {(busy || liveBusy) && (
                   <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
                 )}
               </h2>
@@ -381,10 +458,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </button>
 
                   {showAdvanced && (
-                    <div
-                      id="advanced-settings"
-                      className="flex flex-col gap-2 min-w-0"
-                    >
+                    <div id="advanced-settings" className="flex flex-col gap-2 min-w-0">
                       <div className="grid gap-2">
                         <Field label="Output width (px)">
                           <NumInt
@@ -414,10 +488,10 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                               setSettings((s) => {
                                 const lockAspect = e.target.checked;
                                 if (!lockAspect) return { ...s, lockAspect };
-                                if (!svgInfo) return { ...s, lockAspect };
-                                // snap height to width when turning on
+                                const info = svgInfo || parseSvgSize(svgText);
+                                if (!info) return { ...s, lockAspect };
                                 const height = clampInt(
-                                  Math.round(s.width / svgInfo.aspect),
+                                  Math.round(s.width / info.aspect),
                                   16,
                                   16384,
                                 );
@@ -526,7 +600,6 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   )}
                 </div>
 
-                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
@@ -545,7 +618,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={downloadPng}
-                    disabled={!result || busy}
+                    disabled={(!liveResult && !result) || busy}
                     className={[
                       "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
                       "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
@@ -557,39 +630,37 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </button>
 
                   {err && <span className="text-red-700 text-sm">{err}</span>}
-                  {!err && result && (
+                  {!err && previewMeta && (
                     <span className="text-[13px] text-slate-600">
                       Output:{" "}
                       <b>
-                        {result.width}×{result.height}
+                        {previewMeta.width}×{previewMeta.height}
                       </b>{" "}
-                      px
+                      px • <b>{formatBytes(previewMeta.bytes)}</b>
+                      {liveBusy ? (
+                        <span className="ml-2 text-slate-500">updating…</span>
+                      ) : null}
                     </span>
                   )}
                 </div>
 
                 <div className="mt-3 text-[13px] text-slate-600">
-                  How it works: your SVG is rendered to an HTML canvas in your
-                  browser, then exported as a PNG. Transparent background stays
-                  transparent unless you choose a solid background color.
+                  How it works: your SVG is rendered to an HTML canvas in your browser,
+                  then exported as a PNG. Transparent background stays transparent unless
+                  you choose a solid background color.
                 </div>
               </div>
 
-              {/* RESULT PREVIEW */}
               <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
                 <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
-                  PNG preview
+                  PNG preview {liveBusy ? "(updating…)" : ""}
                 </div>
-                <div className="p-3">
-                  {result ? (
-                    <img
-                      src={result.dataUrl}
-                      alt="PNG result"
-                      className="w-full h-auto block"
-                    />
+                <div className="p-3 bg-slate-200">
+                  {previewSrc ? (
+                    <img src={previewSrc} alt="PNG result" className="w-full h-auto block" />
                   ) : (
                     <div className="text-slate-600 text-sm">
-                      Convert to see your PNG preview here.
+                      Upload an SVG to see a live PNG preview here.
                     </div>
                   )}
                 </div>
@@ -604,6 +675,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -615,9 +687,10 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <JsonLdBreadcrumbs />
-      <JsonLdFaq />
+      {/* Removed JsonLdFaq to avoid duplicated FAQ schema if your app shell already injects it */}
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
@@ -630,14 +703,11 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
 /* ========================
    Conversion
 ======================== */
-async function svgToPngDataUrl(
+async function svgToPngBlobUrl(
   svgText: string,
   svgInfo: SvgInfo | null,
   settings: Settings,
 ): Promise<Result> {
-  const info = svgInfo ||
-    parseSvgSize(svgText) || { width: 1024, height: 1024, aspect: 1 };
-
   const outW = clampInt(settings.width, 16, 16384);
   const outH = clampInt(settings.height, 16, 16384);
 
@@ -648,19 +718,13 @@ async function svgToPngDataUrl(
   if (totalPx > MAX_CANVAS_PIXELS) {
     throw new Error("Output is too large. Lower width/height or quality.");
   }
-
   if (pxW > 20000 || pxH > 20000) {
     throw new Error("Output is too large. Lower width/height or quality.");
   }
 
-  function coerceSvgToExactPixelSize(
-    svgText: string,
-    pxW: number,
-    pxH: number,
-  ) {
-    let svg = ensureSvgHasXmlns(svgText);
+  function coerceSvgToExactPixelSize(src: string, w: number, h: number) {
+    let svg = ensureSvgHasXmlns(src);
 
-    // Ensure xlink namespace too (older SVGs still use it)
     if (!/xmlns:xlink\s*=/.test(svg)) {
       svg = svg.replace(
         /<svg\b/i,
@@ -668,22 +732,18 @@ async function svgToPngDataUrl(
       );
     }
 
-    // Inject explicit width/height on the root <svg ...>
     svg = svg.replace(/<svg\b([^>]*)>/i, (full, attrs) => {
       const cleaned = attrs
         .replace(/\swidth\s*=\s*["'][^"']*["']/i, "")
         .replace(/\sheight\s*=\s*["'][^"']*["']/i, "");
-      return `<svg${cleaned} width="${pxW}" height="${pxH}">`;
+      return `<svg${cleaned} width="${w}" height="${h}">`;
     });
 
     return svg;
   }
 
   const coercedSvg = coerceSvgToExactPixelSize(svgText, pxW, pxH);
-  const svgBlob = new Blob([coercedSvg], {
-    type: "image/svg+xml;charset=utf-8",
-  });
-
+  const svgBlob = new Blob([coercedSvg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
 
   try {
@@ -707,15 +767,20 @@ async function svgToPngDataUrl(
 
     ctx.drawImage(img, 0, 0, pxW, pxH);
 
-    const dataUrl = canvas.toDataURL("image/png");
-    return {
-      dataUrl,
-      width: pxW,
-      height: pxH,
-    };
+    const blob = await canvasToBlob(canvas, "image/png");
+    if (!blob) throw new Error("Could not export PNG.");
+    const blobUrl = URL.createObjectURL(blob);
+
+    return { blobUrl, width: pxW, height: pxH, bytes: blob.size };
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    canvas.toBlob((b) => resolve(b), type);
+  });
 }
 
 function ensureSvgHasXmlns(svg: string) {
@@ -729,7 +794,6 @@ function ensureSvgHasXmlns(svg: string) {
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // Helps when the SVG references same-origin assets (and sometimes CORS-enabled ones)
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () =>
@@ -742,9 +806,9 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-function downloadDataUrl(dataUrl: string, filename: string) {
+function downloadObjectUrl(objectUrl: string, filename: string) {
   const a = document.createElement("a");
-  a.href = dataUrl;
+  a.href = objectUrl;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
@@ -765,44 +829,21 @@ function parseSvgSize(svg: string): SvgInfo | null {
   const wPx = widthRaw ? parseCssLengthToPx(widthRaw) : null;
   const hPx = heightRaw ? parseCssLengthToPx(heightRaw) : null;
 
-  // If both width/height are usable, great
   if (wPx && hPx && wPx > 0 && hPx > 0) {
-    return {
-      width: wPx,
-      height: hPx,
-      viewBox: vb || undefined,
-      aspect: wPx / hPx,
-    };
+    return { width: wPx, height: hPx, viewBox: vb || undefined, aspect: wPx / hPx };
   }
 
-  // If viewBox exists, use it (common case)
   const vbParsed = parseViewBox(vb);
   if (vbParsed && vbParsed.w > 0 && vbParsed.h > 0) {
-    // If only one side was specified, preserve aspect
     if (wPx && wPx > 0) {
       const h = Math.max(1, Math.round(wPx * (vbParsed.h / vbParsed.w)));
-      return {
-        width: wPx,
-        height: h,
-        viewBox: vb || undefined,
-        aspect: wPx / h,
-      };
+      return { width: wPx, height: h, viewBox: vb || undefined, aspect: wPx / h };
     }
     if (hPx && hPx > 0) {
       const w = Math.max(1, Math.round(hPx * (vbParsed.w / vbParsed.h)));
-      return {
-        width: w,
-        height: hPx,
-        viewBox: vb || undefined,
-        aspect: w / hPx,
-      };
+      return { width: w, height: hPx, viewBox: vb || undefined, aspect: w / hPx };
     }
-    return {
-      width: vbParsed.w,
-      height: vbParsed.h,
-      viewBox: vb || undefined,
-      aspect: vbParsed.w / vbParsed.h,
-    };
+    return { width: vbParsed.w, height: vbParsed.h, viewBox: vb || undefined, aspect: vbParsed.w / vbParsed.h };
   }
 
   return null;
@@ -816,10 +857,7 @@ function matchAttr(tag: string, name: string): string | null {
 
 function parseViewBox(vb: string | null | undefined) {
   if (!vb) return null;
-  const parts = vb
-    .trim()
-    .split(/[\s,]+/)
-    .map((x) => Number(x));
+  const parts = vb.trim().split(/[\s,]+/).map((x) => Number(x));
   if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
   const [, , w, h] = parts;
   if (w === 0 || h === 0) return null;
@@ -843,22 +881,9 @@ function parseCssLengthToPx(raw: string): number | null {
   if (unit === "mm") return (v * 96) / 25.4;
   if (unit === "pt") return (v * 96) / 72;
   if (unit === "pc") return (v * 96) / 6;
-
   if (unit === "em" || unit === "rem") return v * 16;
-
-  // Percent is undefined without viewport
   if (unit === "%") return null;
-
   return null;
-}
-
-function parseNumber(s: string): number | null {
-  const m = String(s)
-    .trim()
-    .match(/^(-?\d+(\.\d+)?)/);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n !== 0 ? Math.abs(n) : null;
 }
 
 function clampInt(v: number, lo: number, hi: number) {
@@ -882,16 +907,21 @@ function safeFileName(name: string) {
   );
 }
 
+function formatBytes(bytes: number) {
+  const b = Math.max(0, Number(bytes) || 0);
+  if (b < 1024) return `${b} B`;
+  const kb = b / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(2)} MB`;
+  const gb = mb / 1024;
+  return `${gb.toFixed(2)} GB`;
+}
+
 /* ========================
    UI helpers
 ======================== */
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
       <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
@@ -931,11 +961,7 @@ function NumInt({
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
-function Breadcrumbs({
-  crumbs,
-}: {
-  crumbs: Array<{ name: string; href: string }>;
-}) {
+function Breadcrumbs({ crumbs }: { crumbs: Array<{ name: string; href: string }> }) {
   return (
     <div className="mb-4">
       <nav
@@ -948,9 +974,7 @@ function Breadcrumbs({
               <a href={c.href} className="hover:text-slate-900">
                 {c.name}
               </a>
-              {i < crumbs.length - 1 ? (
-                <span className="text-slate-300">/</span>
-              ) : null}
+              {i < crumbs.length - 1 ? <span className="text-slate-300">/</span> : null}
             </li>
           ))}
         </ol>
@@ -966,12 +990,7 @@ function JsonLdBreadcrumbs() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: baseUrl,
-      },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
@@ -992,66 +1011,7 @@ function JsonLdBreadcrumbs() {
 }
 
 /* ========================
-   FAQ JSON-LD
-======================== */
-function JsonLdFaq() {
-  const data = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Does this SVG to PNG converter upload my file?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. This converter runs entirely in your browser using HTML canvas. Your SVG is not uploaded to a server.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can I set a custom width and height?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. You can set output width and height in pixels. Enable “Lock aspect ratio” to keep the original proportions.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How do I keep the PNG background transparent?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Choose Transparent background. The PNG will keep alpha transparency unless you switch to a solid background color.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why does my PNG look blurry?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Increase the Quality (pixel ratio) or export at a larger width/height. Higher pixel ratio renders a sharper PNG at the cost of file size.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why won’t some SVGs convert?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Some SVGs reference external images, fonts, or unsupported features that the browser can’t render to canvas. Try embedding assets directly inside the SVG.",
-        },
-      },
-    ],
-  };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
-}
-
-/* ========================
-   SEO sections (on-page + HowTo + FAQ UI)
+   SEO sections (RESTORED: original full version)
 ======================== */
 function SeoSections() {
   return (
@@ -1189,19 +1149,14 @@ function SeoSections() {
             </div>
           </section>
 
-          <section
-            className="mt-8"
-            itemScope
-            itemType="https://schema.org/HowTo"
-          >
+          <section className="mt-8" itemScope itemType="https://schema.org/HowTo">
             <h3 itemProp="name" className="m-0 font-bold">
               How to Convert SVG to PNG
             </h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2">
               <li itemProp="step">Upload (or paste) an SVG file.</li>
               <li itemProp="step">
-                Set output width and height (enable Lock aspect ratio if
-                needed).
+                Set output width and height (enable Lock aspect ratio if needed).
               </li>
               <li itemProp="step">
                 Choose Transparent background or a Solid background color.
@@ -1213,9 +1168,7 @@ function SeoSections() {
           <section className="mt-8">
             <h3 className="m-0 font-bold">Common Uses</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                Export an SVG logo to PNG for social media or email signatures
-              </li>
+              <li>Export an SVG logo to PNG for social media or email signatures</li>
               <li>Create PNG icons from SVGs for apps or favicons</li>
               <li>Generate transparent PNG stickers from vector art</li>
               <li>Resize SVG artwork to a specific pixel size</li>
@@ -1227,16 +1180,14 @@ function SeoSections() {
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
                 If the output looks soft, raise{" "}
-                <strong>Quality (pixel ratio)</strong> or export larger
-                dimensions.
+                <strong>Quality (pixel ratio)</strong> or export larger dimensions.
               </li>
               <li>
                 For crisp edges on icons, keep <strong>Anti-aliasing</strong>{" "}
                 enabled (or disable it for pixel-art-like sharp edges).
               </li>
               <li>
-                If your SVG uses external fonts/images, embed them to improve
-                compatibility.
+                If your SVG uses external fonts/images, embed them to improve compatibility.
               </li>
             </ul>
           </section>
@@ -1249,8 +1200,7 @@ function SeoSections() {
                   Does this upload my SVG?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  No. The conversion runs in your browser and your file never
-                  leaves your device.
+                  No. The conversion runs in your browser and your file never leaves your device.
                 </p>
               </details>
 
@@ -1259,8 +1209,7 @@ function SeoSections() {
                   Can I set a custom width and height?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Yes. Set width and height in pixels. Turn on Lock aspect ratio
-                  to keep the original proportions.
+                  Yes. Set width and height in pixels. Turn on Lock aspect ratio to keep the original proportions.
                 </p>
               </details>
 
@@ -1269,8 +1218,7 @@ function SeoSections() {
                   How do I keep the PNG background transparent?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Choose Transparent background. Your PNG will preserve alpha
-                  transparency.
+                  Choose Transparent background. Your PNG will preserve alpha transparency.
                 </p>
               </details>
 
@@ -1279,8 +1227,7 @@ function SeoSections() {
                   Why does my PNG look blurry?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Increase Quality (pixel ratio) or export at a larger size.
-                  Higher pixel ratio produces a sharper PNG.
+                  Increase Quality (pixel ratio) or export at a larger size. Higher pixel ratio produces a sharper PNG.
                 </p>
               </details>
 
@@ -1289,9 +1236,8 @@ function SeoSections() {
                   Why won’t some SVGs convert?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Some SVGs depend on external fonts/images or unsupported
-                  features that can’t be rendered to canvas. Embed assets
-                  directly in the SVG when possible.
+                  Some SVGs depend on external fonts/images or unsupported features that can’t be rendered to canvas.
+                  Embed assets directly in the SVG when possible.
                 </p>
               </details>
             </div>

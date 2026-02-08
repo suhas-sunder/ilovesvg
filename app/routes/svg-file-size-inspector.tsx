@@ -4,7 +4,6 @@ import type { Route } from "./+types/svg-file-size-inspector";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -50,6 +49,10 @@ type Settings = {
 
 type SvgStats = {
   bytes: number;
+  minifiedBytes: number;
+  savingsBytes: number;
+  savingsPct: number;
+
   widthRaw?: string;
   heightRaw?: string;
   viewBox?: string;
@@ -99,7 +102,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(null), 1500);
+    window.setTimeout(() => setToast(null), 1500);
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -249,7 +252,11 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
       `computed px: ${stats.computedWpx} x ${stats.computedHpx}`,
       `aspect ratio: ${round(stats.aspectRatio, 4)}`,
       `file size: ${formatBytes(stats.bytes)}`,
-      stats.warnings.length ? `warnings: ${stats.warnings.join(" | ")}` : "",
+      `minified size (estimate): ${formatBytes(stats.minifiedBytes)}`,
+      `potential savings (estimate): ${formatBytes(stats.savingsBytes)} (${stats.savingsPct.toFixed(
+        1,
+      )}%)`,
+      stats.warnings.length ? `notes: ${stats.warnings.join(" | ")}` : "",
     ].filter(Boolean);
 
     navigator.clipboard
@@ -292,7 +299,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -300,7 +307,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
                   >
                     <Icons name="trash" size={16} className="mr-1" />
                     Clear
@@ -323,6 +330,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                         type="button"
                         onClick={clearAll}
                         className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                        aria-label="Clear"
                       >
                         ×
                       </button>
@@ -381,6 +389,98 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden">
+                {/* Always visible: core detected info */}
+                <div className="border border-slate-200 rounded-2xl bg-white p-3">
+                  <div className="font-bold text-slate-900">Detected</div>
+
+                  <div className="mt-2 grid gap-1 text-[14px] text-slate-800">
+                    <div>
+                      file size: <b>{stats ? formatBytes(stats.bytes) : "?"}</b>
+                    </div>
+                    <div>
+                      minified size (estimate):{" "}
+                      <b>{stats ? formatBytes(stats.minifiedBytes) : "?"}</b>
+                    </div>
+                    <div>
+                      potential savings (estimate):{" "}
+                      <b>
+                        {stats
+                          ? `${formatBytes(stats.savingsBytes)} (${stats.savingsPct.toFixed(1)}%)`
+                          : "?"}
+                      </b>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      computed px:{" "}
+                      <b>
+                        {stats
+                          ? `${stats.computedWpx} × ${stats.computedHpx}`
+                          : "?"}
+                      </b>
+                    </div>
+                    <div className="text-[13px] text-slate-600">
+                      {stats?.widthPxFrom || stats?.heightPxFrom ? (
+                        <>
+                          Source:{" "}
+                          <span className="text-slate-700">
+                            {stats.widthPxFrom || "?"}
+                            {stats.heightPxFrom
+                              ? `, ${stats.heightPxFrom}`
+                              : ""}
+                          </span>
+                        </>
+                      ) : (
+                        "Source: ?"
+                      )}
+                    </div>
+                    <div className="text-[13px] text-slate-600">
+                      aspect ratio:{" "}
+                      <b className="text-slate-900">
+                        {stats ? round(stats.aspectRatio, 4) : "?"}
+                      </b>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      width:{" "}
+                      <b>{stats?.widthRaw ? stats.widthRaw : "missing"}</b>
+                    </div>
+                    <div>
+                      height:{" "}
+                      <b>{stats?.heightRaw ? stats.heightRaw : "missing"}</b>
+                    </div>
+                    <div className="truncate">
+                      viewBox:{" "}
+                      <b>{stats?.viewBox ? stats.viewBox : "missing"}</b>
+                    </div>
+                    <div className="truncate">
+                      preserveAspectRatio:{" "}
+                      <b>
+                        {stats?.preserveAspectRatio
+                          ? stats.preserveAspectRatio
+                          : "default"}
+                      </b>
+                    </div>
+                  </div>
+
+                  {stats?.warnings?.length ? (
+                    <div className="mt-3 text-[13px] text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                      <div className="font-semibold mb-1">Notes</div>
+                      <ul className="list-disc pl-5 grid gap-1">
+                        {stats.warnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {!stats ? (
+                    <div className="mt-3 text-[13px] text-slate-600">
+                      Upload or paste an SVG to see size details.
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Advanced settings toggle */}
                 <div className="mt-3 min-w-0">
                   <button
                     type="button"
@@ -482,82 +582,6 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                         </span>
                       </Field>
 
-                      <div className="mt-2 border border-slate-200 rounded-2xl bg-white p-3">
-                        <div className="font-bold text-slate-900">Detected</div>
-
-                        <div className="mt-2 grid gap-1 text-[14px] text-slate-800">
-                          <div>
-                            width:{" "}
-                            <b>
-                              {stats?.widthRaw ? stats.widthRaw : "missing"}
-                            </b>
-                          </div>
-                          <div>
-                            height:{" "}
-                            <b>
-                              {stats?.heightRaw ? stats.heightRaw : "missing"}
-                            </b>
-                          </div>
-                          <div className="truncate">
-                            viewBox:{" "}
-                            <b>{stats?.viewBox ? stats.viewBox : "missing"}</b>
-                          </div>
-                          <div className="truncate">
-                            preserveAspectRatio:{" "}
-                            <b>
-                              {stats?.preserveAspectRatio
-                                ? stats.preserveAspectRatio
-                                : "default"}
-                            </b>
-                          </div>
-                          <div>
-                            file size:{" "}
-                            <b>{stats ? formatBytes(stats.bytes) : "?"}</b>
-                          </div>
-
-                          <div className="mt-2 pt-2 border-t border-slate-200">
-                            computed px:{" "}
-                            <b>
-                              {stats
-                                ? `${stats.computedWpx} × ${stats.computedHpx}`
-                                : "?"}
-                            </b>
-                          </div>
-                          <div className="text-[13px] text-slate-600">
-                            {stats?.widthPxFrom || stats?.heightPxFrom ? (
-                              <>
-                                Source:{" "}
-                                <span className="text-slate-700">
-                                  {stats.widthPxFrom || "?"}
-                                  {stats.heightPxFrom
-                                    ? `, ${stats.heightPxFrom}`
-                                    : ""}
-                                </span>
-                              </>
-                            ) : (
-                              "Source: ?"
-                            )}
-                          </div>
-                          <div className="text-[13px] text-slate-600">
-                            aspect ratio:{" "}
-                            <b className="text-slate-900">
-                              {stats ? round(stats.aspectRatio, 4) : "?"}
-                            </b>
-                          </div>
-                        </div>
-
-                        {stats?.warnings?.length ? (
-                          <div className="mt-3 text-[13px] text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                            <div className="font-semibold mb-1">Notes</div>
-                            <ul className="list-disc pl-5 grid gap-1">
-                              {stats.warnings.map((w, i) => (
-                                <li key={i}>{w}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-                      </div>
-
                       <Field label="Output filename">
                         <input
                           value={settings.fileName}
@@ -571,6 +595,12 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                           placeholder="inspected"
                         />
                       </Field>
+
+                      <div className="text-[12px] text-slate-600">
+                        Note: Minified size and savings are estimates based on
+                        whitespace/comment removal. Real optimizers can save
+                        more.
+                      </div>
                     </div>
                   )}
                 </div>
@@ -625,6 +655,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -636,6 +667,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <JsonLdBreadcrumbs />
       <OtherToolsLinks />
@@ -652,7 +684,14 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
 ======================== */
 function inspectSvg(svgText: string, settings: Settings): SvgStats {
   const svg = ensureSvgHasXmlns(String(svgText || "").trim());
+
   const bytes = new Blob([svg]).size;
+
+  const minified = minifySvgForSize(svg);
+  const minifiedBytes = new Blob([minified]).size;
+
+  const savingsBytes = Math.max(0, bytes - minifiedBytes);
+  const savingsPct = bytes > 0 ? (savingsBytes / bytes) * 100 : 0;
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(svg, "image/svg+xml");
@@ -695,20 +734,21 @@ function inspectSvg(svgText: string, settings: Settings): SvgStats {
   if (wLen && hLen && wLen > 0 && hLen > 0) {
     computedWpx = Math.round(wLen);
     computedHpx = Math.round(hLen);
-    widthPxFrom = `width/height (${settings.unitMode === "custom-dpi" ? `${dpi} DPI` : "96 DPI"})`;
-    heightPxFrom = `width/height (${settings.unitMode === "custom-dpi" ? `${dpi} DPI` : "96 DPI"})`;
+    const label = settings.unitMode === "custom-dpi" ? `${dpi} DPI` : "96 DPI";
+    widthPxFrom = `width/height (${label})`;
+    heightPxFrom = `width/height (${label})`;
   } else if (vb && vb.w > 0 && vb.h > 0) {
     // If only one dimension exists, preserve aspect ratio from viewBox
     if (wLen && wLen > 0) {
       computedWpx = Math.round(wLen);
       computedHpx = Math.max(1, Math.round(wLen * (vb.h / vb.w)));
-      widthPxFrom = `width + viewBox aspect`;
-      heightPxFrom = `width + viewBox aspect`;
+      widthPxFrom = "width + viewBox aspect";
+      heightPxFrom = "width + viewBox aspect";
     } else if (hLen && hLen > 0) {
       computedHpx = Math.round(hLen);
       computedWpx = Math.max(1, Math.round(hLen * (vb.w / vb.h)));
-      widthPxFrom = `height + viewBox aspect`;
-      heightPxFrom = `height + viewBox aspect`;
+      widthPxFrom = "height + viewBox aspect";
+      heightPxFrom = "height + viewBox aspect";
     } else {
       computedWpx = Math.max(1, Math.round(vb.w));
       computedHpx = Math.max(1, Math.round(vb.h));
@@ -758,6 +798,9 @@ function inspectSvg(svgText: string, settings: Settings): SvgStats {
 
   return {
     bytes,
+    minifiedBytes,
+    savingsBytes,
+    savingsPct,
     widthRaw,
     heightRaw,
     viewBox,
@@ -855,6 +898,20 @@ function parseCssLengthToPx(raw: string, dpi: number): number | null {
   if (unit === "%") return null;
 
   return null;
+}
+
+/* ========================
+   Size minify (estimate)
+======================== */
+function minifySvgForSize(svgText: string) {
+  // Conservative: remove XML comments and collapse whitespace.
+  // Do not attempt deep attribute rewrites, just a safe "size estimate" minify.
+  let s = String(svgText || "");
+  s = s.replace(/<!--[\s\S]*?-->/g, "");
+  s = s.replace(/>\s+</g, "><");
+  s = s.replace(/\s{2,}/g, " ");
+  s = s.replace(/\s*\n+\s*/g, "");
+  return ensureSvgHasXmlns(s.trim());
 }
 
 /* ========================
@@ -1059,7 +1116,6 @@ function SeoSections() {
       <JsonLdFaq />
 
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
-        {/* Drop prose to match your utility UI and fix the "off" spacing */}
         <article>
           <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
             SVG Size Inspector (Width, Height, viewBox, Rendered Pixels)
@@ -1072,7 +1128,7 @@ function SeoSections() {
             </span>{" "}
             to quickly answer the question:{" "}
             <span className="font-semibold text-slate-900">
-              “How big is this SVG?”
+              "How big is this SVG?"
             </span>{" "}
             It shows the raw{" "}
             <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
@@ -1098,11 +1154,13 @@ function SeoSections() {
             the sizing details for debugging or documentation. Everything runs
             locally in your browser.
           </p>
+
           <p className="mt-2 text-slate-600">
-            Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and{" "}
-            <b>computed pixel size</b>. Upload or paste an SVG. Runs fully
-            client-side.
+            Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>,{" "}
+            <b>computed pixel size</b>, and a <b>minified size estimate</b>.
+            Upload or paste an SVG. Runs fully client-side.
           </p>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1118,7 +1176,7 @@ function SeoSections() {
               />
             </div>
           )}
-          {/* Quick workflow */}
+
           <div className=" rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
@@ -1173,7 +1231,7 @@ function SeoSections() {
                   3) Review preserveAspectRatio
                 </span>
                 <div className="mt-1 leading-relaxed">
-                  Alignment and “meet vs slice” can letterbox or crop content
+                  Alignment and "meet vs slice" can letterbox or crop content
                   inside a container.
                 </div>
               </li>
@@ -1182,7 +1240,7 @@ function SeoSections() {
                   4) Use the pixel estimate
                 </span>
                 <div className="mt-1 leading-relaxed">
-                  It’s a practical “what you’ll likely get” number for
+                  It’s a practical "what you’ll likely get" number for
                   screenshots, exports, and docs.
                 </div>
               </li>
@@ -1195,7 +1253,7 @@ function SeoSections() {
               Size model
             </div>
             <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
-              What “SVG size” really means
+              What "SVG size" really means
             </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
               SVGs are confusing because they have two layers of sizing: a{" "}
@@ -1250,7 +1308,7 @@ function SeoSections() {
                 Most common failure:
               </span>{" "}
               width/height exist but viewBox is missing, so different tools
-              “guess” differently when scaling.
+              "guess" differently when scaling.
             </div>
           </section>
 
@@ -1312,13 +1370,12 @@ function SeoSections() {
 
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
               <span className="font-semibold text-slate-900">Tip:</span> If your
-              SVG “looks fine” in one editor but breaks in a browser, compare
+              SVG "looks fine" in one editor but breaks in a browser, compare
               viewBox and preserveAspectRatio first. Those two explain most
               cases.
             </div>
           </section>
 
-          {/* FAQ - keep content as-is; only fix styling consistency + pointer */}
           <section className="mt-12" aria-label="Frequently asked questions">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
 

@@ -44,11 +44,11 @@ export function meta({}: Route.MetaArgs) {
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
-  ];
-}
 
-export function loader({ context }: Route.LoaderArgs) {
-  return { message: context.VALUE_FROM_EXPRESS };
+    { name: "twitter:card", content: "summary" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+  ];
 }
 
 /* ========================
@@ -64,7 +64,7 @@ const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 const DARK_BG_DEFAULT = "#0b1020";
 
 // -------- Live preview tiers (client) --------
-// ≤10MB: fast, 10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
+// ≤10MB: fast, 10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, disable live preview.
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
@@ -857,7 +857,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
   {
     q: "What file limits apply?",
-    a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest up to 10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+    a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest up to 10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression. If that fails, live preview is disabled and you can still convert manually.",
   },
   {
     q: "Why do I see “Server busy” with Retry-After?",
@@ -910,9 +910,16 @@ function buildHowToJsonLd() {
   };
 }
 
-export default function StickerToSvgConverter({
-  loaderData,
-}: Route.ComponentProps) {
+function JsonLd({ data }: { data: any }) {
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
+export default function StickerToSvgConverter({}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1017,17 +1024,30 @@ export default function StickerToSvgConverter({
 
     let chosen = f;
 
-    // ... keep ALL your existing compression logic and the rest unchanged ...
-    // Example (if you want it enabled here):
-    // if (chosen.size > LIVE_MED_MAX) chosen = await compressToTarget25MB(chosen);
+    // Best-effort: compress >25MB to keep live preview workable
+    if (chosen.size > LIVE_MED_MAX) {
+      try {
+        chosen = await compressToTarget25MB(chosen);
+        setInfo("Large file compressed on-device for live preview.");
+      } catch (e: any) {
+        chosen = f;
+        setInfo(
+          "Large file. Live preview disabled; click Convert to run once.",
+        );
+      }
+    }
 
     setFile(chosen);
-    setAutoMode(getAutoMode(chosen.size));
+
+    // If still >25MB, disable autoMode so we do not auto-submit
+    const mode = getAutoMode(chosen.size);
+    setAutoMode(mode);
+
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
     await measureAndSet(chosen);
 
-    // Re-enable live preview and force one conversion for the new file
+    // Re-enable live preview and force one conversion for the new file (only if live preview is on)
     suppressLiveRef.current = false;
 
     // Apply recommended preset settings immediately for sticker intent
@@ -1035,7 +1055,11 @@ export default function StickerToSvgConverter({
     if (preset) {
       applyPreset(preset);
     } else {
-      setTimeout(() => submitConvert(), 0);
+      if (mode !== "off") setTimeout(() => submitConvert(), 0);
+    }
+
+    if (mode === "off") {
+      setErr(null);
     }
   }
 
@@ -1179,8 +1203,32 @@ export default function StickerToSvgConverter({
 
   return (
     <>
+      <JsonLd data={faqJsonLd} />
+      <JsonLd data={howToJsonLd} />
+
       <main className=" bg-slate-50 text-slate-900">
         <div className="max-w-[1180px] mx-auto px-4">
+          {/* Breadcrumb */}
+          <nav
+            aria-label="Breadcrumb"
+            className="py-4 text-[13px] text-slate-600"
+          >
+            <ol className="flex items-center gap-2 flex-wrap">
+              <li>
+                <Link
+                  to="/"
+                  className="hover:text-slate-900 hover:underline underline-offset-4"
+                >
+                  Home
+                </Link>
+              </li>
+              <li aria-hidden className="text-slate-300">
+                /
+              </li>
+              <li className="text-slate-800 font-semibold">{ROUTE_LABEL}</li>
+            </ol>
+          </nav>
+
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="2090332782"
@@ -1192,6 +1240,7 @@ export default function StickerToSvgConverter({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
+
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
@@ -1440,6 +1489,7 @@ export default function StickerToSvgConverter({
                   </div>
                 )}
               </div>
+
               {/* Dropzone */}
               {!file ? (
                 <DragArea
@@ -1542,9 +1592,9 @@ export default function StickerToSvgConverter({
             </div>
 
             {/* RESULTS */}
-            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+            <div className="bg-slate-700 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
               {busy && (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-50 animate-spin" />
               )}
 
               {history.length > 0 ? (
@@ -1619,16 +1669,6 @@ export default function StickerToSvgConverter({
           </section>
         </div>
 
-        {/* JSON-LD: FAQ + HowTo */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
-        />
-
         {/* Toast */}
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
@@ -1636,6 +1676,7 @@ export default function StickerToSvgConverter({
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1647,29 +1688,10 @@ export default function StickerToSvgConverter({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        className="mb-3 text-[13px] text-slate-600 min-w-[1180px] py-4"
-      >
-        <ol className="flex items-center gap-2 flex-wrap">
-          <li>
-            <Link
-              to="/"
-              className="hover:text-slate-900 hover:underline underline-offset-4"
-            >
-              Home
-            </Link>
-          </li>
-          <li aria-hidden className="text-slate-300">
-            /
-          </li>
-          <li className="text-slate-800 font-semibold">{ROUTE_LABEL}</li>
-        </ol>
-      </nav>
       <SocialLinks />
       <SiteFooter />
     </>
@@ -1869,17 +1891,12 @@ function SeoSections() {
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
                 Sticker to SVG converter for clean, cut-friendly vectors
               </h2>
-              <p className="text-slate-600 ">
+              <p className="text-slate-600">
                 Turn sticker art into crisp SVG paths using Potrace. This page
                 is tuned for sticker-style graphics like bold outlines, flat
                 colors, and logo-like shapes. Live preview stays fast with
-                device-side auto-compress and a server concurrency gate to keep
-                the droplet stable.
-              </p>
-              <p className="mt-1 text-slate-600">
-                Convert sticker PNG/JPEG images into clean SVG vectors with live
-                preview. Sticker presets focus on smooth edges and cut-friendly
-                shapes.
+                device-side compression when possible and a server concurrency
+                gate to keep the droplet stable.
               </p>
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
@@ -1905,6 +1922,7 @@ function SeoSections() {
               </div>
             </div>
           </header>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1920,6 +1938,7 @@ function SeoSections() {
               />
             </div>
           )}
+
           {/* Use cases */}
           <section>
             <h3 className="text-lg font-bold">Best for</h3>
@@ -1965,18 +1984,14 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* HowTo (UI, JSON-LD is injected above) */}
-          <section
-            itemScope
-            itemType="https://schema.org/HowTo"
-            className="mt-12"
-          >
+          {/* HowTo (UI only; JSON-LD is emitted above) */}
+          <section className="mt-12">
             <div className="flex items-end justify-between gap-4">
-              <h3 itemProp="name" className="text-lg font-bold">
+              <h3 className="text-lg font-bold">
                 How to convert a sticker image to SVG
               </h3>
               <span className="text-xs text-slate-500">
-                Fast path: upload → sticker preset → tweak → export
+                Fast path: upload → preset → tweak → export
               </span>
             </div>
 
@@ -2005,9 +2020,6 @@ function SeoSections() {
               ].map((s, i) => (
                 <li
                   key={s.title}
-                  itemScope
-                  itemType="https://schema.org/HowToStep"
-                  itemProp="step"
                   className="rounded-2xl border border-slate-200 bg-white p-4"
                 >
                   <div className="flex gap-3">
@@ -2015,9 +2027,7 @@ function SeoSections() {
                       {i + 1}
                     </div>
                     <div>
-                      <div itemProp="name" className="font-semibold">
-                        {s.title}
-                      </div>
+                      <div className="font-semibold">{s.title}</div>
                       <div className="mt-1 text-sm text-slate-600">
                         {s.body}
                       </div>
@@ -2104,7 +2114,7 @@ function SeoSections() {
                   <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
                     <dt className="text-slate-500">Large files</dt>
                     <dd className="mt-1 font-semibold">
-                      Auto-compress on-device when possible
+                      Best-effort on-device compression
                     </dd>
                   </div>
                 </dl>
@@ -2160,34 +2170,18 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* FAQ (UI) */}
-          <section
-            className="mt-12"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-          >
+          {/* FAQ (UI only; JSON-LD is emitted above) */}
+          <section className="mt-12">
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
               {FAQ_ITEMS.map((x) => (
                 <article
                   key={x.q}
-                  itemScope
-                  itemType="https://schema.org/Question"
-                  itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
-                    {x.q}
-                  </h4>
-                  <p
-                    itemScope
-                    itemType="https://schema.org/Answer"
-                    itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
-                  >
-                    <span itemProp="text">{x.a}</span>
-                  </p>
+                  <h4 className="m-0 font-semibold">{x.q}</h4>
+                  <p className="mt-2 text-sm text-slate-600">{x.a}</p>
                 </article>
               ))}
             </div>

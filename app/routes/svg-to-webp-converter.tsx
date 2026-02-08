@@ -162,7 +162,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
     setFile(f);
 
     const text = await f.text();
-    const safeText = ensureSvgHasXmlns(text);
+    const safeText = sanitizeSvgForRaster(text);
     setSvgText(safeText);
 
     const info = parseSvgSize(safeText) || {
@@ -179,11 +179,15 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
       width: clampInt(Math.round(info.width), 16, 16384),
       height: clampInt(Math.round(info.height), 16, 16384),
       lockAspect: true,
+      dpiScale: clampDpiScale(s.dpiScale),
+      webpQuality: clamp01(s.webpQuality),
+      background: s.background,
+      bgColor: s.bgColor,
+      antiAlias: s.antiAlias,
     }));
 
-    const url = URL.createObjectURL(
-      new Blob([safeText], { type: "image/svg+xml" }),
-    );
+    // Blob URL preview (reliable)
+    const url = svgToObjectUrl(ensureSvgHasXmlns(safeText));
     setPreviewSvgUrl(url);
   }
 
@@ -251,7 +255,10 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main
+        className="min-h-[100dvh] bg-slate-50 text-slate-900"
+        onPaste={onPaste}
+      >
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -337,7 +344,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     <textarea
                       value={svgText}
                       onChange={(e) => {
-                        setSvgText(ensureSvgHasXmlns(e.target.value));
+                        setSvgText(sanitizeSvgForRaster(e.target.value));
                         setResult(null);
                         setErr(null);
                       }}
@@ -444,7 +451,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                dpiScale: Number(e.target.value),
+                                dpiScale: clampDpiScale(Number(e.target.value)),
                               }))
                             }
                             className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
@@ -465,7 +472,8 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                background: e.target.value as any,
+                                background: e.target
+                                  .value as Settings["background"],
                               }))
                             }
                             className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
@@ -510,7 +518,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                             onChange={(e) =>
                               setSettings((s) => ({
                                 ...s,
-                                webpQuality: Number(e.target.value),
+                                webpQuality: clamp01(Number(e.target.value)),
                               }))
                             }
                             className="w-full accent-[#0b2dff] cursor-pointer"
@@ -640,6 +648,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -651,9 +660,13 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
+
+      {/* Keep JSON-LD only, visible FAQ is inside SeoSections. Avoid duplicate FAQ on-page + JSON-LD mismatch issues by keeping content aligned. */}
       <JsonLdBreadcrumbs />
       <JsonLdFaq />
+
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
@@ -685,56 +698,49 @@ async function svgToWebpDataUrl(
   const outW = clampInt(settings.width, 16, 16384);
   const outH = clampInt(settings.height, 16, 16384);
 
-  const pxW = Math.max(1, Math.round(outW * settings.dpiScale));
-  const pxH = Math.max(1, Math.round(outH * settings.dpiScale));
+  const dpi = clampDpiScale(settings.dpiScale);
+  const pxW = Math.max(1, Math.round(outW * dpi));
+  const pxH = Math.max(1, Math.round(outH * dpi));
 
   if (pxW * pxH > MAX_CANVAS_PIXELS) {
     throw new Error("Output is too large. Lower width/height or quality.");
   }
 
-  const svgBlob = new Blob([ensureSvgHasXmlns(svgText)], {
-    type: "image/svg+xml;charset=utf-8",
-  });
-  const url = URL.createObjectURL(svgBlob);
+  const sanitized = sanitizeSvgForRaster(svgText);
+  const sizedSvg = withRasterViewport(sanitized, outW, outH, info);
 
-  try {
-    const img = await loadImage(url);
+  const img = await loadSvgImage(sizedSvg);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = pxW;
-    canvas.height = pxH;
+  const canvas = document.createElement("canvas");
+  canvas.width = pxW;
+  canvas.height = pxH;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D context not available.");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D context not available.");
 
-    ctx.imageSmoothingEnabled = settings.antiAlias;
-    ctx.imageSmoothingQuality = "high";
+  ctx.imageSmoothingEnabled = !!settings.antiAlias;
+  ctx.imageSmoothingQuality = settings.antiAlias ? "high" : "low";
 
-    if (settings.background === "solid") {
-      ctx.fillStyle = settings.bgColor;
-      ctx.fillRect(0, 0, pxW, pxH);
-    } else {
-      // transparent: clear canvas explicitly
-      ctx.clearRect(0, 0, pxW, pxH);
-    }
-
-    ctx.drawImage(img, 0, 0, pxW, pxH);
-
-    const q = clamp01(settings.webpQuality);
-    const dataUrl = canvas.toDataURL("image/webp", q);
-
-    // Some browsers may silently fall back to PNG; detect and error
-    const mime = dataUrl.slice(5, dataUrl.indexOf(";"));
-    if (mime !== "image/webp") {
-      throw new Error(
-        "WebP export failed (browser returned a different format).",
-      );
-    }
-
-    return { dataUrl, width: pxW, height: pxH, mime };
-  } finally {
-    URL.revokeObjectURL(url);
+  if (settings.background === "solid") {
+    ctx.fillStyle = settings.bgColor || "#ffffff";
+    ctx.fillRect(0, 0, pxW, pxH);
+  } else {
+    ctx.clearRect(0, 0, pxW, pxH);
   }
+
+  ctx.drawImage(img, 0, 0, pxW, pxH);
+
+  const q = clamp01(settings.webpQuality);
+  const dataUrl = canvas.toDataURL("image/webp", q);
+
+  const mime = dataUrl.slice(5, dataUrl.indexOf(";"));
+  if (mime !== "image/webp") {
+    throw new Error(
+      "WebP export failed (browser returned a different format).",
+    );
+  }
+
+  return { dataUrl, width: pxW, height: pxH, mime };
 }
 
 function supportsWebpExport() {
@@ -753,26 +759,18 @@ function clamp01(v: number) {
   return Math.max(0.1, Math.min(1, n));
 }
 
+function clampDpiScale(v: number) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(4, n));
+}
+
 function ensureSvgHasXmlns(svg: string) {
   const hasSvg = /<svg\b/i.test(svg);
   if (!hasSvg) return `<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
   const hasXmlns = /<svg\b[^>]*\sxmlns\s*=\s*["'][^"']+["']/i.test(svg);
   if (hasXmlns) return svg;
   return svg.replace(/<svg\b/i, `<svg xmlns="http://www.w3.org/2000/svg"`);
-}
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () =>
-      reject(
-        new Error(
-          "Could not render this SVG. (Some SVGs reference external assets or unsupported features.)",
-        ),
-      );
-    img.src = url;
-  });
 }
 
 function downloadDataUrl(dataUrl: string, filename: string) {
@@ -785,7 +783,7 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 }
 
 /* ========================
-   SVG size parsing
+   SVG size parsing (unit-aware)
 ======================== */
 function parseSvgSize(svg: string): SvgInfo | null {
   const open = svg.match(/<svg\b[^>]*>/i)?.[0];
@@ -795,8 +793,8 @@ function parseSvgSize(svg: string): SvgInfo | null {
   const hAttr = matchAttr(open, "height");
   const vb = matchAttr(open, "viewBox");
 
-  const w = wAttr ? parseNumber(wAttr) : null;
-  const h = hAttr ? parseNumber(hAttr) : null;
+  const w = wAttr ? parseLengthToPx(wAttr) : null;
+  const h = hAttr ? parseLengthToPx(hAttr) : null;
 
   if (w && h)
     return { width: w, height: h, viewBox: vb || undefined, aspect: w / h };
@@ -816,19 +814,34 @@ function parseSvgSize(svg: string): SvgInfo | null {
   return null;
 }
 
+function parseLengthToPx(raw: string): number | null {
+  const s = String(raw).trim().toLowerCase();
+
+  if (/%$/.test(s)) return null;
+
+  const m = s.match(/^(-?\d+(\.\d+)?)([a-z]+)?/);
+  if (!m) return null;
+
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n === 0) return null;
+
+  const unit = (m[3] || "px").toLowerCase();
+
+  const abs = Math.abs(n);
+  if (unit === "px") return abs;
+  if (unit === "in") return abs * 96;
+  if (unit === "cm") return (abs * 96) / 2.54;
+  if (unit === "mm") return (abs * 96) / 25.4;
+  if (unit === "pt") return (abs * 96) / 72;
+  if (unit === "pc") return (abs * 96) / 6;
+
+  return null;
+}
+
 function matchAttr(tag: string, name: string): string | null {
   const re = new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`, "i");
   const m = tag.match(re);
   return m ? m[1] : null;
-}
-
-function parseNumber(s: string): number | null {
-  const m = String(s)
-    .trim()
-    .match(/^(-?\d+(\.\d+)?)/);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n !== 0 ? Math.abs(n) : null;
 }
 
 function clampInt(v: number, lo: number, hi: number) {
@@ -849,6 +862,117 @@ function safeFileName(name: string) {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 80) || "converted"
+  );
+}
+
+/* ========================
+   SVG sanitization + predictable raster viewport
+======================== */
+function sanitizeSvgForRaster(svg: string) {
+  let s = ensureSvgHasXmlns(svg);
+  s = s.replace(/\r\n?/g, "\n");
+  s = s.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "");
+  s = s.replace(/<script\b[^>]*\/\s*>/gi, "");
+  s = s.replace(/<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi, "");
+  s = s.replace(/<foreignObject\b[^>]*\/\s*>/gi, "");
+  s = s.replace(/\s(on[a-zA-Z]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/g, "");
+  s = s.replace(
+    /\s(?:href|xlink:href)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+    (m) => {
+      const valMatch = m.match(/=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      const raw = (valMatch?.[1] || valMatch?.[2] || valMatch?.[3] || "")
+        .trim()
+        .replace(/^['"]|['"]$/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, "");
+      return raw.startsWith("javascript:") ? "" : m;
+    },
+  );
+
+  s = s
+    .replace(/>\s+</g, "><")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return s;
+}
+
+function svgToObjectUrl(svg: string) {
+  const s = ensureSvgHasXmlns(svg);
+  const blob = new Blob([s], { type: "image/svg+xml;charset=utf-8" });
+  return URL.createObjectURL(blob);
+}
+
+function loadSvgImage(svg: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = svgToObjectUrl(svg);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(
+        new Error(
+          "Could not render this SVG. Try embedding fonts/images, removing external references, or simplifying filters.",
+        ),
+      );
+    };
+
+    img.src = url;
+  });
+}
+
+/*
+Inject output sizing into SVG so rasterization is predictable.
+- If SVG has viewBox, keep it.
+- If missing viewBox, create one from detected size.
+- Always set width/height to requested output px (not dpiScale px).
+*/
+function withRasterViewport(
+  svg: string,
+  outW: number,
+  outH: number,
+  info: SvgInfo | null,
+) {
+  let s = ensureSvgHasXmlns(svg);
+
+  const openMatch = s.match(/<svg\b[^>]*>/i);
+  if (!openMatch) return s;
+  const open = openMatch[0];
+
+  let next = open;
+
+  const hasVB = /viewBox\s*=\s*["'][^"']*["']/i.test(next);
+  if (!hasVB) {
+    const vbW = Math.max(1, Math.round(info?.width || outW));
+    const vbH = Math.max(1, Math.round(info?.height || outH));
+    next = setOrReplaceAttr(next, "viewBox", `0 0 ${vbW} ${vbH}`);
+  }
+
+  next = setOrReplaceAttr(next, "width", `${outW}`);
+  next = setOrReplaceAttr(next, "height", `${outH}`);
+
+  if (!/preserveAspectRatio\s*=/.test(next)) {
+    next = setOrReplaceAttr(next, "preserveAspectRatio", "xMidYMid meet");
+  }
+
+  return s.replace(open, next);
+}
+
+function setOrReplaceAttr(tag: string, name: string, value: string) {
+  const re = new RegExp(`\\s${name}\\s*=\\s*["'][^"']*["']`, "i");
+  if (re.test(tag)) {
+    return tag.replace(
+      re,
+      ` ${name}="${String(value).replace(/"/g, "&quot;")}"`,
+    );
+  }
+  return tag.replace(
+    /<svg\b/i,
+    (m) => `${m} ${name}="${String(value).replace(/"/g, "&quot;")}"`,
   );
 }
 
@@ -957,7 +1081,7 @@ function JsonLdBreadcrumbs() {
 }
 
 /* ========================
-   FAQ JSON-LD
+   FAQ JSON-LD (deduped + aligned with visible FAQ)
 ======================== */
 function JsonLdFaq() {
   const data = {
@@ -977,7 +1101,7 @@ function JsonLdFaq() {
         name: "Can WebP be transparent?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. WebP supports transparency. Choose “Transparent” background to keep the alpha channel, or “Solid color” to flatten onto a background.",
+          text: "Yes. WebP supports transparency. Choose Transparent background to keep the alpha channel, or Solid color to flatten onto a background.",
         },
       },
       {
@@ -985,7 +1109,7 @@ function JsonLdFaq() {
         name: "Can I set a custom width and height?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. Set output width and height in pixels. Enable “Lock aspect ratio” to keep the original proportions.",
+          text: "Yes. Set output width and height in pixels. Enable Lock aspect ratio to keep the original proportions.",
         },
       },
       {
@@ -993,7 +1117,7 @@ function JsonLdFaq() {
         name: "How do I reduce WebP file size?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Lower the WebP quality slider or export at a smaller width/height. Lower quality and smaller dimensions produce smaller files.",
+          text: "Lower the WebP quality slider or export at a smaller width and height. Lower quality and smaller dimensions produce smaller files.",
         },
       },
       {
@@ -1006,16 +1130,19 @@ function JsonLdFaq() {
       },
     ],
   };
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }
 
 /* ========================
-   SEO sections
+   SEO sections (includes visible FAQ)
 ======================== */
 function SeoSections() {
   return (
@@ -1037,12 +1164,14 @@ function SeoSections() {
             and control <strong>WebP quality</strong> so the output matches your
             exact use case.
           </p>
+
           <p className="mt-2 text-slate-600">
             Instant <b>SVG to WebP</b> conversion in your browser. Resize
             width/height, keep aspect ratio, choose a <b>transparent</b> or{" "}
             <b>solid</b> background, set WebP quality, and download.{" "}
             <b>No uploads</b>, no server processing.
           </p>
+
           <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">
@@ -1072,6 +1201,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1087,6 +1217,7 @@ function SeoSections() {
               />
             </div>
           )}
+
           <section>
             <h3 className="m-0 font-bold">What the converter does</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
@@ -1105,62 +1236,6 @@ function SeoSections() {
                 transparent and solid backgrounds, preview the result, and
                 export again.
               </p>
-              <p>
-                WebP is especially handy for preview images, marketing assets,
-                and UI graphics where you want good visual quality at smaller
-                file sizes. It is also a practical replacement for PNG when you
-                still need alpha transparency, as long as your target platform
-                supports WebP.
-              </p>
-            </div>
-          </section>
-
-          <section className="mt-8 not-prose">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="text-sm font-semibold text-slate-900">
-                Quick presets (common workflows)
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Icons and UI assets
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Use <strong>Transparent</strong> background, set pixel ratio
-                    to <strong>2×</strong>, then reduce WebP quality only if you
-                    need a smaller file.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Thumbnails and previews
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Reduce dimensions first, then lower{" "}
-                    <strong>WebP quality</strong> to reach a size target without
-                    obvious artifacts.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Solid-background exports
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Choose <strong>Solid</strong> background when the asset will
-                    sit on a known color, or when you want predictable edges on
-                    light/dark surfaces.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Fine text or thin strokes
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Export larger or increase pixel ratio. Compression cannot
-                    recover detail that was never rendered.
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
 
@@ -1180,22 +1255,13 @@ function SeoSections() {
               </li>
               <li itemProp="step">Pick Transparent or Solid background.</li>
               <li itemProp="step">
-                Adjust WebP quality if you want a smaller file.
+                Adjust Quality (pixel ratio) and WebP quality to hit your
+                target.
               </li>
               <li itemProp="step">
                 Click Convert to WebP, then Download WebP.
               </li>
             </ol>
-          </section>
-
-          <section className="mt-8">
-            <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Export SVG logos/icons to WebP for faster web pages</li>
-              <li>Generate transparent WebP assets from SVG</li>
-              <li>Create WebP previews for listings, blogs, and docs</li>
-              <li>Reduce file size with the quality slider</li>
-            </ul>
           </section>
 
           <section className="mt-8">
@@ -1206,12 +1272,12 @@ function SeoSections() {
                 or export larger dimensions.
               </li>
               <li>
-                Use <strong>Transparent</strong> background for icons/stickers;
-                use <strong>Solid</strong> background for assets that need a
-                consistent backdrop.
+                Use <strong>Transparent</strong> background for icons and
+                overlays; use <strong>Solid</strong> background when you need a
+                predictable backdrop.
               </li>
               <li>
-                If your SVG uses external fonts/images, embed them for better
+                If your SVG uses external fonts or images, embed them for better
                 compatibility.
               </li>
             </ul>
@@ -1219,57 +1285,108 @@ function SeoSections() {
 
           <section>
             <h3 className="m-0 font-bold">FAQ</h3>
-            <div className="mt-3 grid gap-4">
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Does this upload my SVG?
+
+            <div className="not-prose mt-3 grid gap-3">
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Does this SVG to WebP converter upload my file?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  No. The conversion runs in your browser and your file never
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  No. The conversion runs in your browser and your SVG never
                   leaves your device.
-                </p>
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Can WebP be transparent?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Can WebP be transparent?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
                   Yes. Choose Transparent background to keep transparency, or
-                  Solid to flatten onto a background color.
-                </p>
+                  Solid color to flatten onto a background.
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Can I set a custom width and height?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Can I set a custom width and height?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
                   Yes. Set width and height in pixels. Turn on Lock aspect ratio
                   to keep the original proportions.
-                </p>
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  How do I reduce file size?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>How do I reduce WebP file size?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  Lower WebP quality or export smaller dimensions. Both reduce
-                  the final file size.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  Lower WebP quality or export smaller dimensions. Smaller
+                  dimensions often reduce size more than aggressive quality
+                  loss.
+                </div>
               </details>
 
-              <details className="rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="cursor-pointer font-semibold">
-                  Why won’t some SVGs convert?
+              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                  <span>Why won’t some SVGs convert?</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                    +
+                  </span>
                 </summary>
-                <p className="mt-2 text-slate-700">
-                  Some SVGs depend on external fonts/images or unsupported
-                  features that can’t be rendered to canvas. Embed assets when
-                  possible.
-                </p>
+                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                  Some SVGs depend on external fonts or images, or use features
+                  the browser cannot rasterize reliably. Embed assets when
+                  possible or simplify the SVG.
+                </div>
               </details>
+            </div>
+          </section>
+
+          <section className="mt-10 not-prose">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Related tools
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-to-png-converter"
+                >
+                  SVG to PNG
+                </a>
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-to-jpg-converter"
+                >
+                  SVG to JPG
+                </a>
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-resize-and-scale-editor"
+                >
+                  SVG Resize / Scale
+                </a>
+                <a
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  href="/svg-recolor"
+                >
+                  SVG Recolor
+                </a>
+              </div>
             </div>
           </section>
         </article>

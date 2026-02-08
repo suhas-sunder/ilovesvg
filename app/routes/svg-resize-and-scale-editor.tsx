@@ -3,7 +3,6 @@ import type { Route } from "./+types/svg-resize-and-scale-editor";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -102,7 +101,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
   const [svgText, setSvgText] = React.useState<string>("");
   const [info, setInfo] = React.useState<SvgInfo | null>(null);
 
-  // Preview upload only
+  // Input preview
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
   // Output
@@ -157,13 +156,25 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
     }
   }
 
-  async function handleNewFile(f: File) {
-    setErr(null);
+  function setPreviewFromSvg(nextSvg: string) {
+    const svg = ensureSvgHasXmlns(nextSvg);
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    });
+  }
+
+  function clearOutput() {
     setOutSvg("");
     setOutPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return null;
     });
+  }
+
+  async function handleNewFile(f: File) {
+    setErr(null);
+    clearOutput();
 
     if (
       !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
@@ -171,8 +182,6 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
       setErr("Please choose an SVG file.");
       return;
     }
-
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setFile(f);
 
@@ -190,13 +199,6 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
     const baseW = parsed.width ?? parsed.vb?.w ?? 1024;
     const baseH = parsed.height ?? parsed.vb?.h ?? 1024;
 
-    const aspect =
-      (parsed.aspect && Number.isFinite(parsed.aspect) && parsed.aspect > 0
-        ? parsed.aspect
-        : baseW > 0 && baseH > 0
-          ? baseW / baseH
-          : 1) || 1;
-
     setSettings((s) => ({
       ...s,
       fileName: baseName,
@@ -208,24 +210,26 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
       setPreserveAspectRatio: "xMidYMid meet",
     }));
 
-    const url = URL.createObjectURL(
-      new Blob([coerced], { type: "image/svg+xml" }),
-    );
-    setPreviewUrl(url);
+    setPreviewFromSvg(coerced);
 
-    // Also generate an initial output that matches input settings
+    // Initial output
     tryConvert(coerced, parsed);
   }
 
   function clearAll() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    if (outPreviewUrl) URL.revokeObjectURL(outPreviewUrl);
+    setPreviewUrl((u) => {
+      if (u) URL.revokeObjectURL(u);
+      return null;
+    });
+    setOutPreviewUrl((u) => {
+      if (u) URL.revokeObjectURL(u);
+      return null;
+    });
+
     setFile(null);
     setSvgText("");
     setInfo(null);
-    setPreviewUrl(null);
     setOutSvg("");
-    setOutPreviewUrl(null);
     setErr(null);
   }
 
@@ -244,7 +248,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
     }
   }
 
-  // Convert whenever settings change (this is a text edit, cheap)
+  // Convert whenever settings or svgText changes
   React.useEffect(() => {
     if (!svgText) return;
     tryConvert();
@@ -293,7 +297,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG Resize & Scale", href: "/svg-resize" },
+    { name: "SVG Resize & Scale", href: "/svg-resize-and-scale-editor" },
   ];
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -390,10 +394,11 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                     <textarea
                       value={svgText}
                       onChange={(e) => {
-                        setSvgText(ensureSvgHasXmlns(e.target.value));
-                        setInfo(
-                          parseSvgInfo(ensureSvgHasXmlns(e.target.value)),
-                        );
+                        const next = ensureSvgHasXmlns(e.target.value);
+                        setSvgText(next);
+                        const parsed = parseSvgInfo(next);
+                        setInfo(parsed);
+                        setPreviewFromSvg(next);
                       }}
                       className="mt-2 w-full h-[240px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
                       spellCheck={false}
@@ -676,7 +681,6 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                   )}
                 </div>
 
-                {/* Actions stay outside advanced panel */}
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   <button
                     type="button"
@@ -705,17 +709,17 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                 <div className="mt-3 text-[13px] text-slate-600">
                   Notes: Changing <b>width/height</b> affects display size.
                   Updating <b>viewBox</b> changes the internal coordinate
-                  system. Use “Match output” when you want the coordinate system
+                  system. Use Match output when you want the coordinate system
                   to match your new size.
                 </div>
               </div>
 
               {/* OUTPUT PREVIEW */}
-              <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
+              <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-slate-200">
                 <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
                   Output preview
                 </div>
-                <div className="p-3">
+                <div className="p-3 ">
                   {outPreviewUrl ? (
                     <img
                       src={outPreviewUrl}
@@ -768,6 +772,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -779,10 +784,11 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <JsonLdBreadcrumbs />
-      <JsonLdFaq />
 
+      {/* IMPORTANT: removed JsonLdFaq to prevent duplicated FAQ schema */}
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
@@ -814,17 +820,14 @@ function resizeSvg(
   const outH = clampInt(settings.height, 1, 100000);
   const unit = settings.unit || "px";
 
-  // Build new <svg ...> tag by editing attributes safely
   let newOpen = openTag;
 
-  // Always set preserveAspectRatio (useful esp. when responsive)
   newOpen = setOrReplaceAttr(
     newOpen,
     "preserveAspectRatio",
     settings.setPreserveAspectRatio,
   );
 
-  // width/height or responsive mode
   if (settings.makeResponsive) {
     newOpen = removeAttr(newOpen, "width");
     newOpen = removeAttr(newOpen, "height");
@@ -833,7 +836,6 @@ function resizeSvg(
     newOpen = setOrReplaceAttr(newOpen, "height", `${outH}${unit}`);
   }
 
-  // Optional: remove width/height from style="" to avoid conflicts
   if (settings.stripSizeStyle) {
     newOpen = newOpen.replace(/\sstyle\s*=\s*["']([^"']*)["']/i, (m, style) => {
       const cleaned = String(style)
@@ -846,15 +848,12 @@ function resizeSvg(
     });
   }
 
-  // viewBox handling
   const vb = info?.vb || parseViewBox(matchAttr(openTag, "viewBox"));
   const mode = settings.viewBoxMode;
 
   if (mode === "match-output") {
     newOpen = setOrReplaceAttr(newOpen, "viewBox", `0 0 ${outW} ${outH}`);
   } else if (mode === "scale-vb") {
-    // If there is a viewBox, scale its w/h proportionally to output change.
-    // If no viewBox, create one from detected size.
     const baseW = info?.width ?? vb?.w ?? outW;
     const baseH = info?.height ?? vb?.h ?? outH;
 
@@ -876,9 +875,7 @@ function resizeSvg(
       `${baseVB.minX} ${baseVB.minY} ${newVBW} ${newVBH}`,
     );
   } else {
-    // keep as-is
     if (settings.makeResponsive) {
-      // If responsive but missing viewBox, create one
       const hasVB = /viewBox\s*=\s*["'][^"']*["']/i.test(newOpen);
       if (!hasVB) {
         newOpen = setOrReplaceAttr(newOpen, "viewBox", `0 0 ${outW} ${outH}`);
@@ -886,7 +883,6 @@ function resizeSvg(
     }
   }
 
-  // Replace the open tag
   svg = svg.replace(openTag, newOpen);
 
   if (settings.optimizeWhitespace) {
@@ -1155,68 +1151,7 @@ function JsonLdBreadcrumbs() {
 }
 
 /* ========================
-   FAQ JSON-LD
-======================== */
-function JsonLdFaq() {
-  const data = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Does this SVG resize tool upload my file?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. The SVG is edited directly in your browser. Nothing is uploaded to a server.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What is the difference between width/height and viewBox?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Width/height controls the display size of the SVG. The viewBox defines the internal coordinate system. Changing viewBox can change how content scales inside the SVG.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How do I make an SVG responsive?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Enable Responsive SVG to remove width/height attributes and keep a viewBox. The SVG will scale to its container in HTML/CSS.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Should I update the viewBox when resizing?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "If you only want a different display size, you can keep the existing viewBox. If you want the coordinate system to match the new size, set viewBox to 0 0 width height.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can I scale an SVG by percentage?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Use the Scale (%) control to resize based on the original SVG dimensions or viewBox size.",
-        },
-      },
-    ],
-  };
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
-}
-
-/* ========================
    SEO sections
-======================== */
-/* ========================
-   SEO sections (expanded for SEO + Adsense)
 ======================== */
 function SeoSections() {
   return (
@@ -1238,11 +1173,13 @@ function SeoSections() {
             <strong>entirely in your browser</strong>, so the SVG never needs to
             leave your device.
           </p>
+
           <p className="mt-2 text-slate-600">
             Resize an SVG by changing <b>width</b>/<b>height</b>, scaling by
             percentage, and optionally updating <b>viewBox</b> and{" "}
             <b>preserveAspectRatio</b>. This runs fully client-side.
           </p>
+
           <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">Resize</div>
@@ -1267,6 +1204,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1282,434 +1220,31 @@ function SeoSections() {
               />
             </div>
           )}
+
           <section>
             <h3 className="m-0 font-bold">What this tool actually changes</h3>
             <div className="mt-3 grid gap-3 text-slate-700">
               <p>
-                SVG sizing is split into two separate layers: the{" "}
-                <strong>viewport</strong> (what the SVG claims as its rendered
-                size) and the <strong>viewBox</strong> (the coordinate space
-                that content is drawn in). Many “resizing” issues come from
-                changing one layer while the other stays the same, or from
-                missing size metadata entirely.
+                SVG sizing is split into two layers: the{" "}
+                <strong>viewport</strong> (rendered size) and the{" "}
+                <strong>viewBox</strong> (internal coordinate space). Many
+                resizing problems happen when one changes while the other stays
+                the same, or when size metadata is missing.
               </p>
               <p>
-                When you edit <code>width</code> and <code>height</code>, you
-                are changing the <strong>viewport</strong>. That affects how
-                large the SVG displays in a browser and how it is laid out by
-                HTML/CSS. When you edit <code>viewBox</code>, you are changing
-                the <strong>mapping</strong> between viewport pixels and
-                internal units, which can change how content scales, fits, or
-                appears to “crop” if the drawing doesn’t match the viewBox
-                bounds.
+                Editing <code>width</code> and <code>height</code> changes the
+                viewport. Editing <code>viewBox</code> changes how internal
+                units map to the viewport, which can affect scaling and fitting
+                if the drawing does not match the viewBox bounds.
               </p>
               <p>
-                This tool is built for practical outcomes: normalize icon sizes,
-                make exports behave consistently in other apps, and produce
-                predictable responsive SVGs. It detects the best available
-                sizing reference (explicit width/height first, then viewBox when
-                needed), applies your chosen rules, and outputs a clean SVG you
-                can download and reuse.
+                This tool detects the best sizing reference (explicit
+                width/height first, then viewBox), applies your rules, and
+                outputs a clean SVG you can download.
               </p>
             </div>
           </section>
 
-          <section className="mt-8 not-prose">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="text-sm font-semibold text-slate-900">
-                Best practice defaults
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    For icons and UI
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Change <strong>width/height</strong>, keep the existing{" "}
-                    <strong>viewBox</strong>, and keep{" "}
-                    <code>preserveAspectRatio</code> on{" "}
-                    <code>xMidYMid meet</code>.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    For editing in design tools
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Use <strong>Match output</strong> viewBox so coordinates
-                    align with the new size, especially when you need
-                    predictable measurement behavior.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    For responsive SVGs
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Remove <strong>width/height</strong> (Responsive SVG) and
-                    ensure a valid <strong>viewBox</strong> exists so CSS sizing
-                    works cleanly.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    For quick proportional changes
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Use <strong>Scale (%)</strong> to apply consistent ratios
-                    like 50%, 200%, or 300% without hand-editing both
-                    dimensions.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-8">
-            <h3 className="m-0 font-bold">Practical controls that matter</h3>
-            <div className="mt-3 grid gap-4 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">
-                  Resize by width/height (exact output)
-                </h4>
-                <p className="mt-1">
-                  Use this when you need a specific rendered size, like a 24×24
-                  icon or a 512×512 export. With{" "}
-                  <strong>Lock aspect ratio</strong> enabled, you can change one
-                  dimension and have the other follow, which avoids accidental
-                  distortion.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">
-                  Scale by percentage (fast normalization)
-                </h4>
-                <p className="mt-1">
-                  Scaling is the quickest way to apply consistent changes across
-                  a set of SVGs. If an SVG lacks explicit dimensions, the tool
-                  can use the <code>viewBox</code> as the reference. The result
-                  is still a standard SVG, but you avoid manual math and
-                  mismatched rounding across files.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">
-                  viewBox options (choose intentionally)
-                </h4>
-                <p className="mt-1">
-                  Keeping the viewBox preserves the original drawing space. That
-                  is usually what you want when the art is already correct and
-                  you are only changing display size.{" "}
-                  <strong>Match output</strong> updates the viewBox to{" "}
-                  <code>0 0 W H</code>, making the internal units line up with
-                  the new size, which is useful when other tools depend on
-                  coordinate measurements. A scaled viewBox can be useful when
-                  you want to preserve how the SVG “feels” internally while
-                  changing the viewport.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">
-                  preserveAspectRatio (fit behavior)
-                </h4>
-                <p className="mt-1">
-                  If an SVG is being fit into a box (HTML, design app frames,
-                  exports), <code>preserveAspectRatio</code> decides whether it
-                  letterboxes, crops, or stretches. <code>xMidYMid meet</code>{" "}
-                  is the safe default. Use <code>slice</code> only when you want
-                  a full-bleed fill and accept cropping. Use <code>none</code>{" "}
-                  only when stretching is desired.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-8 not-prose">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="text-sm font-semibold text-slate-900">
-                Common output goals
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Standardize a whole icon set
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Set a consistent width/height (like 24×24 or 32×32), keep
-                    the viewBox, and lock aspect ratio when needed. This keeps
-                    icons visually consistent in UI layouts.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Prevent “mystery scaling” later
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    If your pipeline includes multiple apps, explicitly set
-                    width/height with <strong>px</strong> units and keep{" "}
-                    <code>preserveAspectRatio</code> on meet so the same file
-                    behaves consistently.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Make the SVG responsive
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Remove width/height and rely on a valid viewBox. Then
-                    control size with CSS (container width, max-width, height
-                    auto). This is the cleanest approach for web.
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-900">
-                    Match coordinates for editing
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Use Match output viewBox so internal units map to the new
-                    size. This helps when you measure, align, or edit geometry
-                    in downstream tools.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* HowTo */}
-          <section itemScope itemType="https://schema.org/HowTo">
-            <h3 itemProp="name" className="m-0 font-bold">
-              How to Resize an SVG
-            </h3>
-            <p className="mt-2" itemProp="description">
-              Follow these steps to resize an SVG for web, apps, UI icons,
-              presentations, or design exports.
-            </p>
-
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">Upload or paste an SVG file.</li>
-              <li itemProp="step">
-                Set <strong>width</strong> and <strong>height</strong>, and
-                enable <strong>Lock aspect ratio</strong> if needed.
-              </li>
-              <li itemProp="step">
-                Choose <strong>viewBox handling</strong> based on your goal.
-              </li>
-              <li itemProp="step">
-                (Optional) Enable <strong>Responsive SVG</strong> to remove
-                width/height.
-              </li>
-              <li itemProp="step">Download the resized SVG.</li>
-            </ol>
-          </section>
-
-          {/* Core concepts */}
-          <section>
-            <h3 className="m-0 font-bold">Resize vs Scale vs viewBox</h3>
-
-            <div className="mt-3 grid gap-5 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">1) Changing width and height</h4>
-                <p className="mt-1">
-                  Updating <code>width</code> and <code>height</code> changes
-                  the
-                  <strong> display size</strong>. This is the safest option for
-                  icons, UI graphics, and most web SVG usage.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">2) Scaling by percentage</h4>
-                <p className="mt-1">
-                  Scaling applies a proportional resize based on the original
-                  dimensions (or viewBox when width/height are missing). It is
-                  useful when you want quick consistent sizing like 50%, 200%,
-                  or 300%.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">3) viewBox handling</h4>
-                <p className="mt-1">
-                  The <code>viewBox</code> defines the internal coordinate
-                  system. Keeping it unchanged preserves the original drawing
-                  space. Matching the viewBox to the output is helpful for
-                  editing downstream in design tools, or when you want 1 unit to
-                  equal 1 pixel in the new size.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">4) preserveAspectRatio</h4>
-                <p className="mt-1">
-                  <code>preserveAspectRatio</code> controls how the SVG fits its
-                  viewport.
-                  <code>xMidYMid meet</code> is the common default,{" "}
-                  <code>slice</code>
-                  crops to fill, and <code>none</code> allows stretching.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Troubleshooting */}
-          <section>
-            <h3 className="m-0 font-bold">
-              Common Resize Problems (and Fixes)
-            </h3>
-
-            <div className="mt-3 grid gap-4 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">My SVG looks stretched</h4>
-                <p className="mt-1">
-                  Turn on <strong>Lock aspect ratio</strong>, and keep{" "}
-                  <code>preserveAspectRatio</code> set to{" "}
-                  <code>xMidYMid meet</code>.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">
-                  Nothing changes when I edit width/height
-                </h4>
-                <p className="mt-1">
-                  Some SVGs are styled by CSS or embedded in a layout that
-                  overrides size. Try enabling <strong>Responsive SVG</strong>{" "}
-                  and control size via CSS in your app or page.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">
-                  The SVG crops or has extra whitespace
-                </h4>
-                <p className="mt-1">
-                  If the artwork is not aligned with the viewBox, use{" "}
-                  <strong>Match output</strong> for viewBox or keep the existing
-                  viewBox if you only want display-size changes.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">The file has no width/height</h4>
-                <p className="mt-1">
-                  Many responsive SVGs rely on viewBox only. This tool detects
-                  the viewBox and uses it as a sizing reference for scaling and
-                  output preview.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="m-0 font-bold">
-                  Design tools show a different size than the browser
-                </h4>
-                <p className="mt-1">
-                  Some tools interpret missing units differently. If you need
-                  predictability, use <strong>px</strong> units and set both
-                  width and height explicitly.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Quick reference table */}
-          <section>
-            <h3 className="m-0 font-bold">Quick Reference</h3>
-            <p className="mt-2 text-slate-700">
-              Use this chart to pick the right setting fast.
-            </p>
-
-            <div className="mt-3 overflow-x-auto not-prose">
-              <table className="min-w-[760px] w-full border border-slate-200 rounded-xl overflow-hidden">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="text-left text-sm p-3 border-b border-slate-200">
-                      Goal
-                    </th>
-                    <th className="text-left text-sm p-3 border-b border-slate-200">
-                      Width/Height
-                    </th>
-                    <th className="text-left text-sm p-3 border-b border-slate-200">
-                      viewBox
-                    </th>
-                    <th className="text-left text-sm p-3 border-b border-slate-200">
-                      preserveAspectRatio
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="bg-white">
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Just change display size
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Set exact values
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Keep existing
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      xMidYMid meet
-                    </td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Make SVG responsive
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Remove (Responsive SVG)
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Must exist (create if missing)
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      meet (typical)
-                    </td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Coordinate system matches new size
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Set exact values
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      Match output (0 0 W H)
-                    </td>
-                    <td className="p-3 border-b border-slate-200 text-sm">
-                      meet
-                    </td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="p-3 text-sm">
-                      Scale everything proportionally
-                    </td>
-                    <td className="p-3 text-sm">Use Scale (%)</td>
-                    <td className="p-3 text-sm">Keep or scale-vb</td>
-                    <td className="p-3 text-sm">meet</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Use cases */}
-          <section>
-            <h3 className="m-0 font-bold">When This Tool Is Useful</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Normalizing icon sizes across a design system</li>
-              <li>Fixing missing or incorrect viewBox values</li>
-              <li>Preparing SVGs for responsive web layouts</li>
-              <li>Scaling exported SVG artwork for slides or documents</li>
-              <li>
-                Reducing layout bugs caused by style width/height overrides
-              </li>
-            </ul>
-          </section>
-
-          {/* Internal linking block */}
           <section className="mt-10 not-prose">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div className="text-sm font-semibold text-slate-900">
@@ -1750,9 +1285,8 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* FAQ (expanded, visible content for SEO + UX) */}
           <section>
-            <h3 className="m-0 font-bold">FAQ</h3>
+            <h3 className="mt-8 font-bold">FAQ</h3>
 
             <div className="not-prose mt-3 grid gap-3">
               <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -1838,29 +1372,6 @@ function SeoSections() {
                   preserveAspectRatio on meet.
                 </div>
               </details>
-            </div>
-          </section>
-
-          {/* Bottom filler paragraph for adsense-friendly length */}
-          <section>
-            <h3 className="m-0 font-bold">Tips for Best Results</h3>
-            <div className="mt-3 grid gap-3 text-slate-700">
-              <p>
-                For most web use, keep the original viewBox and change
-                width/height. If you are exporting SVGs for editing in another
-                tool, matching the viewBox to output often prevents confusion
-                and makes measurements line up with the new size. If your SVG is
-                meant to be responsive, remove width and height and rely on the
-                viewBox. In CSS, you can set a container width and let the SVG
-                scale naturally.
-              </p>
-              <p>
-                If an SVG behaves differently across environments, check for
-                size rules in CSS, inline styles, or parent container
-                constraints. For predictable behavior, use px units and set
-                preserveAspectRatio to meet unless you explicitly want
-                stretching or cropping.
-              </p>
             </div>
           </section>
         </article>

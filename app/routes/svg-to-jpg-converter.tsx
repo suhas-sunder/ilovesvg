@@ -3,7 +3,6 @@ import type { Route } from "./+types/svg-to-jpg-converter";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -83,7 +82,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
   const [svgText, setSvgText] = React.useState<string>("");
   const [svgInfo, setSvgInfo] = React.useState<SvgInfo | null>(null);
 
-  // Live upload preview only
+  // Live upload preview only (data URL)
   const [previewSvgUrl, setPreviewSvgUrl] = React.useState<string | null>(null);
 
   // Convert on demand
@@ -93,12 +92,6 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
-    };
-  }, [previewSvgUrl]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -148,8 +141,6 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
       return;
     }
 
-    if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
-
     setFile(f);
 
     const text = await f.text();
@@ -175,12 +166,11 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
       background: "solid",
     }));
 
-    // Use data URL for preview (more predictable than Blob URL)
+    // Use data URL for preview (predictable for SVG)
     setPreviewSvgUrl(svgToDataUrl(ensureSvgHasXmlns(safeText)));
   }
 
   function clearAll() {
-    if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
     setFile(null);
     setSvgText("");
     setSvgInfo(null);
@@ -300,6 +290,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                   )}
                 </>
               )}
+
               {/* Live upload preview only */}
               {previewSvgUrl && (
                 <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
@@ -630,9 +621,6 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
 /* ========================
    Conversion
 ======================== */
-/* ========================
-   Replace svgToJpgDataUrl with this (predictable raster + less failures)
-======================== */
 async function svgToJpgDataUrl(
   svgText: string,
   svgInfo: SvgInfo | null,
@@ -658,7 +646,7 @@ async function svgToJpgDataUrl(
   const sizedSvg = withRasterViewport(sanitized, outW, outH, info);
 
   // Load via data URL (avoids object URL + some cross-origin edge cases)
-  const img = await loadImage(svgToDataUrl(sizedSvg));
+  const img = await loadImage(sizedSvg);
 
   const canvas = document.createElement("canvas");
   canvas.width = pxW;
@@ -681,12 +669,6 @@ async function svgToJpgDataUrl(
   return { dataUrl, width: pxW, height: pxH };
 }
 
-function clamp01(v: number) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0.9;
-  return Math.max(0.1, Math.min(1, n));
-}
-
 function ensureSvgHasXmlns(svg: string) {
   const hasSvg = /<svg\b/i.test(svg);
   if (!hasSvg) return `<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
@@ -706,9 +688,6 @@ function downloadDataUrl(dataUrl: string, filename: string) {
 
 /* ========================
    SVG size parsing
-======================== */
-/* ========================
-   Replace parseSvgSize with unit-aware version (px/in/cm/mm/pt/pc)
 ======================== */
 function parseSvgSize(svg: string): SvgInfo | null {
   const open = svg.match(/<svg\b[^>]*>/i)?.[0];
@@ -772,15 +751,6 @@ function matchAttr(tag: string, name: string): string | null {
   return m ? m[1] : null;
 }
 
-function parseNumber(s: string): number | null {
-  const m = String(s)
-    .trim()
-    .match(/^(-?\d+(\.\d+)?)/);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n !== 0 ? Math.abs(n) : null;
-}
-
 function clampInt(v: number, lo: number, hi: number) {
   const n = Math.round(Number(v));
   if (!Number.isFinite(n)) return lo;
@@ -803,7 +773,7 @@ function safeFileName(name: string) {
 }
 
 /* ========================
-   UI helpers
+   SVG sanitization + raster helpers
 ======================== */
 function sanitizeSvgForRaster(svg: string) {
   // light but effective: remove scripts, foreignObject, event handlers, javascript: hrefs
@@ -814,6 +784,8 @@ function sanitizeSvgForRaster(svg: string) {
   s = s.replace(/<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi, "");
   s = s.replace(/<foreignObject\b[^>]*\/\s*>/gi, "");
   s = s.replace(/\s(on[a-zA-Z]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/g, "");
+  // Remove external url(http...) references inside style attributes
+  s = s.replace(/url\(\s*['"]?https?:[^)]+?\)/gi, "");
   s = s.replace(
     /\s(?:href|xlink:href)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
     (m) => {
@@ -848,14 +820,9 @@ function clampJpegQuality(v: number) {
 }
 
 function svgToDataUrl(svg: string) {
-  // safest way to load SVG into <img> without CORS taint from Blob URL edge cases
-  const encoded = encodeURIComponent(svg)
-    .replace(/%0A/g, "")
-    .replace(/%20/g, " ")
-    .replace(/%3D/g, "=")
-    .replace(/%3A/g, ":")
-    .replace(/%2F/g, "/");
-  return `data:image/svg+xml;charset=utf-8,${encoded}`;
+  const s = ensureSvgHasXmlns(svg);
+  const blob = new Blob([s], { type: "image/svg+xml;charset=utf-8" });
+  return URL.createObjectURL(blob);
 }
 
 /*
@@ -910,24 +877,64 @@ function setOrReplaceAttr(tag: string, name: string, value: string) {
   );
 }
 
-/* ========================
-   Replace loadImage with this (better SVG handling)
-======================== */
-function loadImage(url: string): Promise<HTMLImageElement> {
+function loadImage(svg: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
+    const url = svgToDataUrl(svg);
     const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () =>
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
       reject(
         new Error(
-          "Could not render this SVG. Try embedding fonts/images, removing external references, or simplifying filters.",
+          "Could not render this SVG. If it contains external fonts/images or foreignObject, inline them or simplify the SVG.",
         ),
       );
+    };
+
     img.src = url;
   });
 }
 
+function sniffSvgIssues(svg: string): string | null {
+  const s = svg.toLowerCase();
+
+  // external refs that commonly break canvas rendering
+  const hasHttp =
+    s.includes('href="http') ||
+    s.includes("href='http") ||
+    s.includes('xlink:href="http') ||
+    s.includes("xlink:href='http");
+
+  const hasImageTag = s.includes("<image");
+  const hasFontFace = s.includes("@font-face") || s.includes("<font-face");
+  const hasUseHref =
+    s.includes("<use") && (s.includes("href=") || s.includes("xlink:href="));
+  const hasForeignObject = s.includes("<foreignobject");
+  const hasFilter = s.includes("<filter") || s.includes("filter=");
+
+  if (hasHttp)
+    return "It looks like the SVG references an external URL (http/https). Inline/embedded assets are required for canvas export.";
+  if (hasForeignObject)
+    return "This SVG uses <foreignObject>, which is frequently not renderable to canvas.";
+  if (hasImageTag)
+    return "This SVG contains <image> references. If they point to external files, embed them as data URIs.";
+  if (hasFontFace)
+    return "This SVG may rely on external fonts. Convert text to paths or embed fonts.";
+  if (hasUseHref)
+    return "This SVG uses <use href=...>. Some browsers are picky; try expanding symbols or inlining referenced elements.";
+  if (hasFilter)
+    return "This SVG uses filters. Some filters can fail rasterization; try simplifying/removing filters.";
+  return null;
+}
+
+/* ========================
+   UI helpers
+======================== */
 function Field({
   label,
   children,
@@ -988,7 +995,10 @@ function Breadcrumbs({
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((c, i) => (
             <li key={c.href} className="flex items-center gap-2">
-              <a href={c.href} className="hover:text-slate-900">
+              <a
+                href={c.href}
+                className="hover:text-slate-900 hover:underline underline-offset-4 cursor-pointer"
+              >
                 {c.name}
               </a>
               {i < crumbs.length - 1 ? (
@@ -1050,7 +1060,7 @@ function JsonLdFaq() {
         name: "Can I set a custom width and height?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. You can set output width and height in pixels. Enable “Lock aspect ratio” to keep the original proportions.",
+          text: "Yes. You can set output width and height in pixels. Enable Lock aspect ratio to keep the original proportions.",
         },
       },
       {
@@ -1089,9 +1099,6 @@ function JsonLdFaq() {
 
 /* ========================
    SEO sections
-======================== */
-/* ========================
-   HIGH-ROI SEO + VISIBLE FAQ (replace SeoSections entirely)
 ======================== */
 function SeoSections() {
   return (
@@ -1146,6 +1153,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1161,15 +1169,16 @@ function SeoSections() {
               />
             </div>
           )}
+
           <section>
             <h3 className="m-0 font-bold">What the converter does</h3>
             <div className="mt-3 grid gap-4 text-slate-700">
               <p>
                 SVG is vector, meaning it scales without losing detail. JPG is
                 raster, meaning it is a fixed pixel grid. Converting SVG to JPG
-                is a deliberate “flattening” step where your SVG is rendered at
-                a chosen size and saved as a JPEG. That means your output is
-                only as sharp as the dimensions and pixel ratio you choose.
+                is a deliberate flattening step where your SVG is rendered at a
+                chosen size and saved as a JPEG. That means your output is only
+                as sharp as the dimensions and pixel ratio you choose.
               </p>
               <p>
                 This tool focuses on the few settings that decide whether the
@@ -1225,7 +1234,7 @@ function SeoSections() {
                   </div>
                   <div className="mt-1 text-sm text-slate-700">
                     Choose a background that matches the destination surface so
-                    the JPG doesn’t look “boxed” or mismatched.
+                    the JPG does not look boxed or mismatched.
                   </div>
                 </div>
               </div>
@@ -1390,25 +1399,25 @@ function SeoSections() {
               </div>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4 cursor-pointer"
                   href="/svg-to-png-converter"
                 >
                   SVG to PNG
                 </a>
                 <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4 cursor-pointer"
                   href="/svg-to-webp-converter"
                 >
                   SVG to WebP
                 </a>
                 <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4 cursor-pointer"
                   href="/svg-resize-and-scale-editor"
                 >
                   SVG Resize / Scale
                 </a>
                 <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
+                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4 cursor-pointer"
                   href="/svg-recolor"
                 >
                   SVG Recolor
