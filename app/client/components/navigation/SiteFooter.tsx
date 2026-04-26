@@ -47,6 +47,14 @@ export default function SiteFooter() {
             </ul>
           </nav>
         </div>
+
+        <p className="mt-5 max-w-[920px] text-xs leading-5 text-sky-200/55 text-center flex w-full mx-auto">
+          Affiliate disclosure: Some links on iLoveSVG may be affiliate links,
+          including links to services such as Sticker Mule, Printify, Cricut, or
+          similar partners. If you buy through those links, iLoveSVG may earn a
+          commission at no extra cost to you. Recommendations are included only
+          where they are relevant to the tool or guide.
+        </p>
       </div>
     </footer>
   );

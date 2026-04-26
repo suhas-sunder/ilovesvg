@@ -73,6 +73,30 @@ export default function NavBar() {
       // Color tool
       { label: "Color Picker", href: "/free-color-picker" },
 
+      // Cricut / craft routes
+      { label: "Sticker to SVG", href: "/sticker-to-svg-converter" },
+      { label: "PNG to SVG for Cricut", href: "/png-to-svg-for-cricut" },
+      {
+        label: "PNG to Layered SVG for Cricut",
+        href: "/png-to-layered-svg-for-cricut",
+      },
+      {
+        label: "PNG to SVG for Print Then Cut",
+        href: "/png-to-svg-for-cricut-print-then-cut",
+      },
+      {
+        label: "PNG to SVG for Vinyl",
+        href: "/png-to-svg-for-cricut-vinyl",
+      },
+      {
+        label: "PNG to SVG for Stickers",
+        href: "/png-to-svg-for-cricut-stickers",
+      },
+      {
+        label: "PNG to SVG for Laser Cutting",
+        href: "/png-to-svg-for-laser-cutting",
+      },
+
       // Raster -> SVG
       { label: "PNG to SVG", href: "/png-to-svg-converter" },
       { label: "JPG to SVG", href: "/jpg-to-svg-converter" },
@@ -82,7 +106,6 @@ export default function NavBar() {
       { label: "Icon to SVG", href: "/icon-to-svg-converter" },
       { label: "Emoji to SVG", href: "/emoji-to-svg-converter" },
       { label: "Text to SVG", href: "/text-to-svg-converter" },
-      { label: "Sticker to SVG", href: "/sticker-to-svg-converter" },
       { label: "Line Art to SVG", href: "/line-art-to-svg-converter" },
       { label: "Drawing to SVG", href: "/drawing-to-svg-converter" },
       { label: "Scan to SVG", href: "/scan-to-svg-converter" },

@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { StickerMuleAffiliateCard } from "~/client/components/ads/StickerMuleAffiliateCard";
 
 const isServer = typeof document === "undefined";
 
@@ -175,7 +176,10 @@ export async function action({ request }: ActionFunctionArgs) {
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
       return json(
-        { error: "Upload too large for layered conversion. Please resize and try again." },
+        {
+          error:
+            "Upload too large for layered conversion. Please resize and try again.",
+        },
         { status: 413 },
       );
     }
@@ -199,7 +203,9 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
       return json(
-        { error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB per image.` },
+        {
+          error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB per image.`,
+        },
         { status: 413 },
       );
     }
@@ -213,7 +219,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const retryAfterMs = Math.max(1500, Number(e?.retryAfterMs) || 2500);
       return json(
         {
-          error: "Server is busy building layered SVG files. Retrying automatically.",
+          error:
+            "Server is busy building layered SVG files. Retrying automatically.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -232,13 +239,25 @@ export async function action({ request }: ActionFunctionArgs) {
       const options: LayerOptions = {
         colorCount: clampInt(Number(form.get("colorCount") ?? 6), 2, 12),
         mergeDistance: clampInt(Number(form.get("mergeDistance") ?? 34), 8, 90),
-        minAreaPercent: clampNumber(Number(form.get("minAreaPercent") ?? 0.22), 0.02, 5),
+        minAreaPercent: clampNumber(
+          Number(form.get("minAreaPercent") ?? 0.22),
+          0.02,
+          5,
+        ),
         turdSize: clampInt(Number(form.get("turdSize") ?? 3), 0, 20),
-        optTolerance: clampNumber(Number(form.get("optTolerance") ?? 0.34), 0.05, 1.2),
+        optTolerance: clampNumber(
+          Number(form.get("optTolerance") ?? 0.34),
+          0.05,
+          1.2,
+        ),
         posterize: String(form.get("posterize") ?? "medium") as PosterizeMode,
-        smoothMasks: String(form.get("smoothMasks") ?? "true").toLowerCase() === "true",
-        includeBackground: String(form.get("includeBackground") ?? "false").toLowerCase() === "true",
-        transparent: String(form.get("transparent") ?? "true").toLowerCase() === "true",
+        smoothMasks:
+          String(form.get("smoothMasks") ?? "true").toLowerCase() === "true",
+        includeBackground:
+          String(form.get("includeBackground") ?? "false").toLowerCase() ===
+          "true",
+        transparent:
+          String(form.get("transparent") ?? "true").toLowerCase() === "true",
         bgColor: String(form.get("bgColor") ?? DEFAULT_BG),
       };
 
@@ -293,7 +312,10 @@ type LayerSummary = {
   percent: number;
 };
 
-async function buildLayeredSvg(input: Buffer, opts: LayerOptions): Promise<{
+async function buildLayeredSvg(
+  input: Buffer,
+  opts: LayerOptions,
+): Promise<{
   svg: string;
   width: number;
   height: number;
@@ -324,10 +346,17 @@ async function buildLayeredSvg(input: Buffer, opts: LayerOptions): Promise<{
 
   const resized = sharp(input)
     .rotate()
-    .resize({ width: MAX_TRACE_SIDE, height: MAX_TRACE_SIDE, fit: "inside", withoutEnlargement: true })
+    .resize({
+      width: MAX_TRACE_SIDE,
+      height: MAX_TRACE_SIDE,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
     .ensureAlpha();
 
-  const { data, info } = await resized.raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await resized
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   const width = info.width | 0;
   const height = info.height | 0;
   const channels = info.channels | 0;
@@ -336,28 +365,59 @@ async function buildLayeredSvg(input: Buffer, opts: LayerOptions): Promise<{
   }
 
   const pixels = data as Buffer;
-  const usable = collectUsablePixels(pixels, width, height, channels, opts.includeBackground);
+  const usable = collectUsablePixels(
+    pixels,
+    width,
+    height,
+    channels,
+    opts.includeBackground,
+  );
   if (usable.length < 20) {
     throw new Error("Not enough visible image detail to create color layers.");
   }
 
   const initial = seedPalette(usable, opts.colorCount, opts.posterize);
-  const palette = refinePalette(usable, initial, opts.mergeDistance, opts.colorCount);
+  const palette = refinePalette(
+    usable,
+    initial,
+    opts.mergeDistance,
+    opts.colorCount,
+  );
   if (palette.length === 0) {
     throw new Error("Could not detect usable color layers in this image.");
   }
 
   const totalPixels = width * height;
-  const minPixels = Math.max(8, Math.round(totalPixels * (opts.minAreaPercent / 100)));
-  const assignments = assignPixelsToPalette(pixels, width, height, channels, palette, opts.includeBackground);
+  const minPixels = Math.max(
+    8,
+    Math.round(totalPixels * (opts.minAreaPercent / 100)),
+  );
+  const assignments = assignPixelsToPalette(
+    pixels,
+    width,
+    height,
+    channels,
+    palette,
+    opts.includeBackground,
+  );
 
-  const layerData: Array<{ color: PaletteColor; pixels: number; index: number }> = palette
-    .map((color, index) => ({ color, pixels: assignments.counts[index] ?? 0, index }))
+  const layerData: Array<{
+    color: PaletteColor;
+    pixels: number;
+    index: number;
+  }> = palette
+    .map((color, index) => ({
+      color,
+      pixels: assignments.counts[index] ?? 0,
+      index,
+    }))
     .filter((x) => x.pixels >= minPixels)
     .sort((a, b) => b.pixels - a.pixels);
 
   if (layerData.length === 0) {
-    throw new Error("The detected color areas were too small. Lower the minimum color area setting and try again.");
+    throw new Error(
+      "The detected color areas were too small. Lower the minimum color area setting and try again.",
+    );
   }
 
   const potrace = await import("potrace");
@@ -413,11 +473,18 @@ async function buildLayeredSvg(input: Buffer, opts: LayerOptions): Promise<{
 
     const safe = coerceSvg(svgRaw);
     const ensured = ensureViewBoxResponsive(safe);
-    const body = extractSvgBody(recolorPaths(stripFullWhiteBackgroundRect(ensured.svg, width, height), colorHex));
+    const body = extractSvgBody(
+      recolorPaths(
+        stripFullWhiteBackgroundRect(ensured.svg, width, height),
+        colorHex,
+      ),
+    );
     if (!body.trim()) continue;
 
     const label = `Layer ${summaries.length + 1} ${colorHex}`;
-    groups.push(`<g id="${escapeXmlAttr(label)}" data-color="${colorHex}">${body}</g>`);
+    groups.push(
+      `<g id="${escapeXmlAttr(label)}" data-color="${colorHex}">${body}</g>`,
+    );
     summaries.push({
       color: colorHex,
       label,
@@ -427,7 +494,9 @@ async function buildLayeredSvg(input: Buffer, opts: LayerOptions): Promise<{
   }
 
   if (groups.length === 0) {
-    throw new Error("No vector paths were created. Try fewer colors or a lower minimum color area.");
+    throw new Error(
+      "No vector paths were created. Try fewer colors or a lower minimum color area.",
+    );
   }
 
   const background = opts.transparent
@@ -471,7 +540,11 @@ function collectUsablePixels(
   return result;
 }
 
-function seedPalette(samples: PaletteColor[], colorCount: number, posterize: PosterizeMode): PaletteColor[] {
+function seedPalette(
+  samples: PaletteColor[],
+  colorCount: number,
+  posterize: PosterizeMode,
+): PaletteColor[] {
   const buckets = new Map<string, PaletteColor>();
   const shift = posterize === "low" ? 6 : posterize === "high" ? 4 : 5;
 
@@ -588,7 +661,12 @@ function assignPixelsToPalette(
   return { ids, counts };
 }
 
-function isLikelyBackground(r: number, g: number, b: number, a: number): boolean {
+function isLikelyBackground(
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): boolean {
   if (a < 35) return true;
   const bright = r >= 246 && g >= 246 && b >= 246;
   const nearGray = Math.max(r, g, b) - Math.min(r, g, b) <= 8;
@@ -629,7 +707,11 @@ function coerceSvg(svgRaw: string | null | undefined): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${trimmed}</svg>`;
 }
 
-function ensureViewBoxResponsive(svg: string): { svg: string; width: number; height: number } {
+function ensureViewBoxResponsive(svg: string): {
+  svg: string;
+  width: number;
+  height: number;
+} {
   const openTagMatch = svg.match(/<svg\b[^>]*>/i);
   if (!openTagMatch) return { svg, width: 1024, height: 1024 };
 
@@ -667,7 +749,11 @@ function recolorPaths(svg: string, fillColor: string): string {
   return out;
 }
 
-function stripFullWhiteBackgroundRect(svg: string, width: number, height: number): string {
+function stripFullWhiteBackgroundRect(
+  svg: string,
+  width: number,
+  height: number,
+): string {
   const whitePattern =
     /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
 
@@ -756,7 +842,8 @@ const PRESETS: Preset[] = [
   {
     id: "layered-vinyl-balanced",
     label: "Layered Vinyl  -  Balanced",
-    description: "Best first choice for decals, HTV, labels, and simple multi-color artwork.",
+    description:
+      "Best first choice for decals, HTV, labels, and simple multi-color artwork.",
     settings: {
       colorCount: 6,
       mergeDistance: 34,
@@ -772,7 +859,8 @@ const PRESETS: Preset[] = [
   {
     id: "simple-logo-layers",
     label: "Logo  -  Clean Color Layers",
-    description: "Fewer colors, cleaner shapes, and stronger merging for logos and icons.",
+    description:
+      "Fewer colors, cleaner shapes, and stronger merging for logos and icons.",
     settings: {
       colorCount: 4,
       mergeDistance: 42,
@@ -788,7 +876,8 @@ const PRESETS: Preset[] = [
   {
     id: "vinyl-easy-weed",
     label: "Vinyl  -  Easier Weeding",
-    description: "Removes tiny color fragments and creates simpler vinyl-style layers.",
+    description:
+      "Removes tiny color fragments and creates simpler vinyl-style layers.",
     settings: {
       colorCount: 5,
       mergeDistance: 48,
@@ -804,7 +893,8 @@ const PRESETS: Preset[] = [
   {
     id: "htv-shirt-layers",
     label: "HTV Shirts  -  Smooth Layers",
-    description: "Smooths shapes for heat-transfer vinyl and reduces small nuisance pieces.",
+    description:
+      "Smooths shapes for heat-transfer vinyl and reduces small nuisance pieces.",
     settings: {
       colorCount: 5,
       mergeDistance: 40,
@@ -820,7 +910,8 @@ const PRESETS: Preset[] = [
   {
     id: "sticker-art-layers",
     label: "Sticker Art  -  More Colors",
-    description: "Keeps more color groups for sticker-style illustrations and printable craft art.",
+    description:
+      "Keeps more color groups for sticker-style illustrations and printable craft art.",
     settings: {
       colorCount: 9,
       mergeDistance: 24,
@@ -836,7 +927,8 @@ const PRESETS: Preset[] = [
   {
     id: "classroom-party-cutouts",
     label: "Party / Classroom  -  Bold Layers",
-    description: "Bolder grouped colors for cardstock, classroom cutouts, and party decorations.",
+    description:
+      "Bolder grouped colors for cardstock, classroom cutouts, and party decorations.",
     settings: {
       colorCount: 5,
       mergeDistance: 46,
@@ -852,7 +944,8 @@ const PRESETS: Preset[] = [
   {
     id: "detailed-art",
     label: "Detailed Art  -  Keep Small Areas",
-    description: "More layers and lower cleanup for artwork with important small color details.",
+    description:
+      "More layers and lower cleanup for artwork with important small color details.",
     settings: {
       colorCount: 10,
       mergeDistance: 18,
@@ -868,7 +961,8 @@ const PRESETS: Preset[] = [
   {
     id: "include-white-background",
     label: "Include White  -  Background Layer",
-    description: "Keeps near-white areas when they are part of the design, not just the page background.",
+    description:
+      "Keeps near-white areas when they are part of the design, not just the page background.",
     settings: {
       colorCount: 6,
       mergeDistance: 34,
@@ -910,24 +1004,34 @@ function getAutoMode(bytes?: number | null): AutoMode {
   return "off";
 }
 function autoModeHint(mode: AutoMode): string {
-  if (mode === "medium") return "Live preview is throttled for 10-25 MB layered files.";
+  if (mode === "medium")
+    return "Live preview is throttled for 10-25 MB layered files.";
   return "";
 }
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "medium") return "Layered SVG generation is heavier than single-color tracing.";
+  if (mode === "medium")
+    return "Layered SVG generation is heavier than single-color tracing.";
   return "";
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
   const [file, setFile] = React.useState<File | null>(null);
-  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(null);
+  const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
+    null,
+  );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
-  const [activePreset, setActivePreset] = React.useState<string>("layered-vinyl-balanced");
+  const [activePreset, setActivePreset] = React.useState<string>(
+    "layered-vinyl-balanced",
+  );
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
-  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(null);
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
@@ -952,7 +1056,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setHistory((prev) => [item, ...prev].slice(0, 8));
       setInfo(null);
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height, fetcher.data?.layers]);
+  }, [
+    fetcher.data?.svg,
+    fetcher.data?.width,
+    fetcher.data?.height,
+    fetcher.data?.layers,
+  ]);
 
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
@@ -1036,12 +1145,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     if (chosen.size > LIVE_MED_MAX) {
       try {
-        setInfo("Large file detected. Compressing locally before layered preview...");
+        setInfo(
+          "Large file detected. Compressing locally before layered preview...",
+        );
         chosen = await compressToTarget25MB(chosen);
-        setInfo(`Compressed for preview: ${prettyBytes(f.size)} → ${prettyBytes(chosen.size)}.`);
+        setInfo(
+          `Compressed for preview: ${prettyBytes(f.size)} → ${prettyBytes(chosen.size)}.`,
+        );
       } catch (e: any) {
         suppressLiveRef.current = false;
-        setErr(e?.message || "This image is too large for live preview. Resize it and try again.");
+        setErr(
+          e?.message ||
+            "This image is too large for live preview. Resize it and try again.",
+        );
         return;
       }
     }
@@ -1056,7 +1172,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setTimeout(() => submitConvert(chosen, DEFAULTS), 0);
   }
 
-  async function submitConvert(fileOverride?: File | null, settingsOverride?: Settings) {
+  async function submitConvert(
+    fileOverride?: File | null,
+    settingsOverride?: Settings,
+  ) {
     const targetFile = fileOverride ?? file;
     const targetSettings = settingsOverride ?? settings;
     if (!targetFile) {
@@ -1135,13 +1254,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 PNG to Layered SVG for Cricut
               </h1>
               <p className="mb-3 text-sm text-slate-600 text-center">
-                Create grouped color-layer SVG files from PNG or JPG artwork. Best for layered vinyl, HTV, decals, cardstock, labels, and simple Cricut color projects.
+                Create grouped color-layer SVG files from PNG or JPG artwork.
+                Best for layered vinyl, HTV, decals, cardstock, labels, and
+                simple Cricut color projects.
               </p>
 
-              <PresetPicker presets={PRESETS} activePreset={activePreset} applyPreset={applyPreset} />
+              <PresetPicker
+                presets={PRESETS}
+                activePreset={activePreset}
+                applyPreset={applyPreset}
+              />
 
               <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
-                This tool creates approximate vector color layers. It is not a photo-preserving Print Then Cut exporter. For best Cricut results, use clean artwork with clear color separation.
+                This tool creates approximate vector color layers. It is not a
+                photo-preserving Print Then Cut exporter. For best Cricut
+                results, use clean artwork with clear color separation.
               </div>
 
               <div className="mt-3 min-w-0">
@@ -1152,9 +1279,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
-                  <span className="inline-flex items-center gap-2">Layer settings</span>
+                  <span className="inline-flex items-center gap-2">
+                    Layer settings
+                  </span>
                   <svg
-                    className={["h-4 w-4 text-slate-500 transition-transform", showAdvanced ? "rotate-180" : "rotate-0"].join(" ")}
+                    className={[
+                      "h-4 w-4 text-slate-500 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
                     viewBox="0 0 20 20"
                     fill="currentColor"
                     aria-hidden="true"
@@ -1168,7 +1300,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </button>
 
                 {showAdvanced && (
-                  <div id="advanced-settings" className="flex flex-col gap-2 min-w-0">
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
+                  >
                     <Field label={`Color layers (${settings.colorCount})`}>
                       <input
                         type="range"
@@ -1176,19 +1311,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         max={12}
                         step={1}
                         value={settings.colorCount}
-                        onChange={(e) => setSettings((s) => ({ ...s, colorCount: Number(e.target.value) }))}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            colorCount: Number(e.target.value),
+                          }))
+                        }
                         className="w-full accent-[#0b2dff]"
                       />
                     </Field>
 
-                    <Field label={`Merge similar colors (${settings.mergeDistance})`}>
+                    <Field
+                      label={`Merge similar colors (${settings.mergeDistance})`}
+                    >
                       <input
                         type="range"
                         min={8}
                         max={90}
                         step={1}
                         value={settings.mergeDistance}
-                        onChange={(e) => setSettings((s) => ({ ...s, mergeDistance: Number(e.target.value) }))}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            mergeDistance: Number(e.target.value),
+                          }))
+                        }
                         className="w-full accent-[#0b2dff]"
                       />
                     </Field>
@@ -1196,12 +1343,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     <Field label="Color simplification">
                       <select
                         value={settings.posterize}
-                        onChange={(e) => setSettings((s) => ({ ...s, posterize: e.target.value as PosterizeMode }))}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            posterize: e.target.value as PosterizeMode,
+                          }))
+                        }
                         className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                       >
                         <option value="low">Low detail, cleaner layers</option>
                         <option value="medium">Medium detail</option>
-                        <option value="high">High detail, more color variation</option>
+                        <option value="high">
+                          High detail, more color variation
+                        </option>
                       </select>
                     </Field>
 
@@ -1211,7 +1365,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         min={0.02}
                         max={5}
                         step={0.02}
-                        onChange={(v) => setSettings((s) => ({ ...s, minAreaPercent: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, minAreaPercent: v }))
+                        }
                       />
                     </Field>
 
@@ -1221,7 +1377,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         min={0}
                         max={20}
                         step={1}
-                        onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, turdSize: v }))
+                        }
                       />
                     </Field>
 
@@ -1231,7 +1389,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         min={0.05}
                         max={1.2}
                         step={0.05}
-                        onChange={(v) => setSettings((s) => ({ ...s, optTolerance: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, optTolerance: v }))
+                        }
                       />
                     </Field>
 
@@ -1239,7 +1399,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <input
                         type="checkbox"
                         checked={settings.smoothMasks}
-                        onChange={(e) => setSettings((s) => ({ ...s, smoothMasks: e.target.checked }))}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            smoothMasks: e.target.checked,
+                          }))
+                        }
                         className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
                     </Field>
@@ -1248,7 +1413,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <input
                         type="checkbox"
                         checked={settings.includeBackground}
-                        onChange={(e) => setSettings((s) => ({ ...s, includeBackground: e.target.checked }))}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            includeBackground: e.target.checked,
+                          }))
+                        }
                         className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
                     </Field>
@@ -1258,21 +1428,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <input
                           type="checkbox"
                           checked={settings.transparent}
-                          onChange={(e) => setSettings((s) => ({ ...s, transparent: e.target.checked }))}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              transparent: e.target.checked,
+                            }))
+                          }
                           title="Transparent background"
                           className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                         />
-                        <span className="text-[13px] text-slate-700">Transparent</span>
+                        <span className="text-[13px] text-slate-700">
+                          Transparent
+                        </span>
                         <input
                           type="color"
                           value={settings.bgColor}
-                          onChange={(e) => setSettings((s) => ({ ...s, bgColor: e.target.value }))}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              bgColor: e.target.value,
+                            }))
+                          }
                           aria-disabled={settings.transparent}
                           className={[
                             "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
-                            settings.transparent ? "opacity-50 pointer-events-none" : "",
+                            settings.transparent
+                              ? "opacity-50 pointer-events-none"
+                              : "",
                           ].join(" ")}
-                          title={settings.transparent ? "Uncheck to pick a background color" : "Pick background color"}
+                          title={
+                            settings.transparent
+                              ? "Uncheck to pick a background color"
+                              : "Pick background color"
+                          }
                         />
                       </div>
                     </Field>
@@ -1292,10 +1480,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
                     <div className="flex items-center min-w-0 gap-2">
-                      {previewUrl && <img src={previewUrl} alt="" className="w-[22px] h-[22px] rounded-md object-cover mr-1" />}
+                      {previewUrl && (
+                        <img
+                          src={previewUrl}
+                          alt=""
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
+                        />
+                      )}
                       <span title={file?.name || ""} className="truncate">
                         {file?.name} • {prettyBytes(file?.size || 0)}
-                        {originalFileSize && originalFileSize > file.size && ` (shrunk from ${prettyBytes(originalFileSize)})`}
+                        {originalFileSize &&
+                          originalFileSize > file.size &&
+                          ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
                     <button
@@ -1317,7 +1513,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size: <b>{dims.w}×{dims.h}</b> (~{dims.mp.toFixed(1)} MP)
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
                     </div>
                   )}
                 </>
@@ -1335,7 +1535,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
-                  <Icons name="convert" size={18} className="mr-1" title="Convert" />
+                  <Icons
+                    name="convert"
+                    size={18}
+                    className="mr-1"
+                    title="Convert"
+                  />
                   {busy ? "Building layers…" : "Convert to Layered SVG"}
                 </button>
 
@@ -1346,34 +1551,57 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
 
                 {err && <span className="text-red-700 text-sm">{err}</span>}
-                {!err && info && <span className="text-[13px] text-slate-600">{info}</span>}
+                {!err && info && (
+                  <span className="text-[13px] text-slate-600">{info}</span>
+                )}
               </div>
 
               {previewUrl && (
                 <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <p className="text-slate-700 ml-2 mt-1">Original Image Preview:</p>
-                  <img src={previewUrl} alt="Input" className="w-full h-auto block" />
+                  <p className="text-slate-700 ml-2 mt-1">
+                    Original Image Preview:
+                  </p>
+                  <img
+                    src={previewUrl}
+                    alt="Input"
+                    className="w-full h-auto block"
+                  />
                 </div>
               )}
             </div>
 
             <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              {busy && <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />}
+              {busy && (
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+              )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
-                    <div key={item.stamp} className="rounded-xl border border-slate-200 bg-white p-2">
+                    <div
+                      key={item.stamp}
+                      className="rounded-xl border border-slate-200 bg-white p-2"
+                    >
                       <div className="flex gap-3 items-center flex-wrap justify-between">
                         <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0 ? `${item.width} × ${item.height} px` : "size unknown"} • {item.layers.length} layer{item.layers.length === 1 ? "" : "s"}
+                          {item.width > 0 && item.height > 0
+                            ? `${item.width} × ${item.height} px`
+                            : "size unknown"}{" "}
+                          • {item.layers.length} layer
+                          {item.layers.length === 1 ? "" : "s"}
                         </span>
                       </div>
 
                       {item.layers.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {item.layers.map((layer) => (
-                            <span key={layer.label} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
-                              <span className="h-3 w-3 rounded-full border border-slate-300" style={{ backgroundColor: layer.color }} />
+                            <span
+                              key={layer.label}
+                              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700"
+                            >
+                              <span
+                                className="h-3 w-3 rounded-full border border-slate-300"
+                                style={{ backgroundColor: layer.color }}
+                              />
                               {layer.color} ({layer.percent}%)
                             </span>
                           ))}
@@ -1384,7 +1612,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            const b = new Blob([item.svg], { type: "image/svg+xml;charset=utf-8" });
+                            const b = new Blob([item.svg], {
+                              type: "image/svg+xml;charset=utf-8",
+                            });
                             const u = URL.createObjectURL(b);
                             const a = document.createElement("a");
                             a.href = u;
@@ -1396,7 +1626,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           }}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                         >
-                          <Icons name="download" size={16} className="inline-block mr-1" />
+                          <Icons
+                            name="download"
+                            size={16}
+                            className="inline-block mr-1"
+                          />
                           Download Layered SVG
                         </button>
                         <button
@@ -1404,7 +1638,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onClick={() => handleCopySvg(item.svg)}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         >
-                          <Icons name="copy" size={16} className="inline-block mr-1" />
+                          <Icons
+                            name="copy"
+                            size={16}
+                            className="inline-block mr-1"
+                          />
                           Copy SVG
                         </button>
                       </div>
@@ -1421,8 +1659,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </div>
               ) : (
                 <p className="justify-center items-center flex text-white m-0 font-semibold">
-                  {!busy && <Icons name="success" size={20} className="inline-block mr-1" />}
-                  {busy ? "Building layers…" : "Layered SVG previews appear here...  "}
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy
+                    ? "Building layers…"
+                    : "Layered SVG previews appear here...  "}
                 </p>
               )}
             </div>
@@ -1435,6 +1681,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
+
+      <StickerMuleAffiliateCard />
 
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
@@ -1496,14 +1744,21 @@ async function validateBeforeSubmit(file: File) {
 async function compressToTarget25MB(file: File): Promise<File> {
   const TARGET = LIVE_MED_MAX;
   if (file.size <= TARGET) return file;
-  if (!file.type.startsWith("image/")) throw new Error("Unsupported file type for compression.");
+  if (!file.type.startsWith("image/"))
+    throw new Error("Unsupported file type for compression.");
 
-  const img = "createImageBitmap" in window ? await createImageBitmap(file) : await loadImageElement(file);
+  const img =
+    "createImageBitmap" in window
+      ? await createImageBitmap(file)
+      : await loadImageElement(file);
   let w = img.width;
   let h = img.height;
 
   const encode = async (quality: number): Promise<Blob> => {
-    const canvas = "OffscreenCanvas" in window ? new OffscreenCanvas(w, h) : (document.createElement("canvas") as HTMLCanvasElement);
+    const canvas =
+      "OffscreenCanvas" in window
+        ? new OffscreenCanvas(w, h)
+        : (document.createElement("canvas") as HTMLCanvasElement);
     if (!(canvas as any).getContext) throw new Error("Canvas unsupported.");
     (canvas as any).width = w;
     (canvas as any).height = h;
@@ -1513,7 +1768,10 @@ async function compressToTarget25MB(file: File): Promise<File> {
 
     return await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
-        (canvas as any).convertToBlob({ type: "image/jpeg", quality }).then(res).catch(rej);
+        (canvas as any)
+          .convertToBlob({ type: "image/jpeg", quality })
+          .then(res)
+          .catch(rej);
       } else {
         (canvas as HTMLCanvasElement).toBlob(
           (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
@@ -1526,7 +1784,8 @@ async function compressToTarget25MB(file: File): Promise<File> {
 
   for (const q of [0.9, 0.8, 0.7, 0.6, 0.5]) {
     const b = await encode(q);
-    if (b.size <= TARGET) return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+    if (b.size <= TARGET)
+      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
   }
 
   let scale = 0.9;
@@ -1534,11 +1793,14 @@ async function compressToTarget25MB(file: File): Promise<File> {
     w = Math.max(64, Math.floor(w * scale));
     h = Math.max(64, Math.floor(h * scale));
     const b = await encode(0.75);
-    if (b.size <= TARGET) return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+    if (b.size <= TARGET)
+      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
     scale = Math.max(0.5, scale - 0.07);
   }
 
-  throw new Error("This image cannot be reduced below 25 MB without excessive degradation.");
+  throw new Error(
+    "This image cannot be reduced below 25 MB without excessive degradation.",
+  );
 }
 
 function renameToJpeg(name: string) {
@@ -1559,10 +1821,18 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
   }
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
-      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">{label}</span>
+      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
+        {label}
+      </span>
       <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
     </label>
   );
@@ -1616,13 +1886,20 @@ function SeoSections() {
                 PNG/JPG to layered SVG for Cricut projects
               </p>
               <h2 className="text-sky-950 text-2xl md:text-3xl font-bold leading-tight">
-                Build grouped color layers for vinyl, HTV, decals, labels, and craft art
+                Build grouped color layers for vinyl, HTV, decals, labels, and
+                craft art
               </h2>
               <p className="text-slate-600">
-                This converter separates visible image colors into grouped SVG layers. Each detected color is traced into its own SVG group, which makes the result easier to inspect, recolor, hide, duplicate, or prepare for Cricut Design Space.
+                This converter separates visible image colors into grouped SVG
+                layers. Each detected color is traced into its own SVG group,
+                which makes the result easier to inspect, recolor, hide,
+                duplicate, or prepare for Cricut Design Space.
               </p>
               <p className="text-slate-600">
-                It works best with simple PNG or JPG artwork that already has clear color regions: logos, decals, text graphics, icons, classroom cutouts, clipart, party decorations, and small business label designs.
+                It works best with simple PNG or JPG artwork that already has
+                clear color regions: logos, decals, text graphics, icons,
+                classroom cutouts, clipart, party decorations, and small
+                business label designs.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1632,8 +1909,13 @@ function SeoSections() {
                   { k: "Cricut-focused", v: "Vinyl, HTV, decals, labels" },
                   { k: "Cleaner exports", v: "Remove tiny color fragments" },
                 ].map((x) => (
-                  <div key={x.k} className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-sky-950">{x.k}</div>
+                  <div
+                    key={x.k}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold text-sky-950">
+                      {x.k}
+                    </div>
                     <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                   </div>
                 ))}
@@ -1658,7 +1940,9 @@ function SeoSections() {
           )}
 
           <section className="mt-8">
-            <h3 className="text-sky-950 text-lg font-bold">Best uses for layered Cricut SVGs</h3>
+            <h3 className="text-sky-950 text-lg font-bold">
+              Best uses for layered Cricut SVGs
+            </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
                 "Layered vinyl decals",
@@ -1670,19 +1954,28 @@ function SeoSections() {
                 "Classroom projects",
                 "Small business packaging",
               ].map((t) => (
-                <span key={t} className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700">
+                <span
+                  key={t}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
+                >
                   {t}
                 </span>
               ))}
             </div>
           </section>
 
-          <section itemScope itemType="https://schema.org/HowTo" className="mt-12">
+          <section
+            itemScope
+            itemType="https://schema.org/HowTo"
+            className="mt-12"
+          >
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <h3 itemProp="name" className="text-sky-950 text-lg font-bold">
                 How to convert PNG to layered SVG for Cricut
               </h3>
-              <span className="text-xs text-slate-500">Upload → choose preset → adjust color layers → download SVG</span>
+              <span className="text-xs text-slate-500">
+                Upload → choose preset → adjust color layers → download SVG
+              </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
@@ -1708,12 +2001,30 @@ function SeoSections() {
                   body: "The result uses grouped SVG paths by color. Check the file in Cricut Design Space before cutting expensive vinyl, HTV, cardstock, or sticker material.",
                 },
               ].map((s, i) => (
-                <li key={s.title} itemScope itemType="https://schema.org/HowToStep" itemProp="step" className="rounded-2xl border border-slate-200 bg-white p-4">
+                <li
+                  key={s.title}
+                  itemScope
+                  itemType="https://schema.org/HowToStep"
+                  itemProp="step"
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
                   <div className="flex gap-3">
-                    <div className="shrink-0 h-8 w-8 rounded-full bg-sky-950 text-white text-sm font-bold grid place-items-center">{i + 1}</div>
+                    <div className="shrink-0 h-8 w-8 rounded-full bg-sky-950 text-white text-sm font-bold grid place-items-center">
+                      {i + 1}
+                    </div>
                     <div>
-                      <div itemProp="name" className="font-semibold text-sky-950">{s.title}</div>
-                      <div itemProp="itemListElement" className="mt-1 text-sm text-slate-600">{s.body}</div>
+                      <div
+                        itemProp="name"
+                        className="font-semibold text-sky-950"
+                      >
+                        {s.title}
+                      </div>
+                      <div
+                        itemProp="itemListElement"
+                        className="mt-1 text-sm text-slate-600"
+                      >
+                        {s.body}
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -1722,7 +2033,9 @@ function SeoSections() {
           </section>
 
           <section className="mt-12">
-            <h3 className="text-sky-950 text-lg font-bold">Layer settings explained</h3>
+            <h3 className="text-sky-950 text-lg font-bold">
+              Layer settings explained
+            </h3>
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
@@ -1750,8 +2063,13 @@ function SeoSections() {
                   body: "Leave this off when white is only the image background. Turn it on when white is part of the actual design.",
                 },
               ].map((c) => (
-                <div key={c.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="text-sm font-semibold text-sky-950">{c.title}</div>
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold text-sky-950">
+                    {c.title}
+                  </div>
                   <p className="mt-1 text-sm text-slate-600">{c.body}</p>
                 </div>
               ))}
@@ -1759,9 +2077,15 @@ function SeoSections() {
           </section>
 
           <section className="mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <h3 className="text-sky-950 text-lg font-bold">Important Cricut expectation</h3>
+            <h3 className="text-sky-950 text-lg font-bold">
+              Important Cricut expectation
+            </h3>
             <p className="mt-2 text-sm text-slate-700">
-              A layered SVG is not the same as preserving a full photo. This tool approximates colors into vector regions. That is useful for vinyl, HTV, cardstock, decals, and simple craft art. For full-color printed stickers, a Print Then Cut workflow is usually better.
+              A layered SVG is not the same as preserving a full photo. This
+              tool approximates colors into vector regions. That is useful for
+              vinyl, HTV, cardstock, decals, and simple craft art. For
+              full-color printed stickers, a Print Then Cut workflow is usually
+              better.
             </p>
           </section>
 
@@ -1790,8 +2114,13 @@ function SeoSections() {
                   a: "No. iLoveSVG is independent and is not affiliated with Cricut. Cricut is mentioned only to describe common craft file workflows.",
                 },
               ].map((item) => (
-                <details key={item.q} className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <summary className="cursor-pointer font-semibold text-sky-950">{item.q}</summary>
+                <details
+                  key={item.q}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <summary className="cursor-pointer font-semibold text-sky-950">
+                    {item.q}
+                  </summary>
                   <p className="mt-2 text-sm text-slate-600">{item.a}</p>
                 </details>
               ))}
@@ -1816,7 +2145,10 @@ export function PresetPicker({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <label className="block text-sm font-semibold text-sky-950 mb-1" htmlFor="preset-picker">
+      <label
+        className="block text-sm font-semibold text-sky-950 mb-1"
+        htmlFor="preset-picker"
+      >
         Layer preset
       </label>
       <select
@@ -1834,7 +2166,9 @@ export function PresetPicker({
           </option>
         ))}
       </select>
-      {active && <p className="mt-2 text-xs text-slate-600">{active.description}</p>}
+      {active && (
+        <p className="mt-2 text-xs text-slate-600">{active.description}</p>
+      )}
     </div>
   );
 }

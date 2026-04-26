@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { StickerMuleAffiliateCard } from "~/client/components/ads/StickerMuleAffiliateCard";
 
 const isServer = typeof document === "undefined";
 
@@ -1485,7 +1486,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         )}
       </main>
 
-      <div className="block lg:hidden py-6">
+      <StickerMuleAffiliateCard />
+
+      <div className="block border-t border-slate-200 bg-white py-6 lg:hidden">
         <AdSenseDelayed
           slot="6632213024"
           delayMs={1500}
@@ -1496,7 +1499,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

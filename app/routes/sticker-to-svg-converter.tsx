@@ -14,6 +14,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
+import { StickerMuleAffiliateCard } from "~/client/components/ads/StickerMuleAffiliateCard";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1676,6 +1677,8 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
           </div>
         )}
       </main>
+
+      <StickerMuleAffiliateCard />
 
       <div className="block lg:hidden py-6">
         <AdSenseDelayed

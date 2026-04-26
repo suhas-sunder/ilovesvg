@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import { StickerMuleAffiliateCard } from "~/client/components/ads/StickerMuleAffiliateCard";
 
 const isServer = typeof document === "undefined";
 
@@ -162,7 +163,12 @@ async function getGate(): Promise<Gate> {
 /* ========================
    Server action: printable image + traced cut outline
 ======================== */
-type CutSource = "auto" | "transparent" | "light-background" | "dark-artwork" | "edge";
+type CutSource =
+  | "auto"
+  | "transparent"
+  | "light-background"
+  | "dark-artwork"
+  | "edge";
 type BackgroundMode = "transparent" | "white";
 
 type PrintCutOptions = {
@@ -282,15 +288,31 @@ export async function action({ request }: ActionFunctionArgs) {
           0,
           100,
         ),
-        alphaThreshold: clampInt(Number(form.get("alphaThreshold") ?? 8), 0, 255),
-        outlinePadding: clampInt(Number(form.get("outlinePadding") ?? 12), 0, 48),
+        alphaThreshold: clampInt(
+          Number(form.get("alphaThreshold") ?? 8),
+          0,
+          255,
+        ),
+        outlinePadding: clampInt(
+          Number(form.get("outlinePadding") ?? 12),
+          0,
+          48,
+        ),
         cutLineColor: safeHexColor(
           String(form.get("cutLineColor") ?? DEFAULT_CUT_COLOR),
           DEFAULT_CUT_COLOR,
         ),
-        cutLineWidth: clampNumber(Number(form.get("cutLineWidth") ?? 2), 0.25, 12),
+        cutLineWidth: clampNumber(
+          Number(form.get("cutLineWidth") ?? 2),
+          0.25,
+          12,
+        ),
         turdSize: clampInt(Number(form.get("turdSize") ?? 6), 0, 40),
-        optTolerance: clampNumber(Number(form.get("optTolerance") ?? 0.55), 0.05, 1.5),
+        optTolerance: clampNumber(
+          Number(form.get("optTolerance") ?? 0.55),
+          0.05,
+          1.5,
+        ),
         smoothMask:
           String(form.get("smoothMask") ?? "true").toLowerCase() === "true",
         showCutLine:
@@ -314,7 +336,9 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   } catch (err: any) {
     return json(
-      { error: err?.message || "Server error during Print Then Cut conversion." },
+      {
+        error: err?.message || "Server error during Print Then Cut conversion.",
+      },
       { status: 500 },
     );
   }
@@ -433,7 +457,9 @@ async function buildPrintThenCutSvg(
   });
 
   const cutPaths = extractPathTags(rawSvg)
-    .map((path) => scaleAndStyleCutPath(path, width / traceW, height / traceH, options))
+    .map((path) =>
+      scaleAndStyleCutPath(path, width / traceW, height / traceH, options),
+    )
     .join("\n    ");
 
   const imageHref = `data:image/png;base64,${printablePng.toString("base64")}`;
@@ -539,7 +565,9 @@ function createEdgeMask(
   const gray = Buffer.alloc(W * H, 255);
   for (let i = 0, p = 0; i < src.length; i += 4, p++) {
     const a = src[i + 3] / 255;
-    const lum = (0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]) * a + 255 * (1 - a);
+    const lum =
+      (0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]) * a +
+      255 * (1 - a);
     gray[p] = Math.max(0, Math.min(255, Math.round(lum)));
   }
 
@@ -606,7 +634,12 @@ async function expandMask(
   }
 }
 
-function expandMaskFallback(mask: Buffer, width: number, height: number, radius: number) {
+function expandMaskFallback(
+  mask: Buffer,
+  width: number,
+  height: number,
+  radius: number,
+) {
   const r = Math.max(1, Math.min(18, radius));
   const out = Buffer.from(mask);
   const rr = r * r;
@@ -908,10 +941,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
-  const [activePreset, setActivePreset] = React.useState<string>("sticker-default");
+  const [activePreset, setActivePreset] =
+    React.useState<string>("sticker-default");
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
-  const [dims, setDims] = React.useState<{ w: number; h: number; mp: number } | null>(null);
+  const [dims, setDims] = React.useState<{
+    w: number;
+    h: number;
+    mp: number;
+  } | null>(null);
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
@@ -944,7 +982,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     if (fetcher.data.code === "BUSY" && file) {
       const retryAfterMs = Math.max(1500, fetcher.data.retryAfterMs ?? 2500);
-      setInfo("Server is busy. Retrying Print Then Cut conversion automatically...");
+      setInfo(
+        "Server is busy. Retrying Print Then Cut conversion automatically...",
+      );
       const t = setTimeout(() => submitConvert(file, settings), retryAfterMs);
       return () => clearTimeout(t);
     }
@@ -1132,7 +1172,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 PNG to SVG for Cricut Print Then Cut
               </h1>
               <p className="mb-3 text-center text-sm text-slate-600">
-                Preserve the printable image colors and add a traced SVG cut outline for Cricut Print Then Cut style projects.
+                Preserve the printable image colors and add a traced SVG cut
+                outline for Cricut Print Then Cut style projects.
               </p>
 
               <PresetPicker
@@ -1142,8 +1183,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               />
 
               <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
-                <strong className="text-sky-950">What this creates:</strong>{" "}
-                one SVG with the original artwork embedded as a printable image and a separate vector cut outline. It is not a layered vinyl converter.
+                <strong className="text-sky-950">What this creates:</strong> one
+                SVG with the original artwork embedded as a printable image and
+                a separate vector cut outline. It is not a layered vinyl
+                converter.
               </div>
 
               <div className="mt-3 min-w-0">
@@ -1176,18 +1219,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </button>
 
                 {showAdvanced && (
-                  <div id="advanced-settings" className="flex flex-col gap-2 min-w-0">
+                  <div
+                    id="advanced-settings"
+                    className="flex flex-col gap-2 min-w-0"
+                  >
                     <Field label="Cut outline source">
                       <select
                         value={settings.cutSource}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, cutSource: e.target.value as CutSource }))
+                          setSettings((s) => ({
+                            ...s,
+                            cutSource: e.target.value as CutSource,
+                          }))
                         }
                         className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                       >
                         <option value="auto">Auto detect</option>
-                        <option value="transparent">Transparent PNG alpha</option>
-                        <option value="light-background">Remove white/light background</option>
+                        <option value="transparent">
+                          Transparent PNG alpha
+                        </option>
+                        <option value="light-background">
+                          Remove white/light background
+                        </option>
                         <option value="dark-artwork">Trace dark artwork</option>
                         <option value="edge">Photo/art edge outline</option>
                       </select>
@@ -1197,11 +1250,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <select
                         value={settings.backgroundMode}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, backgroundMode: e.target.value as BackgroundMode }))
+                          setSettings((s) => ({
+                            ...s,
+                            backgroundMode: e.target.value as BackgroundMode,
+                          }))
                         }
                         className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                       >
-                        <option value="transparent">Transparent SVG background</option>
+                        <option value="transparent">
+                          Transparent SVG background
+                        </option>
                         <option value="white">White page preview</option>
                       </select>
                     </Field>
@@ -1214,13 +1272,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         step={1}
                         value={settings.outlinePadding}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, outlinePadding: Number(e.target.value) }))
+                          setSettings((s) => ({
+                            ...s,
+                            outlinePadding: Number(e.target.value),
+                          }))
                         }
                         className="w-full accent-[#0b2dff]"
                       />
                     </Field>
 
-                    <Field label={`Background tolerance (${settings.backgroundTolerance})`}>
+                    <Field
+                      label={`Background tolerance (${settings.backgroundTolerance})`}
+                    >
                       <input
                         type="range"
                         min={0}
@@ -1228,7 +1291,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         step={1}
                         value={settings.backgroundTolerance}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, backgroundTolerance: Number(e.target.value) }))
+                          setSettings((s) => ({
+                            ...s,
+                            backgroundTolerance: Number(e.target.value),
+                          }))
                         }
                         className="w-full accent-[#0b2dff]"
                       />
@@ -1242,13 +1308,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         step={1}
                         value={settings.threshold}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, threshold: Number(e.target.value) }))
+                          setSettings((s) => ({
+                            ...s,
+                            threshold: Number(e.target.value),
+                          }))
                         }
                         className="w-full accent-[#0b2dff]"
                       />
                     </Field>
 
-                    <Field label={`Alpha threshold (${settings.alphaThreshold})`}>
+                    <Field
+                      label={`Alpha threshold (${settings.alphaThreshold})`}
+                    >
                       <input
                         type="range"
                         min={0}
@@ -1256,7 +1327,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         step={1}
                         value={settings.alphaThreshold}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, alphaThreshold: Number(e.target.value) }))
+                          setSettings((s) => ({
+                            ...s,
+                            alphaThreshold: Number(e.target.value),
+                          }))
                         }
                         className="w-full accent-[#0b2dff]"
                       />
@@ -1267,7 +1341,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         type="color"
                         value={settings.cutLineColor}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, cutLineColor: e.target.value }))
+                          setSettings((s) => ({
+                            ...s,
+                            cutLineColor: e.target.value,
+                          }))
                         }
                         className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                       />
@@ -1279,7 +1356,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         min={0.25}
                         max={12}
                         step={0.25}
-                        onChange={(v) => setSettings((s) => ({ ...s, cutLineWidth: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, cutLineWidth: v }))
+                        }
                       />
                     </Field>
 
@@ -1289,7 +1368,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         min={0}
                         max={40}
                         step={1}
-                        onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, turdSize: v }))
+                        }
                       />
                     </Field>
 
@@ -1299,7 +1380,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         min={0.05}
                         max={1.5}
                         step={0.05}
-                        onChange={(v) => setSettings((s) => ({ ...s, optTolerance: v }))}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, optTolerance: v }))
+                        }
                       />
                     </Field>
 
@@ -1308,7 +1391,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         type="checkbox"
                         checked={settings.smoothMask}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, smoothMask: e.target.checked }))
+                          setSettings((s) => ({
+                            ...s,
+                            smoothMask: e.target.checked,
+                          }))
                         }
                         className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
@@ -1319,7 +1405,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         type="checkbox"
                         checked={settings.showCutLine}
                         onChange={(e) =>
-                          setSettings((s) => ({ ...s, showCutLine: e.target.checked }))
+                          setSettings((s) => ({
+                            ...s,
+                            showCutLine: e.target.checked,
+                          }))
                         }
                         className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
@@ -1373,7 +1462,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
-                      Detected size: <b>{dims.w}×{dims.h}</b> (~{dims.mp.toFixed(1)} MP)
+                      Detected size:{" "}
+                      <b>
+                        {dims.w}×{dims.h}
+                      </b>{" "}
+                      (~{dims.mp.toFixed(1)} MP)
                     </div>
                   )}
                 </>
@@ -1391,7 +1484,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
-                  <Icons name="convert" size={18} className="mr-1" title="Convert" />
+                  <Icons
+                    name="convert"
+                    size={18}
+                    className="mr-1"
+                    title="Convert"
+                  />
                   {busy ? "Creating SVG…" : "Create Print Then Cut SVG"}
                 </button>
 
@@ -1402,13 +1500,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
 
                 {err && <span className="text-red-700 text-sm">{err}</span>}
-                {!err && info && <span className="text-[13px] text-slate-600">{info}</span>}
+                {!err && info && (
+                  <span className="text-[13px] text-slate-600">{info}</span>
+                )}
               </div>
 
               {previewUrl && (
                 <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <p className="text-slate-700 ml-2 mt-1">Original printable image preview:</p>
-                  <img src={previewUrl} alt="Input" className="w-full h-auto block" />
+                  <p className="text-slate-700 ml-2 mt-1">
+                    Original printable image preview:
+                  </p>
+                  <img
+                    src={previewUrl}
+                    alt="Input"
+                    className="w-full h-auto block"
+                  />
                 </div>
               )}
             </div>
@@ -1420,22 +1526,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => (
-                    <div key={item.stamp} className="rounded-xl border border-slate-200 bg-white p-2">
+                    <div
+                      key={item.stamp}
+                      className="rounded-xl border border-slate-200 bg-white p-2"
+                    >
                       <div className="flex gap-3 items-center flex-wrap justify-between">
                         <span className="text-[13px] text-slate-700">
                           {item.width > 0 && item.height > 0
                             ? `${item.width} × ${item.height} px`
                             : "size unknown"}
-                          {item.cutSourceUsed ? ` • cut source: ${labelCutSource(item.cutSourceUsed)}` : ""}
+                          {item.cutSourceUsed
+                            ? ` • cut source: ${labelCutSource(item.cutSourceUsed)}`
+                            : ""}
                         </span>
                       </div>
                       <div className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
-                          onClick={() => downloadSvg(item.svg, "cricut-print-then-cut.svg")}
+                          onClick={() =>
+                            downloadSvg(item.svg, "cricut-print-then-cut.svg")
+                          }
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                         >
-                          <Icons name="download" size={16} className="inline-block mr-1" />
+                          <Icons
+                            name="download"
+                            size={16}
+                            className="inline-block mr-1"
+                          />
                           Download SVG
                         </button>
                         <button
@@ -1443,7 +1560,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onClick={() => handleCopySvg(item.svg)}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         >
-                          <Icons name="copy" size={16} className="inline-block mr-1" />
+                          <Icons
+                            name="copy"
+                            size={16}
+                            className="inline-block mr-1"
+                          />
                           Copy SVG
                         </button>
                       </div>
@@ -1460,8 +1581,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </div>
               ) : (
                 <p className="justify-center items-center flex text-white m-0 font-semibold">
-                  {!busy && <Icons name="success" size={20} className="inline-block mr-1" />}
-                  {busy ? "Creating SVG…" : "Print Then Cut SVG previews appear here..."}
+                  {!busy && (
+                    <Icons
+                      name="success"
+                      size={20}
+                      className="inline-block mr-1"
+                    />
+                  )}
+                  {busy
+                    ? "Creating SVG…"
+                    : "Print Then Cut SVG previews appear here..."}
                 </p>
               )}
             </div>
@@ -1474,6 +1603,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
+
+      <StickerMuleAffiliateCard />
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1560,7 +1692,10 @@ async function compressToTarget25MB(file: File): Promise<File> {
     const mime = "image/jpeg";
     const blob: Blob = await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
-        (canvas as any).convertToBlob({ type: mime, quality }).then(res).catch(rej);
+        (canvas as any)
+          .convertToBlob({ type: mime, quality })
+          .then(res)
+          .catch(rej);
       } else {
         (canvas as HTMLCanvasElement).toBlob(
           (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
@@ -1590,7 +1725,9 @@ async function compressToTarget25MB(file: File): Promise<File> {
     scale = Math.max(0.5, scale - 0.07);
   }
 
-  throw new Error("This image cannot be reduced below 25 MB without excessive degradation.");
+  throw new Error(
+    "This image cannot be reduced below 25 MB without excessive degradation.",
+  );
 }
 
 function renameToJpeg(name: string) {
@@ -1631,7 +1768,13 @@ function labelCutSource(source: CutSource) {
   return "auto";
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
       <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
@@ -1726,10 +1869,15 @@ function SeoSections() {
                 Create printable SVG artwork with a separate cut outline
               </h2>
               <p className="text-slate-600">
-                This page is for Cricut-style Print Then Cut prep: keep the original PNG or JPG artwork as the printable image, then generate a vector outline around it. That is different from a single-color cut file and different from a layered vinyl SVG.
+                This page is for Cricut-style Print Then Cut prep: keep the
+                original PNG or JPG artwork as the printable image, then
+                generate a vector outline around it. That is different from a
+                single-color cut file and different from a layered vinyl SVG.
               </p>
               <p className="text-slate-600">
-                Use it for sticker sheets, planner stickers, labels, small business packaging, classroom cutouts, party printables, and craft artwork where the colors should remain printable.
+                Use it for sticker sheets, planner stickers, labels, small
+                business packaging, classroom cutouts, party printables, and
+                craft artwork where the colors should remain printable.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1739,8 +1887,13 @@ function SeoSections() {
                   { k: "Offset control", v: "Tight edge or sticker border" },
                   { k: "Cricut-focused", v: "Built for craft prep" },
                 ].map((x) => (
-                  <div key={x.k} className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-sky-950">{x.k}</div>
+                  <div
+                    key={x.k}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold text-sky-950">
+                      {x.k}
+                    </div>
                     <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                   </div>
                 ))}
@@ -1769,7 +1922,10 @@ function SeoSections() {
               Best for Print Then Cut and sticker-style projects
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              This converter is best when you want the artwork to stay full-color but still need a vector cut path around the design. For plain vinyl decals, use a single-color Cricut SVG converter. For separate vinyl colors, use a layered SVG converter.
+              This converter is best when you want the artwork to stay
+              full-color but still need a vector cut path around the design. For
+              plain vinyl decals, use a single-color Cricut SVG converter. For
+              separate vinyl colors, use a layered SVG converter.
             </p>
           </section>
 
@@ -1796,7 +1952,11 @@ function SeoSections() {
             </div>
           </section>
 
-          <section itemScope itemType="https://schema.org/HowTo" className="mt-12">
+          <section
+            itemScope
+            itemType="https://schema.org/HowTo"
+            className="mt-12"
+          >
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <h3 itemProp="name" className="text-sky-950 text-lg font-bold">
                 How to make a Print Then Cut SVG
@@ -1841,10 +2001,16 @@ function SeoSections() {
                       {i + 1}
                     </div>
                     <div>
-                      <div itemProp="name" className="font-semibold text-sky-950">
+                      <div
+                        itemProp="name"
+                        className="font-semibold text-sky-950"
+                      >
                         {s.title}
                       </div>
-                      <div itemProp="itemListElement" className="mt-1 text-sm text-slate-600">
+                      <div
+                        itemProp="itemListElement"
+                        className="mt-1 text-sm text-slate-600"
+                      >
                         {s.body}
                       </div>
                     </div>
@@ -1855,7 +2021,9 @@ function SeoSections() {
           </section>
 
           <section className="mt-12">
-            <h3 className="text-sky-950 text-lg font-bold">Settings explained</h3>
+            <h3 className="text-sky-950 text-lg font-bold">
+              Settings explained
+            </h3>
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
@@ -1883,8 +2051,13 @@ function SeoSections() {
                   body: "Higher values simplify the outline. Lower values preserve more detail but can create more nodes.",
                 },
               ].map((c) => (
-                <div key={c.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="text-sm font-semibold text-sky-950">{c.title}</div>
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold text-sky-950">
+                    {c.title}
+                  </div>
                   <p className="mt-1 text-sm text-slate-600">{c.body}</p>
                 </div>
               ))}
@@ -1892,13 +2065,21 @@ function SeoSections() {
           </section>
 
           <section className="mt-12">
-            <h3 className="text-sky-950 text-lg font-bold">Important limitations</h3>
+            <h3 className="text-sky-950 text-lg font-bold">
+              Important limitations
+            </h3>
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
               <p>
-                This tool creates a practical SVG package for Print Then Cut style prep. It embeds a raster PNG inside the SVG to preserve color, then adds a vector outline. It does not magically turn a complex photo into fully editable vector color artwork.
+                This tool creates a practical SVG package for Print Then Cut
+                style prep. It embeds a raster PNG inside the SVG to preserve
+                color, then adds a vector outline. It does not magically turn a
+                complex photo into fully editable vector color artwork.
               </p>
               <p className="mt-2">
-                Cricut Design Space may still require you to confirm operations, flatten/attach layers, or adjust sizing after import. Always test the SVG before using premium vinyl, printable sticker paper, or commercial packaging materials.
+                Cricut Design Space may still require you to confirm operations,
+                flatten/attach layers, or adjust sizing after import. Always
+                test the SVG before using premium vinyl, printable sticker
+                paper, or commercial packaging materials.
               </p>
             </div>
           </section>
@@ -1928,8 +2109,13 @@ function SeoSections() {
                   a: "No. iLoveSVG is an independent SVG utility site and is not affiliated with Cricut.",
                 },
               ].map((item) => (
-                <div key={item.q} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="text-sm font-semibold text-sky-950">{item.q}</div>
+                <div
+                  key={item.q}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold text-sky-950">
+                    {item.q}
+                  </div>
                   <p className="mt-1 text-sm text-slate-600">{item.a}</p>
                 </div>
               ))}

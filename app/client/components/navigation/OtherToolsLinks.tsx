@@ -601,4 +601,102 @@ export const UTILITIES: UtilityLink[] = [
     group: "Base64",
     keywords: ["base64 to svg", "decode svg", "data url", "base64 decoder"],
   },
+  {
+    id: "png-to-svg-for-cricut",
+    title: "PNG to SVG for Cricut",
+    shortTitle: "PNG → Cricut SVG",
+    description:
+      "Convert PNG images into Cricut-friendly SVG files for cut files, decals, stickers, and craft projects.",
+    to: "/png-to-svg-for-cricut",
+    group: "Convert",
+    keywords: [
+      "png to svg for cricut",
+      "cricut svg",
+      "cut file",
+      "vinyl",
+      "stickers",
+      "craft svg",
+    ],
+  },
+  {
+    id: "png-to-layered-svg-for-cricut",
+    title: "PNG to Layered SVG for Cricut",
+    shortTitle: "Layered Cricut SVG",
+    description:
+      "Create layered SVG-style output from PNG artwork for Cricut projects, multicolor designs, decals, and craft files.",
+    to: "/png-to-layered-svg-for-cricut",
+    group: "Convert",
+    keywords: [
+      "png to layered svg",
+      "layered svg for cricut",
+      "multicolor svg",
+      "cricut layers",
+      "cut file",
+    ],
+  },
+  {
+    id: "png-to-svg-for-cricut-print-then-cut",
+    title: "PNG to SVG for Cricut Print Then Cut",
+    shortTitle: "Print Then Cut SVG",
+    description:
+      "Prepare PNG artwork for Cricut Print Then Cut workflows with SVG-style output for stickers, labels, and printable designs.",
+    to: "/png-to-svg-for-cricut-print-then-cut",
+    group: "Convert",
+    keywords: [
+      "print then cut",
+      "png to svg for cricut",
+      "cricut stickers",
+      "printable stickers",
+      "labels",
+    ],
+  },
+  {
+    id: "png-to-svg-for-cricut-vinyl",
+    title: "PNG to SVG for Cricut Vinyl",
+    shortTitle: "Vinyl Cricut SVG",
+    description:
+      "Convert PNG artwork into SVG files for Cricut vinyl projects, decals, simple shapes, and cut-friendly designs.",
+    to: "/png-to-svg-for-cricut-vinyl",
+    group: "Convert",
+    keywords: [
+      "png to svg for vinyl",
+      "cricut vinyl",
+      "vinyl decal",
+      "cut file",
+      "decal svg",
+    ],
+  },
+  {
+    id: "png-to-svg-for-cricut-stickers",
+    title: "PNG to SVG for Cricut Stickers",
+    shortTitle: "Sticker Cricut SVG",
+    description:
+      "Turn PNG sticker artwork into SVG files for Cricut sticker projects, decals, labels, and print-ready designs.",
+    to: "/png-to-svg-for-cricut-stickers",
+    group: "Convert",
+    keywords: [
+      "png to svg for stickers",
+      "cricut stickers",
+      "sticker svg",
+      "decals",
+      "labels",
+      "print then cut",
+    ],
+  },
+  {
+    id: "png-to-svg-for-laser-cutting",
+    title: "PNG to SVG for Laser Cutting",
+    shortTitle: "Laser Cut SVG",
+    description:
+      "Convert PNG artwork into SVG files for laser cutting, engraving prep, outlines, signs, and simple cut paths.",
+    to: "/png-to-svg-for-laser-cutting",
+    group: "Convert",
+    keywords: [
+      "png to svg for laser cutting",
+      "laser cut svg",
+      "engraving",
+      "cut paths",
+      "outline svg",
+    ],
+  },
 ];
