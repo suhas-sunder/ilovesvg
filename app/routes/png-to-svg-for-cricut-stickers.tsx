@@ -359,7 +359,11 @@ async function buildStickerSvg(
     throw new Error("Could not prepare sticker image pixels.");
   }
 
-  const printablePng = await sharp(data, { raw: { width, height, channels } })
+  const rawChannels = channels as 1 | 2 | 3 | 4;
+
+  const printablePng = await sharp(data, {
+    raw: { width, height, channels: rawChannels },
+  })
     .png()
     .toBuffer();
   const printableB64 = printablePng.toString("base64");
