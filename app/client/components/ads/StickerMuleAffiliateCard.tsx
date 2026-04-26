@@ -177,7 +177,7 @@ export function StickerMuleAffiliateCard() {
   return (
     <section
       aria-labelledby="sticker-printing-heading"
-      className="bg-slate-50 px-4 py-5 lg:py-0"
+      className="bg-white px-4 py-5"
     >
       <div className="mx-auto max-w-[760px] overflow-hidden rounded-2xl border border-orange-200 bg-white shadow-sm">
         <div className="px-4 py-4 sm:px-5">
