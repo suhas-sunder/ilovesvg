@@ -9,7 +9,6 @@ import { useFetcher, type ActionFunctionArgs } from "react-router";
 import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { useState } from "react";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -944,6 +943,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // Live preview tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
+  const [toast, setToast] = React.useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressLiveRef = React.useRef(false);
+
   // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
@@ -1122,9 +1127,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   // ---- Tiered live preview (always live for allowed sizes; throttled >10MB) ----
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressLiveRef = React.useRef(false);
-
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
     if (!file) return;
@@ -1168,10 +1170,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       } as Settings;
     });
   }
-
-  const [toast, setToast] = React.useState<string | null>(null);
-
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
