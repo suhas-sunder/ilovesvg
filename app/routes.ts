@@ -37,7 +37,14 @@ export default [
     "png-to-layered-svg-for-cricut",
     "routes/png-to-layered-svg-for-cricut.tsx",
   ),
-  route("png-to-svg-for-cricut-print-then-cut", "routes/png-to-svg-for-cricut-print-then-cut.tsx"),
+  route(
+    "png-to-svg-for-cricut-print-then-cut",
+    "routes/png-to-svg-for-cricut-print-then-cut.tsx",
+  ),
+  route(
+    "png-to-svg-for-cricut-vinyl",
+    "routes/png-to-svg-for-cricut-vinyl.tsx",
+  ),
 
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),
