@@ -21,9 +21,9 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "PNG to SVG for Cricut Stickers | Free Sticker Cut Outline Maker";
+    "PNG to SVG for Cricut Stickers | Free Sticker Cut Outline Tool";
   const description =
-    "Turn PNG and JPG sticker artwork into an SVG with the original printable image plus a smooth Cricut cut outline. Add a white border, make tight cuts, and prep sticker designs.";
+    "Create a Cricut sticker SVG from PNG or JPG artwork. Preserve printable colors, add a smooth cut outline, and export a sticker-ready SVG for Print Then Cut prep.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-cricut-stickers";
 
   return [
@@ -34,18 +34,15 @@ export function meta({}: Route.MetaArgs) {
     {
       name: "keywords",
       content:
-        "png to svg for cricut stickers, cricut sticker svg maker, sticker cut outline maker, png to sticker svg, cricut sticker outline, printable sticker svg, png to svg sticker border, cricut sticker cut file",
+        "png to svg for cricut stickers, cricut sticker svg, sticker cut outline svg, png to sticker svg, print then cut sticker svg, cricut sticker outline, sticker border svg",
     },
     { name: "robots", content: "index,follow" },
-
     { rel: "canonical", href: canonical },
-
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
     { property: "og:site_name", content: "iLoveSVG" },
-
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
@@ -57,26 +54,22 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 /* ========================
-   Limits & constants
+   Limits & types
 ======================== */
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_MP = 30;
 const MAX_SIDE = 8000;
+const MAX_TRACE_SIDE = 2200;
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
-const LIVE_FAST_MS = 700;
-const LIVE_MED_MS = 2200;
+const LIVE_FAST_MS = 500;
+const LIVE_MED_MS = 1800;
 
-const MAX_PRINT_SIDE = 2600;
-const MAX_TRACE_SIDE = 1600;
-const DEFAULT_CUT_COLOR = "#ff007a";
 const DEFAULT_BG = "#ffffff";
+const DEFAULT_CUT_COLOR = "#0ea5e9";
 
-/* ========================
-   Concurrency gate
-======================== */
 type ReleaseFn = () => void;
 type Gate = {
   acquireOrQueue: () => Promise<ReleaseFn>;
@@ -86,9 +79,7 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_sticker_gate) {
-    return g.__iheartsvg_sticker_gate as Gate;
-  }
+  if (g.__iheartsvg_sticker_gate) return g.__iheartsvg_sticker_gate as Gate;
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -99,8 +90,8 @@ async function getGate(): Promise<Gate> {
   } catch {}
 
   const MAX = Math.max(1, Math.min(2, cpuCount));
-  const QUEUE_MAX = 6;
-  const EST_JOB_MS = 5000;
+  const QUEUE_MAX = 8;
+  const EST_JOB_MS = 3500;
 
   class SimpleGate implements Gate {
     max: number;
@@ -133,7 +124,7 @@ async function getGate(): Promise<Gate> {
 
     estimateRetryMs() {
       const waves = Math.ceil((this.queued + 1) / this.max);
-      return Math.min(20000, Math.max(1500, waves * EST_JOB_MS));
+      return Math.min(15000, Math.max(1000, waves * EST_JOB_MS));
     }
 
     acquireOrQueue(): Promise<ReleaseFn> {
@@ -160,39 +151,8 @@ async function getGate(): Promise<Gate> {
 }
 
 /* ========================
-   Server action: printable image + traced cut outline
+   Action: sticker SVG with embedded printable image + vector cut outline
 ======================== */
-type CutSource =
-  | "auto"
-  | "transparent"
-  | "light-background"
-  | "dark-artwork"
-  | "edge";
-type BackgroundMode = "transparent" | "white";
-
-type PrintCutOptions = {
-  cutSource: CutSource;
-  backgroundMode: BackgroundMode;
-  threshold: number;
-  backgroundTolerance: number;
-  alphaThreshold: number;
-  outlinePadding: number;
-  cutLineColor: string;
-  cutLineWidth: number;
-  turdSize: number;
-  optTolerance: number;
-  smoothMask: boolean;
-  showCutLine: boolean;
-};
-
-type BuildResult = {
-  svg: string;
-  width: number;
-  height: number;
-  cutSourceUsed: CutSource;
-  printableBytes: number;
-};
-
 export async function action({ request }: ActionFunctionArgs) {
   try {
     if (request.method.toUpperCase() !== "POST") {
@@ -216,7 +176,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           error:
-            "Upload too large for sticker SVG conversion. Please resize and try again.",
+            "Upload too large for sticker conversion. Please resize and try again.",
         },
         { status: 413 },
       );
@@ -242,9 +202,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
       return json(
         {
-          error: `File too large. Max ${Math.round(
-            MAX_UPLOAD_BYTES / (1024 * 1024),
-          )} MB per image.`,
+          error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB per image.`,
         },
         { status: 413 },
       );
@@ -256,11 +214,11 @@ export async function action({ request }: ActionFunctionArgs) {
     try {
       release = await gate.acquireOrQueue();
     } catch (e: any) {
-      const retryAfterMs = Math.max(1500, Number(e?.retryAfterMs) || 2500);
+      const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
           error:
-            "Server is busy creating sticker SVG files. Retrying automatically.",
+            "Server is busy creating other sticker SVG files. Retrying automatically.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -276,56 +234,54 @@ export async function action({ request }: ActionFunctionArgs) {
       // @ts-ignore Buffer exists in Remix node runtime
       const input: Buffer = Buffer.from(ab);
 
-      const options: PrintCutOptions = {
-        cutSource: normalizeCutSource(String(form.get("cutSource") ?? "auto")),
-        backgroundMode: normalizeBackgroundMode(
-          String(form.get("backgroundMode") ?? "transparent"),
-        ),
-        threshold: clampInt(Number(form.get("threshold") ?? 245), 0, 255),
+      const opts: StickerOptions = {
+        cutSource: String(
+          form.get("cutSource") ?? "transparent-alpha",
+        ) as CutSource,
         backgroundTolerance: clampInt(
-          Number(form.get("backgroundTolerance") ?? 24),
+          Number(form.get("backgroundTolerance") ?? 18),
           0,
-          100,
+          90,
         ),
         alphaThreshold: clampInt(
-          Number(form.get("alphaThreshold") ?? 8),
+          Number(form.get("alphaThreshold") ?? 25),
           0,
           255,
         ),
-        outlinePadding: clampInt(
-          Number(form.get("outlinePadding") ?? 12),
-          0,
-          48,
-        ),
-        cutLineColor: safeHexColor(
+        offsetPx: clampInt(Number(form.get("offsetPx") ?? 18), 0, 60),
+        cutLineColor: sanitizeColor(
           String(form.get("cutLineColor") ?? DEFAULT_CUT_COLOR),
           DEFAULT_CUT_COLOR,
         ),
         cutLineWidth: clampNumber(
           Number(form.get("cutLineWidth") ?? 2),
           0.25,
-          12,
+          16,
         ),
-        turdSize: clampInt(Number(form.get("turdSize") ?? 6), 0, 40),
+        turdSize: clampInt(Number(form.get("turdSize") ?? 4), 0, 25),
         optTolerance: clampNumber(
-          Number(form.get("optTolerance") ?? 0.55),
+          Number(form.get("optTolerance") ?? 0.4),
           0.05,
-          1.5,
+          1.2,
         ),
         smoothMask:
           String(form.get("smoothMask") ?? "true").toLowerCase() === "true",
         showCutLine:
           String(form.get("showCutLine") ?? "true").toLowerCase() === "true",
+        transparent:
+          String(form.get("transparent") ?? "true").toLowerCase() === "true",
+        bgColor: sanitizeColor(
+          String(form.get("bgColor") ?? DEFAULT_BG),
+          DEFAULT_BG,
+        ),
       };
 
-      const result = await buildPrintThenCutSvg(input, options);
-
+      const result = await buildStickerSvg(input, opts);
       return json({
         svg: result.svg,
         width: result.width,
         height: result.height,
-        cutSourceUsed: result.cutSourceUsed,
-        printableBytes: result.printableBytes,
+        cutSource: opts.cutSource,
         gate: { running: gate.running, queued: gate.queued },
       });
     } finally {
@@ -341,10 +297,27 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
-async function buildPrintThenCutSvg(
+type CutSource = "transparent-alpha" | "remove-white-page" | "edge-outline";
+
+type StickerOptions = {
+  cutSource: CutSource;
+  backgroundTolerance: number;
+  alphaThreshold: number;
+  offsetPx: number;
+  cutLineColor: string;
+  cutLineWidth: number;
+  turdSize: number;
+  optTolerance: number;
+  smoothMask: boolean;
+  showCutLine: boolean;
+  transparent: boolean;
+  bgColor: string;
+};
+
+async function buildStickerSvg(
   input: Buffer,
-  options: PrintCutOptions,
-): Promise<BuildResult> {
+  opts: StickerOptions,
+): Promise<{ svg: string; width: number; height: number }> {
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
   const sharp = req("sharp") as typeof import("sharp");
@@ -354,96 +327,182 @@ async function buildPrintThenCutSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const meta = await sharp(input).rotate().metadata();
-  const inputW = meta.width ?? 0;
-  const inputH = meta.height ?? 0;
-  if (!inputW || !inputH) {
+  const meta = await sharp(input).metadata();
+  const originalW = meta.width ?? 0;
+  const originalH = meta.height ?? 0;
+  if (!originalW || !originalH) {
     throw new Error("Could not read image dimensions. Try a different file.");
   }
-  const mp = (inputW * inputH) / 1_000_000;
-  if (inputW > MAX_SIDE || inputH > MAX_SIDE || mp > MAX_MP) {
+
+  const mp = (originalW * originalH) / 1_000_000;
+  if (originalW > MAX_SIDE || originalH > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${inputW}×${inputH} (~${mp.toFixed(
-        1,
-      )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${originalW}×${originalH} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 
-  const printable = sharp(input)
+  const base = sharp(input)
     .rotate()
     .resize({
-      width: MAX_PRINT_SIDE,
-      height: MAX_PRINT_SIDE,
+      width: MAX_TRACE_SIDE,
+      height: MAX_TRACE_SIDE,
       fit: "inside",
       withoutEnlargement: true,
     })
-    .png();
+    .ensureAlpha();
 
-  const printableMeta = await printable.clone().metadata();
-  const width = printableMeta.width ?? inputW;
-  const height = printableMeta.height ?? inputH;
-  const printablePng = await printable.toBuffer();
-
-  const cutSourceUsed =
-    options.cutSource === "auto"
-      ? meta.hasAlpha
-        ? "transparent"
-        : "light-background"
-      : options.cutSource;
-
-  const traceScale = Math.min(1, MAX_TRACE_SIDE / Math.max(width, height));
-  const traceW = Math.max(1, Math.round(width * traceScale));
-  const traceH = Math.max(1, Math.round(height * traceScale));
-
-  const tracePng = await sharp(printablePng)
-    .resize({ width: traceW, height: traceH, fit: "fill" })
-    .png()
-    .toBuffer();
-
-  let mask = await createCutMask(tracePng, {
-    ...options,
-    cutSource: cutSourceUsed,
-  });
-
-  if (options.smoothMask) {
-    mask = await smoothBinaryMask(mask, traceW, traceH, sharp);
+  const { data, info } = await base.raw().toBuffer({ resolveWithObject: true });
+  const width = info.width | 0;
+  const height = info.height | 0;
+  const channels = info.channels | 0;
+  if (width <= 0 || height <= 0 || channels < 4) {
+    throw new Error("Could not prepare sticker image pixels.");
   }
 
-  const paddingForTrace = Math.round(options.outlinePadding * traceScale);
-  if (paddingForTrace > 0) {
-    mask = await expandMask(mask, traceW, traceH, paddingForTrace, sharp);
-  }
-
-  const maskPng = await sharp(mask, {
-    raw: { width: traceW, height: traceH, channels: 1 },
-  })
+  const printablePng = await sharp(data, { raw: { width, height, channels } })
     .png()
     .toBuffer();
+  const printableB64 = printablePng.toString("base64");
 
+  const mask = buildVisibleMask(data as Buffer, width, height, channels, opts);
+  const blackCount = countBlack(mask);
+  if (blackCount < 20) {
+    throw new Error(
+      "Could not find enough visible artwork to create a sticker cut outline.",
+    );
+  }
+
+  const maskPng = await maskToPng(mask, width, height, opts);
+  const cutPaths = await traceCutPaths(maskPng, opts);
+  if (!cutPaths.trim()) {
+    throw new Error(
+      "No sticker cut outline was created. Try a larger offset or a different cut source.",
+    );
+  }
+
+  const background = opts.transparent
+    ? ""
+    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXmlAttr(opts.bgColor)}"/>`;
+
+  const cutGroup = opts.showCutLine
+    ? `<g id="sticker-cut-outline" data-role="cut-outline">${cutPaths}</g>`
+    : `<g id="sticker-cut-outline" data-role="cut-outline" opacity="0">${cutPaths}</g>`;
+
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Sticker SVG for Cricut">`,
+    `<title>Sticker SVG for Cricut</title>`,
+    `<desc>Printable image with a separate vector sticker cut outline.</desc>`,
+    background,
+    `<image id="printable-artwork" x="0" y="0" width="${width}" height="${height}" href="data:image/png;base64,${printableB64}" xlink:href="data:image/png;base64,${printableB64}" preserveAspectRatio="none"/>`,
+    cutGroup,
+    `</svg>`,
+  ].join("");
+
+  return { svg, width, height };
+}
+
+function buildVisibleMask(
+  pixels: Buffer,
+  width: number,
+  height: number,
+  channels: number,
+  opts: StickerOptions,
+): Buffer {
+  const total = width * height;
+  const mask = Buffer.alloc(total, 255);
+
+  for (let i = 0; i < total; i++) {
+    const off = i * channels;
+    const r = pixels[off];
+    const g = pixels[off + 1];
+    const b = pixels[off + 2];
+    const a = pixels[off + 3];
+
+    let visible = false;
+    if (opts.cutSource === "transparent-alpha") {
+      visible = a >= opts.alphaThreshold;
+      if (
+        visible &&
+        isNearWhite(r, g, b, Math.min(opts.backgroundTolerance, 8)) &&
+        a >= 250
+      ) {
+        // Keep transparent PNG behavior, but avoid tracing huge blank white pages in accidental exports.
+        visible = false;
+      }
+    } else if (opts.cutSource === "remove-white-page") {
+      visible =
+        a >= opts.alphaThreshold &&
+        !isNearWhite(r, g, b, opts.backgroundTolerance);
+    } else {
+      visible =
+        a >= opts.alphaThreshold &&
+        !isNearWhite(r, g, b, opts.backgroundTolerance + 8);
+    }
+
+    if (visible) mask[i] = 0;
+  }
+
+  return mask;
+}
+
+async function maskToPng(
+  mask: Buffer,
+  width: number,
+  height: number,
+  opts: StickerOptions,
+): Promise<Buffer> {
+  const { createRequire } = await import("node:module");
+  const req = createRequire(import.meta.url);
+  const sharp = req("sharp") as typeof import("sharp");
+
+  let image = sharp(mask, { raw: { width, height, channels: 1 } });
+
+  // Expand black artwork by offset: invert to white artwork, dilate, invert back for Potrace.
+  if (opts.offsetPx > 0) {
+    try {
+      image = image.negate().dilate(opts.offsetPx).negate();
+    } catch {
+      // Older sharp builds may not expose dilate. Fallback keeps a valid cut path without offset.
+      image = sharp(mask, { raw: { width, height, channels: 1 } });
+    }
+  }
+
+  if (opts.smoothMask) {
+    try {
+      image = image.median(1);
+    } catch {}
+  }
+
+  return await image.png().toBuffer();
+}
+
+async function traceCutPaths(
+  maskPng: Buffer,
+  opts: StickerOptions,
+): Promise<string> {
   const potrace = await import("potrace");
   const traceFn: any = (potrace as any).trace;
   const PotraceClass: any = (potrace as any).Potrace;
+  const traceOpts: any = {
+    color: "#000000",
+    threshold: 128,
+    turdSize: opts.turdSize,
+    optTolerance: opts.optTolerance,
+    turnPolicy: "majority",
+    invert: false,
+    blackOnWhite: true,
+  };
 
-  const rawSvg: string = await new Promise((resolve, reject) => {
-    const opts: any = {
-      color: "#000000",
-      threshold: 128,
-      turdSize: options.turdSize,
-      optTolerance: options.optTolerance,
-      turnPolicy: "majority",
-      invert: false,
-      blackOnWhite: true,
-    };
-
+  const svgRaw: string = await new Promise((resolve, reject) => {
     if (typeof traceFn === "function") {
-      traceFn(maskPng, opts, (err: any, out: string) =>
+      traceFn(maskPng, traceOpts, (err: any, out: string) =>
         err ? reject(err) : resolve(out),
       );
     } else if (PotraceClass) {
-      const p = new PotraceClass(opts);
+      const p = new PotraceClass(traceOpts);
       p.loadImage(maskPng, (err: any) => {
         if (err) return reject(err);
-        p.setParameters(opts);
+        p.setParameters(traceOpts);
         p.getSVG((err2: any, out: string) =>
           err2 ? reject(err2) : resolve(out),
         );
@@ -453,462 +512,263 @@ async function buildPrintThenCutSvg(
     }
   });
 
-  const cutPaths = extractPathTags(rawSvg)
-    .map((path) =>
-      scaleAndStyleCutPath(path, width / traceW, height / traceH, options),
-    )
-    .join("\n    ");
-
-  const imageHref = `data:image/png;base64,${printablePng.toString("base64")}`;
-  const backgroundRect =
-    options.backgroundMode === "white"
-      ? `  <rect x="0" y="0" width="${width}" height="${height}" fill="${DEFAULT_BG}"/>\n`
-      : "";
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${width} ${height}" role="img" aria-label="Cricut sticker SVG">
-${backgroundRect}  <g id="printable-image" data-mode="print">
-    <image href="${imageHref}" xlink:href="${imageHref}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="none"/>
-  </g>
-  <g id="cut-outline" data-mode="cut" data-source="${escapeAttr(cutSourceUsed)}" data-offset-px="${options.outlinePadding}">
-    ${options.showCutLine ? cutPaths : cutPaths.replace(/stroke-opacity="1"/g, 'stroke-opacity="0"')}
-  </g>
-</svg>`;
-
-  return {
-    svg,
-    width,
-    height,
-    cutSourceUsed,
-    printableBytes: printablePng.length,
-  };
-}
-
-async function createCutMask(
-  inputPng: Buffer,
-  options: PrintCutOptions,
-): Promise<Buffer> {
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-  const sharp = req("sharp") as typeof import("sharp");
-
-  const { data, info } = await sharp(inputPng)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const W = info.width | 0;
-  const H = info.height | 0;
-  const out = Buffer.alloc(W * H, 255);
-  const src = data as Buffer;
-
-  if (options.cutSource === "transparent") {
-    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-      const a = src[i + 3];
-      out[p] = a > options.alphaThreshold ? 0 : 255;
-    }
-    if (!isFlatOrEmptyMask(out)) return out;
+  const paths: string[] = [];
+  for (const match of svgRaw.matchAll(/<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    const d = getAttr(tag, "d");
+    if (!d) continue;
+    paths.push(
+      `<path d="${escapeXmlAttr(d)}" fill="none" stroke="${escapeXmlAttr(opts.cutLineColor)}" stroke-width="${opts.cutLineWidth}" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`,
+    );
   }
+  return paths.join("");
+}
 
-  if (options.cutSource === "dark-artwork") {
-    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-      const r = src[i];
-      const g = src[i + 1];
-      const b = src[i + 2];
-      const a = src[i + 3] / 255;
-      const lum = (0.299 * r + 0.587 * g + 0.114 * b) * a + 255 * (1 - a);
-      out[p] = lum <= options.threshold ? 0 : 255;
-    }
-    return out;
+function getAttr(tag: string, name: string): string | null {
+  const re = new RegExp(`${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i");
+  const m = tag.match(re);
+  return m ? m[2] : null;
+}
+
+function isNearWhite(
+  r: number,
+  g: number,
+  b: number,
+  tolerance: number,
+): boolean {
+  const t = clampInt(tolerance, 0, 120);
+  return r >= 255 - t && g >= 255 - t && b >= 255 - t;
+}
+
+function countBlack(mask: Buffer): number {
+  let count = 0;
+  for (let i = 0; i < mask.length; i++) if (mask[i] < 128) count++;
+  return count;
+}
+
+function sanitizeColor(input: string, fallback: string): string {
+  const s = String(input || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(s)) return s;
+  if (/^#[0-9a-f]{3}$/i.test(s)) {
+    const r = s[1];
+    const g = s[2];
+    const b = s[3];
+    return `#${r}${r}${g}${g}${b}${b}`;
   }
-
-  if (options.cutSource === "edge") {
-    return createEdgeMask(src, W, H, options);
-  }
-
-  // light-background default: non-white-ish pixels become the printable object.
-  const tol = options.backgroundTolerance;
-  for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-    const a = src[i + 3];
-    if (a <= options.alphaThreshold) {
-      out[p] = 255;
-      continue;
-    }
-    const r = src[i];
-    const g = src[i + 1];
-    const b = src[i + 2];
-    const distFromWhite = Math.max(255 - r, 255 - g, 255 - b);
-    out[p] = distFromWhite >= tol ? 0 : 255;
-  }
-
-  if (isFlatOrEmptyMask(out)) {
-    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-      const r = src[i];
-      const g = src[i + 1];
-      const b = src[i + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      out[p] = lum <= options.threshold ? 0 : 255;
-    }
-  }
-
-  return out;
+  return fallback;
 }
 
-function createEdgeMask(
-  src: Buffer,
-  W: number,
-  H: number,
-  options: PrintCutOptions,
-): Buffer {
-  const gray = Buffer.alloc(W * H, 255);
-  for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-    const a = src[i + 3] / 255;
-    const lum =
-      (0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2]) * a +
-      255 * (1 - a);
-    gray[p] = Math.max(0, Math.min(255, Math.round(lum)));
-  }
-
-  const out = Buffer.alloc(W * H, 255);
-  const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-  const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  const edgeThreshold = Math.max(8, Math.min(120, 255 - options.threshold));
-
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      let gx = 0;
-      let gy = 0;
-      let n = 0;
-      for (let j = -1; j <= 1; j++) {
-        for (let i = -1; i <= 1; i++) {
-          const v = gray[(y + j) * W + (x + i)];
-          gx += v * kx[n];
-          gy += v * ky[n];
-          n++;
-        }
-      }
-      const mag = Math.sqrt(gx * gx + gy * gy);
-      out[y * W + x] = mag >= edgeThreshold ? 0 : 255;
-    }
-  }
-  return out;
+function clampInt(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, Math.round(n)));
 }
 
-async function smoothBinaryMask(
-  mask: Buffer,
-  width: number,
-  height: number,
-  sharp: any,
-): Promise<Buffer> {
-  try {
-    return await sharp(mask, { raw: { width, height, channels: 1 } })
-      .median(3)
-      .threshold(128)
-      .raw()
-      .toBuffer();
-  } catch {
-    return mask;
-  }
+function clampNumber(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
 }
 
-async function expandMask(
-  mask: Buffer,
-  width: number,
-  height: number,
-  radius: number,
-  sharp: any,
-): Promise<Buffer> {
-  try {
-    const inverted = await sharp(mask, { raw: { width, height, channels: 1 } })
-      .negate()
-      .dilate(Math.max(1, radius))
-      .negate()
-      .threshold(128)
-      .raw()
-      .toBuffer();
-    return inverted as Buffer;
-  } catch {
-    return expandMaskFallback(mask, width, height, radius);
-  }
-}
-
-function expandMaskFallback(
-  mask: Buffer,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  const r = Math.max(1, Math.min(18, radius));
-  const out = Buffer.from(mask);
-  const rr = r * r;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      if (mask[idx] !== 0) continue;
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (dx * dx + dy * dy > rr) continue;
-          const xx = x + dx;
-          const yy = y + dy;
-          if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
-          out[yy * width + xx] = 0;
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function extractPathTags(svg: string) {
-  return svg.match(/<path\b[^>]*>/gi) ?? [];
-}
-
-function scaleAndStyleCutPath(
-  path: string,
-  scaleX: number,
-  scaleY: number,
-  options: PrintCutOptions,
-) {
-  const transform =
-    Math.abs(scaleX - 1) < 0.0001 && Math.abs(scaleY - 1) < 0.0001
-      ? ""
-      : ` transform="scale(${round(scaleX, 6)} ${round(scaleY, 6)})"`;
-
-  const attrs = path
-    .replace(/^<path\b/i, "")
-    .replace(/>$/i, "")
-    .replace(/\sfill\s*=\s*["'][^"']*["']/gi, "")
-    .replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "")
-    .replace(/\sstroke-width\s*=\s*["'][^"']*["']/gi, "")
-    .trim();
-
-  return `<path ${attrs}${transform} fill="none" stroke="${options.cutLineColor}" stroke-width="${options.cutLineWidth}" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1" vector-effect="non-scaling-stroke"/>`;
-}
-
-function isFlatOrEmptyMask(mask: Buffer) {
-  let black = 0;
-  const step = Math.max(1, Math.floor(mask.length / 20000));
-  for (let i = 0; i < mask.length; i += step) {
-    if (mask[i] < 128) black++;
-  }
-  const sampled = Math.ceil(mask.length / step);
-  const ratio = black / Math.max(1, sampled);
-  return ratio < 0.001 || ratio > 0.995;
-}
-
-function normalizeCutSource(value: string): CutSource {
-  if (
-    value === "auto" ||
-    value === "transparent" ||
-    value === "light-background" ||
-    value === "dark-artwork" ||
-    value === "edge"
-  ) {
-    return value;
-  }
-  return "auto";
-}
-
-function normalizeBackgroundMode(value: string): BackgroundMode {
-  return value === "white" ? "white" : "transparent";
-}
-
-function clampInt(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.min(max, Math.round(value)));
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.min(max, value));
-}
-
-function safeHexColor(value: string, fallback: string) {
-  const v = value.trim();
-  return /^#[0-9a-f]{6}$/i.test(v) ? v : fallback;
-}
-
-function escapeAttr(value: string) {
-  return value
+function escapeXmlAttr(s: string) {
+  return String(s)
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
 
-function round(value: number, places: number) {
-  const f = 10 ** places;
-  return Math.round(value * f) / f;
-}
-
 /* ========================
-   UI types and presets
+   UI
 ======================== */
 type Settings = {
   cutSource: CutSource;
-  backgroundMode: BackgroundMode;
-  threshold: number;
   backgroundTolerance: number;
   alphaThreshold: number;
-  outlinePadding: number;
+  offsetPx: number;
   cutLineColor: string;
   cutLineWidth: number;
   turdSize: number;
   optTolerance: number;
   smoothMask: boolean;
   showCutLine: boolean;
+  transparent: boolean;
+  bgColor: string;
 };
 
 type Preset = {
   id: string;
   label: string;
+  description: string;
   settings: Partial<Settings>;
 };
 
 const DEFAULTS: Settings = {
-  cutSource: "auto",
-  backgroundMode: "transparent",
-  threshold: 245,
-  backgroundTolerance: 24,
-  alphaThreshold: 8,
-  outlinePadding: 20,
+  cutSource: "transparent-alpha",
+  backgroundTolerance: 18,
+  alphaThreshold: 25,
+  offsetPx: 18,
   cutLineColor: DEFAULT_CUT_COLOR,
   cutLineWidth: 2,
-  turdSize: 7,
-  optTolerance: 0.6,
+  turdSize: 4,
+  optTolerance: 0.4,
   smoothMask: true,
   showCutLine: true,
+  transparent: true,
+  bgColor: DEFAULT_BG,
 };
 
 const PRESETS: Preset[] = [
   {
-    id: "sticker-white-border",
-    label: "Sticker  -  White Border (default)",
+    id: "white-border",
+    label: "Sticker - White Border (default)",
+    description:
+      "Best first choice for transparent PNG sticker art with a comfortable cut border.",
     settings: {
-      cutSource: "auto",
-      backgroundMode: "transparent",
-      threshold: 245,
-      backgroundTolerance: 24,
-      outlinePadding: 20,
-      cutLineColor: DEFAULT_CUT_COLOR,
-      cutLineWidth: 2,
-      turdSize: 7,
-      optTolerance: 0.6,
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 25,
+      offsetPx: 18,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 3,
+      turdSize: 4,
+      optTolerance: 0.42,
       smoothMask: true,
       showCutLine: true,
+      transparent: true,
     },
   },
   {
     id: "kiss-cut-tight",
-    label: "Kiss Cut  -  Tight Edge",
+    label: "Kiss Cut - Tight Edge",
+    description:
+      "Smaller offset for closer sticker cuts around transparent artwork.",
     settings: {
-      cutSource: "auto",
-      outlinePadding: 4,
-      cutLineWidth: 1.25,
-      turdSize: 4,
-      optTolerance: 0.42,
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 12,
+      alphaThreshold: 35,
+      offsetPx: 8,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 3,
+      optTolerance: 0.34,
       smoothMask: true,
+      showCutLine: true,
+      transparent: true,
     },
   },
   {
-    id: "die-cut-bold-border",
-    label: "Die Cut  -  Bold Border",
+    id: "die-cut-bold",
+    label: "Die Cut - Bold Border",
+    description:
+      "Larger border for die-cut style stickers and easier trimming.",
     settings: {
-      cutSource: "auto",
-      outlinePadding: 34,
-      cutLineWidth: 2.5,
-      turdSize: 9,
-      optTolerance: 0.72,
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 25,
+      offsetPx: 30,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 4,
+      turdSize: 5,
+      optTolerance: 0.5,
       smoothMask: true,
+      showCutLine: true,
+      transparent: true,
     },
   },
   {
-    id: "transparent-png-clean",
-    label: "Transparent PNG  -  Clean Sticker",
+    id: "remove-white-page",
+    label: "White Background - Remove Page",
+    description:
+      "Use this when the artwork is on a white JPG/PNG page and the page should not become the cut shape.",
     settings: {
-      cutSource: "transparent",
-      backgroundMode: "transparent",
-      alphaThreshold: 6,
-      outlinePadding: 18,
-      turdSize: 6,
-      optTolerance: 0.55,
+      cutSource: "remove-white-page",
+      backgroundTolerance: 28,
+      alphaThreshold: 20,
+      offsetPx: 18,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 5,
+      optTolerance: 0.45,
       smoothMask: true,
-    },
-  },
-  {
-    id: "white-background-sticker",
-    label: "White Background  -  Remove Page",
-    settings: {
-      cutSource: "light-background",
-      backgroundMode: "transparent",
-      backgroundTolerance: 22,
-      threshold: 248,
-      outlinePadding: 20,
-      turdSize: 8,
-      optTolerance: 0.65,
-      smoothMask: true,
-    },
-  },
-  {
-    id: "sticker-sheet-clean",
-    label: "Sticker Sheet  -  Clean Outlines",
-    settings: {
-      cutSource: "auto",
-      backgroundMode: "transparent",
-      threshold: 246,
-      backgroundTolerance: 26,
-      outlinePadding: 16,
-      cutLineWidth: 1.75,
-      turdSize: 9,
-      optTolerance: 0.68,
-      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
     },
   },
   {
     id: "printable-vinyl-smooth",
-    label: "Printable Vinyl  -  Smooth Border",
+    label: "Printable Vinyl - Smooth Border",
+    description:
+      "Smoother outline for printable vinyl decals and product labels.",
     settings: {
-      cutSource: "auto",
-      outlinePadding: 24,
+      cutSource: "remove-white-page",
+      backgroundTolerance: 24,
+      alphaThreshold: 25,
+      offsetPx: 20,
+      cutLineColor: DEFAULT_CUT_COLOR,
       cutLineWidth: 2,
-      turdSize: 10,
-      optTolerance: 0.76,
-      smoothMask: true,
-    },
-  },
-  {
-    id: "dark-sticker-art",
-    label: "Dark Artwork  -  Bright Edge",
-    settings: {
-      cutSource: "dark-artwork",
-      threshold: 210,
-      outlinePadding: 18,
       turdSize: 6,
       optTolerance: 0.55,
       smoothMask: true,
+      showCutLine: true,
+      transparent: true,
     },
   },
   {
-    id: "photo-sticker-outline",
-    label: "Photo / Drawing  -  Soft Outline",
+    id: "edge-outline",
+    label: "Photo / Drawing - Soft Outline",
+    description:
+      "Uses visible non-white artwork to create a broader sticker outline from drawings or photo-style art.",
     settings: {
-      cutSource: "edge",
-      threshold: 230,
-      outlinePadding: 16,
-      turdSize: 9,
-      optTolerance: 0.75,
+      cutSource: "edge-outline",
+      backgroundTolerance: 34,
+      alphaThreshold: 20,
+      offsetPx: 24,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 6,
+      optTolerance: 0.55,
       smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "dark-artwork",
+    label: "Dark Artwork - Bright Edge",
+    description:
+      "Uses a light visible cut line so dark sticker art is easier to inspect before export.",
+    settings: {
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 25,
+      offsetPx: 18,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 3,
+      turdSize: 4,
+      optTolerance: 0.42,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: false,
+      bgColor: "#0b1020",
     },
   },
   {
     id: "white-page-preview",
     label: "White Page Preview",
+    description:
+      "Adds a white preview background while keeping the printable image and cut outline intact.",
     settings: {
-      cutSource: "auto",
-      backgroundMode: "white",
-      outlinePadding: 20,
-      cutLineColor: "#0b2dff",
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 25,
+      offsetPx: 18,
+      cutLineColor: DEFAULT_CUT_COLOR,
       cutLineWidth: 2,
+      turdSize: 4,
+      optTolerance: 0.4,
+      smoothMask: true,
       showCutLine: true,
+      transparent: false,
+      bgColor: "#ffffff",
     },
   },
 ];
@@ -918,10 +778,9 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  cutSourceUsed?: CutSource;
-  printableBytes?: number;
   retryAfterMs?: number;
   code?: string;
+  cutSource?: CutSource;
   gate?: { running: number; queued: number };
 };
 
@@ -929,31 +788,25 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
-  cutSourceUsed?: CutSource;
-  printableBytes?: number;
   stamp: number;
+  cutSource: string;
 };
 
 type AutoMode = "fast" | "medium" | "off";
-
 function getAutoMode(bytes?: number | null): AutoMode {
   if (bytes == null) return "off";
   if (bytes <= LIVE_FAST_MAX) return "fast";
   if (bytes <= LIVE_MED_MAX) return "medium";
   return "off";
 }
-
 function autoModeHint(mode: AutoMode): string {
-  if (mode === "medium") {
+  if (mode === "medium")
     return "Live preview is throttled for 10-25 MB sticker files.";
-  }
   return "";
 }
-
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "medium") {
-    return "Large sticker artwork updates less often to keep the converter stable.";
-  }
+  if (mode === "medium")
+    return "Sticker SVG creation embeds the printable image and traces a cut outline.";
   return "";
 }
 
@@ -966,7 +819,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("sticker-default");
+    React.useState<string>("white-border");
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [dims, setDims] = React.useState<{
@@ -992,27 +845,27 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
-        cutSourceUsed: fetcher.data.cutSourceUsed,
-        printableBytes: fetcher.data.printableBytes,
         stamp: Date.now(),
+        cutSource: fetcher.data.cutSource ?? settings.cutSource,
       };
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setHistory((prev) => [item, ...prev].slice(0, 8));
       setInfo(null);
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+  }, [
+    fetcher.data?.svg,
+    fetcher.data?.width,
+    fetcher.data?.height,
+    fetcher.data?.cutSource,
+  ]);
 
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
-
     if (fetcher.data.code === "BUSY" && file) {
-      const retryAfterMs = Math.max(1500, fetcher.data.retryAfterMs ?? 2500);
-      setInfo(
-        "Server is busy. Retrying sticker SVG conversion automatically...",
-      );
+      const retryAfterMs = Math.max(1000, fetcher.data.retryAfterMs ?? 1500);
+      setInfo("Server is busy. Retrying sticker conversion automatically...");
       const t = setTimeout(() => submitConvert(file, settings), retryAfterMs);
       return () => clearTimeout(t);
     }
-
     setErr(fetcher.data.error);
   }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
 
@@ -1025,15 +878,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
     if (!file) return;
+    if (autoMode === "off") return;
 
-    const mode = autoMode;
-    if (mode === "off") return;
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
+    const delay = autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      submitConvert(file, settings);
-    }, delay);
+    debounceRef.current = setTimeout(
+      () => submitConvert(file, settings),
+      delay,
+    );
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -1044,8 +896,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function measureAndSet(f: File) {
     try {
       const { w, h } = await getImageSize(f);
-      const mp = (w * h) / 1_000_000;
-      setDims({ w, h, mp });
+      setDims({ w, h, mp: (w * h) / 1_000_000 });
     } catch {
       setDims(null);
     }
@@ -1078,9 +929,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
-
     setSettings(DEFAULTS);
-    setActivePreset("sticker-default");
+    setActivePreset("white-border");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -1088,15 +938,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setOriginalFileSize(f.size);
 
     let chosen = f;
-
     if (chosen.size > LIVE_MED_MAX) {
       try {
-        setInfo("Large file detected. Compressing locally before preview...");
+        setInfo(
+          "Large file detected. Compressing locally before sticker preview...",
+        );
         chosen = await compressToTarget25MB(chosen);
         setInfo(
-          `Compressed for preview: ${prettyBytes(f.size)} → ${prettyBytes(
-            chosen.size,
-          )}.`,
+          `Compressed for preview: ${prettyBytes(f.size)} → ${prettyBytes(chosen.size)}.`,
         );
       } catch (e: any) {
         suppressLiveRef.current = false;
@@ -1118,33 +967,42 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setTimeout(() => submitConvert(chosen, DEFAULTS), 0);
   }
 
-  async function submitConvert(nextFile = file, nextSettings = settings) {
-    if (!nextFile) {
+  async function submitConvert(
+    fileOverride?: File | null,
+    settingsOverride?: Settings,
+  ) {
+    const targetFile = fileOverride ?? file;
+    const targetSettings = settingsOverride ?? settings;
+
+    if (!targetFile) {
       setErr("Choose an image first.");
       return;
     }
 
     try {
-      await validateBeforeSubmit(nextFile);
+      await validateBeforeSubmit(targetFile);
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
       return;
     }
 
     const fd = new FormData();
-    fd.append("file", nextFile);
-    fd.append("cutSource", nextSettings.cutSource);
-    fd.append("backgroundMode", nextSettings.backgroundMode);
-    fd.append("threshold", String(nextSettings.threshold));
-    fd.append("backgroundTolerance", String(nextSettings.backgroundTolerance));
-    fd.append("alphaThreshold", String(nextSettings.alphaThreshold));
-    fd.append("outlinePadding", String(nextSettings.outlinePadding));
-    fd.append("cutLineColor", nextSettings.cutLineColor);
-    fd.append("cutLineWidth", String(nextSettings.cutLineWidth));
-    fd.append("turdSize", String(nextSettings.turdSize));
-    fd.append("optTolerance", String(nextSettings.optTolerance));
-    fd.append("smoothMask", String(nextSettings.smoothMask));
-    fd.append("showCutLine", String(nextSettings.showCutLine));
+    fd.append("file", targetFile);
+    fd.append("cutSource", targetSettings.cutSource);
+    fd.append(
+      "backgroundTolerance",
+      String(targetSettings.backgroundTolerance),
+    );
+    fd.append("alphaThreshold", String(targetSettings.alphaThreshold));
+    fd.append("offsetPx", String(targetSettings.offsetPx));
+    fd.append("cutLineColor", targetSettings.cutLineColor);
+    fd.append("cutLineWidth", String(targetSettings.cutLineWidth));
+    fd.append("turdSize", String(targetSettings.turdSize));
+    fd.append("optTolerance", String(targetSettings.optTolerance));
+    fd.append("smoothMask", String(targetSettings.smoothMask));
+    fd.append("showCutLine", String(targetSettings.showCutLine));
+    fd.append("transparent", String(targetSettings.transparent));
+    fd.append("bgColor", targetSettings.bgColor);
     setErr(null);
 
     fetcher.submit(fd, {
@@ -1160,7 +1018,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setActivePreset(preset.id);
     setSettings((s) => ({
       ...DEFAULTS,
-      cutLineColor: s.cutLineColor,
+      transparent: s.transparent,
+      bgColor: s.bgColor,
       ...preset.settings,
     }));
   }
@@ -1195,8 +1054,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <h1 className="inline-flex text-center w-full justify-center mb-2 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
                 PNG to SVG for Cricut Stickers
               </h1>
-              <p className="mb-3 text-center text-sm text-slate-600">
-                Preserve printable sticker colors and add a smooth SVG cut
+              <p className="mb-3 text-sm text-slate-600 text-center">
+                Preserve printable sticker colors and add a separate SVG cut
                 outline for Cricut sticker projects.
               </p>
 
@@ -1224,22 +1083,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <span className="inline-flex items-center gap-2">
                     Sticker settings
                   </span>
-
-                  <svg
-                    className={[
-                      "h-4 w-4 text-slate-500 transition-transform",
-                      showAdvanced ? "rotate-180" : "rotate-0",
-                    ].join(" ")}
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                  <ChevronDownIcon open={showAdvanced} />
                 </button>
 
                 {showAdvanced && (
@@ -1247,7 +1091,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     id="advanced-settings"
                     className="flex flex-col gap-2 min-w-0"
                   >
-                    <Field label="Sticker outline source">
+                    <Field label="Cut source">
                       <select
                         value={settings.cutSource}
                         onChange={(e) =>
@@ -1258,49 +1102,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         }
                         className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                       >
-                        <option value="auto">Auto detect</option>
-                        <option value="transparent">
-                          Transparent PNG alpha
+                        <option value="transparent-alpha">
+                          Transparent alpha
                         </option>
-                        <option value="light-background">
-                          Remove white/light background
+                        <option value="remove-white-page">
+                          Remove white page
                         </option>
-                        <option value="dark-artwork">Trace dark artwork</option>
-                        <option value="edge">Photo/art edge outline</option>
-                      </select>
-                    </Field>
-
-                    <Field label="Preview background">
-                      <select
-                        value={settings.backgroundMode}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            backgroundMode: e.target.value as BackgroundMode,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                      >
-                        <option value="transparent">
-                          Transparent SVG background
+                        <option value="edge-outline">
+                          Visible artwork outline
                         </option>
-                        <option value="white">White page preview</option>
                       </select>
                     </Field>
 
                     <Field
-                      label={`Sticker border / offset (${settings.outlinePadding}px)`}
+                      label={`Sticker border offset (${settings.offsetPx}px)`}
                     >
                       <input
                         type="range"
                         min={0}
-                        max={48}
+                        max={60}
                         step={1}
-                        value={settings.outlinePadding}
+                        value={settings.offsetPx}
                         onChange={(e) =>
                           setSettings((s) => ({
                             ...s,
-                            outlinePadding: Number(e.target.value),
+                            offsetPx: Number(e.target.value),
                           }))
                         }
                         className="w-full accent-[#0b2dff]"
@@ -1308,12 +1134,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     </Field>
 
                     <Field
-                      label={`Background tolerance (${settings.backgroundTolerance})`}
+                      label={`White background tolerance (${settings.backgroundTolerance})`}
                     >
                       <input
                         type="range"
                         min={0}
-                        max={100}
+                        max={90}
                         step={1}
                         value={settings.backgroundTolerance}
                         onChange={(e) =>
@@ -1326,39 +1152,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       />
                     </Field>
 
-                    <Field label={`Dark threshold (${settings.threshold})`}>
-                      <input
-                        type="range"
-                        min={0}
-                        max={255}
-                        step={1}
-                        value={settings.threshold}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            threshold: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full accent-[#0b2dff]"
-                      />
-                    </Field>
-
-                    <Field
-                      label={`Alpha threshold (${settings.alphaThreshold})`}
-                    >
-                      <input
-                        type="range"
-                        min={0}
-                        max={255}
-                        step={1}
+                    <Field label="Alpha threshold">
+                      <Num
                         value={settings.alphaThreshold}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            alphaThreshold: Number(e.target.value),
-                          }))
+                        min={0}
+                        max={255}
+                        step={1}
+                        onChange={(v) =>
+                          setSettings((s) => ({ ...s, alphaThreshold: v }))
                         }
-                        className="w-full accent-[#0b2dff]"
                       />
                     </Field>
 
@@ -1380,7 +1182,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <Num
                         value={settings.cutLineWidth}
                         min={0.25}
-                        max={12}
+                        max={16}
                         step={0.25}
                         onChange={(v) =>
                           setSettings((s) => ({ ...s, cutLineWidth: v }))
@@ -1388,11 +1190,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       />
                     </Field>
 
-                    <Field label="Speck cleanup">
+                    <Field label="Turd size">
                       <Num
                         value={settings.turdSize}
                         min={0}
-                        max={40}
+                        max={25}
                         step={1}
                         onChange={(v) =>
                           setSettings((s) => ({ ...s, turdSize: v }))
@@ -1400,11 +1202,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       />
                     </Field>
 
-                    <Field label="Curve smoothness">
+                    <Field label="Curve tolerance">
                       <Num
                         value={settings.optTolerance}
                         min={0.05}
-                        max={1.5}
+                        max={1.2}
                         step={0.05}
                         onChange={(v) =>
                           setSettings((s) => ({ ...s, optTolerance: v }))
@@ -1412,7 +1214,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       />
                     </Field>
 
-                    <Field label="Smooth mask">
+                    <Field label="Smooth cut mask">
                       <input
                         type="checkbox"
                         checked={settings.smoothMask}
@@ -1438,6 +1240,48 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         }
                         className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
+                    </Field>
+
+                    <Field label="Background">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={settings.transparent}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              transparent: e.target.checked,
+                            }))
+                          }
+                          title="Transparent background"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                        />
+                        <span className="text-[13px] text-slate-700">
+                          Transparent
+                        </span>
+                        <input
+                          type="color"
+                          value={settings.bgColor}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              bgColor: e.target.value,
+                            }))
+                          }
+                          aria-disabled={settings.transparent}
+                          className={[
+                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+                            settings.transparent
+                              ? "opacity-50 pointer-events-none"
+                              : "",
+                          ].join(" ")}
+                          title={
+                            settings.transparent
+                              ? "Uncheck to pick a background color"
+                              : "Pick background color"
+                          }
+                        />
+                      </div>
                     </Field>
                   </div>
                 )}
@@ -1560,18 +1404,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <span className="text-[13px] text-slate-700">
                           {item.width > 0 && item.height > 0
                             ? `${item.width} × ${item.height} px`
-                            : "size unknown"}
-                          {item.cutSourceUsed
-                            ? ` • cut source: ${labelCutSource(item.cutSourceUsed)}`
-                            : ""}
+                            : "size unknown"}{" "}
+                          • cut source: {formatCutSource(item.cutSource)}
                         </span>
                       </div>
                       <div className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            downloadSvg(item.svg, "cricut-sticker.svg")
-                          }
+                          onClick={() => {
+                            const b = new Blob([item.svg], {
+                              type: "image/svg+xml;charset=utf-8",
+                            });
+                            const u = URL.createObjectURL(b);
+                            const a = document.createElement("a");
+                            a.href = u;
+                            a.download = "cricut-sticker.svg";
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(u);
+                          }}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                         >
                           <Icons
@@ -1596,10 +1448,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
-                          alt="sticker SVG result"
-                          className="max-w-full h-auto"
+                        <SvgObjectPreview
+                          svg={item.svg}
+                          title="Sticker SVG result"
                         />
                       </div>
                     </div>
@@ -1616,7 +1467,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   )}
                   {busy
                     ? "Creating sticker SVG…"
-                    : "sticker SVG previews appear here..."}
+                    : "Sticker SVG previews appear here...  "}
                 </p>
               )}
             </div>
@@ -1629,6 +1480,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1640,6 +1492,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1647,6 +1500,37 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <SiteFooter />
     </>
   );
+}
+
+function SvgObjectPreview({ svg, title }: { svg: string; title: string }) {
+  const [url, setUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const nextUrl = URL.createObjectURL(blob);
+    setUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [svg]);
+
+  if (!url) {
+    return <span className="text-sm text-slate-500">Preparing preview…</span>;
+  }
+
+  return (
+    <object
+      data={url}
+      type="image/svg+xml"
+      aria-label={title}
+      className="max-w-full w-full h-auto min-h-[240px]"
+    />
+  );
+}
+
+function formatCutSource(source: string) {
+  if (source === "transparent-alpha") return "transparent alpha";
+  if (source === "remove-white-page") return "white page removal";
+  if (source === "edge-outline") return "visible artwork outline";
+  return source;
 }
 
 /* ========================
@@ -1669,12 +1553,10 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 }
 
 async function validateBeforeSubmit(file: File) {
-  if (!ALLOWED_MIME.has(file.type)) {
+  if (!ALLOWED_MIME.has(file.type))
     throw new Error("Only PNG or JPEG images are allowed.");
-  }
-  if (file.size > MAX_UPLOAD_BYTES) {
+  if (file.size > MAX_UPLOAD_BYTES)
     throw new Error("File too large. Max 30 MB per image.");
-  }
   const { w, h } = await getImageSize(file);
   if (!w || !h) throw new Error("Could not read image dimensions.");
   const mp = (w * h) / 1_000_000;
@@ -1688,15 +1570,13 @@ async function validateBeforeSubmit(file: File) {
 async function compressToTarget25MB(file: File): Promise<File> {
   const TARGET = LIVE_MED_MAX;
   if (file.size <= TARGET) return file;
-  if (!file.type.startsWith("image/")) {
+  if (!file.type.startsWith("image/"))
     throw new Error("Unsupported file type for compression.");
-  }
 
   const img =
     "createImageBitmap" in window
       ? await createImageBitmap(file)
       : await loadImageElement(file);
-
   let w = img.width;
   let h = img.height;
 
@@ -1712,29 +1592,26 @@ async function compressToTarget25MB(file: File): Promise<File> {
     if (!ctx) throw new Error("Canvas 2D unsupported.");
     ctx.drawImage(img as any, 0, 0, w, h);
 
-    const mime = "image/jpeg";
-    const blob: Blob = await new Promise((res, rej) => {
+    return await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
         (canvas as any)
-          .convertToBlob({ type: mime, quality })
+          .convertToBlob({ type: "image/jpeg", quality })
           .then(res)
           .catch(rej);
       } else {
         (canvas as HTMLCanvasElement).toBlob(
           (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
-          mime,
+          "image/jpeg",
           quality,
         );
       }
     });
-    return blob;
   };
 
   for (const q of [0.9, 0.8, 0.7, 0.6, 0.5]) {
     const b = await encode(q);
-    if (b.size <= TARGET) {
+    if (b.size <= TARGET)
       return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
   }
 
   let scale = 0.9;
@@ -1742,9 +1619,8 @@ async function compressToTarget25MB(file: File): Promise<File> {
     w = Math.max(64, Math.floor(w * scale));
     h = Math.max(64, Math.floor(h * scale));
     const b = await encode(0.75);
-    if (b.size <= TARGET) {
+    if (b.size <= TARGET)
       return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
     scale = Math.max(0.5, scale - 0.07);
   }
 
@@ -1769,26 +1645,6 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
   } finally {
     URL.revokeObjectURL(url);
   }
-}
-
-function downloadSvg(svg: string, filename: string) {
-  const b = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const u = URL.createObjectURL(b);
-  const a = document.createElement("a");
-  a.href = u;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(u);
-}
-
-function labelCutSource(source: CutSource) {
-  if (source === "transparent") return "transparent alpha";
-  if (source === "light-background") return "light background";
-  if (source === "dark-artwork") return "dark artwork";
-  if (source === "edge") return "edge outline";
-  return "auto";
 }
 
 function Field({
@@ -1845,35 +1701,80 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function PresetPicker({
+export function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={[
+        "h-4 w-4 text-slate-500 transition-transform",
+        open ? "rotate-180" : "rotate-0",
+      ].join(" ")}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+export function PresetPicker({
   presets,
   activePreset,
   applyPreset,
 }: {
   presets: Preset[];
-  activePreset: string;
-  applyPreset: (preset: Preset) => void;
+  activePreset: string | null;
+  applyPreset: (p: Preset) => void;
 }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const DEFAULT_VISIBLE = 2;
+  const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
+  const showToggle = presets.length > DEFAULT_VISIBLE;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      {presets.map((preset) => {
-        const active = preset.id === activePreset;
-        return (
-          <button
-            key={preset.id}
-            type="button"
-            onClick={() => applyPreset(preset)}
-            className={[
-              "px-3 py-2 rounded-lg border text-left text-sm font-semibold transition-colors cursor-pointer",
-              active
-                ? "bg-sky-950 text-white border-sky-950 hover:bg-sky-900"
-                : "bg-white text-slate-800 border-slate-200 hover:bg-sky-50 hover:border-sky-200",
-            ].join(" ")}
-          >
-            {preset.label}
-          </button>
-        );
-      })}
+    <div className="mb-2 mt-[.67rem] min-w-0">
+      <div className="grid sm:grid-cols-2 gap-2">
+        {visiblePresets.map((p) => {
+          const isActive = activePreset === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => applyPreset(p)}
+              aria-pressed={isActive}
+              title={p.description}
+              className={[
+                "text-left px-3 py-2 rounded-lg border text-sm font-semibold transition-colors cursor-pointer",
+                isActive
+                  ? "bg-sky-200 border-sky-300 text-sky-950"
+                  : "bg-white border-slate-200 text-slate-900 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {showToggle && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-2 w-full inline-flex items-center justify-between rounded-md border border-slate-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 cursor-pointer"
+          aria-expanded={expanded}
+        >
+          <span>
+            {expanded
+              ? "Show fewer presets"
+              : `Show ${presets.length - DEFAULT_VISIBLE} more presets`}
+          </span>
+          <ChevronDownIcon open={expanded} />
+        </button>
+      )}
     </div>
   );
 }
@@ -1886,31 +1787,33 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-sky-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-sky-700 uppercase">
-                Cricut sticker SVG maker
+                PNG/JPG to Cricut sticker SVG
               </p>
               <h2 className="text-sky-950 text-2xl md:text-3xl font-bold leading-tight">
-                Create Cricut sticker SVGs with printable artwork and a separate
-                cut outline
+                Create printable sticker SVGs with a separate cut outline
               </h2>
               <p className="text-slate-600">
-                This page is for Cricut sticker prep: keep the original PNG or
-                JPG artwork as the printable image, then generate a vector cut
-                outline around it. Use it for sticker sheets, printable vinyl,
-                planner stickers, product labels, classroom stickers, and small
-                business packaging.
+                This page is built for sticker workflows. It keeps the printable
+                artwork as an embedded image and creates a vector cut outline
+                that can be inspected before using Cricut sticker paper,
+                printable vinyl, labels, or planner sticker sheets.
               </p>
               <p className="text-slate-600">
-                It is not a layered vinyl converter and it is not a plain
-                single-color cut file tool. The output is a practical sticker
-                SVG: printable artwork plus a separate cut outline.
+                Use transparent PNG artwork when possible. For JPGs or PNGs on a
+                white page, use the white background removal preset and adjust
+                tolerance until the page is ignored and only the artwork becomes
+                the cut shape.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
-                  { k: "Printable artwork", v: "Preserves sticker colors" },
-                  { k: "Sticker cut line", v: "Adds a traced SVG path" },
-                  { k: "Border control", v: "Tight cut or white border" },
-                  { k: "Sticker-focused", v: "Built for Cricut prep" },
+                  { k: "Printable art", v: "Original colors stay visible" },
+                  { k: "Cut outline", v: "Separate vector border" },
+                  { k: "Sticker presets", v: "Kiss cut, die cut, white page" },
+                  {
+                    k: "Cricut-focused",
+                    v: "Sticker paper and printable vinyl",
+                  },
                 ].map((x) => (
                   <div
                     key={x.k}
@@ -1942,30 +1845,20 @@ function SeoSections() {
             </div>
           )}
 
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 className="text-sky-950 text-lg font-bold">
-              Best for Cricut sticker projects
-            </h3>
-            <p className="mt-2 text-sm text-slate-600">
-              This converter is best when you want printable sticker artwork to
-              stay full-color but still need a vector cut path around the
-              outside. Use a larger offset for white-border die-cut stickers and
-              a smaller offset for tight kiss-cut style stickers.
-            </p>
-          </section>
-
           <section className="mt-8">
-            <h3 className="text-sky-950 text-lg font-bold">Best uses</h3>
+            <h3 className="text-sky-950 text-lg font-bold">
+              Best sticker uses
+            </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Sticker artwork",
-                "Planner stickers",
+                "Printable stickers",
+                "Sticker sheets",
+                "Kiss cut stickers",
+                "Die cut borders",
+                "Printable vinyl",
                 "Product labels",
-                "Party printables",
-                "Classroom cutouts",
-                "Small business packaging",
-                "White-border stickers",
-                "Transparent PNG designs",
+                "Planner stickers",
+                "Classroom stickers",
               ].map((t) => (
                 <span
                   key={t}
@@ -1984,34 +1877,30 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <h3 itemProp="name" className="text-sky-950 text-lg font-bold">
-                How to make a PNG sticker SVG for Cricut
+                How to convert PNG to SVG for Cricut stickers
               </h3>
               <span className="text-xs text-slate-500">
-                Upload → choose outline source → set offset → export SVG
+                Upload → choose sticker preset → adjust border → download SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a PNG or JPG",
-                  body: "Transparent PNGs usually produce the cleanest cut outline. JPG files with white backgrounds can work with the light background setting.",
+                  title: "Upload a PNG or JPG sticker design",
+                  body: "Transparent PNG artwork usually works best. JPG artwork can work too when the background is close to white and easy to separate.",
                 },
                 {
-                  title: "Choose the right preset",
-                  body: "Start with White Border for general stickers, Kiss Cut for a tight edge, Transparent PNG for artwork that already has transparency, or White Background for images on a white page.",
+                  title: "Choose a sticker preset",
+                  body: "White Border is the safest first choice. Use Kiss Cut for a tighter edge or Die Cut for a larger border.",
                 },
                 {
-                  title: "Adjust the sticker border",
-                  body: "Use a small offset for tight cuts and a larger offset for a white sticker-style border.",
+                  title: "Adjust the cut outline",
+                  body: "Use border offset, white background tolerance, and smoothing to control how the vector cut path wraps around the printable artwork.",
                 },
                 {
-                  title: "Tune cleanup and smoothing",
-                  body: "Increase speck cleanup if the outline has dust or small islands. Increase curve smoothness if the cut path is too jagged.",
-                },
-                {
-                  title: "Download and inspect before printing",
-                  body: "The SVG contains printable artwork and a cut outline group. Always verify sizing, print behavior, and cut placement before using expensive sticker paper or printable vinyl.",
+                  title: "Download the SVG",
+                  body: "The export contains the printable image and a separate vector cut outline. Inspect it in Cricut Design Space before printing or cutting paid materials.",
                 },
               ].map((s, i) => (
                 <li
@@ -2047,33 +1936,33 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-sky-950 text-lg font-bold">
-              Settings explained
+              Sticker settings explained
             </h3>
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Sticker outline source",
-                  body: "Auto uses transparency when available. Use light background for artwork on white, dark artwork for silhouette-like images, and edge outline for photos or drawings.",
+                  title: "Cut source",
+                  body: "Transparent alpha traces the visible PNG area. Remove white page ignores a near-white background. Visible artwork outline is useful for drawings and photo-style sticker art.",
                 },
                 {
-                  title: "Sticker border / offset",
-                  body: "Expands the detected printable area before tracing. Higher values create a larger sticker border.",
+                  title: "Sticker border offset",
+                  body: "Controls how far the cut outline expands around the artwork. Larger values create a bolder die-cut style border.",
                 },
                 {
-                  title: "Background tolerance",
-                  body: "Controls how aggressively near-white pixels are treated as background for JPGs or flattened artwork.",
+                  title: "White background tolerance",
+                  body: "Higher values ignore more off-white background pixels. Use this when a JPG or PNG has a white page behind the artwork.",
                 },
                 {
-                  title: "Dark threshold",
-                  body: "Controls which pixels count as artwork when tracing dark designs or edge-based images.",
+                  title: "Cut line color and width",
+                  body: "These only help you inspect the outline. You can hide, recolor, or edit the cut line after export.",
                 },
                 {
-                  title: "Speck cleanup",
-                  body: "Removes tiny cut islands that can make sticker outlines messy or hard to manage.",
+                  title: "Turd size and curve tolerance",
+                  body: "These clean the traced cut outline. Higher values usually remove tiny bumps and make the border smoother.",
                 },
                 {
-                  title: "Curve smoothness",
-                  body: "Higher values simplify the outline. Lower values preserve more detail but can create more nodes.",
+                  title: "Transparent background",
+                  body: "Keep this on for most exports. Turn it off only when you want a preview background inside the SVG.",
                 },
               ].map((c) => (
                 <div
@@ -2089,60 +1978,72 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-12">
+          <section className="mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-5">
             <h3 className="text-sky-950 text-lg font-bold">
-              Important limitations
+              Important Cricut expectation
             </h3>
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-              <p>
-                This tool creates a practical sticker SVG package. It embeds a
-                raster PNG inside the SVG to preserve the printed sticker
-                artwork, then adds a vector cut outline. It does not turn a
-                complex photo into fully editable vector color artwork.
-              </p>
-              <p className="mt-2">
-                Cricut Design Space may still require you to confirm operations,
-                flatten/attach layers, or adjust sizing after import. Always
-                test the SVG before using premium sticker paper, printable
-                vinyl, laminate sheets, or commercial packaging materials.
-              </p>
-            </div>
+            <p className="mt-2 text-sm text-slate-700">
+              This is a sticker-prep SVG, not a layered vinyl SVG and not a pure
+              vector recreation of every color. The printable artwork is
+              embedded as an image, while the cut outline is vector. That
+              matches sticker and Print Then Cut prep better than forcing
+              full-color artwork into hundreds of vector paths.
+            </p>
           </section>
 
-          <section className="mt-12">
-            <h3 className="text-sky-950 text-lg font-bold">FAQ</h3>
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
+            <h3 className="text-sky-950 text-lg font-bold">
+              Frequently asked questions
+            </h3>
             <div className="mt-4 grid gap-3">
               {[
                 {
-                  q: "Does this preserve the original colors?",
-                  a: "Yes. The printable artwork is embedded as a PNG inside the SVG, so the visual colors are preserved for printing. The cut line is a separate vector path.",
+                  q: "Why is the artwork embedded instead of fully vectorized?",
+                  a: "Sticker workflows usually need printable color artwork plus a clean cut border. Embedding the artwork preserves the printed appearance better than simplifying it into vector color layers.",
                 },
                 {
-                  q: "Is this the same as a layered SVG?",
-                  a: "No. This is for sticker cut outline files. A layered SVG separates colors into vector layers for vinyl or HTV.",
+                  q: "Can I use this for Cricut Print Then Cut?",
+                  a: "Use it as prep and always inspect the final file in Cricut Design Space. The SVG includes printable artwork and a visible vector cut outline.",
                 },
                 {
-                  q: "Why does my cut outline include the background?",
-                  a: "Use Transparent PNG when your image has transparency. For JPGs or flattened PNGs, use Light Background and increase or decrease background tolerance until the white area is ignored.",
+                  q: "What if my JPG has a white background?",
+                  a: "Use the White Background - Remove Page preset and raise the white background tolerance until the page is ignored.",
                 },
                 {
-                  q: "Should I use a transparent PNG?",
-                  a: "Yes, when possible. Transparent PNGs usually create cleaner sticker and Cricut outlines than JPGs on white backgrounds.",
+                  q: "Is this the same as the layered SVG converter?",
+                  a: "No. The layered SVG converter separates artwork into color vector groups. This sticker page preserves the image and adds a cut outline.",
                 },
                 {
                   q: "Is this affiliated with Cricut?",
-                  a: "No. iLoveSVG is an independent SVG utility site and is not affiliated with Cricut.",
+                  a: "No. iLoveSVG is independent and is not affiliated with Cricut. Cricut is mentioned only to describe common craft file workflows.",
                 },
               ].map((item) => (
-                <div
+                <article
                   key={item.q}
+                  itemScope
+                  itemType="https://schema.org/Question"
+                  itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold text-sky-950">
+                  <h4
+                    itemProp="name"
+                    className="m-0 font-semibold text-sky-950"
+                  >
                     {item.q}
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">{item.a}</p>
-                </div>
+                  </h4>
+                  <p
+                    itemScope
+                    itemType="https://schema.org/Answer"
+                    itemProp="acceptedAnswer"
+                    className="mt-2 text-sm text-slate-600"
+                  >
+                    <span itemProp="text">{item.a}</span>
+                  </p>
+                </article>
               ))}
             </div>
           </section>
