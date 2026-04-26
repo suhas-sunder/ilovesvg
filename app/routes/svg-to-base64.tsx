@@ -272,12 +272,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
     if (!outText) return;
     const name = (settings.fileName || "svg-base64").trim() || "svg-base64";
 
-    const ext =
-      settings.output === "base64-only"
-        ? "txt"
-        : settings.output === "data-uri-utf8"
-          ? "txt"
-          : "txt";
+    const ext = "txt";
 
     const filename = `${safeFileName(name)}.${ext}`;
     downloadText(outText, filename);
@@ -401,17 +396,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                     </p>
                     <textarea
                       value={svgText}
-                      onChange={(e) => {
-                        const next = e.target.value as OutputFormat;
-                        setSettings((s) => ({
-                          ...s,
-                          output: next,
-                          mime:
-                            next === "data-uri-utf8"
-                              ? "image/svg+xml;charset=utf-8"
-                              : s.mime,
-                        }));
-                      }}
+                      onChange={(e) => setSvgText(e.target.value)}
                       className="mt-2 w-full h-[280px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
                       spellCheck={false}
                     />
