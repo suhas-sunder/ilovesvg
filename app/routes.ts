@@ -45,6 +45,7 @@ export default [
     "png-to-svg-for-cricut-vinyl",
     "routes/png-to-svg-for-cricut-vinyl.tsx",
   ),
+  route("png-to-svg-for-cricut-stickers", "routes/png-to-svg-for-cricut-stickers.tsx"),
 
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),
