@@ -83,6 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <PHProvider>
+          Impact-Site-Verification: 0438a215-093b-4c3f-9a2d-f3213276d081
           <NavBar />
           {children}
           <ScrollRestoration />

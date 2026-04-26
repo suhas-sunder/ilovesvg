@@ -31,6 +31,14 @@ export default [
     "routes/svg-accessibility-and-contrast-checker.tsx",
   ),
 
+  //US target audience routes
+  route("png-to-svg-for-cricut", "routes/png-to-svg-for-cricut.tsx"),
+  route(
+    "png-to-layered-svg-for-cricut",
+    "routes/png-to-layered-svg-for-cricut.tsx",
+  ),
+  route("png-to-svg-for-cricut-print-then-cut", "routes/png-to-svg-for-cricut-print-then-cut.tsx"),
+
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),
   route("base64-to-svg", "routes/base64-to-svg.tsx"),
