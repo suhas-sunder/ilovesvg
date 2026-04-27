@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router";
+import { AdSenseDelayed } from "../ads/AdsenseDelayed";
 
 type UtilityGroup =
   | "SVG to image/PDF"
@@ -72,15 +73,27 @@ export function OtherToolsLinks({
     >
       <div className="max-w-[1180px] mx-auto px-4 py-10">
         <div className="flex flex-col gap-2">
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-sky-800">
             {title}
           </h2>
-          <p className="text-sm sm:text-base text-slate-700 max-w-[80ch] leading-relaxed">
+          <p className="text-sm sm:text-base font-semibold text-slate-700 max-w-[80ch] leading-relaxed">
             {subtitle}
           </p>
         </div>
 
-        <div className="mt-8 flex flex-col gap-10">
+        <div className="py-6">
+          <AdSenseDelayed
+            slot="8102088582"
+            delayMs={1500}
+            minHeight={90}
+            maxHeight={120}
+            format="horizontal"
+            fullWidth={true}
+            className="mx-auto w-full max-w-[970px]"
+          />
+        </div>
+
+        <div className=" flex flex-col gap-10">
           {sections.map((section) => (
             <div key={section.id}>
               <div className="mb-4 flex flex-col gap-1">

@@ -395,6 +395,14 @@ async function buildPrintThenCutSvg(
         : "light-background"
       : options.cutSource;
 
+  const printableForOutputPng = await makePrintablePngWithTransparentBackground(
+    printablePng,
+    width,
+    height,
+    { ...options, cutSource: cutSourceUsed },
+    sharp,
+  );
+
   const traceScale = Math.min(1, MAX_TRACE_SIDE / Math.max(width, height));
   const traceW = Math.max(1, Math.round(width * traceScale));
   const traceH = Math.max(1, Math.round(height * traceScale));
@@ -463,7 +471,7 @@ async function buildPrintThenCutSvg(
     )
     .join("\n    ");
 
-  const imageHref = `data:image/png;base64,${printablePng.toString("base64")}`;
+  const imageHref = `data:image/png;base64,${printableForOutputPng.toString("base64")}`;
   const backgroundRect =
     options.backgroundMode === "white"
       ? `  <rect x="0" y="0" width="${width}" height="${height}" fill="${DEFAULT_BG}"/>\n`
@@ -483,7 +491,7 @@ ${backgroundRect}  <g id="printable-image" data-mode="print">
     width,
     height,
     cutSourceUsed,
-    printableBytes: printablePng.length,
+    printableBytes: printableForOutputPng.length,
   };
 }
 
@@ -502,18 +510,15 @@ async function createCutMask(
 
   const W = info.width | 0;
   const H = info.height | 0;
-  const out = Buffer.alloc(W * H, 255);
   const src = data as Buffer;
 
   if (options.cutSource === "transparent") {
-    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-      const a = src[i + 3];
-      out[p] = a > options.alphaThreshold ? 0 : 255;
-    }
-    if (!isFlatOrEmptyMask(out)) return out;
+    const alphaMask = createAlphaObjectMask(src, W, H, options.alphaThreshold);
+    if (!isFlatOrEmptyMask(alphaMask)) return alphaMask;
   }
 
   if (options.cutSource === "dark-artwork") {
+    const out = Buffer.alloc(W * H, 255);
     for (let i = 0, p = 0; i < src.length; i += 4, p++) {
       const r = src[i];
       const g = src[i + 1];
@@ -522,38 +527,270 @@ async function createCutMask(
       const lum = (0.299 * r + 0.587 * g + 0.114 * b) * a + 255 * (1 - a);
       out[p] = lum <= options.threshold ? 0 : 255;
     }
-    return out;
+    if (!isFlatOrEmptyMask(out)) return fillObjectMaskHoles(out, W, H);
   }
 
   if (options.cutSource === "edge") {
-    return createEdgeMask(src, W, H, options);
+    const edgeMask = createEdgeMask(src, W, H, options);
+    if (!isFlatOrEmptyMask(edgeMask)) return edgeMask;
   }
 
-  // light-background default: non-white-ish pixels become the printable object.
-  const tol = options.backgroundTolerance;
+  const exterior = createExteriorBackgroundMask(src, W, H, options);
+  const out = Buffer.alloc(W * H, 255);
+  for (let p = 0; p < out.length; p++) {
+    out[p] = exterior[p] ? 255 : 0;
+  }
+
+  if (!isFlatOrEmptyMask(out)) return fillObjectMaskHoles(out, W, H);
+
   for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-    const a = src[i + 3];
-    if (a <= options.alphaThreshold) {
-      out[p] = 255;
-      continue;
-    }
     const r = src[i];
     const g = src[i + 1];
     const b = src[i + 2];
-    const distFromWhite = Math.max(255 - r, 255 - g, 255 - b);
-    out[p] = distFromWhite >= tol ? 0 : 255;
+    const a = src[i + 3] / 255;
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) * a + 255 * (1 - a);
+    out[p] = lum <= options.threshold ? 0 : 255;
   }
 
-  if (isFlatOrEmptyMask(out)) {
-    for (let i = 0, p = 0; i < src.length; i += 4, p++) {
-      const r = src[i];
-      const g = src[i + 1];
-      const b = src[i + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      out[p] = lum <= options.threshold ? 0 : 255;
+  return fillObjectMaskHoles(out, W, H);
+}
+
+async function makePrintablePngWithTransparentBackground(
+  inputPng: Buffer,
+  width: number,
+  height: number,
+  options: PrintCutOptions,
+  sharp: any,
+): Promise<Buffer> {
+  if (
+    options.cutSource !== "auto" &&
+    options.cutSource !== "transparent" &&
+    options.cutSource !== "light-background"
+  ) {
+    return inputPng;
+  }
+
+  try {
+    const { data, info } = await sharp(inputPng)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const W = info.width | 0;
+    const H = info.height | 0;
+    if (W !== width || H !== height) return inputPng;
+
+    const rgba = Buffer.from(data as Buffer);
+
+    let exterior: Buffer | null = null;
+    if (options.cutSource === "transparent") {
+      const alphaMask = createAlphaObjectMask(
+        rgba,
+        W,
+        H,
+        options.alphaThreshold,
+      );
+      if (!isFlatOrEmptyMask(alphaMask)) {
+        exterior = Buffer.alloc(W * H, 0);
+        for (let p = 0; p < alphaMask.length; p++)
+          exterior[p] = alphaMask[p] === 0 ? 0 : 1;
+      }
+    }
+
+    if (!exterior) {
+      exterior = createExteriorBackgroundMask(rgba, W, H, options);
+    }
+
+    for (let p = 0, i = 0; p < exterior.length; p++, i += 4) {
+      if (exterior[p]) rgba[i + 3] = 0;
+    }
+
+    return await sharp(rgba, { raw: { width: W, height: H, channels: 4 } })
+      .png()
+      .toBuffer();
+  } catch {
+    return inputPng;
+  }
+}
+
+function createAlphaObjectMask(
+  src: Buffer,
+  W: number,
+  H: number,
+  alphaThreshold: number,
+): Buffer {
+  const out = Buffer.alloc(W * H, 255);
+  for (let i = 0, p = 0; i < src.length; i += 4, p++) {
+    out[p] = src[i + 3] > alphaThreshold ? 0 : 255;
+  }
+  return out;
+}
+
+function createExteriorBackgroundMask(
+  src: Buffer,
+  W: number,
+  H: number,
+  options: PrintCutOptions,
+): Buffer {
+  const total = W * H;
+  const exterior = Buffer.alloc(total, 0);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+
+  const palette = getEdgePalette(src, W, H);
+  const tol = Math.max(12, Math.min(90, options.backgroundTolerance + 18));
+
+  const enqueue = (p: number) => {
+    if (p < 0 || p >= total || exterior[p]) return;
+    if (!isBackgroundCandidate(src, p, palette, tol, options)) return;
+    exterior[p] = 1;
+    queue[tail++] = p;
+  };
+
+  for (let x = 0; x < W; x++) {
+    enqueue(x);
+    enqueue((H - 1) * W + x);
+  }
+  for (let y = 0; y < H; y++) {
+    enqueue(y * W);
+    enqueue(y * W + W - 1);
+  }
+
+  while (head < tail) {
+    const p = queue[head++];
+    const x = p % W;
+    const y = (p / W) | 0;
+
+    if (x > 0) enqueue(p - 1);
+    if (x + 1 < W) enqueue(p + 1);
+    if (y > 0) enqueue(p - W);
+    if (y + 1 < H) enqueue(p + W);
+  }
+
+  return exterior;
+}
+
+type Rgb = { r: number; g: number; b: number; count: number };
+
+function getEdgePalette(src: Buffer, W: number, H: number): Rgb[] {
+  const buckets = new Map<string, Rgb>();
+  const step = Math.max(1, Math.floor(Math.max(W, H) / 300));
+
+  const add = (p: number) => {
+    const i = p * 4;
+    const a = src[i + 3];
+    if (a < 220) return;
+    const r = src[i];
+    const g = src[i + 1];
+    const b = src[i + 2];
+    const key = `${r >> 4},${g >> 4},${b >> 4}`;
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.r += r;
+      existing.g += g;
+      existing.b += b;
+      existing.count++;
+    } else {
+      buckets.set(key, { r, g, b, count: 1 });
+    }
+  };
+
+  for (let x = 0; x < W; x += step) {
+    add(x);
+    add((H - 1) * W + x);
+  }
+  for (let y = 0; y < H; y += step) {
+    add(y * W);
+    add(y * W + W - 1);
+  }
+
+  return [...buckets.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 14)
+    .map((c) => ({
+      r: Math.round(c.r / c.count),
+      g: Math.round(c.g / c.count),
+      b: Math.round(c.b / c.count),
+      count: c.count,
+    }));
+}
+
+function isBackgroundCandidate(
+  src: Buffer,
+  p: number,
+  palette: Rgb[],
+  tolerance: number,
+  options: PrintCutOptions,
+) {
+  const i = p * 4;
+  const r = src[i];
+  const g = src[i + 1];
+  const b = src[i + 2];
+  const a = src[i + 3];
+
+  if (a <= options.alphaThreshold) return true;
+
+  const whiteTol = Math.max(18, options.backgroundTolerance);
+  if (r >= 255 - whiteTol && g >= 255 - whiteTol && b >= 255 - whiteTol) {
+    return true;
+  }
+
+  const spread = Math.max(r, g, b) - Math.min(r, g, b);
+  if (spread <= 10 && r >= 205 && g >= 205 && b >= 205) {
+    return true;
+  }
+
+  for (const c of palette) {
+    if (
+      Math.abs(r - c.r) <= tolerance &&
+      Math.abs(g - c.g) <= tolerance &&
+      Math.abs(b - c.b) <= tolerance
+    ) {
+      return true;
     }
   }
 
+  return false;
+}
+
+function fillObjectMaskHoles(mask: Buffer, W: number, H: number): Buffer {
+  const total = W * H;
+  const exteriorWhite = Buffer.alloc(total, 0);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+
+  const enqueue = (p: number) => {
+    if (p < 0 || p >= total || exteriorWhite[p] || mask[p] < 128) return;
+    exteriorWhite[p] = 1;
+    queue[tail++] = p;
+  };
+
+  for (let x = 0; x < W; x++) {
+    enqueue(x);
+    enqueue((H - 1) * W + x);
+  }
+  for (let y = 0; y < H; y++) {
+    enqueue(y * W);
+    enqueue(y * W + W - 1);
+  }
+
+  while (head < tail) {
+    const p = queue[head++];
+    const x = p % W;
+    const y = (p / W) | 0;
+
+    if (x > 0) enqueue(p - 1);
+    if (x + 1 < W) enqueue(p + 1);
+    if (y > 0) enqueue(p - W);
+    if (y + 1 < H) enqueue(p + W);
+  }
+
+  const out = Buffer.from(mask);
+  for (let p = 0; p < total; p++) {
+    if (mask[p] >= 128 && !exteriorWhite[p]) out[p] = 0;
+  }
   return out;
 }
 
@@ -672,20 +909,20 @@ function scaleAndStyleCutPath(
   scaleY: number,
   options: PrintCutOptions,
 ) {
+  const d = extractPathD(path);
+  if (!d) return "";
+
   const transform =
     Math.abs(scaleX - 1) < 0.0001 && Math.abs(scaleY - 1) < 0.0001
       ? ""
       : ` transform="scale(${round(scaleX, 6)} ${round(scaleY, 6)})"`;
 
-  const attrs = path
-    .replace(/^<path\b/i, "")
-    .replace(/>$/i, "")
-    .replace(/\sfill\s*=\s*["'][^"']*["']/gi, "")
-    .replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "")
-    .replace(/\sstroke-width\s*=\s*["'][^"']*["']/gi, "")
-    .trim();
+  return `<path d="${escapeAttr(d)}"${transform} fill="none" stroke="${options.cutLineColor}" stroke-width="${options.cutLineWidth}" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1" vector-effect="non-scaling-stroke"/>`;
+}
 
-  return `<path ${attrs}${transform} fill="none" stroke="${options.cutLineColor}" stroke-width="${options.cutLineWidth}" stroke-linejoin="round" stroke-linecap="round" stroke-opacity="1" vector-effect="non-scaling-stroke"/>`;
+function extractPathD(path: string) {
+  const match = path.match(/\sd\s*=\s*("([^"]*)"|'([^']*)')/i);
+  return match ? match[2] || match[3] || "" : "";
 }
 
 function isFlatOrEmptyMask(mask: Buffer) {
@@ -973,7 +1210,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         printableBytes: fetcher.data.printableBytes,
         stamp: Date.now(),
       };
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setHistory([item]);
       setInfo(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
@@ -1571,10 +1808,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
+                        <SvgBlobPreview
+                          svg={item.svg}
                           alt="Print Then Cut SVG result"
-                          className="max-w-full h-auto"
                         />
                       </div>
                     </div>
@@ -1625,6 +1861,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <SiteFooter />
     </>
   );
+}
+
+function SvgBlobPreview({ svg, alt }: { svg: string; alt: string }) {
+  const [url, setUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!svg) {
+      setUrl(null);
+      return;
+    }
+
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const nextUrl = URL.createObjectURL(blob);
+    setUrl(nextUrl);
+
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [svg]);
+
+  if (!url) {
+    return <span className="text-sm text-slate-500">Preparing preview...</span>;
+  }
+
+  return <img src={url} alt={alt} className="max-w-full h-auto" />;
 }
 
 /* ========================

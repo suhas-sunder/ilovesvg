@@ -74,6 +74,9 @@ const MAX_SIDE = 8000; // max width or height in pixels
 // Keep the same allowed set as home so behavior is consistent and predictable.
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
 
+// Dark background default for invert "white on dark" output.
+const DARK_BG_DEFAULT = "#0b1020";
+
 // Live preview tiers (client)
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
@@ -295,19 +298,36 @@ export async function action({ request }: ActionFunctionArgs) {
         | "right"
         | "minority"
         | "majority";
-      const lineColor = String(form.get("lineColor") ?? "#000000");
-      const invert =
+      // Treat invert as output mode: white lines on a dark background.
+      // Do not pass invert through to Potrace because that can produce blank or invisible output.
+      const whiteOnDark =
         String(form.get("invert") ?? "false").toLowerCase() === "true";
 
-      const transparent =
+      let lineColor = String(form.get("lineColor") ?? "#000000");
+
+      let transparent =
         String(form.get("transparent") ?? "true").toLowerCase() === "true";
-      const bgColor = String(form.get("bgColor") ?? "#ffffff");
+      let bgColor = String(form.get("bgColor") ?? "#ffffff");
 
       const preprocess = String(form.get("preprocess") ?? "none") as
         | "none"
         | "edge";
       const blurSigma = Number(form.get("blurSigma") ?? 0.8);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
+
+      if (whiteOnDark) {
+        transparent = false;
+        if (
+          !bgColor ||
+          bgColor.toLowerCase() === "#ffffff" ||
+          bgColor.toLowerCase() === "#fff"
+        ) {
+          bgColor = DARK_BG_DEFAULT;
+        }
+        if (!lineColor || lineColor.toLowerCase() === "#000000") {
+          lineColor = "#ffffff";
+        }
+      }
 
       const prepped = await normalizeForPotrace(input, {
         preprocess,
@@ -320,13 +340,13 @@ export async function action({ request }: ActionFunctionArgs) {
       const PotraceClass: any = (potrace as any).Potrace;
 
       const opts: any = {
-        color: lineColor,
+        color: "#000000",
         threshold,
         turdSize,
         optTolerance,
         turnPolicy,
-        invert,
-        blackOnWhite: !invert,
+        invert: false,
+        blackOnWhite: true,
       };
 
       const svgRaw: string = await new Promise((resolve, reject) => {
@@ -665,32 +685,6 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-clean",
-    label: "PNG Logo - Clean shapes",
-    settings: {
-      preprocess: "none",
-      threshold: 210,
-      turdSize: 2,
-      optTolerance: 0.25,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-    },
-  },
-  {
-    id: "icon-thin",
-    label: "PNG Icon - Thin details",
-    settings: {
-      preprocess: "none",
-      threshold: 236,
-      turdSize: 1,
-      optTolerance: 0.2,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
-    },
-  },
-  {
     id: "line-bold",
     label: "Lineart - Bold",
     settings: {
@@ -702,8 +696,78 @@ const PRESETS: Preset[] = [
     },
   },
   {
+    id: "line-fine",
+    label: "Lineart - Fine detail",
+    settings: {
+      preprocess: "none",
+      threshold: 232,
+      turdSize: 1,
+      optTolerance: 0.22,
+      turnPolicy: "minority",
+    },
+  },
+  {
+    id: "line-gap",
+    label: "Lineart - Seal gaps",
+    settings: {
+      preprocess: "none",
+      threshold: 218,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "black",
+    },
+  },
+  {
+    id: "photo-soft",
+    label: "Photo Edge - Soft",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.2,
+      edgeBoost: 0.9,
+      threshold: 210,
+      turdSize: 2,
+      optTolerance: 0.35,
+    },
+  },
+  {
+    id: "photo-normal",
+    label: "Photo Edge - Normal",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.9,
+      edgeBoost: 1.1,
+      threshold: 220,
+      turdSize: 2,
+      optTolerance: 0.35,
+    },
+  },
+  {
+    id: "photo-bold",
+    label: "Photo Edge - Bold",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.6,
+      edgeBoost: 1.4,
+      threshold: 230,
+      turdSize: 3,
+      optTolerance: 0.4,
+    },
+  },
+  {
+    id: "edge-clean",
+    label: "Edge - Clean",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.8,
+      edgeBoost: 1.2,
+      threshold: 236,
+      turdSize: 2,
+      optTolerance: 0.45,
+    },
+  },
+  {
     id: "scan-clean",
-    label: "PNG Scan - Clean (remove speckles)",
+    label: "Scan - Clean (remove speckles)",
     settings: {
       preprocess: "none",
       threshold: 226,
@@ -716,7 +780,7 @@ const PRESETS: Preset[] = [
   },
   {
     id: "scan-aggressive",
-    label: "PNG Scan - Aggressive (close gaps)",
+    label: "Scan - Aggressive (close gaps)",
     settings: {
       preprocess: "none",
       threshold: 218,
@@ -728,32 +792,59 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "photo-edge-soft",
-    label: "PNG Photo Edge - Soft outline",
+    id: "logo-clean",
+    label: "Logo - Clean shapes",
     settings: {
-      preprocess: "edge",
-      blurSigma: 1.2,
-      edgeBoost: 0.9,
+      preprocess: "none",
       threshold: 210,
       turdSize: 2,
-      optTolerance: 0.35,
+      optTolerance: 0.25,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
     },
   },
   {
-    id: "photo-edge-bold",
-    label: "PNG Photo Edge - Bold contour",
+    id: "logo-thin",
+    label: "Logo - Thin details",
+    settings: {
+      preprocess: "none",
+      threshold: 238,
+      turdSize: 1,
+      optTolerance: 0.2,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+    },
+  },
+  {
+    id: "noisy-denoise",
+    label: "Noisy Photo - Denoise Edge",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.6,
-      edgeBoost: 1.4,
-      threshold: 230,
+      blurSigma: 1.6,
+      edgeBoost: 1.25,
+      threshold: 222,
       turdSize: 3,
-      optTolerance: 0.4,
+      optTolerance: 0.38,
+      turnPolicy: "majority",
+    },
+  },
+  {
+    id: "low-contrast",
+    label: "Low-contrast Photo - Boost edges",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.0,
+      edgeBoost: 1.6,
+      threshold: 228,
+      turdSize: 2,
+      optTolerance: 0.36,
     },
   },
   {
     id: "invert-white-on-black",
-    label: "Invert - White lines on dark",
+    label: "Invert - White lines on black",
     settings: {
       preprocess: "none",
       threshold: 225,
@@ -762,6 +853,51 @@ const PRESETS: Preset[] = [
       turnPolicy: "minority",
       invert: true,
       lineColor: "#ffffff",
+      transparent: false,
+      bgColor: DARK_BG_DEFAULT,
+    },
+  },
+  {
+    id: "comics-inks",
+    label: "Comics - Inks (chunky)",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.7,
+      edgeBoost: 1.5,
+      threshold: 234,
+      turdSize: 3,
+      optTolerance: 0.48,
+      turnPolicy: "black",
+      lineColor: "#000000",
+    },
+  },
+  {
+    id: "blueprint",
+    label: "Diagram - Blueprint (invert + blue)",
+    settings: {
+      preprocess: "none",
+      threshold: 230,
+      turdSize: 2,
+      optTolerance: 0.3,
+      turnPolicy: "minority",
+      invert: true,
+      lineColor: "#0ea5e9",
+      transparent: false,
+      bgColor: DARK_BG_DEFAULT,
+    },
+  },
+  {
+    id: "whiteboard",
+    label: "Whiteboard - Anti-glare",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.3,
+      edgeBoost: 1.15,
+      threshold: 220,
+      turdSize: 2,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#0f172a",
     },
   },
 ];
@@ -909,7 +1045,16 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       return;
     }
 
+    suppressLiveRef.current = true;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+
+    setSettings(DEFAULTS);
+    setActivePreset("line-accurate");
+    setHistory([]);
 
     setErr(null);
     setInfo(null);
@@ -931,6 +1076,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         setPreviewUrl(null);
         setAutoMode("off");
         setOriginalFileSize(null);
+        suppressLiveRef.current = false;
         return;
       }
     } else if (f.size > LIVE_MED_MAX) {
@@ -960,6 +1106,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       setPreviewUrl(null);
       setAutoMode("off");
       setOriginalFileSize(null);
+      suppressLiveRef.current = false;
       return;
     }
 
@@ -968,6 +1115,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
     await measureAndSet(chosen);
+    suppressLiveRef.current = false;
   }
 
   async function submitConvert() {
@@ -983,19 +1131,40 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       return;
     }
 
+    const effective = (() => {
+      if (!settings.invert) return settings;
+
+      const bg =
+        !settings.bgColor ||
+        settings.bgColor.toLowerCase() === "#ffffff" ||
+        settings.bgColor.toLowerCase() === "#fff"
+          ? DARK_BG_DEFAULT
+          : settings.bgColor;
+
+      return {
+        ...settings,
+        transparent: false,
+        bgColor: bg,
+        lineColor:
+          !settings.lineColor || settings.lineColor.toLowerCase() === "#000000"
+            ? "#ffffff"
+            : settings.lineColor,
+      };
+    })();
+
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("threshold", String(settings.threshold));
-    fd.append("turdSize", String(settings.turdSize));
-    fd.append("optTolerance", String(settings.optTolerance));
-    fd.append("turnPolicy", settings.turnPolicy);
-    fd.append("lineColor", settings.lineColor);
-    fd.append("invert", String(settings.invert));
-    fd.append("transparent", String(settings.transparent));
-    fd.append("bgColor", settings.bgColor);
-    fd.append("preprocess", settings.preprocess);
-    fd.append("blurSigma", String(settings.blurSigma));
-    fd.append("edgeBoost", String(settings.edgeBoost));
+    fd.append("threshold", String(effective.threshold));
+    fd.append("turdSize", String(effective.turdSize));
+    fd.append("optTolerance", String(effective.optTolerance));
+    fd.append("turnPolicy", effective.turnPolicy);
+    fd.append("lineColor", effective.lineColor);
+    fd.append("invert", String(effective.invert));
+    fd.append("transparent", String(effective.transparent));
+    fd.append("bgColor", effective.bgColor);
+    fd.append("preprocess", effective.preprocess);
+    fd.append("blurSigma", String(effective.blurSigma));
+    fd.append("edgeBoost", String(effective.edgeBoost));
     setErr(null);
 
     fetcher.submit(fd, {
@@ -1006,7 +1175,10 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   }
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressLiveRef = React.useRef(false);
+
   React.useEffect(() => {
+    if (suppressLiveRef.current) return;
     if (!file) return;
     const mode = autoMode;
     if (mode === "off") return;
@@ -1735,7 +1907,7 @@ function SeoSections() {
               ))}
             </div>
           </header>
-                    <ExampleSvgConversion />
+          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
