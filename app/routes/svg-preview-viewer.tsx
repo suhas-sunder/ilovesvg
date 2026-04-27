@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /* ========================
    Meta
@@ -2067,6 +2068,7 @@ function SeoSections() {
               ))}
             </div>
           </header>
+          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">

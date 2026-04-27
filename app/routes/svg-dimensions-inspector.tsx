@@ -8,6 +8,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /* ========================
    Meta
@@ -1634,6 +1635,7 @@ function SeoSections() {
               </li>
             </ol>
           </div>
+          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed

@@ -14,6 +14,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 const isServer = typeof document === "undefined";
 
@@ -1774,6 +1775,7 @@ function SeoSections() {
               </div>
             </div>
           </header>
+          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed

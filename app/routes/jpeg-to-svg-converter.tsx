@@ -15,6 +15,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1781,6 +1782,7 @@ function JpegSeoSections() {
               ))}
             </div>
           </header>
+          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed

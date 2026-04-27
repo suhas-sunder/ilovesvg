@@ -10,6 +10,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /* ========================
    Meta
@@ -363,9 +364,9 @@ export default function SvgToPdf(_: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                 <h1 className="inline-flex mb-1 text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-             SVG to PDF Converter
-            </h1>
+                <h1 className="inline-flex mb-1 text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG to PDF Converter
+                </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
@@ -1478,6 +1479,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed

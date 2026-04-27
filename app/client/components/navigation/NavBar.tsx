@@ -7,7 +7,11 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 
-type NavItem = { label: string; href: string };
+type NavItem = {
+  label: string;
+  href: string;
+  keywords?: string[];
+};
 
 type Rect = { top: number; left: number; width: number; height: number };
 
@@ -24,9 +28,15 @@ export default function NavBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreRect, setMoreRect] = useState<Rect | null>(null);
 
+  // Search
+  const [desktopSearch, setDesktopSearch] = useState("");
+  const [mobileSearch, setMobileSearch] = useState("");
+
   const moreBtnRef = useRef<HTMLButtonElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const mobilePanelRef = useRef<HTMLDivElement | null>(null);
+  const desktopSearchRef = useRef<HTMLInputElement | null>(null);
+  const mobileSearchRef = useRef<HTMLInputElement | null>(null);
 
   const isClient = useIsClient();
 
@@ -34,100 +44,316 @@ export default function NavBar() {
 
   const items: NavItem[] = useMemo(
     () => [
-      // Anchor
-      { label: "All Tools", href: "/#other-tools" },
+      // Current-page anchor
+      {
+        label: "All Tools",
+        href: "#other-tools",
+        keywords: ["all tools", "tools", "navigation", "browse tools"],
+      },
 
-      // Common converters
-      { label: "SVG to PNG", href: "/svg-to-png-converter" },
-      { label: "SVG to JPG", href: "/svg-to-jpg-converter" },
-      { label: "SVG to WebP", href: "/svg-to-webp-converter" },
-      { label: "SVG to PDF", href: "/svg-to-pdf-converter" },
+      // Home / main converter
+      {
+        label: "Image to SVG",
+        href: "/",
+        keywords: [
+          "image to svg",
+          "convert image",
+          "vectorize",
+          "png to svg",
+          "jpg to svg",
+          "jpeg to svg",
+          "webp to svg",
+        ],
+      },
 
-      // Core editors
-      { label: "Recolor", href: "/svg-recolor" },
-      { label: "Resize / Scale", href: "/svg-resize-and-scale-editor" },
-      { label: "Background", href: "/svg-background-editor" },
-      { label: "Flip / Rotate", href: "/svg-flip-and-rotate-editor" },
-      { label: "Stroke Width", href: "/svg-stroke-width-editor" },
+      // SVG -> raster/pdf
+      {
+        label: "SVG to PNG",
+        href: "/svg-to-png-converter",
+        keywords: ["svg to png", "png", "transparent png", "export png"],
+      },
+      {
+        label: "SVG to JPG",
+        href: "/svg-to-jpg-converter",
+        keywords: ["svg to jpg", "svg to jpeg", "jpg", "jpeg", "export jpg"],
+      },
+      {
+        label: "SVG to WebP",
+        href: "/svg-to-webp-converter",
+        keywords: ["svg to webp", "webp", "export webp"],
+      },
+      {
+        label: "SVG to PDF",
+        href: "/svg-to-pdf-converter",
+        keywords: ["svg to pdf", "pdf", "print", "export pdf"],
+      },
 
-      // Cleanup / utility
-      { label: "Cleaner", href: "/svg-cleaner" },
-      { label: "Minifier", href: "/svg-minifier" },
-      { label: "Embed Code", href: "/svg-embed-code-generator" },
-      { label: "Preview", href: "/svg-preview-viewer" },
-      { label: "Dimensions Inspector", href: "/svg-dimensions-inspector" },
-      { label: "File Size Inspector", href: "/svg-file-size-inspector" },
+      // SVG utilities
+      {
+        label: "Background",
+        href: "/svg-background-editor",
+        keywords: ["svg background", "background editor", "transparent"],
+      },
+      {
+        label: "Resize / Scale",
+        href: "/svg-resize-and-scale-editor",
+        keywords: ["resize svg", "scale svg", "viewbox", "width", "height"],
+      },
+      {
+        label: "Recolor",
+        href: "/svg-recolor",
+        keywords: ["recolor svg", "change color", "fill", "stroke"],
+      },
+      {
+        label: "Minifier",
+        href: "/svg-minifier",
+        keywords: ["svg minifier", "minify", "compress", "reduce size"],
+      },
+      {
+        label: "Cleaner",
+        href: "/svg-cleaner",
+        keywords: ["svg cleaner", "clean svg", "metadata", "optimize"],
+      },
+      {
+        label: "Preview",
+        href: "/svg-preview-viewer",
+        keywords: ["svg preview", "viewer", "view svg", "render svg"],
+      },
+      {
+        label: "Embed Code",
+        href: "/svg-embed-code-generator",
+        keywords: ["embed svg", "inline svg", "img tag", "css background"],
+      },
+      {
+        label: "Inline SVG vs Img",
+        href: "/inline-svg-vs-img",
+        keywords: ["inline svg", "img", "svg vs img", "reference"],
+      },
+      {
+        label: "SVG to Favicon",
+        href: "/svg-to-favicon-generator",
+        keywords: ["favicon", "ico", "app icon", "browser icon"],
+      },
+      {
+        label: "Stroke Width",
+        href: "/svg-stroke-width-editor",
+        keywords: ["stroke width", "line thickness", "stroke-width"],
+      },
+      {
+        label: "Flip / Rotate",
+        href: "/svg-flip-and-rotate-editor",
+        keywords: ["flip svg", "rotate svg", "mirror", "transform"],
+      },
+      {
+        label: "Dimensions Inspector",
+        href: "/svg-dimensions-inspector",
+        keywords: ["dimensions", "width", "height", "viewbox", "inspect"],
+      },
+      {
+        label: "File Size Inspector",
+        href: "/svg-file-size-inspector",
+        keywords: ["file size", "kb", "bytes", "inspect size"],
+      },
       {
         label: "Accessibility / Contrast",
         href: "/svg-accessibility-and-contrast-checker",
+        keywords: [
+          "accessibility",
+          "contrast",
+          "wcag",
+          "a11y",
+          "color blindness",
+        ],
       },
 
-      // Base64
-      { label: "SVG to Base64", href: "/svg-to-base64" },
-      { label: "Base64 to SVG", href: "/base64-to-svg" },
-
-      // Favicons + reference
-      { label: "SVG to Favicon", href: "/svg-to-favicon-generator" },
-      { label: "Inline SVG vs Img", href: "/inline-svg-vs-img" },
-
-      // Color tool
-      { label: "Color Picker", href: "/free-color-picker" },
-
-      // Cricut / craft routes
-      { label: "Sticker to SVG", href: "/sticker-to-svg-converter" },
-      { label: "PNG to SVG for Cricut", href: "/png-to-svg-for-cricut" },
+      // US target audience routes
+      {
+        label: "PNG to SVG for Cricut",
+        href: "/png-to-svg-for-cricut",
+        keywords: ["cricut", "png to svg", "craft", "cut file"],
+      },
       {
         label: "PNG to Layered SVG for Cricut",
         href: "/png-to-layered-svg-for-cricut",
+        keywords: ["cricut", "layered svg", "layers", "multicolor"],
       },
       {
         label: "PNG to SVG for Print Then Cut",
         href: "/png-to-svg-for-cricut-print-then-cut",
+        keywords: ["cricut", "print then cut", "stickers", "labels"],
       },
       {
         label: "PNG to SVG for Vinyl",
         href: "/png-to-svg-for-cricut-vinyl",
+        keywords: ["cricut", "vinyl", "decal", "cut file"],
       },
       {
         label: "PNG to SVG for Stickers",
         href: "/png-to-svg-for-cricut-stickers",
+        keywords: ["cricut", "stickers", "sticker svg", "labels"],
       },
       {
         label: "PNG to SVG for Laser Cutting",
         href: "/png-to-svg-for-laser-cutting",
+        keywords: ["laser cutting", "engraving", "cut paths", "outline"],
+      },
+
+      // Base64
+      {
+        label: "SVG to Base64",
+        href: "/svg-to-base64",
+        keywords: ["svg to base64", "encode", "data uri", "base64"],
+      },
+      {
+        label: "Base64 to SVG",
+        href: "/base64-to-svg",
+        keywords: ["base64 to svg", "decode", "data uri", "decoder"],
+      },
+
+      // Color tool
+      {
+        label: "Color Picker",
+        href: "/free-color-picker",
+        keywords: ["color picker", "palette", "hex", "rgb", "hsl"],
       },
 
       // Raster -> SVG
-      { label: "PNG to SVG", href: "/png-to-svg-converter" },
-      { label: "JPG to SVG", href: "/jpg-to-svg-converter" },
-      { label: "JPEG to SVG", href: "/jpeg-to-svg-converter" },
-      { label: "WebP to SVG", href: "/webp-to-svg-converter" },
-      { label: "Logo to SVG", href: "/logo-to-svg-converter" },
-      { label: "Icon to SVG", href: "/icon-to-svg-converter" },
-      { label: "Emoji to SVG", href: "/emoji-to-svg-converter" },
-      { label: "Text to SVG", href: "/text-to-svg-converter" },
-      { label: "Line Art to SVG", href: "/line-art-to-svg-converter" },
-      { label: "Drawing to SVG", href: "/drawing-to-svg-converter" },
-      { label: "Scan to SVG", href: "/scan-to-svg-converter" },
-      { label: "Sketch to SVG", href: "/sketch-to-svg-converter" },
-      { label: "Image to SVG Outline", href: "/image-to-svg-outline" },
-      { label: "Photo to SVG Outline", href: "/photo-to-svg-outline" },
+      {
+        label: "PNG to SVG",
+        href: "/png-to-svg-converter",
+        keywords: ["png to svg", "vectorize png", "transparent png"],
+      },
+      {
+        label: "JPG to SVG",
+        href: "/jpg-to-svg-converter",
+        keywords: ["jpg to svg", "jpeg", "photo", "vectorize jpg"],
+      },
+      {
+        label: "JPEG to SVG",
+        href: "/jpeg-to-svg-converter",
+        keywords: ["jpeg to svg", "jpg", "photo", "vectorize jpeg"],
+      },
+      {
+        label: "WebP to SVG",
+        href: "/webp-to-svg-converter",
+        keywords: ["webp to svg", "vectorize webp"],
+      },
+      {
+        label: "Logo to SVG",
+        href: "/logo-to-svg-converter",
+        keywords: ["logo to svg", "brand", "vector logo"],
+      },
+      {
+        label: "Icon to SVG",
+        href: "/icon-to-svg-converter",
+        keywords: ["icon to svg", "ui icon", "vector icon"],
+      },
+      {
+        label: "Emoji to SVG",
+        href: "/emoji-to-svg-converter",
+        keywords: ["emoji to svg", "emoji", "sticker"],
+      },
+      {
+        label: "Text to SVG",
+        href: "/text-to-svg-converter",
+        keywords: ["text to svg", "wordmark", "typography"],
+      },
+      {
+        label: "Sticker to SVG",
+        href: "/sticker-to-svg-converter",
+        keywords: ["sticker to svg", "decal", "cut file"],
+      },
+      {
+        label: "Line Art to SVG",
+        href: "/line-art-to-svg-converter",
+        keywords: ["line art", "outline", "trace", "coloring page"],
+      },
+      {
+        label: "Drawing to SVG",
+        href: "/drawing-to-svg-converter",
+        keywords: ["drawing to svg", "hand drawn", "sketch", "trace"],
+      },
+      {
+        label: "Scan to SVG",
+        href: "/scan-to-svg-converter",
+        keywords: ["scan to svg", "scanned image", "document", "trace"],
+      },
+      {
+        label: "Sketch to SVG",
+        href: "/sketch-to-svg-converter",
+        keywords: ["sketch to svg", "pencil", "drawing", "trace"],
+      },
+      {
+        label: "Image to SVG Outline",
+        href: "/image-to-svg-outline",
+        keywords: ["image outline", "outline svg", "line art", "trace"],
+      },
+      {
+        label: "Photo to SVG Outline",
+        href: "/photo-to-svg-outline",
+        keywords: ["photo outline", "outline svg", "trace photo"],
+      },
       {
         label: "B&W Image to SVG",
         href: "/black-and-white-image-to-svg-converter",
+        keywords: ["black and white", "b&w", "stencil", "monochrome"],
       },
     ],
     [],
   );
 
-  // Put first 4 on the bar, rest in More
-  const primaryLinks = useMemo(() => items.slice(0, 4), [items]);
-  const moreLinks = useMemo(() => items.slice(4), [items]);
+  // Keep the bar compact. Searchable More still contains all routes.
+  const primaryLinks = useMemo(() => {
+    return items.filter((item) =>
+      [
+        "#other-tools",
+        "/svg-to-png-converter",
+        "/svg-to-jpg-converter",
+        "/svg-to-webp-converter",
+      ].includes(item.href),
+    );
+  }, [items]);
+
+  const moreLinks = useMemo(() => items, [items]);
+
+  const filteredDesktopMoreLinks = useMemo(
+    () => filterNavItems(moreLinks, desktopSearch),
+    [moreLinks, desktopSearch],
+  );
+
+  const filteredMobileLinks = useMemo(
+    () => filterNavItems(items, mobileSearch),
+    [items, mobileSearch],
+  );
 
   const closeAll = () => {
     setMobileOpen(false);
     setMoreOpen(false);
   };
+
+  function handleNavClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    if (href.startsWith("#")) {
+      e.preventDefault();
+
+      const targetId = href.slice(1);
+      closeAll();
+
+      window.setTimeout(() => {
+        const target = document.getElementById(targetId);
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          window.history.replaceState(null, "", href);
+        }
+      }, 0);
+
+      return;
+    }
+
+    closeAll();
+  }
 
   function updateMoreRect() {
     const btn = moreBtnRef.current;
@@ -154,6 +380,24 @@ export default function NavBar() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moreOpen]);
+
+  // Focus search when desktop menu opens
+  useEffect(() => {
+    if (!moreOpen) return;
+
+    window.setTimeout(() => {
+      desktopSearchRef.current?.focus();
+    }, 0);
+  }, [moreOpen]);
+
+  // Focus mobile search when drawer opens
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    window.setTimeout(() => {
+      mobileSearchRef.current?.focus();
+    }, 0);
+  }, [mobileOpen]);
 
   // Close desktop dropdown on outside click + Escape
   useEffect(() => {
@@ -220,7 +464,7 @@ export default function NavBar() {
     const gap = 8;
     const top = Math.round(moreRect.top + moreRect.height + gap);
 
-    const menuWidth = 320;
+    const menuWidth = 380;
     const rightEdge = Math.round(moreRect.left + moreRect.width);
     const left = Math.max(8, rightEdge - menuWidth);
 
@@ -295,7 +539,11 @@ export default function NavBar() {
             className="hidden sm:flex items-center gap-2 text-sm"
           >
             {primaryLinks.map((l) => (
-              <DesktopLink key={l.href} href={l.href} onClick={closeAll}>
+              <DesktopLink
+                key={l.href}
+                href={l.href}
+                onClick={(e) => handleNavClick(e, l.href)}
+              >
                 {l.label}
               </DesktopLink>
             ))}
@@ -329,14 +577,71 @@ export default function NavBar() {
               className="rounded-xl border border-sky-900/60 bg-sky-950 shadow-xl overflow-hidden"
               style={dropdownStyle}
             >
+              <div className="shrink-0 border-b border-sky-900/60 bg-sky-950/95 p-3">
+                <label className="sr-only" htmlFor="desktop-tool-search">
+                  Search tools
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sky-200/70">
+                    <IconSearch />
+                  </span>
+                  <input
+                    id="desktop-tool-search"
+                    ref={desktopSearchRef}
+                    value={desktopSearch}
+                    onChange={(e) => setDesktopSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setDesktopSearch("");
+                        setMoreOpen(false);
+                      }
+                    }}
+                    placeholder="Search all tools..."
+                    className="w-full rounded-lg border border-sky-800/80 bg-sky-900/45 py-2 pl-10 pr-9 text-sm font-semibold text-white
+                               placeholder:text-sky-200/60 outline-none transition-colors
+                               focus:border-sky-400 focus:bg-sky-900/70 focus:ring-2 focus:ring-sky-400/25"
+                  />
+                  {desktopSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDesktopSearch("");
+                        desktopSearchRef.current?.focus();
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1
+                                 text-sky-200 hover:bg-sky-800/70 hover:text-white transition-colors cursor-pointer"
+                      aria-label="Clear search"
+                    >
+                      <IconXSmall />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-2 text-xs font-semibold text-sky-200/75">
+                  {filteredDesktopMoreLinks.length === 1
+                    ? "1 tool"
+                    : `${filteredDesktopMoreLinks.length} tools`}
+                </div>
+              </div>
+
               <div
                 className={`${SCROLL_CLASS} max-h-[min(60vh,520px)] overflow-y-auto`}
               >
-                {moreLinks.map((l) => (
-                  <DropdownLink key={l.href} href={l.href} onClick={closeAll}>
-                    {l.label}
-                  </DropdownLink>
-                ))}
+                {filteredDesktopMoreLinks.length > 0 ? (
+                  filteredDesktopMoreLinks.map((l) => (
+                    <DropdownLink
+                      key={l.href}
+                      href={l.href}
+                      onClick={(e) => handleNavClick(e, l.href)}
+                    >
+                      {l.label}
+                    </DropdownLink>
+                  ))
+                ) : (
+                  <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
+                    No matching tools found.
+                  </div>
+                )}
               </div>
             </div>,
             document.body,
@@ -386,15 +691,66 @@ export default function NavBar() {
                   <IconX />
                 </button>
               </div>
+
+              <div className="px-4 pb-3">
+                <label className="sr-only" htmlFor="mobile-tool-search">
+                  Search tools
+                </label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sky-200/70">
+                    <IconSearch />
+                  </span>
+                  <input
+                    id="mobile-tool-search"
+                    ref={mobileSearchRef}
+                    value={mobileSearch}
+                    onChange={(e) => setMobileSearch(e.target.value)}
+                    placeholder="Search all tools..."
+                    className="w-full rounded-lg border border-sky-800/80 bg-sky-900/45 py-2.5 pl-10 pr-9 text-sm font-semibold text-white
+                               placeholder:text-sky-200/60 outline-none transition-colors
+                               focus:border-sky-400 focus:bg-sky-900/70 focus:ring-2 focus:ring-sky-400/25"
+                  />
+                  {mobileSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileSearch("");
+                        mobileSearchRef.current?.focus();
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1
+                                 text-sky-200 hover:bg-sky-800/70 hover:text-white transition-colors cursor-pointer"
+                      aria-label="Clear search"
+                    >
+                      <IconXSmall />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-2 text-xs font-semibold text-sky-200/75">
+                  {filteredMobileLinks.length === 1
+                    ? "1 tool"
+                    : `${filteredMobileLinks.length} tools`}
+                </div>
+              </div>
             </div>
 
             <div className="flex-1 min-h-0">
               <div className={`${SCROLL_CLASS} h-full overflow-y-auto`}>
-                {items.map((l) => (
-                  <MobileLink key={l.href} href={l.href} onClick={closeAll}>
-                    {l.label}
-                  </MobileLink>
-                ))}
+                {filteredMobileLinks.length > 0 ? (
+                  filteredMobileLinks.map((l) => (
+                    <MobileLink
+                      key={l.href}
+                      href={l.href}
+                      onClick={(e) => handleNavClick(e, l.href)}
+                    >
+                      {l.label}
+                    </MobileLink>
+                  ))
+                ) : (
+                  <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
+                    No matching tools found.
+                  </div>
+                )}
                 <div className="h-[env(safe-area-inset-bottom)]" />
               </div>
             </div>
@@ -405,6 +761,30 @@ export default function NavBar() {
   );
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\w\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function filterNavItems(items: NavItem[], query: string) {
+  const q = normalizeSearchText(query);
+  if (!q) return items;
+
+  const tokens = q.split(" ").filter(Boolean);
+
+  return items.filter((item) => {
+    const haystack = normalizeSearchText(
+      [item.label, item.href, ...(item.keywords ?? [])].join(" "),
+    );
+
+    return tokens.every((token) => haystack.includes(token));
+  });
+}
+
 function DesktopLink({
   href,
   children,
@@ -412,7 +792,7 @@ function DesktopLink({
 }: {
   href: string;
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <a
@@ -433,7 +813,7 @@ function DropdownLink({
 }: {
   href: string;
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <a
@@ -455,7 +835,7 @@ function MobileLink({
 }: {
   href: string;
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <a
@@ -507,6 +887,25 @@ function IconX() {
   );
 }
 
+function IconXSmall() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function IconChevronDown() {
   return (
     <svg
@@ -522,6 +921,30 @@ function IconChevronDown() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconSearch() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M10.5 18a7.5 7.5 0 1 1 5.303-12.803A7.5 7.5 0 0 1 10.5 18Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 16l4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
       />
     </svg>
   );

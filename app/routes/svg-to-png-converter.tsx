@@ -7,6 +7,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /* ========================
    Meta
@@ -168,7 +169,8 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     setSvgText(safeText);
 
     const info =
-      parseSvgSize(safeText) || ({ width: 1024, height: 1024, aspect: 1 } as SvgInfo);
+      parseSvgSize(safeText) ||
+      ({ width: 1024, height: 1024, aspect: 1 } as SvgInfo);
     setSvgInfo(info);
 
     setSettings((s) => {
@@ -179,7 +181,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     });
 
     if (previewSvgUrl) URL.revokeObjectURL(previewSvgUrl);
-    const url = URL.createObjectURL(new Blob([safeText], { type: "image/svg+xml" }));
+    const url = URL.createObjectURL(
+      new Blob([safeText], { type: "image/svg+xml" }),
+    );
     setPreviewSvgUrl(url);
   }
 
@@ -187,7 +191,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     setErr(null);
     revokeLiveAndFinal();
 
-    if (!(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))) {
+    if (
+      !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
+    ) {
       setErr("Please choose an SVG file.");
       return;
     }
@@ -200,7 +206,8 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
     setSvgText(safeText);
 
     const info =
-      parseSvgSize(safeText) || ({ width: 1024, height: 1024, aspect: 1 } as SvgInfo);
+      parseSvgSize(safeText) ||
+      ({ width: 1024, height: 1024, aspect: 1 } as SvgInfo);
     setSvgInfo(info);
 
     const baseName = stripExt(f.name) || "converted";
@@ -212,7 +219,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
       lockAspect: true,
     }));
 
-    const url = URL.createObjectURL(new Blob([safeText], { type: "image/svg+xml" }));
+    const url = URL.createObjectURL(
+      new Blob([safeText], { type: "image/svg+xml" }),
+    );
     setPreviewSvgUrl(url);
   }
 
@@ -405,7 +414,8 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </summary>
                   <div className="px-4 pb-4">
                     <p className="text-[13px] text-slate-600 mt-2">
-                      Editing is optional. Most users can just upload and convert.
+                      Editing is optional. Most users can just upload and
+                      convert.
                     </p>
                     <textarea
                       value={svgText}
@@ -458,7 +468,10 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </button>
 
                   {showAdvanced && (
-                    <div id="advanced-settings" className="flex flex-col gap-2 min-w-0">
+                    <div
+                      id="advanced-settings"
+                      className="flex flex-col gap-2 min-w-0"
+                    >
                       <div className="grid gap-2">
                         <Field label="Output width (px)">
                           <NumInt
@@ -645,9 +658,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 </div>
 
                 <div className="mt-3 text-[13px] text-slate-600">
-                  How it works: your SVG is rendered to an HTML canvas in your browser,
-                  then exported as a PNG. Transparent background stays transparent unless
-                  you choose a solid background color.
+                  How it works: your SVG is rendered to an HTML canvas in your
+                  browser, then exported as a PNG. Transparent background stays
+                  transparent unless you choose a solid background color.
                 </div>
               </div>
 
@@ -657,7 +670,11 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 </div>
                 <div className="p-3 bg-slate-200">
                   {previewSrc ? (
-                    <img src={previewSrc} alt="PNG result" className="w-full h-auto block" />
+                    <img
+                      src={previewSrc}
+                      alt="PNG result"
+                      className="w-full h-auto block"
+                    />
                   ) : (
                     <div className="text-slate-600 text-sm">
                       Upload an SVG to see a live PNG preview here.
@@ -743,7 +760,9 @@ async function svgToPngBlobUrl(
   }
 
   const coercedSvg = coerceSvgToExactPixelSize(svgText, pxW, pxH);
-  const svgBlob = new Blob([coercedSvg], { type: "image/svg+xml;charset=utf-8" });
+  const svgBlob = new Blob([coercedSvg], {
+    type: "image/svg+xml;charset=utf-8",
+  });
   const url = URL.createObjectURL(svgBlob);
 
   try {
@@ -777,7 +796,10 @@ async function svgToPngBlobUrl(
   }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+): Promise<Blob | null> {
   return new Promise((resolve) => {
     canvas.toBlob((b) => resolve(b), type);
   });
@@ -830,20 +852,40 @@ function parseSvgSize(svg: string): SvgInfo | null {
   const hPx = heightRaw ? parseCssLengthToPx(heightRaw) : null;
 
   if (wPx && hPx && wPx > 0 && hPx > 0) {
-    return { width: wPx, height: hPx, viewBox: vb || undefined, aspect: wPx / hPx };
+    return {
+      width: wPx,
+      height: hPx,
+      viewBox: vb || undefined,
+      aspect: wPx / hPx,
+    };
   }
 
   const vbParsed = parseViewBox(vb);
   if (vbParsed && vbParsed.w > 0 && vbParsed.h > 0) {
     if (wPx && wPx > 0) {
       const h = Math.max(1, Math.round(wPx * (vbParsed.h / vbParsed.w)));
-      return { width: wPx, height: h, viewBox: vb || undefined, aspect: wPx / h };
+      return {
+        width: wPx,
+        height: h,
+        viewBox: vb || undefined,
+        aspect: wPx / h,
+      };
     }
     if (hPx && hPx > 0) {
       const w = Math.max(1, Math.round(hPx * (vbParsed.w / vbParsed.h)));
-      return { width: w, height: hPx, viewBox: vb || undefined, aspect: w / hPx };
+      return {
+        width: w,
+        height: hPx,
+        viewBox: vb || undefined,
+        aspect: w / hPx,
+      };
     }
-    return { width: vbParsed.w, height: vbParsed.h, viewBox: vb || undefined, aspect: vbParsed.w / vbParsed.h };
+    return {
+      width: vbParsed.w,
+      height: vbParsed.h,
+      viewBox: vb || undefined,
+      aspect: vbParsed.w / vbParsed.h,
+    };
   }
 
   return null;
@@ -857,7 +899,10 @@ function matchAttr(tag: string, name: string): string | null {
 
 function parseViewBox(vb: string | null | undefined) {
   if (!vb) return null;
-  const parts = vb.trim().split(/[\s,]+/).map((x) => Number(x));
+  const parts = vb
+    .trim()
+    .split(/[\s,]+/)
+    .map((x) => Number(x));
   if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
   const [, , w, h] = parts;
   if (w === 0 || h === 0) return null;
@@ -921,7 +966,13 @@ function formatBytes(bytes: number) {
 /* ========================
    UI helpers
 ======================== */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
       <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
@@ -961,7 +1012,11 @@ function NumInt({
 /* ========================
    Breadcrumbs UI + JSON-LD
 ======================== */
-function Breadcrumbs({ crumbs }: { crumbs: Array<{ name: string; href: string }> }) {
+function Breadcrumbs({
+  crumbs,
+}: {
+  crumbs: Array<{ name: string; href: string }>;
+}) {
   return (
     <div className="mb-4">
       <nav
@@ -974,7 +1029,9 @@ function Breadcrumbs({ crumbs }: { crumbs: Array<{ name: string; href: string }>
               <a href={c.href} className="hover:text-slate-900">
                 {c.name}
               </a>
-              {i < crumbs.length - 1 ? <span className="text-slate-300">/</span> : null}
+              {i < crumbs.length - 1 ? (
+                <span className="text-slate-300">/</span>
+              ) : null}
             </li>
           ))}
         </ol>
@@ -1065,6 +1122,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1149,14 +1207,19 @@ function SeoSections() {
             </div>
           </section>
 
-          <section className="mt-8" itemScope itemType="https://schema.org/HowTo">
+          <section
+            className="mt-8"
+            itemScope
+            itemType="https://schema.org/HowTo"
+          >
             <h3 itemProp="name" className="m-0 font-bold">
               How to Convert SVG to PNG
             </h3>
             <ol className="mt-3 list-decimal pl-5 grid gap-2">
               <li itemProp="step">Upload (or paste) an SVG file.</li>
               <li itemProp="step">
-                Set output width and height (enable Lock aspect ratio if needed).
+                Set output width and height (enable Lock aspect ratio if
+                needed).
               </li>
               <li itemProp="step">
                 Choose Transparent background or a Solid background color.
@@ -1168,7 +1231,9 @@ function SeoSections() {
           <section className="mt-8">
             <h3 className="m-0 font-bold">Common Uses</h3>
             <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Export an SVG logo to PNG for social media or email signatures</li>
+              <li>
+                Export an SVG logo to PNG for social media or email signatures
+              </li>
               <li>Create PNG icons from SVGs for apps or favicons</li>
               <li>Generate transparent PNG stickers from vector art</li>
               <li>Resize SVG artwork to a specific pixel size</li>
@@ -1180,14 +1245,16 @@ function SeoSections() {
             <ul className="mt-3 text-slate-700 list-disc pl-5">
               <li>
                 If the output looks soft, raise{" "}
-                <strong>Quality (pixel ratio)</strong> or export larger dimensions.
+                <strong>Quality (pixel ratio)</strong> or export larger
+                dimensions.
               </li>
               <li>
                 For crisp edges on icons, keep <strong>Anti-aliasing</strong>{" "}
                 enabled (or disable it for pixel-art-like sharp edges).
               </li>
               <li>
-                If your SVG uses external fonts/images, embed them to improve compatibility.
+                If your SVG uses external fonts/images, embed them to improve
+                compatibility.
               </li>
             </ul>
           </section>
@@ -1200,7 +1267,8 @@ function SeoSections() {
                   Does this upload my SVG?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  No. The conversion runs in your browser and your file never leaves your device.
+                  No. The conversion runs in your browser and your file never
+                  leaves your device.
                 </p>
               </details>
 
@@ -1209,7 +1277,8 @@ function SeoSections() {
                   Can I set a custom width and height?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Yes. Set width and height in pixels. Turn on Lock aspect ratio to keep the original proportions.
+                  Yes. Set width and height in pixels. Turn on Lock aspect ratio
+                  to keep the original proportions.
                 </p>
               </details>
 
@@ -1218,7 +1287,8 @@ function SeoSections() {
                   How do I keep the PNG background transparent?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Choose Transparent background. Your PNG will preserve alpha transparency.
+                  Choose Transparent background. Your PNG will preserve alpha
+                  transparency.
                 </p>
               </details>
 
@@ -1227,7 +1297,8 @@ function SeoSections() {
                   Why does my PNG look blurry?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Increase Quality (pixel ratio) or export at a larger size. Higher pixel ratio produces a sharper PNG.
+                  Increase Quality (pixel ratio) or export at a larger size.
+                  Higher pixel ratio produces a sharper PNG.
                 </p>
               </details>
 
@@ -1236,8 +1307,9 @@ function SeoSections() {
                   Why won’t some SVGs convert?
                 </summary>
                 <p className="mt-2 text-slate-700">
-                  Some SVGs depend on external fonts/images or unsupported features that can’t be rendered to canvas.
-                  Embed assets directly in the SVG when possible.
+                  Some SVGs depend on external fonts/images or unsupported
+                  features that can’t be rendered to canvas. Embed assets
+                  directly in the SVG when possible.
                 </p>
               </details>
             </div>

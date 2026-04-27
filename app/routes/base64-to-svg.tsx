@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /* ========================
    Meta
@@ -38,29 +39,27 @@ type SourceMode = "auto" | "data-uri" | "base64-only";
 type DecodeMode = "auto" | "utf8" | "latin1";
 type QuoteMode = "double" | "single" | "none";
 
+type RasterImageMime = "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+
 type Settings = {
   sourceMode: SourceMode;
   decodeMode: DecodeMode;
 
-  // sanitize output SVG
   sanitize: boolean;
   stripScripts: boolean;
   stripForeignObject: boolean;
   stripEventHandlers: boolean;
   stripJavascriptHrefs: boolean;
 
-  // normalize formatting
   normalizeNewlines: boolean;
   minifyWhitespace: boolean;
 
-  // output options
   ensureXmlns: boolean;
   pretty: boolean;
   showPreview: boolean;
 
   fileName: string;
 
-  // copy helpers
   copyWithQuotes: boolean;
   quoteMode: QuoteMode;
 };
@@ -74,6 +73,24 @@ type SvgInfo = {
   hasScripts?: boolean;
   hasForeignObject?: boolean;
 };
+
+type DecodeResult =
+  | {
+      kind: "svg";
+      mime: "image/svg+xml";
+      text: string;
+      dataUrl: string;
+      extension: "svg";
+      bytes: number;
+    }
+  | {
+      kind: "image";
+      mime: RasterImageMime;
+      text: string;
+      dataUrl: string;
+      extension: "png" | "jpg" | "gif" | "webp";
+      bytes: number;
+    };
 
 const DEFAULTS: Settings = {
   sourceMode: "auto",
@@ -132,7 +149,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
   const [showDecodeMenu, setShowDecodeMenu] = React.useState(false);
 
   const [input, setInput] = React.useState<string>("");
-  const [outSvg, setOutSvg] = React.useState<string>("");
+  const [result, setResult] = React.useState<DecodeResult | null>(null);
   const [info, setInfo] = React.useState<SvgInfo | null>(null);
 
   const [err, setErr] = React.useState<string | null>(null);
@@ -158,54 +175,105 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
 
   function clearAll() {
     setInput("");
-    setOutSvg("");
+    setResult(null);
     setInfo(null);
     setErr(null);
   }
 
   function tryDecode(current = input) {
     setErr(null);
+
     try {
-      const decoded = decodeToSvg(current, settings);
-      const finalSvg = postprocessSvg(decoded, settings);
-      setOutSvg(finalSvg);
-      setInfo(parseSvgInfo(finalSvg));
+      const decoded = decodeInput(current, settings);
+      setResult(decoded);
+      setInfo(decoded.kind === "svg" ? parseSvgInfo(decoded.text) : null);
     } catch (e: any) {
       setErr(e?.message || "Decode failed.");
-      setOutSvg("");
+      setResult(null);
       setInfo(null);
     }
   }
 
   React.useEffect(() => {
     if (!input.trim()) {
-      setOutSvg("");
+      setResult(null);
       setInfo(null);
       setErr(null);
       return;
     }
+
     tryDecode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, input]);
 
-  function copySvg() {
-    if (!outSvg) return;
-    const t = settings.copyWithQuotes
-      ? wrapQuotes(outSvg, settings.quoteMode)
-      : outSvg;
+  function copyDecodedCode() {
+    if (!result) return;
+
+    const value =
+      result.kind === "svg"
+        ? settings.copyWithQuotes
+          ? wrapQuotes(result.text, settings.quoteMode)
+          : result.text
+        : result.dataUrl;
 
     navigator.clipboard
-      .writeText(t)
-      .then(() => showToast("Copied"))
+      .writeText(value)
+      .then(() =>
+        showToast(
+          result.kind === "svg"
+            ? "Decoded SVG copied"
+            : "Image data URL copied",
+        ),
+      )
       .catch(() => showToast("Copy failed"));
   }
 
-  function downloadSvg() {
-    if (!outSvg) return;
+  function copyDataUrl() {
+    if (!result) return;
+
+    navigator.clipboard
+      .writeText(result.dataUrl)
+      .then(() => showToast("Data URL copied"))
+      .catch(() => showToast("Copy failed"));
+  }
+
+  function copyCss() {
+    if (!result) return;
+
+    const value = `background-image: url("${result.dataUrl}");`;
+
+    navigator.clipboard
+      .writeText(value)
+      .then(() => showToast("CSS copied"))
+      .catch(() => showToast("Copy failed"));
+  }
+
+  function copyHtml() {
+    if (!result) return;
+
+    const alt = result.kind === "svg" ? "Decoded SVG" : "Decoded image";
+    const value = `<img src="${result.dataUrl}" alt="${alt}">`;
+
+    navigator.clipboard
+      .writeText(value)
+      .then(() => showToast("HTML copied"))
+      .catch(() => showToast("Copy failed"));
+  }
+
+  function downloadDecoded() {
+    if (!result) return;
+
     const name = (settings.fileName || "decoded").trim() || "decoded";
-    const filename = `${safeFileName(name)}.svg`;
-    downloadText(outSvg, filename);
-    showToast("Downloaded");
+    const filename = `${safeFileName(name)}.${result.extension}`;
+
+    if (result.kind === "svg") {
+      downloadText(result.text, filename);
+      showToast("SVG downloaded");
+      return;
+    }
+
+    downloadDataUrl(result.dataUrl, filename);
+    showToast("Image downloaded");
   }
 
   function pasteExample() {
@@ -237,7 +305,6 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
           </div>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-            {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="inline-flex text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
@@ -269,11 +336,13 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                   Clear
                 </button>
               </div>
+
               {err && <div className="mt-3 text-red-700 text-sm">{err}</div>}
+
               <p className="hidden md:block mt-2 text-slate-600">
                 Paste Base64, a <b>data:image/svg+xml</b> URL, an{" "}
-                <b>&lt;img src="..."&gt;</b> snippet, or CSS <b>url(...)</b>.
-                Runs fully client-side.
+                <b>&lt;img src="..."&gt;</b> snippet, CSS <b>url(...)</b>, or a
+                Base64-encoded image. Runs fully client-side.
               </p>
 
               <div className="hidden md:block mt-3 text-[13px] text-slate-600">
@@ -284,9 +353,109 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
               </div>
             </div>
 
-            {/* SETTINGS + OUTPUT */}
             <div className="bg-slate-600 border border-slate-200 rounded-2xl px-4 py-4 shadow-sm min-w-0 overflow-auto">
-              <div className="mt-3 min-w-0">
+              <div className="rounded-2xl bg-white p-4">
+                <h2 className="text-xl font-extrabold text-sky-800">
+                  Output Settings
+                </h2>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={copyDecodedCode}
+                    disabled={!hydrated || !result}
+                    className="flex cursor-pointer items-center justify-center rounded-xl border border-sky-600 bg-sky-500 px-4 py-2 font-bold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Icons
+                      name="copy"
+                      size={16}
+                      className="mr-1 inline-block"
+                    />
+                    Copy Output
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={downloadDecoded}
+                    disabled={!hydrated || !result}
+                    className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 font-bold text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Icons
+                      name="download"
+                      size={16}
+                      className="mr-1 inline-block"
+                    />
+                    Download Output
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={copyCss}
+                    disabled={!hydrated || !result}
+                    className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Icons
+                      name="copy"
+                      size={16}
+                      className="mr-1 inline-block"
+                    />
+                    Copy CSS
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={copyHtml}
+                    disabled={!hydrated || !result}
+                    className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Icons
+                      name="copy"
+                      size={16}
+                      className="mr-1 inline-block"
+                    />
+                    Copy HTML
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={copyDataUrl}
+                    disabled={!hydrated || !result}
+                    className="flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 font-bold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Icons
+                      name="copy"
+                      size={16}
+                      className="mr-1 inline-block"
+                    />
+                    Copy Data URL
+                  </button>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                  <span>
+                    Type: <b>{result?.mime || "No output yet"}</b>
+                  </span>
+                  {result && (
+                    <>
+                      <span>
+                        Size: <b>{formatBytes(result.bytes)}</b>
+                      </span>
+                      <span>
+                        Output length:{" "}
+                        <b>{result.text.length.toLocaleString()}</b> chars
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <p className="mt-3 text-sm text-slate-600">
+                  Notes: Base64 increases size by about 33%. If you are using
+                  CSS <b>url()</b>, consider <b>Data URI (UTF-8)</b> for small
+                  SVGs.
+                </p>
+              </div>
+
+              <div className="mt-4 min-w-0">
                 <button
                   type="button"
                   onClick={() => setShowDecodeMenu((v) => !v)}
@@ -376,7 +545,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                           className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Strip risky content (recommended)
+                          Strip risky content from SVG output
                         </span>
                       </Field>
 
@@ -458,7 +627,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                             onChange={(v) =>
                               setSettings((s) => ({ ...s, pretty: v }))
                             }
-                            label="Pretty format (best effort)"
+                            label="Pretty format SVG (best effort)"
                           />
                         </div>
                       </Field>
@@ -476,7 +645,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                           className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700 min-w-0">
-                          Render decoded SVG
+                          Render decoded output
                         </span>
                       </Field>
 
@@ -487,7 +656,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                             onChange={(v) =>
                               setSettings((s) => ({ ...s, copyWithQuotes: v }))
                             }
-                            label="Copy with quotes"
+                            label="Copy SVG with quotes"
                           />
                           {settings.copyWithQuotes && (
                             <div className="flex items-center gap-2">
@@ -528,63 +697,23 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
                       </Field>
                     </div>
 
-                    <div className="flex items-center gap-3 mt-3 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={copySvg}
-                        disabled={!hydrated || !outSvg}
-                        className={[
-                          "flex justify-center items-center px-3.5 py-2 rounded-xl font-bold border transition-colors cursor-pointer",
-                          "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
-                          "disabled:opacity-70 disabled:cursor-not-allowed",
-                        ].join(" ")}
-                      >
-                        <Icons
-                          name="copy"
-                          size={16}
-                          className="inline-block mr-1"
-                        />
-                        Copy SVG
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={downloadSvg}
-                        disabled={!hydrated || !outSvg}
-                        className="flex justify-center items-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        <Icons
-                          name="download"
-                          size={16}
-                          className="inline-block mr-1"
-                        />
-                        Download SVG
-                      </button>
-
-                      {!err && outSvg && (
-                        <span className="text-[13px] text-slate-600">
-                          Output size:{" "}
-                          <b>{formatBytes(new Blob([outSvg]).size)}</b>
-                        </span>
-                      )}
-                    </div>
-
                     <div className="mt-3 text-[13px] text-slate-600">
-                      Notes: If decoding fails, try setting Decode mode to UTF-8
-                      or Latin-1 depending on how the Base64 was created.
+                      Notes: If SVG decoding fails, try setting Decode mode to
+                      UTF-8 or Latin-1 depending on how the Base64 was created.
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* OUTPUT SVG */}
               <div className="mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-white">
                 <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
-                  Decoded SVG (source)
+                  {result?.kind === "image"
+                    ? "Decoded image data URL"
+                    : "Decoded SVG (source)"}
                 </div>
                 <div className="p-3">
                   <textarea
-                    value={outSvg}
+                    value={result?.text || ""}
                     readOnly
                     className="w-full h-[240px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
                     spellCheck={false}
@@ -594,25 +723,33 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
             </div>
           </section>
         </div>
-        {/* PREVIEW */}
+
         {settings.showPreview && (
           <div className="flex w-full flex-col mt-3 border border-slate-200 rounded-2xl overflow-hidden bg-slate-800 max-w-[1180px] mx-auto">
             <div className="px-3 py-2 text-sm text-white border-b border-slate-200 bg-slate-600">
               Preview
             </div>
-            <div className="flex mx-auto p-3">
-              {outSvg ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <SvgPreview svg={outSvg} />
+            <div className="flex mx-auto p-3 w-full flex-col items-center justify-center">
+              {result ? (
+                <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 max-w-full overflow-auto">
+                  {result.kind === "svg" ? (
+                    <SvgPreview svg={result.text} />
+                  ) : (
+                    <img
+                      src={result.dataUrl}
+                      alt="Decoded Base64 image preview"
+                      className="block max-w-full max-h-[70vh] h-auto rounded-xl bg-white object-contain"
+                    />
+                  )}
                 </div>
               ) : (
-                <div className="text-slate-600 text-sm text-white font-semibold flex items-center justify-center">
+                <div className="text-sm text-white font-semibold flex items-center justify-center">
                   <Icons
                     name="success"
                     size={20}
                     className="inline-block mr-1"
                   />
-                  Paste input to preview the decoded SVG.
+                  Paste input to preview the decoded output.
                 </div>
               )}
 
@@ -625,6 +762,7 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
             </div>
           </div>
         )}
+
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
             {toast}
@@ -657,69 +795,63 @@ export default function Base64ToSvg(_: Route.ComponentProps) {
 }
 
 /* ========================
-   Decoding core (ROBUST)
+   Decoding core
 ======================== */
-function decodeToSvg(input: string, settings: Settings) {
+function decodeInput(input: string, settings: Settings): DecodeResult {
   const raw0 = String(input || "");
   const raw = normalizeLikelyPastes(raw0);
 
   if (!raw.trim())
     throw new Error("Paste Base64, a data URL, or an <img src=...> snippet.");
 
-  const mode = settings.sourceMode;
-
-  // Heuristic: if it looks like a data URI anywhere, treat as data
   const isDataUri = /^data:/i.test(raw);
 
-  if (mode === "data-uri" || (mode === "auto" && isDataUri)) {
-    return decodeDataUriToSvg(raw, settings.decodeMode);
+  if (
+    settings.sourceMode === "data-uri" ||
+    (settings.sourceMode === "auto" && isDataUri) ||
+    isDataUri
+  ) {
+    return decodeDataUri(raw, settings);
   }
 
-  // If user forced base64-only but pasted data:..., still handle it
-  if (isDataUri) {
-    return decodeDataUriToSvg(raw, settings.decodeMode);
-  }
-
-  // base64-only
   const b64 = extractBase64Flexible(raw);
-  return decodeBase64ToString(b64, settings.decodeMode);
+  const bytes = base64ToBytes(b64);
+  const detectedMime = detectRasterImageMime(bytes);
+
+  if (detectedMime) {
+    return imageResultFromBase64(b64, detectedMime);
+  }
+
+  const decodedText = decodeBytesToString(bytes, settings.decodeMode);
+  const finalSvg = postprocessSvg(decodedText, settings);
+  return svgResult(finalSvg);
 }
 
 function normalizeLikelyPastes(raw: string) {
   let t = String(raw || "").trim();
   if (!t) return t;
 
-  // If user pasted a JSON blob, try to grab a common property value
-  // { "src": "data:..." } or {src:"data:..."}
+  t = t.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
   const jsonLike = t.match(
     /["']?(src|href|url|data)["']?\s*:\s*["']([^"']+)["']/i,
   );
   if (jsonLike?.[2]) t = jsonLike[2].trim();
 
-  // If user pasted an HTML <img ...> tag, extract src
   const imgSrc = t.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1];
   if (imgSrc) t = imgSrc.trim();
 
-  // If user pasted <object data="..."> or <embed src="..."> etc.
   const dataAttr = t.match(/\bdata\s*=\s*["']([^"']+)["']/i)?.[1];
   if (dataAttr && !imgSrc) t = dataAttr.trim();
 
-  // CSS url("...") wrapper
   const cssUrl = t.match(/\burl\(\s*["']?([^"')]+)["']?\s*\)/i)?.[1];
   if (cssUrl) t = cssUrl.trim();
 
-  // If the text contains a data:image/svg+xml... anywhere, slice it out
-  const idx = t.toLowerCase().indexOf("data:image/svg+xml");
-  if (idx >= 0) {
-    const sliced = t.slice(idx);
-    const end = sliced.search(/[\s"'<>)]/); // stop at likely terminators
-    t = (end === -1 ? sliced : sliced.slice(0, end)).trim();
-  }
+  const dataUrlMatch = t.match(
+    /data:[a-z0-9.+/-]+(?:;[a-z0-9=.+/-]+)*,[a-z0-9+/=_-]+/i,
+  );
+  if (dataUrlMatch?.[0]) t = dataUrlMatch[0].trim();
 
-  // Unescape common HTML entities for quotes
-  t = t.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-
-  // Strip wrapping quotes around entire thing
   if (
     (t.startsWith('"') && t.endsWith('"')) ||
     (t.startsWith("'") && t.endsWith("'"))
@@ -727,36 +859,74 @@ function normalizeLikelyPastes(raw: string) {
     t = t.slice(1, -1).trim();
   }
 
-  // Sometimes pasted as: src=data:image/svg+xml;base64,....
   const afterEquals = t.match(/^(?:src|href|data)\s*=\s*(data:.*)$/i)?.[1];
   if (afterEquals) t = afterEquals.trim();
 
   return t.trim();
 }
 
-function decodeDataUriToSvg(dataUri: string, decodeMode: DecodeMode) {
+function decodeDataUri(dataUri: string, settings: Settings): DecodeResult {
   const m = String(dataUri).match(/^data:([^,]*),(.*)$/is);
   if (!m) throw new Error("Invalid data URL.");
 
   const meta = (m[1] || "").trim();
   const payload = (m[2] || "").trim();
-
-  // Some people paste "data:image/svg+xml;base64;utf8,..." etc
+  const mime = (meta.split(";")[0] || "").trim().toLowerCase();
   const isBase64 = /;base64/i.test(meta);
+
+  if (mime && mime.startsWith("image/") && mime !== "image/svg+xml") {
+    if (isBase64) {
+      const b64 = extractBase64Flexible(payload);
+      const rasterMime = toRasterImageMime(mime);
+      if (!rasterMime) throw new Error(`Unsupported image type: ${mime}.`);
+      return imageResultFromBase64(b64, rasterMime);
+    }
+
+    const rasterMime = toRasterImageMime(mime);
+    if (!rasterMime) throw new Error(`Unsupported image type: ${mime}.`);
+
+    const dataUrl = `data:${rasterMime},${payload}`;
+    return {
+      kind: "image",
+      mime: rasterMime,
+      text: dataUrl,
+      dataUrl,
+      extension: extensionFromMime(rasterMime),
+      bytes: new Blob([dataUrl]).size,
+    };
+  }
+
+  if (mime && mime !== "image/svg+xml") {
+    throw new Error(`Unsupported data URL type: ${mime || "unknown"}.`);
+  }
+
+  let decodedText = "";
 
   if (isBase64) {
     const b64 = extractBase64Flexible(payload);
-    return decodeBase64ToString(b64, decodeMode);
+    const bytes = base64ToBytes(b64);
+    const detectedMime = detectRasterImageMime(bytes);
+
+    if (detectedMime) {
+      return imageResultFromBase64(b64, detectedMime);
+    }
+
+    decodedText = decodeBytesToString(bytes, settings.decodeMode);
+  } else {
+    decodedText = decodeDataUriTextPayload(payload);
   }
 
-  // UTF-8 / percent-encoded data URI
+  const finalSvg = postprocessSvg(decodedText, settings);
+  return svgResult(finalSvg);
+}
+
+function decodeDataUriTextPayload(payload: string) {
   try {
     return decodeURIComponent(payload);
   } catch {
     try {
       return decodeURIComponent(payload.replace(/\s+/g, ""));
     } catch {
-      // Some payloads contain plus signs as spaces (common in form encodings)
       try {
         return decodeURIComponent(payload.replace(/\+/g, "%20"));
       } catch {
@@ -769,11 +939,9 @@ function decodeDataUriToSvg(dataUri: string, decodeMode: DecodeMode) {
 function extractBase64Flexible(s: string) {
   let t = String(s || "").trim();
 
-  // If user pasted another wrapper that still contains "base64,", split after it
   const b64Marker = t.toLowerCase().lastIndexOf("base64,");
   if (b64Marker >= 0) t = t.slice(b64Marker + "base64,".length);
 
-  // Strip surrounding quotes
   if (
     (t.startsWith('"') && t.endsWith('"')) ||
     (t.startsWith("'") && t.endsWith("'"))
@@ -781,31 +949,24 @@ function extractBase64Flexible(s: string) {
     t = t.slice(1, -1).trim();
   }
 
-  // Remove whitespace/newlines
   t = t.replace(/\s+/g, "");
 
-  // Common accidental paste: trailing characters after base64
-  // Keep only base64-ish chars
   const only = t.match(/^[a-z0-9+/=_-]+/i)?.[0] || "";
   t = only;
 
   if (!t) throw new Error("Missing Base64 payload.");
 
-  // Accept urlsafe too during initial validation
   if (!/^[a-z0-9+/=_-]+$/i.test(t)) {
     throw new Error("Input does not look like Base64.");
   }
 
-  // Convert urlsafe base64 to standard for atob
   if (/[-_]/.test(t) && !/[+/]/.test(t)) {
     t = t.replace(/-/g, "+").replace(/_/g, "/");
   }
 
-  // Fix missing padding
   const pad = t.length % 4;
   if (pad) t += "=".repeat(4 - pad);
 
-  // Final validation (standard alphabet)
   if (!/^[a-z0-9+/=]+$/i.test(t)) {
     throw new Error("Input does not look like Base64.");
   }
@@ -813,8 +974,9 @@ function extractBase64Flexible(s: string) {
   return t;
 }
 
-function decodeBase64ToString(b64: string, mode: DecodeMode) {
+function base64ToBytes(b64: string) {
   let bin = "";
+
   try {
     bin = atob(b64);
   } catch {
@@ -825,7 +987,10 @@ function decodeBase64ToString(b64: string, mode: DecodeMode) {
 
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 0xff;
+  return bytes;
+}
 
+function decodeBytesToString(bytes: Uint8Array, mode: DecodeMode) {
   const tryUtf8 = () => {
     try {
       return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -855,6 +1020,110 @@ function decodeBase64ToString(b64: string, mode: DecodeMode) {
   return u != null ? u : latin1();
 }
 
+function detectRasterImageMime(bytes: Uint8Array): RasterImageMime | "" {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    bytes.length >= 6 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38 &&
+    (bytes[4] === 0x37 || bytes[4] === 0x39) &&
+    bytes[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+
+  return "";
+}
+
+function toRasterImageMime(mime: string): RasterImageMime | "" {
+  const m = mime.toLowerCase();
+  if (m === "image/png") return "image/png";
+  if (m === "image/jpeg" || m === "image/jpg") return "image/jpeg";
+  if (m === "image/gif") return "image/gif";
+  if (m === "image/webp") return "image/webp";
+  return "";
+}
+
+function imageResultFromBase64(
+  b64: string,
+  mime: RasterImageMime,
+): DecodeResult {
+  const clean = extractBase64Flexible(b64);
+  const dataUrl = `data:${mime};base64,${clean}`;
+
+  return {
+    kind: "image",
+    mime,
+    text: dataUrl,
+    dataUrl,
+    extension: extensionFromMime(mime),
+    bytes: base64ByteLength(clean),
+  };
+}
+
+function svgResult(svg: string): DecodeResult {
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+  return {
+    kind: "svg",
+    mime: "image/svg+xml",
+    text: svg,
+    dataUrl,
+    extension: "svg",
+    bytes: new Blob([svg]).size,
+  };
+}
+
+function extensionFromMime(mime: RasterImageMime) {
+  if (mime === "image/png") return "png";
+  if (mime === "image/jpeg") return "jpg";
+  if (mime === "image/webp") return "webp";
+  return "gif";
+}
+
+function base64ByteLength(b64: string) {
+  const clean = b64.replace(/\s+/g, "").replace(/=+$/, "");
+  return Math.floor((clean.length * 3) / 4);
+}
+
 /* ========================
    Postprocess SVG
 ======================== */
@@ -863,6 +1132,15 @@ function postprocessSvg(svgText: string, settings: Settings) {
 
   if (settings.normalizeNewlines) {
     svg = svg.replace(/\r\n?/g, "\n");
+  }
+
+  const start = svg.toLowerCase().indexOf("<svg");
+  if (start >= 0) {
+    svg = svg.slice(start);
+  }
+
+  if (!/<svg\b/i.test(svg)) {
+    throw new Error("Decoded output does not contain an <svg> root tag.");
   }
 
   if (settings.sanitize) {
@@ -899,16 +1177,6 @@ function postprocessSvg(svgText: string, settings: Settings) {
 
   if (settings.pretty) {
     svg = prettySvg(svg);
-  }
-
-  if (!/<svg\b/i.test(svg)) {
-    // Some decodes include leading junk before <svg> (rare)
-    const start = svg.toLowerCase().indexOf("<svg");
-    if (start >= 0) svg = svg.slice(start);
-  }
-
-  if (!/<svg\b/i.test(svg)) {
-    throw new Error("Decoded output does not contain an <svg> root tag.");
   }
 
   return svg;
@@ -964,7 +1232,7 @@ function matchAttr(tag: string, name: string): string | null {
 ======================== */
 function ensureSvgHasXmlns(svg: string) {
   const hasSvg = /<svg\b/i.test(svg);
-  if (!hasSvg) return `<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+  if (!hasSvg) return svg;
   const hasXmlns = /<svg\b[^>]*\sxmlns\s*=\s*["'][^"']+["']/i.test(svg);
   if (hasXmlns) return svg;
   return svg.replace(/<svg\b/i, `<svg xmlns="http://www.w3.org/2000/svg"`);
@@ -974,13 +1242,33 @@ function ensureSvgHasXmlns(svg: string) {
    Preview component
 ======================== */
 function SvgPreview({ svg }: { svg: string }) {
-  const safe = React.useMemo(() => ensureSvgHasXmlns(svg), [svg]);
+  const [src, setSrc] = React.useState("");
+
+  React.useEffect(() => {
+    const safe = ensureSvgHasXmlns(svg);
+    const blob = new Blob([safe], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    setSrc(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [svg]);
+
+  if (!src) {
+    return (
+      <div className="text-sm font-semibold text-slate-600">
+        Preparing SVG preview...
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="w-full overflow-auto"
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: safe }}
+    <img
+      src={src}
+      alt="Decoded SVG preview"
+      className="mx-auto block max-h-[70vh] max-w-full rounded-xl bg-white object-contain"
     />
   );
 }
@@ -990,6 +1278,15 @@ function SvgPreview({ svg }: { svg: string }) {
 ======================== */
 function downloadText(text: string, filename: string) {
   const blob = new Blob([text], { type: "image/svg+xml;charset=utf-8" });
+  downloadBlob(blob, filename);
+}
+
+function downloadDataUrl(dataUrl: string, filename: string) {
+  const blob = dataUrlToBlob(dataUrl);
+  downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -998,6 +1295,22 @@ function downloadText(text: string, filename: string) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function dataUrlToBlob(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+  if (!match) return new Blob([dataUrl], { type: "text/plain;charset=utf-8" });
+
+  const mime = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || "";
+
+  if (!isBase64) {
+    return new Blob([decodeURIComponent(payload)], { type: mime });
+  }
+
+  const bytes = base64ToBytes(payload);
+  return new Blob([bytes], { type: mime });
 }
 
 function safeFileName(name: string) {
@@ -1149,7 +1462,6 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
-          {/* Header / Hero */}
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
@@ -1169,7 +1481,7 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
               </p>
 
               <p className="text-slate-600">
-                Supports Base64 and UTF-8 (percent-encoded) SVG data URIs. Runs
+                Supports Base64 and UTF-8 percent-encoded SVG data URIs. Runs
                 fully client-side unless you enable server features elsewhere.
               </p>
 
@@ -1192,6 +1504,8 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </div>
           </header>
 
+          <ExampleSvgConversion />
+
           {hydrated && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1208,7 +1522,6 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </div>
           )}
 
-          {/* Use cases */}
           <section>
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -1250,7 +1563,6 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </div>
           </section>
 
-          {/* HowTo */}
           <section
             itemScope
             itemType="https://schema.org/HowTo"
@@ -1276,7 +1588,7 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
                   body: "Pick Base64 or UTF-8 data URI decoding if the input is percent-encoded.",
                 },
                 {
-                  title: "Sanitize (recommended)",
+                  title: "Sanitize if needed",
                   body: "Enable sanitization to strip scripts, inline event handlers, and risky javascript: links before previewing or saving.",
                 },
                 {
@@ -1312,18 +1624,16 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </ol>
           </section>
 
-          {/* Examples */}
           <section className="mt-12">
-            <h3 className="text-lg font-bold">Examples (Input → Output)</h3>
+            <h3 className="text-lg font-bold">Examples</h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              These show what you can paste and what you’ll get back. Outputs
-              are shortened for readability.
+              These show common SVG Base64 formats this decoder can recover.
             </p>
 
             <div className="mt-5 grid gap-4">
               {[
                 {
-                  title: "Example 1: Full Base64 data URL",
+                  title: "Full Base64 data URL",
                   inputLabel: "Input",
                   input: `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIvPjwvc3ZnPg==`,
                   outputLabel: "Output",
@@ -1332,30 +1642,12 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
 </svg>`,
                 },
                 {
-                  title: "Example 2: HTML snippet with embedded data URL",
+                  title: "HTML snippet with embedded data URL",
                   inputLabel: "Input",
                   input: `<img alt="icon" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjx0ZXh0IHg9IjAiIHk9IjE0Ij5IZWxsbzwvdGV4dD48L3N2Zz4=" />`,
                   outputLabel: "Output",
                   output: `<svg xmlns="http://www.w3.org/2000/svg">
   <text x="0" y="14">Hello</text>
-</svg>`,
-                },
-                {
-                  title: "Example 3: CSS url(...) with a data URL",
-                  inputLabel: "Input",
-                  input: `.logo { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PC9zdmc+"); }`,
-                  outputLabel: "Output",
-                  output: `<svg xmlns="http://www.w3.org/2000/svg">
-  <circle cx="12" cy="12" r="10"/>
-</svg>`,
-                },
-                {
-                  title: "Example 4: UTF-8 (percent-encoded) SVG data URI",
-                  inputLabel: "Input",
-                  input: `data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M2%202h20v20H2z%22%2F%3E%3C%2Fsvg%3E`,
-                  outputLabel: "Output",
-                  output: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <path d="M2 2h20v20H2z"/>
 </svg>`,
                 },
               ].map((ex) => (
@@ -1395,12 +1687,11 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </div>
           </section>
 
-          {/* Security Notes */}
           <section className="mt-12">
             <h3 className="text-lg font-bold">Security notes</h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
               SVG is XML and can include scripts, event handlers, foreignObject,
-              and external references. If you didn’t create the SVG, keep
+              and external references. If you did not create the SVG, keep
               sanitization enabled before previewing or reusing output.
             </p>
 
@@ -1434,7 +1725,6 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </div>
           </section>
 
-          {/* FAQ (visual only, JSON-LD handled by <JsonLdFaq /> to avoid duplicate FAQPage schema) */}
           <section className="mt-12">
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 

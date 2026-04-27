@@ -7,6 +7,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 const isServer = typeof document === "undefined";
 const SITE_URL = "https://www.ilovesvg.com";
@@ -1131,6 +1132,7 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
                 across vector tools.
               </p>
             </div>
+            <ExampleSvgConversion />
 
             {typeof document !== "undefined" && (
               <div className="block py-6">

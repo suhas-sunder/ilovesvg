@@ -14,6 +14,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1751,17 +1752,22 @@ function SeoSectionsLineArt({ faq }: { faq: FaqItem[] }) {
               ))}
             </div>
           </header>
-          <div className="hidden lg:block py-6">
-            <AdSenseDelayed
-              slot="2090332782"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={120}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[970px]"
-            />
-          </div>
+          <ExampleSvgConversion />
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
           <section>
             <h3 className="text-lg font-bold">
               How to use this Line Art to SVG converter

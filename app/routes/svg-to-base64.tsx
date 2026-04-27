@@ -1316,42 +1316,55 @@ function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">SVG to Base64 Converter (Data URI)</h2>
+        <article className="max-w-none">
+          <h2 className="m-0 text-2xl sm:text-3xl font-extrabold tracking-tight text-sky-800">
+            SVG to Base64 Converter (Data URI)
+          </h2>
 
-          <p className="mt-3">
+          <p className="mt-4 text-base leading-relaxed text-slate-700">
             Convert an <strong>SVG to Base64</strong> or generate a full{" "}
             <strong>SVG data URI</strong> for HTML, CSS, and JavaScript. This
             tool is built for practical embedding workflows: you feed it SVG,
             choose an output format, and it produces a copy-ready string that
             you can paste into your codebase. The most common output starts with{" "}
-            <code>data:image/svg+xml;base64,</code> followed by the encoded SVG.
-            Everything runs locally in your browser, so your SVG is not
-            uploaded.
+            <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+              data:image/svg+xml;base64,
+            </code>{" "}
+            followed by the encoded SVG. Everything runs locally in your
+            browser, so your SVG is not uploaded.
           </p>
 
-          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">HTML</div>
-              <div className="mt-1 text-sm text-slate-700">
-                Use in <code>&lt;img src="..." /&gt;</code>, demos, or
-                documentation snippets.
+              <div className="mt-1 text-sm text-slate-700 leading-relaxed">
+                Use in{" "}
+                <code className="rounded bg-white px-1 py-0.5 text-[0.9em]">
+                  &lt;img src="..." /&gt;
+                </code>
+                , demos, or documentation snippets.
               </div>
             </div>
+
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">CSS</div>
-              <div className="mt-1 text-sm text-slate-700">
-                Use in <code>background-image: url("...")</code> for icons and
-                UI patterns.
+              <div className="mt-1 text-sm text-slate-700 leading-relaxed">
+                Use in{" "}
+                <code className="rounded bg-white px-1 py-0.5 text-[0.9em]">
+                  background-image: url("...")
+                </code>{" "}
+                for icons and UI patterns.
               </div>
             </div>
+
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
               <div className="text-sm font-semibold text-slate-900">JS</div>
-              <div className="mt-1 text-sm text-slate-700">
+              <div className="mt-1 text-sm text-slate-700 leading-relaxed">
                 Store in JSON, configs, or theme assets without separate files.
               </div>
             </div>
           </div>
+
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1367,288 +1380,378 @@ function SeoSections() {
               />
             </div>
           )}
-          <section className="mt-8">
-            <h3 className="m-0 font-bold">Outputs you can generate</h3>
-            <div className="mt-3 grid gap-4 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">1) Data URI (Base64)</h4>
-                <p className="mt-1">
-                  Produces a full <code>data:</code> URL that you can paste
-                  directly into <code>src</code>, <code>href</code>, or CSS{" "}
-                  <code>url()</code>. This is the “least surprising” option for
-                  mixed environments because it avoids special character issues
-                  and tends to survive copy/paste across tools.
+
+          <section className="mt-10">
+            <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+              Outputs you can generate
+            </h3>
+
+            <div className="mt-4 grid gap-4 text-slate-700">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  1) Data URI (Base64)
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
+                  Produces a full{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    data:
+                  </code>{" "}
+                  URL that you can paste directly into{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    src
+                  </code>
+                  ,{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    href
+                  </code>
+                  , or CSS{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    url()
+                  </code>
+                  . This is the least surprising option for mixed environments
+                  because it avoids special character issues and tends to
+                  survive copy/paste across tools.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">2) Base64 only</h4>
-                <p className="mt-1">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  2) Base64 only
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   Produces just the encoded payload without the{" "}
-                  <code>data:image/svg+xml;base64,</code> prefix. This is useful
-                  when your app adds the prefix at runtime, when you store only
-                  the payload in a database/config, or when you need to compare
-                  or hash the output consistently.
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    data:image/svg+xml;base64,
+                  </code>{" "}
+                  prefix. This is useful when your app adds the prefix at
+                  runtime, when you store only the payload in a database/config,
+                  or when you need to compare or hash the output consistently.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">3) Data URI (UTF-8)</h4>
-                <p className="mt-1">
-                  Produces a URL-encoded UTF-8 data URI (non-Base64). For small,
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  3) Data URI (UTF-8)
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
+                  Produces a URL-encoded UTF-8 data URI, not Base64. For small,
                   simple icons, this can be smaller than Base64 and remains
                   readable. For CSS, the CSS-safe mode escapes additional
-                  characters that frequently break <code>url()</code> or get
-                  interpreted as CSS syntax.
+                  characters that frequently break{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    url()
+                  </code>{" "}
+                  or get interpreted as CSS syntax.
                 </p>
               </div>
             </div>
           </section>
 
-          <section className="mt-8 not-prose">
+          <section className="mt-10">
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="text-sm font-semibold text-slate-900">
+              <div className="text-base font-bold text-slate-900">
                 Best default choices
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-sm font-semibold text-slate-900">
                     Want maximum compatibility
                   </div>
-                  <div className="mt-1 text-sm text-slate-700">
+                  <div className="mt-1 text-sm text-slate-700 leading-relaxed">
                     Use <strong>Data URI (Base64)</strong>. It is larger, but it
-                    reduces encoding edge cases and tends to “just work.”
+                    reduces encoding edge cases and tends to just work.
                   </div>
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-sm font-semibold text-slate-900">
                     Want smallest output for icons
                   </div>
-                  <div className="mt-1 text-sm text-slate-700">
+                  <div className="mt-1 text-sm text-slate-700 leading-relaxed">
                     Try <strong>Data URI (UTF-8)</strong> with{" "}
                     <strong>CSS-safe</strong> when targeting CSS usage.
                   </div>
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-sm font-semibold text-slate-900">
                     Storing in configs or JSON
                   </div>
-                  <div className="mt-1 text-sm text-slate-700">
+                  <div className="mt-1 text-sm text-slate-700 leading-relaxed">
                     Use <strong>Base64 only</strong> and add the prefix only
                     when you need a full data URI at runtime.
                   </div>
                 </div>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-sm font-semibold text-slate-900">
                     Avoid surprises in CSS
                   </div>
-                  <div className="mt-1 text-sm text-slate-700">
-                    Wrap the URI in quotes inside <code>url("...")</code> and
-                    prefer UTF-8 CSS-safe or Base64 if your pipeline is strict.
+                  <div className="mt-1 text-sm text-slate-700 leading-relaxed">
+                    Wrap the URI in quotes inside{" "}
+                    <code className="rounded bg-white px-1 py-0.5 text-[0.9em]">
+                      url("...")
+                    </code>{" "}
+                    and prefer UTF-8 CSS-safe or Base64 if your pipeline is
+                    strict.
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          <section itemScope itemType="https://schema.org/HowTo">
-            <h3 itemProp="name" className="m-0 font-bold">
+          <section
+            className="mt-10"
+            itemScope
+            itemType="https://schema.org/HowTo"
+          >
+            <h3
+              itemProp="name"
+              className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800"
+            >
               How to Convert SVG to Base64
             </h3>
-            <p className="mt-2" itemProp="description">
+
+            <p
+              className="mt-3 text-sm sm:text-base leading-relaxed text-slate-700"
+              itemProp="description"
+            >
               Generate a Base64 string or a data URI for your SVG in seconds.
             </p>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">Upload, paste, or edit your SVG source.</li>
-              <li itemProp="step">
-                Choose an output format: <strong>Data URI (Base64)</strong>,{" "}
+
+            <ol className="mt-4 grid gap-3">
+              <li
+                itemProp="step"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              >
+                <span className="font-semibold text-slate-900">1.</span> Upload,
+                paste, or edit your SVG source.
+              </li>
+              <li
+                itemProp="step"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              >
+                <span className="font-semibold text-slate-900">2.</span> Choose
+                an output format: <strong>Data URI (Base64)</strong>,{" "}
                 <strong>Base64 only</strong>, or{" "}
                 <strong>Data URI (UTF-8)</strong>.
               </li>
-              <li itemProp="step">
-                (Recommended) Enable sanitizing and light minification.
+              <li
+                itemProp="step"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              >
+                <span className="font-semibold text-slate-900">3.</span> Enable
+                sanitizing and light minification.
               </li>
-              <li itemProp="step">
-                Copy the result or download it as a text file.
+              <li
+                itemProp="step"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+              >
+                <span className="font-semibold text-slate-900">4.</span> Copy
+                the result or download it as a text file.
               </li>
             </ol>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Base64 vs UTF-8 Data URI</h3>
-            <div className="mt-3 grid gap-4 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">Base64 data URIs</h4>
-                <p className="mt-1">
+          <section className="mt-10">
+            <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+              Base64 vs UTF-8 Data URI
+            </h3>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  Base64 data URIs
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   Base64 is the most compatible option across browsers and
-                  tooling, but it increases output size (often about one third
-                  bigger than the original). Use it when you want fewer
+                  tooling, but it increases output size, often about one third
+                  bigger than the original. Use it when you want fewer
                   surprises.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">UTF-8 data URIs</h4>
-                <p className="mt-1">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  UTF-8 data URIs
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   UTF-8 data URIs can be smaller for simple SVG icons and remain
                   readable. For CSS usage, the CSS-safe mode escapes extra
-                  characters that may break <code>url()</code>.
+                  characters that may break{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    url()
+                  </code>
+                  .
                 </p>
               </div>
             </div>
           </section>
 
-          <section className="mt-8">
-            <h3 className="m-0 font-bold">Where this is useful in real code</h3>
-            <div className="mt-3 grid gap-4 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">
+          <section className="mt-10">
+            <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+              Where this is useful in real code
+            </h3>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
                   CSS background icons without extra requests
                 </h4>
-                <p className="mt-1">
-                  If you have small UI assets (like chevrons, checkmarks, or
-                  badges), a data URI removes the need for separate files and
-                  avoids additional network requests. This is especially useful
-                  in component libraries where you want a single exported CSS
-                  value.
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
+                  If you have small UI assets like chevrons, checkmarks, or
+                  badges, a data URI removes the need for separate files and
+                  avoids additional network requests.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
                   Single-file demos and sandboxes
                 </h4>
-                <p className="mt-1">
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   Data URIs are ideal when you want a self-contained HTML file
                   that can be shared or saved offline without an assets folder.
-                  A Base64 SVG in an <code>&lt;img&gt;</code> tag works in most
-                  environments with no extra setup.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">Theme/config storage</h4>
-                <p className="mt-1">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  Theme/config storage
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   If your app loads theme assets from JSON or a database, a
                   Base64 payload can travel as plain text and be rehydrated into
-                  a data URI at runtime. This keeps distribution simple and
-                  avoids path and bundler edge cases.
+                  a data URI at runtime.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
                   Quick snippets for docs and internal tools
                 </h4>
-                <p className="mt-1">
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   When you need an instant, copyable snippet for documentation,
                   issue trackers, or internal dashboards, a data URI is a fast
-                  “drop-in” asset that does not rely on a CDN or static hosting.
+                  drop-in asset.
                 </p>
               </div>
             </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Common Use Cases</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>Embedding icons into CSS themes without separate files</li>
-              <li>Shipping a single-file HTML demo with no asset requests</li>
-              <li>Storing small SVGs inside JSON, configs, or localStorage</li>
-              <li>
-                Generating quick <code>&lt;img&gt;</code> snippets for docs
+          <section className="mt-10">
+            <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+              Common Use Cases
+            </h3>
+
+            <ul className="mt-4 grid gap-2 text-sm sm:text-base text-slate-700">
+              <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                Embedding icons into CSS themes without separate files
               </li>
-              <li>
+              <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                Shipping a single-file HTML demo with no asset requests
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                Storing small SVGs inside JSON, configs, or localStorage
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                Generating quick{" "}
+                <code className="rounded bg-white px-1 py-0.5 text-[0.9em]">
+                  &lt;img&gt;
+                </code>{" "}
+                snippets for docs
+              </li>
+              <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 Inlining assets for email templates or limited environments
               </li>
             </ul>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Security Notes</h3>
-            <p className="mt-3">
+          <section className="mt-10">
+            <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+              Security Notes
+            </h3>
+
+            <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-700">
               SVG can contain scripts, event handlers, and risky links. If you
               plan to embed untrusted SVG content, keep sanitizing enabled to
-              remove <code>&lt;script&gt;</code>, inline <code>on*</code>{" "}
-              handlers, and <code>javascript:</code> URLs before encoding.
+              remove{" "}
+              <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                &lt;script&gt;
+              </code>
+              , inline{" "}
+              <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                on*
+              </code>{" "}
+              handlers, and{" "}
+              <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                javascript:
+              </code>{" "}
+              URLs before encoding.
             </p>
 
-            <div className="mt-4 not-prose">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-sm font-semibold text-slate-900">
-                  Practical rule
-                </div>
-                <div className="mt-1 text-sm text-slate-700">
-                  Do not Base64-encode SVG as a way to “hide” risky content. If
-                  the SVG is untrusted, sanitize first, then encode.
-                </div>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="text-sm font-semibold text-slate-900">
+                Practical rule
+              </div>
+              <div className="mt-1 text-sm text-slate-700 leading-relaxed">
+                Do not Base64-encode SVG as a way to hide risky content. If the
+                SVG is untrusted, sanitize first, then encode.
               </div>
             </div>
           </section>
 
-          <section>
-            <h3 className="m-0 font-bold">Troubleshooting</h3>
-            <div className="mt-3 grid gap-4 text-slate-700">
-              <div>
-                <h4 className="m-0 font-bold">
+          <section className="mt-10">
+            <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+              Troubleshooting
+            </h3>
+
+            <div className="mt-4 grid gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
                   My CSS background-image does not render
                 </h4>
-                <p className="mt-1">
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   Try <strong>Data URI (UTF-8)</strong> with{" "}
                   <strong>CSS-safe</strong> encoding. Also confirm the URI is
-                  wrapped in quotes inside <code>url("...")</code>.
+                  wrapped in quotes inside{" "}
+                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                    url("...")
+                  </code>
+                  .
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">The output is huge</h4>
-                <p className="mt-1">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  The output is huge
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   Enable whitespace minification and style cleanup. For simple
                   icons, UTF-8 mode may reduce size compared to Base64.
                 </p>
               </div>
-              <div>
-                <h4 className="m-0 font-bold">Preview is blank</h4>
-                <p className="mt-1">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h4 className="m-0 text-base font-bold text-slate-900">
+                  Preview is blank
+                </h4>
+                <p className="mt-2 text-sm sm:text-base leading-relaxed text-slate-700">
                   Preview requires a full data URI. If you selected Base64-only,
                   enable “Include prefix” or switch to a data URI output mode.
                 </p>
               </div>
             </div>
           </section>
-
-          <section className="mt-10 not-prose">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="text-sm font-semibold text-slate-900">
-                Related SVG tools
-              </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
-                  href="/svg-minify"
-                >
-                  SVG Minifier
-                </a>
-                <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
-                  href="/svg-preview-viewer"
-                >
-                  SVG Viewer
-                </a>
-                <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
-                  href="/svg-resize-and-scale-editor"
-                >
-                  SVG Resize / Scale
-                </a>
-                <a
-                  className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-4"
-                  href="/svg-recolor"
-                >
-                  SVG Recolor
-                </a>
-              </div>
-            </div>
-          </section>
         </article>
 
-        <section>
-          <h3 className="m-0 font-bold">FAQ</h3>
+        <section className="mt-10">
+          <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+            FAQ
+          </h3>
 
-          <div className="not-prose mt-3 grid gap-3">
+          <div className="mt-4 grid gap-3">
             <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
               <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
                 <span>How do I convert SVG to Base64?</span>
@@ -1658,8 +1761,10 @@ function SeoSections() {
               </summary>
               <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
                 Upload an SVG and the tool generates a Base64 string or a full{" "}
-                <code>data:image/svg+xml;base64,...</code> data URI instantly.
-                Then copy or download the output.
+                <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                  data:image/svg+xml;base64,...
+                </code>{" "}
+                data URI instantly. Then copy or download the output.
               </div>
             </details>
 
@@ -1672,7 +1777,10 @@ function SeoSections() {
               </summary>
               <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
                 A data URI embeds the SVG content directly in HTML or CSS. It
-                usually starts with <code>data:image/svg+xml;base64,</code>{" "}
+                usually starts with{" "}
+                <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                  data:image/svg+xml;base64,
+                </code>{" "}
                 followed by the Base64-encoded SVG.
               </div>
             </details>
@@ -1687,8 +1795,11 @@ function SeoSections() {
               <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
                 Base64 is widely compatible but increases size. UTF-8 data URIs
                 can be smaller and readable for simple SVGs, especially for CSS
-                usage. If you use CSS <code>url()</code>, pick the CSS-safe
-                UTF-8 mode.
+                usage. If you use CSS{" "}
+                <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                  url()
+                </code>
+                , pick the CSS-safe UTF-8 mode.
               </div>
             </details>
 
@@ -1714,7 +1825,10 @@ function SeoSections() {
               </summary>
               <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
                 Yes. Use the Copy CSS button to get a ready-to-paste{" "}
-                <code>background-image: url("...");</code> snippet.
+                <code className="rounded bg-slate-100 px-1 py-0.5 text-[0.9em]">
+                  background-image: url("...");
+                </code>{" "}
+                snippet.
               </div>
             </details>
           </div>

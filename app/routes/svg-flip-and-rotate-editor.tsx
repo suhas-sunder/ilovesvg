@@ -8,6 +8,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /* ========================
    Meta
@@ -1336,6 +1337,7 @@ function SeoSections() {
             Flip horizontally/vertically and rotate by degrees with a live
             before/after preview. Runs fully client-side.
           </p>
+          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
