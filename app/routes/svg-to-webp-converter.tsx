@@ -256,10 +256,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
 
   return (
     <>
-      <main
-        className="min-h-[100dvh] bg-slate-50 text-slate-900"
-        onPaste={onPaste}
-      >
+      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
