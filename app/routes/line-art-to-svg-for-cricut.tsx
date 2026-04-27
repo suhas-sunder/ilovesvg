@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/logo-to-svg-for-cricut";
+import type { Route } from "./+types/line-art-to-svg-for-cricut";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -24,10 +24,10 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "Logo to SVG for Cricut - Free Cricut Logo Converter | iLoveSVG";
+    "Line Art to SVG for Cricut - Free Line Art SVG Converter | iLoveSVG";
   const description =
-    "Convert logos to clean SVG files for Cricut projects. Make cut-friendly logo SVGs for vinyl decals, stickers, labels, signs, shirts, and craft designs.";
-  const canonical = "https://www.ilovesvg.com/logo-to-svg-for-cricut";
+    "Convert line art to clean SVG files for Cricut. Make cut-friendly SVGs for drawings, coloring pages, handwriting, decals, stickers, labels, and craft outlines.";
+  const canonical = "https://www.ilovesvg.com/line-art-to-svg-for-cricut";
 
   return [
     { title },
@@ -678,13 +678,13 @@ type Preset = {
 
 const PRESETS: Preset[] = [
   {
-    id: "logo-clean-cut",
-    label: "Logo - Clean Cricut cut file",
+    id: "line-art-clean-cut",
+    label: "Line art - Clean Cricut cut",
     settings: {
       preprocess: "none",
-      threshold: 218,
+      threshold: 224,
       turdSize: 3,
-      optTolerance: 0.28,
+      optTolerance: 0.32,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -692,26 +692,12 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-smooth-curves",
-    label: "Logo - Smooth curves",
+    id: "line-art-bold-vinyl",
+    label: "Vinyl - Bold line art",
     settings: {
       preprocess: "none",
-      threshold: 214,
-      turdSize: 2,
-      optTolerance: 0.38,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-bold-vinyl",
-    label: "Logo - Bold vinyl decal",
-    settings: {
-      preprocess: "none",
-      threshold: 205,
-      turdSize: 4,
+      threshold: 208,
+      turdSize: 5,
       optTolerance: 0.46,
       turnPolicy: "black",
       lineColor: "#000000",
@@ -720,8 +706,8 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-thin-lines",
-    label: "Logo - Thin line detail",
+    id: "line-art-fine-detail",
+    label: "Fine lines - Preserve detail",
     settings: {
       preprocess: "none",
       threshold: 238,
@@ -734,13 +720,13 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-remove-speckles",
-    label: "Cleanup - Remove logo speckles",
+    id: "bw-remove-speckles",
+    label: "Cleanup - Remove speckles",
     settings: {
       preprocess: "none",
       threshold: 226,
-      turdSize: 6,
-      optTolerance: 0.34,
+      turdSize: 7,
+      optTolerance: 0.36,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -748,11 +734,11 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-close-gaps",
-    label: "Cleanup - Close logo gaps",
+    id: "bw-close-gaps",
+    label: "Cleanup - Close gaps",
     settings: {
       preprocess: "none",
-      threshold: 214,
+      threshold: 216,
       turdSize: 4,
       optTolerance: 0.42,
       turnPolicy: "black",
@@ -762,45 +748,15 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-transparent-background",
-    label: "Transparent logo - Clean trace",
-    settings: {
-      preprocess: "none",
-      threshold: 222,
-      turdSize: 2,
-      optTolerance: 0.26,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-screenshot-cleanup",
-    label: "Screenshot logo - Cleanup",
+    id: "bw-sticker-outline",
+    label: "Sticker - Clean outline",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.7,
-      edgeBoost: 1.2,
-      threshold: 226,
-      turdSize: 4,
-      optTolerance: 0.4,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-low-contrast",
-    label: "Low contrast logo - Boost",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.55,
+      blurSigma: 0.85,
+      edgeBoost: 1.3,
       threshold: 230,
       turdSize: 3,
-      optTolerance: 0.38,
+      optTolerance: 0.42,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -808,8 +764,64 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "white-logo-dark-preview",
-    label: "White logo - Dark preview",
+    id: "colored-red-vinyl",
+    label: "Color - Red vinyl",
+    settings: {
+      preprocess: "none",
+      threshold: 224,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#dc2626",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "colored-blue-vinyl",
+    label: "Color - Blue vinyl",
+    settings: {
+      preprocess: "none",
+      threshold: 224,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#2563eb",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "colored-pink-decal",
+    label: "Color - Pink decal",
+    settings: {
+      preprocess: "none",
+      threshold: 224,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#db2777",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "colored-gold-label",
+    label: "Color - Gold label",
+    settings: {
+      preprocess: "none",
+      threshold: 224,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#b45309",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "white-vinyl-dark-preview",
+    label: "White vinyl - Dark preview",
     settings: {
       preprocess: "none",
       threshold: 224,
@@ -820,6 +832,21 @@ const PRESETS: Preset[] = [
       lineColor: "#ffffff",
       transparent: false,
       bgColor: DARK_BG_DEFAULT,
+    },
+  },
+  {
+    id: "inverted-negative",
+    label: "Invert - Negative stencil",
+    settings: {
+      preprocess: "none",
+      threshold: 225,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "minority",
+      invert: true,
+      lineColor: "#ffffff",
+      transparent: false,
+      bgColor: "#111827",
     },
   },
 ];
@@ -884,7 +911,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("logo-clean-cut");
+    React.useState<string>("line-art-clean-cut");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -985,7 +1012,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("logo-clean-cut");
+    setActivePreset("line-art-clean-cut");
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -1164,7 +1191,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
-                Logo to SVG for Cricut
+                Line Art to SVG for Cricut
               </h1>
 
               <PresetPicker
@@ -1480,7 +1507,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Converting…" : "Convert Logo to Cricut SVG"}
+                  {busy ? "Converting…" : "Convert B/W Image to Cricut SVG"}
                 </button>
 
                 {/* Live preview tier notice */}
@@ -1541,7 +1568,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             const u = URL.createObjectURL(b);
                             const a = document.createElement("a");
                             a.href = u;
-                            a.download = "logo-cricut-cut-file.svg";
+                            a.download = "line-art-cricut-cut-file.svg";
                             document.body.appendChild(a);
                             a.click();
                             a.remove();
@@ -1554,7 +1581,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             size={16}
                             className="inline-block mr-1"
                           />
-                          Download Logo SVG
+                          Download Cricut SVG
                         </button>
                         <button
                           type="button"
@@ -1814,41 +1841,42 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Logo to Cricut SVG converter
+                Line art to Cricut SVG converter
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight text-sky-950">
-                Convert a logo into a cleaner SVG file for Cricut projects
+                Convert line art into cleaner SVG files for Cricut projects
               </h2>
               <p className="text-slate-600">
-                Turn a logo image into a simple SVG cut file for Cricut Design
-                Space. This page is tuned for logo-style projects like vinyl
-                decals, stickers, labels, signs, shirts, tumblers, and small
-                business branding crafts.
+                Turn a line art image into a clean SVG for Cricut Design Space.
+                This page is tuned for silhouettes, line art, scanned drawings,
+                printable sticker outlines, decals, labels, stencils, and simple
+                craft graphics.
               </p>
               <p className="text-slate-600">
-                The best Cricut logo SVG usually starts with a clean, flat,
-                high-contrast logo. Upload your logo, choose a logo-focused
-                preset, adjust the trace, then download a Cricut-ready SVG you
-                can import into your craft workflow.
+                Line art images are usually about preserving clear strokes
+                without creating messy cut paths. Use fine-line presets when
+                detail matters, bold presets when you need easier vinyl weeding,
+                and color presets when you want the exported SVG path to match a
+                Cricut pen, vinyl, sticker, or label color.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
-                    k: "Logo-focused presets",
-                    v: "Clean cut, smooth curves, bold vinyl, and thin detail modes",
+                    k: "Line art presets",
+                    v: "Clean cut, fine line, bold vinyl, sketch, and coloring modes",
                   },
                   {
-                    k: "Flat SVG output",
-                    v: "Simple path-based SVGs for cleaner Cricut handling",
+                    k: "Color SVG presets",
+                    v: "Blue, red, purple, white vinyl, and custom color output",
                   },
                   {
-                    k: "Logo cleanup controls",
-                    v: "Reduce speckles, rough edges, and broken gaps",
+                    k: "Cleaner craft paths",
+                    v: "Seal broken lines, remove scanner dust, and smooth rough edges",
                   },
                   {
-                    k: "Fast preview",
-                    v: "Tune the logo trace before downloading your SVG",
+                    k: "Cricut-focused output",
+                    v: "Simple path-based SVGs for decals, stickers, and labels",
                   },
                 ].map((x) => (
                   <div
@@ -1883,18 +1911,20 @@ function SeoSections() {
 
           <section>
             <h3 className="text-lg font-bold text-sky-950">
-              Best uses for this logo to Cricut SVG converter
+              Best uses for this line art image to Cricut SVG converter
             </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Business logos",
-                "Vinyl decals",
-                "Sticker logos",
-                "Shirt designs",
+                "Hand-drawn line art",
+                "Coloring pages",
+                "Sticker outlines",
+                "Cricut pen art",
+                "Stencils",
                 "Labels",
-                "Signs",
-                "Tumblers",
-                "Simple brand marks",
+                "Line art",
+                "Scanned line drawings",
+                "HTV line designs",
+                "Simple illustrations",
               ].map((t) => (
                 <span
                   key={t}
@@ -1908,24 +1938,24 @@ function SeoSections() {
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Best for flat, high-contrast logos
+                  Best for clear outlines and high-contrast drawings
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Simple logos with clear edges, solid shapes, and minimal
-                  gradients usually convert best. Wordmarks, icons, badge logos,
-                  and black-and-white brand marks are stronger candidates than
-                  blurry photos of printed logos.
+                  Line art converts best when the original drawing has clear
+                  dark strokes on a light background. Inked artwork, black pen
+                  sketches, scanned coloring pages, and simple outline graphics
+                  usually produce cleaner SVG paths than shaded pencil drawings.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Built for Cricut logo cut files
+                  Color presets recolor the exported SVG path
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  This tool creates a flat traced SVG. That is usually the right
-                  starting point for logo decals, labels, signs, and
-                  single-color craft projects where you want clean shapes
-                  instead of a full raster image.
+                  The color presets do not create multiple layers. They recolor
+                  the traced line art path, useful when you want a blue pen
+                  preview, red decal, purple sticker graphic, or white vinyl
+                  preview.
                 </p>
               </div>
             </div>
@@ -1938,34 +1968,35 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold text-sky-950">
-                How to convert a logo to SVG for Cricut
+                How to convert line art to SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Upload → choose logo preset → clean up → download SVG
+                Upload → choose line-art or color preset → clean up → download
+                SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload your logo image",
-                  body: "Start with the cleanest logo file you have. A flat PNG or JPEG with a plain background will usually produce a cleaner Cricut SVG than a screenshot or photo.",
+                  title: "Upload your line art image",
+                  body: "Start with a PNG or JPEG that has clear dark and light areas. Simple silhouettes, scanned drawings, and clean line art usually work best.",
                 },
                 {
-                  title: "Choose a logo preset",
-                  body: "Use Clean Cricut Cut File for general logos, Smooth Curves for rounded marks, Bold Vinyl Decal for simpler cuts, or Thin Line Detail for delicate logo strokes.",
+                  title: "Choose a preset based on the craft result",
+                  body: "Use Clean Cricut Cut for a general SVG, Bold Black Cut for vinyl, Fine Detail for line art, or a color preset when you want the SVG path exported in a specific color.",
                 },
                 {
-                  title: "Adjust the trace settings",
-                  body: "Use threshold to control what becomes solid, turd size to remove small logo speckles, and curve tolerance to balance sharp detail against smoother Cricut cutting paths.",
+                  title: "Clean up speckles or broken lines",
+                  body: "Use Remove Speckles for dusty scans and Close Gaps when the image has weak or broken black areas.",
                 },
                 {
-                  title: "Preview the logo SVG result",
-                  body: "Check whether counters, small letters, thin strokes, or rough edges are still readable before downloading the SVG.",
+                  title: "Preview before downloading",
+                  body: "Check the converted SVG for unwanted dots, overly thin details, missing holes, or rough edges before you save it.",
                 },
                 {
                   title: "Download and upload to Cricut Design Space",
-                  body: "Save the SVG, then import it into Cricut Design Space as a vector file. Use the SVG result for simple logo cut-style projects rather than full color photo reproduction.",
+                  body: "Save the SVG and import it into Cricut Design Space. Use it as a simple cut-style vector for vinyl decals, sticker designs, labels, stencils, and craft projects.",
                 },
               ].map((s, i) => (
                 <li
@@ -1998,47 +2029,47 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Which logo preset should you use?
+              Which preset should you use?
             </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              Different logos need different tracing behavior. Use the preset
-              that matches the kind of logo you are converting, then fine-tune
-              only if the preview needs cleanup.
+              Black and white Cricut projects are usually about getting the
+              right cut shape. The color presets are for one-color SVG output,
+              not automatic multi-layer color separation.
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Logo - Clean Cricut cut file",
-                  body: "Best default for simple logos, brand marks, and clean graphics that already look close to a cut file.",
+                  title: "Line art - Clean Cricut cut",
+                  body: "Best default for black and white graphics that already look close to a cut file.",
                 },
                 {
-                  title: "Logo - Smooth curves",
-                  body: "Use this when your logo has rounded letters, icons, badges, or curves that should cut smoothly.",
+                  title: "Vinyl - Bold line art",
+                  body: "Use this when you want a simpler, stronger decal that is easier to cut and weed.",
                 },
                 {
-                  title: "Logo - Bold vinyl decal",
-                  body: "Use this when you want stronger, simpler shapes that are easier to weed and cut from vinyl.",
+                  title: "Fine lines - Preserve detail",
+                  body: "Use this for crisp line art, handwriting, icons, and drawings where thin strokes matter.",
                 },
                 {
-                  title: "Logo - Thin line detail",
-                  body: "Best for logos with thin strokes, small interior counters, or delicate linework that still needs to remain visible.",
+                  title: "Cleanup - Remove speckles",
+                  body: "Use this for scanned drawings, compressed images, or older artwork with small unwanted dots.",
                 },
                 {
-                  title: "Cleanup - Remove logo speckles",
-                  body: "Use this when the logo image has compression dots, scanner dust, rough screenshots, or small unwanted marks.",
+                  title: "Cleanup - Close gaps",
+                  body: "Use this when black lines are cracked, faint, or disconnected and the trace is breaking apart.",
                 },
                 {
-                  title: "Cleanup - Close logo gaps",
-                  body: "Use this when letters or logo outlines break apart because the original image is faint, cracked, or uneven.",
+                  title: "Sticker - Clean outline",
+                  body: "Use this when the goal is a clean outside edge or contour-style SVG instead of every internal detail.",
                 },
                 {
-                  title: "Screenshot logo - Cleanup",
-                  body: "Use this for logos captured from websites, screenshots, or social images where edges may be soft or compressed.",
+                  title: "Color presets",
+                  body: "Use red, blue, pink, or gold presets when you want the SVG path itself exported in that color for previewing or material-matched craft use.",
                 },
                 {
-                  title: "White logo - Dark preview",
-                  body: "Use this to preview white vinyl or light logo artwork against a dark background before downloading.",
+                  title: "White vinyl - Dark preview",
+                  body: "Use this for white vinyl projects so the white SVG shape stays visible against a dark preview background.",
                 },
               ].map((c) => (
                 <div
@@ -2054,34 +2085,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              How to get a cleaner Cricut SVG from a logo
+              Tips for cleaner Cricut SVGs from line art images
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Use the highest-resolution logo file",
-                  body: "A clean original logo image traces better than a small thumbnail, screenshot, or photo of a printed logo.",
+                  title: "Use true black and white when possible",
+                  body: "Gray shadows and soft gradients can turn into rough paths. A strong black and white source usually cuts cleaner.",
                 },
                 {
-                  title: "Prefer flat artwork",
-                  body: "Simple one-color or two-tone logos usually make better Cricut cut files than gradients, shadows, textures, or realistic effects.",
+                  title: "Remove paper texture first",
+                  body: "Scans often include dust, shadows, and paper grain. Use the speckle cleanup preset or clean the image before uploading.",
                 },
                 {
-                  title: "Remove backgrounds first",
-                  body: "If the logo sits on a busy background, the converter may trace the background along with the logo.",
+                  title: "Use bold paths for vinyl",
+                  body: "Tiny black areas can become tiny SVG paths that are hard to weed. Use the bold vinyl preset for simpler decals.",
                 },
                 {
-                  title: "Avoid tiny text for vinyl",
-                  body: "Small letters and thin strokes can be hard to weed. Use a bolder preset when making decals or shirt designs.",
+                  title: "Use color presets for material planning",
+                  body: "A red, blue, pink, or gold SVG can help preview the final material color before importing or arranging the design.",
                 },
                 {
-                  title: "Raise turd size to remove dots",
-                  body: "Compression and screenshots create small artifacts. Higher turd size removes more of those tiny unwanted marks.",
+                  title: "Keep transparent backgrounds for Cricut",
+                  body: "Transparent SVG output is usually easier to layer, arrange, and reuse in Cricut Design Space.",
                 },
                 {
-                  title: "Adjust curve tolerance for cleaner paths",
-                  body: "Lower tolerance keeps more logo detail. Higher tolerance makes smoother, simpler paths that may cut more cleanly.",
+                  title: "Avoid using this for full photos",
+                  body: "This page is for line art, silhouettes, and line art. Use a photo-specific route when starting from a real photo.",
                 },
               ].map((c) => (
                 <div
@@ -2097,34 +2128,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Troubleshooting logo SVG results
+              Troubleshooting black and white SVG results
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 [
-                  "The logo SVG has too many tiny dots",
-                  "Use Cleanup - Remove Logo Speckles or raise turd size in advanced settings.",
+                  "The SVG has lots of tiny dots",
+                  "Use Cleanup - Remove Speckles or raise turd size in advanced settings.",
                 ],
                 [
-                  "The logo looks too thick",
-                  "Raise the threshold less aggressively or try Clean Cricut Cut File instead of Bold Vinyl Decal.",
+                  "The design is too thin for vinyl",
+                  "Use Vinyl - Bold Black Cut or increase curve tolerance to simplify the cut path.",
                 ],
                 [
-                  "Small letters filled in",
-                  "Try Thin Line Detail, lower the threshold, or start from a larger and cleaner logo image.",
+                  "The SVG lost fine details",
+                  "Use Fine Detail - Thin Lines and lower turd size so small strokes are preserved.",
                 ],
                 [
-                  "The design has broken outlines",
-                  "Try Cleanup - Close Logo Gaps, lower the threshold slightly, or use a higher-resolution logo file.",
+                  "The wrong areas became solid",
+                  "Adjust threshold. Higher includes lighter gray pixels; lower keeps only darker parts of the image.",
                 ],
                 [
-                  "The SVG is too detailed for vinyl",
-                  "Increase curve tolerance and turd size to simplify the logo paths before downloading.",
+                  "White vinyl is invisible in preview",
+                  "Use White Vinyl - Dark Preview so the SVG stays visible while you inspect the result.",
                 ],
                 [
-                  "The wrong part became solid",
-                  "Adjust threshold. Higher includes lighter areas; lower keeps only darker parts of the logo.",
+                  "I expected multiple colors",
+                  "This route creates one-color SVG output. The color presets recolor the traced path; they do not split the image into layered colors.",
                 ],
               ].map(([t, d]) => (
                 <div
@@ -2150,28 +2181,28 @@ function SeoSections() {
             <div className="mt-4 grid gap-3">
               {[
                 {
-                  q: "Can I upload the logo SVG to Cricut Design Space?",
-                  a: "Yes. Cricut Design Space supports SVG uploads. This tool creates a simple traced SVG that is meant for logo-style cut projects.",
+                  q: "Can I convert a line art image to SVG for Cricut?",
+                  a: "Yes. Upload a black and white PNG or JPEG, choose a cut-focused preset, then download a simple SVG that can be used for Cricut projects.",
                 },
                 {
-                  q: "Is this better than uploading a logo image directly to Cricut?",
-                  a: "It depends on the project. Uploading the image directly may be fine for Print Then Cut, but an SVG is usually better when you want scalable vector shapes for logo decals, labels, signs, and simple cuts.",
+                  q: "Do the color presets create layered SVG files?",
+                  a: "No. The color presets create a one-color SVG path in the selected color. They are useful for matching vinyl, sticker, label, or HTV colors, but they do not create separate color layers.",
                 },
                 {
-                  q: "Will this preserve the exact brand logo perfectly?",
-                  a: "No automatic tracer can guarantee a perfect brand asset. For official brand use, use the original vector logo if you have it. This tool is best for creating practical Cricut craft SVGs from logo images.",
+                  q: "What image type works best?",
+                  a: "A sharp black design on a white background usually works best. Simple silhouettes, icons, line art, and scanned drawings are better candidates than photos or shaded artwork.",
                 },
                 {
-                  q: "Will this make a layered multi-color Cricut logo SVG?",
-                  a: "No. This converter is focused on clean single-color tracing. It does not automatically separate a full-color logo into multiple Cricut color layers.",
+                  q: "Can I make a white vinyl SVG?",
+                  a: "Yes. Use the White Vinyl - Dark Preview preset. It exports white paths on a dark preview background so the result remains visible while you inspect it.",
                 },
                 {
-                  q: "Why does my logo make a rough SVG?",
-                  a: "Logo screenshots and compressed images often contain artifacts, shadows, anti-aliasing, and blurry edges. Use a larger original logo image, remove the background first, or try the cleanup presets.",
+                  q: "Why are there small dots in my SVG?",
+                  a: "Small dots usually come from scan dust, JPEG compression, or paper texture. Use the cleanup preset or increase turd size to remove more tiny artifacts.",
                 },
                 {
-                  q: "Can I use this for vinyl logo decals?",
-                  a: "Yes. Use the Bold Vinyl Decal preset for simpler shapes. For real cutting, avoid extremely thin strokes, tiny text, and fragile details that are hard to weed.",
+                  q: "What file limits apply?",
+                  a: "PNG/JPEG up to 30 MB and about 30 megapixels. Preview is fastest at 10 MB or below and throttled for larger files.",
                 },
               ].map((x) => (
                 <article

@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/logo-to-svg-for-cricut";
+import type { Route } from "./+types/webp-to-svg-for-cricut";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -23,11 +23,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "Logo to SVG for Cricut - Free Cricut Logo Converter | iLoveSVG";
+  const title = "WebP to SVG for Cricut - Free Cricut SVG Converter | iLoveSVG";
   const description =
-    "Convert logos to clean SVG files for Cricut projects. Make cut-friendly logo SVGs for vinyl decals, stickers, labels, signs, shirts, and craft designs.";
-  const canonical = "https://www.ilovesvg.com/logo-to-svg-for-cricut";
+    "Convert WebP images to clean SVG files for Cricut projects. Make cut-friendly SVGs for vinyl decals, stickers, logos, handwriting, and simple craft designs.";
+  const canonical = "https://www.ilovesvg.com/webp-to-svg-for-cricut";
 
   return [
     { title },
@@ -55,7 +54,7 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 // Dark background default for invert "white on dark"
 const DARK_BG_DEFAULT = "#0b1020";
@@ -197,7 +196,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const webFile = file as File;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
-        { error: "Only PNG or JPEG images are allowed." },
+        { error: "Only PNG, JPEG, or WebP images are allowed." },
         { status: 415 },
       );
     }
@@ -678,12 +677,70 @@ type Preset = {
 
 const PRESETS: Preset[] = [
   {
-    id: "logo-clean-cut",
-    label: "Logo - Clean Cricut cut file",
+    id: "cricut-clean-cut",
+    label: "Cricut - Clean cut file",
     settings: {
       preprocess: "none",
-      threshold: 218,
+      threshold: 224,
       turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "vinyl-decal-bold",
+    label: "Vinyl decal - Bold silhouette",
+    settings: {
+      preprocess: "none",
+      threshold: 210,
+      turdSize: 4,
+      optTolerance: 0.45,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-outline",
+    label: "Sticker outline - Clean edge",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.9,
+      edgeBoost: 1.25,
+      threshold: 228,
+      turdSize: 3,
+      optTolerance: 0.42,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "handwriting-trace",
+    label: "Handwriting - Preserve strokes",
+    settings: {
+      preprocess: "none",
+      threshold: 235,
+      turdSize: 1,
+      optTolerance: 0.2,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "logo-for-cricut",
+    label: "Logo - Smooth Cricut SVG",
+    settings: {
+      preprocess: "none",
+      threshold: 214,
+      turdSize: 2,
       optTolerance: 0.28,
       turnPolicy: "majority",
       lineColor: "#000000",
@@ -692,36 +749,8 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-smooth-curves",
-    label: "Logo - Smooth curves",
-    settings: {
-      preprocess: "none",
-      threshold: 214,
-      turdSize: 2,
-      optTolerance: 0.38,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-bold-vinyl",
-    label: "Logo - Bold vinyl decal",
-    settings: {
-      preprocess: "none",
-      threshold: 205,
-      turdSize: 4,
-      optTolerance: 0.46,
-      turnPolicy: "black",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-thin-lines",
-    label: "Logo - Thin line detail",
+    id: "fine-detail-craft",
+    label: "Fine detail - Small designs",
     settings: {
       preprocess: "none",
       threshold: 238,
@@ -734,13 +763,13 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-remove-speckles",
-    label: "Cleanup - Remove logo speckles",
+    id: "remove-speckles",
+    label: "Cleanup - Remove WebP artifacts",
     settings: {
       preprocess: "none",
       threshold: 226,
       turdSize: 6,
-      optTolerance: 0.34,
+      optTolerance: 0.36,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -748,11 +777,11 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-close-gaps",
-    label: "Cleanup - Close logo gaps",
+    id: "close-small-gaps",
+    label: "Cleanup - Close small gaps",
     settings: {
       preprocess: "none",
-      threshold: 214,
+      threshold: 216,
       turdSize: 4,
       optTolerance: 0.42,
       turnPolicy: "black",
@@ -762,29 +791,15 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-transparent-background",
-    label: "Transparent logo - Clean trace",
-    settings: {
-      preprocess: "none",
-      threshold: 222,
-      turdSize: 2,
-      optTolerance: 0.26,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-screenshot-cleanup",
-    label: "Screenshot logo - Cleanup",
+    id: "photo-to-cricut-outline",
+    label: "Photo - Cricut outline",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.7,
-      edgeBoost: 1.2,
+      blurSigma: 1.15,
+      edgeBoost: 1.35,
       threshold: 226,
-      turdSize: 4,
-      optTolerance: 0.4,
+      turdSize: 3,
+      optTolerance: 0.45,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -792,14 +807,14 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-low-contrast",
-    label: "Low contrast logo - Boost",
+    id: "low-contrast-webp",
+    label: "Low contrast WebP - Boost edges",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.55,
+      blurSigma: 1.0,
+      edgeBoost: 1.65,
       threshold: 230,
-      turdSize: 3,
+      turdSize: 2,
       optTolerance: 0.38,
       turnPolicy: "majority",
       lineColor: "#000000",
@@ -808,8 +823,8 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "white-logo-dark-preview",
-    label: "White logo - Dark preview",
+    id: "white-vinyl-dark-preview",
+    label: "White vinyl - Dark preview",
     settings: {
       preprocess: "none",
       threshold: 224,
@@ -884,7 +899,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("logo-clean-cut");
+    React.useState<string>("cricut-clean-cut");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -970,7 +985,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG or JPEG.");
+      setErr("Please choose a PNG, JPEG, or WebP.");
       return;
     }
 
@@ -985,7 +1000,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("logo-clean-cut");
+    setActivePreset("cricut-clean-cut");
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -1164,7 +1179,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
-                Logo to SVG for Cricut
+                WebP to SVG for Cricut
               </h1>
 
               <PresetPicker
@@ -1480,7 +1495,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Converting…" : "Convert Logo to Cricut SVG"}
+                  {busy ? "Converting…" : "Convert to Cricut SVG"}
                 </button>
 
                 {/* Live preview tier notice */}
@@ -1541,7 +1556,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             const u = URL.createObjectURL(b);
                             const a = document.createElement("a");
                             a.href = u;
-                            a.download = "logo-cricut-cut-file.svg";
+                            a.download = "webp-cricut-cut-file.svg";
                             document.body.appendChild(a);
                             a.click();
                             a.remove();
@@ -1554,7 +1569,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             size={16}
                             className="inline-block mr-1"
                           />
-                          Download Logo SVG
+                          Download Cricut SVG
                         </button>
                         <button
                           type="button"
@@ -1644,7 +1659,7 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 
 async function validateBeforeSubmit(file: File) {
   if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Only PNG or JPEG images are allowed.");
+    throw new Error("Only PNG, JPEG, or WebP images are allowed.");
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("File too large. Max 30 MB per image.");
@@ -1814,41 +1829,40 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Logo to Cricut SVG converter
+                WebP to Cricut SVG converter
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight text-sky-950">
-                Convert a logo into a cleaner SVG file for Cricut projects
+                Convert WebP images into cleaner SVG files for Cricut projects
               </h2>
               <p className="text-slate-600">
-                Turn a logo image into a simple SVG cut file for Cricut Design
-                Space. This page is tuned for logo-style projects like vinyl
-                decals, stickers, labels, signs, shirts, tumblers, and small
-                business branding crafts.
+                Turn a WebP image into a simple SVG cut file for Cricut Design
+                Space. This page is tuned for craft use cases like vinyl decals,
+                stickers, logos, handwriting, labels, and simple silhouette
+                artwork.
               </p>
               <p className="text-slate-600">
-                The best Cricut logo SVG usually starts with a clean, flat,
-                high-contrast logo. Upload your logo, choose a logo-focused
-                preset, adjust the trace, then download a Cricut-ready SVG you
-                can import into your craft workflow.
+                The best Cricut SVG usually starts with a clear, high-contrast
+                image. Upload your WebP, choose a preset, adjust the trace, then
+                download an SVG you can import into your Cricut workflow.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
-                    k: "Logo-focused presets",
-                    v: "Clean cut, smooth curves, bold vinyl, and thin detail modes",
+                    k: "Cricut-focused presets",
+                    v: "Cut file, vinyl, sticker, logo, and handwriting modes",
                   },
                   {
                     k: "Flat SVG output",
-                    v: "Simple path-based SVGs for cleaner Cricut handling",
+                    v: "Simple path-based SVGs that are easier to work with",
                   },
                   {
-                    k: "Logo cleanup controls",
-                    v: "Reduce speckles, rough edges, and broken gaps",
+                    k: "Cleanup controls",
+                    v: "Reduce WebP artifacts, rough edges, and tiny marks",
                   },
                   {
                     k: "Fast preview",
-                    v: "Tune the logo trace before downloading your SVG",
+                    v: "Tune the result before downloading your SVG",
                   },
                 ].map((x) => (
                   <div
@@ -1883,18 +1897,18 @@ function SeoSections() {
 
           <section>
             <h3 className="text-lg font-bold text-sky-950">
-              Best uses for this logo to Cricut SVG converter
+              Best uses for this WebP to Cricut SVG converter
             </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Business logos",
                 "Vinyl decals",
-                "Sticker logos",
-                "Shirt designs",
+                "Sticker outlines",
+                "Logo traces",
+                "Handwriting",
                 "Labels",
-                "Signs",
-                "Tumblers",
-                "Simple brand marks",
+                "Simple silhouettes",
+                "Black-and-white art",
+                "Craft templates",
               ].map((t) => (
                 <span
                   key={t}
@@ -1908,24 +1922,23 @@ function SeoSections() {
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Best for flat, high-contrast logos
+                  Best for simple, high-contrast images
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Simple logos with clear edges, solid shapes, and minimal
-                  gradients usually convert best. Wordmarks, icons, badge logos,
-                  and black-and-white brand marks are stronger candidates than
-                  blurry photos of printed logos.
+                  WebP images with clear edges, dark shapes, and plain
+                  backgrounds usually convert best. Logos, handwriting,
+                  silhouette art, and scanned craft drawings are stronger
+                  candidates than complex photos.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Built for Cricut logo cut files
+                  Built for single-color cut files
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
                   This tool creates a flat traced SVG. That is usually the right
-                  starting point for logo decals, labels, signs, and
-                  single-color craft projects where you want clean shapes
-                  instead of a full raster image.
+                  starting point for vinyl cuts, decals, and simple Cricut
+                  projects where you want clean shapes instead of a full photo.
                 </p>
               </div>
             </div>
@@ -1938,34 +1951,34 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold text-sky-950">
-                How to convert a logo to SVG for Cricut
+                How to convert a WebP to SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Upload → choose logo preset → clean up → download SVG
+                Upload → choose Cricut preset → clean up → download SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload your logo image",
-                  body: "Start with the cleanest logo file you have. A flat PNG or JPEG with a plain background will usually produce a cleaner Cricut SVG than a screenshot or photo.",
+                  title: "Upload your WebP image",
+                  body: "Start with the clearest version you have. A high-contrast WebP image with a plain background will usually produce a cleaner Cricut SVG.",
                 },
                 {
-                  title: "Choose a logo preset",
-                  body: "Use Clean Cricut Cut File for general logos, Smooth Curves for rounded marks, Bold Vinyl Decal for simpler cuts, or Thin Line Detail for delicate logo strokes.",
+                  title: "Choose a Cricut preset",
+                  body: "Use Clean Cut File for general projects, Vinyl Decal for bold silhouettes, Sticker Outline for edge tracing, or Handwriting for scanned notes and signatures.",
                 },
                 {
                   title: "Adjust the trace settings",
-                  body: "Use threshold to control what becomes solid, turd size to remove small logo speckles, and curve tolerance to balance sharp detail against smoother Cricut cutting paths.",
+                  body: "Use threshold to control what becomes solid, turd size to remove tiny WebP artifacts, and curve tolerance to balance detail against smoother cutting paths.",
                 },
                 {
-                  title: "Preview the logo SVG result",
-                  body: "Check whether counters, small letters, thin strokes, or rough edges are still readable before downloading the SVG.",
+                  title: "Preview the SVG result",
+                  body: "Check whether small holes, rough edges, or unwanted background marks are appearing before you download the file.",
                 },
                 {
                   title: "Download and upload to Cricut Design Space",
-                  body: "Save the SVG, then import it into Cricut Design Space as a vector file. Use the SVG result for simple logo cut-style projects rather than full color photo reproduction.",
+                  body: "Save the SVG, then import it into Cricut Design Space as a vector file. Use the SVG result for simple cut-style projects rather than full photo reproduction.",
                 },
               ].map((s, i) => (
                 <li
@@ -1998,47 +2011,47 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Which logo preset should you use?
+              Which Cricut preset should you use?
             </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              Different logos need different tracing behavior. Use the preset
-              that matches the kind of logo you are converting, then fine-tune
+              Different WebP images need different tracing behavior. Use the
+              preset that matches what you are trying to cut, then fine-tune
               only if the preview needs cleanup.
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Logo - Clean Cricut cut file",
-                  body: "Best default for simple logos, brand marks, and clean graphics that already look close to a cut file.",
+                  title: "Cricut - Clean cut file",
+                  body: "Best default for simple craft graphics, dark shapes, and images that already look close to a cut file.",
                 },
                 {
-                  title: "Logo - Smooth curves",
-                  body: "Use this when your logo has rounded letters, icons, badges, or curves that should cut smoothly.",
-                },
-                {
-                  title: "Logo - Bold vinyl decal",
+                  title: "Vinyl decal - Bold silhouette",
                   body: "Use this when you want stronger, simpler shapes that are easier to weed and cut from vinyl.",
                 },
                 {
-                  title: "Logo - Thin line detail",
-                  body: "Best for logos with thin strokes, small interior counters, or delicate linework that still needs to remain visible.",
+                  title: "Sticker outline - Clean edge",
+                  body: "Use this when you want the visible outside edge of an object or illustration rather than every small interior detail.",
                 },
                 {
-                  title: "Cleanup - Remove logo speckles",
-                  body: "Use this when the logo image has compression dots, scanner dust, rough screenshots, or small unwanted marks.",
+                  title: "Handwriting - Preserve strokes",
+                  body: "Best for names, signatures, short notes, and scanned writing where thin stroke detail matters.",
                 },
                 {
-                  title: "Cleanup - Close logo gaps",
-                  body: "Use this when letters or logo outlines break apart because the original image is faint, cracked, or uneven.",
+                  title: "Logo - Smooth Cricut SVG",
+                  body: "Use this for simple logos or icons where smoother curves matter more than tiny texture.",
                 },
                 {
-                  title: "Screenshot logo - Cleanup",
-                  body: "Use this for logos captured from websites, screenshots, or social images where edges may be soft or compressed.",
+                  title: "Cleanup - Remove WebP artifacts",
+                  body: "Use this when the WebP has compression artifacts, scanner dust, or small unwanted marks.",
                 },
                 {
-                  title: "White logo - Dark preview",
-                  body: "Use this to preview white vinyl or light logo artwork against a dark background before downloading.",
+                  title: "Cleanup - Close small gaps",
+                  body: "Use this when the trace breaks apart because the original lines are faint, cracked, or uneven.",
+                },
+                {
+                  title: "Photo - Cricut outline",
+                  body: "Use this for a stylized outline from a photo. It will not create a full multi-layer photo SVG.",
                 },
               ].map((c) => (
                 <div
@@ -2054,34 +2067,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              How to get a cleaner Cricut SVG from a logo
+              How to get a cleaner Cricut SVG from a WebP image
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Use the highest-resolution logo file",
-                  body: "A clean original logo image traces better than a small thumbnail, screenshot, or photo of a printed logo.",
+                  title: "Use high contrast",
+                  body: "Dark artwork on a light background usually traces cleaner than low-contrast photos.",
                 },
                 {
-                  title: "Prefer flat artwork",
-                  body: "Simple one-color or two-tone logos usually make better Cricut cut files than gradients, shadows, textures, or realistic effects.",
+                  title: "Remove busy backgrounds first",
+                  body: "If the WebP image has shadows, furniture, paper texture, or background objects, the converter may trace those too.",
                 },
                 {
-                  title: "Remove backgrounds first",
-                  body: "If the logo sits on a busy background, the converter may trace the background along with the logo.",
-                },
-                {
-                  title: "Avoid tiny text for vinyl",
-                  body: "Small letters and thin strokes can be hard to weed. Use a bolder preset when making decals or shirt designs.",
+                  title: "Avoid tiny details for vinyl",
+                  body: "Very small paths can be hard to weed and may not cut cleanly. Use a bolder preset when making decals.",
                 },
                 {
                   title: "Raise turd size to remove dots",
-                  body: "Compression and screenshots create small artifacts. Higher turd size removes more of those tiny unwanted marks.",
+                  body: "WebP compression can create small artifacts. Higher turd size removes more of those tiny unwanted marks.",
                 },
                 {
-                  title: "Adjust curve tolerance for cleaner paths",
-                  body: "Lower tolerance keeps more logo detail. Higher tolerance makes smoother, simpler paths that may cut more cleanly.",
+                  title: "Lower curve tolerance for detail",
+                  body: "Lower tolerance keeps more shape detail. Higher tolerance makes smoother, simpler paths.",
+                },
+                {
+                  title: "Use edge mode for photos",
+                  body: "Photo Edge presets are better when you want outlines from a photo instead of a solid silhouette.",
                 },
               ].map((c) => (
                 <div
@@ -2097,34 +2110,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Troubleshooting logo SVG results
+              Troubleshooting Cricut SVG results
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 [
-                  "The logo SVG has too many tiny dots",
-                  "Use Cleanup - Remove Logo Speckles or raise turd size in advanced settings.",
+                  "The SVG has too many tiny dots",
+                  "Use Cleanup - Remove WebP Artifacts or raise turd size in advanced settings.",
                 ],
                 [
-                  "The logo looks too thick",
-                  "Raise the threshold less aggressively or try Clean Cricut Cut File instead of Bold Vinyl Decal.",
+                  "The cut file looks too thick",
+                  "Raise the threshold less aggressively or try Clean Cut File instead of Vinyl Decal.",
                 ],
                 [
-                  "Small letters filled in",
-                  "Try Thin Line Detail, lower the threshold, or start from a larger and cleaner logo image.",
+                  "The design has broken lines",
+                  "Try Cleanup - Close Small Gaps, lower the threshold slightly, or start from a higher-quality WebP image.",
                 ],
                 [
-                  "The design has broken outlines",
-                  "Try Cleanup - Close Logo Gaps, lower the threshold slightly, or use a higher-resolution logo file.",
+                  "The photo looks messy",
+                  "A full photo is usually not a good Cricut cut file. Try Photo - Cricut Outline or use a simpler image.",
                 ],
                 [
                   "The SVG is too detailed for vinyl",
-                  "Increase curve tolerance and turd size to simplify the logo paths before downloading.",
+                  "Increase curve tolerance and turd size to simplify the paths before downloading.",
                 ],
                 [
                   "The wrong part became solid",
-                  "Adjust threshold. Higher includes lighter areas; lower keeps only darker parts of the logo.",
+                  "Adjust threshold. Higher includes lighter areas; lower keeps only darker parts of the WebP image.",
                 ],
               ].map(([t, d]) => (
                 <div
@@ -2150,28 +2163,28 @@ function SeoSections() {
             <div className="mt-4 grid gap-3">
               {[
                 {
-                  q: "Can I upload the logo SVG to Cricut Design Space?",
-                  a: "Yes. Cricut Design Space supports SVG uploads. This tool creates a simple traced SVG that is meant for logo-style cut projects.",
+                  q: "Can I upload the SVG to Cricut Design Space?",
+                  a: "Yes. Cricut Design Space supports SVG uploads. This tool creates a simple traced SVG that is meant for cut-style projects, especially when your original file is a WebP image.",
                 },
                 {
-                  q: "Is this better than uploading a logo image directly to Cricut?",
-                  a: "It depends on the project. Uploading the image directly may be fine for Print Then Cut, but an SVG is usually better when you want scalable vector shapes for logo decals, labels, signs, and simple cuts.",
+                  q: "Is this better than uploading a WebP directly to Cricut?",
+                  a: "It depends on the project. Uploading the WebP directly may be fine for Print Then Cut, but an SVG is usually better when you want scalable vector shapes for simple cut files, decals, labels, and silhouettes.",
                 },
                 {
-                  q: "Will this preserve the exact brand logo perfectly?",
-                  a: "No automatic tracer can guarantee a perfect brand asset. For official brand use, use the original vector logo if you have it. This tool is best for creating practical Cricut craft SVGs from logo images.",
+                  q: "Will this make a layered multi-color Cricut SVG?",
+                  a: "No. This converter is focused on clean single-color tracing. It does not automatically separate a photo into multiple Cricut color layers.",
                 },
                 {
-                  q: "Will this make a layered multi-color Cricut logo SVG?",
-                  a: "No. This converter is focused on clean single-color tracing. It does not automatically separate a full-color logo into multiple Cricut color layers.",
+                  q: "Why does my WebP make a rough SVG?",
+                  a: "WebP files can contain compression artifacts, shadows, and blurry edges. Use a higher-quality image, remove the background first, or try the cleanup presets.",
                 },
                 {
-                  q: "Why does my logo make a rough SVG?",
-                  a: "Logo screenshots and compressed images often contain artifacts, shadows, anti-aliasing, and blurry edges. Use a larger original logo image, remove the background first, or try the cleanup presets.",
+                  q: "What file limits apply?",
+                  a: "PNG, JPEG, or WebP up to 30 MB and about 30 megapixels. Preview is fastest at 10 MB or below and throttled for larger files.",
                 },
                 {
-                  q: "Can I use this for vinyl logo decals?",
-                  a: "Yes. Use the Bold Vinyl Decal preset for simpler shapes. For real cutting, avoid extremely thin strokes, tiny text, and fragile details that are hard to weed.",
+                  q: "Can I use this for vinyl decals?",
+                  a: "Yes. Use the Vinyl Decal preset for bold silhouettes and simpler shapes. For real cutting, avoid extremely thin lines or tiny details that are hard to weed.",
                 },
               ].map((x) => (
                 <article

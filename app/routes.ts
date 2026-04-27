@@ -60,6 +60,20 @@ export default [
   route("cricut-svg-converter", "routes/cricut-svg-converter.tsx"),
   route("image-to-svg-for-cricut", "routes/image-to-svg-for-cricut.tsx"),
   route("jpg-to-svg-for-cricut", "routes/jpg-to-svg-for-cricut.tsx"),
+  route("webp-to-svg-for-cricut", "routes/webp-to-svg-for-cricut.tsx"),
+  route("photo-to-svg-for-cricut", "routes/photo-to-svg-for-cricut.tsx"),
+  route(
+    "black-and-white-image-to-svg-for-cricut",
+    "routes/black-and-white-image-to-svg-for-cricut.tsx",
+  ),
+  route("line-art-to-svg-for-cricut", "routes/line-art-to-svg-for-cricut.tsx"),
+  route("drawing-to-svg-for-cricut", "routes/drawing-to-svg-for-cricut.tsx"),
+  route("sketch-to-svg-for-cricut", "routes/sketch-to-svg-for-cricut.tsx"),
+  route("sticker-to-svg-for-cricut", "routes/sticker-to-svg-for-cricut.tsx"),
+  route("base64-to-svg-for-cricut", "routes/base64-to-svg-for-cricut.tsx"),
+  route("code-to-svg-for-cricut", "routes/code-to-svg-for-cricut.tsx"),
+
+
 
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),

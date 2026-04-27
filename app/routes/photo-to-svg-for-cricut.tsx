@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/logo-to-svg-for-cricut";
+import type { Route } from "./+types/photo-to-svg-for-cricut";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -24,10 +24,10 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "Logo to SVG for Cricut - Free Cricut Logo Converter | iLoveSVG";
+    "Photo to SVG for Cricut - Free Cricut Photo Converter | iLoveSVG";
   const description =
-    "Convert logos to clean SVG files for Cricut projects. Make cut-friendly logo SVGs for vinyl decals, stickers, labels, signs, shirts, and craft designs.";
-  const canonical = "https://www.ilovesvg.com/logo-to-svg-for-cricut";
+    "Convert photos to clean SVG files for Cricut projects. Make photo outlines, silhouettes, sticker-style SVGs, and simple Cricut cut files from pictures.";
+  const canonical = "https://www.ilovesvg.com/photo-to-svg-for-cricut";
 
   return [
     { title },
@@ -678,13 +678,15 @@ type Preset = {
 
 const PRESETS: Preset[] = [
   {
-    id: "logo-clean-cut",
-    label: "Logo - Clean Cricut cut file",
+    id: "photo-cricut-outline",
+    label: "Photo - Cricut outline",
     settings: {
-      preprocess: "none",
-      threshold: 218,
+      preprocess: "edge",
+      blurSigma: 1.15,
+      edgeBoost: 1.35,
+      threshold: 226,
       turdSize: 3,
-      optTolerance: 0.28,
+      optTolerance: 0.45,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -692,13 +694,15 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-smooth-curves",
-    label: "Logo - Smooth curves",
+    id: "photo-soft-outline",
+    label: "Photo - Soft outline",
     settings: {
-      preprocess: "none",
-      threshold: 214,
-      turdSize: 2,
-      optTolerance: 0.38,
+      preprocess: "edge",
+      blurSigma: 1.45,
+      edgeBoost: 1.05,
+      threshold: 216,
+      turdSize: 3,
+      optTolerance: 0.42,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
@@ -706,13 +710,13 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-bold-vinyl",
-    label: "Logo - Bold vinyl decal",
+    id: "photo-bold-silhouette",
+    label: "Photo - Bold silhouette",
     settings: {
       preprocess: "none",
       threshold: 205,
-      turdSize: 4,
-      optTolerance: 0.46,
+      turdSize: 5,
+      optTolerance: 0.48,
       turnPolicy: "black",
       lineColor: "#000000",
       invert: false,
@@ -720,13 +724,15 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-thin-lines",
-    label: "Logo - Thin line detail",
+    id: "portrait-line-art",
+    label: "Portrait - Line art",
     settings: {
-      preprocess: "none",
-      threshold: 238,
-      turdSize: 1,
-      optTolerance: 0.18,
+      preprocess: "edge",
+      blurSigma: 1.0,
+      edgeBoost: 1.45,
+      threshold: 228,
+      turdSize: 2,
+      optTolerance: 0.36,
       turnPolicy: "minority",
       lineColor: "#000000",
       invert: false,
@@ -734,70 +740,12 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-remove-speckles",
-    label: "Cleanup - Remove logo speckles",
-    settings: {
-      preprocess: "none",
-      threshold: 226,
-      turdSize: 6,
-      optTolerance: 0.34,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-close-gaps",
-    label: "Cleanup - Close logo gaps",
-    settings: {
-      preprocess: "none",
-      threshold: 214,
-      turdSize: 4,
-      optTolerance: 0.42,
-      turnPolicy: "black",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-transparent-background",
-    label: "Transparent logo - Clean trace",
-    settings: {
-      preprocess: "none",
-      threshold: 222,
-      turdSize: 2,
-      optTolerance: 0.26,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-screenshot-cleanup",
-    label: "Screenshot logo - Cleanup",
+    id: "pet-photo-outline",
+    label: "Pet photo - Outline",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.7,
-      edgeBoost: 1.2,
-      threshold: 226,
-      turdSize: 4,
-      optTolerance: 0.4,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-low-contrast",
-    label: "Low contrast logo - Boost",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.55,
+      blurSigma: 1.2,
+      edgeBoost: 1.5,
       threshold: 230,
       turdSize: 3,
       optTolerance: 0.38,
@@ -808,13 +756,77 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "white-logo-dark-preview",
-    label: "White logo - Dark preview",
+    id: "sticker-photo-edge",
+    label: "Sticker photo - Edge trace",
     settings: {
-      preprocess: "none",
+      preprocess: "edge",
+      blurSigma: 0.9,
+      edgeBoost: 1.25,
       threshold: 224,
       turdSize: 3,
-      optTolerance: 0.34,
+      optTolerance: 0.44,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "high-contrast-photo",
+    label: "High contrast photo - Cut file",
+    settings: {
+      preprocess: "none",
+      threshold: 218,
+      turdSize: 4,
+      optTolerance: 0.38,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "low-contrast-photo",
+    label: "Low contrast photo - Boost edges",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.0,
+      edgeBoost: 1.75,
+      threshold: 232,
+      turdSize: 2,
+      optTolerance: 0.38,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "noisy-photo-denoise",
+    label: "Noisy photo - Denoise trace",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.7,
+      edgeBoost: 1.25,
+      threshold: 222,
+      turdSize: 5,
+      optTolerance: 0.45,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "white-vinyl-photo-preview",
+    label: "White vinyl - Dark preview",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.15,
+      edgeBoost: 1.35,
+      threshold: 226,
+      turdSize: 3,
+      optTolerance: 0.45,
       turnPolicy: "majority",
       invert: true,
       lineColor: "#ffffff",
@@ -883,8 +895,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
-  const [activePreset, setActivePreset] =
-    React.useState<string>("logo-clean-cut");
+  const [activePreset, setActivePreset] = React.useState<string>(
+    "photo-cricut-outline",
+  );
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -985,7 +998,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("logo-clean-cut");
+    setActivePreset("photo-cricut-outline");
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -1164,7 +1177,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
-                Logo to SVG for Cricut
+                Photo to SVG for Cricut
               </h1>
 
               <PresetPicker
@@ -1480,7 +1493,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Converting…" : "Convert Logo to Cricut SVG"}
+                  {busy ? "Converting…" : "Convert Photo to Cricut SVG"}
                 </button>
 
                 {/* Live preview tier notice */}
@@ -1541,7 +1554,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             const u = URL.createObjectURL(b);
                             const a = document.createElement("a");
                             a.href = u;
-                            a.download = "logo-cricut-cut-file.svg";
+                            a.download = "photo-cricut-cut-file.svg";
                             document.body.appendChild(a);
                             a.click();
                             a.remove();
@@ -1554,7 +1567,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             size={16}
                             className="inline-block mr-1"
                           />
-                          Download Logo SVG
+                          Download Photo SVG
                         </button>
                         <button
                           type="button"
@@ -1814,41 +1827,42 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Logo to Cricut SVG converter
+                Photo to Cricut SVG converter
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight text-sky-950">
-                Convert a logo into a cleaner SVG file for Cricut projects
+                Convert a photo into a cleaner SVG file for Cricut projects
               </h2>
               <p className="text-slate-600">
-                Turn a logo image into a simple SVG cut file for Cricut Design
-                Space. This page is tuned for logo-style projects like vinyl
-                decals, stickers, labels, signs, shirts, tumblers, and small
-                business branding crafts.
+                Turn a photo into a simple SVG outline, silhouette, or
+                sticker-style trace for Cricut Design Space. This page is tuned
+                for photo-based craft projects like pet outlines, portrait line
+                art, vinyl decals, sticker edges, labels, shirts, and custom
+                gifts.
               </p>
               <p className="text-slate-600">
-                The best Cricut logo SVG usually starts with a clean, flat,
-                high-contrast logo. Upload your logo, choose a logo-focused
-                preset, adjust the trace, then download a Cricut-ready SVG you
-                can import into your craft workflow.
+                Photos are more complex than logos or line art, so the goal is
+                not a perfect full-color photo rebuild. The presets here help
+                reduce a picture into cleaner single-color paths that are easier
+                to preview, adjust, download, and import into a Cricut workflow.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
-                    k: "Logo-focused presets",
-                    v: "Clean cut, smooth curves, bold vinyl, and thin detail modes",
+                    k: "Photo-focused presets",
+                    v: "Outline, silhouette, portrait, pet, sticker, and denoise modes",
                   },
                   {
-                    k: "Flat SVG output",
-                    v: "Simple path-based SVGs for cleaner Cricut handling",
+                    k: "Cricut-friendly trace",
+                    v: "Simple path-based SVGs for cut-style projects",
                   },
                   {
-                    k: "Logo cleanup controls",
-                    v: "Reduce speckles, rough edges, and broken gaps",
+                    k: "Cleanup controls",
+                    v: "Reduce photo noise, background clutter, and tiny artifacts",
                   },
                   {
                     k: "Fast preview",
-                    v: "Tune the logo trace before downloading your SVG",
+                    v: "Tune the photo trace before downloading your SVG",
                   },
                 ].map((x) => (
                   <div
@@ -1883,18 +1897,18 @@ function SeoSections() {
 
           <section>
             <h3 className="text-lg font-bold text-sky-950">
-              Best uses for this logo to Cricut SVG converter
+              Best uses for this photo to Cricut SVG converter
             </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Business logos",
+                "Pet outlines",
+                "Portrait line art",
+                "Photo silhouettes",
+                "Sticker edges",
                 "Vinyl decals",
-                "Sticker logos",
                 "Shirt designs",
-                "Labels",
-                "Signs",
-                "Tumblers",
-                "Simple brand marks",
+                "Custom gifts",
+                "Simple photo traces",
               ].map((t) => (
                 <span
                   key={t}
@@ -1908,24 +1922,23 @@ function SeoSections() {
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Best for flat, high-contrast logos
+                  Best for high-contrast photos
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Simple logos with clear edges, solid shapes, and minimal
-                  gradients usually convert best. Wordmarks, icons, badge logos,
-                  and black-and-white brand marks are stronger candidates than
-                  blurry photos of printed logos.
+                  Photos with a clear subject, simple background, and strong
+                  contrast usually convert better. A pet against a plain wall or
+                  a portrait with strong lighting will trace cleaner than a busy
+                  group photo.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Built for Cricut logo cut files
+                  Built for outlines and silhouettes
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  This tool creates a flat traced SVG. That is usually the right
-                  starting point for logo decals, labels, signs, and
-                  single-color craft projects where you want clean shapes
-                  instead of a full raster image.
+                  This tool creates a flat traced SVG. That is useful for
+                  Cricut-style cut projects, but it will not automatically turn
+                  a full photo into a layered, multi-color SVG.
                 </p>
               </div>
             </div>
@@ -1938,34 +1951,34 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold text-sky-950">
-                How to convert a logo to SVG for Cricut
+                How to convert a photo to SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Upload → choose logo preset → clean up → download SVG
+                Upload → choose photo preset → clean up → download SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload your logo image",
-                  body: "Start with the cleanest logo file you have. A flat PNG or JPEG with a plain background will usually produce a cleaner Cricut SVG than a screenshot or photo.",
+                  title: "Upload your photo",
+                  body: "Start with a clear photo where the subject stands out from the background. Cropped photos usually trace better than wide, busy scenes.",
                 },
                 {
-                  title: "Choose a logo preset",
-                  body: "Use Clean Cricut Cut File for general logos, Smooth Curves for rounded marks, Bold Vinyl Decal for simpler cuts, or Thin Line Detail for delicate logo strokes.",
+                  title: "Choose a photo preset",
+                  body: "Use Photo - Cricut Outline for general tracing, Photo - Bold Silhouette for strong cut files, Portrait Line Art for faces, or Pet Photo Outline for animal photos.",
                 },
                 {
                   title: "Adjust the trace settings",
-                  body: "Use threshold to control what becomes solid, turd size to remove small logo speckles, and curve tolerance to balance sharp detail against smoother Cricut cutting paths.",
+                  body: "Use blur and edge boost for photo outlines, threshold to control what becomes solid, turd size to remove noise, and curve tolerance to simplify rough paths.",
                 },
                 {
-                  title: "Preview the logo SVG result",
-                  body: "Check whether counters, small letters, thin strokes, or rough edges are still readable before downloading the SVG.",
+                  title: "Preview the SVG result",
+                  body: "Check whether the SVG is clean enough for your project. Remove tiny details before using it for vinyl or small cuts.",
                 },
                 {
                   title: "Download and upload to Cricut Design Space",
-                  body: "Save the SVG, then import it into Cricut Design Space as a vector file. Use the SVG result for simple logo cut-style projects rather than full color photo reproduction.",
+                  body: "Save the SVG, then import it into Cricut Design Space. Use the result as a simplified trace, outline, or silhouette rather than a full photo reproduction.",
                 },
               ].map((s, i) => (
                 <li
@@ -1998,47 +2011,47 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Which logo preset should you use?
+              Which photo preset should you use?
             </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              Different logos need different tracing behavior. Use the preset
-              that matches the kind of logo you are converting, then fine-tune
-              only if the preview needs cleanup.
+              Photos vary more than logos, icons, or scans. Pick the preset that
+              matches the kind of Cricut result you want, then adjust the
+              advanced settings only when the preview needs cleanup.
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Logo - Clean Cricut cut file",
-                  body: "Best default for simple logos, brand marks, and clean graphics that already look close to a cut file.",
+                  title: "Photo - Cricut outline",
+                  body: "Best default for turning a clear photo into a simple outline-style SVG.",
                 },
                 {
-                  title: "Logo - Smooth curves",
-                  body: "Use this when your logo has rounded letters, icons, badges, or curves that should cut smoothly.",
+                  title: "Photo - Soft outline",
+                  body: "Use this when the default outline looks too harsh or picks up too much texture.",
                 },
                 {
-                  title: "Logo - Bold vinyl decal",
-                  body: "Use this when you want stronger, simpler shapes that are easier to weed and cut from vinyl.",
+                  title: "Photo - Bold silhouette",
+                  body: "Use this for stronger, simpler cut files where the subject shape matters more than inner detail.",
                 },
                 {
-                  title: "Logo - Thin line detail",
-                  body: "Best for logos with thin strokes, small interior counters, or delicate linework that still needs to remain visible.",
+                  title: "Portrait - Line art",
+                  body: "Best for stylized face or person outlines where you want more thin-line detail.",
                 },
                 {
-                  title: "Cleanup - Remove logo speckles",
-                  body: "Use this when the logo image has compression dots, scanner dust, rough screenshots, or small unwanted marks.",
+                  title: "Pet photo - Outline",
+                  body: "Use this for pet portraits, animal silhouettes, memorial decals, or custom gift projects.",
                 },
                 {
-                  title: "Cleanup - Close logo gaps",
-                  body: "Use this when letters or logo outlines break apart because the original image is faint, cracked, or uneven.",
+                  title: "Sticker photo - Edge trace",
+                  body: "Use this when you want a clean outside edge or sticker-style photo trace.",
                 },
                 {
-                  title: "Screenshot logo - Cleanup",
-                  body: "Use this for logos captured from websites, screenshots, or social images where edges may be soft or compressed.",
+                  title: "Low contrast photo - Boost edges",
+                  body: "Use this when the subject blends into the background or the lighting is flat.",
                 },
                 {
-                  title: "White logo - Dark preview",
-                  body: "Use this to preview white vinyl or light logo artwork against a dark background before downloading.",
+                  title: "Noisy photo - Denoise trace",
+                  body: "Use this when the photo has grain, shadows, compression artifacts, or background texture.",
                 },
               ].map((c) => (
                 <div
@@ -2054,34 +2067,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              How to get a cleaner Cricut SVG from a logo
+              How to get a cleaner Cricut SVG from a photo
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Use the highest-resolution logo file",
-                  body: "A clean original logo image traces better than a small thumbnail, screenshot, or photo of a printed logo.",
+                  title: "Crop around the subject first",
+                  body: "A close crop gives the tracer less background noise to interpret as SVG paths.",
                 },
                 {
-                  title: "Prefer flat artwork",
-                  body: "Simple one-color or two-tone logos usually make better Cricut cut files than gradients, shadows, textures, or realistic effects.",
+                  title: "Use a plain background",
+                  body: "Busy backgrounds often become unwanted paths. A clean wall or solid surface works better.",
                 },
                 {
-                  title: "Remove backgrounds first",
-                  body: "If the logo sits on a busy background, the converter may trace the background along with the logo.",
+                  title: "Prefer strong lighting",
+                  body: "Clear light and shadow separation makes outlines and silhouettes easier to trace.",
                 },
                 {
-                  title: "Avoid tiny text for vinyl",
-                  body: "Small letters and thin strokes can be hard to weed. Use a bolder preset when making decals or shirt designs.",
+                  title: "Avoid tiny photo texture for vinyl",
+                  body: "Hair, fur, fabric, grass, and shadows can create tiny pieces that are hard to weed. Raise turd size to remove them.",
                 },
                 {
-                  title: "Raise turd size to remove dots",
-                  body: "Compression and screenshots create small artifacts. Higher turd size removes more of those tiny unwanted marks.",
+                  title: "Use edge mode for outlines",
+                  body: "Photo presets use edge preprocessing because most photos need contour extraction instead of regular lineart tracing.",
                 },
                 {
-                  title: "Adjust curve tolerance for cleaner paths",
-                  body: "Lower tolerance keeps more logo detail. Higher tolerance makes smoother, simpler paths that may cut more cleanly.",
+                  title: "Use silhouette mode for simpler cuts",
+                  body: "If the outline is too complex, switch to a bold silhouette preset for a cleaner vinyl-style result.",
                 },
               ].map((c) => (
                 <div
@@ -2097,34 +2110,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Troubleshooting logo SVG results
+              Troubleshooting photo SVG results
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 [
-                  "The logo SVG has too many tiny dots",
-                  "Use Cleanup - Remove Logo Speckles or raise turd size in advanced settings.",
+                  "The SVG has too many tiny pieces",
+                  "Use Noisy Photo - Denoise Trace or raise turd size in advanced settings.",
                 ],
                 [
-                  "The logo looks too thick",
-                  "Raise the threshold less aggressively or try Clean Cricut Cut File instead of Bold Vinyl Decal.",
+                  "The subject outline is too faint",
+                  "Try Low Contrast Photo - Boost Edges or increase edge boost in advanced settings.",
                 ],
                 [
-                  "Small letters filled in",
-                  "Try Thin Line Detail, lower the threshold, or start from a larger and cleaner logo image.",
+                  "The photo trace looks messy",
+                  "Crop the image, remove the background, or use a simpler photo with stronger contrast.",
                 ],
                 [
-                  "The design has broken outlines",
-                  "Try Cleanup - Close Logo Gaps, lower the threshold slightly, or use a higher-resolution logo file.",
+                  "The cut file is too detailed for vinyl",
+                  "Use Photo - Bold Silhouette, increase curve tolerance, and raise turd size before downloading.",
                 ],
                 [
-                  "The SVG is too detailed for vinyl",
-                  "Increase curve tolerance and turd size to simplify the logo paths before downloading.",
+                  "The background becomes part of the SVG",
+                  "Use a background remover or crop tighter around the subject before uploading.",
                 ],
                 [
-                  "The wrong part became solid",
-                  "Adjust threshold. Higher includes lighter areas; lower keeps only darker parts of the logo.",
+                  "The SVG does not look like the original photo",
+                  "That is expected for single-color tracing. This tool makes simplified Cricut SVGs, not full photo reproductions.",
                 ],
               ].map(([t, d]) => (
                 <div
@@ -2150,28 +2163,28 @@ function SeoSections() {
             <div className="mt-4 grid gap-3">
               {[
                 {
-                  q: "Can I upload the logo SVG to Cricut Design Space?",
-                  a: "Yes. Cricut Design Space supports SVG uploads. This tool creates a simple traced SVG that is meant for logo-style cut projects.",
+                  q: "Can I turn a photo into an SVG for Cricut?",
+                  a: "Yes. This tool can trace a photo into a simplified SVG outline, silhouette, or single-color path result for Cricut-style projects.",
                 },
                 {
-                  q: "Is this better than uploading a logo image directly to Cricut?",
-                  a: "It depends on the project. Uploading the image directly may be fine for Print Then Cut, but an SVG is usually better when you want scalable vector shapes for logo decals, labels, signs, and simple cuts.",
+                  q: "Will this create a layered multi-color photo SVG?",
+                  a: "No. This converter focuses on clean single-color tracing. It does not automatically separate a photo into multiple Cricut color layers.",
                 },
                 {
-                  q: "Will this preserve the exact brand logo perfectly?",
-                  a: "No automatic tracer can guarantee a perfect brand asset. For official brand use, use the original vector logo if you have it. This tool is best for creating practical Cricut craft SVGs from logo images.",
+                  q: "Is this better than uploading a photo directly to Cricut?",
+                  a: "It depends on the project. Uploading a photo directly may be better for Print Then Cut, while SVG tracing is better when you want outlines, silhouettes, decals, or simplified cut shapes.",
                 },
                 {
-                  q: "Will this make a layered multi-color Cricut logo SVG?",
-                  a: "No. This converter is focused on clean single-color tracing. It does not automatically separate a full-color logo into multiple Cricut color layers.",
+                  q: "Why does my photo make a messy SVG?",
+                  a: "Photos contain shadows, textures, backgrounds, and small details. Use a clearer photo, crop around the subject, remove the background, or use a denoise preset.",
                 },
                 {
-                  q: "Why does my logo make a rough SVG?",
-                  a: "Logo screenshots and compressed images often contain artifacts, shadows, anti-aliasing, and blurry edges. Use a larger original logo image, remove the background first, or try the cleanup presets.",
+                  q: "What photos work best?",
+                  a: "Clear, high-contrast photos with one main subject and a simple background usually work best. Pet portraits, side profiles, and bright subject photos are good candidates.",
                 },
                 {
-                  q: "Can I use this for vinyl logo decals?",
-                  a: "Yes. Use the Bold Vinyl Decal preset for simpler shapes. For real cutting, avoid extremely thin strokes, tiny text, and fragile details that are hard to weed.",
+                  q: "What file limits apply?",
+                  a: "PNG/JPEG up to 30 MB and about 30 megapixels. Preview is fastest at 10 MB or below and throttled for larger files.",
                 },
               ].map((x) => (
                 <article
