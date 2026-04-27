@@ -47,7 +47,7 @@ type Props = {
  */
 export function OtherToolsLinks({
   title = "All SVG tools",
-  subtitle = "Browse every SVG converter, editor, inspector, optimizer, and utility available on iLoveSVG.",
+  subtitle = "Browse every SVG converter, editor, inspector, optimizer, and craft-file utility available on iLoveSVG.",
 }: Props) {
   const { pathname } = useLocation();
 
@@ -82,18 +82,20 @@ export function OtherToolsLinks({
         </div>
 
         <div className="py-6">
-          <AdSenseDelayed
-            slot="8102088582"
-            delayMs={1500}
-            minHeight={90}
-            maxHeight={120}
-            format="horizontal"
-            fullWidth={true}
-            className="mx-auto w-full max-w-[970px]"
-          />
+          <div className="mx-auto w-full max-w-[970px] min-h-[120px] overflow-hidden flex items-center justify-center">
+            <AdSenseDelayed
+              slot="8102088582"
+              delayMs={1500}
+              minHeight={120}
+              maxHeight={120}
+              format="horizontal"
+              fullWidth={true}
+              className="mx-auto w-full max-w-[970px]"
+            />
+          </div>
         </div>
 
-        <div className=" flex flex-col gap-10">
+        <div className="flex flex-col gap-10">
           {sections.map((section) => (
             <div key={section.id}>
               <div className="mb-4 flex flex-col gap-1">
@@ -225,9 +227,9 @@ const UTILITY_SECTIONS: UtilitySection[] = [
   },
   {
     id: "cricut-and-cutting",
-    title: "Cricut, stickers, vinyl, and laser cutting",
+    title: "Cricut, stickers, vinyl, Etsy, Silhouette, and laser cutting",
     description:
-      "Tools for craft workflows, cut files, layered SVG output, vinyl projects, stickers, Print Then Cut, and laser cutting prep.",
+      "Tools for craft workflows, cut files, layered SVG output, vinyl projects, stickers, Print Then Cut, Etsy listings, Silhouette projects, and laser cutting prep.",
     groups: ["Cricut & cutting"],
   },
   {
@@ -268,7 +270,7 @@ const UTILITY_SECTIONS: UtilitySection[] = [
 ];
 
 /**
- * FULL list synced to your routes config.
+ * FULL list synced to the current routes config.
  * Legal pages are intentionally excluded.
  */
 export const UTILITIES: UtilityLink[] = [
@@ -289,7 +291,6 @@ export const UTILITIES: UtilityLink[] = [
       "webp to svg",
     ],
   },
-
   {
     id: "png-to-svg",
     title: "PNG to SVG Converter",
@@ -338,7 +339,7 @@ export const UTILITIES: UtilityLink[] = [
       "Turn a logo into a scalable SVG for brand kits, websites, printing, and sharp resizing.",
     to: "/logo-to-svg-converter",
     group: "Image to SVG",
-    keywords: ["logo to svg", "vector logo", "vectorize logo"],
+    keywords: ["logo to svg", "brand", "vector logo", "vectorize logo"],
   },
   {
     id: "icon-to-svg",
@@ -368,7 +369,7 @@ export const UTILITIES: UtilityLink[] = [
       "Convert text into SVG for logos, wordmarks, headings, and scalable typography graphics.",
     to: "/text-to-svg-converter",
     group: "Image to SVG",
-    keywords: ["text to svg", "wordmark", "vector text"],
+    keywords: ["text to svg", "wordmark", "typography", "vector text"],
   },
   {
     id: "sticker-to-svg",
@@ -378,7 +379,7 @@ export const UTILITIES: UtilityLink[] = [
       "Convert sticker images to SVG for clean cut lines, scaling, decals, and print-ready output.",
     to: "/sticker-to-svg-converter",
     group: "Image to SVG",
-    keywords: ["sticker to svg", "decal svg", "cut file"],
+    keywords: ["sticker to svg", "decal", "decal svg", "cut file"],
   },
   {
     id: "line-art-to-svg",
@@ -448,9 +449,45 @@ export const UTILITIES: UtilityLink[] = [
       "Convert black and white images to SVG with clear edges for stencils, decals, signs, and prints.",
     to: "/black-and-white-image-to-svg-converter",
     group: "Image to SVG",
-    keywords: ["black and white to svg", "bw to svg", "stencil svg"],
+    keywords: ["black and white to svg", "bw to svg", "b&w", "stencil svg"],
   },
-
+  {
+    id: "cricut-svg-converter",
+    title: "Cricut SVG Converter",
+    shortTitle: "Cricut SVG Converter",
+    description:
+      "Convert artwork into SVG files for Cricut Design Space, vinyl decals, stickers, labels, stencils, cards, and craft projects.",
+    to: "/cricut-svg-converter",
+    group: "Cricut & cutting",
+    keywords: [
+      "cricut svg converter",
+      "cricut svg",
+      "design space",
+      "craft svg",
+      "vinyl",
+      "stickers",
+      "cut file",
+    ],
+  },
+  {
+    id: "image-to-svg-for-cricut",
+    title: "Image to SVG for Cricut",
+    shortTitle: "Image → Cricut SVG",
+    description:
+      "Convert PNG, JPG, WebP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG files into Cricut-friendly SVG output.",
+    to: "/image-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "image to svg for cricut",
+      "all image formats",
+      "heic to svg",
+      "tiff to svg",
+      "webp to svg",
+      "svg for cricut",
+      "design space",
+      "cut file",
+    ],
+  },
   {
     id: "png-to-svg-for-cricut",
     title: "PNG to SVG for Cricut",
@@ -466,6 +503,24 @@ export const UTILITIES: UtilityLink[] = [
       "vinyl",
       "stickers",
       "craft svg",
+    ],
+  },
+  {
+    id: "logo-to-svg-for-cricut",
+    title: "Logo to SVG for Cricut",
+    shortTitle: "Logo → Cricut SVG",
+    description:
+      "Convert logo files into Cricut-friendly SVG cut files for decals, branding, signs, labels, and craft projects.",
+    to: "/logo-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "logo to svg for cricut",
+      "logo svg",
+      "cricut logo",
+      "brand svg",
+      "design space",
+      "vinyl decal",
+      "cut file",
     ],
   },
   {
@@ -534,6 +589,43 @@ export const UTILITIES: UtilityLink[] = [
     ],
   },
   {
+    id: "png-to-svg-for-etsy",
+    title: "PNG to SVG for Etsy",
+    shortTitle: "PNG → Etsy SVG",
+    description:
+      "Convert PNG designs into SVG files for Etsy digital downloads, craft bundles, decals, stickers, and printable product listings.",
+    to: "/png-to-svg-for-etsy",
+    group: "Cricut & cutting",
+    keywords: [
+      "png to svg for etsy",
+      "etsy svg",
+      "digital download",
+      "svg bundle",
+      "craft file",
+      "cut file",
+      "stickers",
+      "decals",
+    ],
+  },
+  {
+    id: "png-to-svg-for-silhouette",
+    title: "PNG to SVG for Silhouette",
+    shortTitle: "PNG → Silhouette SVG",
+    description:
+      "Convert PNG artwork into SVG files for Silhouette Studio projects, decals, stickers, labels, and cut-file workflows.",
+    to: "/png-to-svg-for-silhouette",
+    group: "Cricut & cutting",
+    keywords: [
+      "png to svg for silhouette",
+      "silhouette svg",
+      "silhouette studio",
+      "cameo",
+      "cut file",
+      "stickers",
+      "vinyl",
+    ],
+  },
+  {
     id: "png-to-svg-for-laser-cutting",
     title: "PNG to SVG for Laser Cutting",
     shortTitle: "Laser Cut SVG",
@@ -549,7 +641,6 @@ export const UTILITIES: UtilityLink[] = [
       "outline svg",
     ],
   },
-
   {
     id: "svg-to-png",
     title: "SVG to PNG Converter",
@@ -600,7 +691,6 @@ export const UTILITIES: UtilityLink[] = [
     group: "SVG to image/PDF",
     keywords: ["favicon generator", "favicon.ico", "ico", "app icons"],
   },
-
   {
     id: "svg-background-editor",
     title: "SVG Background Editor",
@@ -656,7 +746,6 @@ export const UTILITIES: UtilityLink[] = [
     group: "Edit SVG",
     keywords: ["rotate svg", "flip svg", "mirror svg", "transform"],
   },
-
   {
     id: "svg-preview-viewer",
     title: "SVG Preview Viewer",
@@ -724,7 +813,6 @@ export const UTILITIES: UtilityLink[] = [
       "contrast ratio",
     ],
   },
-
   {
     id: "svg-minifier",
     title: "SVG Minifier",
@@ -745,7 +833,6 @@ export const UTILITIES: UtilityLink[] = [
     group: "Optimize SVG",
     keywords: ["svg cleaner", "clean svg", "remove metadata", "optimize svg"],
   },
-
   {
     id: "svg-to-base64",
     title: "SVG to Base64 Encoder",
@@ -766,7 +853,6 @@ export const UTILITIES: UtilityLink[] = [
     group: "Base64",
     keywords: ["base64 to svg", "decode svg", "data url", "base64 decoder"],
   },
-
   {
     id: "free-color-picker",
     title: "Free Color Picker",

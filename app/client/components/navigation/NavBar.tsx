@@ -63,6 +63,8 @@ export default function NavBar() {
           "jpg to svg",
           "jpeg to svg",
           "webp to svg",
+          "photo to svg",
+          "raster to svg",
         ],
       },
 
@@ -90,39 +92,50 @@ export default function NavBar() {
 
       // SVG utilities
       {
-        label: "Background",
+        label: "SVG Background Editor",
         href: "/svg-background-editor",
-        keywords: ["svg background", "background editor", "transparent"],
+        keywords: [
+          "svg background",
+          "background editor",
+          "transparent",
+          "add background",
+        ],
       },
       {
-        label: "Resize / Scale",
+        label: "SVG Resize / Scale",
         href: "/svg-resize-and-scale-editor",
         keywords: ["resize svg", "scale svg", "viewbox", "width", "height"],
       },
       {
-        label: "Recolor",
+        label: "SVG Recolor",
         href: "/svg-recolor",
         keywords: ["recolor svg", "change color", "fill", "stroke"],
       },
       {
-        label: "Minifier",
+        label: "SVG Minifier",
         href: "/svg-minifier",
         keywords: ["svg minifier", "minify", "compress", "reduce size"],
       },
       {
-        label: "Cleaner",
+        label: "SVG Cleaner",
         href: "/svg-cleaner",
         keywords: ["svg cleaner", "clean svg", "metadata", "optimize"],
       },
       {
-        label: "Preview",
+        label: "SVG Preview Viewer",
         href: "/svg-preview-viewer",
         keywords: ["svg preview", "viewer", "view svg", "render svg"],
       },
       {
-        label: "Embed Code",
+        label: "SVG Embed Code",
         href: "/svg-embed-code-generator",
-        keywords: ["embed svg", "inline svg", "img tag", "css background"],
+        keywords: [
+          "embed svg",
+          "inline svg",
+          "img tag",
+          "css background",
+          "html code",
+        ],
       },
       {
         label: "Inline SVG vs Img",
@@ -135,27 +148,27 @@ export default function NavBar() {
         keywords: ["favicon", "ico", "app icon", "browser icon"],
       },
       {
-        label: "Stroke Width",
+        label: "SVG Stroke Width Editor",
         href: "/svg-stroke-width-editor",
         keywords: ["stroke width", "line thickness", "stroke-width"],
       },
       {
-        label: "Flip / Rotate",
+        label: "SVG Flip / Rotate",
         href: "/svg-flip-and-rotate-editor",
         keywords: ["flip svg", "rotate svg", "mirror", "transform"],
       },
       {
-        label: "Dimensions Inspector",
+        label: "SVG Dimensions Inspector",
         href: "/svg-dimensions-inspector",
         keywords: ["dimensions", "width", "height", "viewbox", "inspect"],
       },
       {
-        label: "File Size Inspector",
+        label: "SVG File Size Inspector",
         href: "/svg-file-size-inspector",
         keywords: ["file size", "kb", "bytes", "inspect size"],
       },
       {
-        label: "Accessibility / Contrast",
+        label: "SVG Accessibility / Contrast",
         href: "/svg-accessibility-and-contrast-checker",
         keywords: [
           "accessibility",
@@ -166,36 +179,125 @@ export default function NavBar() {
         ],
       },
 
-      // US target audience routes
+      // Cricut / craft target audience routes
+      {
+        label: "Cricut SVG Converter",
+        href: "/cricut-svg-converter",
+        keywords: [
+          "cricut",
+          "svg for cricut",
+          "cricut svg converter",
+          "design space",
+          "craft",
+          "cut file",
+          "vinyl",
+          "stickers",
+        ],
+      },
+      {
+        label: "Image to SVG for Cricut",
+        href: "/image-to-svg-for-cricut",
+        keywords: [
+          "cricut",
+          "image to svg",
+          "jpg to svg",
+          "jpeg to svg",
+          "png to svg",
+          "webp to svg",
+          "gif to svg",
+          "bmp to svg",
+          "tiff to svg",
+          "svg cleanup",
+          "design space",
+          "cut file",
+        ],
+      },
       {
         label: "PNG to SVG for Cricut",
         href: "/png-to-svg-for-cricut",
-        keywords: ["cricut", "png to svg", "craft", "cut file"],
+        keywords: ["cricut", "png to svg", "craft", "cut file", "design space"],
       },
       {
         label: "PNG to Layered SVG for Cricut",
         href: "/png-to-layered-svg-for-cricut",
-        keywords: ["cricut", "layered svg", "layers", "multicolor"],
+        keywords: [
+          "cricut",
+          "layered svg",
+          "layers",
+          "multicolor",
+          "multi color",
+          "vinyl layers",
+        ],
       },
       {
         label: "PNG to SVG for Print Then Cut",
         href: "/png-to-svg-for-cricut-print-then-cut",
-        keywords: ["cricut", "print then cut", "stickers", "labels"],
+        keywords: [
+          "cricut",
+          "print then cut",
+          "stickers",
+          "labels",
+          "print and cut",
+        ],
       },
       {
-        label: "PNG to SVG for Vinyl",
+        label: "PNG to SVG for Cricut Vinyl",
         href: "/png-to-svg-for-cricut-vinyl",
-        keywords: ["cricut", "vinyl", "decal", "cut file"],
+        keywords: ["cricut", "vinyl", "decal", "cut file", "htv", "iron on"],
       },
       {
-        label: "PNG to SVG for Stickers",
+        label: "PNG to SVG for Cricut Stickers",
         href: "/png-to-svg-for-cricut-stickers",
-        keywords: ["cricut", "stickers", "sticker svg", "labels"],
+        keywords: ["cricut", "stickers", "sticker svg", "labels", "kiss cut"],
+      },
+      {
+        label: "Logo to SVG for Cricut",
+        href: "/logo-to-svg-for-cricut",
+        keywords: [
+          "cricut",
+          "logo to svg",
+          "brand",
+          "business logo",
+          "vector logo",
+          "design space",
+        ],
+      },
+      {
+        label: "PNG to SVG for Silhouette",
+        href: "/png-to-svg-for-silhouette",
+        keywords: [
+          "silhouette",
+          "silhouette studio",
+          "cameo",
+          "png to svg",
+          "craft",
+          "cut file",
+        ],
+      },
+      {
+        label: "PNG to SVG for Etsy",
+        href: "/png-to-svg-for-etsy",
+        keywords: [
+          "etsy",
+          "seller",
+          "digital download",
+          "png to svg",
+          "cut file",
+          "svg bundle",
+        ],
       },
       {
         label: "PNG to SVG for Laser Cutting",
         href: "/png-to-svg-for-laser-cutting",
-        keywords: ["laser cutting", "engraving", "cut paths", "outline"],
+        keywords: [
+          "laser cutting",
+          "engraving",
+          "cut paths",
+          "outline",
+          "glowforge",
+          "xtool",
+          "lightburn",
+        ],
       },
 
       // Base64
@@ -296,7 +398,7 @@ export default function NavBar() {
       {
         label: "B&W Image to SVG",
         href: "/black-and-white-image-to-svg-converter",
-        keywords: ["black and white", "b&w", "stencil", "monochrome"],
+        keywords: ["black and white", "b&w", "bw", "stencil", "monochrome"],
       },
     ],
     [],
@@ -307,9 +409,9 @@ export default function NavBar() {
     return items.filter((item) =>
       [
         "#other-tools",
+        "/",
+        "/cricut-svg-converter",
         "/svg-to-png-converter",
-        "/svg-to-jpg-converter",
-        "/svg-to-webp-converter",
       ].includes(item.href),
     );
   }, [items]);
