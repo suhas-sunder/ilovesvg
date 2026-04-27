@@ -54,6 +54,7 @@ export default [
   route("png-to-svg-for-silhouette", "routes/png-to-svg-for-silhouette.tsx"),
   route("logo-to-svg-for-cricut", "routes/logo-to-svg-for-cricut.tsx"),
   route("cricut-svg-converter", "routes/cricut-svg-converter.tsx"),
+  route("image-to-svg-for-cricut", "routes/image-to-svg-for-cricut.tsx"),
 
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),

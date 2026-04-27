@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/cricut-svg-converter";
+import type { Route } from "./+types/image-to-svg-for-cricut";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -15,7 +15,6 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ChevronDownIcon } from "./png-to-svg-for-silhouette";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -25,10 +24,10 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "Cricut SVG Converter | Free PNG JPG to SVG for Cricut - iLoveSVG";
+    "Image to SVG for Cricut | Free Cricut Cut File Converter - iLoveSVG";
   const description =
-    "Convert PNG and JPG images into clean SVG files for Cricut Design Space, vinyl decals, stickers, stencils, labels, and craft cut-file projects. Free Cricut SVG converter with live preview.";
-  const canonical = "https://www.ilovesvg.com/cricut-svg-converter";
+    "Convert PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, and SVG images into clean SVG files for Cricut Design Space. Free image to SVG converter for Cricut cut files, decals, labels, stencils, and stickers.";
+  const canonical = "https://www.ilovesvg.com/image-to-svg-for-cricut";
 
   return [
     { title },
@@ -56,7 +55,46 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
+const ALLOWED_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/bmp",
+  "image/x-ms-bmp",
+  "image/tiff",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+  "image/svg+xml",
+]);
+const ALLOWED_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "bmp",
+  "tif",
+  "tiff",
+  "avif",
+  "heic",
+  "heif",
+  "svg",
+]);
+const SVG_MIME = "image/svg+xml";
+const BROWSER_PREVIEW_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/bmp",
+  "image/x-ms-bmp",
+  "image/avif",
+  "image/svg+xml",
+]);
 
 // Dark background default for invert "white on dark"
 const DARK_BG_DEFAULT = "#0b1020";
@@ -196,9 +234,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Basic type/size checks (authoritative)
     const webFile = file as File;
-    if (!ALLOWED_MIME.has(webFile.type)) {
+    if (!isAllowedImageFile(webFile)) {
       return json(
-        { error: "Only PNG or JPEG images are allowed." },
+        {
+          error:
+            "Unsupported image type. Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG.",
+        },
         { status: 415 },
       );
     }
@@ -242,37 +283,6 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       let input: Buffer = Buffer.from(ab);
-
-      // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
-      try {
-        const { createRequire } = await import("node:module");
-        const req = createRequire(import.meta.url);
-        const sharp = req("sharp") as typeof import("sharp");
-        const meta = await sharp(input).metadata();
-        const w = meta.width ?? 0;
-        const h = meta.height ?? 0;
-
-        if (!w || !h) {
-          return json(
-            { error: "Could not read image dimensions. Try a different file." },
-            { status: 415 },
-          );
-        }
-
-        const mp = (w * h) / 1_000_000;
-        if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-          return json(
-            {
-              error: `Image too large: ${w}×${h} (~${mp.toFixed(
-                1,
-              )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
-            },
-            { status: 413 },
-          );
-        }
-      } catch {
-        // If sharp metadata fails here, continue - Potrace may still handle small files.
-      }
 
       // Potrace params
       const threshold = Number(form.get("threshold") ?? 224);
@@ -319,6 +329,84 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!lineColor || lineColor.toLowerCase() === "#000000") {
           lineColor = "#ffffff";
         }
+      }
+
+      if (isSvgFile(webFile)) {
+        const rawSvg = decodeSvgBuffer(input);
+        const sanitized = sanitizeSvgString(rawSvg);
+        if (!/^<svg\b/i.test(sanitized)) {
+          return json(
+            {
+              error:
+                "This SVG file could not be parsed. Try exporting a clean SVG and uploading again.",
+            },
+            { status: 415 },
+          );
+        }
+        const ensured = ensureViewBoxResponsive(coerceSvg(sanitized));
+        const cleaned = stripFullWhiteBackgroundRect(
+          ensured.svg,
+          ensured.width,
+          ensured.height,
+        );
+        const finalSVG = transparent
+          ? cleaned
+          : injectBackgroundRectString(
+              cleaned,
+              ensured.width,
+              ensured.height,
+              bgColor,
+            );
+
+        return json({
+          svg: finalSVG,
+          width: ensured.width,
+          height: ensured.height,
+          gate: {
+            running: gate.running,
+            queued: gate.queued,
+          },
+        });
+      }
+
+      // --- Authoritative megapixel/side guard for raster formats ---
+      try {
+        const { createRequire } = await import("node:module");
+        const req = createRequire(import.meta.url);
+        const sharp = req("sharp") as typeof import("sharp");
+        const meta = await sharp(input, { animated: false }).metadata();
+        const w = meta.width ?? 0;
+        const h = meta.height ?? 0;
+
+        if (!w || !h) {
+          return json(
+            {
+              error:
+                "Could not read image dimensions. Try exporting the image as PNG, JPG, WEBP, or SVG and upload again.",
+            },
+            { status: 415 },
+          );
+        }
+
+        const mp = (w * h) / 1_000_000;
+        if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+          return json(
+            {
+              error: `Image too large: ${w}×${h} (~${mp.toFixed(
+                1,
+              )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+            },
+            { status: 413 },
+          );
+        }
+      } catch {
+        return json(
+          {
+            error:
+              "Could not parse this image format. Try exporting it as PNG, JPG, WEBP, or SVG and upload again.",
+          },
+          { status: 415 },
+        );
       }
 
       // Normalize for Potrace
@@ -422,7 +510,7 @@ async function normalizeForPotrace(
     } catch {}
 
     // Decode + respect EXIF
-    let base = sharp(input).rotate();
+    let base = sharp(input, { animated: false }).rotate();
 
     // Soft guard to avoid OOM
     try {
@@ -568,15 +656,26 @@ function ensureViewBoxResponsive(svg: string): {
   if (!openTagMatch) return { svg, width: 1024, height: 1024 };
 
   const openTag = openTagMatch[0];
-  const hasViewBox = /viewBox\s*=\s*["'][^"']*["']/.test(openTag);
+  const viewBoxMatch = openTag.match(/viewBox\s*=\s*["']([^"']*)["']/i);
   const widthMatch = openTag.match(/width\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
   const heightMatch = openTag.match(/height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
+
   let width = widthMatch ? Number(widthMatch[1]) : 1024;
   let height = heightMatch ? Number(heightMatch[1]) : 1024;
 
+  if (viewBoxMatch) {
+    const nums = viewBoxMatch[1]
+      .trim()
+      .split(/[\s,]+/)
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    if (!widthMatch && nums.length === 4 && nums[2] > 0) width = nums[2];
+    if (!heightMatch && nums.length === 4 && nums[3] > 0) height = nums[3];
+  }
+
   let newOpen = openTag;
 
-  if (!hasViewBox) {
+  if (!viewBoxMatch) {
     newOpen = newOpen.replace(
       /<svg\b/i,
       `<svg viewBox="0 0 ${Math.round(width)} ${Math.round(height)}"`,
@@ -648,6 +747,66 @@ function injectBackgroundRectString(
 
 function escapeReg(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getFileExtension(file: File): string {
+  const name = file.name || "";
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+function isAllowedImageFile(file: File): boolean {
+  const mime = (file.type || "").toLowerCase();
+  const ext = getFileExtension(file);
+  return ALLOWED_MIME.has(mime) || ALLOWED_EXTENSIONS.has(ext);
+}
+
+function isSvgFile(file: File): boolean {
+  const mime = (file.type || "").toLowerCase();
+  return mime === SVG_MIME || getFileExtension(file) === "svg";
+}
+
+function canBrowserPreview(file: File): boolean {
+  const mime = (file.type || "").toLowerCase();
+  return BROWSER_PREVIEW_MIME.has(mime) || getFileExtension(file) === "svg";
+}
+
+function decodeSvgBuffer(input: Buffer): string {
+  const raw = input
+    .toString("utf8")
+    .replace(/^\uFEFF/, "")
+    .trim();
+  if (!raw) {
+    throw new Error("The SVG file is empty.");
+  }
+  return raw;
+}
+
+function sanitizeSvgString(svg: string): string {
+  let out = svg.trim();
+
+  out = out
+    .replace(/<\?xml[\s\S]*?\?>/gi, "")
+    .replace(/<!doctype[\s\S]*?>/gi, "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<foreignObject\b[\s\S]*?<\/foreignObject>/gi, "")
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<object\b[\s\S]*?<\/object>/gi, "")
+    .replace(/<embed\b[\s\S]*?>/gi, "");
+
+  out = out
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+    .replace(
+      /\s(?:href|xlink:href)\s*=\s*"\s*(?:javascript:|data:)[^"]*"/gi,
+      "",
+    )
+    .replace(
+      /\s(?:href|xlink:href)\s*=\s*'\s*(?:javascript:|data:)[^']*'/gi,
+      "",
+    );
+
+  return out.trim();
 }
 
 /* ========================
@@ -1054,8 +1213,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   async function handleNewFile(f: File) {
-    if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG or JPEG.");
+    if (!isAllowedImageFile(f)) {
+      setErr(
+        "Please choose a PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG file.",
+      );
       return;
     }
 
@@ -1080,7 +1241,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     let chosen = f;
 
-    if (chosen.size > LIVE_MED_MAX) {
+    if (
+      chosen.size > LIVE_MED_MAX &&
+      !isSvgFile(chosen) &&
+      canBrowserPreview(chosen)
+    ) {
       try {
         setInfo("Compressing large image locally for smoother preview...");
         chosen = await compressToTarget25MB(chosen);
@@ -1097,7 +1262,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
-    await measureAndSet(chosen);
+    if (canBrowserPreview(chosen)) {
+      await measureAndSet(chosen);
+    } else {
+      setDims(null);
+      setInfo(
+        "This format may not preview in your browser, but the server will try to parse and convert it.",
+      );
+    }
 
     // Re-enable live preview and force one conversion for the new file
     suppressLiveRef.current = false;
@@ -1244,7 +1416,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
-                Cricut SVG Converter
+                Image to SVG for Cricut
               </h1>
 
               <PresetPicker
@@ -1252,6 +1424,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />
+
+              <p className="mb-3 text-center text-sm text-slate-600">
+                Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and
+                SVG files for Cricut SVG output.
+              </p>
 
               {/* Settings */}
               <div className="mt-3 min-w-0">
@@ -1621,7 +1798,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             const u = URL.createObjectURL(b);
                             const a = document.createElement("a");
                             a.href = u;
-                            a.download = "cricut-converted.svg";
+                            a.download = "image-to-svg-for-cricut.svg";
                             document.body.appendChild(a);
                             a.click();
                             a.remove();
@@ -1725,19 +1902,37 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 }
 
 async function validateBeforeSubmit(file: File) {
-  if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Only PNG or JPEG images are allowed.");
+  if (!isAllowedImageFile(file)) {
+    throw new Error(
+      "Unsupported image type. Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG.",
+    );
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("File too large. Max 30 MB per image.");
   }
-  const { w, h } = await getImageSize(file);
-  if (!w || !h) throw new Error("Could not read image dimensions.");
-  const mp = (w * h) / 1_000_000;
-  if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-    throw new Error(
-      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
-    );
+
+  if (isSvgFile(file)) {
+    const text = await file.text();
+    const safe = sanitizeSvgString(text);
+    if (!/^<svg\b/i.test(safe)) {
+      throw new Error(
+        "This SVG file could not be parsed. Try exporting a clean SVG and uploading again.",
+      );
+    }
+    return;
+  }
+
+  try {
+    const { w, h } = await getImageSize(file);
+    if (!w || !h) return;
+    const mp = (w * h) / 1_000_000;
+    if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
+      throw new Error(
+        `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      );
+    }
+  } catch (e: any) {
+    if (e?.message?.startsWith("Image too large")) throw e;
   }
 }
 
@@ -1746,6 +1941,10 @@ async function validateBeforeSubmit(file: File) {
 async function compressToTarget25MB(file: File): Promise<File> {
   const TARGET = LIVE_MED_MAX; // 25MB
   if (file.size <= TARGET) return file;
+  if (isSvgFile(file) || !canBrowserPreview(file))
+    throw new Error(
+      "This image format cannot be compressed in the browser. Try resizing it or exporting it as PNG/JPG first.",
+    );
   if (!file.type.startsWith("image/"))
     throw new Error("Unsupported file type for compression.");
 
@@ -1893,42 +2092,45 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
-          {/* Header / Hero */}
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Cricut SVG converter for Design Space projects
+                Image to SVG for Cricut
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                Convert PNG or JPG images into Cricut-ready SVG cut files
+                Convert common image formats into Cricut-ready SVG files
               </h2>
-              <p className="text-slate-600 ">
-                This Cricut SVG converter is built for crafters who need a
-                cleaner cut-file starting point from a PNG or JPG image. Use it
-                for simple decals, stickers, labels, stencils, cards, signs,
-                iron-on designs, monograms, icons, and high-contrast artwork
-                that needs to become editable SVG paths before importing into
-                Cricut Design Space.
-              </p>
-
               <p className="text-slate-600">
-                Upload your image, choose a Cricut-focused tracing preset, tune
-                the cut shape in the live preview, then download an SVG. The
-                goal is not just format conversion. The goal is a usable shape
-                that imports cleanly, avoids obvious background junk, and gives
-                you a better chance of cutting or weeding the design without
-                fighting messy paths.
+                This page is built for people starting with mixed image sources:
+                PNG screenshots, JPG artwork, WEBP downloads, scanned TIFFs,
+                bitmap logos, phone photos, and existing SVGs that need cleanup
+                before being used in Cricut Design Space.
+              </p>
+              <p className="text-slate-600">
+                Raster images are normalized and traced into vector paths. SVG
+                uploads are handled differently: they are parsed, cleaned of
+                risky markup, made responsive with a viewBox, and exported again
+                without forcing a lossy retrace.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
-                    k: "Cut-file focused",
-                    v: "Tune paths before Design Space",
+                    k: "More formats",
+                    v: "PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, SVG",
                   },
-                  { k: "PNG/JPG input", v: "Trace raster images into SVG" },
-                  { k: "Transparent output", v: "Avoid background rectangles" },
-                  { k: "Live preview", v: "Catch rough cuts early" },
+                  {
+                    k: "SVG passthrough",
+                    v: "Clean existing SVGs instead of retracing them",
+                  },
+                  {
+                    k: "Cricut workflow",
+                    v: "Designed for Design Space upload prep",
+                  },
+                  {
+                    k: "Cut-file tuning",
+                    v: "Presets for decals, labels, stencils, and icons",
+                  },
                 ].map((x) => (
                   <div
                     key={x.k}
@@ -1960,19 +2162,22 @@ function SeoSections() {
             </div>
           )}
 
-          {/* Use cases */}
           <section className="">
-            <h3 className="text-lg font-bold">Best for Cricut SVG projects</h3>
+            <h3 className="text-lg font-bold">
+              What this Cricut image converter is best for
+            </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
                 "Vinyl decals",
-                "Sticker outlines",
                 "Labels",
-                "Stencil shapes",
-                "T-shirt graphics",
-                "Cards and paper crafts",
+                "Sticker outlines",
+                "Simple logos",
+                "Stencil art",
                 "Monograms",
-                "Simple icons",
+                "Card shapes",
+                "Existing SVG cleanup",
+                "Scanned line art",
+                "Icon cut files",
               ].map((t) => (
                 <span
                   key={t}
@@ -1983,54 +2188,42 @@ function SeoSections() {
               ))}
             </div>
 
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
+            <div className="mt-4 grid md:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">Simple cut shapes</div>
+                <div className="text-sm font-semibold">
+                  Use raster tracing for flat artwork
+                </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use “Cricut - Clean trace” for silhouettes, flat artwork,
-                  icons, bold decals, and other simple designs where you want a
-                  clear single-color path. These files usually import and cut
-                  better than photos, gradients, shadows, or busy screenshots.
+                  Best results come from high-contrast images with clear edges:
+                  black logos, simple clipart, handwriting scans, silhouettes,
+                  and solid shapes. These convert into cleaner cut paths than
+                  busy photos or soft gradients.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  Vinyl and sticker prep
+                  Use SVG cleanup for existing vectors
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use “Cricut Vinyl - Bold decal” when the design needs stronger
-                  edges for weeding or stencil work. Use fine-detail presets
-                  only when the original image has small internal shapes that
-                  are actually worth preserving at the final cut size.
+                  If you already have an SVG, upload it directly. The tool keeps
+                  the vector structure, removes risky script-style markup, adds
+                  responsive sizing, and exports a cleaner SVG for upload.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-5">
+                <div className="text-sm font-semibold">
+                  Avoid over-detailed source images
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Cricut cut files work better with fewer, smoother paths. If a
+                  photo has hair, shadows, texture, or gradients, use Photo Edge
+                  presets only when you want a stylized outline rather than a
+                  perfect full-color recreation.
                 </p>
               </div>
             </div>
           </section>
 
-          {/* How it works */}
-          <section className="mt-12">
-            <h3 className="text-lg font-bold">
-              How this Cricut SVG converter works
-            </h3>
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm text-slate-700">
-                This tool traces visible areas in a PNG or JPEG image and turns
-                them into SVG path data. Cricut Design Space can upload both
-                raster images and vector images, including SVG files, but an
-                automatically traced SVG is still only as good as the source
-                image and the settings used to trace it.
-              </p>
-              <p className="mt-3 text-sm text-slate-700">
-                For the cleanest Cricut result, start with high-contrast
-                artwork, a plain or transparent background, and clearly
-                separated shapes. After downloading, inspect the SVG in Design
-                Space for unwanted background pieces, filled-in holes, overly
-                thin strokes, or tiny floating shapes before cutting material.
-              </p>
-            </div>
-          </section>
-
-          {/* HowTo */}
           <section
             itemScope
             itemType="https://schema.org/HowTo"
@@ -2041,31 +2234,31 @@ function SeoSections() {
                 How to convert an image to SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Fast path: upload → preset → preview → export
+                Upload → choose preset → adjust → download SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a PNG or JPG image",
-                  body: "Use the cleanest file you have. Transparent PNGs, black-on-white artwork, and high-contrast graphics usually trace better than compressed screenshots or photos.",
+                  title: "Upload your image or SVG",
+                  body: "Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG. Less common formats may not preview in your browser, but the server will still attempt to parse them.",
                 },
                 {
-                  title: "Choose a Cricut preset",
-                  body: "Start with Clean trace for normal designs, Bold decal for vinyl or stencil projects, Fine detail for small internal shapes, or Seal gaps when the outline breaks apart.",
+                  title: "Pick the closest Cricut preset",
+                  body: "Use Logo/Clean Shapes for decals and labels, Scan Cleanup for hand-drawn or scanned art, and Photo Edge only when you want an outline-style result from a photo.",
                 },
                 {
-                  title: "Adjust the cut shape",
-                  body: "Raise threshold to include lighter edges, lower curve tolerance for more detail, and raise turd size to remove dust, JPEG artifacts, or tiny background specks.",
+                  title: "Tune the cut path",
+                  body: "Raise threshold to include lighter areas, lower it to keep only darker shapes. Increase turd size to remove tiny specks that can create unwanted Cricut cuts.",
                 },
                 {
-                  title: "Keep the background transparent",
-                  body: "Transparent output is usually best for Cricut because it avoids adding a background rectangle and makes the SVG easier to resize, weld, attach, or combine with other elements.",
+                  title: "Keep transparency unless you need a background",
+                  body: "Transparent SVGs are usually better for Cricut uploads. Add a background only when you intentionally need a filled rectangle behind the design.",
                 },
                 {
-                  title: "Download and inspect in Design Space",
-                  body: "Upload the SVG to Cricut Design Space, check the cut paths, resize the design to the real project size, and do a small test cut before using premium material.",
+                  title: "Download and upload to Design Space",
+                  body: "Download the SVG, then upload it into Cricut Design Space. Check the preview before cutting, especially around small holes, thin text, and isolated dots.",
                 },
               ].map((s, i) => (
                 <li
@@ -2096,42 +2289,41 @@ function SeoSections() {
             </ol>
           </section>
 
-          {/* Cricut guidance */}
           <section className="mt-12">
             <h3 className="text-lg font-bold">
-              What makes a good Cricut SVG cut file?
+              Format guidance for Cricut projects
             </h3>
-            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              A file can look fine on screen and still be painful to cut. Cricut
-              projects expose messy edges, tiny islands, weak bridges, small
-              lettering, and over-detailed paths that are hard to weed or peel.
+            <p className="mt-2 text-sm text-slate-600 max-w-[85ch]">
+              Different source files need different handling. The goal is not
+              just “make an SVG.” The goal is to create an SVG that imports
+              cleanly and does not create hundreds of messy cut paths.
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Strong contrast beats detail",
-                  body: "Flat black artwork on a light background usually traces better than soft shading. If the source has gradients or shadows, simplify it before converting when possible.",
+                  title: "PNG with transparent background",
+                  body: "Usually the best raster source. Use Logo or Lineart presets. Transparent backgrounds help avoid tracing a full rectangular box around the design.",
                 },
                 {
-                  title: "Tiny text is usually the weak point",
-                  body: "Small words can become fragile paths. For Cricut projects, rebuild important text in Design Space or use a thicker font at the final cut size.",
+                  title: "JPG photos or screenshots",
+                  body: "Good for high-contrast subjects, but weak for shadows and gradients. Try Photo Edge presets if you want outlines; use simpler source art for actual cut files.",
                 },
                 {
-                  title: "Transparent PNGs help",
-                  body: "A transparent PNG source often avoids extra background shapes. If you only have a JPEG, use turd size and threshold to remove stray specks before export.",
+                  title: "WEBP, AVIF, HEIC, and HEIF",
+                  body: "Common from phones and websites. These may not preview in every browser, but the server attempts to decode them and convert the first usable image frame.",
                 },
                 {
-                  title: "Check holes and counters",
-                  body: "Letters and shapes with holes can fill in or break apart during tracing. Inspect A, B, D, O, P, R, hearts, stars, and badge shapes before cutting.",
+                  title: "GIF files",
+                  body: "Animated GIFs are treated as a still source. Use them only when the first frame is the shape you want to trace.",
                 },
                 {
-                  title: "Smoother paths cut better",
-                  body: "If the preview shows jagged edges, raise curve tolerance slightly. A slightly smoother SVG is often better for cutting than a highly detailed, noisy trace.",
+                  title: "TIFF and BMP scans",
+                  body: "Useful for scanned drawings and older bitmap exports. Use Scan Cleanup presets and increase turd size if you see dust-like speckles.",
                 },
                 {
-                  title: "Use the final project size",
-                  body: "A design that works at 8 inches wide may fail at 2 inches wide. Resize in Design Space and check whether small shapes are still practical to weed.",
+                  title: "Existing SVG files",
+                  body: "Existing SVGs are parsed and cleaned rather than retraced. This preserves vector paths better than converting SVG to bitmap and tracing it again.",
                 },
               ].map((c) => (
                 <div
@@ -2145,41 +2337,35 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* Settings */}
           <section className="mt-12">
             <h3 className="text-lg font-bold">
-              Settings for Cricut SVG tracing
+              Settings that matter for Cricut cuts
             </h3>
-            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              These controls affect whether the exported SVG becomes a usable
-              Cricut cut shape or a noisy trace that needs cleanup.
-            </p>
-
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Preprocess",
-                  body: "Use None for clean graphics, icons, and simple artwork. Use Edge only when your source is a photo and you need to extract visible outlines.",
-                },
-                {
                   title: "Threshold",
-                  body: "Higher values pull in lighter pixels and can close weak edges. Lower values keep only the darkest parts of the design.",
-                },
-                {
-                  title: "Curve tolerance",
-                  body: "Lower values preserve detail but can create more nodes. Higher values smooth the SVG and can make cutting easier.",
+                  body: "Controls what becomes a shape. Raise it when pale gray lines disappear. Lower it when the design becomes too chunky or fills in small gaps.",
                 },
                 {
                   title: "Turd size",
-                  body: "Use this to remove dust, JPEG noise, tiny islands, and background artifacts that would be annoying to weed.",
+                  body: "Removes tiny islands. For Cricut, this is important because every speck can become an unwanted cut. Raise it for scans and noisy images.",
+                },
+                {
+                  title: "Curve tolerance",
+                  body: "Higher values smooth paths and reduce file complexity. Lower values keep detail but can create more nodes and harder-to-cut shapes.",
                 },
                 {
                   title: "Turn policy",
-                  body: "Change this when corners or tight shapes resolve oddly. Majority and minority are usually the safest starting points.",
+                  body: "Changes how ambiguous corners resolve. Try black or majority when small corners look broken or when gaps need to close.",
                 },
                 {
-                  title: "Line color and background",
-                  body: "For Cricut cut files, keep transparency on unless you specifically need a colored preview background. Changing line color helps preview the path, but it does not automatically create perfect multi-color layers.",
+                  title: "Transparent background",
+                  body: "Usually keep this on. A solid background can become a large rectangle in Design Space unless you intentionally want that shape.",
+                },
+                {
+                  title: "Line color",
+                  body: "Useful for preview and simple single-color SVGs. Cricut material color is still chosen later in Design Space when you prepare the cut.",
                 },
               ].map((c) => (
                 <div
@@ -2193,100 +2379,115 @@ function SeoSections() {
             </div>
           </section>
 
-          {/* Troubleshooting */}
           <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-lg font-bold">Common Cricut SVG problems</h3>
+            <h3 className="text-lg font-bold">
+              Before cutting: quick Cricut sanity check
+            </h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
-                {
-                  problem: "The SVG imports with a background shape",
-                  fix: "Use a transparent PNG source, keep transparent output enabled, raise turd size, or adjust threshold so the background drops out before export.",
-                },
-                {
-                  problem: "The cut path is jagged",
-                  fix: "Start with a higher-resolution image and increase curve tolerance slightly to smooth the trace.",
-                },
-                {
-                  problem: "Thin strokes disappear",
-                  fix: "Try Fine detail, raise threshold, or use a thicker version of the design before converting.",
-                },
-                {
-                  problem: "Small letters are hard to weed",
-                  fix: "Use larger text, simplify the design, or rebuild the lettering directly in Design Space for cleaner cuts.",
-                },
-                {
-                  problem: "The SVG has too many tiny pieces",
-                  fix: "Raise turd size, use Clean trace or Bold decal, and avoid source images with noise, shadows, texture, or compression artifacts.",
-                },
-                {
-                  problem: "The design looks good but cuts badly",
-                  fix: "Resize to the real project size, simplify small details, and run a test cut on scrap material before cutting the final sheet.",
-                },
-              ].map((row) => (
+                [
+                  "Zoom into thin areas",
+                  "Very thin strokes can tear vinyl or disappear at small sizes.",
+                ],
+                [
+                  "Remove stray dots",
+                  "Tiny specks may become separate cuts. Increase turd size or clean the source image.",
+                ],
+                [
+                  "Check enclosed holes",
+                  "Letters like A, O, P, R and small stencil bridges can fill in or cut incorrectly.",
+                ],
+                [
+                  "Simplify busy photos",
+                  "A detailed photo trace can produce too many paths for a clean craft workflow.",
+                ],
+              ].map(([t, d]) => (
                 <div
-                  key={row.problem}
-                  className="rounded-xl bg-white border border-slate-200 p-4"
+                  key={t}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold">{row.problem}</div>
-                  <p className="mt-1 text-sm text-slate-600">{row.fix}</p>
+                  <div className="text-sm font-semibold">{t}</div>
+                  <p className="mt-1 text-sm text-slate-600">{d}</p>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* FAQ */}
-          <section className="mt-12">
-            <h3 className="text-lg font-bold">Cricut SVG converter FAQ</h3>
-            <div className="mt-4 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+          <section
+            className="mt-12"
+            itemScope
+            itemType="https://schema.org/FAQPage"
+          >
+            <h3 className="text-lg font-bold">Frequently asked questions</h3>
+
+            <div className="mt-4 grid gap-3">
               {[
                 {
-                  q: "Can I use this SVG converter for Cricut Design Space?",
-                  a: "Yes. It creates SVG path output from PNG or JPEG images, which can be useful for Cricut Design Space projects like decals, labels, stickers, stencils, cards, and apparel graphics. Always inspect the result before cutting.",
+                  q: "Which image formats can I upload?",
+                  a: "This page accepts PNG, JPG, JPEG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG. Browser preview support varies, but the server attempts to parse the supported formats.",
                 },
                 {
-                  q: "Is SVG better than PNG for Cricut?",
-                  a: "For cut projects, usually yes. SVG files contain vector paths that are easier to resize and cut. PNG can work for image upload or Print Then Cut, but a clean SVG is usually better for vinyl decals, stencils, and single-color cuts.",
+                  q: "What happens when I upload an SVG?",
+                  a: "SVG files are not retraced. The tool sanitizes the markup, removes risky active content, normalizes sizing with a viewBox, and exports the SVG again.",
                 },
                 {
-                  q: "Will this create layered Cricut SVG files?",
-                  a: "No. This converter creates a traced SVG from the visible artwork. It does not automatically separate full-color images into perfect Cricut layers. For multi-color projects, create or clean up separate shapes manually after export.",
+                  q: "Is every converted SVG ready to cut immediately?",
+                  a: "No. Automatic tracing can create extra nodes, small islands, or filled-in holes. Always check the SVG in Design Space before cutting expensive vinyl or cardstock.",
                 },
                 {
-                  q: "What kind of image works best?",
-                  a: "Flat, high-contrast artwork works best: silhouettes, icons, badges, monograms, simple illustrations, and black-on-white designs. Photos, gradients, shadows, and tiny lettering usually need manual cleanup.",
+                  q: "Why does my photo look like a rough outline?",
+                  a: "This converter creates vector paths. Photos contain gradients and texture, so Photo Edge mode extracts contours rather than recreating the full photo as a clean cut file.",
                 },
                 {
-                  q: "Should I use a transparent background?",
-                  a: "Yes for most Cricut SVGs. Transparent output avoids adding a background rectangle and makes the file easier to place, resize, weld, attach, or combine with other design elements.",
+                  q: "What file limits apply?",
+                  a: "Uploads are capped at 30 MB and about 30 megapixels. Preview is fastest below 10 MB and throttled up to 25 MB. Some formats over 25 MB may need to be resized before upload.",
                 },
-                {
-                  q: "Can this turn a low-resolution image into a perfect SVG?",
-                  a: "Not fully. Automatic tracing can make the image scalable, but it cannot recover missing detail from a blurry, tiny, or heavily compressed source. Use the cleanest source file you can find.",
-                },
-                {
-                  q: "Why does my Cricut SVG have too many pieces?",
-                  a: "The source image likely contains noise, anti-aliased edges, texture, or background artifacts. Raise turd size, try a cleaner PNG, simplify the artwork, or smooth the trace with curve tolerance.",
-                },
-                {
-                  q: "Can I convert photos to SVG for Cricut?",
-                  a: "Sometimes, but results vary. Photo edge presets can create outline-style results, but they usually need cleanup. For clean cutting, simple high-contrast artwork works much better than full photos.",
-                },
-              ].map((f) => (
-                <details key={f.q} className="group p-4">
-                  <summary className="cursor-pointer list-none font-semibold flex items-center justify-between gap-4">
-                    <span>{f.q}</span>
-                    <span className="text-slate-400 group-open:rotate-180 transition-transform">
-                      ↓
-                    </span>
-                  </summary>
-                  <p className="mt-2 text-sm text-slate-600">{f.a}</p>
-                </details>
+              ].map((x) => (
+                <article
+                  key={x.q}
+                  itemScope
+                  itemType="https://schema.org/Question"
+                  itemProp="mainEntity"
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <h4 itemProp="name" className="m-0 font-semibold">
+                    {x.q}
+                  </h4>
+                  <p
+                    itemScope
+                    itemType="https://schema.org/Answer"
+                    itemProp="acceptedAnswer"
+                    className="mt-2 text-sm text-slate-600"
+                  >
+                    <span itemProp="text">{x.a}</span>
+                  </p>
+                </article>
               ))}
             </div>
           </section>
         </article>
       </div>
     </section>
+  );
+}
+
+export function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={[
+        "h-4 w-4 text-slate-500 transition-transform",
+        open ? "rotate-180" : "rotate-0",
+      ].join(" ")}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
