@@ -16,6 +16,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon } from "./png-to-svg-for-silhouette";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1687,6 +1688,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </main>
+
+      <ContextualAffiliateCard />
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"

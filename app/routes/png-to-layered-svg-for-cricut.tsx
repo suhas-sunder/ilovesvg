@@ -13,8 +13,8 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
-import { StickerMuleAffiliateCard } from "~/client/components/ads/StickerMuleAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 const isServer = typeof document === "undefined";
 
@@ -1683,7 +1683,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         )}
       </main>
 
-      <StickerMuleAffiliateCard />
+      <ContextualAffiliateCard />
 
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
