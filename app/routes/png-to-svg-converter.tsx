@@ -1114,46 +1114,51 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
-    await measureAndSet(chosen);
-    suppressLiveRef.current = false;
-  }
-
-  async function submitConvert() {
-    if (!file) {
-      setErr("Choose an image first.");
-      return;
-    }
 
     try {
-      await validateBeforeSubmit(file);
+      await measureAndSet(chosen);
+      await submitConvertForFile(chosen, DEFAULTS);
+    } finally {
+      suppressLiveRef.current = false;
+    }
+  }
+
+  function getEffectiveSettings(input: Settings): Settings {
+    if (!input.invert) return input;
+
+    const bg =
+      !input.bgColor ||
+      input.bgColor.toLowerCase() === "#ffffff" ||
+      input.bgColor.toLowerCase() === "#fff"
+        ? DARK_BG_DEFAULT
+        : input.bgColor;
+
+    return {
+      ...input,
+      transparent: false,
+      bgColor: bg,
+      lineColor:
+        !input.lineColor || input.lineColor.toLowerCase() === "#000000"
+          ? "#ffffff"
+          : input.lineColor,
+    };
+  }
+
+  async function submitConvertForFile(
+    targetFile: File,
+    inputSettings: Settings,
+  ) {
+    try {
+      await validateBeforeSubmit(targetFile);
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
       return;
     }
 
-    const effective = (() => {
-      if (!settings.invert) return settings;
-
-      const bg =
-        !settings.bgColor ||
-        settings.bgColor.toLowerCase() === "#ffffff" ||
-        settings.bgColor.toLowerCase() === "#fff"
-          ? DARK_BG_DEFAULT
-          : settings.bgColor;
-
-      return {
-        ...settings,
-        transparent: false,
-        bgColor: bg,
-        lineColor:
-          !settings.lineColor || settings.lineColor.toLowerCase() === "#000000"
-            ? "#ffffff"
-            : settings.lineColor,
-      };
-    })();
+    const effective = getEffectiveSettings(inputSettings);
 
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", targetFile);
     fd.append("threshold", String(effective.threshold));
     fd.append("turdSize", String(effective.turdSize));
     fd.append("optTolerance", String(effective.optTolerance));
@@ -1172,6 +1177,15 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       encType: "multipart/form-data",
       action: `${window.location.pathname}?index`,
     });
+  }
+
+  async function submitConvert() {
+    if (!file) {
+      setErr("Choose an image first.");
+      return;
+    }
+
+    await submitConvertForFile(file, settings);
   }
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
