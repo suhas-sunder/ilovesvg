@@ -50,6 +50,10 @@ export default [
     "routes/png-to-svg-for-cricut-stickers.tsx",
   ),
   route("png-to-svg-for-laser-cutting", "routes/png-to-svg-for-laser-cutting.tsx"),
+  route("png-to-svg-for-etsy", "routes/png-to-svg-for-etsy.tsx"),
+  route("png-to-svg-for-silhouette", "routes/png-to-svg-for-silhouette.tsx"),
+  route("logo-to-svg-for-cricut", "routes/logo-to-svg-for-cricut.tsx"),
+  route("cricut-svg-converter", "routes/cricut-svg-converter.tsx"),
 
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),
