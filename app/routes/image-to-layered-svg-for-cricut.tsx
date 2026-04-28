@@ -915,12 +915,12 @@ type Preset = {
 };
 
 const DEFAULTS: Settings = {
-  layerCount: 4,
+  layerCount: 5,
   maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
-  minRegionPercent: 0.25,
-  optTolerance: 0.35,
-  turdSize: 3,
-  turnPolicy: "minority",
+  minRegionPercent: 0.35,
+  optTolerance: 0.45,
+  turdSize: 4,
+  turnPolicy: "majority",
   posterize: true,
   removeWhite: false,
   removeTransparent: true,
@@ -929,6 +929,70 @@ const DEFAULTS: Settings = {
 };
 
 const PRESETS: Preset[] = [
+  {
+    id: "layered-color",
+    label: "Layered color SVG",
+    settings: {
+      layerCount: 5,
+      maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
+      minRegionPercent: 0.35,
+      optTolerance: 0.45,
+      turdSize: 4,
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+    },
+  },
+  {
+    id: "layered-color-smoother",
+    label: "Layered color SVG - Smoother",
+    settings: {
+      layerCount: 4,
+      maxTraceSide: 1200,
+      minRegionPercent: 0.55,
+      optTolerance: 0.65,
+      turdSize: 7,
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+    },
+  },
+  {
+    id: "layered-color-detail",
+    label: "Layered color SVG - More detail",
+    settings: {
+      layerCount: 8,
+      maxTraceSide: 2000,
+      minRegionPercent: 0.2,
+      optTolerance: 0.32,
+      turdSize: 2,
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+    },
+  },
+  {
+    id: "layered-color-fewer",
+    label: "Layered color SVG - Fewer larger layers",
+    settings: {
+      layerCount: 3,
+      maxTraceSide: 1200,
+      minRegionPercent: 0.8,
+      optTolerance: 0.75,
+      turdSize: 9,
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+    },
+  },
   {
     id: "layered-basic",
     label: "Layered SVG - Balanced",
@@ -1317,7 +1381,7 @@ export default function ImageToLayeredSvgForCricut({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-basic");
+    React.useState<string>("layered-color");
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1455,7 +1519,7 @@ export default function ImageToLayeredSvgForCricut({
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("layered-basic");
+    setActivePreset("layered-color");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -2438,6 +2502,8 @@ function LayerControls({
   onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
   onReset: () => void;
 }) {
+  void onChange;
+
   return (
     <div className="my-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between gap-3">
@@ -2454,55 +2520,12 @@ function LayerControls({
 
       <div className="mt-3 grid gap-2">
         {layers.map((layer, index) => (
-          <div
+          <LayerControlRow
             key={layer.id}
-            className="rounded-lg border border-slate-200 bg-white p-2"
-          >
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={layer.visible}
-                onChange={(e) =>
-                  onLayerChange(layer.id, { visible: e.target.checked })
-                }
-                className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                title="Show or hide layer"
-              />
-
-              <input
-                type="color"
-                value={layer.color}
-                onChange={(e) =>
-                  onLayerChange(layer.id, { color: e.target.value })
-                }
-                className="w-10 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
-                title="Change layer color"
-              />
-
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-slate-800">
-                  Layer {index + 1}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {layer.color.toUpperCase()} • {layer.pixelPercent}% of traced
-                  pixels
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  onLayerChange(layer.id, {
-                    color: layer.originalColor,
-                    visible: true,
-                  })
-                }
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
+            layer={layer}
+            index={index}
+            onLayerChange={onLayerChange}
+          />
         ))}
       </div>
 
@@ -2510,6 +2533,132 @@ function LayerControls({
         These edits update this specific result. Hide small unwanted layers or
         recolor each color group before downloading.
       </p>
+    </div>
+  );
+}
+
+function LayerControlRow({
+  layer,
+  index,
+  onLayerChange,
+}: {
+  layer: LayerState;
+  index: number;
+  onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
+}) {
+  const COLOR_COMMIT_THROTTLE_MS = 110;
+  const [localColor, setLocalColor] = React.useState(layer.color);
+  const latestColorRef = React.useRef(layer.color);
+  const lastCommitAtRef = React.useRef(0);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    setLocalColor(layer.color);
+    latestColorRef.current = layer.color;
+  }, [layer.color]);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  function commitColorNow(color = latestColorRef.current) {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    lastCommitAtRef.current =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    if (color !== layer.color) {
+      onLayerChange(layer.id, { color });
+    }
+  }
+
+  function queueColorCommit(nextColor: string) {
+    latestColorRef.current = nextColor;
+    setLocalColor(nextColor);
+
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsed = now - lastCommitAtRef.current;
+    const remaining = COLOR_COMMIT_THROTTLE_MS - elapsed;
+
+    if (remaining <= 0) {
+      commitColorNow(nextColor);
+      return;
+    }
+
+    if (timeoutRef.current) {
+      return;
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      commitColorNow(latestColorRef.current);
+    }, remaining);
+  }
+
+  function resetLayer() {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    latestColorRef.current = layer.originalColor;
+    setLocalColor(layer.originalColor);
+    onLayerChange(layer.id, {
+      color: layer.originalColor,
+      visible: true,
+    });
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={layer.visible}
+          onChange={(e) =>
+            onLayerChange(layer.id, { visible: e.target.checked })
+          }
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+          title="Show or hide layer"
+        />
+
+        <input
+          type="color"
+          value={localColor}
+          onChange={(e) => queueColorCommit(e.target.value)}
+          onPointerUp={() => commitColorNow()}
+          onMouseUp={() => commitColorNow()}
+          onTouchEnd={() => commitColorNow()}
+          onBlur={() => commitColorNow()}
+          className="w-10 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
+          title="Change layer color"
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-slate-800">
+            Layer {index + 1}
+          </div>
+          <div className="text-xs text-slate-500">
+            {localColor.toUpperCase()} • {layer.pixelPercent}% of traced pixels
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={resetLayer}
+          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+        >
+          Reset
+        </button>
+      </div>
     </div>
   );
 }
