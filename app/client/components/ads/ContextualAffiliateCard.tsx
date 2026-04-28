@@ -43,7 +43,8 @@ const PRINTIFY_IMAGE = {
   alt: "Printify product examples for SVG designs including T-shirts, mugs, and tote bags",
   width: 2172,
   height: 724,
-  wrapperClass: "block bg-emerald-50/80 transition-opacity hover:opacity-95",
+  wrapperClass:
+    "block border-t border-emerald-100 bg-emerald-50/80 transition-opacity hover:opacity-95",
   className: "h-auto w-full object-cover",
 };
 
@@ -52,7 +53,8 @@ const STICKER_MULE_IMAGE = {
   alt: "Sticker Mule custom sticker printing offer",
   width: 728,
   height: 90,
-  wrapperClass: "block bg-orange-500 transition-opacity hover:opacity-95",
+  wrapperClass:
+    "block border-t border-orange-100 bg-orange-500 transition-opacity hover:opacity-95",
   className: "h-auto w-full object-cover",
 };
 
@@ -61,26 +63,27 @@ const NAMECHEAP_IMAGE = {
   alt: "Namecheap domain and shared hosting offer banner for portfolios, storefronts, product pages, and small business websites",
   width: 2048,
   height: 683,
-  wrapperClass: "block bg-purple-50/80 transition-opacity hover:opacity-95",
+  wrapperClass:
+    "block border-t border-purple-100 bg-purple-50/80 transition-opacity hover:opacity-95",
   className: "h-auto w-full object-cover",
 };
 
 const PRINTIFY_BENEFITS = [
-  "Test designs on real products",
-  "No inventory or shipping setup needed",
-  "Good fit after exporting SVG artwork",
+  "Real product previews",
+  "No inventory setup",
+  "Good fit for SVG artwork",
 ];
 
 const CRICUT_BENEFITS = [
-  "Useful for Cricut Design Space projects",
-  "Good fit for stickers, vinyl, labels, and decals",
-  "Helpful after preparing a cleaner SVG cut file",
+  "Works with Cricut projects",
+  "Good for vinyl and stickers",
+  "Useful after SVG cleanup",
 ];
 
 const NAMECHEAP_BENEFITS = [
-  "Domain and shared hosting in one place",
-  "Useful for a portfolio, shop, or product landing page",
-  "Good when you want a simple standalone site for your brand",
+  "Domain + hosting",
+  "Useful for shops or portfolios",
+  "Simple site setup",
 ];
 
 const NO_AFFILIATE_ROUTES = new Set([
@@ -243,7 +246,7 @@ function cricutPlacement(pathname: string): AffiliatePlacement {
       provider: "cricut",
       eyebrow: "Cricut project next step",
       heading: "Prepare this file for Cricut Print Then Cut",
-      body: "After creating your SVG or print-ready artwork, use Cricut tools to check the final size, print quality, cut border, and project setup before making stickers, labels, decals, or craft products.",
+      body: "Check size, print quality, and cut setup before making Cricut stickers, labels, or decals.",
       cta: "Continue with Cricut",
       ...base,
     };
@@ -254,7 +257,7 @@ function cricutPlacement(pathname: string): AffiliatePlacement {
       provider: "cricut",
       eyebrow: "Cricut vinyl next step",
       heading: "Use this SVG for a cleaner Cricut vinyl project",
-      body: "After preparing the SVG, review the line thickness, small details, spacing, and final size before cutting vinyl decals, labels, signs, or transfer projects.",
+      body: "Review line thickness, spacing, and final size before cutting vinyl decals, labels, or signs.",
       cta: "Continue with Cricut",
       ...base,
     };
@@ -265,7 +268,7 @@ function cricutPlacement(pathname: string): AffiliatePlacement {
       provider: "cricut",
       eyebrow: "Cricut sticker next step",
       heading: "Check this design before making Cricut stickers",
-      body: "After converting your artwork, review the cut edge, transparent areas, final size, and print clarity before using the file for Cricut sticker projects.",
+      body: "Review the cut edge, transparent areas, and final size before sending it to Cricut Design Space.",
       cta: "Continue with Cricut",
       ...base,
     };
@@ -276,7 +279,7 @@ function cricutPlacement(pathname: string): AffiliatePlacement {
       provider: "cricut",
       eyebrow: "Cricut layered SVG next step",
       heading: "Prepare this layered SVG for Cricut projects",
-      body: "After creating a layered or multicolor SVG, check that each layer is separated clearly, small details are usable, and the file imports cleanly before cutting or assembling the design.",
+      body: "Check that the layers separate cleanly and import properly before cutting or assembling the design.",
       cta: "Continue with Cricut",
       ...base,
     };
@@ -286,7 +289,7 @@ function cricutPlacement(pathname: string): AffiliatePlacement {
     provider: "cricut",
     eyebrow: "Cricut SVG next step",
     heading: "Use this file in your next Cricut project",
-    body: "After converting your image to SVG, check the traced edges, background cleanup, final size, and project type before importing it into Cricut Design Space.",
+    body: "Check the traced edges, background cleanup, and final size before importing it into Cricut Design Space.",
     cta: "Continue with Cricut",
     ...base,
   };
@@ -303,7 +306,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       provider: "stickerMule",
       eyebrow: "Sticker printing next step",
       heading: "Ready to print your sticker design?",
-      body: "After preparing your SVG or cut-ready file, check the final size, edge spacing, transparent areas, and print quality before ordering stickers, decals, labels, or packaging.",
+      body: "Check final size, edge spacing, and transparent areas before ordering stickers, decals, or labels.",
       cta: "Get $10 Sticker Mule credit",
       ...base,
     };
@@ -314,7 +317,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       provider: "stickerMule",
       eyebrow: "Print then cut next step",
       heading: "Turning this design into printed stickers or labels?",
-      body: "After creating your Cricut-ready file, check that the artwork stays clear at the final print size and that the cut border has enough breathing room before ordering stickers, labels, or decals.",
+      body: "Make sure the artwork stays clear at print size and that the cut border has enough breathing room.",
       cta: "Get $10 Sticker Mule credit",
       ...base,
     };
@@ -325,7 +328,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       provider: "stickerMule",
       eyebrow: "Logo printing next step",
       heading: "Turn your logo into stickers or labels",
-      body: "Once your logo is converted, check that the edges are clean and the design stays readable at small sizes. Simple logos can work well for stickers, decals, labels, packaging, and branded inserts.",
+      body: "Check that the edges stay clean and the logo remains readable at small sizes.",
       cta: "Get $10 Sticker Mule credit",
       ...base,
     };
@@ -336,7 +339,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       provider: "stickerMule",
       eyebrow: "Sticker artwork next step",
       heading: "Preparing sticker artwork for printing?",
-      body: "After converting your sticker artwork, check the cut edge, transparent areas, and final size. Clean artwork usually prints better and is easier to turn into stickers, decals, or labels.",
+      body: "Review the cut edge, transparent areas, and final size before printing.",
       cta: "Get $10 Sticker Mule credit",
       ...base,
     };
@@ -346,7 +349,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
     provider: "stickerMule",
     eyebrow: "Design printing next step",
     heading: "Turning this design into stickers or labels?",
-    body: "After converting your artwork, inspect the edges, final size, and background before using it for physical prints. Simple, high-resolution artwork works best for stickers, decals, labels, and packaging.",
+    body: "Inspect the edges, final size, and background before using it for physical prints.",
     cta: "Get $10 Sticker Mule credit",
     ...base,
   };
@@ -360,7 +363,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify print-on-demand next step",
       heading: "Test your SVG design on Printify products",
-      body: "After preparing your SVG or product-ready artwork, use Printify to preview the design on shirts, mugs, tote bags, stickers, and other merch without buying inventory first.",
+      body: "Preview your artwork on shirts, mugs, tote bags, stickers, and other merch without buying inventory first.",
       cta: "Test it with Printify",
       ...base,
     };
@@ -371,7 +374,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify T-shirt next step",
       heading: "Turn this SVG design into a Printify shirt mockup",
-      body: "Once your artwork is cleaned up, use Printify to check how it looks on apparel before publishing. Review the final size, contrast, and background so the design stays readable on the shirt.",
+      body: "Check the size, contrast, and background before publishing it on apparel.",
       cta: "Test it on Printify shirts",
       ...base,
     };
@@ -382,7 +385,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify merch next step",
       heading: "Preview this SVG on Printify merch products",
-      body: "After exporting your SVG or product-ready file, use Printify to test whether the artwork still looks clean on shirts, mugs, tote bags, stickers, and other product mockups.",
+      body: "See how the artwork looks on shirts, mugs, tote bags, stickers, and other product mockups.",
       cta: "Preview it on Printify",
       ...base,
     };
@@ -393,7 +396,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify product next step",
       heading: "Use this clean SVG beyond vinyl projects",
-      body: "After preparing a clean SVG for vinyl cutting, you can also use Printify to test simple designs on apparel, mugs, stickers, tote bags, and other merch products.",
+      body: "Test simple designs on apparel, mugs, stickers, tote bags, and other merch products.",
       cta: "Test it with Printify",
       ...base,
     };
@@ -404,7 +407,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify layered design next step",
       heading: "Test layered SVG artwork on Printify merch",
-      body: "After creating a layered or multicolor SVG, use Printify to check whether the design still looks clean at the final product size on apparel, mugs, tote bags, stickers, and other merch.",
+      body: "Check how layered or multicolor artwork looks at product size on apparel, mugs, tote bags, stickers, and merch.",
       cta: "Test layered artwork",
       ...base,
     };
@@ -415,7 +418,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify product next step",
       heading: "Test this Cricut SVG on Printify products",
-      body: "After converting your image for Cricut, use Printify to preview the design on shirts, mugs, tote bags, stickers, and merch. Check the traced edges, final size, and contrast before publishing or ordering samples.",
+      body: "Preview the design on shirts, mugs, tote bags, stickers, and merch before publishing or ordering samples.",
       cta: "Test it with Printify",
       ...base,
     };
@@ -426,7 +429,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify Etsy seller next step",
       heading: "Test this Etsy SVG design on Printify products",
-      body: "After preparing your SVG, use Printify to test product ideas before managing inventory. Check that the artwork is clean, properly licensed, and suitable for the product you plan to sell.",
+      body: "Try product ideas before managing inventory and make sure the artwork fits the item you want to sell.",
       cta: "Test Etsy product ideas",
       ...base,
     };
@@ -436,7 +439,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
     provider: "printify",
     eyebrow: "Printify product next step",
     heading: "Preview this SVG design on Printify products",
-    body: "After preparing your SVG or product-ready artwork, use Printify to test the design on shirts, mugs, tote bags, stickers, and other merch before publishing or ordering samples.",
+    body: "Test the design on shirts, mugs, tote bags, stickers, and other merch before publishing or ordering samples.",
     cta: "Test it with Printify",
     ...base,
   };
@@ -450,7 +453,7 @@ function namecheapPlacement(pathname: string): AffiliatePlacement {
       provider: "namecheap",
       eyebrow: "Namecheap website next step",
       heading: "Give your brand assets a real home online",
-      body: "After preparing your favicon or brand asset, use Namecheap to set up a simple website for your portfolio, storefront, or landing page.",
+      body: "Set up a simple website for your portfolio, storefront, or landing page.",
       cta: "View Namecheap options",
       ...base,
     };
@@ -461,7 +464,7 @@ function namecheapPlacement(pathname: string): AffiliatePlacement {
       provider: "namecheap",
       eyebrow: "Namecheap website next step",
       heading: "Put this SVG project on a real website",
-      body: "If you are preparing SVG embed code for a site, Namecheap can help you get a simple website online for demos, portfolios, product pages, or small business use.",
+      body: "Get a simple site online for demos, portfolios, product pages, or small business use.",
       cta: "View Namecheap options",
       ...base,
     };
@@ -472,7 +475,7 @@ function namecheapPlacement(pathname: string): AffiliatePlacement {
       provider: "namecheap",
       eyebrow: "Namecheap seller website next step",
       heading: "Build a simple home for your SVG shop",
-      body: "If you are selling SVG files, a simple standalone site can strengthen your brand beyond marketplace listings and give you a cleaner place to send customers.",
+      body: "A standalone site gives you a cleaner place to send customers beyond marketplace listings.",
       cta: "View Namecheap options",
       ...base,
     };
@@ -483,7 +486,7 @@ function namecheapPlacement(pathname: string): AffiliatePlacement {
       provider: "namecheap",
       eyebrow: "Namecheap branding next step",
       heading: "Have a logo? Secure a domain and site",
-      body: "Once your logo is ready, use Namecheap to secure a domain and simple website for your portfolio, storefront, product page, or landing page.",
+      body: "Set up a simple website for your portfolio, storefront, product page, or landing page.",
       cta: "View Namecheap options",
       ...base,
     };
@@ -493,7 +496,7 @@ function namecheapPlacement(pathname: string): AffiliatePlacement {
     provider: "namecheap",
     eyebrow: "Namecheap website next step",
     heading: "Build a simple site for your design brand",
-    body: "Use Namecheap to set up a simple website for your SVG portfolio, product page, storefront, or small-business landing page.",
+    body: "Set up a simple website for your SVG portfolio, product page, storefront, or small business landing page.",
     cta: "View Namecheap options",
     ...base,
   };
@@ -525,15 +528,15 @@ function getAffiliatePlacement(pathname: string): AffiliatePlacement | null {
 
 function CricutVisual() {
   return (
-    <div className="border-t border-cyan-100 bg-cyan-50/70 px-4 py-4 sm:px-5">
-      <div className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+    <div className="border-t border-cyan-100 bg-cyan-50/70 px-4 py-3 sm:px-5 sm:py-4">
+      <div className="rounded-xl border border-cyan-100 bg-white p-3 shadow-sm sm:p-4">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-700 sm:text-xs">
           Cricut project workflow
         </p>
-        <p className="mt-1 text-2xl font-black leading-tight text-sky-950">
+        <p className="mt-1 text-lg font-black leading-tight text-sky-950 sm:text-2xl">
           Prepare cleaner SVG files for Cricut projects
         </p>
-        <p className="mt-1 text-sm leading-6 text-slate-600">
+        <p className="mt-1 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
           Useful for Cricut Design Space, vinyl, stickers, labels, decals, and
           layered cut files.
         </p>
@@ -592,16 +595,16 @@ export function ContextualAffiliateCard() {
   return (
     <section
       aria-labelledby="contextual-affiliate-heading"
-      className="bg-white px-4 py-5"
+      className="bg-white px-4 py-4 sm:py-5"
     >
       <div
         className={`mx-auto ${placement.maxWidthClass} overflow-hidden rounded-2xl border ${placement.borderClass} ${placement.surfaceClass} shadow-sm`}
       >
-        <div className="px-4 py-4 sm:px-5 lg:px-6">
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
             <div className="min-w-0">
               <p
-                className={`text-xs font-bold uppercase tracking-wide ${placement.eyebrowClass}`}
+                className={`text-[11px] font-bold uppercase tracking-wide sm:text-xs ${placement.eyebrowClass}`}
               >
                 {placement.eyebrow}
               </p>
@@ -618,22 +621,22 @@ export function ContextualAffiliateCard() {
               href={placement.href}
               target="_blank"
               rel="nofollow sponsored noopener noreferrer"
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-5 py-3 text-sm font-black text-white shadow-sm transition-colors ${placement.buttonClass} sm:w-auto lg:min-w-[240px]`}
+              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-sm transition-colors ${placement.buttonClass} sm:w-auto lg:min-w-[220px]`}
             >
               {placement.cta}
             </a>
           </div>
 
-          <p className="mt-3 max-w-[820px] text-sm leading-6 text-slate-700">
+          <p className="mt-2.5 max-w-[760px] text-[13px] leading-6 text-slate-700 sm:text-sm">
             {placement.body}
           </p>
 
           {placement.benefits?.length ? (
-            <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-700 sm:grid-cols-3">
+            <ul className="mt-2.5 grid gap-2 text-[13px] leading-5 text-slate-700 sm:grid-cols-3 sm:text-sm sm:leading-6">
               {placement.benefits.map((benefit) => (
                 <li
                   key={benefit}
-                  className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 shadow-sm"
+                  className="rounded-lg border border-white/80 bg-white/80 px-3 py-2 shadow-sm"
                 >
                   <span className="font-bold text-emerald-700">✓</span>{" "}
                   {benefit}
@@ -642,7 +645,7 @@ export function ContextualAffiliateCard() {
             </ul>
           ) : null}
 
-          <p className="mt-3 text-xs leading-5 text-slate-500">
+          <p className="mt-2.5 text-[11px] leading-5 text-slate-500">
             Affiliate link. iLoveSVG may earn a commission at no extra cost to
             you.
           </p>

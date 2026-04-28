@@ -1632,6 +1632,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1877,8 +1878,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-
-          <ContextualAffiliateCard />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">

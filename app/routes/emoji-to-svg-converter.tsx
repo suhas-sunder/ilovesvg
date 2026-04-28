@@ -14,6 +14,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1392,30 +1393,6 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <div className="hidden md:block lg:hidden py-6">
-            <AdSenseDelayed
-              slot="8858930853"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[728px]"
-            />
-          </div>
-          <div className="block md:hidden py-6">
-            <AdSenseDelayed
-              slot="6632213024"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={100}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[360px]"
-            />
-          </div>
-
-          {/* Mode selector */}
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* LEFT: INPUT */}
@@ -2276,6 +2253,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
+      
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -2287,6 +2265,8 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

@@ -1678,7 +1678,6 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
           </div>
         )}
       </main>
-      <ContextualAffiliateCard />
 
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
@@ -1691,6 +1690,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
 
       <SeoSections />
       <OtherToolsLinks />

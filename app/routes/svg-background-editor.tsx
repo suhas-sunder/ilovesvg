@@ -8,6 +8,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 const isServer = typeof document === "undefined";
 const SITE_URL = "https://www.ilovesvg.com";
@@ -966,6 +967,7 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
             className="mx-auto w-full max-w-[360px]"
           />
         </div>
+        <ContextualAffiliateCard />
 
         <OtherToolsLinks />
         <RelatedSites />

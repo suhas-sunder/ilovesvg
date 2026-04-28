@@ -1464,8 +1464,6 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         )}
       </main>
 
-      <ContextualAffiliateCard />
-
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1477,6 +1475,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <JpgSeoSections />
       <OtherToolsLinks />
       <RelatedSites />

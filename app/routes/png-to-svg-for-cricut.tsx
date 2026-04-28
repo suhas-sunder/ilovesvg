@@ -1655,8 +1655,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         )}
       </main>
 
-      <ContextualAffiliateCard />
-
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1668,6 +1666,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

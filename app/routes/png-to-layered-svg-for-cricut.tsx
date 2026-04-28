@@ -2133,6 +2133,7 @@ export default function PngToLayeredSvgForCricut({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
 
       <SeoSections />
       <OtherToolsLinks />
@@ -2727,8 +2728,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-
-          <ContextualAffiliateCard />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">

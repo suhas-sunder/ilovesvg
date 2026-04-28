@@ -1333,6 +1333,7 @@ export default function BlackAndWhiteImageToSvgConverter({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+
       <ContextualAffiliateCard />
       <SeoSections />
       <OtherToolsLinks />

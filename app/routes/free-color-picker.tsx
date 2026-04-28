@@ -9,6 +9,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 /* ========================
    Meta
@@ -859,6 +860,7 @@ export default function FreeColorPicker() {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <OtherToolsLinks />
       <nav
         aria-label="Breadcrumb"

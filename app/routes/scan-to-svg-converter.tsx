@@ -15,6 +15,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1387,6 +1388,7 @@ export default function ScanToSvgConverter({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

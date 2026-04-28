@@ -1910,6 +1910,8 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
         />
       </div>
 
+      <ContextualAffiliateCard />
+
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -2288,8 +2290,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-
-          <ContextualAffiliateCard />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">

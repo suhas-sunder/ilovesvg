@@ -1452,8 +1452,6 @@ export default function LogoToSvgConverter({
         )}
       </main>
 
-      <ContextualAffiliateCard />
-
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -1465,6 +1463,7 @@ export default function LogoToSvgConverter({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
