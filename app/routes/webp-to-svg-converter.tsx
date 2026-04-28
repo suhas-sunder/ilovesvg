@@ -1704,21 +1704,19 @@ function SeoSectionsWebp() {
               ))}
             </div>
           </header>
-          {typeof document !== "undefined" && (
-            <div className="block py-6">
-              <AdSenseDelayed
-                slot="7336722354"
-                delayMs={2500}
-                afterInteraction={true}
-                className="my-3"
-                format="rectangle"
-                fullWidth={false}
-                minHeight={250}
-                maxHeight={300}
-                placeholderLabel="Sponsored"
-              />
-            </div>
-          )}
+          <div className="block py-6">
+            <AdSenseDelayed
+              slot="7336722354"
+              delayMs={2500}
+              afterInteraction={true}
+              className="my-3"
+              format="rectangle"
+              fullWidth={false}
+              minHeight={250}
+              maxHeight={300}
+              placeholderLabel="Sponsored"
+            />
+          </div>
           <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">When WebP to SVG makes sense</h3>

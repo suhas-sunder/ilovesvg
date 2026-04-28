@@ -1910,21 +1910,19 @@ function SeoSections() {
               </div>
             </div>
           </header>
-          {typeof document !== "undefined" && (
-            <div className="block py-6">
-              <AdSenseDelayed
-                slot="7336722354"
-                delayMs={2500}
-                afterInteraction={true}
-                className="my-3"
-                format="rectangle"
-                fullWidth={false}
-                minHeight={250}
-                maxHeight={300}
-                placeholderLabel="Sponsored"
-              />
-            </div>
-          )}
+          <div className="block py-6">
+            <AdSenseDelayed
+              slot="7336722354"
+              delayMs={2500}
+              afterInteraction={true}
+              className="my-3"
+              format="rectangle"
+              fullWidth={false}
+              minHeight={250}
+              maxHeight={300}
+              placeholderLabel="Sponsored"
+            />
+          </div>
           <ExampleSvgConversion />
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">

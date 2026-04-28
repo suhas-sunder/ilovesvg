@@ -2253,7 +2253,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
           </div>
         )}
       </main>
-      
+
       <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
@@ -2383,21 +2383,19 @@ function SeoSections() {
                 preview is disabled here to keep the server stable.
               </p>
             </header>
-            {typeof document !== "undefined" && (
-              <div className="block py-6">
-                <AdSenseDelayed
-                  slot="7336722354"
-                  delayMs={2500}
-                  afterInteraction={true}
-                  className="my-3"
-                  format="rectangle"
-                  fullWidth={false}
-                  minHeight={250}
-                  maxHeight={300}
-                  placeholderLabel="Sponsored"
-                />
-              </div>
-            )}
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
             <ExampleSvgConversion />
 
             <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">

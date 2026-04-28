@@ -1223,21 +1223,19 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               </table>
             </div>
 
-            {typeof document !== "undefined" && (
-              <div className="block pb-6">
-                <AdSenseDelayed
-                  slot="7336722354"
-                  delayMs={2500}
-                  afterInteraction={true}
-                  className="my-3"
-                  format="rectangle"
-                  fullWidth={false}
-                  minHeight={250}
-                  maxHeight={300}
-                  placeholderLabel="Sponsored"
-                />
-              </div>
-            )}
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
             <ExampleSvgConversion />
             <div className="mt-4 lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
