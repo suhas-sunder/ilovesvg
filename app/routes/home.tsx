@@ -1936,6 +1936,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           {/* Use cases */}
           <section className="">
             <h3 className="text-lg font-bold">Best for</h3>

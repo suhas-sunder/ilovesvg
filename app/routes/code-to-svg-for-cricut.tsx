@@ -13,6 +13,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 const isServer = typeof document === "undefined";
 
@@ -2587,6 +2588,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">Supported inputs</h3>

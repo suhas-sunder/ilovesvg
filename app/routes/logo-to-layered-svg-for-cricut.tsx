@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/png-to-layered-svg-for-cricut";
+import type { Route } from "./+types/logo-to-layered-svg-for-cricut";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -14,6 +14,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 const isServer = typeof document === "undefined";
 
@@ -22,10 +23,10 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "PNG to Layered SVG for Cricut - Free Layered PNG SVG Converter";
+    "Logo to Layered SVG for Cricut - Free Logo Layered SVG Converter";
   const description =
-    "Convert PNG images into layered SVG files for Cricut Design Space. Split transparent PNGs, logos, decals, stickers, and artwork into editable color layers, preview results, recolor layers, and download a Cricut-ready SVG.";
-  const canonical = "https://www.ilovesvg.com/png-to-layered-svg-for-cricut";
+    "Convert logos into layered SVG files for Cricut Design Space. Upload PNG, JPG, JPEG, or WebP logos, remove white backgrounds, split colors into editable SVG layers, recolor layers, preview results, and download a Cricut-ready SVG.";
+  const canonical = "https://www.ilovesvg.com/logo-to-layered-svg-for-cricut";
 
   return [
     { title },
@@ -35,7 +36,7 @@ export function meta({}: Route.MetaArgs) {
     {
       name: "keywords",
       content:
-        "png to layered svg for cricut, png to svg layers, layered svg for cricut, transparent png to layered svg, cricut layered svg converter, png color layers svg, vinyl layer svg, htv layer svg",
+        "logo to layered svg for cricut, logo to svg, logo to cricut svg, logo to layered svg, convert logo to svg for cricut, png logo to svg, jpg logo to svg, logo svg converter",
     },
     { name: "robots", content: "index,follow" },
 
@@ -72,7 +73,7 @@ const LIVE_MED_MS = 1600;
 
 const MIN_LAYER_COUNT = 2;
 const MAX_LAYER_COUNT = 10;
-const MAX_TRACE_SIDE_DEFAULT = 1600;
+const MAX_TRACE_SIDE_DEFAULT = 1800;
 
 /* ========================
    Server concurrency gate
@@ -86,7 +87,9 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__iheartsvg_png_layer_gate) return g.__iheartsvg_png_layer_gate as Gate;
+  if (g.__iheartsvg_logo_layer_gate) {
+    return g.__iheartsvg_logo_layer_gate as Gate;
+  }
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -158,8 +161,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__iheartsvg_png_layer_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_png_layer_gate as Gate;
+  g.__iheartsvg_logo_layer_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__iheartsvg_logo_layer_gate as Gate;
 }
 
 /* ========================
@@ -202,14 +205,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
-      return json({ error: "No PNG file uploaded." }, { status: 400 });
+      return json({ error: "No logo image uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
 
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
-        { error: "Upload a PNG, JPG, JPEG, or WebP image." },
+        { error: "Upload a PNG, JPG, JPEG, or WebP logo image." },
         { status: 415 },
       );
     }
@@ -219,7 +222,7 @@ export async function action({ request }: ActionFunctionArgs) {
         {
           error: `File too large. Max ${Math.round(
             MAX_UPLOAD_BYTES / (1024 * 1024),
-          )} MB per PNG image.`,
+          )} MB per logo image.`,
         },
         { status: 413 },
       );
@@ -236,7 +239,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           error:
-            "Server is busy converting other PNG layered SVGs. Retrying automatically.",
+            "Server is busy converting other logo SVGs. Retrying automatically.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -265,7 +268,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
         if (!w || !h) {
           return json(
-            { error: "Could not read PNG dimensions. Try a different file." },
+            { error: "Could not read logo dimensions. Try a different file." },
             { status: 415 },
           );
         }
@@ -274,7 +277,7 @@ export async function action({ request }: ActionFunctionArgs) {
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
             {
-              error: `PNG too large: ${w}×${h} (~${mp.toFixed(
+              error: `Logo image too large: ${w}×${h} (~${mp.toFixed(
                 1,
               )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
@@ -286,7 +289,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       const layerCount = clampInt(
-        Number(form.get("layerCount") ?? 4),
+        Number(form.get("layerCount") ?? 5),
         MIN_LAYER_COUNT,
         MAX_LAYER_COUNT,
       );
@@ -298,24 +301,24 @@ export async function action({ request }: ActionFunctionArgs) {
       );
 
       const minRegionPercent = clampNumber(
-        Number(form.get("minRegionPercent") ?? 0.25),
+        Number(form.get("minRegionPercent") ?? 0.2),
         0,
         5,
       );
 
       const optTolerance = clampNumber(
-        Number(form.get("optTolerance") ?? 0.35),
+        Number(form.get("optTolerance") ?? 0.28),
         0.05,
         1.2,
       );
 
-      const turdSize = clampInt(Number(form.get("turdSize") ?? 3), 0, 20);
+      const turdSize = clampInt(Number(form.get("turdSize") ?? 2), 0, 20);
 
       const posterize =
-        String(form.get("posterize") ?? "true").toLowerCase() === "true";
+        String(form.get("posterize") ?? "false").toLowerCase() === "true";
 
       const removeWhite =
-        String(form.get("removeWhite") ?? "false").toLowerCase() === "true";
+        String(form.get("removeWhite") ?? "true").toLowerCase() === "true";
 
       const removeTransparent =
         String(form.get("removeTransparent") ?? "true").toLowerCase() ===
@@ -367,7 +370,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return json(
       {
         error:
-          err?.message || "Server error during PNG to layered SVG conversion.",
+          err?.message || "Server error during logo to layered SVG conversion.",
       },
       { status: 500 },
     );
@@ -436,7 +439,7 @@ async function rasterToLayeredSvg(
   const height = info.height | 0;
 
   if (!width || !height) {
-    throw new Error("Could not decode PNG image.");
+    throw new Error("Could not decode logo image.");
   }
 
   const pixels = collectPixels(data as Buffer, width, height, {
@@ -447,7 +450,7 @@ async function rasterToLayeredSvg(
 
   if (pixels.length < 20) {
     throw new Error(
-      "Not enough visible PNG image data to build layers. Try disabling transparent or white background removal.",
+      "Not enough visible logo data to build layers. Try disabling white background removal or using a higher-resolution logo.",
     );
   }
 
@@ -484,7 +487,7 @@ async function rasterToLayeredSvg(
 
   if (rawLayerItems.length === 0) {
     throw new Error(
-      "No usable PNG color layers were found. Try lowering minimum layer size or disabling background removal.",
+      "No usable logo layers were found. Try lowering minimum layer size or disabling background removal.",
     );
   }
 
@@ -528,7 +531,7 @@ async function rasterToLayeredSvg(
 
   if (layers.length === 0) {
     throw new Error(
-      "The PNG did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast PNG.",
+      "The logo did not produce traceable layers. Try fewer layers, lower speckle removal, or a cleaner logo image.",
     );
   }
 
@@ -814,7 +817,7 @@ function buildLayeredSvgString({
     })
     .join("");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from PNG for Cricut">${background}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from logo for Cricut">${background}${body}</svg>`;
 }
 
 function maskHasInk(mask: Buffer) {
@@ -927,14 +930,14 @@ type Preset = {
 };
 
 const DEFAULTS: Settings = {
-  layerCount: 4,
+  layerCount: 5,
   maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
-  minRegionPercent: 0.25,
-  optTolerance: 0.35,
-  turdSize: 3,
+  minRegionPercent: 0.2,
+  optTolerance: 0.28,
+  turdSize: 2,
   turnPolicy: "minority",
-  posterize: true,
-  removeWhite: false,
+  posterize: false,
+  removeWhite: true,
   removeTransparent: true,
   transparent: true,
   bgColor: "#ffffff",
@@ -942,31 +945,15 @@ const DEFAULTS: Settings = {
 
 const PRESETS: Preset[] = [
   {
-    id: "png-balanced",
-    label: "PNG - Balanced Layers",
-    settings: {
-      layerCount: 4,
-      minRegionPercent: 0.25,
-      optTolerance: 0.35,
-      turdSize: 3,
-      posterize: true,
-      removeWhite: false,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "minority",
-      maxTraceSide: 1600,
-    },
-  },
-  {
-    id: "transparent-png-clean",
-    label: "Transparent PNG - Clean Layers",
+    id: "logo-balanced",
+    label: "Logo - Balanced Layers",
     settings: {
       layerCount: 5,
       minRegionPercent: 0.2,
-      optTolerance: 0.32,
-      turdSize: 3,
-      posterize: true,
-      removeWhite: false,
+      optTolerance: 0.28,
+      turdSize: 2,
+      posterize: false,
+      removeWhite: true,
       removeTransparent: true,
       transparent: true,
       turnPolicy: "minority",
@@ -974,15 +961,15 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-logo-clean",
-    label: "PNG Logo - Clean Multi-Color",
+    id: "transparent-logo",
+    label: "Transparent Logo - Clean Layers",
     settings: {
       layerCount: 5,
-      minRegionPercent: 0.18,
+      minRegionPercent: 0.15,
       optTolerance: 0.25,
       turdSize: 2,
       posterize: false,
-      removeWhite: true,
+      removeWhite: false,
       removeTransparent: true,
       transparent: true,
       turnPolicy: "minority",
@@ -990,8 +977,24 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-icon-flat",
-    label: "PNG Icon - Flat Layers",
+    id: "white-bg-logo",
+    label: "White Background Logo - Remove",
+    settings: {
+      layerCount: 5,
+      minRegionPercent: 0.2,
+      optTolerance: 0.28,
+      turdSize: 3,
+      posterize: false,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 1900,
+    },
+  },
+  {
+    id: "flat-logo",
+    label: "Flat Logo - Sharp Color Areas",
     settings: {
       layerCount: 4,
       minRegionPercent: 0.15,
@@ -1006,31 +1009,31 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-sticker",
-    label: "PNG Sticker - Bold Colors",
-    settings: {
-      layerCount: 6,
-      minRegionPercent: 0.3,
-      optTolerance: 0.45,
-      turdSize: 4,
-      posterize: true,
-      removeWhite: false,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "majority",
-      maxTraceSide: 1600,
-    },
-  },
-  {
-    id: "png-print-then-cut",
-    label: "PNG Print Then Cut - Simplified",
+    id: "multicolor-logo",
+    label: "Multi-Color Logo - Preserve Colors",
     settings: {
       layerCount: 7,
-      minRegionPercent: 0.25,
-      optTolerance: 0.45,
+      minRegionPercent: 0.12,
+      optTolerance: 0.25,
+      turdSize: 2,
+      posterize: false,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 2200,
+    },
+  },
+  {
+    id: "simple-2-color-logo",
+    label: "2 Color Logo - Simple Cut",
+    settings: {
+      layerCount: 2,
+      minRegionPercent: 0.35,
+      optTolerance: 0.35,
       turdSize: 4,
       posterize: true,
-      removeWhite: false,
+      removeWhite: true,
       removeTransparent: true,
       transparent: true,
       turnPolicy: "majority",
@@ -1038,8 +1041,104 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-vinyl",
-    label: "PNG to Vinyl - Fewer Pieces",
+    id: "three-color-logo",
+    label: "3 Color Logo - Decal",
+    settings: {
+      layerCount: 3,
+      minRegionPercent: 0.3,
+      optTolerance: 0.35,
+      turdSize: 4,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1600,
+    },
+  },
+  {
+    id: "business-logo",
+    label: "Business Logo - Clean SVG",
+    settings: {
+      layerCount: 6,
+      minRegionPercent: 0.12,
+      optTolerance: 0.25,
+      turdSize: 2,
+      posterize: false,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 2200,
+    },
+  },
+  {
+    id: "brand-mark",
+    label: "Brand Mark - Crisp Shapes",
+    settings: {
+      layerCount: 4,
+      minRegionPercent: 0.15,
+      optTolerance: 0.2,
+      turdSize: 2,
+      posterize: false,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 2200,
+    },
+  },
+  {
+    id: "text-logo",
+    label: "Text Logo - Smooth Lettering",
+    settings: {
+      layerCount: 3,
+      minRegionPercent: 0.2,
+      optTolerance: 0.22,
+      turdSize: 2,
+      posterize: false,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 2200,
+    },
+  },
+  {
+    id: "badge-logo",
+    label: "Badge Logo - Layered Cut",
+    settings: {
+      layerCount: 5,
+      minRegionPercent: 0.25,
+      optTolerance: 0.38,
+      turdSize: 4,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1700,
+    },
+  },
+  {
+    id: "sports-logo",
+    label: "Sports Logo - Bold Layers",
+    settings: {
+      layerCount: 6,
+      minRegionPercent: 0.25,
+      optTolerance: 0.4,
+      turdSize: 4,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1700,
+    },
+  },
+  {
+    id: "logo-to-vinyl",
+    label: "Logo to Vinyl - Fewer Pieces",
     settings: {
       layerCount: 3,
       minRegionPercent: 1,
@@ -1054,42 +1153,10 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-htv",
-    label: "PNG to HTV - Simple Layers",
+    id: "logo-to-htv",
+    label: "Logo to HTV - Simple Press",
     settings: {
       layerCount: 3,
-      minRegionPercent: 0.85,
-      optTolerance: 0.68,
-      turdSize: 8,
-      posterize: true,
-      removeWhite: true,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "majority",
-      maxTraceSide: 1200,
-    },
-  },
-  {
-    id: "png-paper-craft",
-    label: "Paper Craft - Stacked Colors",
-    settings: {
-      layerCount: 5,
-      minRegionPercent: 0.45,
-      optTolerance: 0.5,
-      turdSize: 5,
-      posterize: true,
-      removeWhite: true,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "majority",
-      maxTraceSide: 1400,
-    },
-  },
-  {
-    id: "png-cardstock",
-    label: "Cardstock - Bold Cutouts",
-    settings: {
-      layerCount: 4,
       minRegionPercent: 0.8,
       optTolerance: 0.65,
       turdSize: 7,
@@ -1102,12 +1169,28 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-clipart",
-    label: "PNG Clipart - Clean Color Areas",
+    id: "sticker-logo",
+    label: "Sticker Logo - Bold Color Blocks",
     settings: {
-      layerCount: 5,
-      minRegionPercent: 0.22,
-      optTolerance: 0.3,
+      layerCount: 6,
+      minRegionPercent: 0.25,
+      optTolerance: 0.4,
+      turdSize: 3,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1700,
+    },
+  },
+  {
+    id: "print-then-cut-logo",
+    label: "Print Then Cut Logo",
+    settings: {
+      layerCount: 7,
+      minRegionPercent: 0.18,
+      optTolerance: 0.35,
       turdSize: 3,
       posterize: true,
       removeWhite: true,
@@ -1118,77 +1201,13 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-cartoon",
-    label: "PNG Cartoon - More Colors",
+    id: "low-res-logo",
+    label: "Low-Res Logo - Cleanup",
     settings: {
-      layerCount: 8,
-      minRegionPercent: 0.2,
-      optTolerance: 0.42,
-      turdSize: 3,
-      posterize: true,
-      removeWhite: false,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "majority",
-      maxTraceSide: 1700,
-    },
-  },
-  {
-    id: "png-kids-illustration",
-    label: "Kids Illustration - Bright Layers",
-    settings: {
-      layerCount: 8,
-      minRegionPercent: 0.25,
-      optTolerance: 0.45,
-      turdSize: 4,
-      posterize: true,
-      removeWhite: false,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "majority",
-      maxTraceSide: 1600,
-    },
-  },
-  {
-    id: "png-white-bg-remove",
-    label: "White Background PNG - Remove",
-    settings: {
-      layerCount: 5,
-      minRegionPercent: 0.35,
-      optTolerance: 0.45,
-      turdSize: 5,
-      posterize: true,
-      removeWhite: true,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "majority",
-      maxTraceSide: 1500,
-    },
-  },
-  {
-    id: "png-shadow-layer",
-    label: "Shadow Layer - Bold Shapes",
-    settings: {
-      layerCount: 3,
-      minRegionPercent: 1,
-      optTolerance: 0.8,
-      turdSize: 8,
-      posterize: true,
-      removeWhite: true,
-      removeTransparent: true,
-      transparent: true,
-      turnPolicy: "black",
-      maxTraceSide: 1200,
-    },
-  },
-  {
-    id: "png-2-color",
-    label: "PNG 2 Color - Simple Cut",
-    settings: {
-      layerCount: 2,
-      minRegionPercent: 0.5,
-      optTolerance: 0.45,
-      turdSize: 5,
+      layerCount: 4,
+      minRegionPercent: 0.45,
+      optTolerance: 0.55,
+      turdSize: 7,
       posterize: true,
       removeWhite: true,
       removeTransparent: true,
@@ -1198,52 +1217,51 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "png-3-color-decal",
-    label: "PNG 3 Color - Decal",
+    id: "screenshot-logo",
+    label: "Screenshot Logo - Remove Background",
     settings: {
-      layerCount: 3,
-      minRegionPercent: 0.45,
-      optTolerance: 0.5,
-      turdSize: 5,
+      layerCount: 5,
+      minRegionPercent: 0.25,
+      optTolerance: 0.35,
+      turdSize: 4,
       posterize: true,
       removeWhite: true,
       removeTransparent: true,
       transparent: true,
       turnPolicy: "majority",
-      maxTraceSide: 1400,
+      maxTraceSide: 1600,
     },
   },
   {
-    id: "png-high-detail",
-    label: "PNG High Detail - Preserve Colors",
+    id: "shadow-logo",
+    label: "Shadow Layer Logo - Bold Shape",
+    settings: {
+      layerCount: 2,
+      minRegionPercent: 1.2,
+      optTolerance: 0.85,
+      turdSize: 10,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "black",
+      maxTraceSide: 1200,
+    },
+  },
+  {
+    id: "high-detail-logo",
+    label: "High Detail Logo - Preserve Edges",
     settings: {
       layerCount: 10,
-      minRegionPercent: 0.1,
-      optTolerance: 0.28,
-      turdSize: 2,
-      posterize: true,
-      removeWhite: false,
+      minRegionPercent: 0.08,
+      optTolerance: 0.18,
+      turdSize: 1,
+      posterize: false,
+      removeWhite: true,
       removeTransparent: true,
       transparent: true,
       turnPolicy: "minority",
-      maxTraceSide: 2200,
-    },
-  },
-  {
-    id: "png-sublimation-preview",
-    label: "PNG Sublimation Preview",
-    settings: {
-      layerCount: 8,
-      minRegionPercent: 0.15,
-      optTolerance: 0.4,
-      turdSize: 3,
-      posterize: true,
-      removeWhite: false,
-      removeTransparent: true,
-      transparent: false,
-      bgColor: "#ffffff",
-      turnPolicy: "minority",
-      maxTraceSide: 1800,
+      maxTraceSide: 2400,
     },
   },
 ];
@@ -1294,14 +1312,14 @@ function autoModeHint(mode: AutoMode): string {
 
 function autoModeDetail(mode: AutoMode): string {
   if (mode === "medium")
-    return "Large PNG file; updates run less frequently to keep things smooth.";
+    return "Large file; updates run less frequently to keep things smooth.";
   return "";
 }
 
 /* ========================
    Page
 ======================== */
-export default function PngToLayeredSvgForCricut({
+export default function LogoToLayeredSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
@@ -1313,7 +1331,7 @@ export default function PngToLayeredSvgForCricut({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("png-balanced");
+    React.useState<string>("logo-balanced");
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1436,7 +1454,7 @@ export default function PngToLayeredSvgForCricut({
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG, JPG, JPEG, or WebP image.");
+      setErr("Please choose a PNG, JPG, JPEG, or WebP logo image.");
       return;
     }
 
@@ -1451,7 +1469,7 @@ export default function PngToLayeredSvgForCricut({
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("png-balanced");
+    setActivePreset("logo-balanced");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -1462,7 +1480,7 @@ export default function PngToLayeredSvgForCricut({
 
     try {
       if (f.size > LIVE_MED_MAX) {
-        setInfo("Compressing large PNG locally for live layered preview.");
+        setInfo("Compressing large logo locally for live layered preview.");
         chosen = await compressToTarget25MB(f);
       }
 
@@ -1470,7 +1488,7 @@ export default function PngToLayeredSvgForCricut({
     } catch (e: any) {
       suppressLiveRef.current = false;
       setInfo(null);
-      setErr(e?.message || "PNG image is too large.");
+      setErr(e?.message || "Logo image is too large.");
       return;
     }
 
@@ -1497,14 +1515,14 @@ export default function PngToLayeredSvgForCricut({
     const sourceSettings = settingsOverride ?? settings;
 
     if (!sourceFile) {
-      setErr("Choose a PNG image first.");
+      setErr("Choose a logo image first.");
       return;
     }
 
     try {
       await validateBeforeSubmit(sourceFile);
     } catch (e: any) {
-      setErr(e?.message || "PNG image is too large.");
+      setErr(e?.message || "Logo image is too large.");
       return;
     }
 
@@ -1593,13 +1611,13 @@ export default function PngToLayeredSvgForCricut({
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start sm:pt-6 lg:pt-0 lg:pb-8">
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
-                PNG to Layered SVG for Cricut
+                Logo to Layered SVG for Cricut
               </h1>
 
               <p className="mb-3 text-center text-sm text-slate-600">
-                Convert transparent PNGs, logos, clipart, decals, stickers, and
-                other raster artwork into editable color-separated SVG layers
-                for Cricut Design Space.
+                Convert logos, brand marks, badges, text logos, and business
+                graphics into editable layered SVG files for Cricut Design
+                Space.
               </p>
 
               <PresetPicker
@@ -1617,7 +1635,7 @@ export default function PngToLayeredSvgForCricut({
                   aria-controls="advanced-settings"
                 >
                   <span className="inline-flex items-center gap-2">
-                    Advanced PNG layer settings
+                    Advanced logo layer settings
                   </span>
                   <ChevronDownIcon open={showAdvanced} />
                 </button>
@@ -1680,7 +1698,7 @@ export default function PngToLayeredSvgForCricut({
                       />
                     </Field>
 
-                    <Field label="Posterize PNG colors">
+                    <Field label="Posterize colors">
                       <input
                         type="checkbox"
                         checked={settings.posterize}
@@ -1891,7 +1909,9 @@ export default function PngToLayeredSvgForCricut({
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Building PNG layers…" : "Convert PNG to Layered SVG"}
+                  {busy
+                    ? "Building logo layers…"
+                    : "Convert Logo to Layered SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1910,11 +1930,11 @@ export default function PngToLayeredSvgForCricut({
               {previewUrl && (
                 <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
                   <p className="text-slate-700 ml-2 mt-1">
-                    Original PNG Preview:
+                    Original Logo Preview:
                   </p>
                   <img
                     src={previewUrl}
-                    alt="Input PNG"
+                    alt="Input logo"
                     className="w-full h-auto block"
                   />
                 </div>
@@ -1961,7 +1981,7 @@ export default function PngToLayeredSvgForCricut({
                               const u = URL.createObjectURL(b);
                               const a = document.createElement("a");
                               a.href = u;
-                              a.download = "png-to-layered-svg-for-cricut.svg";
+                              a.download = "logo-to-layered-svg-for-cricut.svg";
                               document.body.appendChild(a);
                               a.click();
                               a.remove();
@@ -1993,12 +2013,6 @@ export default function PngToLayeredSvgForCricut({
 
                         <LayerControls
                           layers={item.layers}
-                          onChange={(nextLayers) =>
-                            updateHistoryItemLayers(
-                              item.stamp,
-                              () => nextLayers,
-                            )
-                          }
                           onLayerChange={(layerId, patch) =>
                             updateHistoryItemLayers(item.stamp, (layers) =>
                               layers.map((layer) =>
@@ -2024,7 +2038,7 @@ export default function PngToLayeredSvgForCricut({
                             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                               editedSvg,
                             )}`}
-                            alt="Layered SVG result from PNG"
+                            alt="Layered SVG result from logo"
                             className="max-w-full h-auto"
                           />
                         </div>
@@ -2101,22 +2115,22 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 
 async function validateBeforeSubmit(file: File) {
   if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Upload a PNG, JPG, JPEG, or WebP image.");
+    throw new Error("Upload a PNG, JPG, JPEG, or WebP logo image.");
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {
-    throw new Error("File too large. Max 30 MB per PNG image.");
+    throw new Error("File too large. Max 30 MB per logo image.");
   }
 
   const { w, h } = await getImageSize(file);
 
-  if (!w || !h) throw new Error("Could not read PNG dimensions.");
+  if (!w || !h) throw new Error("Could not read logo dimensions.");
 
   const mp = (w * h) / 1_000_000;
 
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `PNG too large: ${w}×${h} (~${mp.toFixed(
+      `Logo image too large: ${w}×${h} (~${mp.toFixed(
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
@@ -2156,7 +2170,7 @@ async function compressToTarget25MB(file: File): Promise<File> {
 
     ctx.drawImage(img as any, 0, 0, w, h);
 
-    const mime = "image/png";
+    const mime = "image/jpeg";
 
     const blob: Blob = await new Promise((res, rej) => {
       if ("convertToBlob" in (canvas as any)) {
@@ -2176,30 +2190,40 @@ async function compressToTarget25MB(file: File): Promise<File> {
     return blob;
   };
 
+  const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
+
+  for (const q of qualities) {
+    const b = await encode(q);
+
+    if (b.size <= TARGET) {
+      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+    }
+  }
+
   let scale = 0.9;
 
   while (w > 64 && h > 64) {
     w = Math.max(64, Math.floor(w * scale));
     h = Math.max(64, Math.floor(h * scale));
 
-    const b = await encode(0.92);
+    const b = await encode(0.75);
 
     if (b.size <= TARGET) {
-      return new File([b], renameToPng(file.name), { type: "image/png" });
+      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
     }
 
     scale = Math.max(0.5, scale - 0.07);
   }
 
   throw new Error(
-    "This PNG cannot be reduced below 25 MB without excessive degradation.",
+    "This logo image cannot be reduced below 25 MB without excessive degradation.",
   );
 }
 
-function renameToPng(name: string) {
+function renameToJpeg(name: string) {
   const dot = name.lastIndexOf(".");
   const base = dot > 0 ? name.slice(0, dot) : name;
-  return `${base}.png`;
+  return `${base}.jpg`;
 }
 
 async function loadImageElement(file: File): Promise<HTMLImageElement> {
@@ -2246,7 +2270,7 @@ function buildClientLayeredSvg({
     })
     .join("");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from PNG for Cricut">${bg}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from logo for Cricut">${bg}${body}</svg>`;
 }
 
 function sanitizeClientColor(input: string, fallback: string) {
@@ -2396,7 +2420,7 @@ function PresetPicker({
           className="mt-2 w-full inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
           aria-expanded={expanded}
         >
-          {expanded ? "Show fewer PNG presets" : "Show more PNG presets"}
+          {expanded ? "Show fewer logo presets" : "Show more logo presets"}
           <ChevronDownIcon open={expanded} />
         </button>
       )}
@@ -2406,12 +2430,10 @@ function PresetPicker({
 
 function LayerControls({
   layers,
-  onChange,
   onLayerChange,
   onReset,
 }: {
   layers: LayerState[];
-  onChange: (layers: LayerState[]) => void;
   onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
   onReset: () => void;
 }) {
@@ -2484,8 +2506,8 @@ function LayerControls({
       </div>
 
       <p className="mt-2 text-xs text-slate-500">
-        These edits update this specific result. Hide unwanted PNG fragments or
-        recolor each SVG color group before downloading.
+        These edits update this specific result. Hide unwanted logo fragments or
+        recolor each SVG group before downloading.
       </p>
     </div>
   );
@@ -2497,36 +2519,36 @@ function LayerControls({
 function SeoSections() {
   const faqs = [
     {
-      q: "Can I convert a PNG to a layered SVG for Cricut?",
-      a: "Yes. Upload a PNG, choose a preset, adjust the layer count and cleanup settings, then download a Cricut-ready layered SVG.",
+      q: "Can I convert a logo to layered SVG for Cricut?",
+      a: "Yes. Upload a PNG, JPG, JPEG, or WebP logo, choose a logo preset, adjust cleanup settings, recolor or hide layers, and download a Cricut-ready SVG.",
     },
     {
-      q: "Does this work with transparent PNG files?",
-      a: "Yes. Transparent PNGs are one of the best inputs for this tool because the converter can ignore transparent pixels and focus on visible artwork.",
+      q: "Does this only accept logo files?",
+      a: "No. The page is optimized for logo workflows, but it accepts common raster image formats including PNG, JPG, JPEG, and WebP.",
     },
     {
-      q: "What PNG preset should I start with?",
-      a: "Start with PNG - Balanced Layers. For transparent artwork, use Transparent PNG - Clean Layers. For vinyl, use PNG to Vinyl - Fewer Pieces.",
+      q: "What logo format works best?",
+      a: "A transparent PNG logo usually works best. A clean JPG or WebP can also work well if the logo has strong contrast and minimal compression noise.",
     },
     {
-      q: "Why does my PNG create too many tiny Cricut pieces?",
-      a: "Tiny pieces usually come from anti-aliasing, shadows, gradients, texture, or small color fragments. Use fewer layers, raise speckle removal, and increase minimum layer size.",
+      q: "Should I remove the white background from my logo?",
+      a: "Use white background removal when the white area is just a canvas or screenshot background. Turn it off if white is part of the actual logo design.",
     },
     {
-      q: "Should I remove white background from my PNG?",
-      a: "Use white background removal when the white area is just canvas or empty background. Do not use it if white is part of the actual design.",
+      q: "Can I recolor each logo layer?",
+      a: "Yes. Each conversion result includes layer controls that let you recolor or hide individual SVG groups before downloading.",
     },
     {
-      q: "Can I recolor each PNG SVG layer?",
-      a: "Yes. Each result has layer controls that let you recolor or hide individual SVG layers before downloading.",
+      q: "Why does my logo have too many tiny pieces?",
+      a: "Tiny pieces usually come from low-resolution screenshots, antialiasing, gradients, shadows, or JPG compression. Use a cleanup preset, raise speckle removal, or reduce the layer count.",
     },
     {
-      q: "Is this better for PNG than JPG?",
-      a: "Usually yes. PNG artwork often has cleaner edges, transparency, and less compression noise than JPG, which can produce cleaner Cricut layers.",
+      q: "Is this good for vinyl decals?",
+      a: "Use Logo to Vinyl - Fewer Pieces or 2 Color Logo - Simple Cut. These presets reduce small fragments and make the SVG more practical for cutting and weeding.",
     },
     {
-      q: "Does this page only accept PNG files?",
-      a: "No. The page is optimized around PNG-style use cases, especially transparent artwork, but it also accepts JPG, JPEG, and WebP images.",
+      q: "Is this affiliated with Cricut?",
+      a: "No. iLoveSVG is independent and is not affiliated with Cricut. Cricut is mentioned only to describe common craft file workflows.",
     },
   ];
 
@@ -2537,47 +2559,45 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                PNG to layered Cricut SVG
+                Logo to layered Cricut SVG
               </p>
 
               <h2 className="text-2xl md:text-3xl font-bold leading-tight text-sky-950">
-                Convert PNG images into layered SVG files for Cricut Design
-                Space
+                Convert logos into layered SVG files for Cricut Design Space
               </h2>
 
               <p className="text-slate-600">
-                This PNG to layered SVG converter is built for Cricut users who
-                start with transparent PNGs, logos, stickers, clipart, decals,
-                and flattened PNG artwork. It separates the image into
-                color-based SVG groups so you can recolor, hide, cut, or edit
-                each layer.
+                This logo to layered SVG converter is built for Cricut users who
+                start with PNG, JPG, JPEG, or WebP logos. It separates visible
+                logo colors into editable SVG groups so you can recolor, hide,
+                cut, or clean up each layer before downloading.
               </p>
 
               <p className="text-slate-600">
-                PNG files usually convert cleaner than JPG files because they
-                often preserve transparency and sharper edges. This page
-                includes PNG-focused presets for transparent artwork, logos,
-                vinyl, HTV, cardstock, stickers, shadow layers, and high-detail
-                craft designs.
+                Logo images often include white backgrounds, screenshots,
+                antialiased edges, small text, gradients, or compression noise.
+                The presets on this page are tuned for transparent logos, white
+                background removal, clean brand marks, vinyl decals, HTV, text
+                logos, badges, and high-detail logo traces.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
-                    k: "PNG-focused presets",
-                    v: "Transparent, logo, sticker, vinyl, and HTV modes",
+                    k: "Logo-focused presets",
+                    v: "Transparent, white background, vinyl, and text modes",
                   },
                   {
-                    k: "Color layers",
-                    v: "Split PNG artwork into SVG groups",
+                    k: "Editable SVG groups",
+                    v: "Recolor or hide detected logo layers",
                   },
                   {
-                    k: "Transparent cleanup",
-                    v: "Ignore transparent pixels for cleaner layers",
+                    k: "Cleaner Cricut output",
+                    v: "Reduce speckles, fragments, and messy edges",
                   },
                   {
-                    k: "Layer editing",
-                    v: "Recolor or hide layers before export",
+                    k: "Flexible uploads",
+                    v: "Use PNG, JPG, JPEG, or WebP logos",
                   },
                 ].map((x) => (
                   <div
@@ -2591,6 +2611,8 @@ function SeoSections() {
               </div>
             </div>
           </header>
+
+          <ExampleSvgConversion />
 
           <ContextualAffiliateCard />
 
@@ -2612,21 +2634,21 @@ function SeoSections() {
 
           <section className="mt-8">
             <h3 className="text-lg font-bold text-sky-950">
-              Best uses for this PNG to layered SVG converter
+              Best uses for this logo to layered SVG converter
             </h3>
 
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Transparent PNGs",
-                "Cricut stickers",
+                "Business logos",
+                "Transparent PNG logos",
+                "White background logos",
+                "Text logos",
+                "Brand marks",
+                "Badge logos",
+                "Sports logos",
                 "Vinyl decals",
                 "HTV designs",
-                "PNG logos",
-                "Clipart",
-                "Cardstock cutouts",
-                "Shadow layers",
-                "Small business labels",
-                "Print then cut prep",
+                "Sticker logos",
               ].map((t) => (
                 <span
                   key={t}
@@ -2640,23 +2662,23 @@ function SeoSections() {
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  For transparent PNG artwork
+                  For transparent and flat logos
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use transparent PNG presets when the artwork already has no
-                  background. The converter can ignore transparent pixels and
-                  focus on visible color regions.
+                  Use transparent, flat, or brand mark presets when your logo
+                  already has clean color areas and you want sharper editable
+                  SVG groups.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold">
-                  For vinyl, HTV, and cardstock
+                  For Cricut vinyl, HTV, and decals
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Use fewer layers, stronger cleanup, and larger minimum layer
-                  size when you need files that are easier to cut, weed, and
-                  assemble.
+                  Use fewer layers, stronger speckle removal, and a larger
+                  minimum layer size when the logo needs to be cut, weeded, or
+                  pressed.
                 </p>
               </div>
             </div>
@@ -2669,38 +2691,34 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold text-sky-950">
-                How to convert PNG to layered SVG for Cricut
+                How to convert a logo to layered SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Upload PNG → choose preset → edit layers → download SVG
+                Upload logo → choose preset → edit layers → download SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a PNG image",
-                  body: "Use a clean PNG with clear color separation. Transparent PNGs, logos, clipart, and sticker-style images work best.",
+                  title: "Upload a logo image",
+                  body: "Use PNG, JPG, JPEG, or WebP. Transparent PNG logos and high-resolution flat logos usually convert best.",
                 },
                 {
-                  title: "Choose a PNG-specific preset",
-                  body: "Use transparent PNG presets for cutout artwork, vinyl presets for fewer pieces, and logo presets for cleaner color edges.",
+                  title: "Choose a logo-specific preset",
+                  body: "Use transparent logo presets for PNGs, white background presets for screenshots, vinyl presets for cut files, and high-detail presets for sharper brand marks.",
                 },
                 {
-                  title: "Adjust layer count",
-                  body: "Use fewer layers for cutting and weeding. Use more layers for stickers, clipart, and colorful illustrations.",
-                },
-                {
-                  title: "Clean up small fragments",
-                  body: "Raise speckle removal and minimum layer size if the PNG creates tiny unwanted pieces.",
+                  title: "Adjust layer count and cleanup",
+                  body: "Use fewer layers for decals and HTV. Use more layers when you need to preserve a multi-color logo.",
                 },
                 {
                   title: "Recolor or hide layers",
-                  body: "Use the layer controls inside each result card to edit the final SVG before downloading.",
+                  body: "Use the layer controls inside each result card to remove small fragments, recolor brand layers, or simplify the SVG before downloading.",
                 },
                 {
                   title: "Download the layered SVG",
-                  body: "Upload the SVG into Cricut Design Space and work with each color group separately.",
+                  body: "Upload the SVG into Cricut Design Space and use it for vinyl decals, stickers, HTV, print then cut, or layered craft projects.",
                 },
               ].map((s, i) => (
                 <li
@@ -2733,42 +2751,42 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Which PNG layered SVG preset should you use?
+              Which logo SVG preset should you use?
             </h3>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "PNG - Balanced Layers",
-                  body: "Best first try for most PNG files. It balances color separation with manageable Cricut layer complexity.",
+                  title: "Logo - Balanced Layers",
+                  body: "Best first try for most logos. It keeps clean logo edges while creating manageable SVG groups.",
                 },
                 {
-                  title: "Transparent PNG - Clean Layers",
-                  body: "Best for cutout PNG files with alpha transparency and no visible background.",
+                  title: "Transparent Logo - Clean Layers",
+                  body: "Best for PNG logos with alpha transparency and no visible background.",
                 },
                 {
-                  title: "PNG Logo - Clean Multi-Color",
-                  body: "Best for logos, icons, and flat graphics where sharp color edges matter.",
+                  title: "White Background Logo - Remove",
+                  body: "Best for logos saved on a white canvas, screenshot, or white export background.",
                 },
                 {
-                  title: "PNG to Vinyl - Fewer Pieces",
-                  body: "Best for vinyl projects where cleaner cuts and easier weeding matter more than preserving every color.",
+                  title: "Flat Logo - Sharp Color Areas",
+                  body: "Best for simple flat logos, icons, and brand marks with strong color separation.",
                 },
                 {
-                  title: "PNG to HTV - Simple Layers",
-                  body: "Best for heat-transfer vinyl designs that need fewer stacked pieces.",
+                  title: "Text Logo - Smooth Lettering",
+                  body: "Best for wordmarks, names, initials, and logo lettering where curve quality matters.",
                 },
                 {
-                  title: "Paper Craft - Stacked Colors",
-                  body: "Best for cardstock, party decorations, classroom cutouts, and layered paper projects.",
+                  title: "Logo to Vinyl - Fewer Pieces",
+                  body: "Best when the logo needs to become a practical vinyl or HTV cut file.",
                 },
                 {
-                  title: "PNG Sticker - Bold Colors",
-                  body: "Best for sticker-style artwork where stronger color blocks are useful.",
+                  title: "Low-Res Logo - Cleanup",
+                  body: "Best for small screenshots or compressed logo images that create extra noise.",
                 },
                 {
-                  title: "PNG High Detail - Preserve Colors",
-                  body: "Best when visual detail matters more than simple cutting. Expect larger SVGs and more layers.",
+                  title: "High Detail Logo - Preserve Edges",
+                  body: "Best when edge fidelity matters more than simple cutting. Expect larger SVG output.",
                 },
               ].map((c) => (
                 <div
@@ -2784,48 +2802,49 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              PNG to layered SVG settings explained
+              Logo to layered SVG settings explained
             </h3>
 
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              PNG conversion usually works well for Cricut because PNG files can
-              preserve transparency and sharper artwork edges. These settings
-              control how much detail becomes separate SVG layers.
+              Logo conversion is different from regular image tracing because
+              logos often need clean edges, recognizable brand colors, and
+              simple cut-friendly shapes. These settings control how much of the
+              logo becomes editable SVG layers.
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
                   title: "Layer count",
-                  body: "Controls how many color groups are extracted from the PNG. More layers keep more color detail but create more Cricut pieces.",
-                },
-                {
-                  title: "Remove transparent pixels",
-                  body: "Ignores transparent PNG areas so the converter only traces visible artwork.",
-                },
-                {
-                  title: "Posterize PNG colors",
-                  body: "Simplifies similar colors before tracing. Keep this enabled for most sticker, clipart, and craft PNG files.",
+                  body: "Controls how many color groups are extracted. Fewer layers are better for vinyl and HTV, while more layers preserve multi-color logos.",
                 },
                 {
                   title: "Minimum layer size",
-                  body: "Filters out tiny PNG fragments. Raise it when anti-aliasing or texture creates too many small pieces.",
-                },
-                {
-                  title: "Remove white background",
-                  body: "Removes near-white PNG areas. Use it for white canvas backgrounds, not for white design details.",
+                  body: "Filters out tiny regions. Raise it when antialiasing, texture, or compression creates small unwanted fragments.",
                 },
                 {
                   title: "Speckle removal",
-                  body: "Removes tiny traced islands inside each layer. Higher values make PNG results cleaner for cutting.",
+                  body: "Removes small traced islands. Higher values create cleaner files for cutting and weeding.",
                 },
                 {
                   title: "Curve tolerance",
-                  body: "Higher values smooth rough edges and reduce nodes. Lower values preserve more detail.",
+                  body: "Higher values smooth rough edges and reduce nodes. Lower values preserve more logo detail.",
+                },
+                {
+                  title: "Remove white background",
+                  body: "Useful for logos saved on white. Turn it off if white is part of the logo itself.",
+                },
+                {
+                  title: "Posterize colors",
+                  body: "Simplifies similar colors before tracing. Turn it on for noisy screenshots or low-resolution logos.",
+                },
+                {
+                  title: "Trace detail size",
+                  body: "Higher detail can preserve logo edges better, but may create larger SVG files and slower conversions.",
                 },
                 {
                   title: "Layer color controls",
-                  body: "Each result card includes layer controls so you can recolor or hide specific SVG groups before export.",
+                  body: "Each result includes controls to recolor or hide detected SVG groups before export.",
                 },
               ].map((c) => (
                 <div
@@ -2841,38 +2860,37 @@ function SeoSections() {
 
           <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h3 className="text-lg font-bold text-sky-950">
-              How this PNG layered SVG converter works
+              How this logo layered SVG converter works
             </h3>
 
             <div className="mt-3 grid md:grid-cols-3 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  1. The PNG is simplified into color groups
+                  1. Background areas are filtered
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  The converter samples the PNG, reduces similar colors, and
-                  filters transparent or white areas when requested.
+                  The converter can ignore transparent pixels and near-white
+                  canvas areas so the visible logo artwork is easier to isolate.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  2. Each color group becomes a trace mask
+                  2. Logo colors become layer masks
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Every detected PNG color group is isolated so it can be traced
-                  into a separate vector shape group.
+                  Remaining logo colors are grouped into a smaller palette, then
+                  each group is isolated as its own trace mask.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  3. The result exports as layered SVG
+                  3. The result exports as SVG groups
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Each layer becomes its own SVG group, making the downloaded
-                  file easier to recolor, hide, cut, and edit in Cricut Design
-                  Space.
+                  Each traced group becomes an SVG layer so you can recolor,
+                  hide, cut, or edit the logo before downloading.
                 </p>
               </div>
             </div>
@@ -2880,34 +2898,34 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Tips for cleaner PNG layered SVGs
+              Tips for cleaner logo SVGs
             </h3>
 
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Use transparent PNGs when possible",
-                  body: "Transparent PNG files usually layer better because there is no background to remove.",
+                  title: "Use the highest-resolution logo available",
+                  body: "Small screenshots create rough edges and extra fragments. A clean PNG export usually works better.",
                 },
                 {
-                  title: "Use fewer layers for vinyl",
-                  body: "For vinyl or HTV, start with 2 to 4 layers. Too many color groups can create hard-to-weed pieces.",
+                  title: "Prefer transparent PNG logos",
+                  body: "Transparent logos usually convert cleaner because there is no background to remove.",
                 },
                 {
-                  title: "Use more layers for stickers",
-                  body: "For stickers or colorful clipart, 5 to 8 layers can preserve more of the PNG's visual style.",
+                  title: "Simplify for vinyl",
+                  body: "For vinyl or HTV, use 2 to 4 layers and stronger cleanup so the logo is easier to weed.",
                 },
                 {
-                  title: "Remove white only when it is background",
-                  body: "White background removal is useful for blank canvas backgrounds, but it can remove white design details too.",
+                  title: "Avoid gradients when possible",
+                  body: "Gradients turn into many color regions. Use a flat-color logo version when you need a clean cut file.",
                 },
                 {
-                  title: "Raise cleanup for textured PNGs",
-                  body: "Textures and shadows can create small fragments. Increase speckle removal and minimum layer size to simplify the SVG.",
+                  title: "Remove white carefully",
+                  body: "White background removal helps logos saved on a white canvas, but it can remove intentional white logo details.",
                 },
                 {
                   title: "Compare multiple attempts",
-                  body: "Each conversion result stays in the preview area, so you can compare presets and download the best layered SVG.",
+                  body: "Each conversion result stays in the preview area, so you can compare presets before downloading.",
                 },
               ].map((c) => (
                 <div
@@ -2927,7 +2945,7 @@ function SeoSections() {
             itemType="https://schema.org/FAQPage"
           >
             <h3 className="text-lg font-bold text-sky-950">
-              PNG to layered SVG for Cricut FAQ
+              Logo to layered SVG for Cricut FAQ
             </h3>
 
             <div className="mt-4 grid md:grid-cols-2 gap-4">

@@ -1767,7 +1767,6 @@ function SeoSections() {
               ))}
             </div>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1783,6 +1782,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">Best for</h3>
             <div className="mt-3 flex flex-wrap gap-2">

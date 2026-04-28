@@ -15,6 +15,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 
 const isServer = typeof document === "undefined";
 
@@ -1332,6 +1333,7 @@ export default function BlackAndWhiteImageToSvgConverter({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
+      <ContextualAffiliateCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1467,7 +1469,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1483,6 +1484,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">Tips for cleaner output</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">

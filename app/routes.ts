@@ -72,8 +72,19 @@ export default [
   route("sticker-to-svg-for-cricut", "routes/sticker-to-svg-for-cricut.tsx"),
   route("base64-to-svg-for-cricut", "routes/base64-to-svg-for-cricut.tsx"),
   route("code-to-svg-for-cricut", "routes/code-to-svg-for-cricut.tsx"),
-
-
+  route("layered-svg-for-cricut", "routes/layered-svg-for-cricut.tsx"),
+  route(
+    "image-to-layered-svg-for-cricut",
+    "routes/image-to-layered-svg-for-cricut.tsx",
+  ),
+  route(
+    "jpg-to-layered-svg-for-cricut",
+    "routes/jpg-to-layered-svg-for-cricut.tsx",
+  ),
+  route(
+    "logo-to-layered-svg-for-cricut",
+    "routes/logo-to-layered-svg-for-cricut.tsx",
+  ),
 
   // Base64
   route("svg-to-base64", "routes/svg-to-base64.tsx"),

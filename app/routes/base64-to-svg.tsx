@@ -1507,8 +1507,6 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
             </div>
           </header>
 
-          <ExampleSvgConversion />
-
           {hydrated && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1524,6 +1522,7 @@ function SeoSections({ hydrated }: { hydrated: boolean }) {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <section>
             <h3 className="text-lg font-bold">Best for</h3>

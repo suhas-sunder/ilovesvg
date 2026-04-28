@@ -2403,7 +2403,6 @@ function SeoSections() {
                 preview is disabled here to keep the server stable.
               </p>
             </header>
-            <ExampleSvgConversion />
             {typeof document !== "undefined" && (
               <div className="block py-6">
                 <AdSenseDelayed
@@ -2419,6 +2418,7 @@ function SeoSections() {
                 />
               </div>
             )}
+            <ExampleSvgConversion />
 
             <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
               <h3 className="text-xl font-bold">How the converter works</h3>
