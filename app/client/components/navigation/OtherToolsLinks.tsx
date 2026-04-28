@@ -451,6 +451,7 @@ export const UTILITIES: UtilityLink[] = [
     group: "Image to SVG",
     keywords: ["black and white to svg", "bw to svg", "b&w", "stencil svg"],
   },
+
   {
     id: "cricut-svg-converter",
     title: "Cricut SVG Converter",
@@ -506,6 +507,148 @@ export const UTILITIES: UtilityLink[] = [
     ],
   },
   {
+    id: "jpg-to-svg-for-cricut",
+    title: "JPG to SVG for Cricut",
+    shortTitle: "JPG → Cricut SVG",
+    description:
+      "Convert JPG images into Cricut-friendly SVG files for stickers, decals, vinyl, labels, and craft projects.",
+    to: "/jpg-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "jpg to svg for cricut",
+      "jpeg to svg for cricut",
+      "cricut svg",
+      "design space",
+      "cut file",
+      "stickers",
+    ],
+  },
+  {
+    id: "jpeg-to-svg-for-cricut",
+    title: "JPEG to SVG for Cricut",
+    shortTitle: "JPEG → Cricut SVG",
+    description:
+      "Convert JPEG images into Cricut-friendly SVG files for cut files, decals, stickers, and craft use.",
+    to: "/jpeg-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "jpeg to svg for cricut",
+      "jpg to svg for cricut",
+      "cricut svg",
+      "cut file",
+      "design space",
+    ],
+  },
+  {
+    id: "webp-to-svg-for-cricut",
+    title: "WebP to SVG for Cricut",
+    shortTitle: "WebP → Cricut SVG",
+    description:
+      "Convert WebP images into Cricut-friendly SVG files for Design Space, vinyl, stickers, and crafts.",
+    to: "/webp-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "webp to svg for cricut",
+      "webp to svg",
+      "cricut svg",
+      "design space",
+      "cut file",
+    ],
+  },
+  {
+    id: "photo-to-svg-for-cricut",
+    title: "Photo to SVG for Cricut",
+    shortTitle: "Photo → Cricut SVG",
+    description:
+      "Convert photos into Cricut-friendly SVG output for simplified art, decals, stickers, and craft projects.",
+    to: "/photo-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "photo to svg for cricut",
+      "photo svg",
+      "cricut photo",
+      "design space",
+      "cut file",
+    ],
+  },
+  {
+    id: "black-and-white-image-to-svg-for-cricut",
+    title: "Black and White Image to SVG for Cricut",
+    shortTitle: "B&W → Cricut SVG",
+    description:
+      "Convert black and white images into Cricut-friendly SVG files for stencils, decals, stickers, and signs.",
+    to: "/black-and-white-image-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "black and white image to svg for cricut",
+      "b&w svg for cricut",
+      "stencil svg",
+      "cut file",
+      "design space",
+    ],
+  },
+  {
+    id: "line-art-to-svg-for-cricut",
+    title: "Line Art to SVG for Cricut",
+    shortTitle: "Line Art → Cricut SVG",
+    description:
+      "Convert line art into Cricut-friendly SVG outlines for decals, coloring pages, vinyl, and cut projects.",
+    to: "/line-art-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "line art to svg for cricut",
+      "outline svg for cricut",
+      "line art svg",
+      "cut file",
+    ],
+  },
+  {
+    id: "drawing-to-svg-for-cricut",
+    title: "Drawing to SVG for Cricut",
+    shortTitle: "Drawing → Cricut SVG",
+    description:
+      "Convert drawings into Cricut-friendly SVG files for craft projects, stickers, decals, and vinyl cuts.",
+    to: "/drawing-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "drawing to svg for cricut",
+      "hand drawing svg",
+      "cricut drawing",
+      "cut file",
+    ],
+  },
+  {
+    id: "sketch-to-svg-for-cricut",
+    title: "Sketch to SVG for Cricut",
+    shortTitle: "Sketch → Cricut SVG",
+    description:
+      "Convert sketches into Cricut-friendly SVG files for decals, labels, stickers, and cut-file workflows.",
+    to: "/sketch-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "sketch to svg for cricut",
+      "pencil sketch svg",
+      "cricut sketch",
+      "cut file",
+    ],
+  },
+  {
+    id: "sticker-to-svg-for-cricut",
+    title: "Sticker to SVG for Cricut",
+    shortTitle: "Sticker → Cricut SVG",
+    description:
+      "Convert sticker artwork into Cricut-friendly SVG files for Print Then Cut, decals, labels, and sticker sheets.",
+    to: "/sticker-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "sticker to svg for cricut",
+      "cricut stickers",
+      "print then cut",
+      "sticker svg",
+      "labels",
+    ],
+  },
+  {
     id: "logo-to-svg-for-cricut",
     title: "Logo to SVG for Cricut",
     shortTitle: "Logo → Cricut SVG",
@@ -524,11 +667,75 @@ export const UTILITIES: UtilityLink[] = [
     ],
   },
   {
-    id: "png-to-layered-svg-for-cricut",
-    title: "PNG to Layered SVG for Cricut",
+    id: "base64-to-svg-for-cricut",
+    title: "Base64 to SVG for Cricut",
+    shortTitle: "Base64 → Cricut SVG",
+    description:
+      "Decode Base64 SVG data and prepare the SVG for Cricut Design Space, downloads, and craft workflows.",
+    to: "/base64-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "base64 to svg for cricut",
+      "decode svg",
+      "svg data url",
+      "cricut svg",
+      "design space",
+    ],
+  },
+  {
+    id: "code-to-svg-for-cricut",
+    title: "Code to SVG for Cricut",
+    shortTitle: "Code → Cricut SVG",
+    description:
+      "Convert SVG code or markup into a downloadable Cricut-friendly SVG file for Design Space.",
+    to: "/code-to-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "code to svg for cricut",
+      "svg code",
+      "svg markup",
+      "cricut svg",
+      "design space",
+    ],
+  },
+  {
+    id: "layered-svg-for-cricut",
+    title: "Layered SVG for Cricut",
     shortTitle: "Layered Cricut SVG",
     description:
-      "Create layered SVG-style output from PNG artwork for Cricut projects and multicolor designs.",
+      "Create or prepare layered SVG files for Cricut projects, multicolor artwork, vinyl, stickers, and craft designs.",
+    to: "/layered-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "layered svg for cricut",
+      "multicolor svg",
+      "cricut layers",
+      "vinyl layers",
+      "cut file",
+    ],
+  },
+  {
+    id: "image-to-layered-svg-for-cricut",
+    title: "Image to Layered SVG for Cricut",
+    shortTitle: "Image → Layered SVG",
+    description:
+      "Convert PNG or JPG images into color-separated layered SVG files for Cricut Design Space.",
+    to: "/image-to-layered-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "image to layered svg for cricut",
+      "layered svg",
+      "multicolor svg",
+      "cricut layers",
+      "cut file",
+    ],
+  },
+  {
+    id: "png-to-layered-svg-for-cricut",
+    title: "PNG to Layered SVG for Cricut",
+    shortTitle: "PNG → Layered SVG",
+    description:
+      "Create layered SVG output from PNG artwork for Cricut projects, vinyl, stickers, and multicolor designs.",
     to: "/png-to-layered-svg-for-cricut",
     group: "Cricut & cutting",
     keywords: [
@@ -537,6 +744,38 @@ export const UTILITIES: UtilityLink[] = [
       "multicolor svg",
       "cricut layers",
       "cut file",
+    ],
+  },
+  {
+    id: "jpg-to-layered-svg-for-cricut",
+    title: "JPG to Layered SVG for Cricut",
+    shortTitle: "JPG → Layered SVG",
+    description:
+      "Convert JPG or JPEG images into color-separated layered SVG files for Cricut Design Space.",
+    to: "/jpg-to-layered-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "jpg to layered svg",
+      "jpeg to layered svg",
+      "layered svg for cricut",
+      "multicolor svg",
+      "cricut layers",
+    ],
+  },
+  {
+    id: "logo-to-layered-svg-for-cricut",
+    title: "Logo to Layered SVG for Cricut",
+    shortTitle: "Logo → Layered SVG",
+    description:
+      "Convert logos into layered SVG files for Cricut projects with editable color-separated layers.",
+    to: "/logo-to-layered-svg-for-cricut",
+    group: "Cricut & cutting",
+    keywords: [
+      "logo to layered svg",
+      "layered logo svg",
+      "logo svg for cricut",
+      "multicolor logo",
+      "cricut layers",
     ],
   },
   {
@@ -641,6 +880,7 @@ export const UTILITIES: UtilityLink[] = [
       "outline svg",
     ],
   },
+
   {
     id: "svg-to-png",
     title: "SVG to PNG Converter",
@@ -691,6 +931,7 @@ export const UTILITIES: UtilityLink[] = [
     group: "SVG to image/PDF",
     keywords: ["favicon generator", "favicon.ico", "ico", "app icons"],
   },
+
   {
     id: "svg-background-editor",
     title: "SVG Background Editor",
@@ -746,6 +987,7 @@ export const UTILITIES: UtilityLink[] = [
     group: "Edit SVG",
     keywords: ["rotate svg", "flip svg", "mirror svg", "transform"],
   },
+
   {
     id: "svg-preview-viewer",
     title: "SVG Preview Viewer",
@@ -813,6 +1055,7 @@ export const UTILITIES: UtilityLink[] = [
       "contrast ratio",
     ],
   },
+
   {
     id: "svg-minifier",
     title: "SVG Minifier",
@@ -833,6 +1076,7 @@ export const UTILITIES: UtilityLink[] = [
     group: "Optimize SVG",
     keywords: ["svg cleaner", "clean svg", "remove metadata", "optimize svg"],
   },
+
   {
     id: "svg-to-base64",
     title: "SVG to Base64 Encoder",

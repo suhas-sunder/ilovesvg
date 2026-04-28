@@ -56,6 +56,15 @@ const IMAGE_EXAMPLES: ImageExample[] = [
       "car_5",
       "car_6",
       "car_7",
+      "car_8",
+      "car_9",
+      "car_10",
+      "car_11",
+      "car_12",
+      "car_13",
+      "car_14",
+      "car_15",
+      "car_16",
     ],
     label: "Car logo",
     subject: "car logo",
@@ -79,6 +88,12 @@ const IMAGE_EXAMPLES: ImageExample[] = [
       "kawaii_char_4",
       "kawaii_char_5",
       "kawaii_char_6",
+      "kawaii_char_7",
+      "kawaii_char_8",
+      "kawaii_char_9",
+      "kawaii_char_10",
+      "kawaii_char_11",
+      "kawaii_char_12",
     ],
     label: "Kawaii character",
     subject: "kawaii character illustration",
@@ -308,18 +323,20 @@ export default function ExampleSvgConversion({
     return category ?? getCategoryForRoute(activeSlug);
   }, [activeSlug, category]);
 
-  const example = React.useMemo(() => {
-    return getExampleForRoute(activeSlug, activeCategory);
+  const initialPair = React.useMemo(() => {
+    return getStableExamplePair(activeSlug, activeCategory);
   }, [activeSlug, activeCategory]);
 
-  const conversionName = React.useMemo(() => {
-    return pickConversionForRoute(example, activeSlug);
-  }, [example, activeSlug]);
+  const [pair, setPair] = React.useState(initialPair);
 
-  const copy = CATEGORY_COPY[activeCategory](example);
+  React.useEffect(() => {
+    setPair(getRandomExamplePair(activeSlug, activeCategory));
+  }, [activeSlug, activeCategory]);
 
-  const beforeSrc = `${ASSET_BASE_URL}/${example.baseName}.${example.beforeExt}`;
-  const afterSrc = `${ASSET_BASE_URL}/${conversionName}.svg`;
+  const copy = CATEGORY_COPY[activeCategory](pair.example);
+
+  const beforeSrc = `${ASSET_BASE_URL}/${pair.example.baseName}.${pair.example.beforeExt}`;
+  const afterSrc = `${ASSET_BASE_URL}/${pair.conversionName}.svg`;
 
   return (
     <section
@@ -389,24 +406,57 @@ function getCategoryForRoute(routeSlug: string): ExampleCategory {
   return rule?.category ?? "general-image-to-svg";
 }
 
-function getExampleForRoute(
+function getStableExamplePair(routeSlug: string, category: ExampleCategory) {
+  const examples = getCandidateExamplesForRoute(routeSlug, category);
+  const example =
+    examples[
+      stableHash(`${routeSlug}:${category}:example`) % examples.length
+    ] ?? IMAGE_EXAMPLES[0];
+
+  const conversionName = pickStableConversionForRoute(example, routeSlug);
+
+  return {
+    example,
+    conversionName,
+  };
+}
+
+function getRandomExamplePair(routeSlug: string, category: ExampleCategory) {
+  const examples = getCandidateExamplesForRoute(routeSlug, category);
+  const example = examples[randomIndex(examples.length)] ?? IMAGE_EXAMPLES[0];
+  const conversionName =
+    example.conversions[randomIndex(example.conversions.length)] ??
+    example.conversions[0] ??
+    example.baseName;
+
+  return {
+    example,
+    conversionName,
+  };
+}
+
+function getCandidateExamplesForRoute(
   routeSlug: string,
   category: ExampleCategory,
-): ImageExample {
+): ImageExample[] {
   if (/logo|car|vehicle|paint/i.test(routeSlug)) {
-    return getExampleById("car");
+    return [getExampleById("car")];
   }
 
   if (/emoji|character|char|kawaii/i.test(routeSlug)) {
-    return getExampleById("kawaii-char");
+    return [getExampleById("kawaii-char"), getExampleById("char")];
+  }
+
+  if (/sushi|food|restaurant/i.test(routeSlug)) {
+    return [getExampleById("sushi")];
   }
 
   if (/sticker|cricut|vinyl|print-then-cut|craft/i.test(routeSlug)) {
-    return getExampleById("kawaii-char");
+    return [getExampleById("kawaii-char"), getExampleById("sushi")];
   }
 
   if (/icon|favicon|recolor|color/i.test(routeSlug)) {
-    return getExampleById("char");
+    return [getExampleById("char"), getExampleById("kawaii-char")];
   }
 
   if (
@@ -414,31 +464,30 @@ function getExampleForRoute(
       routeSlug,
     )
   ) {
-    return getExampleById("car");
+    return [getExampleById("car"), getExampleById("char")];
   }
 
   if (/text-to-svg/i.test(routeSlug)) {
-    return getExampleById("char");
+    return [getExampleById("char")];
   }
 
-  if (
-    category === "sticker-to-svg" ||
-    category === "cricut" ||
-    category === "laser-cutting"
-  ) {
-    return getExampleById("kawaii-char");
+  if (category === "sticker-to-svg" || category === "cricut") {
+    return [getExampleById("kawaii-char"), getExampleById("sushi")];
+  }
+
+  if (category === "laser-cutting") {
+    return [getExampleById("car"), getExampleById("char")];
   }
 
   if (category === "logo-to-svg" || category === "svg-export") {
-    return getExampleById("car");
+    return [getExampleById("car")];
   }
 
   if (category === "icon-to-svg" || category === "color") {
-    return getExampleById("char");
+    return [getExampleById("char"), getExampleById("kawaii-char")];
   }
 
-  const index = stableHash(routeSlug || category) % IMAGE_EXAMPLES.length;
-  return IMAGE_EXAMPLES[index] ?? IMAGE_EXAMPLES[0];
+  return IMAGE_EXAMPLES;
 }
 
 function getExampleById(id: string) {
@@ -447,12 +496,20 @@ function getExampleById(id: string) {
   );
 }
 
-function pickConversionForRoute(example: ImageExample, routeSlug: string) {
+function pickStableConversionForRoute(
+  example: ImageExample,
+  routeSlug: string,
+) {
   if (example.conversions.length === 0) return example.baseName;
 
   const index =
     stableHash(`${routeSlug}:${example.id}`) % example.conversions.length;
   return example.conversions[index] ?? example.conversions[0];
+}
+
+function randomIndex(length: number) {
+  if (length <= 1) return 0;
+  return Math.floor(Math.random() * length);
 }
 
 function stableHash(value: string) {
