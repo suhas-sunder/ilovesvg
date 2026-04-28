@@ -1694,7 +1694,6 @@ function SeoSections() {
               ))}
             </div>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1710,6 +1709,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           {/* Utility-first guidance (logo-specific, non-bloggy) */}
           <section>

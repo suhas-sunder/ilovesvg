@@ -1910,7 +1910,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
@@ -1927,6 +1926,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <section className="mt-8">
             <h3 className="text-sky-950 text-lg font-bold">Best Cricut uses</h3>

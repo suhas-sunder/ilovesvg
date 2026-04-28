@@ -1161,7 +1161,6 @@ function SeoSections() {
             <b>computed pixel size</b>, and a <b>minified size estimate</b>.
             Upload or paste an SVG. Runs fully client-side.
           </p>
-          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
@@ -1178,6 +1177,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <div className=" rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">

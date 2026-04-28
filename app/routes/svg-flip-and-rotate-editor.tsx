@@ -1337,7 +1337,6 @@ function SeoSections() {
             Flip horizontally/vertically and rotate by degrees with a live
             before/after preview. Runs fully client-side.
           </p>
-          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
@@ -1354,6 +1353,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           {/* Quick workflow */}
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">

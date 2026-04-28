@@ -1622,7 +1622,6 @@ function SeoSections() {
               ))}
             </div>
           </header>
-          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
@@ -1639,6 +1638,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           {/* Utility-first content (scan-specific) */}
           <section>

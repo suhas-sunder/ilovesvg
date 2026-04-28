@@ -1635,7 +1635,6 @@ function SeoSections() {
               </li>
             </ol>
           </div>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1651,6 +1650,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           {/* What this tool checks */}
           <section className="mt-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">

@@ -2612,8 +2612,6 @@ function SeoSections() {
             </div>
           </header>
 
-          <ExampleSvgConversion />
-
           <ContextualAffiliateCard />
 
           {typeof document !== "undefined" && (
@@ -2631,6 +2629,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <section className="mt-8">
             <h3 className="text-lg font-bold text-sky-950">

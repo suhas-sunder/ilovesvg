@@ -1479,7 +1479,6 @@ function SeoSections() {
               </div>
             </div>
           </div>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1495,6 +1494,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section>
             <h3 className="m-0 font-bold">What the converter does</h3>
             <div className="mt-3 grid gap-4 text-slate-700">

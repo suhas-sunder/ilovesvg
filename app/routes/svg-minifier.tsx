@@ -1377,7 +1377,6 @@ function SeoSections() {
                 </p>
               </div>
             </div>
-            <ExampleSvgConversion />
 
             {typeof document !== "undefined" && (
               <div className="block py-6">
@@ -1394,6 +1393,7 @@ function SeoSections() {
                 />
               </div>
             )}
+            <ExampleSvgConversion />
           </section>
 
           {/* Workflow (direct, tool-centric) */}

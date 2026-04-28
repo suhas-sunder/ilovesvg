@@ -1702,7 +1702,6 @@ function SeoSectionsWebp() {
               ))}
             </div>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1718,6 +1717,7 @@ function SeoSectionsWebp() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">When WebP to SVG makes sense</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">

@@ -1132,7 +1132,6 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
                 across vector tools.
               </p>
             </div>
-            <ExampleSvgConversion />
 
             {typeof document !== "undefined" && (
               <div className="block py-6">
@@ -1149,6 +1148,7 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
                 />
               </div>
             )}
+            <ExampleSvgConversion />
 
             <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
               How background detection works

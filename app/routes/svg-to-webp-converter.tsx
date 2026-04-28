@@ -1199,7 +1199,6 @@ function SeoSections() {
               </div>
             </div>
           </div>
-          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-6">
@@ -1216,6 +1215,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <section>
             <h3 className="m-0 font-bold">What the converter does</h3>

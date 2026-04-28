@@ -1228,7 +1228,6 @@ function SeoSections() {
               <b>currentColor</b> for CSS theming. Runs client-side.
             </p>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1244,6 +1243,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           {/* How it works */}
           <div className="grid gap-4 md:grid-cols-2">

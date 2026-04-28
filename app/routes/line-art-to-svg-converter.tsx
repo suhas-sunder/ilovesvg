@@ -1752,7 +1752,6 @@ function SeoSectionsLineArt({ faq }: { faq: FaqItem[] }) {
               ))}
             </div>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1768,6 +1767,7 @@ function SeoSectionsLineArt({ faq }: { faq: FaqItem[] }) {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">
               How to use this Line Art to SVG converter

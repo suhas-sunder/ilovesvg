@@ -1913,7 +1913,6 @@ function SeoSections() {
               </div>
             </div>
           </div>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1929,6 +1928,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section className="mt-8">
             <h3 className="m-0 font-bold">What this tool edits in the SVG</h3>
             <p className="mt-3">

@@ -1820,21 +1820,22 @@ function SeoSections() {
             ))}
           </div>
 
-          <div className="mt-10">
-            <ExampleSvgConversion />
-          </div>
-
-          <div className="my-10">
-            <AdSenseDelayed
-              slot="2090332782"
-              delayMs={1500}
-              minHeight={90}
-              maxHeight={120}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[970px]"
-            />
-          </div>
+          {typeof document !== "undefined" && (
+            <div className="block py-6">
+              <AdSenseDelayed
+                slot="7336722354"
+                delayMs={2500}
+                afterInteraction={true}
+                className="my-3"
+                format="rectangle"
+                fullWidth={false}
+                minHeight={250}
+                maxHeight={300}
+                placeholderLabel="Sponsored"
+              />
+            </div>
+          )}
+          <ExampleSvgConversion />
 
           <section className="mt-10">
             <h3 className="text-xl font-bold text-sky-950">

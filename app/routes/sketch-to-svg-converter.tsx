@@ -1775,7 +1775,6 @@ function SeoSections() {
               </div>
             </div>
           </header>
-          <ExampleSvgConversion />
           {typeof document !== "undefined" && (
             <div className="block py-6">
               <AdSenseDelayed
@@ -1791,6 +1790,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">
               Tips for better sketch results

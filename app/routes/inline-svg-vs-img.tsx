@@ -1221,7 +1221,6 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                 </tbody>
               </table>
             </div>
-            <ExampleSvgConversion />
 
             {typeof document !== "undefined" && (
               <div className="block pb-6">
@@ -1238,6 +1237,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                 />
               </div>
             )}
+            <ExampleSvgConversion />
             <div className="mt-4 lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <h3 className="m-0 font-bold text-slate-900">

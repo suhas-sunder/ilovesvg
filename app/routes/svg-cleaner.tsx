@@ -1850,7 +1850,6 @@ function SeoSections() {
               </ol>
             </div>
           </header>
-          <ExampleSvgConversion />
 
           {typeof document !== "undefined" && (
             <div className="block py-8">
@@ -1867,6 +1866,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           {/* What it removes / keeps */}
           <section className="mt-2 grid gap-6 md:grid-cols-2">

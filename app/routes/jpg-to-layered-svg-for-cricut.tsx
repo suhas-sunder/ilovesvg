@@ -14,6 +14,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -2630,6 +2631,7 @@ function SeoSections() {
               />
             </div>
           )}
+          <ExampleSvgConversion />
 
           <section className="mt-8">
             <h3 className="text-lg font-bold text-sky-950">
