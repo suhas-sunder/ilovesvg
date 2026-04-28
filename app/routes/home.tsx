@@ -2507,19 +2507,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     currentSettings: Settings,
     preset: Preset,
   ): Settings {
-    const baseline: Settings = {
-      ...DEFAULTS,
-      transparent: currentSettings.transparent,
-      bgColor: currentSettings.bgColor,
-    };
-    const lineColor =
-      preset.settings.lineColor !== undefined
-        ? preset.settings.lineColor
-        : currentSettings.lineColor;
+    void currentSettings;
 
     return {
-      ...baseline,
-      lineColor,
+      ...DEFAULTS,
       ...preset.settings,
     } as Settings;
   }
