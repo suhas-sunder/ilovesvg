@@ -1693,6 +1693,7 @@ function SeoSections() {
               ))}
             </div>
           </header>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1703,10 +1704,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
 
           {/* Utility-first guidance (logo-specific, non-bloggy) */}
           <section>

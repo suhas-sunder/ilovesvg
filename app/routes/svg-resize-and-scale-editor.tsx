@@ -1207,6 +1207,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1217,10 +1218,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
 
           <section>
             <h3 className="m-0 font-bold">What this tool actually changes</h3>

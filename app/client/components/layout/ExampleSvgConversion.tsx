@@ -26,6 +26,11 @@ type ImageExample = {
   subject: string;
 };
 
+type ExamplePair = {
+  example: ImageExample;
+  conversionName: string;
+};
+
 type CopySet = {
   title: string;
   description: string;
@@ -40,6 +45,8 @@ type Props = {
   category?: ExampleCategory;
   className?: string;
 };
+
+type ImageStatus = "loading" | "loaded" | "error";
 
 const ASSET_BASE_URL = "https://assets.ilovesvg.com";
 
@@ -323,20 +330,34 @@ export default function ExampleSvgConversion({
     return category ?? getCategoryForRoute(activeSlug);
   }, [activeSlug, category]);
 
-  const initialPair = React.useMemo(() => {
-    return getStableExamplePair(activeSlug, activeCategory);
-  }, [activeSlug, activeCategory]);
+  const activeKey = `${activeSlug}:${activeCategory}`;
 
-  const [pair, setPair] = React.useState(initialPair);
+  const [pairState, setPairState] = React.useState<{
+    key: string;
+    pair: ExamplePair;
+  }>(() => ({
+    key: activeKey,
+    pair: getRandomExamplePair(activeSlug, activeCategory),
+  }));
 
-  React.useEffect(() => {
-    setPair(getRandomExamplePair(activeSlug, activeCategory));
-  }, [activeSlug, activeCategory]);
+  if (pairState.key !== activeKey) {
+    const nextPairState = {
+      key: activeKey,
+      pair: getRandomExamplePair(activeSlug, activeCategory),
+    };
+
+    setPairState(nextPairState);
+  }
+
+  const pair =
+    pairState.key === activeKey
+      ? pairState.pair
+      : getRandomExamplePair(activeSlug, activeCategory);
 
   const copy = CATEGORY_COPY[activeCategory](pair.example);
 
-  const beforeSrc = `${ASSET_BASE_URL}/${pair.example.baseName}.${pair.example.beforeExt}`;
-  const afterSrc = `${ASSET_BASE_URL}/${pair.conversionName}.svg`;
+  const beforeSrc = getBeforeSrc(pair);
+  const afterSrc = getAfterSrc(pair);
 
   return (
     <section
@@ -354,39 +375,89 @@ export default function ExampleSvgConversion({
       </p>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="mb-2 text-sm font-semibold text-slate-900">
-            {copy.beforeLabel}
-          </div>
+        <ExampleImagePanel
+          label={copy.beforeLabel}
+          src={beforeSrc}
+          alt={copy.beforeAlt}
+        />
 
-          <img
-            src={beforeSrc}
-            alt={copy.beforeAlt}
-            width={900}
-            height={900}
-            loading="lazy"
-            decoding="async"
-            className="mx-auto h-auto max-w-full rounded-lg border border-slate-200 bg-white"
-          />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="mb-2 text-sm font-semibold text-slate-900">
-            {copy.afterLabel}
-          </div>
-
-          <img
-            src={afterSrc}
-            alt={copy.afterAlt}
-            width={900}
-            height={900}
-            loading="lazy"
-            decoding="async"
-            className="mx-auto h-auto max-w-full rounded-lg border border-slate-200 bg-white"
-          />
-        </div>
+        <ExampleImagePanel
+          label={copy.afterLabel}
+          src={afterSrc}
+          alt={copy.afterAlt}
+        />
       </div>
     </section>
+  );
+}
+
+function ExampleImagePanel({
+  label,
+  src,
+  alt,
+}: {
+  label: string;
+  src: string;
+  alt: string;
+}) {
+  const imageRef = React.useRef<HTMLImageElement | null>(null);
+  const [status, setStatus] = React.useState<ImageStatus>("loading");
+
+  React.useEffect(() => {
+    const image = imageRef.current;
+
+    setStatus("loading");
+
+    if (!image) return;
+
+    if (image.complete) {
+      if (image.naturalWidth > 0) {
+        setStatus("loaded");
+      } else {
+        setStatus("error");
+      }
+    }
+  }, [src]);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-2 text-sm font-semibold text-slate-900">{label}</div>
+
+      <div className="relative grid aspect-square place-items-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+        {status === "loading" ? (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-0 animate-pulse bg-gradient-to-r from-slate-50 via-slate-100 to-slate-50"
+          />
+        ) : null}
+
+        {status === "error" ? (
+          <div className="absolute inset-0 z-20 grid place-items-center bg-white px-6 text-center">
+            <p className="text-sm font-semibold text-slate-500">
+              Preview unavailable
+            </p>
+          </div>
+        ) : null}
+
+        <img
+          ref={imageRef}
+          src={src}
+          alt={alt}
+          width={900}
+          height={900}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("error")}
+          className={[
+            "relative z-10 max-h-full max-w-full bg-white object-contain transition-all duration-300 ease-out",
+            status === "loaded" ? "opacity-100 blur-0" : "opacity-0 blur-sm",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -406,22 +477,10 @@ function getCategoryForRoute(routeSlug: string): ExampleCategory {
   return rule?.category ?? "general-image-to-svg";
 }
 
-function getStableExamplePair(routeSlug: string, category: ExampleCategory) {
-  const examples = getCandidateExamplesForRoute(routeSlug, category);
-  const example =
-    examples[
-      stableHash(`${routeSlug}:${category}:example`) % examples.length
-    ] ?? IMAGE_EXAMPLES[0];
-
-  const conversionName = pickStableConversionForRoute(example, routeSlug);
-
-  return {
-    example,
-    conversionName,
-  };
-}
-
-function getRandomExamplePair(routeSlug: string, category: ExampleCategory) {
+function getRandomExamplePair(
+  routeSlug: string,
+  category: ExampleCategory,
+): ExamplePair {
   const examples = getCandidateExamplesForRoute(routeSlug, category);
   const example = examples[randomIndex(examples.length)] ?? IMAGE_EXAMPLES[0];
   const conversionName =
@@ -496,30 +555,22 @@ function getExampleById(id: string) {
   );
 }
 
-function pickStableConversionForRoute(
-  example: ImageExample,
-  routeSlug: string,
-) {
-  if (example.conversions.length === 0) return example.baseName;
+function getBeforeSrc(pair: ExamplePair) {
+  return `${ASSET_BASE_URL}/${pair.example.baseName}.${pair.example.beforeExt}`;
+}
 
-  const index =
-    stableHash(`${routeSlug}:${example.id}`) % example.conversions.length;
-  return example.conversions[index] ?? example.conversions[0];
+function getAfterSrc(pair: ExamplePair) {
+  return `${ASSET_BASE_URL}/${pair.conversionName}.svg`;
 }
 
 function randomIndex(length: number) {
   if (length <= 1) return 0;
-  return Math.floor(Math.random() * length);
-}
 
-function stableHash(value: string) {
-  let hash = 0;
-  const input = String(value || "");
-
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(i);
-    hash |= 0;
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    return array[0] % length;
   }
 
-  return Math.abs(hash);
+  return Math.floor(Math.random() * length);
 }

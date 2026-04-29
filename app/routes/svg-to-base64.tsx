@@ -1367,6 +1367,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1377,10 +1378,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
 
           <section className="mt-10">
             <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">

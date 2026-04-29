@@ -1163,6 +1163,7 @@ function SeoSections() {
             <b>computed pixel size</b>, and a <b>minified size estimate</b>.
             Upload or paste an SVG. Runs fully client-side.
           </p>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1173,10 +1174,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
 
           <div className=" rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">

@@ -2444,6 +2444,7 @@ function SeoSections() {
                 </span>
               </div>
             </div>
+            <ExampleSvgConversion />
             <div className="block py-6">
               <AdSenseDelayed
                 slot="7336722354"
@@ -2454,10 +2455,8 @@ function SeoSections() {
                 fullWidth={false}
                 minHeight={250}
                 maxHeight={300}
-                placeholderLabel="Sponsored"
               />
             </div>
-            <ExampleSvgConversion />
 
             <div className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-white p-4">

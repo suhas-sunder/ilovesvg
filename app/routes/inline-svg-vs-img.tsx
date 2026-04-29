@@ -1223,6 +1223,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
               </table>
             </div>
 
+            <ExampleSvgConversion />
             <div className="block py-6">
               <AdSenseDelayed
                 slot="7336722354"
@@ -1233,10 +1234,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                 fullWidth={false}
                 minHeight={250}
                 maxHeight={300}
-                placeholderLabel="Sponsored"
               />
             </div>
-            <ExampleSvgConversion />
             <div className="mt-4 lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <h3 className="m-0 font-bold text-slate-900">

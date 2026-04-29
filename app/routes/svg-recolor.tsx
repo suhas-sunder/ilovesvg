@@ -1230,6 +1230,7 @@ function SeoSections() {
               <b>currentColor</b> for CSS theming. Runs client-side.
             </p>
           </header>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1240,10 +1241,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
 
           {/* How it works */}
           <div className="grid gap-4 md:grid-cols-2">

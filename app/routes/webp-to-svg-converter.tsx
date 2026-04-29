@@ -1704,6 +1704,7 @@ function SeoSectionsWebp() {
               ))}
             </div>
           </header>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1714,10 +1715,8 @@ function SeoSectionsWebp() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">When WebP to SVG makes sense</h3>
             <div className="mt-3 grid md:grid-cols-2 gap-4">

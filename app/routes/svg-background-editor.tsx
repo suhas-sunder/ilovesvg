@@ -1134,6 +1134,7 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
                 across vector tools.
               </p>
             </div>
+            <ExampleSvgConversion />
             <div className="block py-6">
               <AdSenseDelayed
                 slot="7336722354"
@@ -1144,10 +1145,8 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
                 fullWidth={false}
                 minHeight={250}
                 maxHeight={300}
-                placeholderLabel="Sponsored"
               />
             </div>
-            <ExampleSvgConversion />
 
             <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
               How background detection works

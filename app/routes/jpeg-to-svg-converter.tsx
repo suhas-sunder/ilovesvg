@@ -1784,6 +1784,7 @@ function JpegSeoSections() {
               ))}
             </div>
           </header>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1794,10 +1795,8 @@ function JpegSeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">
               Pick the right approach for JPEG

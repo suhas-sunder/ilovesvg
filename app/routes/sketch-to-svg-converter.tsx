@@ -1777,6 +1777,7 @@ function SeoSections() {
               </div>
             </div>
           </header>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1787,10 +1788,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
           <section>
             <h3 className="text-lg font-bold">
               Tips for better sketch results

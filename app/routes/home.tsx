@@ -3854,6 +3854,7 @@ function SeoSections() {
             </div>
           </header>
 
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -3866,7 +3867,6 @@ function SeoSections() {
               maxHeight={300}
             />
           </div>
-          <ExampleSvgConversion />
           {/* Use cases */}
           <section className="">
             <h3 className="text-lg font-bold">Best for</h3>

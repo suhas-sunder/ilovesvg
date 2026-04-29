@@ -1124,6 +1124,7 @@ function SeoSections() {
               </div>
             </div>
           </div>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1134,10 +1135,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
           <section>
             <h3 className="m-0 font-bold">What the converter does</h3>
             <div className="mt-3 grid gap-4 text-slate-700">

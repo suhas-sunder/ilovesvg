@@ -1909,6 +1909,7 @@ function SeoSections() {
               </div>
             </div>
           </header>
+          <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
               slot="7336722354"
@@ -1919,10 +1920,8 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
-          <ExampleSvgConversion />
 
           <section className="mt-8">
             <h3 className="text-sky-950 text-lg font-bold">Best Cricut uses</h3>
