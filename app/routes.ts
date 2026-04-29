@@ -118,4 +118,5 @@ export default [
   route("cookies", "routes/cookies.tsx"),
   route("privacy-policy", "routes/privacy-policy.tsx"),
   route("terms-of-service", "routes/terms-of-service.tsx"),
+  route("sitemap", "routes/sitemap.tsx"),
 ] satisfies RouteConfig;

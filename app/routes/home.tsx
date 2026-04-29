@@ -3864,7 +3864,6 @@ function SeoSections() {
               fullWidth={false}
               minHeight={250}
               maxHeight={300}
-              placeholderLabel="Sponsored"
             />
           </div>
           <ExampleSvgConversion />

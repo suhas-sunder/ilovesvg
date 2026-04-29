@@ -12,21 +12,19 @@ type Props = {
   minHeight?: number;
   className?: string;
   afterInteraction?: boolean;
-  placeholderLabel?: string;
 
   format?: "auto" | "rectangle" | "horizontal" | "vertical";
   fullWidth?: boolean;
   maxHeight?: number;
 
-  // Placeholder (recommended)
-  showPlaceholder?: boolean; // default true
-  sponsoredText?: string; // default "Sponsored"
+  showPlaceholder?: boolean;
+  sponsoredText?: string;
 };
 
 export function AdSenseDelayed({
   slot,
-  delayMs = 2500,
-  minHeight = 90,
+  delayMs = 1000,
+  minHeight = 120,
   className = "",
   afterInteraction = false,
   format = "auto",
@@ -41,8 +39,6 @@ export function AdSenseDelayed({
   const retryRef = useRef<number | null>(null);
   const insRef = useRef<HTMLModElement | null>(null);
 
-  // Reserve enough height so nothing can grow downward later.
-  // If you pass maxHeight, we reserve that. Otherwise reserve minHeight.
   const reserveHeight = maxHeight ?? minHeight;
 
   const [isFilled, setIsFilled] = useState(false);
@@ -55,7 +51,6 @@ export function AdSenseDelayed({
     if (status === "unfilled") return false;
     if (status === "filled") return true;
 
-    // Fallback: require a real, non-trivial iframe size
     const iframe = ins.querySelector("iframe") as HTMLIFrameElement | null;
     if (!iframe) return false;
 
@@ -63,18 +58,33 @@ export function AdSenseDelayed({
     const w = r.width || iframe.offsetWidth || 0;
     const h = r.height || iframe.offsetHeight || 0;
 
-    // Empty iframe shells are common. Treat as filled only if it has real area.
     return w >= 200 && h >= 50;
   };
 
-  const updateFilled = () => setIsFilled(isActuallyFilled());
+  const updateFilled = () => {
+    setIsFilled(isActuallyFilled());
+  };
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const clearRetry = () => {
+    if (retryRef.current) {
+      window.clearInterval(retryRef.current);
+      retryRef.current = null;
+    }
+  };
 
   const tryPush = () => {
     if (typeof window === "undefined" || !window.adsbygoogle) return false;
     if (pushedSlotRef.current === slot) return true;
 
-    const w = insRef.current?.offsetWidth ?? 0;
-    if (w <= 0) return false;
+    const width = insRef.current?.offsetWidth ?? 0;
+    if (width <= 0) return false;
 
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -83,6 +93,7 @@ export function AdSenseDelayed({
       window.setTimeout(updateFilled, 250);
       window.setTimeout(updateFilled, 900);
       window.setTimeout(updateFilled, 2000);
+      window.setTimeout(updateFilled, 4000);
 
       return true;
     } catch {
@@ -94,13 +105,13 @@ export function AdSenseDelayed({
     if (tryPush()) return;
 
     let attempts = 0;
-    if (retryRef.current) window.clearInterval(retryRef.current);
+    clearRetry();
 
     retryRef.current = window.setInterval(() => {
       attempts += 1;
+
       if (tryPush() || attempts >= 12) {
-        if (retryRef.current) window.clearInterval(retryRef.current);
-        retryRef.current = null;
+        clearRetry();
       }
     }, 300);
   };
@@ -111,18 +122,19 @@ export function AdSenseDelayed({
     pushedSlotRef.current = null;
     setIsFilled(false);
 
-    const onFirstInteraction = () => {
-      start();
-      cleanup();
-    };
-
-    const cleanup = () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-      if (retryRef.current) window.clearInterval(retryRef.current);
+    const removeInteractionListeners = () => {
       window.removeEventListener("pointerdown", onFirstInteraction);
       window.removeEventListener("scroll", onFirstInteraction);
       window.removeEventListener("keydown", onFirstInteraction);
     };
+
+    const onFirstInteraction = () => {
+      removeInteractionListeners();
+      start();
+    };
+
+    clearTimer();
+    clearRetry();
 
     if (afterInteraction) {
       window.addEventListener("pointerdown", onFirstInteraction, {
@@ -134,7 +146,11 @@ export function AdSenseDelayed({
       timerRef.current = window.setTimeout(start, delayMs);
     }
 
-    return cleanup;
+    return () => {
+      removeInteractionListeners();
+      clearTimer();
+      clearRetry();
+    };
   }, [slot, delayMs, afterInteraction]);
 
   useEffect(() => {
@@ -145,16 +161,25 @@ export function AdSenseDelayed({
 
     updateFilled();
 
-    const mo = new MutationObserver(() => updateFilled());
-    mo.observe(ins, { attributes: true, childList: true, subtree: true });
+    const observer = new MutationObserver(() => {
+      updateFilled();
+    });
+
+    observer.observe(ins, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
 
     const t1 = window.setTimeout(updateFilled, 1500);
     const t2 = window.setTimeout(updateFilled, 4000);
+    const t3 = window.setTimeout(updateFilled, 7000);
 
     return () => {
-      mo.disconnect();
+      observer.disconnect();
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slot]);
@@ -163,28 +188,26 @@ export function AdSenseDelayed({
     <div
       className={["relative", className].join(" ")}
       style={{
-        height: reserveHeight, // key: fixed reservation removes CLS
+        height: minHeight,
         overflow: "hidden",
         width: "100%",
       }}
       aria-label="Advertisement"
     >
-      {/* Full-size placeholder so it never looks like a random floating pill */}
       {showPlaceholder && (
         <div
           className={[
-            "absolute inset-0 grid place-items-center rounded-lg border border-slate-200 bg-slate-50",
+            "pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-lg border border-slate-200 bg-slate-50",
             "transition-opacity duration-200",
-            isFilled ? "opacity-0 pointer-events-none" : "opacity-100",
+            isFilled ? "opacity-0" : "opacity-100",
           ].join(" ")}
-          aria-hidden={isFilled}
+          aria-hidden="true"
         >
           <div className="flex flex-col items-center gap-2">
-            <span className="text-[12px] px-2 py-0.5 rounded-md border border-slate-200 bg-white text-slate-500">
+            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12px] text-slate-500">
               {sponsoredText}
             </span>
 
-            {/* subtle skeleton bars */}
             <div className="w-[220px] max-w-[70vw]">
               <div className="h-2 rounded bg-slate-200/70" />
               <div className="mt-2 h-2 rounded bg-slate-200/60" />
@@ -203,7 +226,7 @@ export function AdSenseDelayed({
           margin: "0 auto",
           width: "100%",
           minWidth: "250px",
-          height: reserveHeight, // keep iframe/container from changing height
+          height: reserveHeight,
         }}
         data-ad-client="ca-pub-4810616735714570"
         data-ad-slot={slot}
