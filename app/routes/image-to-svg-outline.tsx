@@ -62,6 +62,185 @@ const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 450;
 const LIVE_MED_MS = 1700;
 
+const PAGE_RATE_LIMITS = {
+  perMinute: 120,
+  perFiveMinutes: 400,
+  perHour: 1500,
+  perDay: 3000,
+};
+
+type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
+type RateLimitWindowState = { count: number; resetAt: number };
+type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
+type BackendRateLimitResult =
+  | {
+      allowed: true;
+      headers: Headers;
+    }
+  | {
+      allowed: false;
+      headers: Headers;
+      retryAfterMs: number;
+      retryAfterText: string;
+    };
+
+const RATE_LIMIT_WINDOWS: Array<{
+  name: RateLimitWindowName;
+  ms: number;
+  limit: number;
+  limitHeader: string;
+  remainingHeader: string;
+}> = [
+  {
+    name: "minute",
+    ms: 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perMinute,
+    limitHeader: "X-RateLimit-Limit-Minute",
+    remainingHeader: "X-RateLimit-Remaining-Minute",
+  },
+  {
+    name: "fiveMinutes",
+    ms: 5 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitHeader: "X-RateLimit-Limit-Five-Minutes",
+    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
+  },
+  {
+    name: "hour",
+    ms: 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perHour,
+    limitHeader: "X-RateLimit-Limit-Hour",
+    remainingHeader: "X-RateLimit-Remaining-Hour",
+  },
+  {
+    name: "day",
+    ms: 24 * 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perDay,
+    limitHeader: "X-RateLimit-Limit-Day",
+    remainingHeader: "X-RateLimit-Remaining-Day",
+  },
+];
+
+function getRateLimitStore(): Map<string, RateLimitRecord> {
+  const g = globalThis as any;
+  if (!g.__ilovesvg_action_rate_limits) {
+    g.__ilovesvg_action_rate_limits = new Map<string, RateLimitRecord>();
+  }
+  return g.__ilovesvg_action_rate_limits as Map<string, RateLimitRecord>;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "_")
+    .slice(0, 160);
+}
+
+function getBackendRateLimitKey(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
+    actionName,
+  )}`;
+}
+
+function createFreshRateLimitRecord(now: number): RateLimitRecord {
+  return {
+    minute: { count: 0, resetAt: now + 60 * 1000 },
+    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
+    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
+    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
+  };
+}
+
+function formatRetryAfter(ms: number): string {
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function checkBackendConversionRateLimit(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): BackendRateLimitResult {
+  const now = Date.now();
+  const store = getRateLimitStore();
+  const key = getBackendRateLimitKey(request, routeName, actionName);
+  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    if (now >= state.resetAt) {
+      state.count = 0;
+      state.resetAt = now + windowConfig.ms;
+    }
+  }
+
+  const exceeded = RATE_LIMIT_WINDOWS.filter(
+    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
+  );
+
+  const headers = new Headers();
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  if (exceeded.length > 0) {
+    const retryAfterMs = Math.max(
+      1000,
+      Math.min(
+        ...exceeded.map(
+          (windowConfig) => record[windowConfig.name].resetAt - now,
+        ),
+      ),
+    );
+    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    store.set(key, record);
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    record[windowConfig.name].count += 1;
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  store.set(key, record);
+  return { allowed: true, headers };
+}
+
 // Concurrency gate (server)
 type ReleaseFn = () => void;
 type Gate = {
@@ -169,6 +348,22 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "image-to-svg-outline",
+      "raster-trace",
+    );
+    if (!rateLimit.allowed) {
+      return json(
+        {
+          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterMs,
+          code: "RATE_LIMITED",
+        },
+        { status: 429, headers: rateLimit.headers },
+      );
+    }
+
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
@@ -180,6 +375,8 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const webFile = file as File;
+    const requestId = String(form.get("requestId") ?? "").trim();
+    const presetId = String(form.get("presetId") ?? "").trim();
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -205,6 +402,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
+          requestId,
+          presetId,
           error:
             "Server is busy converting other images. We'll retry automatically.",
           retryAfterMs,
@@ -338,6 +537,8 @@ export async function action({ request }: ActionFunctionArgs) {
           );
 
       return json({
+        requestId,
+        presetId,
         svg: finalSVG,
         width: ensured.width,
         height: ensured.height,
@@ -385,11 +586,14 @@ async function normalizeForPotrace(
       }
     } catch {}
 
+    const cleaned = await createBackgroundCleanedImage(sharp, base);
+
     if (opts.preprocess === "edge") {
-      const { data, info } = await base
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .removeAlpha()
+      const { data, info } = await sharp(cleaned.data, {
+        raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
+      })
         .grayscale()
+        .median(1)
         .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
         .raw()
         .toBuffer({ resolveWithObject: true });
@@ -398,10 +602,9 @@ async function normalizeForPotrace(
       const H = info.height | 0;
 
       if (W <= 1 || H <= 1) {
-        return await sharp(input)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .removeAlpha()
+        return await sharp(cleaned.data, {
+          raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
+        })
           .grayscale()
           .gamma()
           .normalize()
@@ -414,6 +617,7 @@ async function normalizeForPotrace(
 
       const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
       const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+      const minimumEdge = cleaned.backgroundWasCleaned ? 18 : 0;
 
       for (let y = 1; y < H - 1; y++) {
         for (let x = 1; x < W - 1; x++) {
@@ -429,16 +633,16 @@ async function normalizeForPotrace(
             }
           }
           let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
+          if (m < minimumEdge) m = 0;
           if (m > 255) m = 255;
           out[y * W + x] = 255 - m; // edges dark, background light
         }
       }
 
       if (isFlatBuffer(out)) {
-        return await sharp(input)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .removeAlpha()
+        return await sharp(cleaned.data, {
+          raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
+        })
           .grayscale()
           .gamma()
           .normalize()
@@ -452,9 +656,9 @@ async function normalizeForPotrace(
     }
 
     // Plain grayscale prep (useful for already line-based images)
-    return await base
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .removeAlpha()
+    return await sharp(cleaned.data, {
+      raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
+    })
       .grayscale()
       .gamma()
       .normalize()
@@ -463,6 +667,203 @@ async function normalizeForPotrace(
   } catch {
     return input;
   }
+}
+
+type CleanedImage = {
+  data: Buffer;
+  width: number;
+  height: number;
+  backgroundWasCleaned: boolean;
+};
+
+async function createBackgroundCleanedImage(
+  sharp: typeof import("sharp"),
+  base: import("sharp").Sharp,
+): Promise<CleanedImage> {
+  const { data, info } = await base
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const width = info.width | 0;
+  const height = info.height | 0;
+  if (!width || !height) {
+    throw new Error("Could not decode image for preprocessing.");
+  }
+
+  const rgba = data as Buffer;
+  const bg = estimateBackgroundFromBorder(rgba, width, height);
+  const out = Buffer.alloc(width * height * 3, 255);
+  let cleanedCount = 0;
+
+  for (let i = 0; i < width * height; i++) {
+    const src = i * 4;
+    const dst = i * 3;
+    const a = rgba[src + 3];
+    let r = rgba[src];
+    let g = rgba[src + 1];
+    let b = rgba[src + 2];
+
+    if (a < 245) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+
+    const shouldClean =
+      a < 20 ||
+      isCheckerboardOrTransparencyBackdropPixel(r, g, b) ||
+      (bg.usable && isCloseToBackground(r, g, b, bg));
+
+    if (shouldClean) {
+      out[dst] = 255;
+      out[dst + 1] = 255;
+      out[dst + 2] = 255;
+      cleanedCount++;
+    } else {
+      out[dst] = r;
+      out[dst + 1] = g;
+      out[dst + 2] = b;
+    }
+  }
+
+  return {
+    data: out,
+    width,
+    height,
+    backgroundWasCleaned: cleanedCount > Math.max(8, width * height * 0.01),
+  };
+}
+
+type EstimatedBackground = RGB & { usable: boolean; threshold: number };
+
+type RGB = { r: number; g: number; b: number };
+
+function estimateBackgroundFromBorder(
+  raw: Buffer,
+  width: number,
+  height: number,
+): EstimatedBackground {
+  const bins = new Map<
+    string,
+    { r: number; g: number; b: number; count: number }
+  >();
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 80));
+
+  function addPixel(x: number, y: number) {
+    const off = (y * width + x) * 4;
+    const a = raw[off + 3];
+    if (a < 20) return;
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+    if (a < 245) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+    const key = `${Math.round(r / 12)},${Math.round(g / 12)},${Math.round(
+      b / 12,
+    )}`;
+    const existing = bins.get(key);
+    if (existing) {
+      existing.r += r;
+      existing.g += g;
+      existing.b += b;
+      existing.count++;
+    } else {
+      bins.set(key, { r, g, b, count: 1 });
+    }
+  }
+
+  for (let x = 0; x < width; x += step) {
+    addPixel(x, 0);
+    addPixel(x, height - 1);
+  }
+  for (let y = 0; y < height; y += step) {
+    addPixel(0, y);
+    addPixel(width - 1, y);
+  }
+
+  let best: { r: number; g: number; b: number; count: number } | null = null;
+  for (const value of bins.values()) {
+    if (!best || value.count > best.count) best = value;
+  }
+
+  if (!best || best.count < 4) {
+    return { r: 255, g: 255, b: 255, usable: false, threshold: 0 };
+  }
+
+  const bg = {
+    r: Math.round(best.r / best.count),
+    g: Math.round(best.g / best.count),
+    b: Math.round(best.b / best.count),
+  };
+  const bgLuma = luminance(bg.r, bg.g, bg.b);
+  const bgSat = saturationRange(bg.r, bg.g, bg.b);
+  const usable = bgLuma >= 150 && bgSat <= 70;
+
+  return {
+    ...bg,
+    usable,
+    threshold: bgLuma >= 225 && bgSat <= 30 ? 62 : 42,
+  };
+}
+
+function isCheckerboardOrTransparencyBackdropPixel(
+  r: number,
+  g: number,
+  b: number,
+): boolean {
+  const luma = luminance(r, g, b);
+  const sat = saturationRange(r, g, b);
+
+  // Common transparent-preview checkerboards are neutral, low-saturation, and
+  // very light. Force them to white before edge detection so square boundaries
+  // are not converted into SVG paths.
+  if (luma >= 205 && sat <= 30) return true;
+
+  // Some screenshot/export tools use slightly darker light-gray checkerboards.
+  if (luma >= 185 && sat <= 14) return true;
+
+  return false;
+}
+
+function isCloseToBackground(
+  r: number,
+  g: number,
+  b: number,
+  bg: EstimatedBackground,
+): boolean {
+  const lumaValue = luminance(r, g, b);
+  if (lumaValue < 135) return false;
+
+  const dist = colorDistance({ r, g, b }, bg);
+  if (dist <= bg.threshold) return true;
+
+  // Border-estimated checkerboard backgrounds often contain two alternating
+  // neutral tones. This catches the second tone even when the most common bin
+  // only matched the first one.
+  return lumaValue >= 190 && saturationRange(r, g, b) <= 24;
+}
+
+function luminance(r: number, g: number, b: number): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function saturationRange(r: number, g: number, b: number): number {
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+function colorDistance(a: RGB, b: RGB): number {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+function blendChannel(channel: number, alpha: number, background: number): number {
+  return Math.round((channel * alpha + background * (255 - alpha)) / 255);
 }
 
 /** Flat if min==max or low variance or near extremes */
@@ -621,87 +1022,491 @@ type Preset = { id: string; label: string; settings: Partial<Settings> };
 const PRESETS: Preset[] = [
   {
     id: "outline-clean",
-    label: "Outline - Clean (default)",
+    label: "Clean outline",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.9,
+      blurSigma: 0.85,
       edgeBoost: 1.2,
       threshold: 232,
       turdSize: 2,
-      optTolerance: 0.45,
+      optTolerance: 0.42,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
     },
   },
   {
-    id: "outline-soft",
-    label: "Outline - Soft (less noise)",
+    id: "photo-balanced",
+    label: "Photo balanced",
     settings: {
       preprocess: "edge",
-      blurSigma: 1.3,
-      edgeBoost: 1.05,
+      blurSigma: 1.05,
+      edgeBoost: 1.15,
       threshold: 224,
       turdSize: 3,
-      optTolerance: 0.45,
+      optTolerance: 0.5,
       turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
     },
   },
   {
-    id: "outline-bold",
-    label: "Outline - Bold (strong edges)",
+    id: "photo-soft-contours",
+    label: "Photo soft contours",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.6,
-      edgeBoost: 1.5,
-      threshold: 238,
-      turdSize: 3,
-      optTolerance: 0.5,
-      turnPolicy: "black",
+      blurSigma: 1.85,
+      edgeBoost: 0.78,
+      threshold: 208,
+      turdSize: 6,
+      optTolerance: 0.72,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
     },
   },
   {
-    id: "outline-detail",
-    label: "Outline - Fine detail",
+    id: "photo-bold-edges",
+    label: "Photo bold edges",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.45,
+      edgeBoost: 1.9,
+      threshold: 242,
+      turdSize: 2,
+      optTolerance: 0.36,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "fine-detail",
+    label: "Fine detail",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.25,
+      edgeBoost: 2.15,
+      threshold: 236,
+      turdSize: 0,
+      optTolerance: 0.22,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "minimal-outline",
+    label: "Minimal outline",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 2.2,
+      edgeBoost: 0.7,
+      threshold: 202,
+      turdSize: 10,
+      optTolerance: 0.92,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "remove-grid-noise",
+    label: "Remove grid/noise",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 2.55,
+      edgeBoost: 0.62,
+      threshold: 198,
+      turdSize: 12,
+      optTolerance: 0.82,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "screenshot-cleanup",
+    label: "Screenshot cleanup",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 2.05,
+      edgeBoost: 0.72,
+      threshold: 212,
+      turdSize: 9,
+      optTolerance: 0.78,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "ui-wireframe",
+    label: "UI wireframe",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.65,
+      edgeBoost: 0.88,
+      threshold: 246,
+      turdSize: 11,
+      optTolerance: 1.0,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "dark-ui-screenshot",
+    label: "Dark UI screenshot",
     settings: {
       preprocess: "edge",
       blurSigma: 0.7,
-      edgeBoost: 1.35,
-      threshold: 228,
-      turdSize: 1,
-      optTolerance: 0.32,
-      turnPolicy: "minority",
+      edgeBoost: 1.75,
+      threshold: 246,
+      turdSize: 5,
+      optTolerance: 0.58,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
     },
   },
   {
-    id: "lineart-scan",
-    label: "Lineart - Already ink (no edge)",
+    id: "product-cutout",
+    label: "Product cutout",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.35,
+      edgeBoost: 1.05,
+      threshold: 240,
+      turdSize: 8,
+      optTolerance: 0.86,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "sticker-cutline",
+    label: "Sticker cutline",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 2.4,
+      edgeBoost: 0.82,
+      threshold: 250,
+      turdSize: 14,
+      optTolerance: 1.05,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "portrait-clean",
+    label: "Portrait clean",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 1.45,
+      edgeBoost: 0.96,
+      threshold: 214,
+      turdSize: 4,
+      optTolerance: 0.62,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "portrait-feature-detail",
+    label: "Portrait feature detail",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.75,
+      edgeBoost: 1.55,
+      threshold: 228,
+      turdSize: 2,
+      optTolerance: 0.4,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "pencil-sketch",
+    label: "Pencil sketch",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.35,
+      edgeBoost: 2.35,
+      threshold: 218,
+      turdSize: 0,
+      optTolerance: 0.24,
+      turnPolicy: "minority",
+      lineColor: "#111827",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "comic-ink",
+    label: "Comic ink",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.55,
+      edgeBoost: 2.05,
+      threshold: 248,
+      turdSize: 3,
+      optTolerance: 0.46,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "illustration-clean",
+    label: "Illustration clean",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.95,
+      edgeBoost: 1.35,
+      threshold: 226,
+      turdSize: 2,
+      optTolerance: 0.44,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "line-art-original",
+    label: "Line art original",
+    settings: {
+      preprocess: "none",
+      threshold: 232,
+      turdSize: 1,
+      optTolerance: 0.28,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "ink-scan-clean",
+    label: "Ink scan cleanup",
+    settings: {
+      preprocess: "none",
+      threshold: 218,
+      turdSize: 5,
+      optTolerance: 0.38,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "ink-scan-heavy",
+    label: "Ink scan heavy cleanup",
+    settings: {
+      preprocess: "none",
+      threshold: 204,
+      turdSize: 9,
+      optTolerance: 0.7,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "logo-clean-shapes",
+    label: "Logo clean shapes",
+    settings: {
+      preprocess: "none",
+      threshold: 210,
+      turdSize: 4,
+      optTolerance: 0.58,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "logo-fine-details",
+    label: "Logo fine details",
+    settings: {
+      preprocess: "none",
+      threshold: 242,
+      turdSize: 0,
+      optTolerance: 0.2,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "wordmark-text",
+    label: "Wordmark / text",
+    settings: {
+      preprocess: "none",
+      threshold: 238,
+      turdSize: 1,
+      optTolerance: 0.34,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "laser-cnc-simple",
+    label: "Laser/CNC simple",
+    settings: {
+      preprocess: "none",
+      threshold: 200,
+      turdSize: 10,
+      optTolerance: 0.95,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "laser-cnc-detail",
+    label: "Laser/CNC detail",
     settings: {
       preprocess: "none",
       threshold: 224,
       turdSize: 3,
-      optTolerance: 0.32,
+      optTolerance: 0.52,
       turnPolicy: "majority",
       lineColor: "#000000",
       invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
     },
   },
   {
-    id: "white-on-black",
-    label: "Invert - White outline on black",
+    id: "low-contrast-boost",
+    label: "Low contrast boost",
     settings: {
       preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.2,
+      blurSigma: 0.65,
+      edgeBoost: 2.6,
+      threshold: 246,
+      turdSize: 2,
+      optTolerance: 0.4,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "faint-artwork-rescue",
+    label: "Faint artwork rescue",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.35,
+      edgeBoost: 3.0,
+      threshold: 252,
+      turdSize: 1,
+      optTolerance: 0.32,
+      turnPolicy: "black",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+      bgColor: "#ffffff",
+    },
+  },
+  {
+    id: "white-outline-dark",
+    label: "White outline on black",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.85,
+      edgeBoost: 1.25,
       threshold: 232,
       turdSize: 2,
-      optTolerance: 0.45,
+      optTolerance: 0.42,
       turnPolicy: "majority",
       invert: true,
       lineColor: "#ffffff",
+      transparent: false,
+      bgColor: "#0b1020",
+    },
+  },
+  {
+    id: "blueprint-lines",
+    label: "Blueprint lines",
+    settings: {
+      preprocess: "edge",
+      blurSigma: 0.75,
+      edgeBoost: 1.55,
+      threshold: 238,
+      turdSize: 3,
+      optTolerance: 0.5,
+      turnPolicy: "black",
+      invert: true,
+      lineColor: "#38bdf8",
+      transparent: false,
+      bgColor: "#0f172a",
     },
   },
 ];
+
+const PRESET_LABELS = Object.fromEntries(
+  PRESETS.map((preset) => [preset.id, preset.label]),
+) as Record<string, string>;
+
+function getPresetLabel(presetId?: string | null): string {
+  if (!presetId) return "Custom settings";
+  return PRESET_LABELS[presetId] || "Custom settings";
+}
 
 const DEFAULTS: Settings = {
   threshold: 232,
@@ -720,6 +1525,8 @@ const DEFAULTS: Settings = {
 };
 
 type ServerResult = {
+  requestId?: string;
+  presetId?: string;
   svg?: string;
   error?: string;
   width?: number;
@@ -730,10 +1537,24 @@ type ServerResult = {
 };
 
 type HistoryItem = {
+  requestId: string;
+  presetId: string | null;
+  presetLabel: string;
   svg: string;
   width: number;
   height: number;
   stamp: number;
+};
+
+type SubmitReason = "upload" | "preset" | "manual" | "live" | "retry";
+
+type SubmitPlan = {
+  requestId: string;
+  file: File;
+  settings: Settings;
+  presetId: string | null;
+  presetLabel: string;
+  reason: SubmitReason;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -751,6 +1572,10 @@ function autoModeDetail(mode: AutoMode): string {
   if (mode === "medium")
     return "Large file; updates run less often to keep the page responsive.";
   return "";
+}
+
+function createClientRequestId(): string {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export default function ImageToSvgOutline({
@@ -782,41 +1607,86 @@ export default function ImageToSvgOutline({
 
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
+  const retryTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const latestPlanRef = React.useRef<SubmitPlan | null>(null);
+  const lastAcceptedRequestIdRef = React.useRef<string>("");
 
   React.useEffect(() => {
-    if (fetcher.data?.error) setErr(fetcher.data.error);
+    const data = fetcher.data;
+    if (!data) return;
+
+    if (data.error) setErr(data.error);
     else setErr(null);
 
-    if (fetcher.data?.retryAfterMs) {
-      const ms = Math.max(800, fetcher.data.retryAfterMs);
-      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
-      const t = setTimeout(() => {
-        if (file) submitConvert();
-      }, ms);
-      return () => clearTimeout(t);
-    } else {
-      setInfo(null);
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetcher.data]);
 
-  React.useEffect(() => {
-    if (fetcher.data?.svg) {
+    if (data.retryAfterMs && data.code === "BUSY") {
+      const plan = latestPlanRef.current;
+      if (!plan) return;
+
+      const ms = Math.max(800, data.retryAfterMs);
+      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
+      const requestIdForRetry = plan.requestId;
+      retryTimeoutRef.current = setTimeout(() => {
+        if (latestPlanRef.current?.requestId !== requestIdForRetry) return;
+        void submitPlan(plan, false);
+      }, ms);
+      return;
+    }
+
+    if (data.svg) {
+      const expectedRequestId = latestPlanRef.current?.requestId || "";
+      if (data.requestId && expectedRequestId && data.requestId !== expectedRequestId) {
+        return;
+      }
+
+      if (data.requestId && lastAcceptedRequestIdRef.current === data.requestId) {
+        return;
+      }
+
       const item: HistoryItem = {
-        svg: fetcher.data.svg,
-        width: fetcher.data.width ?? 0,
-        height: fetcher.data.height ?? 0,
+        requestId: data.requestId || createClientRequestId(),
+        presetId: data.presetId || latestPlanRef.current?.presetId || null,
+        presetLabel: getPresetLabel(
+          data.presetId || latestPlanRef.current?.presetId || null,
+        ),
+        svg: data.svg,
+        width: data.width ?? 0,
+        height: data.height ?? 0,
         stamp: Date.now(),
       };
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+
+      lastAcceptedRequestIdRef.current = item.requestId;
+      setHistory((prev) => {
+        const withoutSameRequest = prev.filter(
+          (entry) => entry.requestId !== item.requestId,
+        );
+        return [item, ...withoutSameRequest].slice(0, 10);
+      });
+      setInfo(null);
+      return;
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+
+    if (!data.error) setInfo(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetcher.data]);
 
   React.useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, []);
 
   async function measureAndSet(f: File) {
     try {
@@ -855,6 +1725,13 @@ export default function ImageToSvgOutline({
     setInfo(null);
     setDims(null);
     setOriginalFileSize(f.size);
+    setHistory([]);
+    latestPlanRef.current = null;
+    lastAcceptedRequestIdRef.current = "";
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
 
     let chosen = f;
 
@@ -902,39 +1779,83 @@ export default function ImageToSvgOutline({
       return;
     }
 
+    const nextAutoMode = getAutoMode(chosen.size);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    skipNextAutoSubmitRef.current = true;
     setFile(chosen);
-    setAutoMode(getAutoMode(chosen.size));
+    setAutoMode(nextAutoMode);
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
     await measureAndSet(chosen);
+
+    if (nextAutoMode !== "off") {
+      await submitConvertWith(chosen, settings, {
+        presetId: activePreset || null,
+        presetLabel: getPresetLabel(activePreset),
+        reason: "upload",
+      });
+    }
   }
 
-  async function submitConvert() {
-    if (!file) {
+  function normalizeSettingsForSubmit(targetSettings: Settings): Settings {
+    return targetSettings.invert
+      ? {
+          ...targetSettings,
+          transparent: false,
+          bgColor:
+            !targetSettings.bgColor ||
+            targetSettings.bgColor.toLowerCase() === "#ffffff" ||
+            targetSettings.bgColor.toLowerCase() === "#fff"
+              ? "#0b1020"
+              : targetSettings.bgColor,
+          lineColor:
+            targetSettings.lineColor?.toLowerCase() === "#000000"
+              ? "#ffffff"
+              : targetSettings.lineColor,
+        }
+      : targetSettings;
+  }
+
+  async function submitPlan(plan: SubmitPlan, makeLatest = true) {
+    if (!plan.file) {
       setErr("Choose an image first.");
       return;
     }
 
     try {
-      await validateBeforeSubmit(file);
+      await validateBeforeSubmit(plan.file);
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
       return;
     }
 
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
+    if (makeLatest) {
+      latestPlanRef.current = plan;
+      setInfo(null);
+    }
+
+    const effective = normalizeSettingsForSubmit(plan.settings);
+
     const fd = new FormData();
-    fd.append("file", file);
-    fd.append("threshold", String(settings.threshold));
-    fd.append("turdSize", String(settings.turdSize));
-    fd.append("optTolerance", String(settings.optTolerance));
-    fd.append("turnPolicy", settings.turnPolicy);
-    fd.append("lineColor", settings.lineColor);
-    fd.append("invert", String(settings.invert));
-    fd.append("transparent", String(settings.transparent));
-    fd.append("bgColor", settings.bgColor);
-    fd.append("preprocess", settings.preprocess);
-    fd.append("blurSigma", String(settings.blurSigma));
-    fd.append("edgeBoost", String(settings.edgeBoost));
+    fd.append("requestId", plan.requestId);
+    if (plan.presetId) fd.append("presetId", plan.presetId);
+    fd.append("file", plan.file);
+    fd.append("threshold", String(effective.threshold));
+    fd.append("turdSize", String(effective.turdSize));
+    fd.append("optTolerance", String(effective.optTolerance));
+    fd.append("turnPolicy", effective.turnPolicy);
+    fd.append("lineColor", effective.lineColor);
+    fd.append("invert", String(effective.invert));
+    fd.append("transparent", String(effective.transparent));
+    fd.append("bgColor", effective.bgColor);
+    fd.append("preprocess", effective.preprocess);
+    fd.append("blurSigma", String(effective.blurSigma));
+    fd.append("edgeBoost", String(effective.edgeBoost));
     setErr(null);
 
     fetcher.submit(fd, {
@@ -944,43 +1865,106 @@ export default function ImageToSvgOutline({
     });
   }
 
-  // Tiered live preview
+  async function submitConvertWith(
+    targetFile: File | null,
+    targetSettings: Settings,
+    opts?: {
+      presetId?: string | null;
+      presetLabel?: string;
+      reason?: SubmitReason;
+      requestId?: string;
+    },
+  ) {
+    if (!targetFile) {
+      setErr("Choose an image first.");
+      return;
+    }
+
+    const plan: SubmitPlan = {
+      requestId: opts?.requestId || createClientRequestId(),
+      file: targetFile,
+      settings: targetSettings,
+      presetId: opts?.presetId ?? null,
+      presetLabel: opts?.presetLabel || getPresetLabel(opts?.presetId ?? null),
+      reason: opts?.reason || "manual",
+    };
+
+    await submitPlan(plan, true);
+  }
+
+  async function submitConvert() {
+    await submitConvertWith(file, settings, {
+      presetId: activePreset || null,
+      presetLabel: getPresetLabel(activePreset),
+      reason: "manual",
+    });
+  }
+
+  // Tiered live preview. Advanced settings are manual-only; uploads and
+  // presets submit exact payloads directly to avoid stale React state.
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutoSubmitRef = React.useRef(false);
+
   React.useEffect(() => {
     if (!file) return;
+    if (skipNextAutoSubmitRef.current) {
+      skipNextAutoSubmitRef.current = false;
+      return;
+    }
     if (autoMode === "off") return;
 
     const delay = autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => submitConvert(), delay);
+    debounceRef.current = setTimeout(() => {
+      submitConvertWith(file, settings, {
+        presetId: activePreset || null,
+        presetLabel: getPresetLabel(activePreset),
+        reason: "live",
+      });
+    }, delay);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+    // Only file/auto-mode changes may trigger this fallback. Presets submit
+    // computed settings directly, and advanced controls wait for Convert or
+    // Update preview.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
-  function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-    setSettings((s) => {
-      const baseline: Settings = {
-        ...DEFAULTS,
-        transparent: s.transparent,
-        bgColor: s.bgColor,
-      };
-      const lineColor =
-        preset.settings.lineColor !== undefined
-          ? preset.settings.lineColor
-          : s.lineColor;
+  function buildPresetSettings(preset: Preset): Settings {
+    return {
+      ...DEFAULTS,
+      ...preset.settings,
+    } as Settings;
+  }
 
-      return {
-        ...baseline,
-        lineColor,
-        ...preset.settings,
-      } as Settings;
-    });
+  function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(preset);
+
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
+    if (file && getAutoMode(file.size) !== "off") {
+      void submitConvertWith(file, nextSettings, {
+        presetId: preset.id,
+        presetLabel: preset.label,
+        reason: "preset",
+      });
+      return;
+    }
+
+    if (file) {
+      setInfo(`Preset selected: ${preset.label}. Click Convert to apply it.`);
+    }
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
@@ -1009,17 +1993,6 @@ export default function ImageToSvgOutline({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-2">
-            <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
-              Extract clean outlines from an image and convert them into an SVG.
-              Best for photos, paintings, drawings, and screenshots where you
-              want contour-style vector lines.
-            </p>
-            <p className="mt-2 text-[13px] text-slate-500">
-              Tip: If the output is too noisy, increase blur or lower edge
-              boost.
-            </p>
-          </header>
 
           <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* INPUT */}
@@ -1071,7 +2044,28 @@ export default function ImageToSvgOutline({
                     id="advanced-settings"
                     className="flex flex-col gap-2 min-w-0"
                   >
-                    <div className="mt-3 flex flex-col gap-2 min-w-0">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span>
+                          Advanced changes do not live preview automatically.
+                          Click Update preview to apply these settings.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={submitConvert}
+                          disabled={buttonDisabled}
+                          className={[
+                            "inline-flex items-center justify-center rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors",
+                            "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 cursor-pointer",
+                            "disabled:opacity-60 disabled:cursor-not-allowed",
+                          ].join(" ")}
+                        >
+                          Update preview
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-1 flex flex-col gap-2 min-w-0">
                       <Field label="Preprocess">
                         <select
                           value={settings.preprocess}
@@ -1081,7 +2075,7 @@ export default function ImageToSvgOutline({
                               preprocess: e.target.value as any,
                             }))
                           }
-                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer hover:border-sky-300"
                         >
                           <option value="edge">
                             Edge (outline extraction)
@@ -1132,7 +2126,7 @@ export default function ImageToSvgOutline({
                               threshold: Number(e.target.value),
                             }))
                           }
-                          className="w-full accent-[#0b2dff]"
+                          className="w-full accent-[#0b2dff] cursor-pointer"
                         />
                       </Field>
 
@@ -1169,7 +2163,7 @@ export default function ImageToSvgOutline({
                               turnPolicy: e.target.value as any,
                             }))
                           }
-                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer hover:border-sky-300"
                         >
                           <option value="black">black</option>
                           <option value="white">white</option>
@@ -1190,7 +2184,7 @@ export default function ImageToSvgOutline({
                               lineColor: e.target.value,
                             }))
                           }
-                          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white"
+                          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer hover:border-sky-300"
                         />
                       </Field>
 
@@ -1204,7 +2198,7 @@ export default function ImageToSvgOutline({
                               invert: e.target.checked,
                             }))
                           }
-                          className="h-4 w-4 accent-[#0b2dff]"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                         />
                       </Field>
 
@@ -1220,7 +2214,7 @@ export default function ImageToSvgOutline({
                               }))
                             }
                             title="Transparent background"
-                            className="h-4 w-4 accent-[#0b2dff]"
+                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                           />
                           <span className="text-[13px] text-slate-700">
                             Transparent
@@ -1236,7 +2230,7 @@ export default function ImageToSvgOutline({
                             }
                             aria-disabled={settings.transparent}
                             className={[
-                              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white",
+                              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer hover:border-sky-300",
                               settings.transparent
                                 ? "opacity-50 pointer-events-none"
                                 : "",
@@ -1283,6 +2277,8 @@ export default function ImageToSvgOutline({
                     <button
                       type="button"
                       onClick={() => {
+                        if (debounceRef.current)
+                          clearTimeout(debounceRef.current);
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
                         setPreviewUrl(null);
@@ -1291,6 +2287,12 @@ export default function ImageToSvgOutline({
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
+                        latestPlanRef.current = null;
+                        lastAcceptedRequestIdRef.current = "";
+                        if (retryTimeoutRef.current) {
+                          clearTimeout(retryTimeoutRef.current);
+                          retryTimeoutRef.current = null;
+                        }
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -1360,7 +2362,7 @@ export default function ImageToSvgOutline({
                 <div className="grid gap-3">
                   {history.map((item) => (
                     <div
-                      key={item.stamp}
+                      key={item.requestId}
                       className="rounded-xl border border-slate-200 bg-white p-2"
                     >
                       <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
@@ -1372,11 +2374,16 @@ export default function ImageToSvgOutline({
                       </div>
 
                       <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
-                        <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0
-                            ? `${item.width} × ${item.height} px`
-                            : "size unknown"}
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[12px] font-semibold text-slate-700">
+                            {item.presetLabel}
+                          </span>
+                          <span className="text-[13px] text-slate-700">
+                            {item.width > 0 && item.height > 0
+                              ? `${item.width} × ${item.height} px`
+                              : "size unknown"}
+                          </span>
+                        </div>
                         <div className="flex gap-2 flex-wrap">
                           <button
                             type="button"
@@ -1611,7 +2618,7 @@ function Num({
       max={max}
       step={step}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 hover:border-sky-300"
     />
   );
 }
@@ -1651,7 +2658,8 @@ function SeoSections() {
               <div className="text-sm font-semibold">Outline tuning tips</div>
               <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
                 <li>
-                  Too many tiny edges: increase <b>blur σ</b> and increase{" "}
+                  Too many tiny edges or square artifacts: try the Remove
+                  grid/noise preset, increase <b>blur σ</b>, and increase{" "}
                   <b>turd size</b>.
                 </li>
                 <li>
@@ -1707,6 +2715,10 @@ function SeoSections() {
                 "Screenshots",
                 "Stickers",
                 "Simple icons",
+                "Screenshots with artifacts",
+                "Sticker cutlines",
+                "Ink scans",
+                "Laser/CNC outlines",
               ].map((t) => (
                 <span
                   key={t}
@@ -1739,6 +2751,26 @@ function SeoSections() {
             </div>
           </section>
 
+          <section className="mt-12">
+            <h3 className="text-lg font-bold">
+              Server stability and usage limits
+            </h3>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-sm text-slate-700">
+                This image to SVG outline conversion page only rate limits
+                backend raster tracing and server-side image processing. Preview
+                rendering, copy, local download generation, and setting changes
+                that only update React state are not rate limited.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                Backend outline conversions allow up to 120 conversions per
+                minute, 400 conversions every 5 minutes, 1500 conversions per
+                hour, and 3000 conversions per day for the same connection and
+                browser profile.
+              </p>
+            </div>
+          </section>
+
           <section
             className="mt-12"
             itemScope
@@ -1759,6 +2791,14 @@ function SeoSections() {
                 {
                   q: "Why does it look too chunky?",
                   a: "Lower threshold and reduce edge boost. If needed, increase blur slightly to avoid harsh edges.",
+                },
+                {
+                  q: "Why does the result show a square grid or block pattern?",
+                  a: "That usually comes from compression artifacts, screenshots, textured backgrounds, or hard pixel edges being amplified during outline extraction. Use the Remove grid/noise or Screenshot cleanup preset first, then increase blur and turd size if small square artifacts remain.",
+                },
+                {
+                  q: "Does this outline converter have usage limits?",
+                  a: "Only backend outline conversion work is rate limited. Preview rendering, copy, local download generation, and advanced setting changes that only update React state are not rate limited. Backend conversions allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "Can I use this for logos?",

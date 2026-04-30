@@ -100,6 +100,254 @@ type SvgInfo = {
   hasMetadata?: boolean;
 };
 
+type SvgEmbedPreset = {
+  key: string;
+  label: string;
+  description: string;
+  outputFocus: string;
+  settings: Partial<Settings>;
+};
+
+const SVG_EMBED_PRESETS: SvgEmbedPreset[] = [
+  {
+    key: "balanced",
+    label: "Balanced comparison",
+    description:
+      "Standard accessible output with fixed sizing, cleanup, and a cache-friendly file URL for the img snippet.",
+    outputFocus: "Compare both methods without bias.",
+    settings: {
+      width: 128,
+      height: 128,
+      unit: "px",
+      responsiveMode: "fixed",
+      fitMode: "contain",
+      altText: "Icon",
+      titleText: "",
+      decorative: false,
+      roleImgInline: true,
+      focusableFalse: true,
+      sanitize: true,
+      stripScripts: true,
+      stripEventHandlers: true,
+      stripForeignObject: false,
+      stripJavascriptHrefs: true,
+      removeComments: true,
+      removeMetadata: true,
+      ensureXmlns: true,
+      addViewBoxIfMissing: true,
+      removeWidthHeightFromSvg: false,
+      setCurrentColor: false,
+      demoColor: "#0b2dff",
+      demoBg: "#ffffff",
+      demoBorder: true,
+      demoClassName: "icon",
+      quoteMode: "double",
+      indent: "2",
+      imgSrcMode: "file-url",
+      assetUrl: "/icons/icon.svg",
+      includeUtf8Charset: true,
+      wrapInHtmlDoc: false,
+    },
+  },
+  {
+    key: "themeable-inline",
+    label: "Themeable inline icon",
+    description:
+      "Use currentColor, responsive inline SVG, role=img, and a component-style class for icons that need CSS theming.",
+    outputFocus: "Best when the inline SVG snippet is the intended output.",
+    settings: {
+      responsiveMode: "responsive",
+      fitMode: "contain",
+      altText: "Themeable icon",
+      titleText: "Themeable icon",
+      decorative: false,
+      roleImgInline: true,
+      focusableFalse: true,
+      sanitize: true,
+      stripScripts: true,
+      stripEventHandlers: true,
+      stripForeignObject: true,
+      stripJavascriptHrefs: true,
+      removeComments: true,
+      removeMetadata: true,
+      ensureXmlns: true,
+      addViewBoxIfMissing: true,
+      removeWidthHeightFromSvg: true,
+      setCurrentColor: true,
+      demoColor: "#0b2dff",
+      demoBg: "#ffffff",
+      demoBorder: true,
+      demoClassName: "icon icon--themeable",
+      quoteMode: "double",
+      indent: "2",
+      imgSrcMode: "file-url",
+      assetUrl: "/icons/themeable-icon.svg",
+      includeUtf8Charset: true,
+      wrapInHtmlDoc: false,
+    },
+  },
+  {
+    key: "cached-img",
+    label: "Cached img asset",
+    description:
+      "Keep the SVG as a reusable file URL with explicit dimensions and minimal DOM for repeated logos or illustrations.",
+    outputFocus: "Best when the img snippet is the intended output.",
+    settings: {
+      width: 256,
+      height: 256,
+      unit: "px",
+      responsiveMode: "fixed",
+      fitMode: "contain",
+      altText: "SVG image",
+      titleText: "",
+      decorative: false,
+      roleImgInline: false,
+      focusableFalse: true,
+      sanitize: true,
+      stripScripts: true,
+      stripEventHandlers: true,
+      stripForeignObject: false,
+      stripJavascriptHrefs: true,
+      removeComments: true,
+      removeMetadata: true,
+      ensureXmlns: true,
+      addViewBoxIfMissing: true,
+      removeWidthHeightFromSvg: false,
+      setCurrentColor: false,
+      demoColor: "#111827",
+      demoBg: "#ffffff",
+      demoBorder: true,
+      demoClassName: "svg-asset",
+      quoteMode: "double",
+      indent: "2",
+      imgSrcMode: "file-url",
+      assetUrl: "/assets/graphic.svg",
+      includeUtf8Charset: true,
+      wrapInHtmlDoc: false,
+    },
+  },
+  {
+    key: "decorative",
+    label: "Decorative UI icon",
+    description:
+      "Mark the SVG as decorative, remove labels/titles, and keep the output compact for non-content icons.",
+    outputFocus: "Best for purely visual icons that screen readers should skip.",
+    settings: {
+      width: 24,
+      height: 24,
+      unit: "px",
+      responsiveMode: "fixed",
+      fitMode: "contain",
+      altText: "",
+      titleText: "",
+      decorative: true,
+      roleImgInline: false,
+      focusableFalse: true,
+      sanitize: true,
+      stripScripts: true,
+      stripEventHandlers: true,
+      stripForeignObject: true,
+      stripJavascriptHrefs: true,
+      removeComments: true,
+      removeMetadata: true,
+      ensureXmlns: true,
+      addViewBoxIfMissing: true,
+      removeWidthHeightFromSvg: true,
+      setCurrentColor: true,
+      demoColor: "#334155",
+      demoBg: "#ffffff",
+      demoBorder: false,
+      demoClassName: "ui-icon",
+      quoteMode: "double",
+      indent: "2",
+      imgSrcMode: "file-url",
+      assetUrl: "/icons/decorative.svg",
+      includeUtf8Charset: true,
+      wrapInHtmlDoc: false,
+    },
+  },
+  {
+    key: "responsive-logo",
+    label: "Responsive logo",
+    description:
+      "Generate responsive snippets for logos or marks that need to scale inside flexible layouts.",
+    outputFocus: "Best for layout testing and responsive embed code.",
+    settings: {
+      width: 320,
+      height: 120,
+      unit: "px",
+      responsiveMode: "responsive",
+      fitMode: "contain",
+      altText: "Company logo",
+      titleText: "Company logo",
+      decorative: false,
+      roleImgInline: true,
+      focusableFalse: true,
+      sanitize: true,
+      stripScripts: true,
+      stripEventHandlers: true,
+      stripForeignObject: false,
+      stripJavascriptHrefs: true,
+      removeComments: true,
+      removeMetadata: true,
+      ensureXmlns: true,
+      addViewBoxIfMissing: true,
+      removeWidthHeightFromSvg: true,
+      setCurrentColor: false,
+      demoColor: "#0f172a",
+      demoBg: "#f8fafc",
+      demoBorder: true,
+      demoClassName: "brand-logo",
+      quoteMode: "double",
+      indent: "2",
+      imgSrcMode: "file-url",
+      assetUrl: "/logos/company-logo.svg",
+      includeUtf8Charset: true,
+      wrapInHtmlDoc: false,
+    },
+  },
+  {
+    key: "single-file",
+    label: "Single-file HTML",
+    description:
+      "Wrap the output in a full HTML document and use a UTF-8 Data URI for portable demos or handoff files.",
+    outputFocus: "Best when you need a self-contained snippet to paste into a test file.",
+    settings: {
+      width: 160,
+      height: 160,
+      unit: "px",
+      responsiveMode: "fixed",
+      fitMode: "contain",
+      altText: "Embedded SVG",
+      titleText: "Embedded SVG",
+      decorative: false,
+      roleImgInline: true,
+      focusableFalse: true,
+      sanitize: true,
+      stripScripts: true,
+      stripEventHandlers: true,
+      stripForeignObject: true,
+      stripJavascriptHrefs: true,
+      removeComments: true,
+      removeMetadata: true,
+      ensureXmlns: true,
+      addViewBoxIfMissing: true,
+      removeWidthHeightFromSvg: false,
+      setCurrentColor: false,
+      demoColor: "#0b2dff",
+      demoBg: "#ffffff",
+      demoBorder: true,
+      demoClassName: "embedded-svg",
+      quoteMode: "double",
+      indent: "2",
+      imgSrcMode: "data-uri-utf8",
+      assetUrl: "/icons/icon.svg",
+      includeUtf8Charset: true,
+      wrapInHtmlDoc: true,
+    },
+  },
+];
+
 const DEFAULTS: Settings = {
   width: 128,
   height: 128,
@@ -149,6 +397,9 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
   React.useEffect(() => setHydrated(true), []);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
+  const [activePresetKey, setActivePresetKey] = React.useState<string>(
+    "balanced",
+  );
 
   const [file, setFile] = React.useState<File | null>(null);
   const [svgText, setSvgText] = React.useState<string>("");
@@ -174,6 +425,17 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 1500);
+  }
+
+  function applyPreset(preset: SvgEmbedPreset) {
+    const nextSettings: Settings = {
+      ...settings,
+      ...preset.settings,
+    };
+
+    setActivePresetKey(preset.key);
+    setSettings(nextSettings);
+    showToast(`${preset.label} preset applied`);
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -262,6 +524,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     setImgCode("");
     setErr(null);
     lastAutoSizeKeyRef.current = "";
+    setActivePresetKey("balanced");
     setSettings(DEFAULTS);
   }
 
@@ -331,6 +594,13 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
     { name: "Home", href: "/" },
     { name: "Inline SVG vs <img>", href: "/inline-svg-vs-img" },
   ];
+
+  const activePreset = React.useMemo(
+    () =>
+      SVG_EMBED_PRESETS.find((preset) => preset.key === activePresetKey) ||
+      SVG_EMBED_PRESETS[0],
+    [activePresetKey],
+  );
 
   const inlinePreview = React.useMemo(() => {
     if (!preparedSvg) return "";
@@ -656,6 +926,51 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                   </div>
                 </div>
               </div>
+
+              <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <h2 className="m-0 font-bold text-lg text-sky-700">
+                      Use-case presets
+                    </h2>
+                    <p className="mt-1 text-[13px] text-slate-600">
+                      Pick a real output goal. Each preset changes sizing,
+                      accessibility, cleanup, source mode, and formatting so the
+                      generated snippets are meaningfully different.
+                    </p>
+                  </div>
+                  <span className="text-[12px] px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
+                    Active: {activePreset.label}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {SVG_EMBED_PRESETS.map((preset) => {
+                    const isActive = preset.key === activePresetKey;
+                    return (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => applyPreset(preset)}
+                        className={[
+                          "text-left rounded-xl border p-3 cursor-pointer transition-colors",
+                          isActive
+                            ? "border-sky-500 bg-sky-50 hover:bg-sky-100"
+                            : "border-slate-200 bg-white hover:bg-slate-50",
+                        ].join(" ")}
+                        aria-pressed={isActive}
+                      >
+                        <span className="block text-[13px] font-bold text-slate-900">
+                          {preset.label}
+                        </span>
+                        <span className="mt-1 block text-[12px] leading-relaxed text-slate-600">
+                          {preset.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
 
               <button
                 type="button"
@@ -1148,6 +1463,49 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                 </div>
               )}
             </div>
+          </section>
+
+          <section className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+            <CompareCard
+              title="Inline SVG output"
+              badge={activePreset.outputFocus}
+              code={inlineCode}
+              onCopy={() => copyText(inlineCode)}
+              preview={
+                inlinePreview ? (
+                  <InlinePreview svg={inlinePreview} settings={settings} />
+                ) : (
+                  <EmptyState />
+                )
+              }
+            />
+
+            <CompareCard
+              title="IMG tag output"
+              badge={
+                settings.imgSrcMode === "file-url"
+                  ? "File URL / cacheable"
+                  : settings.imgSrcMode === "blob-url"
+                    ? "Blob URL / local preview"
+                    : settings.imgSrcMode === "data-uri-base64"
+                      ? "Base64 Data URI"
+                      : "UTF-8 Data URI"
+              }
+              code={imgCode}
+              onCopy={() => copyText(imgCode)}
+              preview={
+                preparedSvg ? (
+                  <ImgPreview
+                    src={imgPreviewSrc}
+                    settings={settings}
+                    alt={settings.decorative ? "" : settings.altText}
+                    title={settings.titleText}
+                  />
+                ) : (
+                  <EmptyState />
+                )
+              }
+            />
           </section>
 
           {/* COMPARISON */}
@@ -2654,6 +3012,11 @@ function SeoSections() {
 
             <ol className="mt-4 grid gap-2 list-decimal pl-5 text-sm text-slate-700">
               <li itemProp="step">Paste or upload an SVG.</li>
+              <li itemProp="step">
+                Choose a use-case preset if you want output tuned for theming,
+                caching, decorative icons, responsive logos, or single-file
+                handoff.
+              </li>
               <li itemProp="step">
                 Enable currentColor if you want themeable icons.
               </li>

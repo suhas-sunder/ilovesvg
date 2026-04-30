@@ -51,7 +51,9 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_MP = 30;
 const MAX_SIDE = 8000;
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/svg+xml"]);
+const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "svg"]);
+const ACCEPTED_IMAGE_LABEL = "PNG, JPG, JPEG, or SVG";
 
 const DARK_BG_DEFAULT = "#0b1020";
 
@@ -59,6 +61,193 @@ const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 450;
 const LIVE_MED_MS = 1600;
+
+const PAGE_RATE_LIMITS = {
+  perMinute: 120,
+  perFiveMinutes: 400,
+  perHour: 1500,
+  perDay: 3000,
+};
+
+type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
+type RateLimitWindowState = { count: number; resetAt: number };
+type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
+type BackendRateLimitResult =
+  | {
+      allowed: true;
+      headers: Headers;
+    }
+  | {
+      allowed: false;
+      headers: Headers;
+      retryAfterMs: number;
+      retryAfterText: string;
+    };
+
+const RATE_LIMIT_WINDOWS: Array<{
+  name: RateLimitWindowName;
+  ms: number;
+  limit: number;
+  limitHeader: string;
+  remainingHeader: string;
+}> = [
+  {
+    name: "minute",
+    ms: 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perMinute,
+    limitHeader: "X-RateLimit-Limit-Minute",
+    remainingHeader: "X-RateLimit-Remaining-Minute",
+  },
+  {
+    name: "fiveMinutes",
+    ms: 5 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitHeader: "X-RateLimit-Limit-Five-Minutes",
+    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
+  },
+  {
+    name: "hour",
+    ms: 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perHour,
+    limitHeader: "X-RateLimit-Limit-Hour",
+    remainingHeader: "X-RateLimit-Remaining-Hour",
+  },
+  {
+    name: "day",
+    ms: 24 * 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perDay,
+    limitHeader: "X-RateLimit-Limit-Day",
+    remainingHeader: "X-RateLimit-Remaining-Day",
+  },
+];
+
+function getRateLimitStore(): Map<string, RateLimitRecord> {
+  const g = globalThis as any;
+  if (!g.__drawing_to_svg_for_cricut_action_rate_limits) {
+    g.__drawing_to_svg_for_cricut_action_rate_limits = new Map<
+      string,
+      RateLimitRecord
+    >();
+  }
+  return g.__drawing_to_svg_for_cricut_action_rate_limits as Map<
+    string,
+    RateLimitRecord
+  >;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "_")
+    .slice(0, 160);
+}
+
+function getBackendRateLimitKey(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
+    actionName,
+  )}`;
+}
+
+function createFreshRateLimitRecord(now: number): RateLimitRecord {
+  return {
+    minute: { count: 0, resetAt: now + 60 * 1000 },
+    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
+    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
+    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
+  };
+}
+
+function formatRetryAfter(ms: number): string {
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function checkBackendConversionRateLimit(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): BackendRateLimitResult {
+  const now = Date.now();
+  const store = getRateLimitStore();
+  const key = getBackendRateLimitKey(request, routeName, actionName);
+  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    if (now >= state.resetAt) {
+      state.count = 0;
+      state.resetAt = now + windowConfig.ms;
+    }
+  }
+
+  const exceeded = RATE_LIMIT_WINDOWS.filter(
+    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
+  );
+
+  const headers = new Headers();
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  if (exceeded.length > 0) {
+    const retryAfterMs = Math.max(
+      1000,
+      Math.min(
+        ...exceeded.map(
+          (windowConfig) => record[windowConfig.name].resetAt - now,
+        ),
+      ),
+    );
+    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    store.set(key, record);
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    record[windowConfig.name].count += 1;
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  store.set(key, record);
+  return { allowed: true, headers };
+}
 
 type ReleaseFn = () => void;
 type Gate = {
@@ -182,6 +371,22 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "drawing-to-svg-for-cricut",
+      "raster-trace",
+    );
+    if (!rateLimit.allowed) {
+      return json(
+        {
+          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterMs,
+          code: "RATE_LIMITED",
+        },
+        { status: 429, headers: rateLimit.headers },
+      );
+    }
+
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
@@ -195,9 +400,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const webFile = file as File;
 
-    if (!ALLOWED_MIME.has(webFile.type)) {
+    if (!isAllowedImageFile(webFile)) {
       return json(
-        { error: "Only PNG, JPG, or JPEG drawings are allowed." },
+        { error: `Only ${ACCEPTED_IMAGE_LABEL} drawings are allowed.` },
         { status: 415 },
       );
     }
@@ -211,6 +416,19 @@ export async function action({ request }: ActionFunctionArgs) {
         },
         { status: 413 },
       );
+    }
+
+    if (isSvgFile(webFile)) {
+      const svgText = await webFile.text();
+      const editableSvg = buildEditableSvgFromUploadedSvg(svgText);
+
+      return json({
+        svg: editableSvg.svg,
+        layers: editableSvg.layers,
+        width: editableSvg.width,
+        height: editableSvg.height,
+        sourceKind: "svg",
+      });
     }
 
     const gate = await getGate();
@@ -302,6 +520,93 @@ export async function action({ request }: ActionFunctionArgs) {
       const blurSigma = Number(form.get("blurSigma") ?? 0.8);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
+      const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
+      const colorLayerCount = clampNumber(
+        Number(
+          form.get("colorLayerCount") ?? BASE_LAYERED_COLOR_DEFAULTS.layerCount,
+        ),
+        MIN_LAYER_COUNT,
+        MAX_LAYER_COUNT,
+      );
+      const layerMaxTraceSide = clampNumber(
+        Number(
+          form.get("layerMaxTraceSide") ??
+            BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
+        ),
+        600,
+        2400,
+      );
+      const minRegionPercent = clampNumber(
+        Number(
+          form.get("minRegionPercent") ??
+            BASE_LAYERED_COLOR_DEFAULTS.minRegionPercent,
+        ),
+        0,
+        5,
+      );
+      const layerOptTolerance = clampNumber(
+        Number(
+          form.get("layerOptTolerance") ??
+            BASE_LAYERED_COLOR_DEFAULTS.optTolerance,
+        ),
+        0.05,
+        1.2,
+      );
+      const layerTurdSize = clampNumber(
+        Number(
+          form.get("layerTurdSize") ?? BASE_LAYERED_COLOR_DEFAULTS.turdSize,
+        ),
+        0,
+        20,
+      );
+      const layerTurnPolicy = readTurnPolicy(
+        String(
+          form.get("layerTurnPolicy") ?? BASE_LAYERED_COLOR_DEFAULTS.turnPolicy,
+        ),
+      );
+      const posterize =
+        String(
+          form.get("posterize") ??
+            String(BASE_LAYERED_COLOR_DEFAULTS.posterize),
+        ).toLowerCase() === "true";
+      const removeWhite =
+        String(
+          form.get("removeWhite") ??
+            String(BASE_LAYERED_COLOR_DEFAULTS.removeWhite),
+        ).toLowerCase() === "true";
+      const removeTransparent =
+        String(
+          form.get("removeTransparent") ??
+            String(BASE_LAYERED_COLOR_DEFAULTS.removeTransparent),
+        ).toLowerCase() === "true";
+
+      if (traceMode === "layered") {
+        const layered = await createLayeredColorSvg(input, {
+          layerCount: Math.round(colorLayerCount),
+          maxTraceSide: Math.round(layerMaxTraceSide),
+          minRegionPercent,
+          optTolerance: layerOptTolerance,
+          turdSize: Math.round(layerTurdSize),
+          posterize,
+          removeWhite,
+          removeTransparent,
+          transparent,
+          bgColor,
+          turnPolicy: layerTurnPolicy,
+        });
+
+        return json({
+          svg: layered.svg,
+          layers: layered.layers,
+          width: layered.width,
+          height: layered.height,
+          gate: {
+            running: gate.running,
+            queued: gate.queued,
+          },
+        });
+      }
+
       if (whiteOnDark) {
         transparent = false;
 
@@ -378,8 +683,11 @@ export async function action({ request }: ActionFunctionArgs) {
             bgColor,
           );
 
+      const editableSingle = buildEditableSingleTraceSvg(finalSVG, lineColor);
+
       return json({
-        svg: finalSVG,
+        svg: editableSingle.svg,
+        layers: editableSingle.layers,
         width: ensured.width,
         height: ensured.height,
         gate: {
@@ -399,6 +707,851 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 }
+
+const MIN_LAYER_COUNT = 2;
+const MAX_LAYER_COUNT = 10;
+const MAX_TRACE_SIDE_DEFAULT = 1600;
+
+const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
+  layerCount: 5,
+  maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
+  minRegionPercent: 0.35,
+  optTolerance: 0.45,
+  turdSize: 4,
+  posterize: true,
+  removeWhite: false,
+  removeTransparent: true,
+  transparent: true,
+  bgColor: "#ffffff",
+  turnPolicy: "majority",
+};
+
+type RGB = { r: number; g: number; b: number };
+
+type LayeredColorSvgOptions = {
+  layerCount: number;
+  maxTraceSide: number;
+  minRegionPercent: number;
+  optTolerance: number;
+  turdSize: number;
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
+  transparent: boolean;
+  bgColor: string;
+  turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
+};
+
+type TraceLayerBuildItem = {
+  id: string;
+  label: string;
+  color: string;
+  pixelPercent: number;
+  pathTags: string;
+};
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b]
+    .map((v) => clampByte(v).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function rgbObjectToHex(color: RGB): string {
+  return rgbToHex(color.r, color.g, color.b);
+}
+
+function sanitizeHexColor(input: string, fallback: string): string {
+  const value = String(input || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+  }
+  return fallback;
+}
+
+function readTurnPolicy(
+  value: string,
+): "black" | "white" | "left" | "right" | "minority" | "majority" {
+  if (
+    ["black", "white", "left", "right", "minority", "majority"].includes(value)
+  ) {
+    return value as
+      | "black"
+      | "white"
+      | "left"
+      | "right"
+      | "minority"
+      | "majority";
+  }
+  return "minority";
+}
+
+function sanitizeLayerId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function traceBitmapToSvg(input: Buffer, opts: any): Promise<string> {
+  const potrace = await import("potrace");
+  const traceFn: any = (potrace as any).trace;
+  const PotraceClass: any = (potrace as any).Potrace;
+  return await new Promise((resolve, reject) => {
+    if (typeof traceFn === "function") {
+      traceFn(input, opts, (err: any, out: string) =>
+        err ? reject(err) : resolve(out),
+      );
+    } else if (PotraceClass) {
+      const p = new PotraceClass(opts);
+      p.loadImage(input, (err: any) => {
+        if (err) return reject(err);
+        p.setParameters(opts);
+        p.getSVG((err2: any, out: string) =>
+          err2 ? reject(err2) : resolve(out),
+        );
+      });
+    } else {
+      reject(new Error("potrace API not found"));
+    }
+  });
+}
+
+function extractPathTags(svg: string): string {
+  const matches = String(svg).match(/<path\b[^>]*>/gi) || [];
+  return matches
+    .map((tag) => {
+      let clean = tag;
+      clean = clean.replace(/\sfill\s*=\s*["'][^"']*["']/gi, "");
+      clean = clean.replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "");
+      clean = clean.replace(/\s\/?>$/i, " />");
+      return clean;
+    })
+    .join("");
+}
+
+function escapeAttr(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function createLayeredColorSvg(
+  input: Buffer,
+  opts: LayeredColorSvgOptions,
+): Promise<{
+  svg: string;
+  width: number;
+  height: number;
+  layers: SvgLayerMeta[];
+}> {
+  const { createRequire } = await import("node:module");
+  const req = createRequire(import.meta.url);
+  const sharp = req("sharp") as typeof import("sharp");
+  try {
+    (sharp as any).concurrency?.(1);
+    (sharp as any).cache?.({ files: 0, memory: 48 });
+  } catch {}
+
+  const { data, info } = await sharp(input)
+    .rotate()
+    .resize({
+      width: opts.maxTraceSide,
+      height: opts.maxTraceSide,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const width = info.width | 0;
+  const height = info.height | 0;
+  if (!width || !height)
+    throw new Error("Could not decode image for layered SVG tracing.");
+
+  const raw = data as Buffer;
+  const pixels = collectLayerPixels(raw, width, height, {
+    removeTransparent: opts.removeTransparent,
+    removeWhite: opts.removeWhite,
+    posterize: opts.posterize,
+  });
+  if (pixels.length < 20)
+    throw new Error(
+      "Not enough visible image data to build layers. Try disabling white background removal.",
+    );
+
+  const paletteRgb = buildLayerPalette(pixels, opts.layerCount);
+  const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
+    palette: paletteRgb,
+    removeTransparent: opts.removeTransparent,
+    removeWhite: opts.removeWhite,
+    posterize: opts.posterize,
+  });
+  const totalAssignable = assignments.assignableCount || 1;
+  const rawLayerItems = paletteRgb
+    .map((rgb, index) => {
+      const count = assignments.counts[index] || 0;
+      const percent = (count / totalAssignable) * 100;
+      return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
+    })
+    .filter((item) => item.count > 0 && item.percent >= opts.minRegionPercent)
+    .sort((a, b) => {
+      const lumDiff = luminance(b.rgb) - luminance(a.rgb);
+      if (Math.abs(lumDiff) > 8) return lumDiff;
+      return b.count - a.count;
+    });
+  if (rawLayerItems.length === 0)
+    throw new Error(
+      "No usable color layers were found. Try lowering minimum layer size or disabling white background removal.",
+    );
+
+  const builtLayers: TraceLayerBuildItem[] = [];
+  for (let i = 0; i < rawLayerItems.length; i++) {
+    const item = rawLayerItems[i];
+    const mask = Buffer.alloc(width * height, 255);
+    for (let px = 0; px < assignments.layerForPixel.length; px++) {
+      if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
+    }
+    if (!maskHasInk(mask)) continue;
+    const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
+      .png()
+      .toBuffer();
+    const pathTags = await traceMaskToPathTags(maskPng, {
+      turdSize: opts.turdSize,
+      optTolerance: opts.optTolerance,
+      turnPolicy: opts.turnPolicy,
+    });
+    if (!pathTags.trim()) continue;
+    const label = `Layer ${builtLayers.length + 1}`;
+    builtLayers.push({
+      id: sanitizeLayerId(
+        `layer-${builtLayers.length + 1}-${item.color.replace("#", "")}`,
+      ),
+      label,
+      color: item.color,
+      pixelPercent: Number(item.percent.toFixed(2)),
+      pathTags,
+    });
+  }
+  if (builtLayers.length === 0)
+    throw new Error(
+      "The image did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast image.",
+    );
+  const svg = buildLayeredSvgString({
+    width,
+    height,
+    layers: builtLayers,
+    transparent: opts.transparent,
+    bgColor: opts.bgColor,
+  });
+  return {
+    svg,
+    width,
+    height,
+    layers: builtLayers.map((layer) => ({
+      id: layer.id,
+      label: layer.label,
+      color: layer.color,
+      originalColor: layer.color,
+      visible: true,
+    })),
+  };
+}
+
+function collectLayerPixels(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: {
+    removeTransparent: boolean;
+    removeWhite: boolean;
+    posterize: boolean;
+  },
+): RGB[] {
+  const total = width * height;
+  const pixels: RGB[] = [];
+  const sampleStep = Math.max(1, Math.floor(total / 16000));
+  for (let i = 0; i < total; i += sampleStep) {
+    const off = i * 4;
+    const a = raw[off + 3];
+    if (options.removeTransparent && a < 18) continue;
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+    if (a < 255 && !options.removeTransparent) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+    if (options.posterize) {
+      r = posterizeChannel(r);
+      g = posterizeChannel(g);
+      b = posterizeChannel(b);
+    }
+    if (options.removeWhite && isNearWhite({ r, g, b })) continue;
+    pixels.push({ r, g, b });
+  }
+  return pixels;
+}
+
+function assignAllPixelsToLayerPalette(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: {
+    palette: RGB[];
+    removeTransparent: boolean;
+    removeWhite: boolean;
+    posterize: boolean;
+  },
+): { layerForPixel: Int16Array; counts: number[]; assignableCount: number } {
+  const total = width * height;
+  const layerForPixel = new Int16Array(total);
+  layerForPixel.fill(-1);
+  const counts = new Array(options.palette.length).fill(0);
+  let assignableCount = 0;
+  for (let i = 0; i < total; i++) {
+    const off = i * 4;
+    const a = raw[off + 3];
+    if (options.removeTransparent && a < 18) continue;
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+    if (a < 255 && !options.removeTransparent) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+    if (options.posterize) {
+      r = posterizeChannel(r);
+      g = posterizeChannel(g);
+      b = posterizeChannel(b);
+    }
+    const rgb = { r, g, b };
+    if (options.removeWhite && isNearWhite(rgb)) continue;
+    const nearest = nearestPaletteIndex(rgb, options.palette);
+    layerForPixel[i] = nearest;
+    counts[nearest]++;
+    assignableCount++;
+  }
+  return { layerForPixel, counts, assignableCount };
+}
+
+function buildLayerPalette(pixels: RGB[], requestedCount: number): RGB[] {
+  const k = clampInt(requestedCount, MIN_LAYER_COUNT, MAX_LAYER_COUNT);
+  const uniqueMap = new Map<string, RGB>();
+  for (const pixel of pixels) {
+    uniqueMap.set(`${pixel.r},${pixel.g},${pixel.b}`, pixel);
+    if (uniqueMap.size >= 4096) break;
+  }
+  const unique = Array.from(uniqueMap.values());
+  if (unique.length <= k) return unique;
+  const centroids = seedLayerCentroids(unique, k);
+  for (let iter = 0; iter < 12; iter++) {
+    const sums = centroids.map(() => ({ r: 0, g: 0, b: 0, count: 0 }));
+    for (const pixel of pixels) {
+      const index = nearestPaletteIndex(pixel, centroids);
+      sums[index].r += pixel.r;
+      sums[index].g += pixel.g;
+      sums[index].b += pixel.b;
+      sums[index].count++;
+    }
+    for (let i = 0; i < centroids.length; i++) {
+      const sum = sums[i];
+      if (!sum.count) continue;
+      centroids[i] = {
+        r: Math.round(sum.r / sum.count),
+        g: Math.round(sum.g / sum.count),
+        b: Math.round(sum.b / sum.count),
+      };
+    }
+  }
+  return dedupeLayerPalette(centroids).slice(0, k);
+}
+
+function seedLayerCentroids(pixels: RGB[], k: number): RGB[] {
+  const sorted = [...pixels].sort((a, b) => {
+    const lumDiff = luminance(a) - luminance(b);
+    if (Math.abs(lumDiff) > 1) return lumDiff;
+    return a.r + a.g + a.b - (b.r + b.g + b.b);
+  });
+  const seeds: RGB[] = [];
+  for (let i = 0; i < k; i++) {
+    const index = Math.round((i / Math.max(1, k - 1)) * (sorted.length - 1));
+    seeds.push(sorted[index]);
+  }
+  return dedupeLayerPalette(seeds);
+}
+
+function dedupeLayerPalette(palette: RGB[]): RGB[] {
+  const seen = new Set<string>();
+  const out: RGB[] = [];
+  for (const color of palette) {
+    const key = `${color.r},${color.g},${color.b}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(color);
+  }
+  return out;
+}
+
+async function traceMaskToPathTags(
+  maskPng: Buffer,
+  options: {
+    turdSize: number;
+    optTolerance: number;
+    turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
+  },
+): Promise<string> {
+  const traced = await traceBitmapToSvg(maskPng, {
+    color: "#000000",
+    threshold: 128,
+    turdSize: options.turdSize,
+    optTolerance: options.optTolerance,
+    turnPolicy: options.turnPolicy,
+    invert: false,
+    blackOnWhite: true,
+  });
+  return extractPathTags(traced);
+}
+
+function buildLayeredSvgString({
+  width,
+  height,
+  layers,
+  transparent,
+  bgColor,
+}: {
+  width: number;
+  height: number;
+  layers: TraceLayerBuildItem[];
+  transparent: boolean;
+  bgColor: string;
+}): string {
+  const background = transparent
+    ? ""
+    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeHexColor(bgColor, "#ffffff")}" />`;
+  const body = layers
+    .map((layer) => {
+      const fill = sanitizeHexColor(layer.color, "#000000");
+      const safeId = escapeAttr(layer.id);
+      const safeLabel = escapeAttr(layer.label);
+      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}">${layer.pathTags}</g>`;
+    })
+    .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}</svg>`;
+}
+
+function buildEditableSingleTraceSvg(
+  svg: string,
+  color: string,
+): { svg: string; layers: SvgLayerMeta[] } {
+  const id = "trace-color";
+  const fill = sanitizeHexColor(color, "#000000");
+  let pathCount = 0;
+
+  const annotatedSvg = String(svg).replace(
+    /<path\b([^>]*?)(\s*\/?)>/gi,
+    (match, attrs = "", selfClose = "") => {
+      const currentAttrs = String(attrs || "");
+      if (/\bdata-fill-layer-id\s*=/i.test(currentAttrs)) {
+        pathCount += 1;
+        return match;
+      }
+
+      pathCount += 1;
+      return `<path${currentAttrs} data-fill-layer-id="${id}"${selfClose}>`;
+    },
+  );
+
+  return {
+    svg: annotatedSvg,
+    layers:
+      pathCount > 0
+        ? [
+            {
+              id,
+              label: "Trace color",
+              color: fill,
+              originalColor: fill,
+              visible: true,
+              kind: "fill",
+            },
+          ]
+        : [],
+  };
+}
+
+function maskHasInk(mask: Buffer): boolean {
+  for (let i = 0; i < mask.length; i++) if (mask[i] < 250) return true;
+  return false;
+}
+
+function nearestPaletteIndex(color: RGB, palette: RGB[]): number {
+  let best = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < palette.length; i++) {
+    const distance = colorDistance(color, palette[i]);
+    if (distance < bestDist) {
+      bestDist = distance;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function colorDistance(a: RGB, b: RGB): number {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return dr * dr * 0.32 + dg * dg * 0.52 + db * db * 0.16;
+}
+
+function luminance(color: RGB): number {
+  return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+}
+
+function blendChannel(channel: number, alpha: number, bg: number): number {
+  return Math.round((channel * alpha + bg * (255 - alpha)) / 255);
+}
+
+function posterizeChannel(value: number): number {
+  return Math.round(value / 32) * 32;
+}
+
+function isNearWhite(color: RGB): boolean {
+  return color.r >= 244 && color.g >= 244 && color.b >= 244;
+}
+
+function getFileExtension(name?: string): string {
+  const cleaned = String(name || "")
+    .toLowerCase()
+    .split("?")[0];
+  const parts = cleaned.split(".");
+  return parts.length > 1 ? parts[parts.length - 1] || "" : "";
+}
+
+function isAllowedImageFile(file: { type?: string; name?: string }): boolean {
+  const mime = String(file.type || "").toLowerCase();
+  if (ALLOWED_MIME.has(mime)) return true;
+  const extension = getFileExtension(file.name);
+  return ALLOWED_EXTENSIONS.has(extension);
+}
+
+function isSvgFile(file: { type?: string; name?: string }): boolean {
+  const mime = String(file.type || "").toLowerCase();
+  return mime === "image/svg+xml" || getFileExtension(file.name) === "svg";
+}
+
+function buildEditableSvgFromUploadedSvg(svgRaw: string): {
+  svg: string;
+  width: number;
+  height: number;
+  layers: SvgLayerMeta[];
+} {
+  const safeSvg = coerceSvg(svgRaw);
+  const ensured = ensureViewBoxResponsive(safeSvg);
+  const annotated = annotateUploadedSvgLayers(ensured.svg);
+  return {
+    svg: annotated.svg,
+    width: ensured.width,
+    height: ensured.height,
+    layers: annotated.layers,
+  };
+}
+
+function annotateUploadedSvgLayers(svg: string): {
+  svg: string;
+  layers: SvgLayerMeta[];
+} {
+  const excludedTags = new Set([
+    "svg",
+    "defs",
+    "style",
+    "title",
+    "desc",
+    "metadata",
+    "lineargradient",
+    "radialgradient",
+    "pattern",
+    "clippath",
+    "mask",
+    "filter",
+    "marker",
+    "symbol",
+    "use",
+    "image",
+    "foreignobject",
+    "stop",
+  ]);
+
+  const stylePaintMap = parseSvgStylePaintMap(svg);
+  const layers: SvgLayerMeta[] = [];
+  const layerIds = new Map<string, string>();
+  let fillCount = 0;
+  let strokeCount = 0;
+
+  function getOrCreateLayerId(kind: SvgLayerKind, color: string): string {
+    const key = `${kind}:${color}`;
+    const existing = layerIds.get(key);
+    if (existing) return existing;
+
+    const count = kind === "fill" ? ++fillCount : ++strokeCount;
+    const id = sanitizeLayerId(`${kind}-${count}-${color.replace("#", "")}`);
+    layers.push({
+      id,
+      label: `${kind === "fill" ? "Fill" : "Stroke"} ${count}`,
+      color,
+      originalColor: color,
+      visible: true,
+      kind,
+    });
+    layerIds.set(key, id);
+    return id;
+  }
+
+  const annotatedSvg = svg.replace(
+    /<([a-zA-Z][\w:.-]*)(\s[^<>]*?)?(\s*\/?)>/g,
+    (match, rawTagName, rawAttrs = "", rawSelfClose = "") => {
+      const tagName = String(rawTagName || "").toLowerCase();
+      if (excludedTags.has(tagName)) return match;
+
+      let attrs = String(rawAttrs || "");
+      if (
+        /\bdata-layer-id\s*=|\bdata-fill-layer-id\s*=|\bdata-stroke-layer-id\s*=/i.test(
+          attrs,
+        )
+      ) {
+        return match;
+      }
+
+      const fillColor = extractSvgPaintColor(attrs, "fill", stylePaintMap);
+      const strokeColor = extractSvgPaintColor(attrs, "stroke", stylePaintMap);
+
+      if (!fillColor && !strokeColor) return match;
+
+      if (fillColor) {
+        const fillId = getOrCreateLayerId("fill", fillColor);
+        attrs +=
+          tagName === "g"
+            ? ` data-layer-id="${fillId}"`
+            : ` data-fill-layer-id="${fillId}"`;
+      }
+      if (strokeColor) {
+        const strokeId = getOrCreateLayerId("stroke", strokeColor);
+        attrs +=
+          tagName === "g" && !fillColor
+            ? ` data-layer-id="${strokeId}"`
+            : ` data-stroke-layer-id="${strokeId}"`;
+      }
+
+      return `<${rawTagName}${attrs}${rawSelfClose}>`;
+    },
+  );
+
+  return { svg: annotatedSvg, layers };
+}
+
+type SvgStylePaintMap = {
+  fillByClass: Map<string, string>;
+  strokeByClass: Map<string, string>;
+  fillById: Map<string, string>;
+  strokeById: Map<string, string>;
+};
+
+function parseSvgStylePaintMap(svg: string): SvgStylePaintMap {
+  const fillByClass = new Map<string, string>();
+  const strokeByClass = new Map<string, string>();
+  const fillById = new Map<string, string>();
+  const strokeById = new Map<string, string>();
+
+  const styleBlocks = Array.from(
+    svg.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi),
+  );
+  for (const block of styleBlocks) {
+    const css = block[1] || "";
+    const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
+    let ruleMatch: RegExpExecArray | null;
+    while ((ruleMatch = ruleRegex.exec(css))) {
+      const selectors = String(ruleMatch[1] || "")
+        .split(",")
+        .map((selector) => selector.trim())
+        .filter(Boolean);
+      const declarations = String(ruleMatch[2] || "");
+      const fillColor = extractCssDeclarationColor(declarations, "fill");
+      const strokeColor = extractCssDeclarationColor(declarations, "stroke");
+      if (!fillColor && !strokeColor) continue;
+
+      for (const selector of selectors) {
+        if (/^[.]([a-zA-Z_][\w-]*)$/.test(selector)) {
+          const key = selector.slice(1);
+          if (fillColor) fillByClass.set(key, fillColor);
+          if (strokeColor) strokeByClass.set(key, strokeColor);
+        } else if (/^#([a-zA-Z_][\w-]*)$/.test(selector)) {
+          const key = selector.slice(1);
+          if (fillColor) fillById.set(key, fillColor);
+          if (strokeColor) strokeById.set(key, strokeColor);
+        }
+      }
+    }
+  }
+
+  return { fillByClass, strokeByClass, fillById, strokeById };
+}
+
+function extractCssDeclarationColor(
+  declarations: string,
+  property: SvgLayerKind,
+): string | null {
+  const pattern = new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "i");
+  return normalizeSvgEditableColor(
+    String(declarations).match(pattern)?.[1] || "",
+  );
+}
+
+function extractSvgPaintColor(
+  attrs: string,
+  property: SvgLayerKind,
+  stylePaintMap: SvgStylePaintMap,
+): string | null {
+  const attrPattern = new RegExp(
+    `\\b${property}\\s*=\\s*["']([^"']+)["']`,
+    "i",
+  );
+  const attrMatch = String(attrs).match(attrPattern);
+  const directColor = normalizeSvgEditableColor(attrMatch?.[1] || "");
+  if (directColor) return directColor;
+
+  const styleMatch = String(attrs).match(/\bstyle\s*=\s*["']([^"']*)["']/i);
+  if (styleMatch?.[1]) {
+    const stylePattern = new RegExp(
+      `(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`,
+      "i",
+    );
+    const styleColor = normalizeSvgEditableColor(
+      styleMatch[1].match(stylePattern)?.[1] || "",
+    );
+    if (styleColor) return styleColor;
+  }
+
+  const idValue = getSvgAttrValue(attrs, "id");
+  if (idValue) {
+    const idColor =
+      property === "fill"
+        ? stylePaintMap.fillById.get(idValue)
+        : stylePaintMap.strokeById.get(idValue);
+    if (idColor) return idColor;
+  }
+
+  const classValue = getSvgAttrValue(attrs, "class");
+  if (classValue) {
+    const classNames = classValue.split(/\s+/).filter(Boolean);
+    for (let i = classNames.length - 1; i >= 0; i -= 1) {
+      const classColor =
+        property === "fill"
+          ? stylePaintMap.fillByClass.get(classNames[i])
+          : stylePaintMap.strokeByClass.get(classNames[i]);
+      if (classColor) return classColor;
+    }
+  }
+
+  return null;
+}
+
+function getSvgAttrValue(attrs: string, name: string): string {
+  const pattern = new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, "i");
+  return String(String(attrs).match(pattern)?.[1] || "").trim();
+}
+
+function normalizeSvgEditableColor(value: string): string | null {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return null;
+  if (
+    raw === "none" ||
+    raw === "transparent" ||
+    raw === "currentcolor" ||
+    raw === "inherit" ||
+    raw === "context-fill" ||
+    raw === "context-stroke" ||
+    raw.startsWith("url(")
+  ) {
+    return null;
+  }
+
+  if (/^#[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(raw)) {
+    return raw;
+  }
+  if (/^#[0-9a-f]{8}$/i.test(raw)) {
+    return `#${raw.slice(1, 7)}`;
+  }
+
+  const rgbMatch = raw.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(",").map((part) => part.trim());
+    if (parts.length >= 3) {
+      const nums = parts.slice(0, 3).map((part) => {
+        if (part.endsWith("%")) {
+          return clampByte((parseFloat(part) / 100) * 255);
+        }
+        return clampByte(Number(part));
+      });
+      return rgbToHex(nums[0], nums[1], nums[2]);
+    }
+  }
+
+  const named: Record<string, string> = {
+    black: "#000000",
+    white: "#ffffff",
+    red: "#ff0000",
+    green: "#008000",
+    blue: "#0000ff",
+    navy: "#000080",
+    teal: "#008080",
+    aqua: "#00ffff",
+    cyan: "#00ffff",
+    lime: "#00ff00",
+    yellow: "#ffff00",
+    olive: "#808000",
+    maroon: "#800000",
+    purple: "#800080",
+    fuchsia: "#ff00ff",
+    magenta: "#ff00ff",
+    orange: "#ffa500",
+    pink: "#ffc0cb",
+    brown: "#a52a2a",
+    gray: "#808080",
+    grey: "#808080",
+    silver: "#c0c0c0",
+  };
+
+  return named[raw] || null;
+}
+
+/* ========================
+   UI (types)
+======================== */
 
 /* ========================
    Server image normalization
@@ -664,6 +1817,20 @@ function escapeReg(s: string) {
 /* ========================
    UI types
 ======================== */
+type TraceMode = "single" | "layered";
+type SvgLayerKind = "fill" | "stroke";
+
+type SvgLayerMeta = {
+  id: string;
+  label: string;
+  color: string;
+  originalColor: string;
+  visible: boolean;
+  kind?: SvgLayerKind;
+};
+
+type EditableSvgLayer = SvgLayerMeta;
+
 type Settings = {
   threshold: number;
   turdSize: number;
@@ -676,6 +1843,22 @@ type Settings = {
   preprocess: "none" | "edge";
   blurSigma: number;
   edgeBoost: number;
+  traceMode: TraceMode;
+  colorLayerCount: number;
+  layerMaxTraceSide: number;
+  minRegionPercent: number;
+  layerOptTolerance: number;
+  layerTurdSize: number;
+  layerTurnPolicy:
+    | "black"
+    | "white"
+    | "left"
+    | "right"
+    | "minority"
+    | "majority";
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
 };
 
 type Preset = {
@@ -686,6 +1869,83 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
+  {
+    id: "layered-color-svg",
+    label: "Layered color SVG",
+    help: "Preserves the main color areas as separate editable SVG layers for Cricut-style layered designs.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 5,
+      layerMaxTraceSide: 1600,
+      minRegionPercent: 0.35,
+      layerOptTolerance: 0.45,
+      layerTurdSize: 4,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-svg-smoother",
+    label: "Layered color SVG - Smoother",
+    help: "Creates fewer, smoother color layers for cleaner Cricut cuts and simpler layered craft files.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 4,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.55,
+      layerOptTolerance: 0.65,
+      layerTurdSize: 7,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-svg-more-detail",
+    label: "Layered color SVG - More detail",
+    help: "Keeps more color layers and smaller regions when you need a more detailed layered SVG.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 8,
+      layerMaxTraceSide: 2000,
+      minRegionPercent: 0.2,
+      layerOptTolerance: 0.32,
+      layerTurdSize: 2,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-svg-fewer-larger-layers",
+    label: "Layered color SVG - Fewer larger layers",
+    help: "Builds fewer large color layers for simpler vinyl, cardstock, and stencil-style Cricut projects.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 3,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.8,
+      layerOptTolerance: 0.75,
+      layerTurdSize: 9,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+
   {
     id: "drawing-clean",
     label: "Drawing - Clean default",
@@ -885,15 +2145,27 @@ const DEFAULTS: Settings = {
   preprocess: "none",
   blurSigma: 0.8,
   edgeBoost: 1.0,
+  traceMode: "layered",
+  colorLayerCount: 5,
+  layerMaxTraceSide: 1600,
+  minRegionPercent: 0.35,
+  layerOptTolerance: 0.45,
+  layerTurdSize: 4,
+  layerTurnPolicy: "majority",
+  posterize: true,
+  removeWhite: false,
+  removeTransparent: true,
 };
 
 type ServerResult = {
   svg?: string;
+  layers?: SvgLayerMeta[];
   error?: string;
   width?: number;
   height?: number;
   retryAfterMs?: number;
   code?: string;
+  sourceKind?: "raster" | "svg";
   gate?: { running: number; queued: number };
 };
 
@@ -904,6 +2176,7 @@ type HistoryItem = {
   stamp: number;
   presetLabel: string;
   settings: Settings;
+  layers: EditableSvgLayer[];
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -946,8 +2219,9 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   );
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
-  const [activePreset, setActivePreset] =
-    React.useState<string>("drawing-clean");
+  const [activePreset, setActivePreset] = React.useState<string>(
+    PRESETS[0]?.id ?? "layered-color-svg",
+  );
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [dims, setDims] = React.useState<{
@@ -1040,6 +2314,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
         stamp: Date.now(),
         presetLabel: activePresetObject.label,
         settings,
+        layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
       };
 
       setHistory((prev) => [item, ...prev].slice(0, 10));
@@ -1069,8 +2344,11 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+    // First upload is submitted directly through pendingFirstConvertRef.
+    // Preset clicks submit their computed settings directly.
+    // Advanced settings update local state and apply through Convert or Update preview.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode, busy]);
+  }, [file, autoMode]);
 
   async function measureAndSet(f: File) {
     try {
@@ -1101,8 +2379,8 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   }
 
   async function handleNewFile(f: File) {
-    if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG, JPG, or JPEG drawing.");
+    if (!isAllowedImageFile(f)) {
+      setErr(`Please choose a ${ACCEPTED_IMAGE_LABEL} drawing.`);
       return;
     }
 
@@ -1124,7 +2402,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("drawing-clean");
+    setActivePreset(PRESETS[0]?.id ?? "layered-color-svg");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -1135,7 +2413,11 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     let chosen = f;
 
     try {
-      if (chosen.size > LIVE_MED_MAX && chosen.size <= MAX_UPLOAD_BYTES) {
+      if (
+        !isSvgFile(chosen) &&
+        chosen.size > LIVE_MED_MAX &&
+        chosen.size <= MAX_UPLOAD_BYTES
+      ) {
         setInfo("Compressing the drawing locally for live preview.");
         chosen = await compressToTarget25MB(chosen);
       }
@@ -1219,6 +2501,16 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
       effective.preprocess,
       effective.blurSigma,
       effective.edgeBoost,
+      effective.traceMode,
+      effective.colorLayerCount,
+      effective.layerMaxTraceSide,
+      effective.minRegionPercent,
+      effective.layerOptTolerance,
+      effective.layerTurdSize,
+      effective.layerTurnPolicy,
+      effective.posterize,
+      effective.removeWhite,
+      effective.removeTransparent,
     ].join("|");
 
     if (reason !== "manual" && lastSubmittedKeyRef.current === submitKey) {
@@ -1235,6 +2527,16 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     fd.append("turnPolicy", effective.turnPolicy);
     fd.append("lineColor", effective.lineColor);
     fd.append("invert", String(effective.invert));
+    fd.append("traceMode", effective.traceMode);
+    fd.append("colorLayerCount", String(effective.colorLayerCount));
+    fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
+    fd.append("minRegionPercent", String(effective.minRegionPercent));
+    fd.append("layerOptTolerance", String(effective.layerOptTolerance));
+    fd.append("layerTurdSize", String(effective.layerTurdSize));
+    fd.append("layerTurnPolicy", effective.layerTurnPolicy);
+    fd.append("posterize", String(effective.posterize));
+    fd.append("removeWhite", String(effective.removeWhite));
+    fd.append("removeTransparent", String(effective.removeTransparent));
     fd.append("transparent", String(effective.transparent));
     fd.append("bgColor", effective.bgColor);
     fd.append("preprocess", effective.preprocess);
@@ -1255,7 +2557,9 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   }
 
   function getEffectiveSettings(settingsToUse: Settings): Settings {
-    if (!settingsToUse.invert) return settingsToUse;
+    if (settingsToUse.traceMode === "layered" || !settingsToUse.invert) {
+      return settingsToUse;
+    }
 
     const bg =
       !settingsToUse.bgColor ||
@@ -1277,16 +2581,23 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
-  function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
+  function buildPresetSettings(
+    currentSettings: Settings,
+    preset: Preset,
+  ): Settings {
+    void currentSettings;
 
-    const nextSettings = {
+    return {
       ...DEFAULTS,
-      transparent: settings.transparent,
-      bgColor: settings.bgColor,
       ...preset.settings,
+      traceMode: preset.settings.traceMode ?? "single",
     } as Settings;
+  }
 
+  function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(settings, preset);
+
+    setActivePreset(preset.id);
     setSettings(nextSettings);
 
     if (file && autoMode !== "off" && !busy) {
@@ -1320,7 +2631,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   }
 
   function downloadSvg(item: HistoryItem) {
-    const b = new Blob([item.svg], {
+    const b = new Blob([getHistoryItemSvg(item)], {
       type: "image/svg+xml;charset=utf-8",
     });
     const u = URL.createObjectURL(b);
@@ -1347,6 +2658,16 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
       ["Line color", item.settings.lineColor],
       ["Transparent background", item.settings.transparent ? "Yes" : "No"],
       ["Background color", item.settings.bgColor],
+      ["Trace mode", item.settings.traceMode],
+      ["Color layers", item.settings.colorLayerCount],
+      ["Layer trace size", item.settings.layerMaxTraceSide],
+      ["Minimum layer size %", item.settings.minRegionPercent],
+      ["Layer smoothing", item.settings.layerOptTolerance],
+      ["Layer speckle removal", item.settings.layerTurdSize],
+      ["Layer turn policy", item.settings.layerTurnPolicy],
+      ["Posterize", item.settings.posterize ? "Yes" : "No"],
+      ["Remove white", item.settings.removeWhite ? "Yes" : "No"],
+      ["Remove transparent", item.settings.removeTransparent ? "Yes" : "No"],
       ["Preprocess", item.settings.preprocess],
       ["Blur sigma", item.settings.blurSigma],
       ["Edge boost", item.settings.edgeBoost],
@@ -1369,6 +2690,68 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
   function printResult() {
     window.print();
+  }
+
+  function getHistoryItemSvg(item: HistoryItem): string {
+    if (!item.layers?.length) return item.svg;
+    return applyLayerEditsToSvg(item.svg, item.layers);
+  }
+
+  function setHistoryLayer(
+    stamp: number,
+    layerId: string,
+    patch: Partial<EditableSvgLayer>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              layers: item.layers.map((layer) =>
+                layer.id === layerId ? { ...layer, ...patch } : layer,
+              ),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function resetHistoryLayer(stamp: number, layerId: string) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              layers: item.layers.map((layer) =>
+                layer.id === layerId
+                  ? {
+                      ...layer,
+                      color: layer.originalColor,
+                      visible: true,
+                    }
+                  : layer,
+              ),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function resetAllHistoryLayers(stamp: number) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              layers: item.layers.map((layer) => ({
+                ...layer,
+                color: layer.originalColor,
+                visible: true,
+              })),
+            }
+          : item,
+      ),
+    );
   }
 
   return (
@@ -1435,6 +2818,179 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                     id="advanced-settings"
                     className="flex min-w-0 flex-col gap-2"
                   >
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                      <span>
+                        Advanced changes do not live preview automatically.
+                        Click Update preview to apply these settings.
+                      </span>
+                      <button
+                        type="button"
+                        disabled={buttonDisabled}
+                        onClick={submitCurrentFile}
+                        className="cursor-pointer rounded-md border border-sky-200 bg-white px-2 py-1 font-semibold text-sky-800 transition-colors hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Update preview
+                      </button>
+                    </div>
+
+                    <Field label="Trace mode">
+                      <select
+                        value={settings.traceMode}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            traceMode: e.target.value as TraceMode,
+                          }))
+                        }
+                        className="w-full cursor-pointer rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
+                      >
+                        <option value="layered">Layered color SVG</option>
+                        <option value="single">Single-color trace</option>
+                      </select>
+                    </Field>
+
+                    {settings.traceMode === "layered" && (
+                      <>
+                        <Field label="Color layers">
+                          <Num
+                            value={settings.colorLayerCount}
+                            min={2}
+                            max={10}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                colorLayerCount: v,
+                              }))
+                            }
+                          />
+                        </Field>
+
+                        <Field label="Layer trace size">
+                          <Num
+                            value={settings.layerMaxTraceSide}
+                            min={600}
+                            max={2400}
+                            step={100}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                layerMaxTraceSide: v,
+                              }))
+                            }
+                          />
+                        </Field>
+
+                        <Field label="Minimum layer size %">
+                          <Num
+                            value={settings.minRegionPercent}
+                            min={0}
+                            max={5}
+                            step={0.05}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                minRegionPercent: v,
+                              }))
+                            }
+                          />
+                        </Field>
+
+                        <Field label="Layer smoothing">
+                          <Num
+                            value={settings.layerOptTolerance}
+                            min={0.05}
+                            max={1.2}
+                            step={0.05}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                layerOptTolerance: v,
+                              }))
+                            }
+                          />
+                        </Field>
+
+                        <Field label="Layer speckle removal">
+                          <Num
+                            value={settings.layerTurdSize}
+                            min={0}
+                            max={20}
+                            step={1}
+                            onChange={(v) =>
+                              setSettings((s) => ({
+                                ...s,
+                                layerTurdSize: v,
+                              }))
+                            }
+                          />
+                        </Field>
+
+                        <Field label="Layer corner handling">
+                          <select
+                            value={settings.layerTurnPolicy}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                layerTurnPolicy: e.target
+                                  .value as Settings["layerTurnPolicy"],
+                              }))
+                            }
+                            className="w-full cursor-pointer rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
+                          >
+                            <option value="minority">minority</option>
+                            <option value="majority">majority</option>
+                            <option value="black">black</option>
+                            <option value="white">white</option>
+                            <option value="left">left</option>
+                            <option value="right">right</option>
+                          </select>
+                        </Field>
+
+                        <Field label="Posterize colors">
+                          <input
+                            type="checkbox"
+                            checked={settings.posterize}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                posterize: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
+                          />
+                        </Field>
+
+                        <Field label="Remove white">
+                          <input
+                            type="checkbox"
+                            checked={settings.removeWhite}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                removeWhite: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
+                          />
+                        </Field>
+
+                        <Field label="Remove transparent">
+                          <input
+                            type="checkbox"
+                            checked={settings.removeTransparent}
+                            onChange={(e) =>
+                              setSettings((s) => ({
+                                ...s,
+                                removeTransparent: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
+                          />
+                        </Field>
+                      </>
+                    )}
+
                     <Field label="Preprocess">
                       <select
                         value={settings.preprocess}
@@ -1833,7 +3389,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
                         <button
                           type="button"
-                          onClick={() => handleCopySvg(item.svg)}
+                          onClick={() => handleCopySvg(getHistoryItemSvg(item))}
                           className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 hover:bg-slate-100"
                         >
                           <Icons
@@ -1861,10 +3417,26 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                         </button>
                       </div>
 
+                      {item.layers.length > 0 && (
+                        <LayerPaletteEditor
+                          item={item}
+                          onColorChange={(layerId, color) =>
+                            setHistoryLayer(item.stamp, layerId, { color })
+                          }
+                          onVisibilityChange={(layerId, visible) =>
+                            setHistoryLayer(item.stamp, layerId, { visible })
+                          }
+                          onResetLayer={(layerId) =>
+                            resetHistoryLayer(item.stamp, layerId)
+                          }
+                          onResetAll={() => resetAllHistoryLayers(item.stamp)}
+                        />
+                      )}
+
                       <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            item.svg,
+                            getHistoryItemSvg(item),
                           )}`}
                           alt="Converted drawing SVG result"
                           className="h-auto max-w-full"
@@ -1944,13 +3516,15 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 }
 
 async function validateBeforeSubmit(file: File) {
-  if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Only PNG, JPG, or JPEG drawings are allowed.");
+  if (!isAllowedImageFile(file)) {
+    throw new Error(`Only ${ACCEPTED_IMAGE_LABEL} drawings are allowed.`);
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("File too large. Max 30 MB per image.");
   }
+
+  if (isSvgFile(file)) return;
 
   const { w, h } = await getImageSize(file);
 
@@ -2107,6 +3681,257 @@ function csvEscape(value: string) {
 /* ========================
    UI helpers
 ======================== */
+function escapeLayerRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
+  let out = svg;
+  for (const layer of layers) {
+    const id = escapeLayerRegExp(layer.id);
+
+    const groupPattern = new RegExp(
+      `(<g\\b(?=[^>]*data-layer-id=["']${id}["'])([^>]*)>)([\\s\\S]*?)(<\\/g>)`,
+      "i",
+    );
+
+    out = out.replace(groupPattern, (_match, _open, attrs, inner, close) => {
+      const groupPaintProp =
+        (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
+      let nextAttrs = String(attrs)
+        .replace(
+          new RegExp(`\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
+          "",
+        )
+        .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
+      nextAttrs = rewriteStyleProperty(nextAttrs, groupPaintProp, layer.color);
+      nextAttrs = rewriteStyleProperty(
+        nextAttrs,
+        "display",
+        layer.visible ? null : "none",
+      );
+      nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
+      if (!layer.visible) nextAttrs += ` display="none"`;
+      return `<g${nextAttrs}>${inner}${close}`;
+    });
+
+    const attrName =
+      (layer.kind || "fill") === "stroke"
+        ? "data-stroke-layer-id"
+        : "data-fill-layer-id";
+    const paintProp = (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
+    const elementPattern = new RegExp(
+      `(<(?!g\\b)([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\\/?>)`,
+      "gi",
+    );
+
+    out = out.replace(
+      elementPattern,
+      (_match, _start, tagName, attrs, endTag) => {
+        let nextAttrs = String(attrs)
+          .replace(
+            new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
+            "",
+          )
+          .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
+        nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
+        nextAttrs = rewriteStyleProperty(
+          nextAttrs,
+          "display",
+          layer.visible ? null : "none",
+        );
+        nextAttrs += ` ${paintProp}="${layer.color}"`;
+        if (!layer.visible) nextAttrs += ` display="none"`;
+        return `<${tagName}${nextAttrs}${endTag}`;
+      },
+    );
+  }
+  return out;
+}
+
+function LayerPaletteEditor({
+  item,
+  onColorChange,
+  onVisibilityChange,
+  onResetLayer,
+  onResetAll,
+}: {
+  item: HistoryItem;
+  onColorChange: (layerId: string, color: string) => void;
+  onVisibilityChange: (layerId: string, visible: boolean) => void;
+  onResetLayer: (layerId: string) => void;
+  onResetAll: () => void;
+}) {
+  if (!item.layers?.length) return null;
+
+  return (
+    <div className="my-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[12px] font-semibold text-slate-700">
+          Layer colors
+        </span>
+        <button
+          type="button"
+          onClick={onResetAll}
+          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100"
+        >
+          Reset all
+        </button>
+      </div>
+
+      <div className="grid gap-2">
+        {item.layers.map((layer) => (
+          <LayerPaletteRow
+            key={layer.id}
+            layer={layer}
+            onColorChange={onColorChange}
+            onVisibilityChange={onVisibilityChange}
+            onResetLayer={onResetLayer}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LayerPaletteRow({
+  layer,
+  onColorChange,
+  onVisibilityChange,
+  onResetLayer,
+}: {
+  layer: EditableSvgLayer;
+  onColorChange: (layerId: string, color: string) => void;
+  onVisibilityChange: (layerId: string, visible: boolean) => void;
+  onResetLayer: (layerId: string) => void;
+}) {
+  const COLOR_COMMIT_THROTTLE_MS = 90;
+
+  const [localColor, setLocalColor] = React.useState(layer.color);
+  const latestColorRef = React.useRef(layer.color);
+  const lastCommitAtRef = React.useRef(0);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    setLocalColor(layer.color);
+    latestColorRef.current = layer.color;
+  }, [layer.color]);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  function commitColorNow(color = latestColorRef.current) {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    lastCommitAtRef.current =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    onColorChange(layer.id, color);
+  }
+
+  function queueColorCommit(nextColor: string) {
+    latestColorRef.current = nextColor;
+    setLocalColor(nextColor);
+
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    const elapsed = now - lastCommitAtRef.current;
+    const remaining = COLOR_COMMIT_THROTTLE_MS - elapsed;
+
+    if (remaining <= 0) {
+      commitColorNow(nextColor);
+      return;
+    }
+
+    if (timeoutRef.current) {
+      return;
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      commitColorNow(latestColorRef.current);
+    }, remaining);
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+      <input
+        type="checkbox"
+        checked={layer.visible}
+        onChange={(e) => onVisibilityChange(layer.id, e.target.checked)}
+        title={`Show ${layer.label}`}
+        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+      />
+
+      <input
+        type="color"
+        value={localColor}
+        onChange={(e) => queueColorCommit(e.target.value)}
+        onPointerUp={() => commitColorNow()}
+        onMouseUp={() => commitColorNow()}
+        onTouchEnd={() => commitColorNow()}
+        onBlur={() => commitColorNow()}
+        title={`Change ${layer.label} color`}
+        className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer"
+      />
+
+      <span className="min-w-0 flex-1 truncate text-[12px] text-slate-700">
+        {layer.label} {layer.originalColor}
+      </span>
+
+      <button
+        type="button"
+        onClick={() => onResetLayer(layer.id)}
+        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100"
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+function rewriteStyleProperty(
+  attrs: string,
+  property: string,
+  value: string | null,
+): string {
+  const styleMatch = String(attrs).match(/\bstyle\s*=\s*(["'])([^"']*)\1/i);
+  if (!styleMatch) {
+    if (value == null) return attrs;
+    return `${attrs} style="${property}:${value}"`;
+  }
+
+  const quote = styleMatch[1];
+  const styleBody = styleMatch[2];
+  const parts = styleBody
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !new RegExp(`^${property}\\s*:`, "i").test(part));
+
+  if (value != null) {
+    parts.push(`${property}:${value}`);
+  }
+
+  if (parts.length === 0) {
+    return attrs.replace(/\sstyle\s*=\s*(["'])[^"']*\1/i, "");
+  }
+
+  const nextStyle = parts.join("; ");
+  return attrs.replace(
+    /\bstyle\s*=\s*(["'])[^"']*\1/i,
+    `style=${quote}${nextStyle}${quote}`,
+  );
+}
+
 function Field({
   label,
   children,
@@ -2138,15 +3963,39 @@ function Num({
   step: number;
   onChange: (v: number) => void;
 }) {
+  const [localValue, setLocalValue] = React.useState(String(value));
+
+  React.useEffect(() => {
+    setLocalValue(String(value));
+  }, [value]);
+
+  function commit() {
+    const parsed = Number(localValue);
+    if (!Number.isFinite(parsed)) {
+      setLocalValue(String(value));
+      return;
+    }
+
+    const clamped = Math.max(min, Math.min(max, parsed));
+    setLocalValue(String(clamped));
+    onChange(clamped);
+  }
+
   return (
     <input
       type="number"
-      value={value}
+      value={localValue}
       min={min}
       max={max}
       step={step}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-[110px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900"
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+      className="w-[110px] cursor-pointer rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
     />
   );
 }
@@ -2527,6 +4376,24 @@ function SeoSections() {
             </div>
           </section>
 
+          <section className="mt-12">
+            <h3 className="text-lg font-bold text-sky-950">
+              Backend conversion limits
+            </h3>
+
+            <p className="mt-2 max-w-[85ch] text-sm leading-6 text-slate-600">
+              This drawing to SVG for Cricut conversion page only rate limits
+              backend raster tracing, uploaded SVG processing, and server-side
+              conversion work. Preview rendering, layer color edits, visibility
+              toggles, copy actions, SVG downloads, settings CSV export, and
+              print actions are not rate limited because they run in your
+              browser. Backend conversion actions allow up to 120 conversions
+              per minute, 400 conversions every 5 minutes, 1500 conversions per
+              hour, and 3000 conversions per day for the same connection and
+              browser profile.
+            </p>
+          </section>
+
           <section
             className="mt-12"
             itemScope
@@ -2544,7 +4411,7 @@ function SeoSections() {
                 },
                 {
                   q: "What file types can I upload?",
-                  a: "This converter accepts PNG, JPG, and JPEG images up to 30 MB, with practical live-preview handling for files up to 25 MB after local compression.",
+                  a: "This converter accepts PNG, JPG, JPEG, and SVG files up to 30 MB, with practical live-preview handling for raster files up to 25 MB after local compression.",
                 },
                 {
                   q: "What kind of drawing converts best?",
@@ -2569,6 +4436,10 @@ function SeoSections() {
                 {
                   q: "Why did my pencil sketch not convert well?",
                   a: "Faint pencil marks are low contrast. Try the pencil sketch or low contrast preset, raise threshold, and use a brighter scan or photo.",
+                },
+                {
+                  q: "Does this drawing to SVG for Cricut tool have usage limits?",
+                  a: "Only backend conversion work is rate limited. Client-side preview, layer edits, copy, download, CSV export, print actions, and local setting changes are not rate limited because they run in your browser. Backend conversions, such as raster image tracing and uploaded SVG processing, allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
               ].map((x) => (
                 <article

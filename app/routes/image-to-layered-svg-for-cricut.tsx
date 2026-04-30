@@ -65,6 +65,185 @@ const MIN_LAYER_COUNT = 2;
 const MAX_LAYER_COUNT = 10;
 const MAX_TRACE_SIDE_DEFAULT = 1600;
 
+const PAGE_RATE_LIMITS = {
+  perMinute: 120,
+  perFiveMinutes: 400,
+  perHour: 1500,
+  perDay: 3000,
+};
+
+type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
+type RateLimitWindowState = { count: number; resetAt: number };
+type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
+type BackendRateLimitResult =
+  | {
+      allowed: true;
+      headers: Headers;
+    }
+  | {
+      allowed: false;
+      headers: Headers;
+      retryAfterMs: number;
+      retryAfterText: string;
+    };
+
+const RATE_LIMIT_WINDOWS: Array<{
+  name: RateLimitWindowName;
+  ms: number;
+  limit: number;
+  limitHeader: string;
+  remainingHeader: string;
+}> = [
+  {
+    name: "minute",
+    ms: 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perMinute,
+    limitHeader: "X-RateLimit-Limit-Minute",
+    remainingHeader: "X-RateLimit-Remaining-Minute",
+  },
+  {
+    name: "fiveMinutes",
+    ms: 5 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitHeader: "X-RateLimit-Limit-Five-Minutes",
+    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
+  },
+  {
+    name: "hour",
+    ms: 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perHour,
+    limitHeader: "X-RateLimit-Limit-Hour",
+    remainingHeader: "X-RateLimit-Remaining-Hour",
+  },
+  {
+    name: "day",
+    ms: 24 * 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perDay,
+    limitHeader: "X-RateLimit-Limit-Day",
+    remainingHeader: "X-RateLimit-Remaining-Day",
+  },
+];
+
+function getRateLimitStore(): Map<string, RateLimitRecord> {
+  const g = globalThis as any;
+  if (!g.__ilovesvg_action_rate_limits) {
+    g.__ilovesvg_action_rate_limits = new Map<string, RateLimitRecord>();
+  }
+  return g.__ilovesvg_action_rate_limits as Map<string, RateLimitRecord>;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "_")
+    .slice(0, 160);
+}
+
+function getBackendRateLimitKey(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
+    actionName,
+  )}`;
+}
+
+function createFreshRateLimitRecord(now: number): RateLimitRecord {
+  return {
+    minute: { count: 0, resetAt: now + 60 * 1000 },
+    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
+    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
+    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
+  };
+}
+
+function formatRetryAfter(ms: number): string {
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function checkBackendConversionRateLimit(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): BackendRateLimitResult {
+  const now = Date.now();
+  const store = getRateLimitStore();
+  const key = getBackendRateLimitKey(request, routeName, actionName);
+  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    if (now >= state.resetAt) {
+      state.count = 0;
+      state.resetAt = now + windowConfig.ms;
+    }
+  }
+
+  const exceeded = RATE_LIMIT_WINDOWS.filter(
+    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
+  );
+
+  const headers = new Headers();
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  if (exceeded.length > 0) {
+    const retryAfterMs = Math.max(
+      1000,
+      Math.min(
+        ...exceeded.map(
+          (windowConfig) => record[windowConfig.name].resetAt - now,
+        ),
+      ),
+    );
+    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    store.set(key, record);
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    record[windowConfig.name].count += 1;
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  store.set(key, record);
+  return { allowed: true, headers };
+}
+
 /* ========================
    Server concurrency gate
 ======================== */
@@ -183,6 +362,22 @@ export async function action({ request }: ActionFunctionArgs) {
             "Upload too large for live conversion. Please resize and try again.",
         },
         { status: 413 },
+      );
+    }
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "image-to-layered-svg-for-cricut",
+      "raster-trace",
+    );
+    if (!rateLimit.allowed) {
+      return json(
+        {
+          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterMs,
+          code: "RATE_LIMITED",
+        },
+        { status: 429, headers: rateLimit.headers },
       );
     }
 
@@ -381,10 +576,20 @@ type LayeredOptions = {
   turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
 };
 
-type ServerLayer = {
+type SvgLayerKind = "fill" | "stroke";
+
+type SvgLayerMeta = {
   id: string;
-  name: string;
+  label: string;
   color: string;
+  originalColor: string;
+  visible: boolean;
+  kind?: SvgLayerKind;
+};
+
+type EditableSvgLayer = SvgLayerMeta;
+
+type ServerLayer = EditableSvgLayer & {
   pixelPercent: number;
   pathTags: string;
 };
@@ -505,10 +710,17 @@ async function rasterToLayeredSvg(
 
     if (!pathTags.trim()) continue;
 
+    const layerNumber = layers.length + 1;
+    const layerId = `layer-${layerNumber}-${item.color.replace("#", "")}`;
+    const layerLabel = `Layer ${layerNumber}`;
+
     layers.push({
-      id: `layer-${i + 1}`,
-      name: `Layer ${i + 1}`,
+      id: layerId,
+      label: layerLabel,
       color: item.color,
+      originalColor: item.color,
+      visible: true,
+      kind: "fill",
       pixelPercent: Number(item.percent.toFixed(2)),
       pathTags,
     });
@@ -796,9 +1008,9 @@ function buildLayeredSvgString({
     .map((layer, index) => {
       const fill = sanitizeHexColor(layer.color, "#000000");
       const safeId = escapeXmlAttr(layer.id || `layer-${index + 1}`);
-      const safeLabel = escapeXmlAttr(layer.name || `Layer ${index + 1}`);
+      const safeLabel = escapeXmlAttr(layer.label || `Layer ${index + 1}`);
 
-      return `<g id="${safeId}" data-layer-name="${safeLabel}" data-layer-color="${fill}" fill="${fill}">${layer.pathTags}</g>`;
+      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}">${layer.pathTags}</g>`;
     })
     .join("");
 
@@ -871,6 +1083,22 @@ function sanitizeHexColor(input: string, fallback: string) {
   }
 
   return fallback;
+}
+
+function prettyBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+
+  const precision = value >= 10 || unitIndex === 0 ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
 }
 
 function escapeXmlAttr(value: string) {
@@ -1328,14 +1556,9 @@ type ServerResult = {
   palette?: string[];
 };
 
-type LayerState = {
-  id: string;
-  name: string;
-  color: string;
-  originalColor: string;
-  visible: boolean;
+type LayerState = EditableSvgLayer & {
   pixelPercent: number;
-  pathTags: string;
+  pathTags?: string;
 };
 
 type HistoryItem = {
@@ -1400,30 +1623,14 @@ export default function ImageToLayeredSvgForCricut({
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSubmitRef = React.useRef<{
+    file: File;
+    settings: Settings;
+  } | null>(null);
 
   const busy = fetcher.state !== "idle";
 
   React.useEffect(() => setHydrated(true), []);
-
-  React.useEffect(() => {
-    if (suppressLiveRef.current) return;
-    if (!file) return;
-
-    const mode = autoMode;
-    if (mode === "off") return;
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
-      submitConvert(file, settings);
-    }, delay);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [file, settings, activePreset, autoMode]);
 
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
@@ -1433,12 +1640,13 @@ export default function ImageToLayeredSvgForCricut({
       width: fetcher.data.width ?? 0,
       height: fetcher.data.height ?? 0,
       stamp: Date.now(),
-      layers: fetcher.data.layers.map((layer) => ({
+      layers: fetcher.data.layers.map((layer, index) => ({
         id: layer.id,
-        name: layer.name,
+        label: layer.label || `Layer ${index + 1}`,
         color: layer.color,
-        originalColor: layer.color,
-        visible: true,
+        originalColor: layer.originalColor || layer.color,
+        visible: layer.visible !== false,
+        kind: layer.kind || "fill",
         pixelPercent: layer.pixelPercent,
         pathTags: layer.pathTags,
       })),
@@ -1451,14 +1659,15 @@ export default function ImageToLayeredSvgForCricut({
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
 
-    if (fetcher.data.code === "BUSY" && file) {
+    if (fetcher.data.code === "BUSY" && lastSubmitRef.current) {
       const retryAfterMs = Math.max(1500, fetcher.data.retryAfterMs ?? 2500);
+      const retryPayload = lastSubmitRef.current;
       setInfo("Server is busy. Retrying automatically.");
 
       if (retryRef.current) clearTimeout(retryRef.current);
 
       retryRef.current = setTimeout(() => {
-        submitConvert(file, settings);
+        submitConvert(retryPayload.file, retryPayload.settings);
       }, retryAfterMs);
 
       return;
@@ -1525,6 +1734,7 @@ export default function ImageToLayeredSvgForCricut({
     setInfo(null);
     setDims(null);
     setOriginalFileSize(f.size);
+    lastSubmitRef.current = null;
 
     let chosen = f;
 
@@ -1576,6 +1786,16 @@ export default function ImageToLayeredSvgForCricut({
       return;
     }
 
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+
+    lastSubmitRef.current = {
+      file: sourceFile,
+      settings: sourceSettings,
+    };
+
     const fd = new FormData();
     fd.append("file", sourceFile);
     fd.append("layerCount", String(sourceSettings.layerCount));
@@ -1603,14 +1823,19 @@ export default function ImageToLayeredSvgForCricut({
   }
 
   function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-
-    setSettings((s) => ({
+    const nextSettings: Settings = {
       ...DEFAULTS,
-      transparent: s.transparent,
-      bgColor: s.bgColor,
       ...preset.settings,
-    }));
+    };
+
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+
+    if (file) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (retryRef.current) clearTimeout(retryRef.current);
+      submitConvert(file, nextSettings);
+    }
   }
 
   function showToast(msg: string) {
@@ -1697,6 +1922,20 @@ export default function ImageToLayeredSvgForCricut({
                     id="advanced-settings"
                     className="flex flex-col gap-2 min-w-0"
                   >
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="m-0 text-xs text-slate-600">
+                        Advanced changes do not live preview automatically. Click Update preview to apply these settings.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => submitConvert(file, settings)}
+                        disabled={buttonDisabled}
+                        className="shrink-0 rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-semibold text-sky-900 hover:bg-sky-50 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      >
+                        Update preview
+                      </button>
+                    </div>
+
                     <Field label={`Layer count (${settings.layerCount})`}>
                       <input
                         type="range"
@@ -1710,7 +1949,7 @@ export default function ImageToLayeredSvgForCricut({
                             layerCount: Number(e.target.value),
                           }))
                         }
-                        className="w-full accent-[#0b2dff]"
+                        className="w-full accent-[#0b2dff] cursor-pointer"
                       />
                     </Field>
 
@@ -1924,6 +2163,7 @@ export default function ImageToLayeredSvgForCricut({
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
+                        lastSubmitRef.current = null;
                         setHistory([]);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
@@ -1954,7 +2194,7 @@ export default function ImageToLayeredSvgForCricut({
                   className={[
                     "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
-                    "disabled:opacity-70 disabled:cursor-not-allowed",
+                    "disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer",
                   ].join(" ")}
                 >
                   <Icons
@@ -2003,13 +2243,7 @@ export default function ImageToLayeredSvgForCricut({
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => {
-                    const editedSvg = buildClientLayeredSvg({
-                      width: item.width,
-                      height: item.height,
-                      layers: item.layers,
-                      transparent: settings.transparent,
-                      bgColor: settings.bgColor,
-                    });
+                    const editedSvg = getHistoryItemSvg(item);
 
                     return (
                       <div
@@ -2301,76 +2535,106 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
   }
 }
 
-function buildClientLayeredSvg({
-  width,
-  height,
-  layers,
-  transparent,
-  bgColor,
-}: {
-  width: number;
-  height: number;
-  layers: LayerState[];
-  transparent: boolean;
-  bgColor: string;
-}) {
-  const bg = transparent
-    ? ""
-    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeClientColor(
-        bgColor,
-        "#ffffff",
-      )}" />`;
-
-  const body = layers
-    .filter((layer) => layer.visible)
-    .map((layer, index) => {
-      const color = sanitizeClientColor(layer.color, layer.originalColor);
-      const safeId = escapeClientAttr(layer.id || `layer-${index + 1}`);
-      const safeName = escapeClientAttr(layer.name || `Layer ${index + 1}`);
-
-      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}">${layer.pathTags}</g>`;
-    })
-    .join("");
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG for Cricut">${bg}${body}</svg>`;
+function getHistoryItemSvg(item: HistoryItem): string {
+  if (!item.layers?.length) return item.svg;
+  return applyLayerEditsToSvg(item.svg, item.layers);
 }
 
-function sanitizeClientColor(input: string, fallback: string) {
-  const value = String(input || "").trim();
+function applyLayerEditsToSvg(svg: string, layers: LayerState[]): string {
+  let out = String(svg || "");
 
-  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  for (const layer of layers) {
+    const id = escapeRegExp(layer.id);
+    const color = sanitizeHexColor(layer.color, layer.originalColor || "#000000");
+    const visible = layer.visible !== false;
+    const kind = layer.kind || "fill";
 
-  if (/^#[0-9a-f]{3}$/i.test(value)) {
-    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+    out = out.replace(
+      new RegExp(`(<g\\b(?=[^>]*\\bdata-layer-id=["']${id}["'])([^>]*)>)([\\s\\S]*?)(<\\/g>)`, "gi"),
+      (_match, _openTag, attrs, inner, closeTag) => {
+        let nextAttrs = String(attrs);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-color", color);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, kind === "stroke" ? "stroke" : "fill", color);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "display", visible ? null : "none");
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-editor-hidden", visible ? null : "true");
+
+        let nextInner = String(inner);
+        nextInner = kind === "stroke" ? stripPaintAttrs(nextInner, "stroke") : stripPaintAttrs(nextInner, "fill");
+
+        return `<g${nextAttrs}>${nextInner}${closeTag}`;
+      },
+    );
+
+    out = out.replace(
+      new RegExp(`(<(?!g\\b)([a-zA-Z][\\w:-]*)\\b(?=[^>]*\\bdata-fill-layer-id=["']${id}["'])([^>]*?)(\\/?>))`, "gi"),
+      (match, _whole, tagName, attrs) => {
+        const full = String(match);
+        const selfClose = /\/\s*>$/.test(full);
+        let nextAttrs = String(attrs);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "fill", color);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "display", visible ? null : "none");
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-editor-hidden", visible ? null : "true");
+        return `<${tagName}${nextAttrs}${selfClose ? " />" : ">"}`;
+      },
+    );
+
+    out = out.replace(
+      new RegExp(`(<(?!g\\b)([a-zA-Z][\\w:-]*)\\b(?=[^>]*\\bdata-stroke-layer-id=["']${id}["'])([^>]*?)(\\/?>))`, "gi"),
+      (match, _whole, tagName, attrs) => {
+        const full = String(match);
+        const selfClose = /\/\s*>$/.test(full);
+        let nextAttrs = String(attrs);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "stroke", color);
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "display", visible ? null : "none");
+        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-editor-hidden", visible ? null : "true");
+        return `<${tagName}${nextAttrs}${selfClose ? " />" : ">"}`;
+      },
+    );
   }
 
-  return fallback || "#000000";
+  return out;
 }
 
-function escapeClientAttr(value: string) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+function stripPaintAttrs(markup: string, attrName: "fill" | "stroke") {
+  const attrPattern = new RegExp(`\\s${attrName}\\s*=\\s*(["'])(.*?)\\1`, "gi");
+
+  return markup.replace(/<([a-zA-Z][\w:-]*)\b([^>]*?)>/g, (tag, tagName, attrs) => {
+    if (/^(svg|defs|style|title|desc|metadata|linearGradient|radialGradient|pattern|clipPath|mask|filter|marker|symbol|use|image|foreignObject|stop)$/i.test(tagName)) {
+      return tag;
+    }
+
+    const selfClose = /\/\s*>$/.test(tag);
+    const cleanedAttrs = String(attrs)
+      .replace(attrPattern, "")
+      .replace(/\s*\/\s*$/, "");
+    return `<${tagName}${cleanedAttrs}${selfClose ? " />" : ">"}`;
+  });
 }
 
-function prettyBytes(bytes: number) {
-  const u = ["B", "KB", "MB", "GB"];
-  let v = bytes;
-  let i = 0;
+function setOrRemoveSvgAttr(attrs: string, name: string, value: string | null) {
+  const pattern = new RegExp(`\\s${escapeRegExp(name)}\\s*=\\s*(["'])(.*?)\\1`, "i");
+  const next = String(attrs || "");
 
-  while (v >= 1024 && i < u.length - 1) {
-    v /= 1024;
-    i++;
+  if (value == null) {
+    if (name === "display" && !/\sdata-layer-editor-hidden\s*=\s*(["'])true\1/i.test(next)) {
+      return next;
+    }
+    return next.replace(pattern, "");
   }
 
-  return `${v.toFixed(1)} ${u[i]}`;
+  const escaped = escapeXmlAttr(value);
+
+  if (pattern.test(next)) {
+    return next.replace(pattern, ` ${name}="${escaped}"`);
+  }
+
+  return `${next} ${name}="${escaped}"`;
 }
 
-/* ========================
-   UI components
-======================== */
+function escapeRegExp(value: string) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function Field({
   label,
   children,
@@ -2401,15 +2665,40 @@ function Num({
   step: number;
   onChange: (v: number) => void;
 }) {
+  const [draft, setDraft] = React.useState(String(value));
+
+  React.useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  function commitDraft() {
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+
+    const next = clampNumber(parsed, min, max);
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  }
+
   return (
     <input
       type="number"
-      value={value}
+      value={draft}
       min={min}
       max={max}
       step={step}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commitDraft}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commitDraft();
+          e.currentTarget.blur();
+        }
+      }}
+      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 hover:bg-slate-50"
     />
   );
 }
@@ -2645,10 +2934,10 @@ function LayerControlRow({
 
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-slate-800">
-            Layer {index + 1}
+            {layer.label || `Layer ${index + 1}`}
           </div>
           <div className="text-xs text-slate-500">
-            {localColor.toUpperCase()} • {layer.pixelPercent}% of traced pixels
+            Original {layer.originalColor.toUpperCase()} • current {localColor.toUpperCase()} • {layer.pixelPercent}% of traced pixels
           </div>
         </div>
 
@@ -2700,6 +2989,10 @@ function SeoSections() {
     {
       q: "Is this good for photos?",
       a: "It can make posterized photo-style layers, but Cricut cuts work best with simplified artwork, clean logos, stickers, cartoons, and high-contrast images.",
+    },
+    {
+      q: "Are layered SVG conversions rate limited?",
+      a: "Only backend layered SVG conversions are rate limited: up to 120 conversions per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile. Local downloads, copy actions, and layer color edits are not rate limited.",
     },
   ];
 
@@ -3041,6 +3334,22 @@ function SeoSections() {
                 </p>
               </div>
             </div>
+          </section>
+
+          <section className="mt-12 rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-lg font-bold text-sky-950">
+              Backend conversion limits
+            </h3>
+            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
+              This image to layered SVG for Cricut conversion page only limits
+              server-side layered SVG conversions. Upload tracing and image
+              processing can use backend compute, so those conversion requests
+              are limited to 120 per minute, 400 per five minutes, 1,500 per
+              hour, and 3,000 per day from the same connection and browser
+              profile. Browser-only actions like recoloring layers, toggling
+              layer visibility, copying SVG output, and downloading the current
+              result do not count against those backend conversion limits.
+            </p>
           </section>
 
           <section className="mt-12">

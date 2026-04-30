@@ -63,6 +63,191 @@ const MAX_EMOJI_COUNT = 128;
 const TWEMOJI_BASE =
   "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/";
 
+const PAGE_RATE_LIMITS = {
+  perMinute: 120,
+  perFiveMinutes: 400,
+  perHour: 1500,
+  perDay: 3000,
+};
+
+type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
+type RateLimitWindowState = { count: number; resetAt: number };
+type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
+type BackendRateLimitResult =
+  | {
+      allowed: true;
+      headers: Headers;
+    }
+  | {
+      allowed: false;
+      headers: Headers;
+      retryAfterMs: number;
+      retryAfterText: string;
+    };
+
+const RATE_LIMIT_WINDOWS: Array<{
+  name: RateLimitWindowName;
+  ms: number;
+  limit: number;
+  limitHeader: string;
+  remainingHeader: string;
+}> = [
+  {
+    name: "minute",
+    ms: 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perMinute,
+    limitHeader: "X-RateLimit-Limit-Minute",
+    remainingHeader: "X-RateLimit-Remaining-Minute",
+  },
+  {
+    name: "fiveMinutes",
+    ms: 5 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitHeader: "X-RateLimit-Limit-Five-Minutes",
+    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
+  },
+  {
+    name: "hour",
+    ms: 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perHour,
+    limitHeader: "X-RateLimit-Limit-Hour",
+    remainingHeader: "X-RateLimit-Remaining-Hour",
+  },
+  {
+    name: "day",
+    ms: 24 * 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perDay,
+    limitHeader: "X-RateLimit-Limit-Day",
+    remainingHeader: "X-RateLimit-Remaining-Day",
+  },
+];
+
+function getRateLimitStore(): Map<string, RateLimitRecord> {
+  const g = globalThis as any;
+  if (!g.__ilovesvg_emoji_converter_rate_limits) {
+    g.__ilovesvg_emoji_converter_rate_limits = new Map<
+      string,
+      RateLimitRecord
+    >();
+  }
+  return g.__ilovesvg_emoji_converter_rate_limits as Map<
+    string,
+    RateLimitRecord
+  >;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "_")
+    .slice(0, 160);
+}
+
+function getBackendRateLimitKey(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
+    actionName,
+  )}`;
+}
+
+function createFreshRateLimitRecord(now: number): RateLimitRecord {
+  return {
+    minute: { count: 0, resetAt: now + 60 * 1000 },
+    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
+    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
+    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
+  };
+}
+
+function formatRetryAfter(ms: number): string {
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function checkBackendConversionRateLimit(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): BackendRateLimitResult {
+  const now = Date.now();
+  const store = getRateLimitStore();
+  const key = getBackendRateLimitKey(request, routeName, actionName);
+  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    if (now >= state.resetAt) {
+      state.count = 0;
+      state.resetAt = now + windowConfig.ms;
+    }
+  }
+
+  const exceeded = RATE_LIMIT_WINDOWS.filter(
+    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
+  );
+
+  const headers = new Headers();
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  if (exceeded.length > 0) {
+    const retryAfterMs = Math.max(
+      1000,
+      Math.min(
+        ...exceeded.map(
+          (windowConfig) => record[windowConfig.name].resetAt - now,
+        ),
+      ),
+    );
+    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    store.set(key, record);
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    record[windowConfig.name].count += 1;
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  store.set(key, record);
+  return { allowed: true, headers };
+}
+
 /* ========================
    Concurrency gate (server)
    Used only for CPU-heavy image tracing
@@ -173,6 +358,22 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "emoji-to-svg-converter",
+      "server-convert",
+    );
+    if (!rateLimit.allowed) {
+      return json(
+        {
+          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterMs,
+          code: "RATE_LIMITED",
+        },
+        { status: 429, headers: rateLimit.headers },
+      );
+    }
+
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
@@ -199,10 +400,26 @@ type TextFitMode = "center" | "repeat";
 type TextCanvasMode = "auto" | "fixed";
 type TextBgMode = "transparent" | "solid";
 
+type TraceMode = "single" | "layered";
+
+type SvgLayerKind = "fill" | "stroke";
+
+type SvgLayerMeta = {
+  id: string;
+  label: string;
+  color: string;
+  originalColor: string;
+  visible: boolean;
+  kind?: SvgLayerKind;
+};
+
+type EditableSvgLayer = SvgLayerMeta;
+
 type TextResultItem = {
   emoji: string;
   code: string;
   svg: string; // full svg
+  layers?: SvgLayerMeta[];
 };
 
 type TextActionResult = {
@@ -311,7 +528,11 @@ async function handleTextEmoji(form: FormData): Promise<Response> {
     const clean = sanitizeSvg(svg);
 
     const final = recolor ? recolorAllFills(clean, recolorColor) : clean;
-    items.push({ emoji: e, code, svg: final });
+    const editable = annotateSvgColorLayers(
+      final,
+      `emoji-${items.length + 1}-${code}`,
+    );
+    items.push({ emoji: e, code, svg: editable.svg, layers: editable.layers });
   }
 
   if (items.length === 0) {
@@ -527,7 +748,6 @@ type GroupBuildOpts = {
 };
 
 function buildGroupedSvg(svgs: string[], opts: GroupBuildOpts): string {
-  // Parse each SVG into symbol
   const symbols: { id: string; viewBox: string; inner: string }[] = [];
   for (let i = 0; i < svgs.length; i++) {
     const p = extractSvgParts(svgs[i]);
@@ -540,59 +760,49 @@ function buildGroupedSvg(svgs: string[], opts: GroupBuildOpts): string {
   }
 
   const n = symbols.length;
-
-  // Determine base grid
   let cols = opts.layout === "row" ? n : Math.max(1, opts.cols);
   cols = Math.min(cols, n);
   const rows = Math.ceil(n / cols);
 
-  const contentW =
-    cols * opts.cell + Math.max(0, cols - 1) * opts.pad + 2 * opts.margin;
-  const contentH =
-    rows * opts.cell + Math.max(0, rows - 1) * opts.pad + 2 * opts.margin;
+  const stepX = opts.cell + opts.pad;
+  const stepY = opts.cell + opts.pad;
+  const gridW = cols * opts.cell + Math.max(0, cols - 1) * opts.pad;
+  const gridH = rows * opts.cell + Math.max(0, rows - 1) * opts.pad;
 
-  let canvasW = opts.canvasMode === "fixed" ? opts.canvasW : contentW;
-  let canvasH = opts.canvasMode === "fixed" ? opts.canvasH : contentH;
+  let canvasW =
+    opts.canvasMode === "fixed" ? opts.canvasW : gridW + 2 * opts.margin;
+  let canvasH =
+    opts.canvasMode === "fixed" ? opts.canvasH : gridH + 2 * opts.margin;
 
   canvasW = Math.max(1, Math.floor(canvasW));
   canvasH = Math.max(1, Math.floor(canvasH));
 
-  // Placement helpers
-  const stepX = opts.cell + opts.pad;
-  const stepY = opts.cell + opts.pad;
+  const baseOffsetX =
+    opts.fit === "center"
+      ? Math.max(0, (canvasW - gridW) / 2)
+      : Math.max(0, opts.margin);
+  const baseOffsetY =
+    opts.fit === "center"
+      ? Math.max(0, (canvasH - gridH) / 2)
+      : Math.max(0, opts.margin);
 
-  let offsetX = opts.margin;
-  let offsetY = opts.margin;
-
-  if (opts.fit === "center") {
-    // Only meaningful when canvas bigger than content
-    const cx = Math.max(0, Math.floor((canvasW - contentW) / 2));
-    const cy = Math.max(0, Math.floor((canvasH - contentH) / 2));
-    offsetX = cx + opts.margin;
-    offsetY = cy + opts.margin;
-  }
-
-  // Build <defs> with symbols
   const defs =
     `<defs>` +
     symbols
       .map(
-        (s) =>
-          `<symbol id="${s.id}" viewBox="${escapeAttr(
-            s.viewBox,
-          )}">${s.inner}</symbol>`,
+        (sym) =>
+          `<symbol id="${sym.id}" viewBox="${escapeAttr(
+            sym.viewBox,
+          )}">${sym.inner}</symbol>`,
       )
       .join("") +
     `</defs>`;
 
-  // Build <use> elements
   let uses = "";
 
   if (opts.fit === "repeat" && opts.canvasMode === "fixed") {
-    // Repeat fill: tile emojis in order across the canvas
     const usableW = Math.max(0, canvasW - 2 * opts.margin);
     const usableH = Math.max(0, canvasH - 2 * opts.margin);
-
     const repCols = Math.max(1, Math.floor((usableW + opts.pad) / stepX));
     const repRows = Math.max(1, Math.floor((usableH + opts.pad) / stepY));
     const totalSlots = repCols * repRows;
@@ -603,17 +813,24 @@ function buildGroupedSvg(svgs: string[], opts: GroupBuildOpts): string {
       const sym = symbols[k % symbols.length];
       const x = opts.margin + c * stepX;
       const y = opts.margin + r * stepY;
-      uses += `<use href="#${sym.id}" x="${x}" y="${y}" width="${opts.cell}" height="${opts.cell}"/>`;
+      uses += `<use href="#${sym.id}" x="${formatSvgNum(x)}" y="${formatSvgNum(
+        y,
+      )}" width="${opts.cell}" height="${opts.cell}"/>`;
     }
   } else {
-    // Center or auto canvas: place each emoji once
     for (let i = 0; i < n; i++) {
       const r = Math.floor(i / cols);
       const c = i % cols;
+      const rowStart = r * cols;
+      const rowCount = Math.min(cols, n - rowStart);
+      const rowW = rowCount * opts.cell + Math.max(0, rowCount - 1) * opts.pad;
+      const rowInset = Math.max(0, (gridW - rowW) / 2);
       const sym = symbols[i];
-      const x = offsetX + c * stepX;
-      const y = offsetY + r * stepY;
-      uses += `<use href="#${sym.id}" x="${x}" y="${y}" width="${opts.cell}" height="${opts.cell}"/>`;
+      const x = baseOffsetX + rowInset + c * stepX;
+      const y = baseOffsetY + r * stepY;
+      uses += `<use href="#${sym.id}" x="${formatSvgNum(x)}" y="${formatSvgNum(
+        y,
+      )}" width="${opts.cell}" height="${opts.cell}"/>`;
     }
   }
 
@@ -624,15 +841,18 @@ function buildGroupedSvg(svgs: string[], opts: GroupBuildOpts): string {
         )}"/>`
       : "";
 
-  // Root SVG: responsive (no width/height attributes by default)
-  const svg =
+  return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvasW} ${canvasH}">` +
     bgRect +
     defs +
     uses +
-    `</svg>`;
+    `</svg>`
+  );
+}
 
-  return svg;
+function formatSvgNum(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(3).replace(/0+$/g, "").replace(/[.]$/g, "");
 }
 
 function extractSvgParts(
@@ -671,12 +891,520 @@ function escapeAttr(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
+const MIN_LAYER_COUNT = 2;
+const MAX_LAYER_COUNT = 10;
+const MAX_TRACE_SIDE_DEFAULT = 1600;
+
+const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
+  layerCount: 5,
+  maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
+  minRegionPercent: 0.35,
+  optTolerance: 0.45,
+  turdSize: 4,
+  posterize: true,
+  removeWhite: false,
+  removeTransparent: true,
+  transparent: true,
+  bgColor: "#ffffff",
+  turnPolicy: "majority",
+};
+
+type RGB = { r: number; g: number; b: number };
+
+type LayeredColorSvgOptions = {
+  layerCount: number;
+  maxTraceSide: number;
+  minRegionPercent: number;
+  optTolerance: number;
+  turdSize: number;
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
+  transparent: boolean;
+  bgColor: string;
+  turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
+};
+
+type TraceLayerBuildItem = {
+  id: string;
+  label: string;
+  color: string;
+  pixelPercent: number;
+  pathTags: string;
+};
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.round(Math.max(min, Math.min(max, value)));
+}
+
+function rgbObjectToHex(color: RGB): string {
+  return rgbToHex(color.r, color.g, color.b);
+}
+
+function sanitizeHexColor(input: string, fallback: string): string {
+  const value = String(input || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+  }
+  return fallback;
+}
+
+function readTurnPolicy(
+  value: string,
+): "black" | "white" | "left" | "right" | "minority" | "majority" {
+  if (
+    ["black", "white", "left", "right", "minority", "majority"].includes(value)
+  ) {
+    return value as
+      | "black"
+      | "white"
+      | "left"
+      | "right"
+      | "minority"
+      | "majority";
+  }
+  return "minority";
+}
+
+async function traceBitmapToSvg(input: Buffer, opts: any): Promise<string> {
+  const potrace = await import("potrace");
+  const traceFn: any = (potrace as any).trace;
+  const PotraceClass: any = (potrace as any).Potrace;
+  return await new Promise((resolve, reject) => {
+    if (typeof traceFn === "function") {
+      traceFn(input, opts, (err: any, out: string) =>
+        err ? reject(err) : resolve(out),
+      );
+    } else if (PotraceClass) {
+      const p = new PotraceClass(opts);
+      p.loadImage(input, (err: any) => {
+        if (err) return reject(err);
+        p.setParameters(opts);
+        p.getSVG((err2: any, out: string) =>
+          err2 ? reject(err2) : resolve(out),
+        );
+      });
+    } else {
+      reject(new Error("potrace API not found"));
+    }
+  });
+}
+
+function extractPathTags(svg: string): string {
+  const matches = String(svg).match(/<path\b[^>]*>/gi) || [];
+  return matches
+    .map((tag) => {
+      let clean = tag;
+      clean = clean.replace(/\sfill\s*=\s*["'][^"']*["']/gi, "");
+      clean = clean.replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "");
+      clean = clean.replace(/\s\/?>$/i, " />");
+      return clean;
+    })
+    .join("");
+}
+
+async function createLayeredColorSvg(
+  input: Buffer,
+  opts: LayeredColorSvgOptions,
+): Promise<{
+  svg: string;
+  width: number;
+  height: number;
+  layers: SvgLayerMeta[];
+}> {
+  const { createRequire } = await import("node:module");
+  const req = createRequire(import.meta.url);
+  const sharp = req("sharp") as typeof import("sharp");
+  try {
+    (sharp as any).concurrency?.(1);
+    (sharp as any).cache?.({ files: 0, memory: 48 });
+  } catch {}
+
+  const { data, info } = await sharp(input)
+    .rotate()
+    .resize({
+      width: opts.maxTraceSide,
+      height: opts.maxTraceSide,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const width = info.width | 0;
+  const height = info.height | 0;
+  if (!width || !height)
+    throw new Error("Could not decode image for layered SVG tracing.");
+
+  const raw = data as Buffer;
+  const pixels = collectLayerPixels(raw, width, height, {
+    removeTransparent: opts.removeTransparent,
+    removeWhite: opts.removeWhite,
+    posterize: opts.posterize,
+  });
+  if (pixels.length < 20)
+    throw new Error(
+      "Not enough visible image data to build layers. Try disabling white background removal.",
+    );
+
+  const paletteRgb = buildLayerPalette(pixels, opts.layerCount);
+  const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
+    palette: paletteRgb,
+    removeTransparent: opts.removeTransparent,
+    removeWhite: opts.removeWhite,
+    posterize: opts.posterize,
+  });
+  const totalAssignable = assignments.assignableCount || 1;
+  const rawLayerItems = paletteRgb
+    .map((rgb, index) => {
+      const count = assignments.counts[index] || 0;
+      const percent = (count / totalAssignable) * 100;
+      return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
+    })
+    .filter((item) => item.count > 0 && item.percent >= opts.minRegionPercent)
+    .sort((a, b) => {
+      const lumDiff = luminance(b.rgb) - luminance(a.rgb);
+      if (Math.abs(lumDiff) > 8) return lumDiff;
+      return b.count - a.count;
+    });
+  if (rawLayerItems.length === 0)
+    throw new Error(
+      "No usable color layers were found. Try lowering minimum layer size or disabling white background removal.",
+    );
+
+  const builtLayers: TraceLayerBuildItem[] = [];
+  for (let i = 0; i < rawLayerItems.length; i++) {
+    const item = rawLayerItems[i];
+    const mask = Buffer.alloc(width * height, 255);
+    for (let px = 0; px < assignments.layerForPixel.length; px++) {
+      if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
+    }
+    if (!maskHasInk(mask)) continue;
+    const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
+      .png()
+      .toBuffer();
+    const pathTags = await traceMaskToPathTags(maskPng, {
+      turdSize: opts.turdSize,
+      optTolerance: opts.optTolerance,
+      turnPolicy: opts.turnPolicy,
+    });
+    if (!pathTags.trim()) continue;
+    const label = `Layer ${builtLayers.length + 1}`;
+    builtLayers.push({
+      id: sanitizeLayerId(
+        `layer-${builtLayers.length + 1}-${item.color.replace("#", "")}`,
+      ),
+      label,
+      color: item.color,
+      pixelPercent: Number(item.percent.toFixed(2)),
+      pathTags,
+    });
+  }
+  if (builtLayers.length === 0)
+    throw new Error(
+      "The image did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast image.",
+    );
+  const svg = buildLayeredSvgString({
+    width,
+    height,
+    layers: builtLayers,
+    transparent: opts.transparent,
+    bgColor: opts.bgColor,
+  });
+  return {
+    svg,
+    width,
+    height,
+    layers: builtLayers.map((layer) => ({
+      id: layer.id,
+      label: layer.label,
+      color: layer.color,
+      originalColor: layer.color,
+      visible: true,
+    })),
+  };
+}
+
+function collectLayerPixels(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: {
+    removeTransparent: boolean;
+    removeWhite: boolean;
+    posterize: boolean;
+  },
+): RGB[] {
+  const total = width * height;
+  const pixels: RGB[] = [];
+  const sampleStep = Math.max(1, Math.floor(total / 16000));
+  for (let i = 0; i < total; i += sampleStep) {
+    const off = i * 4;
+    const a = raw[off + 3];
+    if (options.removeTransparent && a < 18) continue;
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+    if (a < 255 && !options.removeTransparent) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+    if (options.posterize) {
+      r = posterizeChannel(r);
+      g = posterizeChannel(g);
+      b = posterizeChannel(b);
+    }
+    if (options.removeWhite && isNearWhite({ r, g, b })) continue;
+    pixels.push({ r, g, b });
+  }
+  return pixels;
+}
+
+function assignAllPixelsToLayerPalette(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: {
+    palette: RGB[];
+    removeTransparent: boolean;
+    removeWhite: boolean;
+    posterize: boolean;
+  },
+): { layerForPixel: Int16Array; counts: number[]; assignableCount: number } {
+  const total = width * height;
+  const layerForPixel = new Int16Array(total);
+  layerForPixel.fill(-1);
+  const counts = new Array(options.palette.length).fill(0);
+  let assignableCount = 0;
+  for (let i = 0; i < total; i++) {
+    const off = i * 4;
+    const a = raw[off + 3];
+    if (options.removeTransparent && a < 18) continue;
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+    if (a < 255 && !options.removeTransparent) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+    if (options.posterize) {
+      r = posterizeChannel(r);
+      g = posterizeChannel(g);
+      b = posterizeChannel(b);
+    }
+    const rgb = { r, g, b };
+    if (options.removeWhite && isNearWhite(rgb)) continue;
+    const nearest = nearestPaletteIndex(rgb, options.palette);
+    layerForPixel[i] = nearest;
+    counts[nearest]++;
+    assignableCount++;
+  }
+  return { layerForPixel, counts, assignableCount };
+}
+
+function buildLayerPalette(pixels: RGB[], requestedCount: number): RGB[] {
+  const k = clampInt(requestedCount, MIN_LAYER_COUNT, MAX_LAYER_COUNT);
+  const uniqueMap = new Map<string, RGB>();
+  for (const pixel of pixels) {
+    uniqueMap.set(`${pixel.r},${pixel.g},${pixel.b}`, pixel);
+    if (uniqueMap.size >= 4096) break;
+  }
+  const unique = Array.from(uniqueMap.values());
+  if (unique.length <= k) return unique;
+  const centroids = seedLayerCentroids(unique, k);
+  for (let iter = 0; iter < 12; iter++) {
+    const sums = centroids.map(() => ({ r: 0, g: 0, b: 0, count: 0 }));
+    for (const pixel of pixels) {
+      const index = nearestPaletteIndex(pixel, centroids);
+      sums[index].r += pixel.r;
+      sums[index].g += pixel.g;
+      sums[index].b += pixel.b;
+      sums[index].count++;
+    }
+    for (let i = 0; i < centroids.length; i++) {
+      const sum = sums[i];
+      if (!sum.count) continue;
+      centroids[i] = {
+        r: Math.round(sum.r / sum.count),
+        g: Math.round(sum.g / sum.count),
+        b: Math.round(sum.b / sum.count),
+      };
+    }
+  }
+  return dedupeLayerPalette(centroids).slice(0, k);
+}
+
+function seedLayerCentroids(pixels: RGB[], k: number): RGB[] {
+  const sorted = [...pixels].sort((a, b) => {
+    const lumDiff = luminance(a) - luminance(b);
+    if (Math.abs(lumDiff) > 1) return lumDiff;
+    return a.r + a.g + a.b - (b.r + b.g + b.b);
+  });
+  const seeds: RGB[] = [];
+  for (let i = 0; i < k; i++) {
+    const index = Math.round((i / Math.max(1, k - 1)) * (sorted.length - 1));
+    seeds.push(sorted[index]);
+  }
+  return dedupeLayerPalette(seeds);
+}
+
+function dedupeLayerPalette(palette: RGB[]): RGB[] {
+  const seen = new Set<string>();
+  const out: RGB[] = [];
+  for (const color of palette) {
+    const key = `${color.r},${color.g},${color.b}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(color);
+  }
+  return out;
+}
+
+async function traceMaskToPathTags(
+  maskPng: Buffer,
+  options: {
+    turdSize: number;
+    optTolerance: number;
+    turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
+  },
+): Promise<string> {
+  const traced = await traceBitmapToSvg(maskPng, {
+    color: "#000000",
+    threshold: 128,
+    turdSize: options.turdSize,
+    optTolerance: options.optTolerance,
+    turnPolicy: options.turnPolicy,
+    invert: false,
+    blackOnWhite: true,
+  });
+  return extractPathTags(traced);
+}
+
+function buildLayeredSvgString({
+  width,
+  height,
+  layers,
+  transparent,
+  bgColor,
+}: {
+  width: number;
+  height: number;
+  layers: TraceLayerBuildItem[];
+  transparent: boolean;
+  bgColor: string;
+}): string {
+  const background = transparent
+    ? ""
+    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeHexColor(bgColor, "#ffffff")}" />`;
+  const body = layers
+    .map((layer) => {
+      const fill = sanitizeHexColor(layer.color, "#000000");
+      const safeId = escapeAttr(layer.id);
+      const safeLabel = escapeAttr(layer.label);
+      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}">${layer.pathTags}</g>`;
+    })
+    .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}</svg>`;
+}
+
+function buildEditableSingleTraceSvg(
+  svg: string,
+  color: string,
+): { svg: string; layers: SvgLayerMeta[] } {
+  const id = "trace-color";
+  const fill = sanitizeHexColor(color, "#000000");
+  let pathCount = 0;
+
+  const annotatedSvg = String(svg).replace(
+    /<path\b([^>]*?)(\s*\/?)>/gi,
+    (match, attrs = "", selfClose = "") => {
+      const currentAttrs = String(attrs || "");
+      if (/\bdata-fill-layer-id\s*=/i.test(currentAttrs)) {
+        pathCount += 1;
+        return match;
+      }
+
+      pathCount += 1;
+      return `<path${currentAttrs} data-fill-layer-id="${id}"${selfClose}>`;
+    },
+  );
+
+  return {
+    svg: annotatedSvg,
+    layers:
+      pathCount > 0
+        ? [
+            {
+              id,
+              label: "Trace color",
+              color: fill,
+              originalColor: fill,
+              visible: true,
+              kind: "fill",
+            },
+          ]
+        : [],
+  };
+}
+
+function maskHasInk(mask: Buffer): boolean {
+  for (let i = 0; i < mask.length; i++) if (mask[i] < 250) return true;
+  return false;
+}
+
+function nearestPaletteIndex(color: RGB, palette: RGB[]): number {
+  let best = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < palette.length; i++) {
+    const distance = colorDistance(color, palette[i]);
+    if (distance < bestDist) {
+      bestDist = distance;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function colorDistance(a: RGB, b: RGB): number {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return dr * dr * 0.32 + dg * dg * 0.52 + db * db * 0.16;
+}
+
+function luminance(color: RGB): number {
+  return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+}
+
+function blendChannel(channel: number, alpha: number, bg: number): number {
+  return Math.round((channel * alpha + bg * (255 - alpha)) / 255);
+}
+
+function posterizeChannel(value: number): number {
+  return Math.round(value / 32) * 32;
+}
+
+function isNearWhite(color: RGB): boolean {
+  return color.r >= 244 && color.g >= 244 && color.b >= 244;
+}
+
 /* ========================
    Image trace mode (Potrace)
 ======================== */
 type ImageActionResult = {
   mode: "image";
   svg?: string;
+  layers?: SvgLayerMeta[];
   error?: string;
   width?: number;
   height?: number;
@@ -796,6 +1524,88 @@ async function handleImageTrace(
     const blurSigma = clampNum(form.get("blurSigma"), 0, 3, 0.8);
     const edgeBoost = clampNum(form.get("edgeBoost"), 0.5, 2.0, 1.25);
 
+    const traceMode = String(form.get("traceMode") ?? "layered") as TraceMode;
+    const colorLayerCount = clampNumber(
+      Number(
+        form.get("colorLayerCount") ?? BASE_LAYERED_COLOR_DEFAULTS.layerCount,
+      ),
+      MIN_LAYER_COUNT,
+      MAX_LAYER_COUNT,
+    );
+    const layerMaxTraceSide = clampNumber(
+      Number(
+        form.get("layerMaxTraceSide") ??
+          BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
+      ),
+      600,
+      2400,
+    );
+    const minRegionPercent = clampNumber(
+      Number(
+        form.get("minRegionPercent") ??
+          BASE_LAYERED_COLOR_DEFAULTS.minRegionPercent,
+      ),
+      0,
+      5,
+    );
+    const layerOptTolerance = clampNumber(
+      Number(
+        form.get("layerOptTolerance") ??
+          BASE_LAYERED_COLOR_DEFAULTS.optTolerance,
+      ),
+      0.05,
+      1.2,
+    );
+    const layerTurdSize = clampNumber(
+      Number(form.get("layerTurdSize") ?? BASE_LAYERED_COLOR_DEFAULTS.turdSize),
+      0,
+      20,
+    );
+    const layerTurnPolicy = readTurnPolicy(
+      String(
+        form.get("layerTurnPolicy") ?? BASE_LAYERED_COLOR_DEFAULTS.turnPolicy,
+      ),
+    );
+    const posterize =
+      String(
+        form.get("posterize") ?? String(BASE_LAYERED_COLOR_DEFAULTS.posterize),
+      ).toLowerCase() === "true";
+    const removeWhite =
+      String(
+        form.get("removeWhite") ??
+          String(BASE_LAYERED_COLOR_DEFAULTS.removeWhite),
+      ).toLowerCase() === "true";
+    const removeTransparent =
+      String(
+        form.get("removeTransparent") ??
+          String(BASE_LAYERED_COLOR_DEFAULTS.removeTransparent),
+      ).toLowerCase() === "true";
+
+    if (traceMode === "layered" && !invert) {
+      const layered = await createLayeredColorSvg(input, {
+        layerCount: Math.round(colorLayerCount),
+        maxTraceSide: Math.round(layerMaxTraceSide),
+        minRegionPercent,
+        optTolerance: layerOptTolerance,
+        turdSize: Math.round(layerTurdSize),
+        posterize,
+        removeWhite,
+        removeTransparent,
+        transparent,
+        bgColor,
+        turnPolicy: layerTurnPolicy,
+      });
+
+      return json<ImageActionResult>({
+        mode: "image",
+        svg: layered.svg,
+        layers: layered.layers,
+        width: layered.width,
+        height: layered.height,
+        gate: { running: gate.running, queued: gate.queued },
+      });
+    }
+
     const prepped = await normalizeForPotrace(input, {
       preprocess,
       blurSigma,
@@ -853,9 +1663,12 @@ async function handleImageTrace(
           bgColor,
         );
 
+    const editable = annotateSvgColorLayers(finalSVG, "traced-emoji");
+
     return json<ImageActionResult>({
       mode: "image",
-      svg: finalSVG,
+      svg: editable.svg,
+      layers: editable.layers,
       width: ensured.width,
       height: ensured.height,
       gate: { running: gate.running, queued: gate.queued },
@@ -1106,6 +1919,266 @@ function escapeReg(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function normalizeSvgEditableColor(value: string): string | null {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return null;
+  if (
+    raw === "none" ||
+    raw === "transparent" ||
+    raw === "currentcolor" ||
+    raw === "inherit" ||
+    raw === "context-fill" ||
+    raw === "context-stroke" ||
+    raw.startsWith("url(")
+  ) {
+    return null;
+  }
+  if (/^#[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw;
+  if (/^#[0-9a-f]{8}$/i.test(raw)) return `#${raw.slice(1, 7)}`;
+  const rgbMatch = raw.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(",").map((part) => part.trim());
+    if (parts.length >= 3) {
+      const nums = parts.slice(0, 3).map((part) => {
+        if (part.endsWith("%"))
+          return clampByte((parseFloat(part) / 100) * 255);
+        return clampByte(Number(part));
+      });
+      return rgbToHex(nums[0], nums[1], nums[2]);
+    }
+  }
+  const named: Record<string, string> = {
+    black: "#000000",
+    white: "#ffffff",
+    red: "#ff0000",
+    green: "#008000",
+    blue: "#0000ff",
+    navy: "#000080",
+    teal: "#008080",
+    aqua: "#00ffff",
+    cyan: "#00ffff",
+    lime: "#00ff00",
+    yellow: "#ffff00",
+    olive: "#808000",
+    maroon: "#800000",
+    purple: "#800080",
+    fuchsia: "#ff00ff",
+    magenta: "#ff00ff",
+    orange: "#ffa500",
+    pink: "#ffc0cb",
+    brown: "#a52a2a",
+    gray: "#808080",
+    grey: "#808080",
+    silver: "#c0c0c0",
+  };
+  return named[raw] || null;
+}
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b]
+    .map((v) => clampByte(v).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function sanitizeLayerId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function annotateSvgColorLayers(
+  svg: string,
+  idPrefix: string,
+): { svg: string; layers: SvgLayerMeta[] } {
+  const layers: SvgLayerMeta[] = [];
+  const layerIds = new Map<string, string>();
+  let fillCount = 0;
+  let strokeCount = 0;
+  const excludedTags = new Set([
+    "svg",
+    "defs",
+    "style",
+    "title",
+    "desc",
+    "metadata",
+    "lineargradient",
+    "radialgradient",
+    "pattern",
+    "clippath",
+    "mask",
+    "filter",
+    "marker",
+    "symbol",
+    "use",
+    "image",
+    "foreignobject",
+    "stop",
+  ]);
+
+  function getLayer(kind: SvgLayerKind, color: string): string {
+    const key = `${kind}:${color}`;
+    const existing = layerIds.get(key);
+    if (existing) return existing;
+    const count = kind === "fill" ? ++fillCount : ++strokeCount;
+    const id = sanitizeLayerId(
+      `${idPrefix}-${kind}-${count}-${color.replace("#", "")}`,
+    );
+    layers.push({
+      id,
+      label: `${kind === "fill" ? "Fill" : "Stroke"} ${count}`,
+      color,
+      originalColor: color,
+      visible: true,
+      kind,
+    });
+    layerIds.set(key, id);
+    return id;
+  }
+
+  const annotated = svg.replace(
+    /<([a-zA-Z][\w:.-]*)(\s[^<>]*?)?(\s*\/?)>/g,
+    (match, rawTagName, rawAttrs = "", rawSelfClose = "") => {
+      const tagName = String(rawTagName || "").toLowerCase();
+      if (excludedTags.has(tagName)) return match;
+      let attrs = String(rawAttrs || "");
+      if (
+        /\bdata-fill-layer-id\s*=|\bdata-stroke-layer-id\s*=|\bdata-layer-id\s*=/i.test(
+          attrs,
+        )
+      ) {
+        return match;
+      }
+      const fillColor = extractPaintColorFromAttrs(attrs, "fill");
+      const strokeColor = extractPaintColorFromAttrs(attrs, "stroke");
+      if (!fillColor && !strokeColor) return match;
+      if (fillColor)
+        attrs += ` data-fill-layer-id="${getLayer("fill", fillColor)}"`;
+      if (strokeColor)
+        attrs += ` data-stroke-layer-id="${getLayer("stroke", strokeColor)}"`;
+      return `<${rawTagName}${attrs}${rawSelfClose}>`;
+    },
+  );
+
+  return { svg: annotated, layers };
+}
+
+function extractPaintColorFromAttrs(
+  attrs: string,
+  property: SvgLayerKind,
+): string | null {
+  const attrPattern = new RegExp(
+    `\\b${property}\\s*=\\s*["']([^"']+)["']`,
+    "i",
+  );
+  const direct = normalizeSvgEditableColor(
+    String(attrs).match(attrPattern)?.[1] || "",
+  );
+  if (direct) return direct;
+  const style =
+    String(attrs).match(/\bstyle\s*=\s*["']([^"']*)["']/i)?.[1] || "";
+  if (style) {
+    const stylePattern = new RegExp(
+      `(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`,
+      "i",
+    );
+    const styled = normalizeSvgEditableColor(
+      style.match(stylePattern)?.[1] || "",
+    );
+    if (styled) return styled;
+  }
+  return null;
+}
+
+function applyLayerEditsToSvg(
+  svg: string,
+  layers: SvgLayerMeta[] | undefined,
+): string {
+  if (!layers?.length) return svg;
+  let out = svg;
+  for (const layer of layers) {
+    out = updateSvgTagsForLayer(
+      out,
+      "data-layer-id",
+      layer,
+      layer.kind || "fill",
+    );
+    out = updateSvgTagsForLayer(out, "data-fill-layer-id", layer, "fill");
+    out = updateSvgTagsForLayer(out, "data-stroke-layer-id", layer, "stroke");
+  }
+  return out;
+}
+
+function updateSvgTagsForLayer(
+  svg: string,
+  dataAttr: "data-layer-id" | "data-fill-layer-id" | "data-stroke-layer-id",
+  layer: SvgLayerMeta,
+  paintKind: SvgLayerKind,
+): string {
+  const escapedId = escapeReg(layer.id);
+  const re = new RegExp(
+    `<([a-zA-Z][\\w:.-]*)([^<>]*\\b${dataAttr}\\s*=\\s*["']${escapedId}["'][^<>]*?)(\\s*\\/?)>`,
+    "gi",
+  );
+
+  return svg.replace(re, (_match, tagName, attrs = "", selfClose = "") => {
+    let nextAttrs = String(attrs);
+    nextAttrs = removeEditorDisplay(nextAttrs);
+    nextAttrs = removePaintFromStyle(nextAttrs, paintKind);
+    nextAttrs = setSvgAttr(nextAttrs, paintKind, layer.color);
+    nextAttrs = setSvgAttr(
+      nextAttrs,
+      "data-editor-display",
+      layer.visible ? "visible" : "none",
+    );
+    if (!layer.visible) {
+      nextAttrs = setSvgAttr(nextAttrs, "display", "none");
+    } else if (/\bdisplay\s*=\s*["']none["']/i.test(nextAttrs)) {
+      nextAttrs = nextAttrs.replace(/\sdisplay\s*=\s*["']none["']/i, "");
+    }
+    return `<${tagName}${nextAttrs}${selfClose}>`;
+  });
+}
+
+function setSvgAttr(attrs: string, name: string, value: string): string {
+  const pattern = new RegExp(
+    `\\s${escapeReg(name)}\\s*=\\s*["'][^"']*["']`,
+    "i",
+  );
+  if (pattern.test(attrs))
+    return attrs.replace(pattern, ` ${name}="${escapeAttr(value)}"`);
+  return `${attrs} ${name}="${escapeAttr(value)}"`;
+}
+
+function removeEditorDisplay(attrs: string): string {
+  if (/\bdata-editor-display\s*=\s*["']none["']/i.test(attrs)) {
+    attrs = attrs.replace(/\sdisplay\s*=\s*["']none["']/i, "");
+  }
+  return attrs.replace(/\sdata-editor-display\s*=\s*["'][^"']*["']/i, "");
+}
+
+function removePaintFromStyle(attrs: string, paintKind: SvgLayerKind): string {
+  return attrs.replace(/\sstyle\s*=\s*["']([^"']*)["']/i, (_m, styleValue) => {
+    const cleaned = String(styleValue)
+      .split(";")
+      .map((part) => part.trim())
+      .filter(
+        (part) => part && !new RegExp(`^${paintKind}\\s*:`, "i").test(part),
+      )
+      .join("; ");
+    return cleaned ? ` style="${escapeAttr(cleaned)}"` : "";
+  });
+}
+
 /* ========================
    UI Types
 ======================== */
@@ -1118,6 +2191,23 @@ type ImageSettings = {
   turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   lineColor: string;
   invert: boolean;
+
+  traceMode: TraceMode;
+  colorLayerCount: number;
+  layerMaxTraceSide: number;
+  minRegionPercent: number;
+  layerOptTolerance: number;
+  layerTurdSize: number;
+  layerTurnPolicy:
+    | "black"
+    | "white"
+    | "left"
+    | "right"
+    | "minority"
+    | "majority";
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
 
   transparent: boolean;
   bgColor: string;
@@ -1159,6 +2249,17 @@ const IMAGE_DEFAULTS: ImageSettings = {
   lineColor: "#000000",
   invert: false,
 
+  traceMode: "layered",
+  colorLayerCount: BASE_LAYERED_COLOR_DEFAULTS.layerCount,
+  layerMaxTraceSide: BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
+  minRegionPercent: BASE_LAYERED_COLOR_DEFAULTS.minRegionPercent,
+  layerOptTolerance: BASE_LAYERED_COLOR_DEFAULTS.optTolerance,
+  layerTurdSize: BASE_LAYERED_COLOR_DEFAULTS.turdSize,
+  layerTurnPolicy: BASE_LAYERED_COLOR_DEFAULTS.turnPolicy,
+  posterize: BASE_LAYERED_COLOR_DEFAULTS.posterize,
+  removeWhite: BASE_LAYERED_COLOR_DEFAULTS.removeWhite,
+  removeTransparent: BASE_LAYERED_COLOR_DEFAULTS.removeTransparent,
+
   transparent: true,
   bgColor: "#ffffff",
 
@@ -1198,11 +2299,22 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
   // Text mode state
   const [emojiText, setEmojiText] = React.useState<string>("😀🔥❤️");
   const [tset, setTset] = React.useState<TextSettings>(TEXT_DEFAULTS);
+  const [editableTextItems, setEditableTextItems] = React.useState<
+    TextResultItem[]
+  >([]);
+  const [advancedEmojiLayerIndex, setAdvancedEmojiLayerIndex] =
+    React.useState(0);
+  const [advancedEmojiLayerQuery, setAdvancedEmojiLayerQuery] =
+    React.useState("");
 
   // Image mode state
   const [file, setFile] = React.useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [iset, setIset] = React.useState<ImageSettings>(IMAGE_DEFAULTS);
+  const [editableImageResult, setEditableImageResult] = React.useState<{
+    svg: string;
+    layers: SvgLayerMeta[];
+  } | null>(null);
   const [dims, setDims] = React.useState<{
     w: number;
     h: number;
@@ -1236,6 +2348,25 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
     if (Array.isArray(d?.warnings)) setWarns(d.warnings);
     else setWarns([]);
 
+    if (d?.mode === "text" && Array.isArray(d.items)) {
+      setEditableTextItems(
+        d.items.map((item: TextResultItem) => ({
+          ...item,
+          layers: item.layers ?? [],
+        })),
+      );
+      setEditableImageResult(null);
+      setAdvancedEmojiLayerIndex(0);
+    }
+
+    if (d?.mode === "image" && typeof d.svg === "string") {
+      setEditableImageResult({
+        svg: d.svg,
+        layers: Array.isArray(d.layers) ? d.layers : [],
+      });
+      setEditableTextItems([]);
+    }
+
     if (d?.mode === "image" && d?.retryAfterMs) {
       // We do not auto retry here since live preview is disabled.
       // User can click again.
@@ -1249,6 +2380,173 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
 
   function copyText(s: string) {
     navigator.clipboard.writeText(s).then(() => showToast("Copied"));
+  }
+
+  function getTextItemSvg(item: TextResultItem): string {
+    return applyLayerEditsToSvg(item.svg, item.layers);
+  }
+
+  function setTextItemLayer(
+    itemIndex: number,
+    layerId: string,
+    patch: Partial<SvgLayerMeta>,
+  ) {
+    setEditableTextItems((items) =>
+      items.map((item, index) =>
+        index === itemIndex
+          ? {
+              ...item,
+              layers: (item.layers ?? []).map((layer) =>
+                layer.id === layerId ? { ...layer, ...patch } : layer,
+              ),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function resetTextItemLayer(itemIndex: number, layerId: string) {
+    setEditableTextItems((items) =>
+      items.map((item, index) =>
+        index === itemIndex
+          ? {
+              ...item,
+              layers: (item.layers ?? []).map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, color: layer.originalColor, visible: true }
+                  : layer,
+              ),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function resetAllTextItemLayers(itemIndex: number) {
+    setEditableTextItems((items) =>
+      items.map((item, index) =>
+        index === itemIndex
+          ? {
+              ...item,
+              layers: (item.layers ?? []).map((layer) => ({
+                ...layer,
+                color: layer.originalColor,
+                visible: true,
+              })),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function setSameEmojiLayerGroup(
+    sourceItemIndex: number,
+    match: SameEmojiLayerMatch,
+    patch: Partial<SvgLayerMeta>,
+  ) {
+    setEditableTextItems((items) => {
+      const source = items[sourceItemIndex];
+      if (!source) return items;
+
+      return items.map((item) => {
+        if (item.code !== source.code) return item;
+
+        return {
+          ...item,
+          layers: (item.layers ?? []).map((layer) =>
+            isSameEmojiLayerMatch(layer, match)
+              ? { ...layer, ...patch }
+              : layer,
+          ),
+        };
+      });
+    });
+  }
+
+  function resetSameEmojiLayerGroup(
+    sourceItemIndex: number,
+    match: SameEmojiLayerMatch,
+  ) {
+    setEditableTextItems((items) => {
+      const source = items[sourceItemIndex];
+      if (!source) return items;
+
+      return items.map((item) => {
+        if (item.code !== source.code) return item;
+
+        return {
+          ...item,
+          layers: (item.layers ?? []).map((layer) =>
+            isSameEmojiLayerMatch(layer, match)
+              ? { ...layer, color: layer.originalColor, visible: true }
+              : layer,
+          ),
+        };
+      });
+    });
+  }
+
+  function resetAllSameEmojiLayers(sourceItemIndex: number) {
+    setEditableTextItems((items) => {
+      const source = items[sourceItemIndex];
+      if (!source) return items;
+
+      return items.map((item) =>
+        item.code === source.code
+          ? {
+              ...item,
+              layers: (item.layers ?? []).map((layer) => ({
+                ...layer,
+                color: layer.originalColor,
+                visible: true,
+              })),
+            }
+          : item,
+      );
+    });
+  }
+
+  function setImageLayer(layerId: string, patch: Partial<SvgLayerMeta>) {
+    setEditableImageResult((result) =>
+      result
+        ? {
+            ...result,
+            layers: result.layers.map((layer) =>
+              layer.id === layerId ? { ...layer, ...patch } : layer,
+            ),
+          }
+        : result,
+    );
+  }
+
+  function resetImageLayer(layerId: string) {
+    setEditableImageResult((result) =>
+      result
+        ? {
+            ...result,
+            layers: result.layers.map((layer) =>
+              layer.id === layerId
+                ? { ...layer, color: layer.originalColor, visible: true }
+                : layer,
+            ),
+          }
+        : result,
+    );
+  }
+
+  function resetAllImageLayers() {
+    setEditableImageResult((result) =>
+      result
+        ? {
+            ...result,
+            layers: result.layers.map((layer) => ({
+              ...layer,
+              color: layer.originalColor,
+              visible: true,
+            })),
+          }
+        : result,
+    );
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1286,6 +2584,8 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
     } catch {
       setDims(null);
     }
+
+    await submitImageConvert(f, iset);
   }
 
   function submitTextConvert() {
@@ -1323,12 +2623,18 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`,
+      action:
+        typeof window === "undefined"
+          ? "/emoji-to-svg-converter"
+          : window.location.pathname,
     });
   }
 
-  async function submitImageConvert() {
-    if (!file) {
+  async function submitImageConvert(
+    targetFile: File | null = file,
+    targetSettings: ImageSettings = iset,
+  ) {
+    if (!targetFile) {
       setErr("Upload an emoji image first.");
       return;
     }
@@ -1337,42 +2643,76 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
 
     const fd = new FormData();
     fd.append("mode", "image");
-    fd.append("file", file);
+    fd.append("file", targetFile);
 
-    fd.append("threshold", String(iset.threshold));
-    fd.append("turdSize", String(iset.turdSize));
-    fd.append("optTolerance", String(iset.optTolerance));
-    fd.append("turnPolicy", iset.turnPolicy);
-    fd.append("lineColor", iset.lineColor);
-    fd.append("invert", String(iset.invert));
+    fd.append("threshold", String(targetSettings.threshold));
+    fd.append("turdSize", String(targetSettings.turdSize));
+    fd.append("optTolerance", String(targetSettings.optTolerance));
+    fd.append("turnPolicy", targetSettings.turnPolicy);
+    fd.append("lineColor", targetSettings.lineColor);
+    fd.append("invert", String(targetSettings.invert));
 
-    fd.append("transparent", String(iset.transparent));
-    fd.append("bgColor", iset.bgColor);
+    fd.append("traceMode", targetSettings.traceMode);
+    fd.append("colorLayerCount", String(targetSettings.colorLayerCount));
+    fd.append("layerMaxTraceSide", String(targetSettings.layerMaxTraceSide));
+    fd.append("minRegionPercent", String(targetSettings.minRegionPercent));
+    fd.append("layerOptTolerance", String(targetSettings.layerOptTolerance));
+    fd.append("layerTurdSize", String(targetSettings.layerTurdSize));
+    fd.append("layerTurnPolicy", targetSettings.layerTurnPolicy);
+    fd.append("posterize", String(targetSettings.posterize));
+    fd.append("removeWhite", String(targetSettings.removeWhite));
+    fd.append("removeTransparent", String(targetSettings.removeTransparent));
 
-    fd.append("preprocess", iset.preprocess);
-    fd.append("blurSigma", String(iset.blurSigma));
-    fd.append("edgeBoost", String(iset.edgeBoost));
+    fd.append("transparent", String(targetSettings.transparent));
+    fd.append("bgColor", targetSettings.bgColor);
+
+    fd.append("preprocess", targetSettings.preprocess);
+    fd.append("blurSigma", String(targetSettings.blurSigma));
+    fd.append("edgeBoost", String(targetSettings.edgeBoost));
 
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`,
+      action:
+        typeof window === "undefined"
+          ? "/emoji-to-svg-converter"
+          : window.location.pathname,
     });
   }
 
   // Render helpers from server data
   const data = fetcher.data as any;
 
-  const textItems: TextResultItem[] =
+  const serverTextItems: TextResultItem[] =
     data?.mode === "text" && Array.isArray(data.items) ? data.items : [];
+  const textItems: TextResultItem[] =
+    editableTextItems.length > 0 ? editableTextItems : serverTextItems;
 
   const groupedSvg: string | null =
-    data?.mode === "text" && typeof data.groupedSvg === "string"
-      ? data.groupedSvg
+    data?.mode === "text" && textItems.length > 0
+      ? buildGroupedSvg(
+          textItems.map((item) => getTextItemSvg(item)),
+          {
+            layout: tset.layout,
+            fit: tset.fit,
+            cell: tset.cell,
+            pad: tset.pad,
+            cols: tset.cols,
+            margin: tset.margin,
+            canvasMode: tset.canvasMode,
+            canvasW: tset.canvasW,
+            canvasH: tset.canvasH,
+            bg: tset.bg,
+            bgColor: tset.bgColor,
+          },
+        )
       : null;
 
-  const tracedSvg: string | null =
-    data?.mode === "image" && typeof data.svg === "string" ? data.svg : null;
+  const tracedSvg: string | null = editableImageResult?.svg
+    ? applyLayerEditsToSvg(editableImageResult.svg, editableImageResult.layers)
+    : data?.mode === "image" && typeof data.svg === "string"
+      ? data.svg
+      : null;
 
   const buttonDisabled = isServer || !hydrated || busy;
 
@@ -1405,7 +2745,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                   type="button"
                   onClick={() => setMode("text")}
                   className={[
-                    "px-3 py-2 rounded-lg border font-semibold",
+                    "cursor-pointer px-3 py-2 rounded-lg border font-semibold",
                     mode === "text"
                       ? "bg-[#e7eeff] border-[#0b2dff]"
                       : "bg-white border-slate-200 hover:bg-slate-50",
@@ -1417,7 +2757,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                   type="button"
                   onClick={() => setMode("image")}
                   className={[
-                    "px-3 py-2 rounded-lg border font-semibold",
+                    "cursor-pointer px-3 py-2 rounded-lg border font-semibold",
                     mode === "image"
                       ? "bg-[#e7eeff] border-[#0b2dff]"
                       : "bg-white border-slate-200 hover:bg-slate-50",
@@ -1474,6 +2814,21 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                         id="advanced-settings"
                         className="flex flex-col gap-2 min-w-0"
                       >
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                          <span>
+                            Advanced changes do not live preview automatically.
+                            Click Update preview to apply these settings.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={submitTextConvert}
+                            disabled={buttonDisabled}
+                            className="cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-800 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Update preview
+                          </button>
+                        </div>
+
                         <Field label="Output">
                           <select
                             value={tset.outputMode}
@@ -1716,6 +3071,24 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                             />
                           </div>
                         </Field>
+
+                        {editableTextItems.length > 0 && (
+                          <EmojiLayerControlPanel
+                            title="Per-emoji colour layers"
+                            items={editableTextItems}
+                            selectedIndex={advancedEmojiLayerIndex}
+                            setSelectedIndex={setAdvancedEmojiLayerIndex}
+                            query={advancedEmojiLayerQuery}
+                            setQuery={setAdvancedEmojiLayerQuery}
+                            onLayerChange={setTextItemLayer}
+                            onLayerReset={resetTextItemLayer}
+                            onAllReset={resetAllTextItemLayers}
+                            onSameEmojiLayerChange={setSameEmojiLayerGroup}
+                            onSameEmojiLayerReset={resetSameEmojiLayerGroup}
+                            onAllSameEmojiReset={resetAllSameEmojiLayers}
+                            compact
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -1828,6 +3201,23 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                         id="advanced-settings"
                         className="flex flex-col gap-2 min-w-0"
                       >
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                          <span>
+                            Advanced changes do not live preview automatically.
+                            Click Update preview to apply these settings.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void submitImageConvert();
+                            }}
+                            disabled={buttonDisabled || !file}
+                            className="cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-800 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Update preview
+                          </button>
+                        </div>
+
                         <Field label="Preprocess">
                           <select
                             value={iset.preprocess}
@@ -2011,7 +3401,9 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                   <div className="flex items-center gap-3 mt-3 flex-wrap">
                     <button
                       type="button"
-                      onClick={submitImageConvert}
+                      onClick={() => {
+                        void submitImageConvert();
+                      }}
                       disabled={buttonDisabled || !file}
                       suppressHydrationWarning
                       className={[
@@ -2114,9 +3506,26 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                         </div>
 
                         {textItems.length > 0 && (
-                          <div className="mt-3 text-[13px] text-slate-600">
-                            Converted {textItems.length} emoji.
-                          </div>
+                          <>
+                            <EmojiLayerControlPanel
+                              title="Preview colour layers"
+                              items={textItems}
+                              selectedIndex={advancedEmojiLayerIndex}
+                              setSelectedIndex={setAdvancedEmojiLayerIndex}
+                              query={advancedEmojiLayerQuery}
+                              setQuery={setAdvancedEmojiLayerQuery}
+                              onLayerChange={setTextItemLayer}
+                              onLayerReset={resetTextItemLayer}
+                              onAllReset={resetAllTextItemLayers}
+                              onSameEmojiLayerChange={setSameEmojiLayerGroup}
+                              onSameEmojiLayerReset={resetSameEmojiLayerGroup}
+                              onAllSameEmojiReset={resetAllSameEmojiLayers}
+                              compact
+                            />
+                            <div className="mt-3 text-[13px] text-slate-600">
+                              Converted {textItems.length} emoji.
+                            </div>
+                          </>
                         )}
                       </div>
                     ) : (
@@ -2143,7 +3552,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                             <div className="flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => copyText(it.svg)}
+                                onClick={() => copyText(getTextItemSvg(it))}
                                 className="px-2.5 py-1.5 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer text-sm"
                               >
                                 Copy
@@ -2151,7 +3560,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const b = new Blob([it.svg], {
+                                  const b = new Blob([getTextItemSvg(it)], {
                                     type: "image/svg+xml;charset=utf-8",
                                   });
                                   const u = URL.createObjectURL(b);
@@ -2173,12 +3582,26 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                           <div className="mt-2 rounded-xl border border-slate-200 bg-white min-h-[140px] flex items-center justify-center p-2">
                             <img
                               src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                                it.svg,
+                                getTextItemSvg(it),
                               )}`}
                               alt="Emoji SVG"
                               className="max-w-full h-auto"
                             />
                           </div>
+
+                          {(it.layers?.length ?? 0) > 0 && (
+                            <LayerPaletteEditor
+                              layers={it.layers ?? []}
+                              onLayerChange={(layerId, patch) =>
+                                setTextItemLayer(idx, layerId, patch)
+                              }
+                              onLayerReset={(layerId) =>
+                                resetTextItemLayer(idx, layerId)
+                              }
+                              onAllReset={() => resetAllTextItemLayers(idx)}
+                              title="Colour layers"
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -2204,6 +3627,16 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                           className="max-w-full h-auto"
                         />
                       </div>
+
+                      {editableImageResult?.layers?.length ? (
+                        <LayerPaletteEditor
+                          layers={editableImageResult.layers}
+                          onLayerChange={setImageLayer}
+                          onLayerReset={resetImageLayer}
+                          onAllReset={resetAllImageLayers}
+                          title="Colour layers"
+                        />
+                      ) : null}
 
                       <div className="flex gap-2 flex-wrap justify-end mt-3">
                         <button
@@ -2309,6 +3742,519 @@ function prettyBytes(bytes: number) {
 /* ========================
    UI small components
 ======================== */
+
+function EmojiLayerControlPanel({
+  title,
+  items,
+  selectedIndex,
+  setSelectedIndex,
+  query,
+  setQuery,
+  onLayerChange,
+  onLayerReset,
+  onAllReset,
+  onSameEmojiLayerChange,
+  onSameEmojiLayerReset,
+  onAllSameEmojiReset,
+  compact = false,
+}: {
+  title: string;
+  items: TextResultItem[];
+  selectedIndex: number;
+  setSelectedIndex: (index: number) => void;
+  query: string;
+  setQuery: (query: string) => void;
+  onLayerChange: (
+    itemIndex: number,
+    layerId: string,
+    patch: Partial<SvgLayerMeta>,
+  ) => void;
+  onLayerReset: (itemIndex: number, layerId: string) => void;
+  onAllReset: (itemIndex: number) => void;
+  onSameEmojiLayerChange?: (
+    sourceItemIndex: number,
+    match: SameEmojiLayerMatch,
+    patch: Partial<SvgLayerMeta>,
+  ) => void;
+  onSameEmojiLayerReset?: (
+    sourceItemIndex: number,
+    match: SameEmojiLayerMatch,
+  ) => void;
+  onAllSameEmojiReset?: (sourceItemIndex: number) => void;
+  compact?: boolean;
+}) {
+  const searchableItems = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item, index }) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        item.emoji.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        String(index + 1).includes(q)
+      );
+    });
+
+  const selected =
+    items[selectedIndex] ?? searchableItems[0]?.item ?? items[0] ?? null;
+  const safeSelectedIndex = selected ? items.indexOf(selected) : 0;
+
+  React.useEffect(() => {
+    if (items.length === 0) return;
+    if (selectedIndex >= items.length) setSelectedIndex(0);
+  }, [items.length, selectedIndex, setSelectedIndex]);
+
+  if (!items.length || !selected) return null;
+
+  return (
+    <div
+      className={[
+        "mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3",
+        compact ? "text-[13px]" : "text-sm",
+      ].join(" ")}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-semibold text-slate-900">{title}</div>
+        <div className="text-xs text-slate-500">
+          {items.length} emoji • {(selected.layers ?? []).length} layers shown
+        </div>
+      </div>
+
+      <div className="mt-2 grid gap-2">
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-slate-900 outline-none transition-colors hover:bg-slate-50 focus:border-[#0b2dff]"
+          placeholder="Filter emoji by symbol, code, or number"
+        />
+        <select
+          value={safeSelectedIndex}
+          onChange={(event) => setSelectedIndex(Number(event.target.value))}
+          className="min-w-0 cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
+        >
+          {(searchableItems.length
+            ? searchableItems
+            : items.map((item, index) => ({ item, index }))
+          ).map(({ item, index }) => (
+            <option key={`${item.code}-${index}`} value={index}>
+              {index + 1}. {item.emoji} {item.code}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <LayerPaletteEditor
+        layers={selected.layers ?? []}
+        onLayerChange={(layerId, patch) =>
+          onLayerChange(safeSelectedIndex, layerId, patch)
+        }
+        onLayerReset={(layerId) => onLayerReset(safeSelectedIndex, layerId)}
+        onAllReset={() => onAllReset(safeSelectedIndex)}
+        title={`${selected.emoji} selected instance`}
+        compact
+      />
+
+      {onSameEmojiLayerChange &&
+        onSameEmojiLayerReset &&
+        onAllSameEmojiReset && (
+          <SameEmojiLayerBatchEditor
+            items={items}
+            selectedIndex={safeSelectedIndex}
+            onLayerChange={onSameEmojiLayerChange}
+            onLayerReset={onSameEmojiLayerReset}
+            onAllReset={onAllSameEmojiReset}
+            compact
+          />
+        )}
+    </div>
+  );
+}
+
+type SameEmojiLayerMatch = {
+  kind: SvgLayerKind;
+  originalColor: string;
+};
+
+type SameEmojiLayerGroup = SameEmojiLayerMatch & {
+  id: string;
+  currentColor: string;
+  mixed: boolean;
+  visible: boolean;
+  mixedVisibility: boolean;
+  affectedCount: number;
+};
+
+function isSameEmojiLayerMatch(
+  layer: SvgLayerMeta,
+  match: SameEmojiLayerMatch,
+): boolean {
+  return (
+    (layer.kind || "fill") === match.kind &&
+    layer.originalColor.toLowerCase() === match.originalColor.toLowerCase()
+  );
+}
+
+function buildSameEmojiLayerGroups(
+  items: TextResultItem[],
+  selectedIndex: number,
+): SameEmojiLayerGroup[] {
+  const selected = items[selectedIndex];
+  if (!selected) return [];
+
+  const groups = new Map<
+    string,
+    SameEmojiLayerGroup & { colors: Set<string>; vis: Set<string> }
+  >();
+
+  for (const item of items) {
+    if (item.code !== selected.code) continue;
+
+    for (const layer of item.layers ?? []) {
+      const kind = layer.kind || "fill";
+      const originalColor = layer.originalColor.toLowerCase();
+      const key = `${kind}:${originalColor}`;
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.affectedCount += 1;
+        existing.colors.add(layer.color.toLowerCase());
+        existing.vis.add(layer.visible ? "visible" : "hidden");
+        existing.mixed = existing.colors.size > 1;
+        existing.mixedVisibility = existing.vis.size > 1;
+        if (!existing.mixed) existing.currentColor = layer.color;
+        if (!existing.mixedVisibility) existing.visible = layer.visible;
+        continue;
+      }
+
+      groups.set(key, {
+        id: key,
+        kind,
+        originalColor,
+        currentColor: layer.color,
+        mixed: false,
+        visible: layer.visible,
+        mixedVisibility: false,
+        affectedCount: 1,
+        colors: new Set([layer.color.toLowerCase()]),
+        vis: new Set([layer.visible ? "visible" : "hidden"]),
+      });
+    }
+  }
+
+  return Array.from(groups.values())
+    .map(({ colors: _colors, vis: _vis, ...group }) => group)
+    .sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+      return a.originalColor.localeCompare(b.originalColor);
+    });
+}
+
+function SameEmojiLayerBatchEditor({
+  items,
+  selectedIndex,
+  onLayerChange,
+  onLayerReset,
+  onAllReset,
+  compact = false,
+}: {
+  items: TextResultItem[];
+  selectedIndex: number;
+  onLayerChange: (
+    sourceItemIndex: number,
+    match: SameEmojiLayerMatch,
+    patch: Partial<SvgLayerMeta>,
+  ) => void;
+  onLayerReset: (sourceItemIndex: number, match: SameEmojiLayerMatch) => void;
+  onAllReset: (sourceItemIndex: number) => void;
+  compact?: boolean;
+}) {
+  const selected = items[selectedIndex];
+  const groups = React.useMemo(
+    () => buildSameEmojiLayerGroups(items, selectedIndex),
+    [items, selectedIndex],
+  );
+
+  if (!selected || groups.length === 0) return null;
+
+  const sameEmojiCount = items.filter(
+    (item) => item.code === selected.code,
+  ).length;
+
+  return (
+    <div
+      className={[
+        "mt-3 rounded-xl border border-sky-100 bg-sky-50 p-3",
+        compact ? "text-[13px]" : "text-sm",
+      ].join(" ")}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-semibold text-slate-900">
+          Same emoji batch edit
+        </div>
+        <button
+          type="button"
+          onClick={() => onAllReset(selectedIndex)}
+          className="cursor-pointer rounded-md border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-sky-100"
+        >
+          Reset same emoji
+        </button>
+      </div>
+
+      <p className="mt-1 text-[11px] leading-4 text-slate-600">
+        Edits below affect only {selected.emoji} items with the matching
+        original colour layer. Other emoji and other colours stay unchanged.
+      </p>
+
+      <div className="mt-2 grid gap-1.5">
+        {groups.map((group) => (
+          <SameEmojiLayerBatchRow
+            key={group.id}
+            group={group}
+            sameEmojiCount={sameEmojiCount}
+            onLayerChange={(patch) =>
+              onLayerChange(
+                selectedIndex,
+                { kind: group.kind, originalColor: group.originalColor },
+                patch,
+              )
+            }
+            onLayerReset={() =>
+              onLayerReset(selectedIndex, {
+                kind: group.kind,
+                originalColor: group.originalColor,
+              })
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SameEmojiLayerBatchRow({
+  group,
+  sameEmojiCount,
+  onLayerChange,
+  onLayerReset,
+}: {
+  group: SameEmojiLayerGroup;
+  sameEmojiCount: number;
+  onLayerChange: (patch: Partial<SvgLayerMeta>) => void;
+  onLayerReset: () => void;
+}) {
+  const [localColor, setLocalColor] = React.useState(group.currentColor);
+  const latestColorRef = React.useRef(group.currentColor);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    setLocalColor(group.currentColor);
+    latestColorRef.current = group.currentColor;
+  }, [group.currentColor]);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  function scheduleColorCommit() {
+    if (timeoutRef.current) return;
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      onLayerChange({ color: latestColorRef.current });
+    }, 100);
+  }
+
+  function commitColor() {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    onLayerChange({ color: latestColorRef.current });
+  }
+
+  return (
+    <div className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-2 rounded-lg border border-sky-100 bg-white px-2 py-1.5">
+      <input
+        type="checkbox"
+        checked={group.mixedVisibility ? true : group.visible}
+        onChange={(event) => onLayerChange({ visible: event.target.checked })}
+        className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
+        title="Toggle this colour layer across matching emoji"
+      />
+      <input
+        type="color"
+        value={localColor}
+        onChange={(event) => {
+          const nextColor = event.target.value;
+          setLocalColor(nextColor);
+          latestColorRef.current = nextColor;
+          scheduleColorCommit();
+        }}
+        onPointerUp={commitColor}
+        onMouseUp={commitColor}
+        onTouchEnd={commitColor}
+        onBlur={commitColor}
+        className="h-7 w-10 cursor-pointer rounded-md border border-sky-200 bg-white"
+        title={`Edit all matching ${group.originalColor} layers for this emoji`}
+      />
+      <div className="min-w-0">
+        <div className="truncate text-xs font-semibold text-slate-800">
+          {group.kind === "fill" ? "Fill" : "Stroke"} {group.originalColor}
+          {group.mixed ? " • mixed" : ""}
+        </div>
+        <div className="truncate text-[11px] text-slate-500">
+          {group.affectedCount} layer{group.affectedCount === 1 ? "" : "s"}{" "}
+          across {sameEmojiCount} same emoji
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onLayerReset}
+        className="cursor-pointer rounded-md border border-sky-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 transition-colors hover:bg-sky-100"
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+
+function LayerPaletteEditor({
+  layers,
+  onLayerChange,
+  onLayerReset,
+  onAllReset,
+  title = "Colour layers",
+  compact = false,
+}: {
+  layers: SvgLayerMeta[];
+  onLayerChange: (layerId: string, patch: Partial<SvgLayerMeta>) => void;
+  onLayerReset: (layerId: string) => void;
+  onAllReset: () => void;
+  title?: string;
+  compact?: boolean;
+}) {
+  if (!layers.length) return null;
+
+  return (
+    <div
+      className={[
+        "mt-3 rounded-xl border border-slate-200 bg-white p-3",
+        compact ? "text-[13px]" : "text-sm",
+      ].join(" ")}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-semibold text-slate-900">{title}</div>
+        <button
+          type="button"
+          onClick={onAllReset}
+          className="cursor-pointer rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100"
+        >
+          Reset all
+        </button>
+      </div>
+
+      <div className="mt-2 grid gap-1.5">
+        {layers.map((layer) => (
+          <LayerPaletteRow
+            key={layer.id}
+            layer={layer}
+            onLayerChange={onLayerChange}
+            onLayerReset={onLayerReset}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LayerPaletteRow({
+  layer,
+  onLayerChange,
+  onLayerReset,
+}: {
+  layer: SvgLayerMeta;
+  onLayerChange: (layerId: string, patch: Partial<SvgLayerMeta>) => void;
+  onLayerReset: (layerId: string) => void;
+}) {
+  const [localColor, setLocalColor] = React.useState(layer.color);
+  const latestColorRef = React.useRef(layer.color);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    setLocalColor(layer.color);
+    latestColorRef.current = layer.color;
+  }, [layer.color]);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  function scheduleColorCommit(nextColor: string) {
+    if (timeoutRef.current) return;
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      onLayerChange(layer.id, { color: latestColorRef.current });
+    }, 100);
+  }
+
+  function commitColor() {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    onLayerChange(layer.id, { color: latestColorRef.current });
+  }
+
+  return (
+    <div className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
+      <input
+        type="checkbox"
+        checked={layer.visible}
+        onChange={(event) =>
+          onLayerChange(layer.id, { visible: event.target.checked })
+        }
+        className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
+        title="Toggle layer visibility"
+      />
+      <input
+        type="color"
+        value={localColor}
+        onChange={(event) => {
+          const nextColor = event.target.value;
+          setLocalColor(nextColor);
+          latestColorRef.current = nextColor;
+          scheduleColorCommit(nextColor);
+        }}
+        onPointerUp={commitColor}
+        onMouseUp={commitColor}
+        onTouchEnd={commitColor}
+        onBlur={commitColor}
+        className="h-7 w-10 cursor-pointer rounded-md border border-slate-200 bg-white"
+        title={`Edit ${layer.label}`}
+      />
+      <div className="min-w-0">
+        <div className="truncate text-xs font-semibold text-slate-800">
+          {layer.label}
+        </div>
+        <div className="truncate text-[11px] text-slate-500">
+          Original {layer.originalColor}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onLayerReset(layer.id)}
+        className="cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 transition-colors hover:bg-slate-100"
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+
 function Field({
   label,
   children,
@@ -2586,6 +4532,18 @@ function SeoSections() {
                   For batch work or automated workflows, text mode is faster and
                   produces more consistent geometry. Tracing should be reserved
                   for cases where you must preserve a specific raster style.
+                </p>
+
+                <p>
+                  This emoji to SVG conversion page only rate limits backend
+                  conversion work, including Twemoji SVG generation and raster
+                  image tracing. Client-side preview rendering, colour layer
+                  edits, copy actions, and local download generation are not
+                  rate limited because they run in the browser after conversion.
+                  Backend conversion actions allow up to 120 conversions per
+                  minute, 400 conversions every 5 minutes, 1500 conversions per
+                  hour, and 3000 conversions per day for the same connection and
+                  browser profile.
                 </p>
 
                 <p>
