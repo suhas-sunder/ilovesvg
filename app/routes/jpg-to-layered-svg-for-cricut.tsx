@@ -58,12 +58,207 @@ const ALLOWED_MIME = new Set(["image/jpeg"]);
 
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
-const LIVE_FAST_MS = 450;
-const LIVE_MED_MS = 1600;
 
 const MIN_LAYER_COUNT = 2;
 const MAX_LAYER_COUNT = 10;
 const MAX_TRACE_SIDE_DEFAULT = 1600;
+
+const PAGE_RATE_LIMITS = {
+  perMinute: 120,
+  perFiveMinutes: 400,
+  perHour: 1500,
+  perDay: 3000,
+};
+
+type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
+type RateLimitWindowState = { count: number; resetAt: number };
+type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
+type BackendRateLimitResult =
+  | {
+      allowed: true;
+      headers: Headers;
+    }
+  | {
+      allowed: false;
+      headers: Headers;
+      retryAfterMs: number;
+      retryAfterText: string;
+    };
+
+const RATE_LIMIT_WINDOWS: Array<{
+  name: RateLimitWindowName;
+  ms: number;
+  limit: number;
+  limitHeader: string;
+  remainingHeader: string;
+}> = [
+  {
+    name: "minute",
+    ms: 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perMinute,
+    limitHeader: "X-RateLimit-Limit-Minute",
+    remainingHeader: "X-RateLimit-Remaining-Minute",
+  },
+  {
+    name: "fiveMinutes",
+    ms: 5 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitHeader: "X-RateLimit-Limit-Five-Minutes",
+    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
+  },
+  {
+    name: "hour",
+    ms: 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perHour,
+    limitHeader: "X-RateLimit-Limit-Hour",
+    remainingHeader: "X-RateLimit-Remaining-Hour",
+  },
+  {
+    name: "day",
+    ms: 24 * 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perDay,
+    limitHeader: "X-RateLimit-Limit-Day",
+    remainingHeader: "X-RateLimit-Remaining-Day",
+  },
+];
+
+function getRateLimitStore(): Map<string, RateLimitRecord> {
+  const g = globalThis as any;
+
+  if (!g.__ilovesvg_jpg_layer_action_rate_limits) {
+    g.__ilovesvg_jpg_layer_action_rate_limits = new Map<
+      string,
+      RateLimitRecord
+    >();
+  }
+
+  return g.__ilovesvg_jpg_layer_action_rate_limits as Map<
+    string,
+    RateLimitRecord
+  >;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "_")
+    .slice(0, 160);
+}
+
+function getBackendRateLimitKey(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+
+  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
+    actionName,
+  )}`;
+}
+
+function createFreshRateLimitRecord(now: number): RateLimitRecord {
+  return {
+    minute: { count: 0, resetAt: now + 60 * 1000 },
+    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
+    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
+    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
+  };
+}
+
+function formatRetryAfter(ms: number): string {
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function checkBackendConversionRateLimit(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): BackendRateLimitResult {
+  const now = Date.now();
+  const store = getRateLimitStore();
+  const key = getBackendRateLimitKey(request, routeName, actionName);
+  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+
+    if (now >= state.resetAt) {
+      state.count = 0;
+      state.resetAt = now + windowConfig.ms;
+    }
+  }
+
+  const exceeded = RATE_LIMIT_WINDOWS.filter(
+    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
+  );
+
+  const headers = new Headers();
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+
+    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  if (exceeded.length > 0) {
+    const retryAfterMs = Math.max(
+      1000,
+      Math.min(
+        ...exceeded.map(
+          (windowConfig) => record[windowConfig.name].resetAt - now,
+        ),
+      ),
+    );
+
+    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    store.set(key, record);
+
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    record[windowConfig.name].count += 1;
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  store.set(key, record);
+
+  return { allowed: true, headers };
+}
 
 /* ========================
    Server concurrency gate
@@ -183,6 +378,23 @@ export async function action({ request }: ActionFunctionArgs) {
             "Upload too large for live conversion. Please resize and try again.",
         },
         { status: 413 },
+      );
+    }
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "jpg-to-layered-svg-for-cricut",
+      "raster-trace",
+    );
+
+    if (!rateLimit.allowed) {
+      return json(
+        {
+          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterMs,
+          code: "RATE_LIMITED",
+        },
+        { status: 429, headers: rateLimit.headers },
       );
     }
 
@@ -1401,32 +1613,11 @@ export default function JpgToLayeredSvgForCricut({
   const [showAdvanced, setShowAdvanced] = React.useState(false);
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressLiveRef = React.useRef(false);
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const busy = fetcher.state !== "idle";
 
   React.useEffect(() => setHydrated(true), []);
-
-  React.useEffect(() => {
-    if (suppressLiveRef.current) return;
-    if (!file) return;
-
-    const mode = autoMode;
-    if (mode === "off") return;
-
-    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
-      submitConvert(file, settings);
-    }, delay);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [file, settings, activePreset, autoMode]);
 
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
@@ -1511,8 +1702,6 @@ export default function JpgToLayeredSvgForCricut({
       return;
     }
 
-    suppressLiveRef.current = true;
-
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (retryRef.current) clearTimeout(retryRef.current);
 
@@ -1539,7 +1728,6 @@ export default function JpgToLayeredSvgForCricut({
 
       await validateBeforeSubmit(chosen);
     } catch (e: any) {
-      suppressLiveRef.current = false;
       setInfo(null);
       setErr(e?.message || "JPG image is too large.");
       return;
@@ -1553,11 +1741,7 @@ export default function JpgToLayeredSvgForCricut({
 
     await measureAndSet(chosen);
 
-    suppressLiveRef.current = false;
-
-    setTimeout(() => {
-      submitConvert(chosen, DEFAULTS);
-    }, 0);
+    submitConvert(chosen, DEFAULTS);
   }
 
   async function submitConvert(
@@ -1577,6 +1761,16 @@ export default function JpgToLayeredSvgForCricut({
     } catch (e: any) {
       setErr(e?.message || "JPG image is too large.");
       return;
+    }
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+
+    if (retryRef.current) {
+      clearTimeout(retryRef.current);
+      retryRef.current = null;
     }
 
     const fd = new FormData();
@@ -1606,14 +1800,22 @@ export default function JpgToLayeredSvgForCricut({
   }
 
   function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-
-    setSettings((s) => ({
+    const nextSettings: Settings = {
       ...DEFAULTS,
-      transparent: s.transparent,
-      bgColor: s.bgColor,
+      transparent: settings.transparent,
+      bgColor: settings.bgColor,
       ...preset.settings,
-    }));
+    };
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (retryRef.current) clearTimeout(retryRef.current);
+
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+
+    if (file) {
+      submitConvert(file, nextSettings);
+    }
   }
 
   function showToast(msg: string) {
@@ -1700,6 +1902,21 @@ export default function JpgToLayeredSvgForCricut({
                     id="advanced-settings"
                     className="flex flex-col gap-2 min-w-0"
                   >
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="m-0 text-xs text-slate-500">
+                        Advanced changes do not live preview automatically.
+                        Click Update preview to apply these settings.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => submitConvert(file, settings)}
+                        disabled={buttonDisabled}
+                        className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Update preview
+                      </button>
+                    </div>
+
                     <Field label={`Layer count (${settings.layerCount})`}>
                       <input
                         type="range"
@@ -1713,7 +1930,7 @@ export default function JpgToLayeredSvgForCricut({
                             layerCount: Number(e.target.value),
                           }))
                         }
-                        className="w-full accent-[#0b2dff]"
+                        className="w-full accent-[#0b2dff] cursor-pointer"
                       />
                     </Field>
 
@@ -2411,7 +2628,7 @@ function Num({
       max={max}
       step={step}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
     />
   );
 }
@@ -2687,7 +2904,11 @@ function SeoSections() {
     },
     {
       q: "Does this page accept PNG files?",
-      a: "No. This route is specifically for JPG and JPEG files. Use the general image-to-layered SVG page if you want PNG support too.",
+      a: "No. This JPG to layered SVG for Cricut page is specifically for JPG and JPEG files. Use the general image-to-layered SVG page if you want PNG support too.",
+    },
+    {
+      q: "Are JPG layered SVG conversions rate limited?",
+      a: "Only backend JPG layered SVG conversions are rate limited. Local layer edits, recoloring, hiding layers, copying, and downloading do not count against conversion limits. This page allows up to 120 backend conversions per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile.",
     },
   ];
 
