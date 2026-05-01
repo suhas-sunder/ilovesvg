@@ -589,7 +589,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
                     <img
                       src={previewUrl}
                       alt="Input preview"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   </div>
                 </div>

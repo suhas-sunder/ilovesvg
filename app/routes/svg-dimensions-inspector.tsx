@@ -489,7 +489,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                           <img
                             src={beforeImgSrc}
                             alt="Before SVG preview"
-                            className="w-full h-auto block"
+                            className="w-full h-auto block transparent-checkerboard"
                           />
                         </div>
                       </div>
@@ -504,7 +504,7 @@ export default function SvgDimensionsInspector(_: Route.ComponentProps) {
                               <img
                                 src={afterImgSrc}
                                 alt="After SVG preview"
-                                className="w-full h-auto block"
+                                className="w-full h-auto block transparent-checkerboard"
                               />
                               {!outPreviewUrl ? (
                                 <div className="mt-2 text-[12px] text-slate-500">

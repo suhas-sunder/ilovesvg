@@ -329,7 +329,12 @@ async function buildStickerSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const meta = await sharp(input).metadata();
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+  const meta = await sharp(sourceInput).metadata();
   const originalW = meta.width ?? 0;
   const originalH = meta.height ?? 0;
   if (!originalW || !originalH) {
@@ -343,7 +348,7 @@ async function buildStickerSvg(
     );
   }
 
-  const base = sharp(input)
+  const base = sharp(sourceInput)
     .rotate()
     .resize({
       width: MAX_TRACE_SIDE,
@@ -1389,7 +1394,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <img
                     src={previewUrl}
                     alt="Input"
-                    className="w-full h-auto block"
+                    className="w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -1453,7 +1458,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                      <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <SvgObjectPreview
                           svg={item.svg}
                           title="Sticker SVG result"

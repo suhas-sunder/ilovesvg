@@ -1041,34 +1041,26 @@ export default function FreeColorPicker() {
     });
   }
 
-  function commitOutputColor(index: number, nextHex: string) {
-    pendingColorCommitRef.current = null;
+  function queueOutputColorCommit(index: number, nextHex: string) {
+    pendingColorCommitRef.current = { index, hex: nextHex };
 
-    if (colorCommitTimeoutRef.current) {
-      window.clearTimeout(colorCommitTimeoutRef.current);
+    if (colorCommitTimeoutRef.current) return;
+
+    colorCommitTimeoutRef.current = window.setTimeout(() => {
       colorCommitTimeoutRef.current = null;
-    }
-
-    setOutputPalette((prev) => {
-      const next = [...prev];
-      next[index] = nextHex;
-      return next;
-    });
+      flushPendingColorCommit();
+    }, 48);
   }
 
-  function commitOutputAlpha(index: number, nextAlpha: number) {
-    pendingAlphaCommitRef.current = null;
+  function queueOutputAlphaCommit(index: number, nextAlpha: number) {
+    pendingAlphaCommitRef.current = { index, alpha: clamp(nextAlpha, 0, 1) };
 
-    if (alphaCommitTimeoutRef.current) {
-      window.clearTimeout(alphaCommitTimeoutRef.current);
+    if (alphaCommitTimeoutRef.current) return;
+
+    alphaCommitTimeoutRef.current = window.setTimeout(() => {
       alphaCommitTimeoutRef.current = null;
-    }
-
-    setOutputAlphas((prev) => {
-      const next = [...prev];
-      next[index] = clamp(nextAlpha, 0, 1);
-      return next;
-    });
+      flushPendingAlphaCommit();
+    }, 48);
   }
 
   function updateOutputColor(nextHex: string) {
@@ -1081,7 +1073,7 @@ export default function FreeColorPicker() {
     if (selectedPaletteIndex === null || !parsed) return;
 
     const cleanHex = rgbToHex(parsed.r, parsed.g, parsed.b);
-    commitOutputColor(selectedPaletteIndex, cleanHex);
+    queueOutputColorCommit(selectedPaletteIndex, cleanHex);
   }
 
   function updateSelectedAlpha(nextAlpha: number) {
@@ -1090,7 +1082,7 @@ export default function FreeColorPicker() {
 
     if (selectedPaletteIndex === null) return;
 
-    commitOutputAlpha(selectedPaletteIndex, cleanAlpha);
+    queueOutputAlphaCommit(selectedPaletteIndex, cleanAlpha);
   }
 
   function onHexInput(v: string) {
@@ -1102,6 +1094,8 @@ export default function FreeColorPicker() {
   function commitCurrentColorAndAlpha() {
     updateOutputColor(hex);
     updateSelectedAlpha(alpha);
+    flushPendingColorCommit();
+    flushPendingAlphaCommit();
   }
 
   function selectPaletteSwatch(index: number) {
@@ -1960,6 +1954,10 @@ export default function FreeColorPicker() {
                     type="color"
                     value={hexOut}
                     onChange={(e) => updateOutputColor(e.currentTarget.value)}
+                    onBlur={flushPendingColorCommit}
+                    onMouseUp={flushPendingColorCommit}
+                    onPointerUp={flushPendingColorCommit}
+                    onTouchEnd={flushPendingColorCommit}
                     className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                     aria-label="Output color picker"
                   />
@@ -1993,15 +1991,10 @@ export default function FreeColorPicker() {
                     onChange={(e) =>
                       updateSelectedAlpha(Number(e.target.value))
                     }
-                    onBlur={(e) =>
-                      updateSelectedAlpha(Number(e.currentTarget.value))
-                    }
-                    onMouseUp={(e) =>
-                      updateSelectedAlpha(Number(e.currentTarget.value))
-                    }
-                    onTouchEnd={(e) =>
-                      updateSelectedAlpha(Number(e.currentTarget.value))
-                    }
+                    onBlur={flushPendingAlphaCommit}
+                    onMouseUp={flushPendingAlphaCommit}
+                    onPointerUp={flushPendingAlphaCommit}
+                    onTouchEnd={flushPendingAlphaCommit}
                     className="w-full accent-[#0b2dff] cursor-pointer"
                     aria-label="Alpha"
                   />
@@ -2175,7 +2168,7 @@ export default function FreeColorPicker() {
                     <img
                       src={preview.url}
                       alt="Uploaded input preview"
-                      className="max-w-full h-auto block rounded-lg mx-auto"
+                      className="max-w-full h-auto block rounded-lg mx-auto transparent-checkerboard"
                     />
                   </div>
                 ) : (
@@ -2184,7 +2177,7 @@ export default function FreeColorPicker() {
                     style={checkerStyle}
                   >
                     <div
-                      className="bg-white rounded-lg border border-slate-200 p-3 overflow-auto"
+                      className="bg-white transparent-checkerboard rounded-lg border border-slate-200 p-3 overflow-auto"
                       aria-label="Uploaded SVG input preview"
                       dangerouslySetInnerHTML={{
                         __html: sanitizeInlineSvg(preview.text),
@@ -2229,7 +2222,7 @@ export default function FreeColorPicker() {
                     <img
                       src={outputImageUrl || preview.url}
                       alt="Output preview"
-                      className="max-w-full h-auto block rounded-lg mx-auto"
+                      className="max-w-full h-auto block rounded-lg mx-auto transparent-checkerboard"
                     />
                   </div>
                 ) : (
@@ -2238,7 +2231,7 @@ export default function FreeColorPicker() {
                     style={checkerStyle}
                   >
                     <div
-                      className="bg-white rounded-lg border border-slate-200 p-3 overflow-auto w-full"
+                      className="bg-white transparent-checkerboard rounded-lg border border-slate-200 p-3 overflow-auto w-full"
                       aria-label="Output SVG preview"
                       dangerouslySetInnerHTML={{
                         __html: outputSvgMarkup,

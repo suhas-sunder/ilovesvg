@@ -330,29 +330,9 @@ export default function ExampleSvgConversion({
     return category ?? getCategoryForRoute(activeSlug);
   }, [activeSlug, category]);
 
-  const activeKey = `${activeSlug}:${activeCategory}`;
-
-  const [pairState, setPairState] = React.useState<{
-    key: string;
-    pair: ExamplePair;
-  }>(() => ({
-    key: activeKey,
-    pair: getRandomExamplePair(activeSlug, activeCategory),
-  }));
-
-  if (pairState.key !== activeKey) {
-    const nextPairState = {
-      key: activeKey,
-      pair: getRandomExamplePair(activeSlug, activeCategory),
-    };
-
-    setPairState(nextPairState);
-  }
-
-  const pair =
-    pairState.key === activeKey
-      ? pairState.pair
-      : getRandomExamplePair(activeSlug, activeCategory);
+  const pair = React.useMemo(() => {
+    return getExamplePair(activeSlug, activeCategory);
+  }, [activeCategory, activeSlug]);
 
   const copy = CATEGORY_COPY[activeCategory](pair.example);
 
@@ -477,14 +457,19 @@ function getCategoryForRoute(routeSlug: string): ExampleCategory {
   return rule?.category ?? "general-image-to-svg";
 }
 
-function getRandomExamplePair(
+function getExamplePair(
   routeSlug: string,
   category: ExampleCategory,
 ): ExamplePair {
   const examples = getCandidateExamplesForRoute(routeSlug, category);
-  const example = examples[randomIndex(examples.length)] ?? IMAGE_EXAMPLES[0];
+  const seed = `${routeSlug}:${category}`;
+  const example =
+    examples[stableIndex(`${seed}:example`, examples.length)] ??
+    IMAGE_EXAMPLES[0];
   const conversionName =
-    example.conversions[randomIndex(example.conversions.length)] ??
+    example.conversions[
+      stableIndex(`${seed}:${example.id}:conversion`, example.conversions.length)
+    ] ??
     example.conversions[0] ??
     example.baseName;
 
@@ -563,14 +548,15 @@ function getAfterSrc(pair: ExamplePair) {
   return `${ASSET_BASE_URL}/${pair.conversionName}.svg`;
 }
 
-function randomIndex(length: number) {
+function stableIndex(seed: string, length: number) {
   if (length <= 1) return 0;
 
-  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
-    const array = new Uint32Array(1);
-    window.crypto.getRandomValues(array);
-    return array[0] % length;
+  let hash = 2166136261;
+
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
 
-  return Math.floor(Math.random() * length);
+  return (hash >>> 0) % length;
 }

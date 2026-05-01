@@ -1326,7 +1326,7 @@ function PreviewFrame({
       <img
         src={currentSrc}
         alt={alt}
-        className="w-full h-auto block"
+        className="w-full h-auto block transparent-checkerboard"
         onError={() => {
           try {
             const svgText =

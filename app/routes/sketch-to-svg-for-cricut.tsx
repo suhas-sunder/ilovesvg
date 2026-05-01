@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Route } from "./+types/drawing-to-svg-for-cricut";
+import type { Route } from "./+types/sketch-to-svg-for-cricut";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -22,22 +22,34 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title =
-    "Drawing to SVG for Cricut - Free Hand Drawing to SVG Converter";
+  const title = "Sketch to SVG for Cricut - Free Layered Sketch SVG Converter";
   const description =
-    "Convert drawings, sketches, doodles, kids' artwork, and hand lettering into Cricut-ready SVG files. Clean lines, remove speckles, smooth curves, and download SVG cut files online.";
-  const canonical = "https://www.ilovesvg.com/drawing-to-svg-for-cricut";
+    "Convert hand sketches, pencil sketches, scanned sketches, signatures, handwriting, and simple sketch-style artwork into layered SVG files for Cricut Design Space. Remove white backgrounds, adjust layers, recolor SVG groups, preview results, and download a Cricut-ready SVG.";
+  const canonical = "https://www.ilovesvg.com/sketch-to-svg-for-cricut";
 
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
+    {
+      name: "keywords",
+      content:
+        "sketch to svg for cricut, sketch to layered svg, scan to svg for cricut, pencil sketch to svg, handwriting to svg, signature to svg, line art to svg for cricut, cricut sketch svg converter",
+    },
+    { name: "robots", content: "index,follow" },
+
     { rel: "canonical", href: canonical },
+
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     { property: "og:url", content: canonical },
+    { property: "og:site_name", content: "iLoveSVG" },
+
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
   ];
 }
 
@@ -46,20 +58,209 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 /* ========================
-   Limits and types
+   Limits
 ======================== */
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_MP = 30;
 const MAX_SIDE = 8000;
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
-
-const DARK_BG_DEFAULT = "#0b1020";
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 450;
 const LIVE_MED_MS = 1600;
 
+const MIN_LAYER_COUNT = 2;
+const MAX_LAYER_COUNT = 10;
+const MAX_TRACE_SIDE_DEFAULT = 1600;
+
+const PAGE_RATE_LIMITS = {
+  perMinute: 120,
+  perFiveMinutes: 400,
+  perHour: 1500,
+  perDay: 3000,
+};
+
+type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
+type RateLimitWindowState = { count: number; resetAt: number };
+type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
+type BackendRateLimitResult =
+  | {
+      allowed: true;
+      headers: Headers;
+    }
+  | {
+      allowed: false;
+      headers: Headers;
+      retryAfterMs: number;
+      retryAfterText: string;
+    };
+
+const RATE_LIMIT_WINDOWS: Array<{
+  name: RateLimitWindowName;
+  ms: number;
+  limit: number;
+  limitHeader: string;
+  remainingHeader: string;
+}> = [
+  {
+    name: "minute",
+    ms: 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perMinute,
+    limitHeader: "X-RateLimit-Limit-Minute",
+    remainingHeader: "X-RateLimit-Remaining-Minute",
+  },
+  {
+    name: "fiveMinutes",
+    ms: 5 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitHeader: "X-RateLimit-Limit-Five-Minutes",
+    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
+  },
+  {
+    name: "hour",
+    ms: 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perHour,
+    limitHeader: "X-RateLimit-Limit-Hour",
+    remainingHeader: "X-RateLimit-Remaining-Hour",
+  },
+  {
+    name: "day",
+    ms: 24 * 60 * 60 * 1000,
+    limit: PAGE_RATE_LIMITS.perDay,
+    limitHeader: "X-RateLimit-Limit-Day",
+    remainingHeader: "X-RateLimit-Remaining-Day",
+  },
+];
+
+function getRateLimitStore(): Map<string, RateLimitRecord> {
+  const g = globalThis as any;
+  if (!g.__ilovesvg_action_rate_limits) {
+    g.__ilovesvg_action_rate_limits = new Map<string, RateLimitRecord>();
+  }
+  return g.__ilovesvg_action_rate_limits as Map<string, RateLimitRecord>;
+}
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "_")
+    .slice(0, 160);
+}
+
+function getBackendRateLimitKey(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+
+  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
+    actionName,
+  )}`;
+}
+
+function createFreshRateLimitRecord(now: number): RateLimitRecord {
+  return {
+    minute: { count: 0, resetAt: now + 60 * 1000 },
+    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
+    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
+    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
+  };
+}
+
+function formatRetryAfter(ms: number): string {
+  const seconds = Math.max(1, Math.ceil(ms / 1000));
+  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function checkBackendConversionRateLimit(
+  request: Request,
+  routeName: string,
+  actionName: string,
+): BackendRateLimitResult {
+  const now = Date.now();
+  const store = getRateLimitStore();
+  const key = getBackendRateLimitKey(request, routeName, actionName);
+  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    if (now >= state.resetAt) {
+      state.count = 0;
+      state.resetAt = now + windowConfig.ms;
+    }
+  }
+
+  const exceeded = RATE_LIMIT_WINDOWS.filter(
+    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
+  );
+
+  const headers = new Headers();
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  if (exceeded.length > 0) {
+    const retryAfterMs = Math.max(
+      1000,
+      Math.min(
+        ...exceeded.map(
+          (windowConfig) => record[windowConfig.name].resetAt - now,
+        ),
+      ),
+    );
+
+    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
+    store.set(key, record);
+
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    record[windowConfig.name].count += 1;
+  }
+
+  for (const windowConfig of RATE_LIMIT_WINDOWS) {
+    const state = record[windowConfig.name];
+    headers.set(
+      windowConfig.remainingHeader,
+      String(Math.max(0, windowConfig.limit - state.count)),
+    );
+  }
+
+  store.set(key, record);
+  return { allowed: true, headers };
+}
+
+/* ========================
+   Server concurrency gate
+======================== */
 type ReleaseFn = () => void;
 type Gate = {
   acquireOrQueue: () => Promise<ReleaseFn>;
@@ -69,21 +270,22 @@ type Gate = {
 
 async function getGate(): Promise<Gate> {
   const g = globalThis as any;
-  if (g.__drawing_to_svg_gate) return g.__drawing_to_svg_gate as Gate;
+  if (g.__iheartsvg_sketch_layer_gate) {
+    return g.__iheartsvg_sketch_layer_gate as Gate;
+  }
 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
 
   let cpuCount = 1;
-
   try {
     const os = req("os") as typeof import("os");
     cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
   } catch {}
 
   const MAX = Math.max(1, Math.min(2, cpuCount));
-  const QUEUE_MAX = 8;
-  const EST_JOB_MS = 3000;
+  const QUEUE_MAX = 6;
+  const EST_JOB_MS = 4500;
 
   class SimpleGate implements Gate {
     max: number;
@@ -106,11 +308,9 @@ async function getGate(): Promise<Gate> {
       return () => {
         if (released) return;
         released = true;
-
         this.running = Math.max(0, this.running - 1);
 
         const next = this.queue.shift();
-
         if (next) {
           this.running++;
           next(this.mkRelease());
@@ -120,7 +320,7 @@ async function getGate(): Promise<Gate> {
 
     estimateRetryMs() {
       const waves = Math.ceil((this.queued + 1) / this.max);
-      return Math.min(15000, Math.max(1000, waves * EST_JOB_MS));
+      return Math.min(20000, Math.max(1500, waves * EST_JOB_MS));
     }
 
     acquireOrQueue(): Promise<ReleaseFn> {
@@ -144,8 +344,8 @@ async function getGate(): Promise<Gate> {
     }
   }
 
-  g.__drawing_to_svg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__drawing_to_svg_gate as Gate;
+  g.__iheartsvg_sketch_layer_gate = new SimpleGate(MAX, QUEUE_MAX);
+  return g.__iheartsvg_sketch_layer_gate as Gate;
 }
 
 /* ========================
@@ -161,7 +361,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const contentType = request.headers.get("content-type") || "";
-
     if (!contentType.startsWith("multipart/form-data")) {
       return json(
         { error: "Unsupported content type. Use multipart/form-data." },
@@ -176,28 +375,44 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           error:
-            "Upload too large for live conversion. Please resize the drawing and try again.",
+            "Upload too large for live conversion. Please resize and try again.",
         },
         { status: 413 },
+      );
+    }
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "sketch-to-svg-for-cricut",
+      "raster-trace",
+    );
+
+    if (!rateLimit.allowed) {
+      return json(
+        {
+          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterMs,
+          code: "RATE_LIMITED",
+        },
+        { status: 429, headers: rateLimit.headers },
       );
     }
 
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
-
     const form = await parseMultipartFormData(request, uploadHandler);
-    const file = form.get("file");
 
+    const file = form.get("file");
     if (!file || typeof file === "string") {
-      return json({ error: "No drawing uploaded." }, { status: 400 });
+      return json({ error: "No image uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
 
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
-        { error: "Only PNG, JPG, or JPEG drawings are allowed." },
+        { error: "Upload a PNG, JPG, JPEG, or WebP image." },
         { status: 415 },
       );
     }
@@ -219,12 +434,12 @@ export async function action({ request }: ActionFunctionArgs) {
     try {
       release = await gate.acquireOrQueue();
     } catch (e: any) {
-      const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
+      const retryAfterMs = Math.max(1500, Number(e?.retryAfterMs) || 2500);
 
       return json(
         {
           error:
-            "Server is busy converting other drawings. We will retry automatically.",
+            "Server is busy converting other sketch SVGs. Retrying automatically.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -239,6 +454,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     try {
       const ab = await webFile.arrayBuffer();
+      // @ts-ignore Buffer exists in Remix node runtime
       const input: Buffer = Buffer.from(ab);
 
       try {
@@ -252,20 +468,16 @@ export async function action({ request }: ActionFunctionArgs) {
 
         if (!w || !h) {
           return json(
-            {
-              error:
-                "Could not read drawing dimensions. Try a different PNG or JPG file.",
-            },
+            { error: "Could not read image dimensions. Try a different file." },
             { status: 415 },
           );
         }
 
         const mp = (w * h) / 1_000_000;
-
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
             {
-              error: `Drawing is too large: ${w}×${h} (~${mp.toFixed(
+              error: `Image too large: ${w}×${h} (~${mp.toFixed(
                 1,
               )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
@@ -273,12 +485,53 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
       } catch {
-        // If sharp metadata fails, Potrace may still handle valid smaller images.
+        // Continue. Main conversion will fail cleanly if invalid.
       }
 
-      const threshold = Number(form.get("threshold") ?? 224);
-      const turdSize = Number(form.get("turdSize") ?? 3);
-      const optTolerance = Number(form.get("optTolerance") ?? 0.32);
+      const layerCount = clampInt(
+        Number(form.get("layerCount") ?? 4),
+        MIN_LAYER_COUNT,
+        MAX_LAYER_COUNT,
+      );
+
+      const maxTraceSide = clampInt(
+        Number(form.get("maxTraceSide") ?? MAX_TRACE_SIDE_DEFAULT),
+        600,
+        2400,
+      );
+
+      const minRegionPercent = clampNumber(
+        Number(form.get("minRegionPercent") ?? 0.25),
+        0,
+        5,
+      );
+
+      const optTolerance = clampNumber(
+        Number(form.get("optTolerance") ?? 0.35),
+        0.05,
+        1.2,
+      );
+
+      const turdSize = clampInt(Number(form.get("turdSize") ?? 3), 0, 20);
+
+      const posterize =
+        String(form.get("posterize") ?? "true").toLowerCase() === "true";
+
+      const removeWhite =
+        String(form.get("removeWhite") ?? "true").toLowerCase() === "true";
+
+      const removeTransparent =
+        String(form.get("removeTransparent") ?? "true").toLowerCase() ===
+        "true";
+
+      const transparent =
+        String(form.get("transparent") ?? "true").toLowerCase() === "true";
+
+      const bgColor = sanitizeHexColor(
+        String(form.get("bgColor") ?? "#ffffff"),
+        "#ffffff",
+      );
+
       const turnPolicy = String(form.get("turnPolicy") ?? "minority") as
         | "black"
         | "white"
@@ -287,101 +540,22 @@ export async function action({ request }: ActionFunctionArgs) {
         | "minority"
         | "majority";
 
-      const whiteOnDark =
-        String(form.get("invert") ?? "false").toLowerCase() === "true";
-
-      let lineColor = String(form.get("lineColor") ?? "#000000");
-
-      let transparent =
-        String(form.get("transparent") ?? "true").toLowerCase() === "true";
-      let bgColor = String(form.get("bgColor") ?? "#ffffff");
-
-      const preprocess = String(form.get("preprocess") ?? "none") as
-        | "none"
-        | "edge";
-      const blurSigma = Number(form.get("blurSigma") ?? 0.8);
-      const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
-
-      if (whiteOnDark) {
-        transparent = false;
-
-        if (
-          !bgColor ||
-          bgColor.toLowerCase() === "#ffffff" ||
-          bgColor.toLowerCase() === "#fff"
-        ) {
-          bgColor = DARK_BG_DEFAULT;
-        }
-
-        if (!lineColor || lineColor.toLowerCase() === "#000000") {
-          lineColor = "#ffffff";
-        }
-      }
-
-      const prepped = await normalizeForPotrace(input, {
-        preprocess,
-        blurSigma,
-        edgeBoost,
-      });
-
-      const potrace = await import("potrace");
-      const traceFn: any = (potrace as any).trace;
-      const PotraceClass: any = (potrace as any).Potrace;
-
-      const opts: any = {
-        color: "#000000",
-        threshold,
-        turdSize,
+      const result = await rasterToLayeredSvg(input, {
+        layerCount,
+        maxTraceSide,
+        minRegionPercent,
         optTolerance,
+        turdSize,
+        posterize,
+        removeWhite,
+        removeTransparent,
+        transparent,
+        bgColor,
         turnPolicy,
-        invert: false,
-        blackOnWhite: true,
-      };
-
-      const svgRaw: string = await new Promise((resolve, reject) => {
-        if (typeof traceFn === "function") {
-          traceFn(prepped, opts, (err: any, out: string) =>
-            err ? reject(err) : resolve(out),
-          );
-        } else if (PotraceClass) {
-          const p = new PotraceClass(opts);
-
-          p.loadImage(prepped, (err: any) => {
-            if (err) return reject(err);
-
-            p.setParameters(opts);
-
-            p.getSVG((err2: any, out: string) =>
-              err2 ? reject(err2) : resolve(out),
-            );
-          });
-        } else {
-          reject(new Error("potrace API not found"));
-        }
       });
-
-      const safeSvg = coerceSvg(svgRaw);
-      const ensured = ensureViewBoxResponsive(safeSvg);
-      const svg2 = recolorPaths(ensured.svg, lineColor);
-      const svg3 = stripFullWhiteBackgroundRect(
-        svg2,
-        ensured.width,
-        ensured.height,
-      );
-
-      const finalSVG = transparent
-        ? svg3
-        : injectBackgroundRectString(
-            svg3,
-            ensured.width,
-            ensured.height,
-            bgColor,
-          );
 
       return json({
-        svg: finalSVG,
-        width: ensured.width,
-        height: ensured.height,
+        ...result,
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -394,498 +568,875 @@ export async function action({ request }: ActionFunctionArgs) {
     }
   } catch (err: any) {
     return json(
-      { error: err?.message || "Server error during drawing conversion." },
+      {
+        error: err?.message || "Server error during sketch to SVG conversion.",
+      },
       { status: 500 },
     );
   }
 }
 
 /* ========================
-   Server image normalization
+   Layered SVG engine
 ======================== */
-async function normalizeForPotrace(
+type RGB = { r: number; g: number; b: number };
+
+type LayeredOptions = {
+  layerCount: number;
+  maxTraceSide: number;
+  minRegionPercent: number;
+  optTolerance: number;
+  turdSize: number;
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
+  transparent: boolean;
+  bgColor: string;
+  turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
+};
+
+type ServerLayer = {
+  id: string;
+  name: string;
+  color: string;
+  pixelPercent: number;
+  pathTags: string;
+};
+
+async function rasterToLayeredSvg(
   input: Buffer,
-  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number },
-): Promise<Buffer> {
-  try {
-    const { createRequire } = await import("node:module");
-    const req = createRequire(import.meta.url);
-    const sharp = req("sharp") as typeof import("sharp");
-
-    try {
-      (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 32 });
-    } catch {}
-
-    let base = sharp(input).rotate();
-
-    try {
-      const meta = await base.metadata();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      const mp = (w * h) / 1_000_000;
-
-      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-        base = base.resize({ width: 4000, height: 4000, fit: "inside" });
-      }
-    } catch {}
-
-    if (opts.preprocess === "edge") {
-      const { data, info } = await base
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .removeAlpha()
-        .grayscale()
-        .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const W = info.width | 0;
-      const H = info.height | 0;
-
-      if (W <= 1 || H <= 1) {
-        return await sharp(input)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .removeAlpha()
-          .grayscale()
-          .gamma()
-          .normalize()
-          .png()
-          .toBuffer();
-      }
-
-      const src = data as Buffer;
-      const out = Buffer.alloc(W * H, 255);
-
-      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-      for (let y = 1; y < H - 1; y++) {
-        for (let x = 1; x < W - 1; x++) {
-          let gx = 0;
-          let gy = 0;
-          let n = 0;
-
-          for (let j = -1; j <= 1; j++) {
-            for (let i = -1; i <= 1; i++) {
-              const v = src[(y + j) * W + (x + i)];
-              gx += v * kx[n];
-              gy += v * ky[n];
-              n++;
-            }
-          }
-
-          let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
-          if (m > 255) m = 255;
-
-          out[y * W + x] = 255 - m;
-        }
-      }
-
-      if (isFlatBuffer(out)) {
-        return await sharp(input)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .removeAlpha()
-          .grayscale()
-          .gamma()
-          .normalize()
-          .png()
-          .toBuffer();
-      }
-
-      return await sharp(out, {
-        raw: { width: W, height: H, channels: 1 },
-      })
-        .png()
-        .toBuffer();
-    }
-
-    return await base
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .removeAlpha()
-      .grayscale()
-      .gamma()
-      .normalize()
-      .png()
-      .toBuffer();
-  } catch {
-    return input;
-  }
-}
-
-function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
-  const len = buf.length;
-  if (len === 0) return true;
-
-  let min = 255;
-  let max = 0;
-  let sum = 0;
-  let count = 0;
-
-  for (let i = 0; i < len; i += sampleStep) {
-    const v = buf[i];
-
-    if (v < min) min = v;
-    if (v > max) max = v;
-
-    sum += v;
-    count++;
-  }
-
-  const mean = sum / Math.max(count, 1);
-  const range = max - min;
-
-  if (range <= 2) return true;
-  if (mean <= 8 || mean >= 247) return true;
-
-  let varSum = 0;
-
-  for (let i = 0; i < len; i += sampleStep) {
-    const v = buf[i] - mean;
-    varSum += v * v;
-  }
-
-  const variance = varSum / Math.max(count - 1, 1);
-  return variance < 8;
-}
-
-/* ========================
-   SVG helpers
-======================== */
-function coerceSvg(svgRaw: string | null | undefined): string {
-  const fallback =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"></svg>';
-
-  if (!svgRaw) return fallback;
-
-  const trimmed = String(svgRaw).trim();
-
-  if (/^<svg\b/i.test(trimmed)) return trimmed;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${trimmed}</svg>`;
-}
-
-function ensureViewBoxResponsive(svg: string): {
+  options: LayeredOptions,
+): Promise<{
   svg: string;
   width: number;
   height: number;
-} {
-  const openTagMatch = svg.match(/<svg\b[^>]*>/i);
-  if (!openTagMatch) return { svg, width: 1024, height: 1024 };
+  layers: ServerLayer[];
+  palette: string[];
+}> {
+  const { createRequire } = await import("node:module");
+  const req = createRequire(import.meta.url);
+  const sharp = req("sharp") as typeof import("sharp");
 
-  const openTag = openTagMatch[0];
-  const hasViewBox = /viewBox\s*=\s*["'][^"']*["']/.test(openTag);
-  const widthMatch = openTag.match(/width\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
-  const heightMatch = openTag.match(/height\s*=\s*["'](\d+(\.\d+)?)(px)?["']/i);
+  try {
+    (sharp as any).concurrency?.(1);
+    (sharp as any).cache?.({ files: 0, memory: 48 });
+  } catch {}
 
-  const width = widthMatch ? Number(widthMatch[1]) : 1024;
-  const height = heightMatch ? Number(heightMatch[1]) : 1024;
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
 
-  let newOpen = openTag;
+  const { data, info } = await sharp(sourceInput)
+    .rotate()
+    .resize({
+      width: options.maxTraceSide,
+      height: options.maxTraceSide,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  if (!hasViewBox) {
-    newOpen = newOpen.replace(
-      /<svg\b/i,
-      `<svg viewBox="0 0 ${Math.round(width)} ${Math.round(height)}"`,
+  const width = info.width | 0;
+  const height = info.height | 0;
+
+  if (!width || !height) {
+    throw new Error("Could not decode image.");
+  }
+
+  const pixels = collectPixels(data as Buffer, width, height, {
+    removeTransparent: options.removeTransparent,
+    removeWhite: options.removeWhite,
+    posterize: options.posterize,
+  });
+
+  if (pixels.length < 20) {
+    throw new Error(
+      "Not enough visible sketch data to build layers. Try disabling white background removal or using a darker sketch.",
     );
   }
 
-  newOpen = newOpen
-    .replace(/\swidth\s*=\s*["'][^"']*["']/i, "")
-    .replace(/\sheight\s*=\s*["'][^"']*["']/i, "");
+  const paletteRgb = buildPalette(pixels, options.layerCount);
 
-  const newSVG = svg.replace(openTag, newOpen);
-  return { svg: newSVG, width, height };
+  const assignments = assignAllPixelsToPalette(data as Buffer, width, height, {
+    palette: paletteRgb,
+    removeTransparent: options.removeTransparent,
+    removeWhite: options.removeWhite,
+    posterize: options.posterize,
+  });
+
+  const totalAssignable = assignments.assignableCount || 1;
+
+  const rawLayerItems = paletteRgb
+    .map((rgb, index) => {
+      const count = assignments.counts[index] || 0;
+      const percent = (count / totalAssignable) * 100;
+
+      return {
+        index,
+        rgb,
+        color: rgbToHex(rgb),
+        count,
+        percent,
+      };
+    })
+    .filter((x) => x.count > 0 && x.percent >= options.minRegionPercent)
+    .sort((a, b) => {
+      const lumDiff = luminance(b.rgb) - luminance(a.rgb);
+      if (Math.abs(lumDiff) > 8) return lumDiff;
+      return b.count - a.count;
+    });
+
+  if (rawLayerItems.length === 0) {
+    throw new Error(
+      "No usable sketch layers were found. Try lowering minimum layer size or disabling background removal.",
+    );
+  }
+
+  const layers: ServerLayer[] = [];
+
+  for (let i = 0; i < rawLayerItems.length; i++) {
+    const item = rawLayerItems[i];
+
+    const mask = Buffer.alloc(width * height, 255);
+
+    for (let px = 0; px < assignments.layerForPixel.length; px++) {
+      if (assignments.layerForPixel[px] === item.index) {
+        mask[px] = 0;
+      }
+    }
+
+    if (!maskHasInk(mask)) continue;
+
+    const maskPng = await sharp(mask, {
+      raw: { width, height, channels: 1 },
+    })
+      .png()
+      .toBuffer();
+
+    const pathTags = await traceMaskToPathTags(maskPng, {
+      turdSize: options.turdSize,
+      optTolerance: options.optTolerance,
+      turnPolicy: options.turnPolicy,
+    });
+
+    if (!pathTags.trim()) continue;
+
+    layers.push({
+      id: `layer-${i + 1}`,
+      name: `Layer ${i + 1}`,
+      color: item.color,
+      pixelPercent: Number(item.percent.toFixed(2)),
+      pathTags,
+    });
+  }
+
+  if (layers.length === 0) {
+    throw new Error(
+      "The sketch did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast sketch.",
+    );
+  }
+
+  const svg = buildLayeredSvgString({
+    width,
+    height,
+    layers,
+    transparent: options.transparent,
+    bgColor: options.bgColor,
+  });
+
+  return {
+    svg,
+    width,
+    height,
+    layers,
+    palette: layers.map((layer) => layer.color),
+  };
 }
 
-function recolorPaths(svg: string, fillColor: string): string {
-  let out = svg.replace(
-    /<path\b([^>]*?)\sfill\s*=\s*["'][^"']*["']([^>]*?)>/gi,
-    (_m, a, b) => `<path${a} fill="${fillColor}"${b}>`,
-  );
+function collectPixels(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: {
+    removeTransparent: boolean;
+    removeWhite: boolean;
+    posterize: boolean;
+  },
+): RGB[] {
+  const total = width * height;
+  const pixels: RGB[] = [];
 
-  out = out.replace(
-    /<path\b((?:(?!>)[\s\S])*?)>(?![\s\S]*?<\/path>)/gi,
-    (m, attrs) => {
-      if (/fill\s*=/.test(attrs)) return m;
-      return `<path${attrs} fill="${fillColor}">`;
-    },
-  );
+  const sampleStep = Math.max(1, Math.floor(total / 16000));
+
+  for (let i = 0; i < total; i += sampleStep) {
+    const off = i * 4;
+    const a = raw[off + 3];
+
+    if (options.removeTransparent && a < 18) continue;
+
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+
+    if (a < 255 && !options.removeTransparent) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+
+    if (options.posterize) {
+      r = posterizeChannel(r);
+      g = posterizeChannel(g);
+      b = posterizeChannel(b);
+    }
+
+    if (options.removeWhite && isNearWhite({ r, g, b })) continue;
+
+    pixels.push({ r, g, b });
+  }
+
+  return pixels;
+}
+
+function assignAllPixelsToPalette(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: {
+    palette: RGB[];
+    removeTransparent: boolean;
+    removeWhite: boolean;
+    posterize: boolean;
+  },
+): {
+  layerForPixel: Int16Array;
+  counts: number[];
+  assignableCount: number;
+} {
+  const total = width * height;
+  const layerForPixel = new Int16Array(total);
+  layerForPixel.fill(-1);
+
+  const counts = new Array(options.palette.length).fill(0);
+  let assignableCount = 0;
+
+  for (let i = 0; i < total; i++) {
+    const off = i * 4;
+    const a = raw[off + 3];
+
+    if (options.removeTransparent && a < 18) continue;
+
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+
+    if (a < 255 && !options.removeTransparent) {
+      r = blendChannel(r, a, 255);
+      g = blendChannel(g, a, 255);
+      b = blendChannel(b, a, 255);
+    }
+
+    if (options.posterize) {
+      r = posterizeChannel(r);
+      g = posterizeChannel(g);
+      b = posterizeChannel(b);
+    }
+
+    const rgb = { r, g, b };
+
+    if (options.removeWhite && isNearWhite(rgb)) continue;
+
+    const nearest = nearestPaletteIndex(rgb, options.palette);
+    layerForPixel[i] = nearest;
+    counts[nearest]++;
+    assignableCount++;
+  }
+
+  return { layerForPixel, counts, assignableCount };
+}
+
+function buildPalette(pixels: RGB[], requestedCount: number): RGB[] {
+  const k = clampInt(requestedCount, MIN_LAYER_COUNT, MAX_LAYER_COUNT);
+
+  const uniqueMap = new Map<string, RGB>();
+  for (const p of pixels) {
+    uniqueMap.set(`${p.r},${p.g},${p.b}`, p);
+    if (uniqueMap.size >= 4096) break;
+  }
+
+  const unique = Array.from(uniqueMap.values());
+  if (unique.length <= k) return unique;
+
+  const centroids = seedCentroids(unique, k);
+
+  for (let iter = 0; iter < 12; iter++) {
+    const sums = centroids.map(() => ({
+      r: 0,
+      g: 0,
+      b: 0,
+      count: 0,
+    }));
+
+    for (const p of pixels) {
+      const idx = nearestPaletteIndex(p, centroids);
+      sums[idx].r += p.r;
+      sums[idx].g += p.g;
+      sums[idx].b += p.b;
+      sums[idx].count++;
+    }
+
+    for (let i = 0; i < centroids.length; i++) {
+      const s = sums[i];
+      if (!s.count) continue;
+
+      centroids[i] = {
+        r: Math.round(s.r / s.count),
+        g: Math.round(s.g / s.count),
+        b: Math.round(s.b / s.count),
+      };
+    }
+  }
+
+  return dedupePalette(centroids).slice(0, k);
+}
+
+function seedCentroids(pixels: RGB[], k: number): RGB[] {
+  const sorted = [...pixels].sort((a, b) => {
+    const lumDiff = luminance(a) - luminance(b);
+    if (Math.abs(lumDiff) > 1) return lumDiff;
+    return a.r + a.g + a.b - (b.r + b.g + b.b);
+  });
+
+  const seeds: RGB[] = [];
+
+  for (let i = 0; i < k; i++) {
+    const idx = Math.round((i / Math.max(1, k - 1)) * (sorted.length - 1));
+    seeds.push(sorted[idx]);
+  }
+
+  return dedupePalette(seeds);
+}
+
+function dedupePalette(palette: RGB[]): RGB[] {
+  const seen = new Set<string>();
+  const out: RGB[] = [];
+
+  for (const p of palette) {
+    const key = `${p.r},${p.g},${p.b}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
 
   return out;
 }
 
-function stripFullWhiteBackgroundRect(
-  svg: string,
-  width: number,
-  height: number,
-): string {
-  const whitePattern =
-    /(#ffffff|#fff|white|rgb\(255\s*,\s*255\s*,\s*255\)|rgba\(255\s*,\s*255\s*,\s*255\s*,\s*1\))/i;
+async function traceMaskToPathTags(
+  maskPng: Buffer,
+  options: {
+    turdSize: number;
+    optTolerance: number;
+    turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
+  },
+): Promise<string> {
+  const potrace = await import("potrace");
+  const traceFn: any = (potrace as any).trace;
+  const PotraceClass: any = (potrace as any).Potrace;
 
-  const numeric = new RegExp(
-    `<rect\\b[^>]*x\\s*=\\s*["']0["'][^>]*y\\s*=\\s*["']0["'][^>]*width\\s*=\\s*["']${escapeReg(
-      String(width),
-    )}["'][^>]*height\\s*=\\s*["']${escapeReg(
-      String(height),
-    )}["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
-    "ig",
-  );
+  const opts: any = {
+    color: "#000000",
+    threshold: 128,
+    turdSize: options.turdSize,
+    optTolerance: options.optTolerance,
+    turnPolicy: options.turnPolicy,
+    invert: false,
+    blackOnWhite: true,
+  };
 
-  const percent = new RegExp(
-    `<rect\\b[^>]*x\\s*=\\s*["']0%?["'][^>]*y\\s*=\\s*["']0%?["'][^>]*width\\s*=\\s*["']100%["'][^>]*height\\s*=\\s*["']100%["'][^>]*fill\\s*=\\s*["']${whitePattern.source}["'][^>]*>`,
-    "ig",
-  );
+  const svgRaw: string = await new Promise((resolve, reject) => {
+    if (typeof traceFn === "function") {
+      traceFn(maskPng, opts, (err: any, out: string) =>
+        err ? reject(err) : resolve(out),
+      );
+    } else if (PotraceClass) {
+      const p = new PotraceClass(opts);
+      p.loadImage(maskPng, (err: any) => {
+        if (err) return reject(err);
+        p.setParameters(opts);
+        p.getSVG((err2: any, out: string) =>
+          err2 ? reject(err2) : resolve(out),
+        );
+      });
+    } else {
+      reject(new Error("potrace API not found"));
+    }
+  });
 
-  return svg.replace(numeric, "").replace(percent, "");
+  return extractPathTags(svgRaw);
 }
 
-function injectBackgroundRectString(
-  svg: string,
-  width: number,
-  height: number,
-  color: string,
-): string {
-  const openTagMatch = svg.match(/<svg\b[^>]*>/i);
-  if (!openTagMatch) return svg;
+function extractPathTags(svg: string): string {
+  const matches = svg.match(/<path\b[^>]*>/gi) || [];
 
-  const openTag = openTagMatch[0];
-  const rect = `<rect x="0" y="0" width="${width}" height="${height}" fill="${color}"/>`;
-  const idx = svg.indexOf(openTag) + openTag.length;
+  return matches
+    .map((tag) => {
+      let clean = tag;
 
-  return svg.slice(0, idx) + rect + svg.slice(idx);
+      clean = clean.replace(/\sfill\s*=\s*["'][^"']*["']/gi, "");
+      clean = clean.replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "");
+      clean = clean.replace(/\s\/?>$/i, " />");
+
+      return clean;
+    })
+    .join("");
 }
 
-function escapeReg(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function buildLayeredSvgString({
+  width,
+  height,
+  layers,
+  transparent,
+  bgColor,
+}: {
+  width: number;
+  height: number;
+  layers: ServerLayer[];
+  transparent: boolean;
+  bgColor: string;
+}) {
+  const background = transparent
+    ? ""
+    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${bgColor}" />`;
+
+  const body = layers
+    .map((layer, index) => {
+      const fill = sanitizeHexColor(layer.color, "#000000");
+      const safeId = escapeXmlAttr(layer.id || `layer-${index + 1}`);
+      const safeLabel = escapeXmlAttr(layer.name || `Layer ${index + 1}`);
+
+      return `<g id="${safeId}" data-layer-name="${safeLabel}" data-layer-color="${fill}" fill="${fill}">${layer.pathTags}</g>`;
+    })
+    .join("");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from sketch for Cricut">${background}${body}</svg>`;
+}
+
+function maskHasInk(mask: Buffer) {
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i] < 250) return true;
+  }
+
+  return false;
+}
+
+function nearestPaletteIndex(color: RGB, palette: RGB[]) {
+  let best = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < palette.length; i++) {
+    const d = colorDistance(color, palette[i]);
+
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  }
+
+  return best;
+}
+
+function colorDistance(a: RGB, b: RGB) {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+
+  return dr * dr * 0.32 + dg * dg * 0.52 + db * db * 0.16;
+}
+
+function luminance(c: RGB) {
+  return c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+}
+
+function blendChannel(channel: number, alpha: number, bg: number) {
+  return Math.round((channel * alpha + bg * (255 - alpha)) / 255);
+}
+
+function posterizeChannel(v: number) {
+  return Math.round(v / 32) * 32;
+}
+
+function isNearWhite(c: RGB) {
+  return c.r >= 244 && c.g >= 244 && c.b >= 244;
+}
+
+function rgbToHex(c: RGB) {
+  return `#${toHex(c.r)}${toHex(c.g)}${toHex(c.b)}`;
+}
+
+function toHex(n: number) {
+  return clampInt(n, 0, 255).toString(16).padStart(2, "0");
+}
+
+function sanitizeHexColor(input: string, fallback: string) {
+  const value = String(input || "").trim();
+
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+  }
+
+  return fallback;
+}
+
+function escapeXmlAttr(value: string) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function clampNumber(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, n));
+}
+
+function clampInt(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min;
+  return Math.round(Math.min(max, Math.max(min, n)));
 }
 
 /* ========================
-   UI types
+   UI types and presets
 ======================== */
 type Settings = {
-  threshold: number;
-  turdSize: number;
+  layerCount: number;
+  maxTraceSide: number;
+  minRegionPercent: number;
   optTolerance: number;
+  turdSize: number;
   turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
-  lineColor: string;
-  invert: boolean;
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
   transparent: boolean;
   bgColor: string;
-  preprocess: "none" | "edge";
-  blurSigma: number;
-  edgeBoost: number;
 };
 
 type Preset = {
   id: string;
   label: string;
-  help: string;
   settings: Partial<Settings>;
+};
+
+const DEFAULTS: Settings = {
+  layerCount: 4,
+  maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
+  minRegionPercent: 0.25,
+  optTolerance: 0.35,
+  turdSize: 3,
+  turnPolicy: "minority",
+  posterize: true,
+  removeWhite: true,
+  removeTransparent: true,
+  transparent: true,
+  bgColor: "#ffffff",
 };
 
 const PRESETS: Preset[] = [
   {
-    id: "drawing-clean",
-    label: "Drawing - Clean default",
-    help: "Best first choice for marker drawings, doodles, and simple sketches on white paper.",
+    id: "sketch-balanced",
+    label: "Sketch - Balanced Layers",
     settings: {
-      preprocess: "none",
-      threshold: 224,
+      layerCount: 4,
+      minRegionPercent: 0.25,
+      optTolerance: 0.35,
       turdSize: 3,
-      optTolerance: 0.32,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
       transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 1600,
     },
   },
   {
-    id: "kids-art",
-    label: "Kids' drawing - Simple",
-    help: "Simplifies uneven lines and removes small paper specks so Cricut has fewer tiny cuts.",
+    id: "pencil-clean",
+    label: "Pencil Sketch - Clean Layers",
     settings: {
-      preprocess: "none",
-      threshold: 218,
-      turdSize: 5,
+      layerCount: 3,
+      minRegionPercent: 0.45,
       optTolerance: 0.45,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
+      turdSize: 6,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
       transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1400,
+    },
+  },
+  {
+    id: "ink-drawing",
+    label: "Ink Sketch - Sharp Lines",
+    settings: {
+      layerCount: 4,
+      minRegionPercent: 0.2,
+      optTolerance: 0.28,
+      turdSize: 2,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 1900,
+    },
+  },
+  {
+    id: "scan-cleanup",
+    label: "Scanned Sketch - Remove Speckles",
+    settings: {
+      layerCount: 3,
+      minRegionPercent: 0.75,
+      optTolerance: 0.55,
+      turdSize: 9,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1300,
+    },
+  },
+  {
+    id: "notebook-cleanup",
+    label: "Notebook Sketch - Paper Cleanup",
+    settings: {
+      layerCount: 3,
+      minRegionPercent: 0.9,
+      optTolerance: 0.65,
+      turdSize: 10,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1200,
     },
   },
   {
     id: "hand-lettering",
-    label: "Hand lettering - Bold",
-    help: "Preserves thick lettering strokes for decals, labels, signs, and vinyl projects.",
+    label: "Hand Lettering - Smooth",
     settings: {
-      preprocess: "none",
-      threshold: 214,
-      turdSize: 2,
-      optTolerance: 0.26,
-      turnPolicy: "black",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "pencil-sketch",
-    label: "Pencil sketch - Boost light lines",
-    help: "Includes lighter pencil strokes without going fully photo-edge mode.",
-    settings: {
-      preprocess: "none",
-      threshold: 238,
-      turdSize: 1,
-      optTolerance: 0.22,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "ink-outline",
-    label: "Ink outline - Accurate",
-    help: "Keeps crisp ink lines for scanned drawings, tattoo-style designs, and line illustrations.",
-    settings: {
-      preprocess: "none",
-      threshold: 230,
-      turdSize: 2,
-      optTolerance: 0.2,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "doodle-sticker",
-    label: "Doodle sticker - Smooth",
-    help: "Smooths rough edges for stickers, vinyl decals, cards, and simple cut files.",
-    settings: {
-      preprocess: "none",
-      threshold: 220,
-      turdSize: 4,
-      optTolerance: 0.5,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "logo-sketch",
-    label: "Logo sketch - Clean shapes",
-    help: "Good for turning a rough hand-drawn logo concept into a cleaner vector SVG.",
-    settings: {
-      preprocess: "none",
-      threshold: 208,
-      turdSize: 2,
-      optTolerance: 0.25,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "scan-speckles",
-    label: "Scanned drawing - Remove speckles",
-    help: "Aggressively removes dust, scanner dots, paper texture, and tiny accidental marks.",
-    settings: {
-      preprocess: "none",
-      threshold: 226,
-      turdSize: 6,
-      optTolerance: 0.38,
-      turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
-    },
-  },
-  {
-    id: "photo-of-drawing",
-    label: "Photo of drawing - Edge cleanup",
-    help: "Use when the drawing was photographed instead of scanned and has shadows or uneven light.",
-    settings: {
-      preprocess: "edge",
-      blurSigma: 1.1,
-      edgeBoost: 1.25,
-      threshold: 222,
+      layerCount: 2,
+      minRegionPercent: 0.3,
+      optTolerance: 0.24,
       turdSize: 3,
-      optTolerance: 0.36,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 1900,
+    },
+  },
+  {
+    id: "signature",
+    label: "Signature - Clean Cut",
+    settings: {
+      layerCount: 2,
+      minRegionPercent: 0.25,
+      optTolerance: 0.2,
+      turdSize: 2,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 1900,
+    },
+  },
+  {
+    id: "coloring-page",
+    label: "Coloring Page - Bold Lines",
+    settings: {
+      layerCount: 2,
+      minRegionPercent: 0.85,
+      optTolerance: 0.7,
+      turdSize: 8,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "black",
+      maxTraceSide: 1200,
+    },
+  },
+  {
+    id: "vinyl-sketch",
+    label: "Sketch to Vinyl - Fewer Pieces",
+    settings: {
+      layerCount: 2,
+      minRegionPercent: 1.1,
+      optTolerance: 0.78,
+      turdSize: 10,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
       turnPolicy: "majority",
-      lineColor: "#000000",
-      invert: false,
-      transparent: true,
+      maxTraceSide: 1200,
     },
   },
   {
-    id: "low-contrast-drawing",
-    label: "Low contrast - Boost edges",
-    help: "Helps recover faint drawings, light pencil, low-contrast paper photos, and gray scans.",
+    id: "htv-sketch",
+    label: "Sketch to HTV - Simple Layers",
     settings: {
-      preprocess: "edge",
-      blurSigma: 0.9,
-      edgeBoost: 1.65,
-      threshold: 230,
-      turdSize: 2,
-      optTolerance: 0.34,
-      turnPolicy: "minority",
-      lineColor: "#000000",
-      invert: false,
+      layerCount: 3,
+      minRegionPercent: 0.9,
+      optTolerance: 0.7,
+      turdSize: 8,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
       transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1200,
     },
   },
   {
-    id: "white-on-dark",
-    label: "White lines on dark",
-    help: "Creates a visible white-line SVG on a dark background for previewing inverted designs.",
+    id: "sticker-outline",
+    label: "Sticker Art - Clean Outlines",
     settings: {
-      preprocess: "none",
-      threshold: 225,
-      turdSize: 2,
+      layerCount: 4,
+      minRegionPercent: 0.4,
+      optTolerance: 0.5,
+      turdSize: 5,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1500,
+    },
+  },
+  {
+    id: "marker-art",
+    label: "Marker Sketch - Bold Color Layers",
+    settings: {
+      layerCount: 5,
+      minRegionPercent: 0.35,
+      optTolerance: 0.45,
+      turdSize: 4,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1600,
+    },
+  },
+  {
+    id: "kids-drawing",
+    label: "Kids Sketch - Simple Layers",
+    settings: {
+      layerCount: 4,
+      minRegionPercent: 0.55,
+      optTolerance: 0.65,
+      turdSize: 7,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1300,
+    },
+  },
+  {
+    id: "sketch-logo",
+    label: "Sketch Logo - Clean Shapes",
+    settings: {
+      layerCount: 5,
+      minRegionPercent: 0.2,
       optTolerance: 0.3,
+      turdSize: 3,
+      posterize: false,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
       turnPolicy: "minority",
-      invert: true,
-      lineColor: "#ffffff",
-      transparent: false,
-      bgColor: DARK_BG_DEFAULT,
+      maxTraceSide: 1900,
     },
   },
   {
-    id: "blue-pen",
-    label: "Blue pen style",
-    help: "Outputs a blue-line SVG for pen-style drawings, school notes, diagrams, and craft previews.",
+    id: "shadow-layer",
+    label: "Shadow Layer - Bold Shape",
     settings: {
-      preprocess: "none",
-      threshold: 226,
-      turdSize: 2,
-      optTolerance: 0.32,
-      turnPolicy: "minority",
-      lineColor: "#0ea5e9",
-      invert: false,
+      layerCount: 2,
+      minRegionPercent: 1.2,
+      optTolerance: 0.85,
+      turdSize: 10,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
       transparent: true,
+      turnPolicy: "black",
+      maxTraceSide: 1200,
+    },
+  },
+  {
+    id: "fine-detail",
+    label: "Fine Detail - Preserve Lines",
+    settings: {
+      layerCount: 6,
+      minRegionPercent: 0.12,
+      optTolerance: 0.2,
+      turdSize: 2,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 2200,
+    },
+  },
+  {
+    id: "print-then-cut-sketch",
+    label: "Print Then Cut - Sketch Art",
+    settings: {
+      layerCount: 6,
+      minRegionPercent: 0.35,
+      optTolerance: 0.45,
+      turdSize: 4,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "majority",
+      maxTraceSide: 1600,
+    },
+  },
+  {
+    id: "colored-sketch",
+    label: "Colored Sketch - More Layers",
+    settings: {
+      layerCount: 8,
+      minRegionPercent: 0.2,
+      optTolerance: 0.4,
+      turdSize: 3,
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      turnPolicy: "minority",
+      maxTraceSide: 1800,
     },
   },
 ];
-
-const DEFAULTS: Settings = {
-  threshold: 224,
-  turdSize: 3,
-  optTolerance: 0.32,
-  turnPolicy: "minority",
-  lineColor: "#000000",
-  invert: false,
-  transparent: true,
-  bgColor: "#ffffff",
-  preprocess: "none",
-  blurSigma: 0.8,
-  edgeBoost: 1.0,
-};
 
 type ServerResult = {
   svg?: string;
@@ -895,6 +1446,18 @@ type ServerResult = {
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
+  layers?: ServerLayer[];
+  palette?: string[];
+};
+
+type LayerState = {
+  id: string;
+  name: string;
+  color: string;
+  originalColor: string;
+  visible: boolean;
+  pixelPercent: number;
+  pathTags: string;
 };
 
 type HistoryItem = {
@@ -902,8 +1465,7 @@ type HistoryItem = {
   width: number;
   height: number;
   stamp: number;
-  presetLabel: string;
-  settings: Settings;
+  layers: LayerState[];
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -917,27 +1479,21 @@ function getAutoMode(bytes?: number | null): AutoMode {
 
 function autoModeHint(mode: AutoMode): string {
   if (mode === "medium") return "Live preview is throttled for 10-25 MB files.";
-  if (mode === "off")
-    return "Use the button to convert larger files after compression.";
   return "";
 }
 
 function autoModeDetail(mode: AutoMode): string {
-  if (mode === "medium") {
-    return "Large drawing; updates run less frequently to keep the converter stable.";
-  }
-
-  if (mode === "off") {
-    return "For best results, resize or scan the drawing smaller before converting.";
-  }
-
+  if (mode === "medium")
+    return "Large file; updates run less frequently to keep things smooth.";
   return "";
 }
 
 /* ========================
    Page
 ======================== */
-export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
+export default function SketchToSvgForCricut({
+  loaderData,
+}: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
 
   const [file, setFile] = React.useState<File | null>(null);
@@ -947,7 +1503,8 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("drawing-clean");
+    React.useState<string>("sketch-balanced");
+
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [dims, setDims] = React.useState<{
@@ -955,122 +1512,99 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     h: number;
     mp: number;
   } | null>(null);
+
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
-  const [showTips, setShowTips] = React.useState(true);
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const objectUrlRef = React.useRef<string | null>(null);
-
-  const pendingFirstConvertRef = React.useRef<{
-    file: File;
-    settings: Settings;
-    requestId: number;
-  } | null>(null);
-
-  const requestIdRef = React.useRef(0);
-  const lastSubmittedKeyRef = React.useRef<string | null>(null);
+  const suppressLiveRef = React.useRef(false);
+  const skipNextAutoSubmitRef = React.useRef(false);
+  const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const busy = fetcher.state !== "idle";
 
-  const activePresetObject =
-    PRESETS.find((preset) => preset.id === activePreset) ?? PRESETS[0];
+  React.useEffect(() => setHydrated(true), []);
 
   React.useEffect(() => {
-    setHydrated(true);
-  }, []);
-
-  React.useEffect(() => {
-    return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const pending = pendingFirstConvertRef.current;
-
-    if (!pending) return;
+    if (suppressLiveRef.current) return;
     if (!file) return;
-    if (file !== pending.file) return;
-    if (busy) return;
-
-    pendingFirstConvertRef.current = null;
-    submitFileForConversion(pending.file, pending.settings, "first-upload");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, busy]);
-
-  React.useEffect(() => {
-    if (fetcher.data?.error) {
-      setErr(fetcher.data.error);
+    if (skipNextAutoSubmitRef.current) {
+      skipNextAutoSubmitRef.current = false;
+      return;
     }
 
-    if (fetcher.data?.code === "BUSY" && fetcher.data.retryAfterMs && file) {
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    const mode = autoMode;
+    if (mode === "off") return;
 
-      const retryFile = file;
-      const retrySettings = settings;
-
-      retryTimerRef.current = setTimeout(() => {
-        submitFileForConversion(retryFile, retrySettings, "retry");
-      }, fetcher.data.retryAfterMs);
-
-      setInfo("Server is busy. Retrying automatically.");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
-
-  React.useEffect(() => {
-    if (fetcher.data?.svg) {
-      const item: HistoryItem = {
-        svg: fetcher.data.svg,
-        width: fetcher.data.width ?? 0,
-        height: fetcher.data.height ?? 0,
-        stamp: Date.now(),
-        presetLabel: activePresetObject.label,
-        settings,
-      };
-
-      setHistory((prev) => [item, ...prev].slice(0, 10));
-      setErr(null);
-      setInfo("Drawing converted. Download the SVG or adjust settings.");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
-
-  React.useEffect(() => {
-    if (!file) return;
-    if (pendingFirstConvertRef.current) return;
-    if (autoMode === "off") return;
-    if (busy) return;
-
-    const delay = autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
+    const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    const liveFile = file;
-    const liveSettings = settings;
-
     debounceRef.current = setTimeout(() => {
-      submitFileForConversion(liveFile, liveSettings, "live-preview");
+      submitConvert(file, settings);
     }, delay);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+    // Only upload/auto-mode changes should trigger this effect. Presets submit
+    // their computed settings directly in applyPreset, and advanced controls stay
+    // manual-only until Convert or Update preview is clicked.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode, busy]);
+  }, [file, autoMode]);
+
+  React.useEffect(() => {
+    if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
+
+    const item: HistoryItem = {
+      svg: fetcher.data.svg,
+      width: fetcher.data.width ?? 0,
+      height: fetcher.data.height ?? 0,
+      stamp: Date.now(),
+      layers: fetcher.data.layers.map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        color: layer.color,
+        originalColor: layer.color,
+        visible: true,
+        pixelPercent: layer.pixelPercent,
+        pathTags: layer.pathTags,
+      })),
+    };
+
+    setHistory((prev) => [item, ...prev].slice(0, 10));
+    setInfo(null);
+  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+
+  React.useEffect(() => {
+    if (!fetcher.data?.error) return;
+
+    if (fetcher.data.code === "BUSY" && file) {
+      const retryAfterMs = Math.max(1500, fetcher.data.retryAfterMs ?? 2500);
+      setInfo("Server is busy. Retrying automatically.");
+
+      if (retryRef.current) clearTimeout(retryRef.current);
+
+      retryRef.current = setTimeout(() => {
+        submitConvert(file, settings);
+      }, retryAfterMs);
+
+      return;
+    }
+
+    setErr(fetcher.data.error);
+  }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
+
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (retryRef.current) clearTimeout(retryRef.current);
+    };
+  }, [previewUrl]);
 
   async function measureAndSet(f: File) {
     try {
@@ -1085,7 +1619,6 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-
     await handleNewFile(f);
     e.currentTarget.value = "";
   }
@@ -1102,204 +1635,126 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG, JPG, or JPEG drawing.");
+      setErr("Please choose a PNG, JPG, JPEG, or WebP image.");
       return;
     }
 
-    requestIdRef.current += 1;
-    const requestId = requestIdRef.current;
+    suppressLiveRef.current = true;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-
-    pendingFirstConvertRef.current = null;
-    lastSubmittedKeyRef.current = null;
+    if (retryRef.current) clearTimeout(retryRef.current);
 
     setFile(null);
 
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("drawing-clean");
+    setActivePreset("sketch-balanced");
     setHistory([]);
     setErr(null);
     setInfo(null);
     setDims(null);
-    setAutoMode("off");
     setOriginalFileSize(f.size);
 
     let chosen = f;
 
     try {
-      if (chosen.size > LIVE_MED_MAX && chosen.size <= MAX_UPLOAD_BYTES) {
-        setInfo("Compressing the drawing locally for live preview.");
-        chosen = await compressToTarget25MB(chosen);
-      }
-
-      if (requestId !== requestIdRef.current) return;
-
-      if (chosen.size > MAX_UPLOAD_BYTES) {
-        setErr("File too large. Max 30 MB per image.");
-        setInfo(null);
-        return;
+      if (f.size > LIVE_MED_MAX) {
+        setInfo("Compressing large image locally for live layered preview.");
+        chosen = await compressToTarget25MB(f);
       }
 
       await validateBeforeSubmit(chosen);
-
-      if (requestId !== requestIdRef.current) return;
-
-      const url = URL.createObjectURL(chosen);
-      objectUrlRef.current = url;
-
-      pendingFirstConvertRef.current = {
-        file: chosen,
-        settings: DEFAULTS,
-        requestId,
-      };
-
-      setFile(chosen);
-      setAutoMode(getAutoMode(chosen.size));
-      setPreviewUrl(url);
-
-      await measureAndSet(chosen);
     } catch (e: any) {
-      if (requestId !== requestIdRef.current) return;
-
-      pendingFirstConvertRef.current = null;
-      setErr(e?.message || "Could not prepare this drawing.");
+      suppressLiveRef.current = false;
       setInfo(null);
-    }
-  }
-
-  function submitCurrentFile() {
-    if (!file) {
-      setErr("Choose a drawing first.");
+      setErr(e?.message || "Image is too large.");
       return;
     }
 
-    submitFileForConversion(file, settings, "manual");
+    setFile(chosen);
+    setAutoMode(getAutoMode(chosen.size));
+
+    const url = URL.createObjectURL(chosen);
+    setPreviewUrl(url);
+
+    await measureAndSet(chosen);
+
+    skipNextAutoSubmitRef.current = true;
+    suppressLiveRef.current = false;
+
+    void submitConvert(chosen, DEFAULTS);
   }
 
-  async function submitFileForConversion(
-    fileToConvert: File,
-    settingsToUse: Settings,
-    reason: "first-upload" | "manual" | "live-preview" | "retry",
+  async function submitConvert(
+    fileOverride?: File | null,
+    settingsOverride?: Settings,
   ) {
-    if (!fileToConvert) {
-      setErr("Choose a drawing first.");
+    const sourceFile = fileOverride ?? file;
+    const sourceSettings = settingsOverride ?? settings;
+
+    if (!sourceFile) {
+      setErr("Choose an image first.");
       return;
     }
 
     try {
-      await validateBeforeSubmit(fileToConvert);
+      await validateBeforeSubmit(sourceFile);
     } catch (e: any) {
-      setErr(e?.message || "Drawing is too large.");
+      setErr(e?.message || "Image is too large.");
       return;
     }
-
-    const effective = getEffectiveSettings(settingsToUse);
-
-    const submitKey = [
-      reason,
-      fileToConvert.name,
-      fileToConvert.size,
-      fileToConvert.lastModified,
-      effective.threshold,
-      effective.turdSize,
-      effective.optTolerance,
-      effective.turnPolicy,
-      effective.lineColor,
-      effective.invert,
-      effective.transparent,
-      effective.bgColor,
-      effective.preprocess,
-      effective.blurSigma,
-      effective.edgeBoost,
-    ].join("|");
-
-    if (reason !== "manual" && lastSubmittedKeyRef.current === submitKey) {
-      return;
-    }
-
-    lastSubmittedKeyRef.current = submitKey;
 
     const fd = new FormData();
-    fd.append("file", fileToConvert);
-    fd.append("threshold", String(effective.threshold));
-    fd.append("turdSize", String(effective.turdSize));
-    fd.append("optTolerance", String(effective.optTolerance));
-    fd.append("turnPolicy", effective.turnPolicy);
-    fd.append("lineColor", effective.lineColor);
-    fd.append("invert", String(effective.invert));
-    fd.append("transparent", String(effective.transparent));
-    fd.append("bgColor", effective.bgColor);
-    fd.append("preprocess", effective.preprocess);
-    fd.append("blurSigma", String(effective.blurSigma));
-    fd.append("edgeBoost", String(effective.edgeBoost));
+    fd.append("file", sourceFile);
+    fd.append("layerCount", String(sourceSettings.layerCount));
+    fd.append("maxTraceSide", String(sourceSettings.maxTraceSide));
+    fd.append("minRegionPercent", String(sourceSettings.minRegionPercent));
+    fd.append("optTolerance", String(sourceSettings.optTolerance));
+    fd.append("turdSize", String(sourceSettings.turdSize));
+    fd.append("turnPolicy", sourceSettings.turnPolicy);
+    fd.append("posterize", String(sourceSettings.posterize));
+    fd.append("removeWhite", String(sourceSettings.removeWhite));
+    fd.append("removeTransparent", String(sourceSettings.removeTransparent));
+    fd.append("transparent", String(sourceSettings.transparent));
+    fd.append("bgColor", sourceSettings.bgColor);
 
     setErr(null);
-    setInfo(reason === "first-upload" ? "Converting drawing..." : null);
 
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
       action:
         typeof window === "undefined"
-          ? "/drawing-to-svg-for-cricut?index"
+          ? "?index"
           : `${window.location.pathname}?index`,
     });
   }
 
-  function getEffectiveSettings(settingsToUse: Settings): Settings {
-    if (!settingsToUse.invert) return settingsToUse;
-
-    const bg =
-      !settingsToUse.bgColor ||
-      settingsToUse.bgColor.toLowerCase() === "#ffffff" ||
-      settingsToUse.bgColor.toLowerCase() === "#fff"
-        ? DARK_BG_DEFAULT
-        : settingsToUse.bgColor;
-
+  function buildPresetSettings(
+    currentSettings: Settings,
+    preset: Preset,
+  ): Settings {
     return {
-      ...settingsToUse,
-      transparent: false,
-      bgColor: bg,
-      lineColor:
-        settingsToUse.lineColor?.toLowerCase() === "#000000"
-          ? "#ffffff"
-          : settingsToUse.lineColor,
+      ...DEFAULTS,
+      transparent: currentSettings.transparent,
+      bgColor: currentSettings.bgColor,
+      ...preset.settings,
     };
   }
 
-  const buttonDisabled = isServer || !hydrated || busy || !file;
-
   function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(settings, preset);
+
     setActivePreset(preset.id);
-
-    const nextSettings = {
-      ...DEFAULTS,
-      transparent: settings.transparent,
-      bgColor: settings.bgColor,
-      ...preset.settings,
-    } as Settings;
-
     setSettings(nextSettings);
 
-    if (file && autoMode !== "off" && !busy) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (retryRef.current) clearTimeout(retryRef.current);
 
-      const presetFile = file;
-
-      debounceRef.current = setTimeout(
-        () => {
-          submitFileForConversion(presetFile, nextSettings, "live-preview");
-        },
-        autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS,
-      );
+    if (file && getAutoMode(file.size) !== "off") {
+      void submitConvert(file, nextSettings);
     }
   }
 
@@ -1309,73 +1764,34 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   }
 
   function handleCopySvg(svg: string) {
-    navigator.clipboard.writeText(svg).then(
-      () => {
-        showToast("SVG copied");
-      },
-      () => {
-        setErr("Copy failed. Download the SVG instead.");
-      },
+    navigator.clipboard.writeText(svg).then(() => {
+      showToast("Layered SVG copied");
+    });
+  }
+
+  function updateHistoryItemLayers(
+    stamp: number,
+    updater: (layers: LayerState[]) => LayerState[],
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              layers: updater(item.layers),
+            }
+          : item,
+      ),
     );
   }
 
-  function downloadSvg(item: HistoryItem) {
-    const b = new Blob([item.svg], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    const u = URL.createObjectURL(b);
-    const a = document.createElement("a");
-    a.href = u;
-    a.download = makeDownloadName(file?.name || "drawing", "svg");
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(u);
-  }
-
-  function downloadSettingsCsv(item: HistoryItem) {
-    const rows = [
-      ["Field", "Value"],
-      ["Original file", file?.name || ""],
-      ["Preset", item.presetLabel],
-      ["Width", item.width],
-      ["Height", item.height],
-      ["Threshold", item.settings.threshold],
-      ["Turd size", item.settings.turdSize],
-      ["Curve tolerance", item.settings.optTolerance],
-      ["Turn policy", item.settings.turnPolicy],
-      ["Line color", item.settings.lineColor],
-      ["Transparent background", item.settings.transparent ? "Yes" : "No"],
-      ["Background color", item.settings.bgColor],
-      ["Preprocess", item.settings.preprocess],
-      ["Blur sigma", item.settings.blurSigma],
-      ["Edge boost", item.settings.edgeBoost],
-    ];
-
-    const csv = rows
-      .map((row) => row.map((cell) => csvEscape(String(cell))).join(","))
-      .join("\n");
-
-    const b = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const u = URL.createObjectURL(b);
-    const a = document.createElement("a");
-    a.href = u;
-    a.download = "drawing-to-svg-for-cricut-settings.csv";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(u);
-  }
-
-  function printResult() {
-    window.print();
-  }
+  const buttonDisabled = isServer || !hydrated || busy || !file;
 
   return (
     <>
       <main className="bg-slate-50 text-slate-900">
-        <div className="mx-auto max-w-[1180px] px-4">
-          <div className="hidden py-6 lg:block">
+        <div className="max-w-[1180px] mx-auto px-4">
+          <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="2090332782"
               delayMs={1500}
@@ -1387,20 +1803,16 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
             />
           </div>
 
-          <section className="grid grid-cols-1 items-start gap-4 sm:pt-6 md:grid-cols-2 lg:pb-8 lg:pt-0">
-            <div className="min-w-0 overflow-hidden rounded-xl bg-white p-4 sm:border sm:border-slate-200 sm:shadow-sm">
-              <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-sky-700">
-                Cricut drawing vectorizer
-              </p>
-
-              <h1 className="m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-xl font-extrabold leading-none text-sky-950 sm:text-3xl">
-                Drawing to SVG for Cricut
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start sm:pt-6 lg:pt-0 lg:pb-8">
+            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
+              <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
+                Sketch to SVG for Cricut
               </h1>
 
-              <p className="mb-4 text-center text-sm leading-6 text-slate-600">
-                Upload a hand drawing, doodle, kids' artwork, scanned sketch, or
-                lettering image and convert it into a cleaner SVG cut file for
-                Cricut Design Space.
+              <p className="mb-3 text-center text-sm text-slate-600">
+                Convert hand sketches, pencil sketches, scanned sketches,
+                lettering, signatures, and sketch-style raster artwork into
+                editable layered SVG files for Cricut Design Space.
               </p>
 
               <PresetPicker
@@ -1409,23 +1821,16 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                 applyPreset={applyPreset}
               />
 
-              {activePresetObject?.help && (
-                <div className="mb-3 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[13px] leading-5 text-slate-700">
-                  <b className="text-sky-900">{activePresetObject.label}:</b>{" "}
-                  {activePresetObject.help}
-                </div>
-              )}
-
               <div className="mt-3 min-w-0">
                 <button
                   type="button"
                   onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 inline-flex w-full cursor-pointer items-center justify-between rounded-md border border-slate-200 bg-sky-50 px-3 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
+                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                   aria-expanded={showAdvanced}
                   aria-controls="advanced-settings"
                 >
                   <span className="inline-flex items-center gap-2">
-                    Advanced drawing cleanup settings
+                    Advanced sketch layer settings
                   </span>
                   <ChevronDownIcon open={showAdvanced} />
                 </button>
@@ -1433,67 +1838,119 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                 {showAdvanced && (
                   <div
                     id="advanced-settings"
-                    className="flex min-w-0 flex-col gap-2"
+                    className="flex flex-col gap-2 min-w-0"
                   >
-                    <Field label="Preprocess">
-                      <select
-                        value={settings.preprocess}
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                      <span>
+                        Advanced changes do not live preview automatically.
+                        Click Update preview to apply these settings.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => submitConvert(file, settings)}
+                        disabled={buttonDisabled}
+                        className={[
+                          "shrink-0 rounded-md border px-2.5 py-1 font-semibold transition-colors cursor-pointer",
+                          "border-slate-300 bg-white text-slate-800 hover:bg-slate-100",
+                          "disabled:opacity-60 disabled:cursor-not-allowed",
+                        ].join(" ")}
+                      >
+                        Update preview
+                      </button>
+                    </div>
+
+                    <Field label={`Layer count (${settings.layerCount})`}>
+                      <input
+                        type="range"
+                        min={MIN_LAYER_COUNT}
+                        max={MAX_LAYER_COUNT}
+                        step={1}
+                        value={settings.layerCount}
                         onChange={(e) =>
                           setSettings((s) => ({
                             ...s,
-                            preprocess: e.target
-                              .value as Settings["preprocess"],
+                            layerCount: Number(e.target.value),
                           }))
                         }
-                        className="w-full cursor-pointer rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
+                        className="w-full accent-[#0b2dff] cursor-pointer"
+                      />
+                    </Field>
+
+                    <Field label="Trace detail size">
+                      <select
+                        value={settings.maxTraceSide}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            maxTraceSide: Number(e.target.value),
+                          }))
+                        }
+                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                       >
-                        <option value="none">None: scan / line drawing</option>
-                        <option value="edge">Edge: photo of drawing</option>
+                        <option value={900}>Fast preview</option>
+                        <option value={1200}>Balanced</option>
+                        <option value={1600}>Detailed</option>
+                        <option value={2000}>High detail</option>
+                        <option value={2400}>Maximum detail</option>
                       </select>
                     </Field>
 
-                    {settings.preprocess === "edge" && (
-                      <>
-                        <Field label={`Blur σ (${settings.blurSigma})`}>
-                          <Num
-                            value={settings.blurSigma}
-                            min={0}
-                            max={3}
-                            step={0.1}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, blurSigma: v }))
-                            }
-                          />
-                        </Field>
-
-                        <Field label={`Edge boost (${settings.edgeBoost})`}>
-                          <Num
-                            value={settings.edgeBoost}
-                            min={0.5}
-                            max={2.2}
-                            step={0.1}
-                            onChange={(v) =>
-                              setSettings((s) => ({ ...s, edgeBoost: v }))
-                            }
-                          />
-                        </Field>
-                      </>
-                    )}
-
-                    <Field label={`Threshold (${settings.threshold})`}>
-                      <input
-                        type="range"
+                    <Field
+                      label={`Minimum layer size (${settings.minRegionPercent}%)`}
+                    >
+                      <Num
+                        value={settings.minRegionPercent}
                         min={0}
-                        max={255}
-                        step={1}
-                        value={settings.threshold}
+                        max={5}
+                        step={0.05}
+                        onChange={(v) =>
+                          setSettings((s) => ({
+                            ...s,
+                            minRegionPercent: v,
+                          }))
+                        }
+                      />
+                    </Field>
+
+                    <Field label="Posterize colors">
+                      <input
+                        type="checkbox"
+                        checked={settings.posterize}
                         onChange={(e) =>
                           setSettings((s) => ({
                             ...s,
-                            threshold: Number(e.target.value),
+                            posterize: e.target.checked,
                           }))
                         }
-                        className="w-full cursor-pointer accent-[#0b2dff]"
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                      />
+                    </Field>
+
+                    <Field label="Remove white background">
+                      <input
+                        type="checkbox"
+                        checked={settings.removeWhite}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            removeWhite: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                      />
+                    </Field>
+
+                    <Field label="Remove transparent pixels">
+                      <input
+                        type="checkbox"
+                        checked={settings.removeTransparent}
+                        onChange={(e) =>
+                          setSettings((s) => ({
+                            ...s,
+                            removeTransparent: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                       />
                     </Field>
 
@@ -1501,7 +1958,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                       <Num
                         value={settings.turdSize}
                         min={0}
-                        max={12}
+                        max={20}
                         step={1}
                         onChange={(v) =>
                           setSettings((s) => ({ ...s, turdSize: v }))
@@ -1509,7 +1966,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                       />
                     </Field>
 
-                    <Field label="Curve smoothing">
+                    <Field label="Curve tolerance">
                       <Num
                         value={settings.optTolerance}
                         min={0.05}
@@ -1521,76 +1978,28 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                       />
                     </Field>
 
-                    <Field label="Corner handling">
+                    <Field label="Turn policy">
                       <select
                         value={settings.turnPolicy}
                         onChange={(e) =>
                           setSettings((s) => ({
                             ...s,
-                            turnPolicy: e.target
-                              .value as Settings["turnPolicy"],
+                            turnPolicy: e.target.value as any,
                           }))
                         }
-                        className="w-full cursor-pointer rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 transition-colors hover:bg-slate-50"
+                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                       >
-                        <option value="minority">minority</option>
-                        <option value="majority">majority</option>
                         <option value="black">black</option>
                         <option value="white">white</option>
                         <option value="left">left</option>
                         <option value="right">right</option>
+                        <option value="minority">minority</option>
+                        <option value="majority">majority</option>
                       </select>
                     </Field>
 
-                    <Field label="SVG line color">
-                      <input
-                        type="color"
-                        value={settings.lineColor}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            lineColor: e.target.value,
-                          }))
-                        }
-                        className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white"
-                      />
-                    </Field>
-
-                    <Field label="Invert lineart">
-                      <input
-                        type="checkbox"
-                        checked={settings.invert}
-                        onChange={(e) =>
-                          setSettings((s) => {
-                            const on = e.target.checked;
-
-                            if (!on) return { ...s, invert: false };
-
-                            const bg =
-                              !s.bgColor ||
-                              s.bgColor.toLowerCase() === "#ffffff" ||
-                              s.bgColor.toLowerCase() === "#fff"
-                                ? DARK_BG_DEFAULT
-                                : s.bgColor;
-
-                            return {
-                              ...s,
-                              invert: true,
-                              transparent: false,
-                              bgColor: bg,
-                              lineColor:
-                                s.lineColor?.toLowerCase() === "#000000"
-                                  ? "#ffffff"
-                                  : s.lineColor,
-                            };
-                          })
-                        }
-                        className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
-                      />
-                    </Field>
-
-                    <Field label="Background">
-                      <div className="flex min-w-0 items-center gap-2">
+                    <Field label="SVG background">
+                      <div className="flex items-center gap-2 min-w-0">
                         <input
                           type="checkbox"
                           checked={settings.transparent}
@@ -1601,7 +2010,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                             }))
                           }
                           title="Transparent background"
-                          className="h-4 w-4 cursor-pointer accent-[#0b2dff]"
+                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
                         />
                         <span className="text-[13px] text-slate-700">
                           Transparent
@@ -1617,9 +2026,9 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                           }
                           aria-disabled={settings.transparent}
                           className={[
-                            "h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white",
+                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
                             settings.transparent
-                              ? "pointer-events-none opacity-50"
+                              ? "opacity-50 pointer-events-none"
                               : "",
                           ].join(" ")}
                           title={
@@ -1644,16 +2053,15 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                 />
               ) : (
                 <>
-                  <div className="mt-0 flex items-center justify-between gap-2 rounded-lg border border-[#dae6ff] bg-[#f7faff] px-3 py-2 text-slate-900">
-                    <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                    <div className="flex items-center min-w-0 gap-2">
                       {previewUrl && (
                         <img
                           src={previewUrl}
                           alt=""
-                          className="mr-1 h-[22px] w-[22px] rounded-md object-cover"
+                          className="w-[22px] h-[22px] rounded-md object-cover mr-1"
                         />
                       )}
-
                       <span title={file?.name || ""} className="truncate">
                         {file?.name} • {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
@@ -1665,20 +2073,11 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                     <button
                       type="button"
                       onClick={() => {
-                        requestIdRef.current += 1;
-                        pendingFirstConvertRef.current = null;
-                        lastSubmittedKeyRef.current = null;
-
-                        if (debounceRef.current)
+                        if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        if (debounceRef.current) {
                           clearTimeout(debounceRef.current);
-                        if (retryTimerRef.current)
-                          clearTimeout(retryTimerRef.current);
-
-                        if (objectUrlRef.current) {
-                          URL.revokeObjectURL(objectUrlRef.current);
-                          objectUrlRef.current = null;
                         }
-
+                        if (retryRef.current) clearTimeout(retryRef.current);
                         setFile(null);
                         setPreviewUrl(null);
                         setAutoMode("off");
@@ -1688,8 +2087,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                         setOriginalFileSize(null);
                         setHistory([]);
                       }}
-                      className="cursor-pointer rounded-md border border-[#d6e4ff] bg-[#eff4ff] px-2 py-1 hover:bg-[#e5eeff]"
-                      aria-label="Remove drawing"
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
                       ×
                     </button>
@@ -1697,7 +2095,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
-                      Detected drawing size:{" "}
+                      Detected size:{" "}
                       <b>
                         {dims.w}×{dims.h}
                       </b>{" "}
@@ -1707,16 +2105,16 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                 </>
               )}
 
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitCurrentFile}
+                  onClick={() => submitConvert(file, settings)}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "flex w-full items-center justify-center rounded-lg border px-3.5 py-2 font-bold transition-colors",
-                    "cursor-pointer border-[#0a24da] bg-[#0b2dff] text-white hover:border-[#091ec0] hover:bg-[#0a24da]",
-                    "disabled:cursor-not-allowed disabled:opacity-70",
+                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                    "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
+                    "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
                   <Icons
@@ -1725,7 +2123,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Converting..." : "Convert Drawing to SVG"}
+                  {busy ? "Building sketch layers…" : "Convert Sketch to SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1734,7 +2132,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
                   </span>
                 )}
 
-                {err && <span className="text-sm text-red-700">{err}</span>}
+                {err && <span className="text-red-700 text-sm">{err}</span>}
 
                 {!err && info && (
                   <span className="text-[13px] text-slate-600">{info}</span>
@@ -1742,149 +2140,138 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
               </div>
 
               {previewUrl && (
-                <div className="mt-3 hidden flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:flex">
-                  <p className="ml-2 mt-1 text-slate-700">
-                    Original drawing preview:
+                <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                  <p className="text-slate-700 ml-2 mt-1">
+                    Original Sketch Preview:
                   </p>
                   <img
                     src={previewUrl}
-                    alt="Input drawing"
-                    className="block h-auto w-full"
+                    alt="Input sketch"
+                    className="w-full h-auto block transparent-checkerboard"
                   />
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setShowTips((v) => !v)}
-                className="mt-3 inline-flex w-full cursor-pointer items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-                aria-expanded={showTips}
-              >
-                Tips for cleaner Cricut SVGs
-                <ChevronDownIcon open={showTips} />
-              </button>
-
-              {showTips && (
-                <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                  <ul className="list-disc space-y-1 pl-5">
-                    <li>
-                      Use a scan when possible. Photos work, but shadows add
-                      noise.
-                    </li>
-                    <li>
-                      Use black marker on white paper for the cleanest cut file.
-                    </li>
-                    <li>Raise speckle removal if the SVG has tiny dots.</li>
-                    <li>
-                      Raise curve smoothing if Cricut creates too many small
-                      cuts.
-                    </li>
-                    <li>
-                      Use edge mode for photographed drawings or uneven
-                      lighting.
-                    </li>
-                  </ul>
                 </div>
               )}
             </div>
 
-            <div className="h-full max-h-[124.25em] min-w-0 overflow-auto rounded-xl border border-slate-200 bg-slate-600 p-4 shadow-sm">
+            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
               {busy && (
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
               )}
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
-                  {history.map((item) => (
-                    <div
-                      key={item.stamp}
-                      className="rounded-xl border border-slate-200 bg-white p-2"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <span className="block text-[13px] font-semibold text-slate-800">
-                            {item.presetLabel}
-                          </span>
+                  {history.map((item) => {
+                    const getEditedSvg = () =>
+                      buildClientLayeredSvg({
+                        width: item.width,
+                        height: item.height,
+                        layers: item.layers,
+                        transparent: settings.transparent,
+                        bgColor: settings.bgColor,
+                      });
+
+                    return (
+                      <div
+                        key={item.stamp}
+                        className="rounded-xl border border-slate-200 bg-white p-2"
+                      >
+                        <div className="flex gap-3 items-center flex-wrap justify-between">
                           <span className="text-[13px] text-slate-700">
                             {item.width > 0 && item.height > 0
                               ? `${item.width} × ${item.height} px`
-                              : "size unknown"}
+                              : "size unknown"}{" "}
+                            • {item.layers.length} layers
                           </span>
                         </div>
 
-                        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">
-                          Cricut SVG
-                        </span>
-                      </div>
+                        <div className="flex gap-2 flex-wrap my-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const editedSvg = getEditedSvg();
+                              const b = new Blob([editedSvg], {
+                                type: "image/svg+xml;charset=utf-8",
+                              });
+                              const u = URL.createObjectURL(b);
+                              const a = document.createElement("a");
+                              a.href = u;
+                              a.download = "sketch-to-svg-for-cricut.svg";
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(u);
+                            }}
+                            className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                          >
+                            <Icons
+                              name="download"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
+                            Download Layered SVG
+                          </button>
 
-                      <div className="my-2 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => downloadSvg(item)}
-                          className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 font-semibold text-white hover:bg-sky-600"
-                        >
-                          <Icons
-                            name="download"
-                            size={16}
-                            className="mr-1 inline-block"
-                          />
-                          Download SVG
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopySvg(getEditedSvg())}
+                            className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
+                          >
+                            <Icons
+                              name="copy"
+                              size={16}
+                              className="inline-block mr-1"
+                            />
+                            Copy SVG
+                          </button>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleCopySvg(item.svg)}
-                          className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 hover:bg-slate-100"
-                        >
-                          <Icons
-                            name="copy"
-                            size={16}
-                            className="mr-1 inline-block"
-                          />
-                          Copy SVG
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => downloadSettingsCsv(item)}
-                          className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 hover:bg-slate-100"
-                        >
-                          Export Settings CSV
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={printResult}
-                          className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 hover:bg-slate-100"
-                        >
-                          Print to PDF
-                        </button>
-                      </div>
-
-                      <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2">
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            item.svg,
-                          )}`}
-                          alt="Converted drawing SVG result"
-                          className="h-auto max-w-full"
+                        <LayerControls
+                          layers={item.layers}
+                          onLayerChange={(layerId, patch) =>
+                            updateHistoryItemLayers(item.stamp, (layers) =>
+                              layers.map((layer) =>
+                                layer.id === layerId
+                                  ? { ...layer, ...patch }
+                                  : layer,
+                              ),
+                            )
+                          }
+                          onReset={() =>
+                            updateHistoryItemLayers(item.stamp, (layers) =>
+                              layers.map((layer) => ({
+                                ...layer,
+                                color: layer.originalColor,
+                                visible: true,
+                              })),
+                            )
+                          }
                         />
+
+                        <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                          <LayeredSvgPreview
+                            width={item.width}
+                            height={item.height}
+                            layers={item.layers}
+                            transparent={settings.transparent}
+                            bgColor={settings.bgColor}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="m-0 flex items-center justify-center font-semibold text-white">
+                <p className="justify-center items-center flex text-white m-0 font-semibold">
                   {!busy && (
                     <Icons
                       name="success"
                       size={20}
-                      className="mr-1 inline-block"
+                      className="inline-block mr-1"
                     />
                   )}
                   {busy
-                    ? "Converting drawing..."
-                    : "Converted drawing SVGs appear here."}
+                    ? "Building layered SVG…"
+                    : "Layered SVG files appear here..."}
                 </p>
               )}
             </div>
@@ -1892,13 +2279,13 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
         </div>
 
         {toast && (
-          <div className="fixed bottom-4 right-4 z-[1000] rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+          <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
             {toast}
           </div>
         )}
       </main>
 
-      <div className="block py-6 lg:hidden">
+      <div className="block lg:hidden py-6">
         <AdSenseDelayed
           slot="6632213024"
           delayMs={1500}
@@ -1935,7 +2322,6 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
     const img = new Image();
     img.src = url;
     await img.decode();
-
     return { w: img.naturalWidth, h: img.naturalHeight };
   } finally {
     URL.revokeObjectURL(url);
@@ -1944,7 +2330,7 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 
 async function validateBeforeSubmit(file: File) {
   if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Only PNG, JPG, or JPEG drawings are allowed.");
+    throw new Error("Upload a PNG, JPG, JPEG, or WebP image.");
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {
@@ -1953,13 +2339,13 @@ async function validateBeforeSubmit(file: File) {
 
   const { w, h } = await getImageSize(file);
 
-  if (!w || !h) throw new Error("Could not read drawing dimensions.");
+  if (!w || !h) throw new Error("Could not read image dimensions.");
 
   const mp = (w * h) / 1_000_000;
 
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Drawing is too large: ${w}×${h} (~${mp.toFixed(
+      `Image too large: ${w}×${h} (~${mp.toFixed(
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
@@ -1995,11 +2381,8 @@ async function compressToTarget25MB(file: File): Promise<File> {
     (canvas as any).height = h;
 
     const ctx = (canvas as any).getContext("2d");
-
     if (!ctx) throw new Error("Canvas 2D unsupported.");
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, h);
     ctx.drawImage(img as any, 0, 0, w, h);
 
     const mime = "image/jpeg";
@@ -2022,7 +2405,7 @@ async function compressToTarget25MB(file: File): Promise<File> {
     return blob;
   };
 
-  const qualities = [0.92, 0.84, 0.76, 0.68, 0.6, 0.52];
+  const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
 
   for (const q of qualities) {
     const b = await encode(q);
@@ -2048,14 +2431,13 @@ async function compressToTarget25MB(file: File): Promise<File> {
   }
 
   throw new Error(
-    "This drawing cannot be reduced below 25 MB without excessive quality loss.",
+    "This image cannot be reduced below 25 MB without excessive degradation.",
   );
 }
 
 function renameToJpeg(name: string) {
   const dot = name.lastIndexOf(".");
   const base = dot > 0 ? name.slice(0, dot) : name;
-
   return `${base}.jpg`;
 }
 
@@ -2066,11 +2448,64 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
     const img = new Image();
     img.src = url;
     await img.decode();
-
     return img;
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+function buildClientLayeredSvg({
+  width,
+  height,
+  layers,
+  transparent,
+  bgColor,
+}: {
+  width: number;
+  height: number;
+  layers: LayerState[];
+  transparent: boolean;
+  bgColor: string;
+}) {
+  const bg = transparent
+    ? ""
+    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeClientColor(
+        bgColor,
+        "#ffffff",
+      )}" />`;
+
+  const body = layers
+    .filter((layer) => layer.visible)
+    .map((layer, index) => {
+      const color = sanitizeClientColor(layer.color, layer.originalColor);
+      const safeId = escapeClientAttr(layer.id || `layer-${index + 1}`);
+      const safeName = escapeClientAttr(layer.name || `Layer ${index + 1}`);
+
+      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}">${layer.pathTags}</g>`;
+    })
+    .join("");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from sketch for Cricut">${bg}${body}</svg>`;
+}
+
+function sanitizeClientColor(input: string, fallback: string) {
+  const value = String(input || "").trim();
+
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+  }
+
+  return fallback || "#000000";
+}
+
+function escapeClientAttr(value: string) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function prettyBytes(bytes: number) {
@@ -2086,25 +2521,8 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function makeDownloadName(name: string, extension: string) {
-  const dot = name.lastIndexOf(".");
-  const base = dot > 0 ? name.slice(0, dot) : name;
-  const safeBase =
-    base
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "") || "drawing";
-
-  return `${safeBase}-cricut.${extension}`;
-}
-
-function csvEscape(value: string) {
-  if (/[",\n]/.test(value)) return `"${value.replaceAll('"', '""')}"`;
-  return value;
-}
-
 /* ========================
-   UI helpers
+   UI components
 ======================== */
 function Field({
   label,
@@ -2114,12 +2532,11 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex min-w-0 items-center gap-2 rounded-lg border border-[#edf2fb] bg-[#fafcff] px-3 py-2">
-      <span className="min-w-[180px] shrink-0 text-[13px] text-slate-700">
+    <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
+      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
         {label}
       </span>
-
-      <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+      <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
     </label>
   );
 }
@@ -2145,7 +2562,7 @@ function Num({
       max={max}
       step={step}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-[110px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900"
+      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
     />
   );
 }
@@ -2181,13 +2598,13 @@ function PresetPicker({
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
-  const DEFAULT_VISIBLE = 4;
+  const DEFAULT_VISIBLE = 2;
   const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
   const showToggle = presets.length > DEFAULT_VISIBLE;
 
   return (
     <div className="mb-2 mt-[.67rem] min-w-0">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid sm:grid-cols-2 gap-2">
         {visiblePresets.map((p) => {
           const isActive = activePreset === p.id;
 
@@ -2197,15 +2614,15 @@ function PresetPicker({
               type="button"
               onClick={() => applyPreset(p)}
               aria-pressed={isActive}
-              title={p.help}
+              title={p.label}
               className={[
-                "min-w-0 cursor-pointer rounded-lg border px-3 py-2 text-left text-[13px] font-semibold transition-colors",
+                "w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors cursor-pointer",
                 isActive
-                  ? "border-sky-600 bg-sky-600 text-white hover:bg-sky-700"
-                  : "border-slate-200 bg-slate-50 text-slate-900 hover:border-sky-300 hover:bg-sky-50",
+                  ? "border-sky-600 bg-sky-50 text-sky-950 font-semibold hover:bg-sky-100"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
               ].join(" ")}
             >
-              <span className="block truncate">{p.label}</span>
+              {p.label}
             </button>
           );
         })}
@@ -2215,74 +2632,330 @@ function PresetPicker({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          className="mt-2 w-full inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
+          aria-expanded={expanded}
         >
-          {expanded ? "Show fewer presets" : "Show more drawing presets"}
+          {expanded ? "Show fewer sketch presets" : "Show more sketch presets"}
+          <ChevronDownIcon open={expanded} />
         </button>
       )}
     </div>
   );
 }
 
+function LayerControls({
+  layers,
+  onLayerChange,
+  onReset,
+}: {
+  layers: LayerState[];
+  onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="my-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-bold text-sky-950 m-0">Edit SVG layers</h2>
+
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+        >
+          Reset layers
+        </button>
+      </div>
+
+      <div className="mt-3 grid gap-2">
+        {layers.map((layer, index) => (
+          <LayerControlRow
+            key={layer.id}
+            layer={layer}
+            index={index}
+            onLayerChange={onLayerChange}
+          />
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">
+        These edits update this specific result. Hide unwanted sketch fragments
+        or recolor each SVG group before downloading.
+      </p>
+    </div>
+  );
+}
+
+function LayerControlRow({
+  layer,
+  index,
+  onLayerChange,
+}: {
+  layer: LayerState;
+  index: number;
+  onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
+}) {
+  const [draftColor, setDraftColor] = React.useState(layer.color);
+  const latestColorRef = React.useRef(layer.color);
+  const commitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  React.useEffect(() => {
+    setDraftColor(layer.color);
+    latestColorRef.current = layer.color;
+  }, [layer.color]);
+
+  React.useEffect(() => {
+    return () => {
+      if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
+    };
+  }, []);
+
+  function commitColor(color = latestColorRef.current) {
+    if (commitTimerRef.current) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
+
+    if (color !== layer.color) {
+      onLayerChange(layer.id, { color });
+    }
+  }
+
+  function scheduleColorCommit(color: string) {
+    latestColorRef.current = color;
+    setDraftColor(color);
+
+    if (commitTimerRef.current) return;
+
+    commitTimerRef.current = setTimeout(() => {
+      commitTimerRef.current = null;
+      commitColor(latestColorRef.current);
+    }, 120);
+  }
+
+  function resetLayer() {
+    if (commitTimerRef.current) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
+
+    latestColorRef.current = layer.originalColor;
+    setDraftColor(layer.originalColor);
+    onLayerChange(layer.id, {
+      color: layer.originalColor,
+      visible: true,
+    });
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={layer.visible}
+          onChange={(e) =>
+            onLayerChange(layer.id, { visible: e.target.checked })
+          }
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+          title="Show or hide layer"
+        />
+
+        <input
+          type="color"
+          value={draftColor}
+          onChange={(e) => scheduleColorCommit(e.target.value)}
+          onBlur={() => commitColor()}
+          onMouseUp={() => commitColor()}
+          onPointerUp={() => commitColor()}
+          onTouchEnd={() => commitColor()}
+          className="w-10 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
+          title="Change layer color"
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-slate-800">
+            Layer {index + 1}
+          </div>
+          <div className="text-xs text-slate-500">
+            {draftColor.toUpperCase()} ??? {layer.pixelPercent}% of traced pixels
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={resetLayer}
+          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+}
+function LayeredSvgPreview({
+  width,
+  height,
+  layers,
+  transparent,
+  bgColor,
+}: {
+  width: number;
+  height: number;
+  layers: LayerState[];
+  transparent: boolean;
+  bgColor: string;
+}) {
+  const safeWidth = Math.max(1, Math.round(width || 1));
+  const safeHeight = Math.max(1, Math.round(height || 1));
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox={`0 0 ${safeWidth} ${safeHeight}`}
+      role="img"
+      aria-label="Layered SVG result from sketch"
+      className="max-w-full h-auto"
+    >
+      {!transparent && (
+        <rect
+          x="0"
+          y="0"
+          width={safeWidth}
+          height={safeHeight}
+          fill={sanitizeClientColor(bgColor, "#ffffff")}
+        />
+      )}
+
+      {layers.map((layer) => (
+        <LayeredSvgPreviewGroup key={layer.id} layer={layer} />
+      ))}
+    </svg>
+  );
+}
+
+const LayeredSvgPreviewGroup = React.memo(function LayeredSvgPreviewGroup({
+  layer,
+}: {
+  layer: LayerState;
+}) {
+  if (!layer.visible) return null;
+
+  const color = sanitizeClientColor(layer.color, layer.originalColor);
+  const safeId = escapeClientAttr(layer.id);
+  const safeName = escapeClientAttr(layer.name);
+
+  return (
+    <g id={safeId} data-layer-name={safeName} fill={color}>
+      <LayeredSvgPathTags pathTags={layer.pathTags} />
+    </g>
+  );
+});
+
+const LayeredSvgPathTags = React.memo(function LayeredSvgPathTags({
+  pathTags,
+}: {
+  pathTags: string;
+}) {
+  return <g dangerouslySetInnerHTML={{ __html: pathTags }} />;
+});
+
 /* ========================
    SEO sections
 ======================== */
 function SeoSections() {
+  const faqs = [
+    {
+      q: "Can I convert a sketch to SVG for Cricut?",
+      a: "Yes. Upload a sketch, scanned sketch, signature, handwriting image, or simple sketch-style artwork. The converter creates SVG groups that you can preview, recolor, hide, and download.",
+    },
+    {
+      q: "Does this only accept sketch files?",
+      a: "No. The page is optimized for sketch-style use cases, but you can upload PNG, JPG, JPEG, or WebP raster images.",
+    },
+    {
+      q: "Why does my sketch create too many tiny Cricut pieces?",
+      a: "Tiny pieces usually come from paper texture, pencil shading, scanner dust, shadows, compression artifacts, or noisy edges. Raise speckle removal, use fewer layers, or increase minimum layer size.",
+    },
+    {
+      q: "What preset should I use for a pencil sketch?",
+      a: "Start with Pencil Sketch - Clean Layers. If the sketch has paper texture, try Scanned Sketch - Remove Speckles or Notebook Sketch - Paper Cleanup.",
+    },
+    {
+      q: "Can I recolor each sketch layer?",
+      a: "Yes. Each conversion result includes layer controls that let you recolor or hide individual SVG layers before downloading.",
+    },
+    {
+      q: "Is this good for vinyl?",
+      a: "Use Sketch to Vinyl - Fewer Pieces or Shadow Layer - Bold Shape. These presets reduce small fragments and make the SVG more practical for cutting and weeding.",
+    },
+    {
+      q: "Should I remove the white background?",
+      a: "Yes for most paper sketches and scanned sketches. Keep it off only if white areas are part of the actual design.",
+    },
+    {
+      q: "Does this sketch to SVG for Cricut page have usage limits?",
+      a: "Only backend sketch conversion work is rate limited. Preview rendering, layer recoloring, layer visibility changes, copying SVG, and browser download generation are not rate limited because they do not use server conversion compute. Backend conversions allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+    },
+    {
+      q: "Is this affiliated with Cricut?",
+      a: "No. iLoveSVG is independent and is not affiliated with Cricut. Cricut is mentioned only to describe common craft file workflows.",
+    },
+  ];
+
   return (
-    <section className="border-t border-slate-200 bg-white">
-      <div className="mx-auto max-w-[1180px] px-4 py-8 text-slate-800">
+    <section className="bg-white border-t border-slate-200">
+      <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
             <div className="flex flex-col gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Hand drawing to SVG cut file converter
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                Sketch to layered Cricut SVG
               </p>
 
-              <h2 className="text-2xl font-bold leading-tight text-sky-950 md:text-3xl">
-                Convert drawings into Cricut-ready SVG files
+              <h2 className="text-2xl md:text-3xl font-bold leading-tight text-sky-950">
+                Convert sketches and scanned sketch artwork into SVG files for
+                Cricut
               </h2>
 
               <p className="text-slate-600">
-                This drawing to SVG converter is built for people who want to
-                turn real hand-made artwork into Cricut projects. Upload a scan
-                or photo of a drawing, choose a cleanup preset, preview the
-                vector result, and download an SVG file for Cricut Design Space.
+                This sketch to SVG converter is built for Cricut users who start
+                with hand sketches, pencil sketches, ink line art, scanned
+                artwork, handwriting, signatures, coloring page art, or simple
+                raster designs. It separates visible artwork into editable SVG
+                groups so you can recolor, hide, cut, or clean up the result.
               </p>
 
               <p className="text-slate-600">
-                It works best for marker drawings, clean pencil sketches,
-                doodles, simple kids' art, hand lettering, logo sketches,
-                white-paper scans, and black-and-white illustrations. The tool
-                focuses on practical craft output: fewer messy specks, smoother
-                curves, cleaner transparent backgrounds, and usable SVG paths.
+                Sketch images often contain paper texture, shadows, scanner
+                dust, or faint pencil marks. The presets on this page are tuned
+                for sketch cleanup, line preservation, vinyl simplification,
+                sticker outlines, and fewer unwanted Cricut pieces.
               </p>
 
-              <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
-                    k: "Drawing-first presets",
-                    v: "Kids' art, pencil, ink, lettering, scans",
+                    k: "Sketch-focused presets",
+                    v: "Pencil, ink, scan, vinyl, and lettering modes",
                   },
                   {
-                    k: "Cricut-friendly cleanup",
-                    v: "Speckle removal and curve smoothing",
+                    k: "Editable SVG groups",
+                    v: "Recolor or hide detected sketch layers",
                   },
                   {
-                    k: "Transparent SVG",
-                    v: "Useful for vinyl, decals, cards, and labels",
+                    k: "Cleanup controls",
+                    v: "Reduce speckles, paper texture, and tiny fragments",
                   },
                   {
-                    k: "Live preview",
-                    v: "Tune settings before downloading",
+                    k: "Flexible uploads",
+                    v: "Use PNG, JPG, JPEG, or WebP images",
                   },
                 ].map((x) => (
                   <div
                     key={x.k}
                     className="rounded-xl border border-slate-200 bg-white p-4"
                   >
-                    <div className="text-sm font-semibold text-sky-950">
-                      {x.k}
-                    </div>
+                    <div className="text-sm font-semibold">{x.k}</div>
                     <div className="mt-1 text-sm text-slate-600">{x.v}</div>
                   </div>
                 ))}
@@ -2303,25 +2976,23 @@ function SeoSections() {
             />
           </div>
 
-          <section className="mt-12">
+          <section className="mt-8">
             <h3 className="text-lg font-bold text-sky-950">
-              What kinds of drawings work best?
+              Best uses for this sketch to SVG converter
             </h3>
 
             <div className="mt-3 flex flex-wrap gap-2">
               {[
-                "Kids' drawings",
-                "Doodles",
-                "Hand lettering",
-                "Marker sketches",
                 "Pencil sketches",
-                "Ink drawings",
-                "Logo sketches",
+                "Ink sketches",
                 "Scanned artwork",
-                "Simple line art",
-                "Card designs",
+                "Hand lettering",
+                "Signatures",
+                "Coloring page art",
                 "Sticker outlines",
                 "Vinyl decals",
+                "Kids sketches",
+                "Simple craft art",
               ].map((t) => (
                 <span
                   key={t}
@@ -2332,26 +3003,25 @@ function SeoSections() {
               ))}
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold text-sky-950">
-                  Best source images
+                <div className="text-sm font-semibold">
+                  For hand-sketched artwork
                 </div>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Use a high-contrast scan or straight-on photo. Black marker on
-                  white paper usually gives the cleanest Cricut SVG. Avoid
-                  shadows, wrinkled paper, and busy backgrounds.
+                <p className="mt-1 text-sm text-slate-600">
+                  Use pencil, ink, or scan cleanup presets when you want to keep
+                  the original sketch character while removing background noise.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold text-sky-950">
-                  Best Cricut projects
+                <div className="text-sm font-semibold">
+                  For Cricut cuts and vinyl
                 </div>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Converted drawings work well for vinyl decals, cardstock
-                  cards, simple stickers, labels, wall art, keepsake kids'
-                  artwork, hand-lettered signs, and custom craft templates.
+                <p className="mt-1 text-sm text-slate-600">
+                  Use fewer layers, stronger speckle removal, and a larger
+                  minimum layer size when the design needs to be cut, weeded, or
+                  assembled.
                 </p>
               </div>
             </div>
@@ -2364,35 +3034,34 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold text-sky-950">
-                How to convert a drawing to SVG for Cricut
+                How to convert a sketch to SVG for Cricut
               </h3>
-
               <span className="text-xs text-slate-500">
-                Upload, clean up, preview, download SVG
+                Upload → choose preset → edit layers → download SVG
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Upload a scan or photo of your drawing",
-                  body: "Choose a PNG, JPG, or JPEG image. Scans are usually cleaner, but well-lit phone photos can work too.",
+                  title: "Upload a sketch or scan",
+                  body: "Use PNG, JPG, JPEG, or WebP. High-contrast images with dark lines on a light background convert best.",
                 },
                 {
-                  title: "Pick the closest drawing preset",
-                  body: "Use kids' drawing, hand lettering, pencil sketch, ink outline, logo sketch, or photo-of-drawing mode depending on your image.",
+                  title: "Choose a sketch-specific preset",
+                  body: "Use pencil presets for faint sketches, scan presets for paper texture, vinyl presets for fewer pieces, and lettering presets for signatures or handwriting.",
                 },
                 {
-                  title: "Adjust cleanup settings",
-                  body: "Use threshold to capture more or fewer lines, speckle removal to remove paper dots, and curve smoothing to reduce rough cuts.",
+                  title: "Adjust layer count and cleanup",
+                  body: "Use fewer layers for cut projects. Increase speckle removal and minimum layer size when the SVG has tiny unwanted pieces.",
                 },
                 {
-                  title: "Preview the SVG result",
-                  body: "Check whether the converted file keeps the main drawing without adding too much paper texture or tiny background marks.",
+                  title: "Recolor or hide layers",
+                  body: "Use the layer controls inside each result card to adjust each SVG group before downloading.",
                 },
                 {
-                  title: "Download and upload to Cricut Design Space",
-                  body: "Download the SVG file and upload it to Cricut Design Space. If the file feels too complex, return and increase smoothing or speckle removal.",
+                  title: "Download the SVG",
+                  body: "Upload the SVG into Cricut Design Space and use it for Cricut pen projects, cutting, stickers, decals, or layered craft projects.",
                 },
               ].map((s, i) => (
                 <li
@@ -2403,21 +3072,16 @@ function SeoSections() {
                   className="rounded-2xl border border-slate-200 bg-white p-4"
                 >
                   <div className="flex gap-3">
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-900 text-sm font-bold text-white">
+                    <div className="shrink-0 h-8 w-8 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">
                       {i + 1}
                     </div>
-
                     <div>
-                      <div
-                        itemProp="name"
-                        className="font-semibold text-sky-950"
-                      >
+                      <div itemProp="name" className="font-semibold">
                         {s.title}
                       </div>
-
                       <div
                         itemProp="itemListElement"
-                        className="mt-1 text-sm leading-6 text-slate-600"
+                        className="mt-1 text-sm text-slate-600"
                       >
                         {s.body}
                       </div>
@@ -2430,53 +3094,50 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              How the drawing cleanup settings affect your SVG
+              Which sketch SVG preset should you use?
             </h3>
 
-            <p className="mt-2 max-w-[80ch] text-sm leading-6 text-slate-600">
-              Drawings are different from clean logos. Paper texture, pencil
-              pressure, shadows, dust, and uneven lighting can all become extra
-              SVG paths. These settings help you control how much detail Cricut
-              has to process.
-            </p>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
                 {
-                  title: "Threshold",
-                  body: "Higher values include lighter pencil marks. Lower values keep only darker ink or marker lines.",
+                  title: "Sketch - Balanced Layers",
+                  body: "Best first try for most sketches and scanned sketch artwork.",
                 },
                 {
-                  title: "Speckle removal",
-                  body: "Removes tiny dots caused by paper grain, scanner dust, shadows, and broken pencil marks.",
+                  title: "Pencil Sketch - Clean Layers",
+                  body: "Best for faint pencil lines where the sketch needs extra cleanup.",
                 },
                 {
-                  title: "Curve smoothing",
-                  body: "Higher values make rough hand-drawn edges smoother and can reduce the number of awkward tiny cuts.",
+                  title: "Scanned Sketch - Remove Speckles",
+                  body: "Best for paper texture, scanner dust, and noisy scan backgrounds.",
                 },
                 {
-                  title: "Preprocess",
-                  body: "Use normal mode for scans and clean drawings. Use edge mode for photographed drawings, shadows, and low-contrast images.",
+                  title: "Hand Lettering - Smooth",
+                  body: "Best for names, quotes, signatures, and handwritten designs.",
                 },
                 {
-                  title: "Corner handling",
-                  body: "Changes how ambiguous corners and small gaps are resolved. Majority is often cleaner; minority is often more faithful.",
+                  title: "Sketch to Vinyl - Fewer Pieces",
+                  body: "Best when the sketch needs to become a practical vinyl or HTV cut file.",
                 },
                 {
-                  title: "Transparent background",
-                  body: "Best for most Cricut SVG files. Use a solid background only when you want to preview white or colored lines.",
+                  title: "Sticker Art - Clean Outlines",
+                  body: "Best for extracting bold, clean outlines from sketches or simple sketch-style artwork.",
+                },
+                {
+                  title: "Coloring Page - Bold Lines",
+                  body: "Best for black-line art and simplified cut-friendly outlines.",
+                },
+                {
+                  title: "Fine Detail - Preserve Lines",
+                  body: "Best when detail matters more than simple cutting. Expect more pieces.",
                 },
               ].map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold text-sky-950">
-                    {c.title}
-                  </div>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {c.body}
-                  </p>
+                  <div className="text-sm font-semibold">{c.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
                 </div>
               ))}
             </div>
@@ -2484,42 +3145,172 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Common drawing-to-SVG problems and fixes
+              Sketch to SVG settings explained
             </h3>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
+              Sketch conversion is different from regular image tracing because
+              paper texture, pencil shading, and scanner noise can easily become
+              extra Cricut pieces. These settings control how much of the sketch
+              becomes editable SVG layers.
+            </p>
+
+            <div className="mt-5 grid md:grid-cols-2 gap-4">
               {[
-                [
-                  "SVG has too many dots",
-                  "Raise speckle removal and use the scanned drawing preset.",
-                ],
-                [
-                  "Pencil lines disappear",
-                  "Raise threshold or use the low contrast preset.",
-                ],
-                [
-                  "Cricut cuts too many tiny pieces",
-                  "Increase curve smoothing and use a simpler preset.",
-                ],
-                [
-                  "Photo shadows appear in the SVG",
-                  "Use photo-of-drawing mode and photograph the drawing in even light.",
-                ],
-                [
-                  "Letters look too thin",
-                  "Use the hand lettering preset or lower the threshold slightly.",
-                ],
-                [
-                  "Edges look jagged",
-                  "Increase curve smoothing and avoid low-resolution photos.",
-                ],
-              ].map(([t, d]) => (
+                {
+                  title: "Layer count",
+                  body: "Controls how many color or tone groups are extracted. Fewer layers are better for vinyl and simpler cut files.",
+                },
+                {
+                  title: "Minimum layer size",
+                  body: "Filters out tiny regions. Raise it when paper texture or pencil noise creates too many small shapes.",
+                },
+                {
+                  title: "Speckle removal",
+                  body: "Removes small traced islands. Higher values create cleaner files for cutting and weeding.",
+                },
+                {
+                  title: "Curve tolerance",
+                  body: "Higher values smooth rough lines and reduce nodes. Lower values preserve more sketch detail.",
+                },
+                {
+                  title: "Remove white background",
+                  body: "Useful for scans and paper sketches. Turn it off only if white is part of the artwork.",
+                },
+                {
+                  title: "Posterize colors",
+                  body: "Simplifies similar tones before tracing. Keep it on for most sketches, scans, and marker sketches.",
+                },
+                {
+                  title: "Trace detail size",
+                  body: "Higher detail can preserve more line shape, but may create larger SVGs and slower conversions.",
+                },
+                {
+                  title: "Layer color controls",
+                  body: "Each result includes controls to recolor or hide detected SVG groups before export.",
+                },
+              ].map((c) => (
                 <div
-                  key={t}
+                  key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold text-sky-950">{t}</div>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{d}</p>
+                  <div className="text-sm font-semibold">{c.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <h3 className="text-lg font-bold text-sky-950">
+              How this sketch SVG converter works
+            </h3>
+
+            <div className="mt-3 grid md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-sm">
+                  1. Background areas are filtered
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  The converter can ignore transparent pixels and near-white
+                  paper or canvas areas so the sketch itself is easier to trace.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-sm">
+                  2. Visible tones become layer masks
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Remaining sketch colors and tones are grouped into a smaller
+                  palette, then each group is isolated as its own trace mask.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-sm">
+                  3. The result exports as SVG groups
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Each traced group becomes an SVG layer so you can recolor,
+                  hide, cut, or edit the result before downloading.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <h3 className="text-lg font-bold text-sky-950">
+              Server stability and conversion limits
+            </h3>
+
+            <div className="mt-3 grid md:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-sm">
+                  Backend conversion limits
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  This sketch to SVG for Cricut conversion page only rate limits
+                  backend raster tracing and server-side image processing work.
+                  Preview rendering, layer recoloring, layer visibility changes,
+                  copy actions, and browser download generation are not rate
+                  limited.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="font-semibold text-sm">
+                  Current backend quota
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Backend conversions allow up to 120 conversions per minute,
+                  400 conversions every 5 minutes, 1500 conversions per hour,
+                  and 3000 conversions per day for the same connection and
+                  browser profile. If the server is busy or a limit is reached,
+                  the response includes a Retry-After time.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-12">
+            <h3 className="text-lg font-bold text-sky-950">
+              Tips for cleaner sketch SVGs
+            </h3>
+
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              {[
+                {
+                  title: "Use high contrast",
+                  body: "Dark ink or pencil on clean white paper gives the best result. Uneven lighting creates extra layers.",
+                },
+                {
+                  title: "Scan when possible",
+                  body: "A scan usually works better than a phone photo because it avoids shadows and perspective distortion.",
+                },
+                {
+                  title: "Simplify for vinyl",
+                  body: "For vinyl or HTV, use 2 to 3 layers and stronger cleanup so the result is easier to weed.",
+                },
+                {
+                  title: "Use more detail for Cricut pen projects",
+                  body: "If the project uses Cricut pens instead of cutting, preserving more sketch detail can be useful.",
+                },
+                {
+                  title: "Remove white carefully",
+                  body: "White background removal helps most paper sketches, but it can remove intentional white design details.",
+                },
+                {
+                  title: "Compare multiple attempts",
+                  body: "Each conversion result stays in the preview area, so you can compare presets before downloading.",
+                },
+              ].map((c) => (
+                <div
+                  key={c.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="text-sm font-semibold">{c.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
                 </div>
               ))}
             </div>
@@ -2531,44 +3322,11 @@ function SeoSections() {
             itemType="https://schema.org/FAQPage"
           >
             <h3 className="text-lg font-bold text-sky-950">
-              Frequently asked questions
+              Sketch to SVG for Cricut FAQ
             </h3>
 
-            <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "Can I turn a hand drawing into an SVG for Cricut?",
-                  a: "Yes. Upload a scan or clear photo of the drawing, choose a drawing preset, adjust cleanup settings if needed, and download the SVG file for Cricut Design Space.",
-                },
-                {
-                  q: "What file types can I upload?",
-                  a: "This converter accepts PNG, JPG, and JPEG images up to 30 MB, with practical live-preview handling for files up to 25 MB after local compression.",
-                },
-                {
-                  q: "What kind of drawing converts best?",
-                  a: "High-contrast drawings convert best. Black marker or dark ink on white paper usually creates a cleaner SVG than faint pencil, shaded artwork, or photos with shadows.",
-                },
-                {
-                  q: "Why does my Cricut SVG have lots of tiny pieces?",
-                  a: "The converter may be tracing paper texture, dust, shadows, or broken sketch marks. Raise speckle removal, increase curve smoothing, or use a simpler drawing preset.",
-                },
-                {
-                  q: "Should I use a scan or a phone photo?",
-                  a: "A scan is usually better. A phone photo can work if it is bright, straight-on, sharp, and taken without shadows across the paper.",
-                },
-                {
-                  q: "Can I use this for kids' drawings?",
-                  a: "Yes. Use the kids' drawing preset. It simplifies uneven lines and reduces tiny marks so the result is easier to use for Cricut crafts.",
-                },
-                {
-                  q: "Is the output a real SVG?",
-                  a: "Yes. The result is an SVG file with vector paths that can be downloaded, copied, and uploaded to Cricut Design Space.",
-                },
-                {
-                  q: "Why did my pencil sketch not convert well?",
-                  a: "Faint pencil marks are low contrast. Try the pencil sketch or low contrast preset, raise threshold, and use a brighter scan or photo.",
-                },
-              ].map((x) => (
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              {faqs.map((x) => (
                 <article
                   key={x.q}
                   itemScope
@@ -2576,18 +3334,14 @@ function SeoSections() {
                   itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4
-                    itemProp="name"
-                    className="m-0 font-semibold text-sky-950"
-                  >
+                  <h4 itemProp="name" className="m-0 font-semibold">
                     {x.q}
                   </h4>
-
                   <p
                     itemScope
                     itemType="https://schema.org/Answer"
                     itemProp="acceptedAnswer"
-                    className="mt-2 text-sm leading-6 text-slate-600"
+                    className="mt-2 text-sm text-slate-600"
                   >
                     <span itemProp="text">{x.a}</span>
                   </p>

@@ -1343,7 +1343,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
               {outputMode === "grouped" ? (
                 groupedSvg ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-2">
-                    <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                    <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                       <img
                         src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(groupedSvg)}`}
                         alt="SVG result"
@@ -1443,7 +1443,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                         </div>
                       </div>
 
-                      <div className="mt-2 rounded-xl border border-slate-200 bg-white min-h-[140px] flex items-center justify-center p-2">
+                      <div className="mt-2 rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[140px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(it.svg)}`}
                           alt="SVG"

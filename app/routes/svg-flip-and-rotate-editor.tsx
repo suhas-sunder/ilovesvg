@@ -462,7 +462,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
                           <img
                             src={previewUrl}
                             alt="Before SVG preview"
-                            className="w-full h-auto block"
+                            className="w-full h-auto block transparent-checkerboard"
                           />
                         </div>
                       </div>
@@ -476,7 +476,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
                             <img
                               src={outPreviewUrl}
                               alt="After SVG preview"
-                              className="w-full h-auto block"
+                              className="w-full h-auto block transparent-checkerboard"
                             />
                           ) : (
                             <div className="text-slate-600 text-sm">

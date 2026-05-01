@@ -253,7 +253,12 @@ export async function action({ request }: ActionFunctionArgs) {
         (sharp as any).cache?.({ files: 0, memory: 48 });
       } catch {}
 
-      const meta = await sharp(input).rotate().metadata();
+      const { neutralizeTransparencyCheckerboard } = await import(
+        "../utils/imagePreprocess.server"
+      );
+      const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+      const meta = await sharp(sourceInput).rotate().metadata();
       const width = meta.width ?? 0;
       const height = meta.height ?? 0;
 
@@ -332,7 +337,7 @@ export async function action({ request }: ActionFunctionArgs) {
         .png()
         .toBuffer();
 
-      const mask = await createCutMask(input, {
+      const mask = await createCutMask(sourceInput, {
         outlineSource,
         backgroundTolerance,
         darkThreshold,
@@ -543,7 +548,12 @@ async function createEdgeMask(
   const req = createRequire(import.meta.url);
   const sharp = req("sharp") as typeof import("sharp");
 
-  const { data, info } = await sharp(input)
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+  const { data, info } = await sharp(sourceInput)
     .rotate()
     .flatten({ background: { r: 255, g: 255, b: 255 } })
     .removeAlpha()
@@ -1455,7 +1465,7 @@ export default function PngToSvgForCricutPrintThenCut({
                   <img
                     src={previewUrl}
                     alt="Input"
-                    className="w-full h-auto block"
+                    className="w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -1524,7 +1534,7 @@ export default function PngToSvgForCricutPrintThenCut({
                         </button>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                      <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                             item.svg,

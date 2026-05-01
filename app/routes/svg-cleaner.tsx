@@ -472,10 +472,8 @@ export default function SvgCleaner(_: Route.ComponentProps) {
             {/* INPUT */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h1 className="inline-flex items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-                  <h1 className="inline-flex text-center text-sky-800 mb-1 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-                    SVG Cleaner
-                  </h1>
+                <h1 className="inline-flex text-center text-sky-800 mb-1 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+                  SVG Cleaner
                 </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
@@ -549,7 +547,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
                     <img
                       src={previewUrl}
                       alt="Input SVG"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   </div>
                 </div>
@@ -1043,7 +1041,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
                       <img
                         src={outPreviewUrl}
                         alt="Cleaned SVG preview"
-                        className="w-full h-auto block"
+                        className="w-full h-auto block transparent-checkerboard"
                       />
                     ) : (
                       <div className="text-slate-600 text-sm">

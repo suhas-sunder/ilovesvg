@@ -300,7 +300,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                     <img
                       src={previewSvgUrl}
                       alt="SVG preview"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   </div>
                 </div>
@@ -575,7 +575,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                     <img
                       src={result.dataUrl}
                       alt="JPG result"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   ) : (
                     <div className="text-slate-600 text-sm">

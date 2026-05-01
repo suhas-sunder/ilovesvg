@@ -454,7 +454,7 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                     <img
                       src={inputPreviewSrc}
                       alt="Input SVG"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   </div>
                   {!settings.previewUseLocalBlobForFileEmbeds && (

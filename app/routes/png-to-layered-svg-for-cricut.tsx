@@ -421,7 +421,12 @@ async function rasterToLayeredSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const { data, info } = await sharp(input)
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+  const { data, info } = await sharp(sourceInput)
     .rotate()
     .resize({
       width: options.maxTraceSide,
@@ -1980,7 +1985,7 @@ export default function PngToLayeredSvgForCricut({
                   <img
                     src={previewUrl}
                     alt="Input PNG"
-                    className="w-full h-auto block"
+                    className="w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -2084,7 +2089,7 @@ export default function PngToLayeredSvgForCricut({
                           }
                         />
 
-                        <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                        <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                           <img
                             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                               editedSvg,

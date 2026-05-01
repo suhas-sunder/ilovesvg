@@ -770,7 +770,12 @@ async function normalizeForSingleTrace(
       (sharp as any).cache?.({ files: 0, memory: 32 });
     } catch {}
 
-    let base = sharp(input).rotate().resize({
+    const { neutralizeTransparencyCheckerboard } = await import(
+      "../utils/imagePreprocess.server"
+    );
+    const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+    let base = sharp(sourceInput).rotate().resize({
       width: MAX_TRACE_SIDE_DEFAULT,
       height: MAX_TRACE_SIDE_DEFAULT,
       fit: "inside",
@@ -1039,7 +1044,12 @@ async function rasterToLayeredSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const { data, info } = await sharp(input)
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+  const { data, info } = await sharp(sourceInput)
     .rotate()
     .resize({
       width: options.maxTraceSide,
@@ -3283,7 +3293,7 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
                       />
                     ) : null}
 
-                    <div className="flex min-h-[380px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2">
+                    <div className="flex min-h-[380px] items-center justify-center rounded-xl border border-slate-200 bg-white transparent-checkerboard p-2">
                       <img
                         src={decoded.displaySvg}
                         alt="Decoded SVG preview"
@@ -3359,7 +3369,7 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
                               />
                             ) : null}
 
-                            <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2">
+                            <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white transparent-checkerboard p-2">
                               <img
                                 src={item.displaySvg}
                                 alt="Earlier SVG preview"

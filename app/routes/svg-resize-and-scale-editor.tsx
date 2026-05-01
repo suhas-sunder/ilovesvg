@@ -377,7 +377,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                     <img
                       src={previewUrl}
                       alt="Input SVG"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   </div>
                 </div>
@@ -726,7 +726,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                     <img
                       src={outPreviewUrl}
                       alt="Resized SVG preview"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   ) : (
                     <div className="text-slate-600 text-sm">

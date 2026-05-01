@@ -609,7 +609,12 @@ async function normalizeForPotraceBW(
       (sharp as any).cache?.({ files: 0, memory: 32 });
     } catch {}
 
-    let base = sharp(input).rotate();
+    const { neutralizeTransparencyCheckerboard } = await import(
+      "../utils/imagePreprocess.server"
+    );
+    const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+    let base = sharp(sourceInput).rotate();
 
     try {
       const meta = await base.metadata();
@@ -690,7 +695,12 @@ async function traceLayeredColorSvg(
     (sharp as any).cache?.({ files: 0, memory: 32 });
   } catch {}
 
-  let img = sharp(input).rotate();
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+  let img = sharp(sourceInput).rotate();
   img = img.resize({
     width: opts.layerMaxTraceSide,
     height: opts.layerMaxTraceSide,
@@ -2404,7 +2414,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                   <img
                     src={previewUrl}
                     alt="Input"
-                    className="w-full h-auto block"
+                    className="w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -2422,7 +2432,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                       key={item.stamp}
                       className="rounded-xl border border-slate-200 bg-white p-2"
                     >
-                      <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                      <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(getHistoryItemSvg(item))}`}
                           alt="SVG result"

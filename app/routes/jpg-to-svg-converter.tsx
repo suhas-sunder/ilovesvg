@@ -888,7 +888,12 @@ async function createLayeredColorSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const { data, info } = await sharp(input)
+  const { neutralizeTransparencyCheckerboard } = await import(
+    "../utils/imagePreprocess.server"
+  );
+  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
+  const { data, info } = await sharp(sourceInput)
     .rotate()
     .resize({
       width: opts.maxTraceSide,
@@ -1276,8 +1281,13 @@ async function normalizeForPotrace(
       (sharp as any).cache?.({ files: 0, memory: 32 }); // even smaller
     } catch {}
 
+    const { neutralizeTransparencyCheckerboard } = await import(
+      "../utils/imagePreprocess.server"
+    );
+    const sourceInput = await neutralizeTransparencyCheckerboard(input);
+
     // Decode + respect EXIF
-    let base = sharp(input).rotate();
+    let base = sharp(sourceInput).rotate();
 
     // Soft guard to avoid OOM
     try {
@@ -1303,7 +1313,7 @@ async function normalizeForPotrace(
       const H = info.height | 0;
 
       if (W <= 1 || H <= 1) {
-        return await sharp(input)
+        return await sharp(sourceInput)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
@@ -1340,7 +1350,7 @@ async function normalizeForPotrace(
       }
 
       if (isFlatBuffer(out)) {
-        return await sharp(input)
+        return await sharp(sourceInput)
           .rotate()
           .flatten({ background: { r: 255, g: 255, b: 255 } })
           .removeAlpha()
@@ -3110,7 +3120,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                   <img
                     src={previewUrl}
                     alt="JPG input"
-                    className="w-full h-auto block"
+                    className="w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -3128,7 +3138,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                       key={item.stamp}
                       className="rounded-xl border border-slate-200 bg-white p-2"
                     >
-                      <div className="rounded-xl border border-slate-200 bg-white min-h-[240px] flex items-center justify-center p-2">
+                      <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                             getHistoryItemSvg(item),

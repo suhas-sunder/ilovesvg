@@ -837,7 +837,7 @@ export default function SvgToBase64(_: Route.ComponentProps) {
                         <img
                           src={previewDataUri}
                           alt="SVG preview"
-                          className="w-full h-auto block"
+                          className="w-full h-auto block transparent-checkerboard"
                         />
                       </div>
                     ) : (

@@ -88,7 +88,12 @@ const MAX_CANVAS_PIXELS = 80_000_000;
 
 export default function SvgToWebpConverter(_: Route.ComponentProps) {
   const [hydrated, setHydrated] = React.useState(false);
-  React.useEffect(() => setHydrated(true), []);
+  const [webpSupported, setWebpSupported] = React.useState(true);
+
+  React.useEffect(() => {
+    setHydrated(true);
+    setWebpSupported(supportsWebpExport());
+  }, []);
 
   const [file, setFile] = React.useState<File | null>(null);
   const [svgText, setSvgText] = React.useState<string>("");
@@ -324,7 +329,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     <img
                       src={previewSvgUrl}
                       alt="SVG preview"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   </div>
                 </div>
@@ -610,7 +615,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                   solid-background depending on your selection.
                 </div>
 
-                {!supportsWebpExport() && (
+                {hydrated && !webpSupported && (
                   <div className="mt-3 text-[13px] text-amber-700">
                     Your browser may not support WebP export via canvas. Try a
                     modern Chromium-based browser.
@@ -628,7 +633,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     <img
                       src={result.dataUrl}
                       alt="WebP result"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   ) : (
                     <div className="text-slate-600 text-sm">

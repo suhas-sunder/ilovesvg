@@ -371,7 +371,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
                     <img
                       src={previewUrl}
                       alt="SVG preview"
-                      className="w-full h-auto block"
+                      className="w-full h-auto block transparent-checkerboard"
                     />
                   ) : (
                     <div className="text-slate-600 text-sm">
