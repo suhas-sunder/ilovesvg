@@ -31,7 +31,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to SVG for Cricut Stickers | Free Sticker Cut Outline Tool";
   const description =
-    "Create a Cricut sticker SVG from PNG or JPG artwork. Preserve printable colors, add a smooth cut outline, and export a sticker-ready SVG for Print Then Cut prep.";
+    "Turn PNG or JPG sticker artwork into Cricut-ready SVG output with smooth cut outlines, transparent-area checks, preview, and download controls.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-cricut-stickers";
 
   return [

@@ -50,9 +50,9 @@ const ROUTE_NAME = "Line Art to SVG Converter";
    Meta (unique intent, not duplicate)
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Line Art to SVG Converter (Ink Drawings & Scans)";
+  const title = "Line Art to SVG Converter - Ink Drawings and Scans | iLoveSVG";
   const description =
-    "Convert line art (ink drawings, sketches, and scans) into clean, editable SVG paths with iLoveSVG. Choose presets for bold or fine lines, scan cleanup, and gap sealing with live preview. Fast, privacy-friendly, in-browser processing.";
+    "Convert ink drawings, sketches, and scans into SVG paths with line-art presets, scan cleanup, editable output, copy, download, and server-assisted tracing.";
   const canonical = "https://www.ilovesvg.com/line-art-to-svg-converter";
 
   return [

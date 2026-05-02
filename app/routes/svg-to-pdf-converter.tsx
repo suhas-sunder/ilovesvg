@@ -17,9 +17,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG to PDF Converter";
+  const title = "SVG to PDF Converter - Save SVG as PDF Online | iLoveSVG";
   const description =
-    "Convert SVG to PDF instantly with iLoveSVG. Paste or upload an SVG, choose paper size, orientation, margins, and DPI, preview the result, and download the PDF. Free, fully client-side, no uploads.";
+    "Convert SVG to PDF in your browser with paper size, orientation, margin, DPI, preview, and download controls for print, documents, and design handoff.";
   const canonical = "https://www.ilovesvg.com/svg-to-pdf-converter";
 
   return [

@@ -16,9 +16,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Favicon Generator (ICO & App Icons)";
+  const title = "SVG to Favicon Generator - Create Favicons from SVG | iLoveSVG";
   const description =
-    "Generate a favicon.ico and full app icon set with iLoveSVG. Create 16x16 to 256x256 ICO files, Apple touch icons, Android and Chrome icons, Microsoft tiles, plus a production-ready HTML snippet. Free, runs 100% in your browser.";
+    "Generate favicon.ico, PNG icon sizes, Apple touch icons, Android icons, manifest snippets, and preview assets from SVG in your browser.";
   const canonical = "https://www.ilovesvg.com/svg-to-favicon-generator";
 
   return [

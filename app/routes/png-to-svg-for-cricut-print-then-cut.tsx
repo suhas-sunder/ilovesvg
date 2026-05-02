@@ -31,7 +31,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to SVG for Cricut Print Then Cut | Free Print Then Cut SVG Maker";
   const description =
-    "Convert PNG and JPG artwork into a Cricut Print Then Cut-style SVG. Preserve printable colors, embed the image, and add a traced vector cut outline for stickers, labels, and craft projects.";
+    "Prepare PNG or JPG artwork for Cricut Print Then Cut workflows with printable color preservation, SVG cut outline output, preview, and download controls.";
   const canonical =
     "https://www.ilovesvg.com/png-to-svg-for-cricut-print-then-cut";
 

@@ -42,9 +42,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | WebP to SVG Converter (Clean Vector Paths)";
+  const title = "WebP to SVG Converter - Convert WebP to Vector | iLoveSVG";
   const description =
-    "Convert WebP images to clean, editable SVG paths with iLoveSVG. Live preview, strict size guards, and fast in-memory processing for accurate vectorization. Free, fully client-side, no uploads.";
+    "Convert WebP images to SVG with server-assisted tracing, presets, editable layers, copy, download, and full-screen preview for web assets, logos, and graphics.";
   const canonical = "https://www.ilovesvg.com/webp-to-svg-converter";
 
   return [

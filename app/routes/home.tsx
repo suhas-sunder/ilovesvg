@@ -47,7 +47,7 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | PNG to SVG Converter - Free Online Image to SVG";
   const description =
-    "Convert PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, and SVG images to clean, scalable SVG with presets, editable layers, copy, and download tools. Free online image to SVG converter by iLoveSVG.";
+    "Convert PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, and SVG images to scalable SVG with presets, speed tags, advanced trace controls, editable layers, copy, download, and full-screen preview.";
   const canonical = "https://www.ilovesvg.com";
 
   return [

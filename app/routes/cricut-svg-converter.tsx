@@ -40,7 +40,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "Cricut SVG Converter | Free PNG JPG to SVG for Cricut - iLoveSVG";
   const description =
-    "Convert PNG and JPG images into clean SVG files for Cricut Design Space, vinyl decals, stickers, stencils, labels, and craft cut-file projects. Free Cricut SVG converter with live preview.";
+    "Convert PNG, JPG, and image artwork into SVG files for Cricut Design Space workflows, vinyl decals, stickers, labels, stencils, and craft projects.";
   const canonical = "https://www.ilovesvg.com/cricut-svg-converter";
 
   return [

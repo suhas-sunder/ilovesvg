@@ -44,9 +44,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "PNG to SVG for Cricut | Single-Color Cut File Converter";
+  const title = "PNG to SVG for Cricut - Cut File Converter | iLoveSVG";
   const description =
-    "Convert PNG and JPG designs into clean single-color SVG cut files for Cricut projects. Tune presets for vinyl decals, HTV shirts, labels, silhouettes, and simple craft artwork.";
+    "Convert PNG artwork into SVG files for Cricut Design Space, vinyl decals, stickers, labels, stencils, and maker projects with cut-friendly presets.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-cricut";
 
   return [

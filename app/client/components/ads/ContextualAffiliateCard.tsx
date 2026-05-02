@@ -69,9 +69,9 @@ const NAMECHEAP_IMAGE = {
 };
 
 const PRINTIFY_BENEFITS = [
-  "Real product previews",
-  "No inventory setup",
-  "Good fit for SVG artwork",
+  "Product mockups for SVG artwork",
+  "Useful for merch testing",
+  "Good fit for creator shops",
 ];
 
 const CRICUT_BENEFITS = [
@@ -81,9 +81,9 @@ const CRICUT_BENEFITS = [
 ];
 
 const NAMECHEAP_BENEFITS = [
-  "Domain + hosting",
+  "Domain and hosting options",
   "Useful for shops or portfolios",
-  "Simple site setup",
+  "Good fit for brand landing pages",
 ];
 
 const NO_AFFILIATE_ROUTES = new Set([
@@ -289,7 +289,7 @@ function cricutPlacement(pathname: string): AffiliatePlacement {
     provider: "cricut",
     eyebrow: "Cricut SVG next step",
     heading: "Use this file in your next Cricut project",
-    body: "Check the traced edges, background cleanup, and final size before importing it into Cricut Design Space.",
+    body: "Check traced edges, background cleanup, and final size before importing the SVG into Cricut Design Space.",
     cta: "Continue with Cricut",
     ...base,
   };
@@ -307,7 +307,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       eyebrow: "Sticker printing next step",
       heading: "Ready to print your sticker design?",
       body: "Check final size, edge spacing, and transparent areas before ordering stickers, decals, or labels.",
-      cta: "Get $10 Sticker Mule credit",
+      cta: "Check Sticker Mule offer",
       ...base,
     };
   }
@@ -318,7 +318,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       eyebrow: "Print then cut next step",
       heading: "Turning this design into printed stickers or labels?",
       body: "Make sure the artwork stays clear at print size and that the cut border has enough breathing room.",
-      cta: "Get $10 Sticker Mule credit",
+      cta: "Check Sticker Mule offer",
       ...base,
     };
   }
@@ -329,7 +329,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       eyebrow: "Logo printing next step",
       heading: "Turn your logo into stickers or labels",
       body: "Check that the edges stay clean and the logo remains readable at small sizes.",
-      cta: "Get $10 Sticker Mule credit",
+      cta: "Check Sticker Mule offer",
       ...base,
     };
   }
@@ -340,7 +340,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
       eyebrow: "Sticker artwork next step",
       heading: "Preparing sticker artwork for printing?",
       body: "Review the cut edge, transparent areas, and final size before printing.",
-      cta: "Get $10 Sticker Mule credit",
+      cta: "Check Sticker Mule offer",
       ...base,
     };
   }
@@ -350,7 +350,7 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
     eyebrow: "Design printing next step",
     heading: "Turning this design into stickers or labels?",
     body: "Inspect the edges, final size, and background before using it for physical prints.",
-    cta: "Get $10 Sticker Mule credit",
+    cta: "Check Sticker Mule offer",
     ...base,
   };
 }
@@ -363,7 +363,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify print-on-demand next step",
       heading: "Test your SVG design on Printify products",
-      body: "Preview your artwork on shirts, mugs, tote bags, stickers, and other merch without buying inventory first.",
+      body: "Preview your artwork on shirts, mugs, tote bags, stickers, and other merch before deciding what to sell.",
       cta: "Test it with Printify",
       ...base,
     };
@@ -374,7 +374,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify T-shirt next step",
       heading: "Turn this SVG design into a Printify shirt mockup",
-      body: "Check the size, contrast, and background before publishing it on apparel.",
+      body: "Check size, contrast, and background before publishing artwork on apparel.",
       cta: "Test it on Printify shirts",
       ...base,
     };
@@ -429,7 +429,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
       provider: "printify",
       eyebrow: "Printify Etsy seller next step",
       heading: "Test this Etsy SVG design on Printify products",
-      body: "Try product ideas before managing inventory and make sure the artwork fits the item you want to sell.",
+      body: "Try product ideas and make sure the artwork fits the item you want to sell.",
       cta: "Test Etsy product ideas",
       ...base,
     };
@@ -511,12 +511,12 @@ function getAffiliatePlacement(pathname: string): AffiliatePlacement | null {
     return cricutPlacement(pathname);
   }
 
-  if (matchesPrintify(pathname)) {
-    return printifyPlacement(pathname);
-  }
-
   if (matchesStickerMule(pathname)) {
     return stickerMulePlacement(pathname);
+  }
+
+  if (matchesPrintify(pathname)) {
+    return printifyPlacement(pathname);
   }
 
   if (matchesNamecheap(pathname)) {
@@ -621,7 +621,7 @@ export function ContextualAffiliateCard() {
               href={placement.href}
               target="_blank"
               rel="nofollow sponsored noopener noreferrer"
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-sm transition-colors ${placement.buttonClass} sm:w-auto lg:min-w-[220px]`}
+              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition-colors ${placement.buttonClass} sm:w-auto lg:min-w-[220px]`}
             >
               {placement.cta}
             </a>

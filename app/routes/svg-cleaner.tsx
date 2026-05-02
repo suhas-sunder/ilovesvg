@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Cleaner & Optimizer (Remove Metadata, Junk)";
+  const title = "SVG Cleaner - Clean and Optimize SVG Files | iLoveSVG";
   const description =
-    "Clean and optimize SVG files instantly in your browser with iLoveSVG. Remove metadata, comments, editor namespaces, XML declarations, DOCTYPE, unused defs, and hidden junk. Preview changes and download a clean SVG. Free, client-side, no uploads.";
+    "Clean SVG files in your browser by removing metadata, comments, editor junk, unsafe scripts, unused markup, and extra whitespace. Preview, copy, and download.";
   const canonical = "https://www.ilovesvg.com/svg-cleaner";
 
   return [

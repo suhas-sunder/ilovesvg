@@ -44,9 +44,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Image to SVG Outline Converter (Line Art & CNC)";
+  const title = "Image to SVG Outline Converter - Photo and Line Art Outlines | iLoveSVG";
   const description =
-    "Convert images (PNG or JPG) into clean outline-only SVG with iLoveSVG. Extract line art and outlines from photos, drawings, or paintings with live preview and fast in-browser processing. Ideal for laser cutting, CNC, and line art cleanup. Free, no uploads.";
+    "Convert PNG or JPG images into outline-style SVG with edge, line art, cleanup, and trace presets. Useful for decals, laser cutting, CNC, and simplified artwork.";
   const canonical = "https://www.ilovesvg.com/image-to-svg-outline";
 
   return [

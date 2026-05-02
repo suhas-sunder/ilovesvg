@@ -44,9 +44,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Logo to SVG Converter (Clean, Editable Logos)";
+  const title = "Logo to SVG Converter - Vectorize Logos Online | iLoveSVG";
   const description =
-    "Convert logo PNG or JPG files into clean, scalable SVG with iLoveSVG. Optimized for logos using Potrace-style vectorization with smooth curves and fewer nodes. Live preview, privacy-friendly in-browser processing.";
+    "Convert PNG or JPG logos into scalable SVG with logo-tuned presets, smooth curves, editable output, layer styling, copy, download, and preview tools.";
   const canonical = "https://www.ilovesvg.com/logo-to-svg-converter";
 
   return [

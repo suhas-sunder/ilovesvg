@@ -48,7 +48,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to SVG for Silhouette | Free Silhouette SVG Converter - iLoveSVG";
   const description =
-    "Convert PNG and JPG images into clean SVG files for Silhouette Studio, Cameo projects, vinyl decals, stickers, stencils, and cut-file cleanup. Free PNG to SVG converter with live preview.";
+    "Convert PNG or JPG artwork into SVG files for Silhouette Studio, Cameo projects, vinyl decals, stickers, labels, and cut-file cleanup.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-silhouette";
 
   return [

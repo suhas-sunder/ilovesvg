@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG to Base64 Converter (Data URI)";
+  const title = "SVG to Base64 Converter - Encode SVG Data URLs | iLoveSVG";
   const description =
-    "Convert SVG to Base64 instantly with iLoveSVG. Generate data:image/svg+xml;base64 URLs, choose encoding options, sanitize scripts, optionally minify, and copy or download the result. Free, fully client-side, no uploads.";
+    "Encode SVG as Base64 or UTF-8 data URLs in your browser. Sanitize, minify, choose quote options, copy snippets, and download encoded output.";
   const canonical = "https://www.ilovesvg.com/svg-to-base64";
 
   return [

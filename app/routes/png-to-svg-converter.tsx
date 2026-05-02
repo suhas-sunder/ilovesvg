@@ -43,9 +43,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | PNG to SVG Converter (Logos, Icons, Line Art)";
+  const title = "PNG to SVG Converter - Free Online Image to SVG | iLoveSVG";
   const description =
-    "Convert PNG to SVG with iLoveSVG and get clean, editable output with live preview. Great for transparent logos, icons, and line art, with cleaner paths and fewer nodes. Fast, privacy-friendly, runs entirely in your browser.";
+    "Convert PNG to SVG with server-assisted tracing, searchable presets, speed tags, editable layers, copy, download, and full-screen preview. Good for logos, icons, stickers, and web graphics.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-converter";
 
   return [

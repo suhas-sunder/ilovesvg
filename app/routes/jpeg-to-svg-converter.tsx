@@ -37,9 +37,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | JPEG to SVG Converter (JPG to SVG)";
+  const title = "JPEG to SVG Converter - Convert JPEG Photos to SVG | iLoveSVG";
   const description =
-    "Convert JPEG (JPG) images to clean SVG with iLoveSVG. Vectorize photos, scans, and whiteboards using edge outlines or clean ink presets, preview instantly, then download an editable SVG. Free, fast, runs entirely in your browser.";
+    "Convert JPEG and JPG camera images to SVG with outline, scan, and cleanup presets. Useful for photos, scans, whiteboards, and simplified vector artwork.";
   const canonical = "https://www.ilovesvg.com/jpeg-to-svg-converter";
 
   return [

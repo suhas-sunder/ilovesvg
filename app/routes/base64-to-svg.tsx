@@ -16,9 +16,9 @@ import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/Pre
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Base64 to SVG Converter - Decode Base64 SVG Online";
+  const title = "Base64 to SVG Converter - Decode SVG Data URLs | iLoveSVG";
   const description =
-    "Convert Base64 SVG code, SVG data URLs, encoded SVG strings, and Base64 raster images into downloadable SVG files. Decode, clean, preview, recolor, copy, and export SVG online.";
+    "Decode Base64 SVG strings, SVG data URLs, and encoded snippets into previewable SVG. Sanitize, clean, copy, download, and inspect output safely.";
   const canonical = "https://www.ilovesvg.com/base64-to-svg";
 
   return [

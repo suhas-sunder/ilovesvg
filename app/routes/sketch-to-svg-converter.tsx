@@ -40,9 +40,9 @@ import {
 const isServer = typeof document === "undefined";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Sketch to SVG Converter (Hand-Drawn Sketches)";
+  const title = "Sketch to SVG Converter - Pencil and Ink Sketches | iLoveSVG";
   const description =
-    "Convert hand-drawn sketches (pencil, pen, or marker) into clean, editable SVG with iLoveSVG. Sketch-tuned presets for cleanup and smoothing, live preview, and fast, privacy-friendly in-browser processing.";
+    "Convert hand sketches, pencil lines, marker drawings, and scanned artwork into SVG with sketch-tuned cleanup, smoothing, preview, and download.";
   const canonical = "https://www.ilovesvg.com/sketch-to-svg-converter";
 
   return [

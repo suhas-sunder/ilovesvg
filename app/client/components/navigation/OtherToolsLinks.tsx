@@ -29,6 +29,20 @@ type UtilitySection = {
   groups: UtilityGroup[];
 };
 
+type RouteGuide = {
+  eyebrow: string;
+  heading: string;
+  intro: string;
+  bestFor: string[];
+  settings: string[];
+  limitations: string[];
+  related: Array<{
+    to: string;
+    label: string;
+    reason: string;
+  }>;
+};
+
 type Props = {
   title?: string;
   subtitle?: string;
@@ -52,6 +66,10 @@ export function OtherToolsLinks({
   const { pathname } = useLocation();
 
   const normalizedPathname = normalizePath(pathname);
+  const routeGuide = React.useMemo(
+    () => getRouteGuide(normalizedPathname),
+    [normalizedPathname],
+  );
 
   const sections = React.useMemo(() => {
     return UTILITY_SECTIONS.map((section) => {
@@ -72,7 +90,9 @@ export function OtherToolsLinks({
       className="mt-12 border-t border-slate-200 bg-white"
     >
       <div className="max-w-[1180px] mx-auto px-4 py-10">
-        <div className="flex flex-col gap-2">
+        {routeGuide ? <RouteIntentGuide guide={routeGuide} /> : null}
+
+        <div className={routeGuide ? "mt-10 flex flex-col gap-2" : "flex flex-col gap-2"}>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-sky-800">
             {title}
           </h2>
@@ -166,6 +186,74 @@ export function OtherToolsLinks({
   );
 }
 
+function RouteIntentGuide({ guide }: { guide: RouteGuide }) {
+  return (
+    <section
+      aria-labelledby="current-tool-guide-heading"
+      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm sm:p-6"
+    >
+      <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
+        {guide.eyebrow}
+      </p>
+      <h2
+        id="current-tool-guide-heading"
+        className="mt-2 max-w-[920px] text-2xl font-extrabold tracking-tight text-sky-950 sm:text-3xl"
+      >
+        {guide.heading}
+      </h2>
+      <p className="mt-3 max-w-[88ch] text-[15px] leading-7 text-slate-700">
+        {guide.intro}
+      </p>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <GuideList title="Best for" items={guide.bestFor} />
+        <GuideList title="Settings to try" items={guide.settings} />
+        <GuideList title="Useful limits" items={guide.limitations} />
+      </div>
+
+      {guide.related.length ? (
+        <div className="mt-5 rounded-xl border border-white bg-white/80 p-4">
+          <h3 className="text-sm font-extrabold uppercase tracking-wide text-slate-600">
+            Related tools
+          </h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {guide.related.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 transition hover:border-sky-200 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2"
+              >
+                <span className="block text-sm font-extrabold text-slate-900 group-hover:text-sky-900">
+                  {link.label}
+                </span>
+                <span className="mt-1 block text-[13px] leading-5 text-slate-600">
+                  {link.reason}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function GuideList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl border border-white bg-white/80 p-4">
+      <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>
+      <ul className="mt-2 space-y-2 text-[13px] leading-5 text-slate-700">
+        {items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function normalizePath(path: string) {
   if (!path || path === "/") return "/";
   return path.endsWith("/") ? path.slice(0, -1) : path;
@@ -216,6 +304,519 @@ function badgeClass(group: UtilityGroup) {
       return "bg-slate-50 text-slate-800 border border-slate-200";
   }
 }
+
+function getRouteGuide(pathname: string): RouteGuide | null {
+  const exactGuide = ROUTE_GUIDES[pathname];
+  if (exactGuide) return exactGuide;
+
+  const utility = UTILITIES.find((item) => normalizePath(item.to) === pathname);
+  if (!utility) return null;
+
+  const groupDefaults = fallbackGuideByGroup(utility.group);
+
+  return {
+    eyebrow: `${shortBadge(utility.group)} workflow`,
+    heading: `${utility.title}: practical workflow notes`,
+    intro: `${utility.description} Use this page when that specific output is the fastest path, then jump to the related tools below if you need a different export, cleanup, or craft-file workflow.`,
+    bestFor: [
+      utility.keywords?.[0] ?? utility.title.toLowerCase(),
+      ...groupDefaults.bestFor,
+    ].slice(0, 4),
+    settings: groupDefaults.settings,
+    limitations: groupDefaults.limitations,
+    related: relatedForUtility(utility),
+  };
+}
+
+function fallbackGuideByGroup(group: UtilityGroup) {
+  if (group === "SVG to image/PDF") {
+    return {
+      bestFor: [
+        "Browser-safe SVG export",
+        "Specific pixel sizes or document output",
+        "Transparent PNG/WebP or flattened JPG/PDF handoff",
+      ],
+      settings: [
+        "Set width, height, scale, and aspect lock before export.",
+        "Use transparent backgrounds for PNG/WebP and solid backgrounds for JPG/PDF.",
+        "Preview the raster output before downloading.",
+      ],
+      limitations: [
+        "SVG export routes render with browser canvas or PDF libraries, not Potrace tracing.",
+        "External fonts or linked images may render differently unless embedded.",
+        "Use SVG cleanup first if the source markup is messy or unsafe.",
+      ],
+    };
+  }
+
+  if (group === "Cricut & cutting") {
+    return {
+      bestFor: [
+        "Cricut Design Space prep",
+        "Vinyl decals, stickers, labels, stencils, and maker files",
+        "US creator, classroom, Etsy, and small-business craft workflows",
+      ],
+      settings: [
+        "Start with clean cut, vinyl, sticker, or layered presets.",
+        "Use Click to Convert settings for threshold, cleanup, and trace detail.",
+        "Use Live Preview edits for layer colors, opacity, visibility, copy, and download checks.",
+      ],
+      limitations: [
+        "These tools help prepare SVGs but cannot guarantee every cutter or material result.",
+        "Very small islands, noisy photos, and busy backgrounds may need manual cleanup.",
+        "Cricut is a trademark of its owner; iLoveSVG is not affiliated with Cricut.",
+      ],
+    };
+  }
+
+  if (group === "Edit SVG" || group === "Optimize SVG" || group === "Inspect SVG") {
+    return {
+      bestFor: [
+        "Cleaning, checking, editing, or exporting existing SVG markup",
+        "Web, app, print, design-system, and handoff workflows",
+        "Fast local SVG adjustments before export",
+      ],
+      settings: [
+        "Use the visible controls for the exact SVG attribute or export behavior you need.",
+        "Preview the output before copying or downloading.",
+        "Run SVG cleaner or minifier when file size or editor markup gets in the way.",
+      ],
+      limitations: [
+        "SVG utility tools edit SVG markup and do not trace raster images.",
+        "Complex filters, external references, or missing fonts can affect browser previews.",
+        "Use image-to-SVG tools when your source is PNG, JPG, JPEG, or WebP.",
+      ],
+    };
+  }
+
+  if (group === "Base64") {
+    return {
+      bestFor: [
+        "SVG data URLs, CSS embeds, HTML snippets, and encoded SVG strings",
+        "Debugging Base64 output before using it in production",
+        "Copy-ready Base64 or decoded SVG source",
+      ],
+      settings: [
+        "Choose Base64-only or data URI output based on where the result will be pasted.",
+        "Keep sanitization enabled when decoding unknown SVG data.",
+        "Use copy actions for code snippets and download actions for reusable files.",
+      ],
+      limitations: [
+        "Base64 tools encode or decode SVG data; they are not raster tracing pages.",
+        "Very large encoded assets can be awkward in CSS or HTML.",
+        "Sanitization can remove unsafe scripts or event handlers from decoded SVG.",
+      ],
+    };
+  }
+
+  return {
+    bestFor: [
+      "Creator, design, web, and SVG production workflows",
+      "Fast visual checks before copy or download",
+      "Moving between related SVG tools without restarting from scratch",
+    ],
+    settings: [
+      "Use the route-specific controls shown inside the tool.",
+      "Preview the result before downloading or copying.",
+      "Open related tools when you need cleanup, export, color, or sizing changes.",
+    ],
+    limitations: [
+      "This tool only exposes controls that affect the current output.",
+      "Use a related converter if your input or output format is different.",
+      "Some browser-rendered previews can differ when external assets are missing.",
+    ],
+  };
+}
+
+function relatedForUtility(utility: UtilityLink) {
+  const byPath = new Map(UTILITIES.map((item) => [normalizePath(item.to), item]));
+  const configured = RELATED_LINKS[normalizePath(utility.to)] ?? [];
+
+  const links = configured
+    .map((path) => byPath.get(path))
+    .filter((item): item is UtilityLink => Boolean(item))
+    .map((item) => ({
+      to: item.to,
+      label: item.title,
+      reason: relatedReason(utility, item),
+    }));
+
+  if (links.length) return links.slice(0, 6);
+
+  return UTILITIES.filter(
+    (item) => item.group === utility.group && item.to !== utility.to,
+  )
+    .slice(0, 6)
+    .map((item) => ({
+      to: item.to,
+      label: item.title,
+      reason: item.description,
+    }));
+}
+
+function relatedReason(source: UtilityLink, target: UtilityLink) {
+  if (target.group === "SVG to image/PDF") {
+    return "Export the SVG result to a browser, print, or sharing format.";
+  }
+  if (target.group === "Edit SVG") {
+    return "Adjust the SVG after conversion without retracing the source.";
+  }
+  if (target.group === "Optimize SVG") {
+    return "Clean or reduce the SVG before publishing, embedding, or handoff.";
+  }
+  if (target.group === "Cricut & cutting") {
+    return "Use a more specific craft-file workflow for vinyl, stickers, or layered cuts.";
+  }
+  if (target.group === "Image to SVG" && source.group !== "Image to SVG") {
+    return "Trace a raster image into SVG before editing or exporting.";
+  }
+  return target.description;
+}
+
+const RELATED_LINKS: Record<string, string[]> = {
+  "/": [
+    "/png-to-svg-converter",
+    "/jpg-to-svg-converter",
+    "/svg-to-png-converter",
+    "/cricut-svg-converter",
+    "/svg-background-editor",
+    "/logo-to-svg-converter",
+  ],
+  "/png-to-svg-converter": [
+    "/jpg-to-svg-converter",
+    "/logo-to-svg-converter",
+    "/png-to-svg-for-cricut",
+    "/svg-to-png-converter",
+    "/svg-background-editor",
+    "/png-to-layered-svg-for-cricut",
+  ],
+  "/jpg-to-svg-converter": [
+    "/jpeg-to-svg-converter",
+    "/photo-to-svg-outline",
+    "/scan-to-svg-converter",
+    "/image-to-svg-outline",
+    "/svg-to-jpg-converter",
+    "/jpg-to-svg-for-cricut",
+  ],
+  "/jpeg-to-svg-converter": [
+    "/jpg-to-svg-converter",
+    "/photo-to-svg-outline",
+    "/scan-to-svg-converter",
+    "/image-to-svg-outline",
+    "/jpeg-to-svg-for-cricut",
+    "/svg-to-jpg-converter",
+  ],
+  "/webp-to-svg-converter": [
+    "/png-to-svg-converter",
+    "/jpg-to-svg-converter",
+    "/webp-to-svg-for-cricut",
+    "/svg-to-webp-converter",
+    "/logo-to-svg-converter",
+    "/svg-cleaner",
+  ],
+  "/svg-to-png-converter": [
+    "/svg-to-jpg-converter",
+    "/svg-to-pdf-converter",
+    "/svg-to-webp-converter",
+    "/svg-background-editor",
+    "/svg-resize-and-scale-editor",
+    "/svg-cleaner",
+  ],
+  "/svg-to-jpg-converter": [
+    "/svg-to-png-converter",
+    "/svg-to-pdf-converter",
+    "/svg-background-editor",
+    "/svg-resize-and-scale-editor",
+    "/svg-cleaner",
+  ],
+  "/svg-to-pdf-converter": [
+    "/svg-to-png-converter",
+    "/svg-to-jpg-converter",
+    "/svg-resize-and-scale-editor",
+    "/svg-cleaner",
+    "/svg-preview-viewer",
+  ],
+  "/svg-background-editor": [
+    "/svg-to-png-converter",
+    "/svg-cleaner",
+    "/svg-recolor",
+    "/svg-resize-and-scale-editor",
+    "/svg-to-pdf-converter",
+  ],
+  "/svg-to-base64": [
+    "/base64-to-svg",
+    "/svg-cleaner",
+    "/svg-minifier",
+    "/svg-embed-code-generator",
+    "/inline-svg-vs-img",
+  ],
+  "/base64-to-svg": [
+    "/svg-to-base64",
+    "/svg-cleaner",
+    "/svg-preview-viewer",
+    "/svg-recolor",
+    "/base64-to-svg-for-cricut",
+  ],
+  "/svg-cleaner": [
+    "/svg-minifier",
+    "/svg-background-editor",
+    "/svg-recolor",
+    "/svg-to-png-converter",
+    "/svg-to-base64",
+  ],
+  "/text-to-svg-converter": [
+    "/svg-to-png-converter",
+    "/svg-to-favicon-generator",
+    "/cricut-svg-converter",
+    "/svg-cleaner",
+    "/svg-recolor",
+  ],
+  "/emoji-to-svg-converter": [
+    "/text-to-svg-converter",
+    "/svg-to-png-converter",
+    "/svg-to-favicon-generator",
+    "/sticker-to-svg-converter",
+  ],
+  "/image-to-svg-outline": [
+    "/photo-to-svg-outline",
+    "/line-art-to-svg-converter",
+    "/png-to-svg-for-laser-cutting",
+    "/scan-to-svg-converter",
+    "/svg-to-png-converter",
+  ],
+  "/photo-to-svg-outline": [
+    "/image-to-svg-outline",
+    "/jpg-to-svg-converter",
+    "/photo-to-svg-for-cricut",
+    "/svg-to-png-converter",
+  ],
+  "/cricut-svg-converter": [
+    "/png-to-svg-for-cricut",
+    "/png-to-layered-svg-for-cricut",
+    "/png-to-svg-for-cricut-vinyl",
+    "/png-to-svg-for-cricut-stickers",
+    "/png-to-svg-for-cricut-print-then-cut",
+    "/png-to-svg-for-etsy",
+  ],
+  "/png-to-svg-for-cricut": [
+    "/cricut-svg-converter",
+    "/png-to-svg-for-cricut-vinyl",
+    "/png-to-svg-for-cricut-stickers",
+    "/png-to-layered-svg-for-cricut",
+    "/png-to-svg-for-silhouette",
+    "/png-to-svg-for-laser-cutting",
+  ],
+  "/png-to-svg-for-cricut-vinyl": [
+    "/png-to-svg-for-cricut",
+    "/png-to-svg-for-cricut-stickers",
+    "/png-to-svg-for-cricut-print-then-cut",
+    "/png-to-svg-for-silhouette",
+    "/png-to-svg-for-laser-cutting",
+  ],
+  "/png-to-svg-for-cricut-stickers": [
+    "/png-to-svg-for-cricut-print-then-cut",
+    "/sticker-to-svg-for-cricut",
+    "/sticker-to-svg-converter",
+    "/png-to-svg-for-cricut",
+    "/png-to-svg-for-etsy",
+  ],
+  "/png-to-svg-for-cricut-print-then-cut": [
+    "/png-to-svg-for-cricut-stickers",
+    "/sticker-to-svg-for-cricut",
+    "/png-to-svg-for-cricut",
+    "/svg-to-png-converter",
+  ],
+  "/layered-svg-for-cricut": [
+    "/png-to-layered-svg-for-cricut",
+    "/image-to-layered-svg-for-cricut",
+    "/jpg-to-layered-svg-for-cricut",
+    "/logo-to-layered-svg-for-cricut",
+    "/cricut-svg-converter",
+  ],
+  "/png-to-layered-svg-for-cricut": [
+    "/layered-svg-for-cricut",
+    "/image-to-layered-svg-for-cricut",
+    "/png-to-svg-for-cricut",
+    "/png-to-svg-for-cricut-vinyl",
+  ],
+  "/svg-to-favicon-generator": [
+    "/svg-to-png-converter",
+    "/svg-resize-and-scale-editor",
+    "/svg-cleaner",
+    "/logo-to-svg-converter",
+  ],
+};
+
+const ROUTE_GUIDES: Record<string, RouteGuide> = {
+  "/": {
+    eyebrow: "Image to SVG vectorizer",
+    heading: "Free SVG converter for PNG, JPG, WebP, logos, scans, and creator artwork",
+    intro:
+      "Use the home converter when you want one flexible image-to-SVG workflow with searchable presets, backend speed tags, advanced trace controls, editable layer metadata, output history, copy/download actions, and full-screen preview. Uploaded images are processed for conversion and are not stored after conversion.",
+    bestFor: [
+      "General image to SVG searches like png to svg, jpg to svg, convert to svg, and image to svg converter.",
+      "Creators preparing logos, icons, classroom graphics, Etsy files, stickers, or small-business artwork.",
+      "Users who want presets first, then advanced controls only when the source image needs cleanup.",
+    ],
+    settings: [
+      "Start with Lineart - Accurate or Lineart - Bold for simple artwork.",
+      "Use preset search for Cricut, vinyl, sticker, scan, logo, photo edge, layered, or transparent workflows.",
+      "Use Live Preview edits for layer styling and Click to Convert settings for threshold, cleanup, trace detail, and layers.",
+    ],
+    limitations: [
+      "Raster-to-SVG tracing is server-assisted and protected by upload, dimension, rate, and concurrency limits.",
+      "Photos and busy backgrounds may need outline, scan, or cleanup presets instead of a simple trace.",
+      "No AI background removal is claimed; color and background controls work within the supported SVG/raster pipeline.",
+    ],
+    related: [
+      { to: "/png-to-svg-converter", label: "PNG to SVG Converter", reason: "Best for transparent PNG logos, icons, and sticker artwork." },
+      { to: "/jpg-to-svg-converter", label: "JPG to SVG Converter", reason: "Use this for JPEG-style photos, screenshots, and camera images." },
+      { to: "/cricut-svg-converter", label: "Cricut SVG Converter", reason: "Move from a general SVG trace into a craft-file workflow." },
+      { to: "/svg-to-png-converter", label: "SVG to PNG Converter", reason: "Export a finished SVG back to a transparent PNG." },
+      { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Change or remove SVG backgrounds after conversion." },
+      { to: "/logo-to-svg-converter", label: "Logo to SVG Converter", reason: "Use a logo-specific workflow for brand marks and small-business files." },
+    ],
+  },
+  "/png-to-svg-converter": {
+    eyebrow: "PNG to SVG keyword cluster",
+    heading: "PNG to SVG for transparent logos, icons, stickers, and web graphics",
+    intro:
+      "This page targets PNG sources: transparent logos, flat icons, screenshots, sticker artwork, and clean web graphics. It uses server-assisted tracing with route-aware presets, searchable speed filters, editable layer output, and copy/download controls.",
+    bestFor: [
+      "Transparent PNG to SVG and png to svg converter free searches.",
+      "Logos, icons, decals, clipart, flat marks, and sticker-style art.",
+      "US creators preparing brand assets, classroom graphics, Etsy files, or merch artwork.",
+    ],
+    settings: [
+      "Try Logo - Sharp or Lineart - Clean for flat PNG artwork.",
+      "Use remove white or transparent/background presets when a PNG has a plain canvas.",
+      "Switch to layered presets when the PNG has distinct color regions you want editable.",
+    ],
+    limitations: [
+      "Tracing converts pixels into paths; it is not a lossless PNG wrapper.",
+      "Tiny texture, antialiasing, and shadows can create extra paths unless cleanup settings are used.",
+      "Use SVG to PNG if you already have an SVG and only need raster export.",
+    ],
+    related: [
+      { to: "/jpg-to-svg-converter", label: "JPG to SVG", reason: "Use for non-transparent camera or web images." },
+      { to: "/logo-to-svg-converter", label: "Logo to SVG", reason: "Use logo-tuned presets and cleanup language." },
+      { to: "/png-to-svg-for-cricut", label: "PNG to SVG for Cricut", reason: "Prepare a PNG as a cut-friendly craft file." },
+      { to: "/png-to-layered-svg-for-cricut", label: "PNG to Layered SVG", reason: "Split color PNG artwork into editable layers." },
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Export the finished SVG back to transparent PNG." },
+      { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Fix background color or transparency after conversion." },
+    ],
+  },
+  "/jpg-to-svg-converter": {
+    eyebrow: "JPG to SVG keyword cluster",
+    heading: "JPG to SVG for photos, screenshots, scans, and non-transparent images",
+    intro:
+      "JPG files usually contain compression noise and no transparency, so this page emphasizes photo outline, scan cleanup, contrast, threshold, and edge presets instead of treating JPG like a clean logo PNG.",
+    bestFor: [
+      "jpg to svg, convert jpg to svg, and jpg to svg converter searches.",
+      "Camera photos, screenshots, scans, worksheet marks, and whiteboard images.",
+      "Designers who need a simplified outline or ink-style SVG from a JPEG-style source.",
+    ],
+    settings: [
+      "Use Photo Edge or Scan presets when the JPG is photographic or unevenly lit.",
+      "Use threshold, edge cleanup, and noise settings for compression artifacts.",
+      "Use full-screen preview to inspect whether the trace is too detailed before downloading.",
+    ],
+    limitations: [
+      "JPG tracing is interpretive; it will not reproduce every photo tone as editable vector art.",
+      "Low-contrast photos may need cleanup or an outline preset.",
+      "Use JPEG to SVG if your search intent or source wording specifically says JPEG.",
+    ],
+    related: [
+      { to: "/jpeg-to-svg-converter", label: "JPEG to SVG", reason: "Camera-file wording and JPEG-specific search intent." },
+      { to: "/photo-to-svg-outline", label: "Photo to SVG Outline", reason: "Simplify photos into contour-style SVG output." },
+      { to: "/scan-to-svg-converter", label: "Scan to SVG", reason: "Better for paper shadows, ink, and scanned documents." },
+      { to: "/image-to-svg-outline", label: "Image to SVG Outline", reason: "Use an outline-first workflow for line extraction." },
+      { to: "/jpg-to-svg-for-cricut", label: "JPG to SVG for Cricut", reason: "Prepare a JPG as a craft or cut-file SVG." },
+    ],
+  },
+  "/svg-to-png-converter": {
+    eyebrow: "SVG export workflow",
+    heading: "SVG to PNG with transparency, size control, and browser raster export",
+    intro:
+      "This is not an image-tracing page. It renders your SVG in the browser and exports a PNG with width, height, scale, aspect ratio, transparency, and background controls.",
+    bestFor: [
+      "svg to png, convert svg to png, transparent svg to png, and resize svg to png searches.",
+      "Icons, logos, social graphics, app assets, design handoff, and quick PNG previews.",
+      "Users who need transparent PNG output without retracing or changing the SVG paths.",
+    ],
+    settings: [
+      "Set exact width and height for production exports.",
+      "Keep transparent background for overlays or choose a solid background for previews.",
+      "Increase scale for sharper edges on small icons or text-heavy SVGs.",
+    ],
+    limitations: [
+      "Browser raster export can differ if the SVG references external fonts, images, or unsupported filters.",
+      "This route exports pixels from SVG; it does not convert PNG back into SVG.",
+      "Use SVG background editor first when the source SVG has an unwanted background shape.",
+    ],
+    related: [
+      { to: "/svg-to-jpg-converter", label: "SVG to JPG", reason: "Flatten SVG onto a solid background for standard image sharing." },
+      { to: "/svg-to-pdf-converter", label: "SVG to PDF", reason: "Save SVG artwork into a print or document format." },
+      { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Change transparent or solid backgrounds before export." },
+      { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Edit the SVG dimensions before raster export." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean markup before exporting difficult SVGs." },
+    ],
+  },
+  "/svg-background-editor": {
+    eyebrow: "SVG background workflow",
+    heading: "Change, add, or remove SVG backgrounds without rasterizing the file",
+    intro:
+      "This route edits SVG background behavior. It can detect common full-canvas background rectangles, add a solid or transparent background, or place an SVG underlay behind artwork when replace mode is supported.",
+    bestFor: [
+      "remove SVG background, SVG background editor, transparent SVG, and SVG background color searches.",
+      "Designers preparing icons, logos, stickers, PDFs, or transparent PNG exports.",
+      "Users who need SVG markup edited before exporting to PNG, JPG, PDF, or Base64.",
+    ],
+    settings: [
+      "Use remove mode when a full-canvas background shape is detected.",
+      "Use add mode when you need an explicit white, brand-color, or transparent canvas.",
+      "Use replace mode only for supported SVG underlays, not AI background removal.",
+    ],
+    limitations: [
+      "This is SVG background editing, not AI background removal from photographs.",
+      "Complex masked, filtered, or path-based backgrounds may require manual SVG editing.",
+      "If you need a transparent PNG, edit the SVG here first and then export with SVG to PNG.",
+    ],
+    related: [
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Export the edited SVG as transparent or solid PNG." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Remove editor markup before background editing." },
+      { to: "/svg-recolor", label: "SVG Recolor", reason: "Change fill and stroke colors after background cleanup." },
+      { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Fix viewBox and canvas sizing." },
+    ],
+  },
+  "/text-to-svg-converter": {
+    eyebrow: "Text and font workflow",
+    heading: "Text to SVG for wordmarks, labels, craft files, and typography graphics",
+    intro:
+      "This page turns typed text into SVG output with font, spacing, alignment, padding, stroke, fill, background, and split-export controls. It is useful for logos, classroom labels, product mockups, craft text, and small-business graphics.",
+    bestFor: [
+      "text to svg, font to svg, text to svg path, and text to svg online searches.",
+      "Wordmarks, signs, labels, stickers, templates, and reusable typography assets.",
+      "US creators making shop graphics, classroom materials, packaging labels, or merch text.",
+    ],
+    settings: [
+      "Use custom font upload only when you have rights to use that font.",
+      "Adjust spacing, padding, canvas sizing, stroke, fill, and background before export.",
+      "Split by line, word, or character when a project needs separate SVG pieces.",
+    ],
+    limitations: [
+      "Font rendering depends on the selected built-in or uploaded font file.",
+      "Converted text paths are no longer editable as live text in every design app.",
+      "Use SVG to PNG if the final destination needs a raster image instead of SVG.",
+    ],
+    related: [
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Export finished SVG text as a transparent PNG." },
+      { to: "/cricut-svg-converter", label: "Cricut SVG Converter", reason: "Prepare text graphics for craft and cut-file workflows." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean text SVG markup before sharing or embedding." },
+      { to: "/svg-recolor", label: "SVG Recolor", reason: "Change fill or stroke colors after export." },
+    ],
+  },
+};
 
 const UTILITY_SECTIONS: UtilitySection[] = [
   {

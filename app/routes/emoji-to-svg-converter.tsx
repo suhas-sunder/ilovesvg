@@ -23,9 +23,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Emoji to SVG Converter (Text & Twemoji)";
+  const title = "Emoji to SVG Converter - Convert Emoji to Vector SVG | iLoveSVG";
   const description =
-    "Convert emoji to SVG instantly with ilovesvg. Paste emoji text to export clean Twemoji SVG, or convert emoji images (PNG or JPEG) into vector paths. Supports layouts, recoloring, backgrounds, and fast in-browser processing. Free, no uploads.";
+    "Convert emoji text or emoji images to SVG for icons, stickers, overlays, and graphics. Text emoji uses clean SVG output; image emoji can be traced into vector paths.";
   const canonical = "https://www.ilovesvg.com/emoji-to-svg-converter";
 
   return [

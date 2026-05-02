@@ -37,9 +37,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Drawing to SVG Converter (Sketches & Line Art)";
+  const title = "Drawing to SVG Converter - Hand Drawn Art to SVG | iLoveSVG";
   const description =
-    "Convert drawings, sketches, and line art from PNG or JPEG into clean, editable SVG with ilovesvg. Built for line art: live preview, adjustable cleanup, and in-memory SVG tracing with no disk writes.";
+    "Convert drawings, doodles, ink marks, and hand lettering into SVG with cleanup presets, adjustable trace settings, editable layers, preview, and download.";
   const canonical = "https://www.ilovesvg.com/drawing-to-svg-converter";
 
   return [

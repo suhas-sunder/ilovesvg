@@ -45,9 +45,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "PNG to SVG for Etsy | Free Etsy SVG Converter - iLoveSVG";
+  const title = "PNG to SVG for Etsy - Digital Download SVG Prep | iLoveSVG";
   const description =
-    "Convert PNG and JPG designs into clean SVG files for Etsy digital downloads, stickers, decals, logos, and printable artwork. Free PNG to SVG converter with live preview.";
+    "Convert PNG or JPG designs into SVG files for Etsy digital downloads, craft bundles, stickers, decals, labels, and small-business product graphics.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-etsy";
 
   return [

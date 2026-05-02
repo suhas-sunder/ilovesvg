@@ -5,7 +5,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 
 export const meta: Route.MetaFunction = () => {
-  const canonical = "https://www.ilovesvg.com/terms";
+  const canonical = "https://www.ilovesvg.com/terms-of-service";
 
   const title = "Terms of Service | i🩵SVG";
   const description =

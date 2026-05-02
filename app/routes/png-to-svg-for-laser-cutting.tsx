@@ -45,9 +45,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "PNG to SVG for Laser Cutting | Free Vector Cut File Converter";
+  const title = "PNG to SVG for Laser Cutting - Vector Cut Paths | iLoveSVG";
   const description =
-    "Convert PNG and JPG artwork into clean SVG vector paths for laser cutting, scoring, and engraving. Tune presets for wood, acrylic, cardstock, stencils, logos, and maker projects.";
+    "Convert PNG or JPG artwork into SVG vector paths for laser cutting, scoring, engraving, wood, acrylic, cardstock, stencils, and maker projects.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-laser-cutting";
 
   return [

@@ -19,9 +19,9 @@ import {
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG to PNG Converter (Resize & Transparency)";
+  const title = "SVG to PNG Converter - Export Transparent PNG Files | iLoveSVG";
   const description =
-    "Convert SVG to PNG instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose transparent or colored backgrounds, and download the PNG. Free, fully client-side, no uploads.";
+    "Convert SVG to PNG in your browser with exact size, scale, aspect ratio, transparent background, solid background, preview, and download controls.";
   const canonical = "https://www.ilovesvg.com/svg-to-png-converter";
 
   return [

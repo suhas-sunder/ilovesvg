@@ -35,9 +35,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Layered SVG for Cricut - Free Layered SVG Converter";
+  const title = "Layered SVG for Cricut - Editable Color Layers | iLoveSVG";
   const description =
-    "Convert PNG, JPG, JPEG, and WebP artwork into editable layered SVG files for Cricut Design Space. Separate colors and tones into SVG groups, recolor layers, hide unwanted pieces, preview results, and download a Cricut-ready layered SVG.";
+    "Create layered SVG files for Cricut workflows from PNG, JPG, JPEG, or WebP artwork. Separate colors, edit layers, preview, and download.";
   const canonical = "https://www.ilovesvg.com/layered-svg-for-cricut";
 
   return [

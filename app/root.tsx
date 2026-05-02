@@ -25,7 +25,6 @@ export const links: Route.LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
   },
-  { rel: "canonical", href: "https://ilovesvg.com" },
 ];
 
 export const loader: LoaderFunction = async ({ request }) => {
@@ -75,7 +74,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en-US">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

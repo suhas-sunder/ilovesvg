@@ -25,9 +25,9 @@ import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntens
 const isServer = typeof document === "undefined";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | PNG/JPG to SVG Converter (Black & White Images)";
+  const title = "Black and White Image to SVG Converter | iLoveSVG";
   const description =
-    "Convert black and white PNG or JPEG images to clean SVG instantly with ilovesvg. Live preview, threshold control, noise cleanup, and one-click SVG export. Free, runs fully in your browser, no uploads.";
+    "Convert black and white PNG or JPEG images to SVG with threshold, noise cleanup, editable output, copy, download, and preview controls.";
   const canonical =
     "https://www.ilovesvg.com/black-and-white-image-to-svg-converter";
 

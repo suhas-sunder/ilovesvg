@@ -41,7 +41,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to Layered SVG for Cricut - Free Layered PNG SVG Converter";
   const description =
-    "Convert PNG images into layered SVG files for Cricut Design Space. Split transparent PNGs, logos, decals, stickers, and artwork into editable color layers, preview results, recolor layers, and download a Cricut-ready SVG.";
+    "Convert PNG artwork into editable layered SVG files for Cricut Design Space. Split colors into groups, recolor layers, preview, and download.";
   const canonical = "https://www.ilovesvg.com/png-to-layered-svg-for-cricut";
 
   return [

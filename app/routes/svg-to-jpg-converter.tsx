@@ -14,9 +14,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG to JPG Converter (Resize & Background)";
+  const title = "SVG to JPG Converter - Flatten SVG to JPEG | iLoveSVG";
   const description =
-    "Convert SVG to JPG instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose a background color, set JPEG quality, and download the result. Free, fully client-side, no uploads.";
+    "Convert SVG to JPG in your browser with width, height, aspect ratio, background color, JPEG quality, preview, and download controls.";
   const canonical = "https://www.ilovesvg.com/svg-to-jpg-converter";
 
   return [

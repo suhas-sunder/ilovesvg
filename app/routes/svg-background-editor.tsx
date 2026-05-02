@@ -52,9 +52,9 @@ const FAQ_ITEMS = [
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Background Remover & Editor";
+  const title = "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG";
   const description =
-    "Remove or add an SVG background instantly with iLoveSVG. Detects full-canvas background rectangles, supports transparent export, adds solid backgrounds, and can replace backgrounds by removing the original and placing an SVG underlay behind your artwork. Free, client-side only.";
+    "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download.";
   const canonical = "https://www.ilovesvg.com/svg-background-editor";
 
   return [

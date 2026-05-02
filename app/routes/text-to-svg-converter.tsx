@@ -18,9 +18,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 const isServer = typeof document === "undefined";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Text to SVG Converter (Font to SVG Paths)";
+  const title = "Text to SVG Converter - Create SVG Text Online | iLoveSVG";
   const description =
-    "Convert text to true SVG outline paths with iLoveSVG. Upload custom fonts (TTF, OTF, or WOFF) to generate clean vector paths. Control size, spacing, alignment, padding, canvas sizing, stroke, fill, and background. Export one SVG or split by line, word, or character.";
+    "Convert text to SVG paths for logos, labels, craft files, and typography graphics. Control fonts, spacing, alignment, stroke, fill, background, and split exports.";
   const canonical = "https://www.ilovesvg.com/text-to-svg-converter";
 
   return [

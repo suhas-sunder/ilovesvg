@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG to WebP Converter (Resize & Quality)";
+  const title = "SVG to WebP Converter - Export WebP Images | iLoveSVG";
   const description =
-    "Convert SVG to WebP instantly with iLoveSVG. Resize by width or height, preserve aspect ratio, choose solid or transparent backgrounds, set WebP quality, and download the result. Free, fully client-side, no uploads.";
+    "Convert SVG to WebP in your browser with size, scale, transparency, background color, quality, preview, and download controls for modern web images.";
   const canonical = "https://www.ilovesvg.com/svg-to-webp-converter";
 
   return [
