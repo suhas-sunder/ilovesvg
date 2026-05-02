@@ -751,7 +751,7 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main className="bg-slate-50 text-[#0f2537]" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4 pb-8">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -2037,7 +2037,7 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
         <article>
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <p className="m-0 text-xs font-semibold tracking-wide text-slate-500 uppercase">
               SVG inspection tool
             </p>

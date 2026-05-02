@@ -662,7 +662,7 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main className="bg-slate-50 text-[#0f2537]" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed

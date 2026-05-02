@@ -1341,7 +1341,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
       <JsonLd data={faqJsonLd} />
       <JsonLd data={howToJsonLd} />
 
-      <main className=" bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4">
           {/* Breadcrumb */}
           <nav
@@ -1376,9 +1376,9 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
+            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="flex text-center mb-3 text-sky-800 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
                 Sticker to SVG Converter
               </h1>
@@ -1864,7 +1864,7 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           {/* Header / Hero */}
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 Sticker image to SVG vectorizer

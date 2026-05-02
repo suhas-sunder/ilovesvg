@@ -1021,7 +1021,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -1035,9 +1035,9 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
+            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="text-xl text-center mb-3 text-sky-800 sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
                 Text to SVG Converter
               </h1>
@@ -1404,7 +1404,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
               {busy && (
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
               )}

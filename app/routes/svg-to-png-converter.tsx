@@ -335,7 +335,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG → PNG", href: "/svg-to-png-converter" },
+    { name: "SVG to PNG", href: "/svg-to-png-converter" },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;
@@ -354,9 +354,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main className="bg-slate-50 text-[#0f2537]" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
-          <div className="hidden lg:block py-6">
+          <div className="hidden lg:block py-5">
             <AdSenseDelayed
               slot="2090332782"
               delayMs={1500}
@@ -368,10 +368,10 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h1 className="inline-flex text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
+              <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] tracking-[-0.035em] text-sky-950 sm:text-[34px]">
                 SVG to PNG Converter
               </h1>
 
@@ -379,7 +379,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                  <div className="mt-0 flex items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-slate-900">
                     <div className="flex items-center min-w-0 gap-2">
                       <span className="truncate" title={file.name}>
                         {file.name}
@@ -388,9 +388,10 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                     <button
                       type="button"
                       onClick={clearAll}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                      aria-label="Remove selected file"
+                      className="rounded-md border border-sky-200 bg-white px-2 py-1 text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
-                      ×
+                      x
                     </button>
                   </div>
 
@@ -398,12 +399,12 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected:{" "}
                       <b>
-                        {Math.round(svgInfo.width)}×{Math.round(svgInfo.height)}
+                        {Math.round(svgInfo.width)} x {Math.round(svgInfo.height)}
                       </b>
                       {svgInfo.viewBox ? (
                         <span className="text-slate-500">
                           {" "}
-                          • viewBox {svgInfo.viewBox}
+                          - viewBox {svgInfo.viewBox}
                         </span>
                       ) : null}
                     </div>
@@ -412,8 +413,8 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
               )}
 
               {previewSvgUrl && (
-                <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700">
                     SVG preview (client-side)
                   </div>
                   <div className="p-3">
@@ -427,7 +428,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
               )}
 
               {file && (
-                <details className="mt-3 rounded-xl border border-slate-200 bg-white">
+                <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50">
                   <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
                     Advanced: Edit SVG source
                   </summary>
@@ -445,48 +446,47 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </div>
                 </details>
               )}
-            </div>
 
-            {/* SETTINGS + RESULT */}
-            <div className="bg-slate-600 overflow-auto sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0">
-              <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
-                Convert Settings
-                {(busy || liveBusy) && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-                )}
-              </h2>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-3">
-                <div className="mt-3 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced((v) => !v)}
-                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                    aria-expanded={showAdvanced}
-                    aria-controls="advanced-settings"
-                  >
-                    <span className="inline-flex items-center justify-center">
-                      <Icons name="settings" size={16} className="mr-1" />
-                      Advanced settings
+              <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="w-full inline-flex items-center justify-between rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-sky-950 cursor-pointer transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
+                  aria-expanded={showAdvanced}
+                  aria-controls="advanced-settings"
+                >
+                  <span className="inline-flex min-w-0 items-center gap-2">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-600 text-white">
+                      <Icons name="settings" size={16} />
                     </span>
-                    <svg
-                      className={[
-                        "h-4 w-4 text-slate-500 transition-transform",
-                        showAdvanced ? "rotate-180" : "rotate-0",
-                      ].join(" ")}
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </button>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-bold leading-5">
+                        Advanced settings
+                      </span>
+                      <span className="block truncate text-[12px] font-medium leading-4 text-sky-700">
+                        Size, scale, transparency, and export
+                      </span>
+                    </span>
+                  </span>
+                  <svg
+                    className={[
+                      "h-4 w-4 shrink-0 text-sky-700 transition-transform",
+                      showAdvanced ? "rotate-180" : "rotate-0",
+                    ].join(" ")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
 
-                  {showAdvanced && (
+                {showAdvanced && (
+                  <div className="mt-3">
                     <SvgRasterExportSettingsPanel
                       id="advanced-settings"
                       open={showAdvanced}
@@ -494,65 +494,61 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                       setSettings={setSettings}
                       aspect={svgInfo?.aspect ?? null}
                     />
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 mt-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={convert}
-                    disabled={buttonDisabled}
-                    className={[
-                      "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
-                      "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
-                      "disabled:opacity-70 disabled:cursor-not-allowed",
-                    ].join(" ")}
-                  >
-                    <Icons name="convert" size={20} className="mr-1" />
-                    {busy ? "Converting…" : "Convert to PNG"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={downloadPng}
-                    disabled={(!liveResult && !result) || busy}
-                    className={[
-                      "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
-                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
-                      "disabled:opacity-70 disabled:cursor-not-allowed",
-                    ].join(" ")}
-                  >
-                    <Icons name="download" size={20} className="mr-1" />
-                    Download PNG
-                  </button>
-
-                  {err && <span className="text-red-700 text-sm">{err}</span>}
-                  {!err && previewMeta && (
-                    <span className="text-[13px] text-slate-600">
-                      Output:{" "}
-                      <b>
-                        {previewMeta.width}×{previewMeta.height}
-                      </b>{" "}
-                      px • <b>{formatBytes(previewMeta.bytes)}</b>
-                      {liveBusy ? (
-                        <span className="ml-2 text-slate-500">updating…</span>
-                      ) : null}
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-3 text-[13px] text-slate-600">
-                  How it works: your SVG is rendered to an HTML canvas in your
-                  browser, then exported as a PNG. Transparent background stays
-                  transparent unless you choose a solid background color.
-                </div>
+                  </div>
+                )}
               </div>
 
-              <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
-                  PNG preview {liveBusy ? "(updating…)" : ""}
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={convert}
+                  disabled={buttonDisabled}
+                  className={[
+                    "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                    "text-white bg-[#2563eb] border-[#1d4ed8] hover:bg-[#1d4ed8] hover:border-[#1e40af] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+                    "disabled:opacity-70 disabled:cursor-not-allowed",
+                  ].join(" ")}
+                >
+                  <Icons name="convert" size={20} className="mr-1" />
+                  {busy ? "Converting..." : "Convert to PNG"}
+                </button>
+
+                {err && <span className="text-red-700 text-sm">{err}</span>}
+                {!err && previewMeta && (
+                  <span className="text-[13px] text-slate-600">
+                    Output:{" "}
+                    <b>
+                      {previewMeta.width} x {previewMeta.height}
+                    </b>{" "}
+                    px - <b>{formatBytes(previewMeta.bytes)}</b>
+                    {liveBusy ? (
+                      <span className="ml-2 text-slate-500">updating...</span>
+                    ) : null}
+                  </span>
+                )}
+              </div>
+
+              <p className="m-0 mt-3 text-[13px] leading-5 text-slate-600">
+                Your SVG renders to canvas in your browser, then exports as a
+                PNG. Transparent backgrounds stay transparent unless you choose
+                a solid background color.
+              </p>
+            </div>
+
+            {/* OUTPUT */}
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
+              <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
+                PNG output
+                {(busy || liveBusy) && (
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
+                )}
+              </h2>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700">
+                  PNG preview {liveBusy ? "(updating...)" : ""}
                 </div>
-                <div className="relative p-3 bg-slate-200">
+                <div className="relative bg-slate-200 p-3">
                   {previewSrc ? (
                     <>
                       <FullscreenPreviewButton
@@ -565,12 +561,33 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                       />
                     </>
                   ) : (
-                    <div className="text-slate-600 text-sm">
+                    <div className="flex min-h-[12rem] items-center justify-center rounded-lg border border-slate-200 bg-white/80 px-4 py-8 text-center text-sm text-slate-600">
                       Upload an SVG to see a live PNG preview here.
                     </div>
                   )}
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={downloadPng}
+                disabled={(!liveResult && !result) || busy}
+                className={[
+                  "mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3.5 py-2 font-bold transition-colors cursor-pointer",
+                  "border-sky-600 bg-sky-500 text-white hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+                  "disabled:cursor-not-allowed disabled:opacity-70",
+                ].join(" ")}
+              >
+                <Icons name="download" size={20} className="mr-1" />
+                Download PNG
+              </button>
+
+              {previewMeta && (
+                <div className="mt-2 text-center text-[13px] leading-5 text-slate-100">
+                  {previewMeta.width} x {previewMeta.height} px -{" "}
+                  {formatBytes(previewMeta.bytes)}
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -978,27 +995,28 @@ function SeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
-        <article className="prose prose-slate max-w-none">
-          <h2 className="m-0 font-bold">
-            SVG to PNG Converter (Free, Instant, Client-Side)
-          </h2>
+        <article className="max-w-none">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Browser SVG raster export
+            </p>
+            <h2 className="font-display text-2xl font-[800] leading-tight tracking-[-0.03em] text-sky-950 md:text-3xl">
+              SVG to PNG Converter (Free, Instant, Client-Side)
+            </h2>
 
-          <p className="mt-3">
-            Use this <strong>SVG to PNG converter</strong> to export icons,
-            logos, and vector art to a PNG image without uploading anything.
-            Conversion happens <strong>fully in your browser</strong> by
-            rendering the SVG onto an HTML canvas and exporting it as PNG. You
-            control the output in the ways that actually matter for production:
-            set a specific pixel size, keep transparency, add a solid background
-            when needed, and increase pixel ratio for sharper edges.
-          </p>
-          <p className="mt-2 text-slate-600">
-            Instant <b>SVG to PNG</b> conversion in your browser. Resize
-            width/height, keep transparency, or add a background.{" "}
-            <b>No uploads</b>, no server processing.
-          </p>
-          <div className="mt-6 not-prose grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+            <p className="mt-3 text-[15px] leading-6 text-slate-700">
+              Use this <strong>SVG to PNG converter</strong> to export icons,
+              logos, and vector art to a PNG image without uploading anything.
+              Conversion happens <strong>fully in your browser</strong> by
+              rendering the SVG onto an HTML canvas and exporting it as PNG.
+            </p>
+            <p className="mt-2 text-[15px] leading-6 text-slate-700">
+              Resize width and height, preserve transparency, add a solid
+              background when needed, and increase pixel ratio for sharper
+              edges. <b>No uploads</b>, no server processing.
+            </p>
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 p-4 bg-white">
               <div className="text-sm font-semibold text-slate-900">
                 Exact pixel size
               </div>
@@ -1007,7 +1025,7 @@ function SeoSections() {
                 aspect lock.
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="rounded-2xl border border-slate-200 p-4 bg-white">
               <div className="text-sm font-semibold text-slate-900">
                 Transparency
               </div>
@@ -1016,7 +1034,7 @@ function SeoSections() {
                 on different backgrounds.
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
+              <div className="rounded-2xl border border-slate-200 p-4 bg-white">
               <div className="text-sm font-semibold text-slate-900">
                 Sharpness control
               </div>
@@ -1024,8 +1042,9 @@ function SeoSections() {
                 Increase pixel ratio (2x, 3x) to avoid soft edges and improve
                 small text clarity.
               </div>
+              </div>
             </div>
-          </div>
+          </header>
           <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
@@ -1081,7 +1100,7 @@ function SeoSections() {
                     Logos for docs/email
                   </div>
                   <div className="mt-1 text-sm text-slate-700">
-                    Add a solid background if the destination isn’t guaranteed
+                    Add a solid background if the destination isn't guaranteed
                     to support transparency, then export slightly larger to
                     avoid softness.
                   </div>
@@ -1205,11 +1224,11 @@ function SeoSections() {
 
               <details className="rounded-xl border border-slate-200 bg-white p-4">
                 <summary className="cursor-pointer font-semibold">
-                  Why won’t some SVGs convert?
+                  Why won't some SVGs convert?
                 </summary>
                 <p className="mt-2 text-slate-700">
                   Some SVGs depend on external fonts/images or unsupported
-                  features that can’t be rendered to canvas. Embed assets
+                  features that can't be rendered to canvas. Embed assets
                   directly in the SVG when possible.
                 </p>
               </details>

@@ -397,7 +397,7 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
 
   return (
     <>
-      <main className="bg-slate-50 text-slate-900" onPaste={onPasteAny}>
+      <main className="bg-slate-50 text-[#0f2537]" onPaste={onPasteAny}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -411,7 +411,7 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-visible min-w-0">
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">

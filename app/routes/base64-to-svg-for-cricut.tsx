@@ -2592,7 +2592,7 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
 
   return (
     <>
-      <main className="bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="mx-auto max-w-[1180px] px-4">
           <div className="hidden py-6 lg:block">
             <AdSenseDelayed
@@ -2606,8 +2606,8 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
             />
           </div>
 
-          <section className="grid grid-cols-1 items-start gap-4 sm:pt-6 md:grid-cols-2 lg:pb-8 lg:pt-0">
-            <div className="min-w-0 overflow-hidden rounded-xl bg-white p-4 sm:border sm:border-slate-200 sm:shadow-sm">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
+            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-sky-700">
                 Cricut Base64 SVG decoder
               </p>
@@ -3240,7 +3240,7 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
               )}
             </div>
 
-            <div className="h-full max-h-[124.25em] min-w-0 overflow-auto rounded-xl border border-slate-200 bg-slate-600 p-4 shadow-sm">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
               {decoded.svg && !decoded.error ? (
                 <div className="grid gap-3">
                   <div className="rounded-xl border border-slate-200 bg-white p-2">
@@ -4399,7 +4399,7 @@ function SeoSections() {
     <section className="border-t border-slate-200 bg-white">
       <div className="mx-auto max-w-[1180px] px-4 py-8 text-slate-800">
         <article className="max-w-none">
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Base64 SVG decoder for Cricut Design Space

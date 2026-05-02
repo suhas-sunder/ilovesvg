@@ -334,7 +334,7 @@ export default function SvgAccessibilityAndContrastChecker() {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed

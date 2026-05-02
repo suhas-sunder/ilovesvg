@@ -15,8 +15,8 @@ export default function DragArea({
       {/* Limits helper */}
       {MAX_MP ? (
         <div className="mb-2 hidden gap-1 text-[13px] leading-5 text-slate-600 sm:flex">
-          Limits: <b>{Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB</b> •{" "}
-          <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
+          Limits: <b>{Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB</b> -{" "}
+          <b>{MAX_MP} MP</b> - <b>{MAX_SIDE}px longest side</b> each max.
         </div>
       ) : (
         <div className="mt-3" />

@@ -1781,7 +1781,7 @@ export default function FreeColorPicker() {
 
   return (
     <>
-      <main className="bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -1795,8 +1795,8 @@ export default function FreeColorPicker() {
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
+            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="text-2xl text-sky-800 md:text-3xl font-extrabold leading-tight mb-2">
                 Free Color Picker{" "}
                 <span className="text-slate-500 text-base font-semibold">
@@ -2188,7 +2188,7 @@ export default function FreeColorPicker() {
               </div>
             </div>
 
-            <div className="bg-slate-600 sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0 overflow-auto">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
@@ -2542,7 +2542,7 @@ function SeoSections() {
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
               Color picker + palette extractor
             </p>

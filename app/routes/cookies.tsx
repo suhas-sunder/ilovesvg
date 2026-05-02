@@ -43,7 +43,7 @@ export const meta: Route.MetaFunction = () => {
 export default function CookiesPolicy() {
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4 pt-6 pb-12">
           {/* Header */}
           <header className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm">

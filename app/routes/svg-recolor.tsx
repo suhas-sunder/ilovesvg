@@ -392,7 +392,7 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900" onPaste={onPaste}>
+      <main className="bg-slate-50 text-[#0f2537]" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
@@ -406,7 +406,7 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
             />
           </div>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
             <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-visible min-w-0">
               <div className="flex flex-col items-center justify-between gap-2 mb-3">
@@ -599,7 +599,7 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
             </div>
 
             {/* SETTINGS + OUTPUT */}
-            <div className="bg-slate-600 sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm min-w-0 overflow-auto">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
               <h2 className="m-0 mb-3 text-lg text-white font-semibold">
                 Recolor Settings
               </h2>
