@@ -275,9 +275,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       const input = Buffer.from(ab);
 
-      const { createRequire } = await import("node:module");
-      const req = createRequire(import.meta.url);
-      const sharp = req("sharp") as typeof import("sharp");
+      const { getSharp } = await import("~/utils/conversionModules.server");
+      const sharp = await getSharp();
 
       try {
         (sharp as any).concurrency?.(1);
@@ -386,10 +385,7 @@ export async function action({ request }: ActionFunctionArgs) {
         speckCleanup,
       });
 
-      const potrace = await import("potrace");
-      const traceFn: any = (potrace as any).trace;
-      const PotraceClass: any = (potrace as any).Potrace;
-
+      const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
       const opts: any = {
         color: "#000000",
         threshold: 128,
@@ -400,24 +396,7 @@ export async function action({ request }: ActionFunctionArgs) {
         blackOnWhite: true,
       };
 
-      const tracedRaw: string = await new Promise((resolve, reject) => {
-        if (typeof traceFn === "function") {
-          traceFn(mask, opts, (err: any, out: string) =>
-            err ? reject(err) : resolve(out),
-          );
-        } else if (PotraceClass) {
-          const p = new PotraceClass(opts);
-          p.loadImage(mask, (err: any) => {
-            if (err) return reject(err);
-            p.setParameters(opts);
-            p.getSVG((err2: any, out: string) =>
-              err2 ? reject(err2) : resolve(out),
-            );
-          });
-        } else {
-          reject(new Error("potrace API not found"));
-        }
-      });
+      const tracedRaw: string = await traceBitmapToSvg(mask, opts);
 
       const cutPathD = extractPathData(tracedRaw);
 
@@ -484,9 +463,8 @@ async function createCutMask(
     speckCleanup: number;
   },
 ): Promise<Buffer> {
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-  const sharp = req("sharp") as typeof import("sharp");
+  const { getSharp } = await import("~/utils/conversionModules.server");
+      const sharp = await getSharp();
 
   const normalized = sharp(input).rotate().ensureAlpha();
   const meta = await normalized.metadata();
@@ -590,9 +568,8 @@ async function createEdgeMask(
     edgeThreshold: number;
   },
 ): Promise<Buffer> {
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-  const sharp = req("sharp") as typeof import("sharp");
+  const { getSharp } = await import("~/utils/conversionModules.server");
+      const sharp = await getSharp();
 
   const { neutralizeTransparencyCheckerboard } = await import(
     "../utils/imagePreprocess.server"

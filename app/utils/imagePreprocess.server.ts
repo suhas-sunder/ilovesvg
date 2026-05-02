@@ -1,8 +1,14 @@
-import { createRequire } from "node:module";
+import { getSharp } from "./conversionModules.server";
+import {
+  addConversionWarning,
+  createConversionDiagnostics,
+  endTimer,
+  maybeLogConversionDiagnostics,
+  startTimer,
+  withTimer,
+} from "./conversionDiagnostics.server";
 
 type RGB = { r: number; g: number; b: number };
-
-const req = createRequire(import.meta.url);
 
 export type RasterTracePreprocessOptions = {
   preprocess: "none" | "edge";
@@ -30,32 +36,49 @@ export async function normalizeRasterForTrace(
   input: Buffer,
   opts: RasterTracePreprocessOptions,
 ): Promise<Buffer> {
+  const diagnostics = createConversionDiagnostics({
+    routeId: "shared-raster-normalize",
+    mode: opts.preprocess === "edge" ? "edge-trace" : "single-trace",
+    uploadBytes: input.length,
+    selectedColorRemovalCount: Array.isArray(opts.removeColors)
+      ? opts.removeColors.length
+      : 0,
+  });
+
   try {
-    const sharp = req("sharp") as typeof import("sharp");
+    const sharp = await getSharp();
 
-    try {
-      (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 32 });
-    } catch {}
-
-    let sourceInput = await neutralizeTransparencyCheckerboard(input);
+    let sourceInput = await withTimer(
+      diagnostics,
+      "neutralizeTransparency",
+      () => neutralizeTransparencyCheckerboard(input),
+    );
     const removeColors = normalizeRemoveColors(opts.removeColors);
     const removeColorTolerance = clampNumber(opts.removeColorTolerance ?? 18, 0, 160);
 
     if (removeColors.length > 0) {
-      sourceInput = await removeSelectedColorsFromRaster(
-        sourceInput,
-        removeColors,
-        removeColorTolerance,
+      sourceInput = await withTimer(
+        diagnostics,
+        "removeSelectedColors",
+        () =>
+          removeSelectedColorsFromRaster(
+            sourceInput,
+            removeColors,
+            removeColorTolerance,
+          ),
       );
     }
 
     let base = sharp(sourceInput).rotate();
 
     try {
+      startTimer(diagnostics, "metadata");
       const metadata = await base.metadata();
+      endTimer(diagnostics, "metadata");
       const width = metadata.width ?? 0;
       const height = metadata.height ?? 0;
+      diagnostics.sourceWidth = width;
+      diagnostics.sourceHeight = height;
       ensureTraceableDimensions(width, height);
       const mp = (width * height) / 1_000_000;
       const maxTraceSide = Math.round(
@@ -73,7 +96,10 @@ export async function normalizeRasterForTrace(
           withoutEnlargement: true,
         });
       }
-    } catch {}
+    } catch (error) {
+      endTimer(diagnostics, "metadata");
+      if (isTraceDimensionError(error)) throw error;
+    }
 
     const brightness = clampNumber(opts.brightness ?? 0, -50, 50);
     const contrast = clampNumber(opts.contrast ?? 0, -50, 75);
@@ -90,30 +116,46 @@ export async function normalizeRasterForTrace(
     }
 
     if (opts.preprocess === "edge") {
-      return await buildEdgeTraceMask(base, sourceInput, opts, sharp);
+      return await withTimer(diagnostics, "edgeMask", () =>
+        buildEdgeTraceMask(base, sourceInput, opts, sharp),
+      );
     }
 
-    const prepared = await base
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .removeAlpha()
-      .grayscale()
-      .gamma()
-      .normalize()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    const prepared = await withTimer(diagnostics, "grayscaleRaw", () =>
+      base
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .removeAlpha()
+        .grayscale()
+        .gamma()
+        .normalize()
+        .raw()
+        .toBuffer({ resolveWithObject: true }),
+    );
 
     const width = prepared.info.width | 0;
     const height = prepared.info.height | 0;
+    diagnostics.traceWidth = width;
+    diagnostics.traceHeight = height;
     ensureTraceableDimensions(width, height);
     let gray: Buffer<ArrayBufferLike> = Buffer.from(prepared.data as Buffer);
+    startTimer(diagnostics, "maskCleanup");
     gray = applyBinaryCleanup(gray, width, height, opts);
+    endTimer(diagnostics, "maskCleanup");
 
-    return await sharp(gray, { raw: { width, height, channels: 1 } })
-      .png()
-      .toBuffer();
+    return await withTimer(diagnostics, "encodeMaskPng", () =>
+      sharp(gray, { raw: { width, height, channels: 1 } })
+        .png()
+        .toBuffer(),
+    );
   } catch (error) {
     if (isTraceDimensionError(error)) throw error;
+    addConversionWarning(
+      diagnostics,
+      "Raster preprocessing fell back to the original upload.",
+    );
     return input;
+  } finally {
+    maybeLogConversionDiagnostics(diagnostics);
   }
 }
 
@@ -121,7 +163,7 @@ export async function neutralizeTransparencyCheckerboard(
   input: Buffer,
 ): Promise<Buffer> {
   try {
-    const sharp = req("sharp") as typeof import("sharp");
+    const sharp = await getSharp();
     const pattern = await detectCheckerboardBackground(input, sharp);
 
     if (!pattern) return input;
@@ -415,7 +457,7 @@ async function removeSelectedColorsFromRaster(
   colors: RGB[],
   tolerance: number,
 ) {
-  const sharp = req("sharp") as typeof import("sharp");
+  const sharp = await getSharp();
   const { data, info } = await sharp(input)
     .rotate()
     .ensureAlpha()

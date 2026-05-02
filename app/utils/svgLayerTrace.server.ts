@@ -1,4 +1,14 @@
-import { createRequire } from "node:module";
+import {
+  getSharp,
+  traceBitmapToSvg as traceBitmapToSvgWithPotrace,
+} from "./conversionModules.server";
+import {
+  createConversionDiagnostics,
+  endTimer,
+  maybeLogConversionDiagnostics,
+  startTimer,
+  withTimer,
+} from "./conversionDiagnostics.server";
 import { sanitizeSvgMarkup } from "./svgSanitize.server";
 import {
   resolveOutputDimensions,
@@ -112,8 +122,6 @@ type TraceLayerBuildItem = {
   pathTags: string;
 };
 
-const req = createRequire(import.meta.url);
-
 export function readLayerTurnPolicy(value: string): LayerTurnPolicy {
   if (
     ["black", "white", "left", "right", "minority", "majority"].includes(
@@ -128,6 +136,23 @@ export function readLayerTurnPolicy(value: string): LayerTurnPolicy {
 export function clampLayerNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+function withSynchronousTimer<T>(
+  diagnostics: ReturnType<typeof createConversionDiagnostics> | undefined,
+  label: string,
+  fn: () => T,
+): T {
+  startTimer(diagnostics, label);
+  try {
+    return fn();
+  } finally {
+    endTimer(diagnostics, label);
+  }
+}
+
+function countSvgPaths(svg: string): number {
+  return String(svg || "").match(/<path\b/gi)?.length ?? 0;
 }
 
 export function sanitizeLayerHexColor(input: string, fallback = "#000000") {
@@ -148,161 +173,191 @@ export async function createLayeredColorSvg(
   height: number;
   layers: SvgLayerMeta[];
 }> {
-  const sharp = req("sharp") as typeof import("sharp");
+  const diagnostics = createConversionDiagnostics({
+    routeId: "shared-layered-trace",
+    mode: "layered",
+    uploadBytes: input.length,
+    layerCount: opts.layerCount,
+    selectedColorRemovalCount: Array.isArray(opts.removeColors)
+      ? opts.removeColors.length
+      : 0,
+  });
+
   try {
-    (sharp as any).concurrency?.(1);
-    (sharp as any).cache?.({ files: 0, memory: 48 });
-  } catch {}
+    const sharp = await getSharp();
 
-  const safeOptions = normalizeLayeredColorOptions(opts);
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "./imagePreprocess.server"
-  );
-  let sourceInput = await neutralizeTransparencyCheckerboard(input);
-  sourceInput = await preprocessLayeredRasterInput(
-    sourceInput,
-    safeOptions,
-    sharp,
-  );
-
-  const { data, info } = await sharp(sourceInput)
-    .rotate()
-    .resize({
-      width: safeOptions.maxTraceSide,
-      height: safeOptions.maxTraceSide,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const width = info.width | 0;
-  const height = info.height | 0;
-  if (!width || !height) {
-    throw new Error("Could not decode image for layered SVG tracing.");
-  }
-  if (width < MIN_TRACE_DIMENSION || height < MIN_TRACE_DIMENSION) {
-    throw new Error(
-      "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+    const safeOptions = normalizeLayeredColorOptions(opts);
+    const { neutralizeTransparencyCheckerboard } = await import(
+      "./imagePreprocess.server"
     );
-  }
-
-  const raw = data as Buffer;
-  const pixels = collectLayerPixels(raw, width, height, {
-    removeTransparent: safeOptions.removeTransparent,
-    removeWhite: safeOptions.removeWhite,
-    posterize: safeOptions.posterize,
-    posterizeStrength: safeOptions.posterizeStrength ?? 4,
-    removeColors: safeOptions.removeColors ?? [],
-    removeColorTolerance: safeOptions.removeColorTolerance ?? 18,
-  });
-
-  if (pixels.length < 20) {
-    throw new Error(
-      "Not enough visible image data to build layers. Try disabling white background removal.",
+    let sourceInput = await withTimer(
+      diagnostics,
+      "neutralizeTransparency",
+      () => neutralizeTransparencyCheckerboard(input),
     );
-  }
-
-  const paletteRgb = mergeNearPaletteColors(
-    buildLayerPalette(pixels, safeOptions.layerCount),
-    safeOptions.colorMergeTolerance,
-  );
-  const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
-    palette: paletteRgb,
-    removeTransparent: safeOptions.removeTransparent,
-    removeWhite: safeOptions.removeWhite,
-    posterize: safeOptions.posterize,
-    posterizeStrength: safeOptions.posterizeStrength ?? 4,
-    removeColors: safeOptions.removeColors ?? [],
-    removeColorTolerance: safeOptions.removeColorTolerance ?? 18,
-  });
-  const totalAssignable = assignments.assignableCount || 1;
-  const rawLayerItems = paletteRgb
-    .map((rgb, index) => {
-      const count = assignments.counts[index] || 0;
-      const percent = (count / totalAssignable) * 100;
-      return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
-    })
-    .filter(
-      (item) => item.count > 0 && item.percent >= safeOptions.minRegionPercent,
-    )
-    .sort((a, b) => sortLayerItems(a, b, safeOptions.sortLayersBy));
-
-  if (rawLayerItems.length === 0) {
-    throw new Error(
-      "No usable color layers were found. Try lowering minimum layer size or disabling white background removal.",
+    sourceInput = await withTimer(diagnostics, "preprocessLayeredRaster", () =>
+      preprocessLayeredRasterInput(sourceInput, safeOptions, sharp),
     );
-  }
 
-  const builtLayers: TraceLayerBuildItem[] = [];
-  for (let i = 0; i < rawLayerItems.length; i++) {
-    const item = rawLayerItems[i];
-    const mask = Buffer.alloc(width * height, 255);
-    for (let px = 0; px < assignments.layerForPixel.length; px++) {
-      if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
+    const { data, info } = await withTimer(diagnostics, "decodeResizeRaw", () =>
+      sharp(sourceInput)
+        .rotate()
+        .resize({
+          width: safeOptions.maxTraceSide,
+          height: safeOptions.maxTraceSide,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true }),
+    );
+
+    const width = info.width | 0;
+    const height = info.height | 0;
+    diagnostics.traceWidth = width;
+    diagnostics.traceHeight = height;
+    if (!width || !height) {
+      throw new Error("Could not decode image for layered SVG tracing.");
     }
-    if (!maskHasInk(mask)) continue;
+    if (width < MIN_TRACE_DIMENSION || height < MIN_TRACE_DIMENSION) {
+      throw new Error(
+        "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+      );
+    }
 
-    const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
-      .png()
-      .toBuffer();
-    const pathTags = await traceMaskToPathTags(maskPng, {
-      turdSize: safeOptions.turdSize,
-      optTolerance: safeOptions.optTolerance,
-      turnPolicy: safeOptions.turnPolicy,
+    const raw = data as Buffer;
+    startTimer(diagnostics, "collectPalettePixels");
+    const pixels = collectLayerPixels(raw, width, height, {
+      removeTransparent: safeOptions.removeTransparent,
+      removeWhite: safeOptions.removeWhite,
+      posterize: safeOptions.posterize,
+      posterizeStrength: safeOptions.posterizeStrength ?? 4,
+      removeColors: safeOptions.removeColors ?? [],
+      removeColorTolerance: safeOptions.removeColorTolerance ?? 18,
     });
-    if (!pathTagsHaveDrawablePath(pathTags)) continue;
+    endTimer(diagnostics, "collectPalettePixels");
 
-    const label = `Layer ${builtLayers.length + 1}`;
-    builtLayers.push({
-      id: sanitizeLayerId(
-        `layer-${builtLayers.length + 1}-${item.color.replace("#", "")}`,
-      ),
-      label,
-      color: item.color,
-      pixelPercent: Number(item.percent.toFixed(2)),
-      pathTags,
-    });
-  }
+    if (pixels.length < 20) {
+      throw new Error(
+        "Not enough visible image data to build layers. Try disabling white background removal.",
+      );
+    }
 
-  if (builtLayers.length === 0) {
-    throw new Error(
-      "The image did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast image.",
+    startTimer(diagnostics, "palette");
+    const paletteRgb = mergeNearPaletteColors(
+      buildLayerPalette(pixels, safeOptions.layerCount),
+      safeOptions.colorMergeTolerance,
     );
+    endTimer(diagnostics, "palette");
+
+    startTimer(diagnostics, "assignLayerMasks");
+    const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
+      palette: paletteRgb,
+      removeTransparent: safeOptions.removeTransparent,
+      removeWhite: safeOptions.removeWhite,
+      posterize: safeOptions.posterize,
+      posterizeStrength: safeOptions.posterizeStrength ?? 4,
+      removeColors: safeOptions.removeColors ?? [],
+      removeColorTolerance: safeOptions.removeColorTolerance ?? 18,
+    });
+    const totalAssignable = assignments.assignableCount || 1;
+    const rawLayerItems = paletteRgb
+      .map((rgb, index) => {
+        const count = assignments.counts[index] || 0;
+        const percent = (count / totalAssignable) * 100;
+        return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
+      })
+      .filter(
+        (item) => item.count > 0 && item.percent >= safeOptions.minRegionPercent,
+      )
+      .sort((a, b) => sortLayerItems(a, b, safeOptions.sortLayersBy));
+    endTimer(diagnostics, "assignLayerMasks");
+
+    if (rawLayerItems.length === 0) {
+      throw new Error(
+        "No usable color layers were found. Try lowering minimum layer size or disabling white background removal.",
+      );
+    }
+
+    const builtLayers: TraceLayerBuildItem[] = [];
+    for (let i = 0; i < rawLayerItems.length; i++) {
+      const item = rawLayerItems[i];
+      const mask = Buffer.alloc(width * height, 255);
+      for (let px = 0; px < assignments.layerForPixel.length; px++) {
+        if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
+      }
+      if (!maskHasInk(mask)) continue;
+
+      const maskPng = await withTimer(diagnostics, `encodeLayerMask${i + 1}`, () =>
+        sharp(mask, { raw: { width, height, channels: 1 } }).png().toBuffer(),
+      );
+      const pathTags = await withTimer(diagnostics, `traceLayer${i + 1}`, () =>
+        traceMaskToPathTags(maskPng, {
+          turdSize: safeOptions.turdSize,
+          optTolerance: safeOptions.optTolerance,
+          turnPolicy: safeOptions.turnPolicy,
+        }),
+      );
+      if (!pathTagsHaveDrawablePath(pathTags)) continue;
+
+      const label = `Layer ${builtLayers.length + 1}`;
+      builtLayers.push({
+        id: sanitizeLayerId(
+          `layer-${builtLayers.length + 1}-${item.color.replace("#", "")}`,
+        ),
+        label,
+        color: item.color,
+        pixelPercent: Number(item.percent.toFixed(2)),
+        pathTags,
+      });
+    }
+
+    if (builtLayers.length === 0) {
+      throw new Error(
+        "The image did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast image.",
+      );
+    }
+
+    const svg = withSynchronousTimer(diagnostics, "buildSvg", () =>
+      buildLayeredSvgString({
+        width,
+        height,
+        layers: builtLayers,
+        transparent: safeOptions.transparent,
+        bgColor: safeOptions.bgColor,
+        backgroundAlpha: safeOptions.backgroundAlpha,
+        layerAlpha: safeOptions.layerAlpha,
+        outputWidth: safeOptions.outputWidth,
+        outputHeight: safeOptions.outputHeight,
+        preserveAspectRatio: safeOptions.preserveAspectRatio,
+      }),
+    );
+    diagnostics.finalSvgBytes = Buffer.byteLength(svg, "utf8");
+    diagnostics.pathCount = countSvgPaths(svg);
+    diagnostics.layerCount = builtLayers.length;
+    const outputDimensions = resolveOutputDimensions(
+      safeOptions,
+      width,
+      height,
+    );
+
+    return {
+      svg,
+      width: outputDimensions.width,
+      height: outputDimensions.height,
+      layers: builtLayers.map((layer) => ({
+        id: layer.id,
+        label: layer.label,
+        color: layer.color,
+        originalColor: layer.color,
+        visible: true,
+        kind: "fill",
+      })),
+    };
+  } finally {
+    maybeLogConversionDiagnostics(diagnostics);
   }
-
-  const svg = buildLayeredSvgString({
-    width,
-    height,
-    layers: builtLayers,
-    transparent: safeOptions.transparent,
-    bgColor: safeOptions.bgColor,
-    backgroundAlpha: safeOptions.backgroundAlpha,
-    layerAlpha: safeOptions.layerAlpha,
-    outputWidth: safeOptions.outputWidth,
-    outputHeight: safeOptions.outputHeight,
-    preserveAspectRatio: safeOptions.preserveAspectRatio,
-  });
-  const outputDimensions = resolveOutputDimensions(
-    safeOptions,
-    width,
-    height,
-  );
-
-  return {
-    svg,
-    width: outputDimensions.width,
-    height: outputDimensions.height,
-    layers: builtLayers.map((layer) => ({
-      id: layer.id,
-      label: layer.label,
-      color: layer.color,
-      originalColor: layer.color,
-      visible: true,
-      kind: "fill",
-    })),
-  };
 }
 
 function normalizeLayeredColorOptions(
@@ -503,7 +558,7 @@ async function traceMaskToPathTags(
     turnPolicy: LayerTurnPolicy;
   },
 ): Promise<string> {
-  const traced = await traceBitmapToSvg(maskPng, {
+  const traced = await traceBitmapToSvgWithPotrace(maskPng, {
     color: "#000000",
     threshold: 128,
     turdSize: options.turdSize,
@@ -513,31 +568,6 @@ async function traceMaskToPathTags(
     blackOnWhite: true,
   });
   return extractPathTags(traced);
-}
-
-async function traceBitmapToSvg(input: Buffer, opts: any): Promise<string> {
-  const potrace = await import("potrace");
-  const traceFn: any = (potrace as any).trace;
-  const PotraceClass: any = (potrace as any).Potrace;
-
-  return await new Promise((resolve, reject) => {
-    if (typeof traceFn === "function") {
-      traceFn(input, opts, (err: any, out: string) =>
-        err ? reject(err) : resolve(out),
-      );
-    } else if (PotraceClass) {
-      const p = new PotraceClass(opts);
-      p.loadImage(input, (err: any) => {
-        if (err) return reject(err);
-        p.setParameters(opts);
-        p.getSVG((err2: any, out: string) =>
-          err2 ? reject(err2) : resolve(out),
-        );
-      });
-    } else {
-      reject(new Error("potrace API not found"));
-    }
-  });
 }
 
 function collectLayerPixels(

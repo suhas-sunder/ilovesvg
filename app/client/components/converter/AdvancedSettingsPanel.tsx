@@ -1864,7 +1864,7 @@ function OutputLayerStyleRow({
           <div className="text-[11px] text-slate-500">
             Original {original}
             {typeof layer.pixelPercent === "number"
-              ? ` · ${layer.pixelPercent}%`
+              ? ` - ${layer.pixelPercent}%`
               : ""}
           </div>
         </div>

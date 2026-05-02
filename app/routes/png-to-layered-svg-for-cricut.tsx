@@ -301,9 +301,8 @@ export async function action({ request }: ActionFunctionArgs) {
       if (signatureError) return signatureError;
 
       try {
-        const { createRequire } = await import("node:module");
-        const req = createRequire(import.meta.url);
-        const sharp = req("sharp") as typeof import("sharp");
+        const { getSharp } = await import("~/utils/conversionModules.server");
+      const sharp = await getSharp();
         const meta = await sharp(input).metadata();
 
         const w = meta.width ?? 0;
@@ -682,10 +681,7 @@ async function traceMaskToPathTags(
     turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   },
 ): Promise<string> {
-  const potrace = await import("potrace");
-  const traceFn: any = (potrace as any).trace;
-  const PotraceClass: any = (potrace as any).Potrace;
-
+  const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
   const opts: any = {
     color: "#000000",
     threshold: 128,
@@ -696,24 +692,7 @@ async function traceMaskToPathTags(
     blackOnWhite: true,
   };
 
-  const svgRaw: string = await new Promise((resolve, reject) => {
-    if (typeof traceFn === "function") {
-      traceFn(maskPng, opts, (err: any, out: string) =>
-        err ? reject(err) : resolve(out),
-      );
-    } else if (PotraceClass) {
-      const p = new PotraceClass(opts);
-      p.loadImage(maskPng, (err: any) => {
-        if (err) return reject(err);
-        p.setParameters(opts);
-        p.getSVG((err2: any, out: string) =>
-          err2 ? reject(err2) : resolve(out),
-        );
-      });
-    } else {
-      reject(new Error("potrace API not found"));
-    }
-  });
+  const svgRaw: string = await traceBitmapToSvg(maskPng, opts);
 
   return extractPathTags(svgRaw);
 }

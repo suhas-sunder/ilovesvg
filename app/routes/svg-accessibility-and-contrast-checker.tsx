@@ -1434,10 +1434,10 @@ function parseSvgAndExtractColors(svgText: string): {
     list.sort((a, b) => relLuminance(b) - relLuminance(a));
 
     return { ok: true, colors: list, autoBg };
-  } catch (e: any) {
+  } catch {
     return {
       ok: false,
-      error: e?.message || "Could not parse SVG.",
+      error: "Could not parse SVG.",
       colors: [],
       autoBg: null,
     };
