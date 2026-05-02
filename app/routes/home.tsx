@@ -47,14 +47,14 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "iLoveSVG | PNG to SVG Converter - Free Online Image to SVG";
   const description =
-    "Convert PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, and SVG images to clean, scalable SVG instantly. Live preview, fast processing, and no uploads required. Free online image to SVG converter by iLoveSVG.";
+    "Convert PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, and SVG images to clean, scalable SVG with presets, editable layers, copy, and download tools. Free online image to SVG converter by iLoveSVG.";
   const canonical = "https://www.ilovesvg.com";
 
   return [
     { title },
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
-    { name: "theme-color", content: "#0b2dff" },
+    { name: "theme-color", content: "#2563eb" },
 
     { rel: "canonical", href: canonical },
 
@@ -72,7 +72,7 @@ export function loader({ context }: Route.LoaderArgs) {
 /* ========================
    Limits & types (mirrored client/server)
 ======================== */
-// Client submits ≤25MB for live preview. Allow a little overhead for multipart.
+// Client uploads are capped and may be compressed before backend conversion.
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
@@ -106,8 +106,8 @@ const ACCEPTED_IMAGE_LABEL = "PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, or SVG";
 // Dark background default for invert "white on dark"
 const DARK_BG_DEFAULT = "#0b1020";
 
-// -------- Live preview tiers (client) --------
-// ≤10MB: fast,  10-25MB: throttled. >25MB → attempt client auto-compress to ≤25MB; if not possible, block with message.
+// -------- Auto-conversion tiers (client) --------
+// <=10MB: quick submit, 10-25MB: slower submit. >25MB -> attempt client auto-compress to <=25MB; if not possible, block with message.
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
@@ -2097,6 +2097,11 @@ type HistoryItem = {
   settingsSnapshot?: Settings;
 };
 
+type HistoryPreviewData = {
+  svg: string;
+  src: string;
+};
+
 // ---- tiering helpers (client) ----
 type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
@@ -2106,12 +2111,12 @@ function getAutoMode(bytes?: number | null): AutoMode {
   return "off";
 }
 function autoModeHint(mode: AutoMode): string {
-  if (mode === "medium") return "Live preview is throttled for 10-25 MB files.";
+  if (mode === "medium") return "Larger file detected.";
   return "";
 }
 function autoModeDetail(mode: AutoMode): string {
   if (mode === "medium")
-    return "Large file; updates run less frequently to keep things smooth.";
+    return "Conversion updates run less frequently to keep the editor responsive.";
   return "";
 }
 
@@ -2142,6 +2147,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const historyPreviewDataCacheRef = React.useRef(
+    new WeakMap<HistoryItem, HistoryPreviewData>(),
+  );
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
@@ -2169,7 +2177,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     activeHistoryStampRef.current = activeHistoryStamp;
   }, [activeHistoryStamp]);
 
-  // Live preview tier
+  // Auto-conversion tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
   // When a new server SVG arrives, push to history
@@ -2332,7 +2340,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    // Stop live preview while we swap state
+    // Pause auto conversion while we swap state
     suppressLiveRef.current = true;
     busyRetryCountRef.current = 0;
     latestSubmittedRunIdRef.current = "";
@@ -2368,7 +2376,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setPreviewUrl(url);
     await measureAndSet(chosen, measureRunId);
 
-    // Re-enable live preview and submit the selected file directly so the first upload
+    // Re-enable auto conversion and submit the selected file directly so the first upload
     // never depends on stale React state.
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
@@ -2468,7 +2476,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  // ---- Tiered live preview (always live for allowed sizes; throttled >10MB) ----
+  // ---- Tiered auto conversion for allowed upload sizes ----
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
   const skipNextAutoSubmitRef = React.useRef(false);
@@ -2543,11 +2551,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     history.find((item) => item.stamp === activeHistoryStamp) ||
     history[0] ||
     null;
-  const outputTargets = history.map((item, index) => ({
-    id: String(item.stamp),
-    label: item.name,
-    description: item.presetLabel,
-  }));
+  const outputTargets = React.useMemo(
+    () =>
+      history.map((item) => ({
+        id: String(item.stamp),
+        label: item.name,
+        description: item.presetLabel,
+      })),
+    [history],
+  );
 
   function selectHistoryOutput(id: string | number) {
     const stamp = Number(id);
@@ -2632,6 +2644,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ? applyLayerEditsToSvg(item.svg, item.layers)
       : item.svg;
     return applySvgSizeAttributes(edited, item.width, item.height);
+  }
+
+  function getHistoryPreviewData(item: HistoryItem): HistoryPreviewData {
+    const cached = historyPreviewDataCacheRef.current.get(item);
+    if (cached) return cached;
+
+    const svg = getHistoryItemSvg(item);
+    const src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const data = { svg, src };
+    historyPreviewDataCacheRef.current.set(item, data);
+    return data;
   }
 
   function setHistoryLayer(
@@ -2757,9 +2780,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <main className=" bg-slate-50 text-slate-900">
+      <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4">
-          <div className="hidden lg:block py-6">
+          <div className="hidden lg:block py-5">
             <AdSenseDelayed
               slot="2090332782"
               delayMs={1500}
@@ -2771,10 +2794,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start sm:pt-6 lg:pt-0 lg:pb-8">
+          <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="bg-white sm:border sm:border-slate-200 rounded-xl p-4 sm:shadow-sm overflow-hidden min-w-0">
-              <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
+            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
+              <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] tracking-[-0.035em] text-sky-950 sm:text-[34px]">
                 Free SVG Converter
               </h1>
 
@@ -2783,77 +2806,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />
-
-              {/* Settings */}
-              <div className="mt-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                  aria-expanded={showAdvanced}
-                  aria-controls="advanced-settings"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    Advanced settings
-                  </span>
-
-                  <svg
-                    className={[
-                      "h-4 w-4 text-slate-500 transition-transform",
-                      showAdvanced ? "rotate-180" : "rotate-0",
-                    ].join(" ")}
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-
-                {showAdvanced && (
-                  <TraceAdvancedSettingsPanel
-                    id="advanced-settings"
-                    open={showAdvanced}
-                    settings={settings}
-                    setSettings={setSettings}
-                    capabilities={routeCapabilities}
-                    detectedColorItems={history}
-                    sourceFile={file}
-                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    outputLayerItems={activeHistoryItem?.layers}
-                    outputSize={
-                      activeHistoryItem
-                        ? {
-                            width: activeHistoryItem.width,
-                            height: activeHistoryItem.height,
-                            originalWidth:
-                              activeHistoryItem.originalWidth ||
-                              activeHistoryItem.width,
-                            originalHeight:
-                              activeHistoryItem.originalHeight ||
-                              activeHistoryItem.height,
-                          }
-                        : null
-                    }
-                    onOutputLayerChange={setLatestHistoryLayer}
-                    onResetOutputLayer={resetLatestHistoryLayer}
-                    onResetAllOutputLayers={resetAllLatestHistoryLayers}
-                    onOutputSizeChange={setLatestHistorySize}
-                    outputTargets={outputTargets}
-                    activeOutputId={
-                      activeHistoryItem ? String(activeHistoryItem.stamp) : null
-                    }
-                    onActiveOutputChange={selectHistoryOutput}
-                    helpHref="#advanced-settings-help"
-                    buttonDisabled={buttonDisabled}
-                    onUpdatePreview={() => void submitConvert()}
-                  />
-                )}
-              </div>
 
               {/* Dropzone */}
               {!file ? (
@@ -2866,7 +2818,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 />
               ) : (
                 <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                  <div className="mt-0 flex items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-slate-900">
                     <div className="flex items-center min-w-0 gap-2">
                       {previewUrl && (
                         <img
@@ -2875,7 +2827,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           className="w-[22px] h-[22px] rounded-md object-cover mr-1"
                         />
                       )}
-                      <span title={file?.name || ""} className="truncate">
+                      <span
+                        title={file?.name || ""}
+                        className="truncate text-[13px] font-medium text-slate-800"
+                      >
                         {file?.name} • {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
@@ -2894,9 +2849,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setInfo(null);
                         setOriginalFileSize(null);
                       }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                      aria-label="Remove selected file"
+                      className="rounded-md border border-sky-200 bg-white px-2 py-1 text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
-                      ×
+                      x
                     </button>
                   </div>
                   {dims && (
@@ -2920,7 +2876,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   suppressHydrationWarning
                   className={[
                     "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
-                    "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
+                    "text-white bg-[#2563eb] border-[#1d4ed8] hover:bg-[#1d4ed8] hover:border-[#1e40af] cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
@@ -2933,7 +2889,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   {busy ? "Converting…" : "Convert to SVG"}
                 </button>
 
-                {/* Live preview tier notice */}
+                {/* Auto-conversion tier notice */}
                 {file && autoMode !== "fast" && (
                   <span className="text-[13px] text-slate-600">
                     {autoModeHint(autoMode)} {autoModeDetail(autoMode)}
@@ -2948,10 +2904,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               {/* Input preview below controls */}
               {previewUrl && (
-                <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <p className="text-slate-700 ml-2 mt-1">
-                    {" "}
-                    Original Image Preview:
+                <div className="mt-3 hidden flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:flex">
+                  <p className="m-0 px-3 py-2 text-[13px] font-semibold text-slate-700">
+                    Original image
                   </p>
                   <img
                     src={previewUrl}
@@ -2963,15 +2918,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="bg-slate-600 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
-              {busy && (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-              )}
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:row-span-2 md:h-full md:max-h-[124.25em]">
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item, index) => {
                     const isActiveOutput =
                       activeHistoryItem?.stamp === item.stamp;
+                    const previewData = getHistoryPreviewData(item);
                     return (
                     <div
                       key={item.stamp}
@@ -3001,7 +2954,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            const b = new Blob([getHistoryItemSvg(item)], {
+                            const b = new Blob([previewData.svg], {
                               type: "image/svg+xml;charset=utf-8",
                             });
                             const u = URL.createObjectURL(b);
@@ -3024,7 +2977,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleCopySvg(getHistoryItemSvg(item))}
+                          onClick={() => handleCopySvg(previewData.svg)}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         >
                           <Icons
@@ -3058,9 +3011,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
                         <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            getHistoryItemSvg(item),
-                          )}`}
+                          src={previewData.src}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
@@ -3070,16 +3021,102 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   })}
                 </div>
               ) : (
-                <p className="justify-center items-center flex text-white m-0 font-semibold">
-                  {!busy && (
-                    <Icons
-                      name="success"
-                      size={20}
-                      className="inline-block mr-1"
-                    />
-                  )}
-                  {busy ? "Converting…" : "Converted files appear here...  "}
-                </p>
+                <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-center">
+                  <div className="max-w-[21rem]">
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-slate-100">
+                      {busy ? (
+                        <span className="inline-block h-5 w-5 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
+                      ) : (
+                        <Icons name="success" size={22} />
+                      )}
+                    </div>
+                    <p className="m-0 mt-3 text-sm font-bold text-slate-50">
+                      {busy ? "Converting..." : "Converted files appear here"}
+                    </p>
+                    <p className="m-0 mt-1 text-[13px] leading-5 text-slate-200">
+                      Upload an image and convert it to preview, copy, or
+                      download your SVG.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="order-3 min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="w-full inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold text-slate-900 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
+                aria-expanded={showAdvanced}
+                aria-controls="advanced-settings"
+              >
+                <span className="inline-flex items-center gap-2">
+                  Advanced settings
+                </span>
+
+                <svg
+                  className={[
+                    "h-4 w-4 text-slate-500 transition-transform",
+                    showAdvanced ? "rotate-180" : "rotate-0",
+                  ].join(" ")}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {showAdvanced && (
+                <div className="mt-3">
+                  <TraceAdvancedSettingsPanel
+                    id="advanced-settings"
+                    open={showAdvanced}
+                    settings={settings}
+                    setSettings={setSettings}
+                    capabilities={routeCapabilities}
+                    detectedColorItems={history}
+                    sourceFile={file}
+                    removeColorsEnabled={
+                      !(
+                        file &&
+                        (file.type === "image/svg+xml" ||
+                          /\.svg$/i.test(file.name || ""))
+                      )
+                    }
+                    outputLayerItems={activeHistoryItem?.layers}
+                    outputSize={
+                      activeHistoryItem
+                        ? {
+                            width: activeHistoryItem.width,
+                            height: activeHistoryItem.height,
+                            originalWidth:
+                              activeHistoryItem.originalWidth ||
+                              activeHistoryItem.width,
+                            originalHeight:
+                              activeHistoryItem.originalHeight ||
+                              activeHistoryItem.height,
+                          }
+                        : null
+                    }
+                    onOutputLayerChange={setLatestHistoryLayer}
+                    onResetOutputLayer={resetLatestHistoryLayer}
+                    onResetAllOutputLayers={resetAllLatestHistoryLayers}
+                    onOutputSizeChange={setLatestHistorySize}
+                    outputTargets={outputTargets}
+                    activeOutputId={
+                      activeHistoryItem ? String(activeHistoryItem.stamp) : null
+                    }
+                    onActiveOutputChange={selectHistoryOutput}
+                    helpHref="#advanced-settings-help"
+                    buttonDisabled={buttonDisabled}
+                    onUpdatePreview={() => void submitConvert()}
+                  />
+                </div>
               )}
             </div>
           </section>
@@ -3090,14 +3127,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           items={history}
           activeIndex={fullscreenPreviewIndex}
           setActiveIndex={setFullscreenPreviewIndex}
-          getPreviewImage={(item, index) => ({
-            id: String(item.stamp),
-            label: `Output ${index + 1}`,
-            svg: getHistoryItemSvg(item),
-            width: item.width,
-            height: item.height,
-            kind: "SVG",
-          })}
+          getPreviewImage={(item, index) => {
+            const previewData = getHistoryPreviewData(item);
+            return {
+              id: String(item.stamp),
+              label: `Output ${index + 1}`,
+              svg: previewData.svg,
+              width: item.width,
+              height: item.height,
+              kind: "SVG",
+            };
+          }}
         />
 
         {toast && (
@@ -3284,7 +3324,11 @@ function applyOpacityAttribute(attrs: string, opacity?: number): string {
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
   const url = URL.createObjectURL(file);
   try {
@@ -3382,30 +3426,36 @@ async function compressToTarget25MB(file: File): Promise<File> {
   };
 
   // Heuristic: first try quality-only reductions, then scale down by 85% steps
-  const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
-  for (const q of qualities) {
-    const b = await encode(q);
-    if (b.size <= TARGET) {
-      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+  try {
+    const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
+    for (const q of qualities) {
+      const b = await encode(q);
+      if (b.size <= TARGET) {
+        return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+      }
+    }
+
+    // Still too large → scale down progressively + mid quality
+    let scale = 0.9;
+    while (w > 64 && h > 64) {
+      w = Math.max(64, Math.floor(w * scale));
+      h = Math.max(64, Math.floor(h * scale));
+      const b = await encode(0.75);
+      if (b.size <= TARGET) {
+        return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
+      }
+      // tighten both quality and scale over time
+      scale = Math.max(0.5, scale - 0.07);
+    }
+
+    throw new Error(
+      "This image cannot be reduced below 25 MB without excessive degradation.",
+    );
+  } finally {
+    if ("close" in img && typeof img.close === "function") {
+      img.close();
     }
   }
-
-  // Still too large → scale down progressively + mid quality
-  let scale = 0.9;
-  while (w > 64 && h > 64) {
-    w = Math.max(64, Math.floor(w * scale));
-    h = Math.max(64, Math.floor(h * scale));
-    const b = await encode(0.75);
-    if (b.size <= TARGET) {
-      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
-    // tighten both quality and scale over time
-    scale = Math.max(0.5, scale - 0.07);
-  }
-
-  throw new Error(
-    "This image cannot be reduced below 25 MB without excessive degradation.",
-  );
 }
 
 function renameToJpeg(name: string) {
@@ -3510,31 +3560,32 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           {/* Header / Hero */}
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 PNG/JPEG to SVG vectorizer
               </p>
-              <h2 className="text-2xl md:text-3xl font-bold leading-tight">
+              <h2 className="font-display text-2xl md:text-3xl font-[800] tracking-[-0.03em] leading-tight text-sky-950">
                 SVG Converter: Precise, fast, and built for creators
               </h2>
-              <p className="text-slate-600 ">
+              <p className="text-[15px] leading-6 text-slate-700">
                 Potrace-powered raster-to-vector conversion tuned for logos,
                 line art, scans, diagrams, and photo-style edge extraction.
-                Clean, editable SVG output with snappy live preview and smart
-                on-device compression.
+                Clean, editable SVG output keeps layer metadata available for
+                recoloring, hiding, copying, and downloading.
               </p>
 
-              <p className="text-slate-600">
+              <p className="text-[15px] leading-6 text-slate-700">
                 Convert your PNG, JPEG, JPG, and WEBP images into crisp vector
-                graphics with live preview. Results appear below as you convert.
+                graphics with route-aware presets, advanced trace controls,
+                local output edits, and in-memory backend processing.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { k: "Clean SVG", v: "Editable paths, recolor anywhere" },
-                  { k: "Fast preview", v: "≤10 MB live updates" },
-                  { k: "Throttled tier", v: "Up to 25 MB preview" },
+                  { k: "Preset workflow", v: "Line art, logo, scan, photo edge" },
+                  { k: "Local edits", v: "Recolor, resize, hide layers" },
                   { k: "Private by default", v: "Processed in memory" },
                 ].map((x) => (
                   <div
@@ -3623,7 +3674,7 @@ function SeoSections() {
               {[
                 {
                   title: "Upload a supported image",
-                  body: "Drag and drop or use the picker. Large files may be auto-compressed on your device for smoother preview up to 25 MB.",
+                  body: "Drag and drop or use the picker. Oversized raster files may be compressed on your device before backend conversion when that can preserve a usable result.",
                 },
                 {
                   title: "Pick a preset that matches your art",
@@ -3740,9 +3791,9 @@ function SeoSections() {
                     </dd>
                   </div>
                   <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <dt className="text-slate-500">Preview tiers</dt>
+                    <dt className="text-slate-500">Processing model</dt>
                     <dd className="mt-1 font-semibold">
-                      Fast ≤10 MB, throttled ≤25 MB
+                      Upload, preset, convert, then edit locally
                     </dd>
                   </div>
                   <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
@@ -3816,7 +3867,7 @@ function SeoSections() {
               {[
                 {
                   q: "What file limits apply?",
-                  a: "PNG/JPEG up to 30 MB, ~30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+                  a: "Supported image uploads are capped at 30 MB, about 30 MP, and 8000 px on the longest side. Larger raster files may be compressed on-device before conversion when possible.",
                 },
                 {
                   q: "Does this tool have usage limits?",
@@ -3824,7 +3875,7 @@ function SeoSections() {
                 },
                 {
                   q: "What happens with files over 25 MB?",
-                  a: "We try to compress locally (PNG may become JPEG) to reach ≤25 MB for preview. If quality would drop too much, you will need to resize and re-upload.",
+                  a: "The app tries local compression first for oversized raster files. If the image cannot be reduced without too much quality loss, resize or crop it and upload again.",
                 },
                 {
                   q: "Why do I see “Server busy” with Retry-After?",

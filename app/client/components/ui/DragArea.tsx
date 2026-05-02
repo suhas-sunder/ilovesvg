@@ -14,7 +14,7 @@ export default function DragArea({
     <>
       {/* Limits helper */}
       {MAX_MP ? (
-        <div className="text-[13px] text-slate-600 mb-2 hidden sm:flex gap-1">
+        <div className="mb-2 hidden gap-1 text-[13px] leading-5 text-slate-600 sm:flex">
           Limits: <b>{Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB</b> •{" "}
           <b>{MAX_MP} MP</b> • <b>{MAX_SIDE}px longest side</b> each max.
         </div>
@@ -34,17 +34,17 @@ export default function DragArea({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
         }}
-        className="border border-dashed border-[#c8d3ea] rounded-xl p-4 text-center cursor-pointer sm:min-h-[8em] flex justify-center items-center bg-[#f9fbff] hover:bg-[#f2f6ff] focus:outline-none focus:ring-2 focus:ring-blue-200"
+        className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-sky-200 bg-sky-50/60 p-4 text-center transition-colors hover:border-sky-300 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-200 sm:min-h-[7.5em]"
       >
-        <div className="text-sm sm:text-lg text-slate-600 font-semibold">
-          <span className="flex justify-center items-center gap-2 w-full">
-            <Icons name="upload" size={32} className="text-sky-600 mb-2" />
-            Click/drag &amp; drop file
+        <div className="text-sm font-semibold text-slate-700 sm:text-lg">
+          <span className="flex w-full items-center justify-center gap-2">
+            <Icons name="upload" size={30} className="text-sky-600" />
+            Click or drag a file
           </span>
-          <span className="text-sky-700 my-2 text-center text-xs hidden sm:flex">
-            Live preview: fast ≤10 MB, throttled ≤25 MB. Files over 30 MB are
-            auto-compressed on-device (if possible). No files are stored after
-            conversion.
+          <span className="mx-auto mt-2 hidden max-w-[42rem] text-center text-xs font-medium leading-5 text-slate-600 sm:flex">
+            Supported image files are checked before conversion. Oversized
+            uploads may be compressed on-device when possible; files are not
+            stored after conversion.
           </span>
 
           <input
