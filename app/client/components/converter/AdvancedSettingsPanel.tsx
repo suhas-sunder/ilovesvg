@@ -47,6 +47,13 @@ type Props<TSettings extends MixedTraceSettings> = {
   detectedColorItems?: DetectedColorItem[];
   sourceFile?: File | null;
   removeColorsEnabled?: boolean;
+  outputLayerItems?: OutputLayerControlItem[];
+  outputSize?: OutputSizeInfo | null;
+  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onResetOutputLayer?: (layerId: string) => void;
+  onResetAllOutputLayers?: () => void;
+  onOutputSizeChange?: (size: { width: number; height: number }) => void;
+  helpHref?: string;
   buttonDisabled?: boolean;
   onUpdatePreview: () => void;
 };
@@ -85,18 +92,32 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   detectedColorItems?: DetectedColorItem[];
   sourceFile?: File | null;
   removeColorsEnabled?: boolean;
+  outputLayerItems?: OutputLayerControlItem[];
+  outputSize?: OutputSizeInfo | null;
+  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onResetOutputLayer?: (layerId: string) => void;
+  onResetAllOutputLayers?: () => void;
+  onOutputSizeChange?: (size: { width: number; height: number }) => void;
+  helpHref?: string;
   buttonDisabled?: boolean;
   onUpdatePreview: () => void;
 };
 
 type DetectedColorItem = {
   layers?: ReadonlyArray<{
+    id?: string;
     color?: string;
     originalColor?: string;
     label?: string;
     name?: string;
+    visible?: boolean;
+    opacity?: number;
+    originalOpacity?: number;
+    pixelPercent?: number;
   }>;
 };
+
+type DetectedLayerItem = NonNullable<DetectedColorItem["layers"]>[number];
 
 type SvgRasterExportProps<TSettings extends SvgRasterExportSettings> = {
   id?: string;
@@ -104,6 +125,31 @@ type SvgRasterExportProps<TSettings extends SvgRasterExportSettings> = {
   settings: TSettings;
   setSettings: React.Dispatch<React.SetStateAction<TSettings>>;
   aspect?: number | null;
+};
+
+export type OutputLayerControlItem = {
+  id: string;
+  label?: string;
+  name?: string;
+  color?: string;
+  originalColor?: string;
+  visible?: boolean;
+  opacity?: number;
+  originalOpacity?: number;
+  pixelPercent?: number;
+};
+
+type OutputLayerPatch = {
+  color?: string;
+  visible?: boolean;
+  opacity?: number;
+};
+
+type OutputSizeInfo = {
+  width: number;
+  height: number;
+  originalWidth?: number;
+  originalHeight?: number;
 };
 
 export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>({
@@ -115,19 +161,26 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   detectedColorItems,
   sourceFile,
   removeColorsEnabled = true,
+  outputLayerItems,
+  outputSize,
+  onOutputLayerChange,
+  onResetOutputLayer,
+  onResetAllOutputLayers,
+  onOutputSizeChange,
+  helpHref,
   buttonDisabled = false,
   onUpdatePreview,
 }: Props<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
   const [customColor, setCustomColor] = React.useState("");
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
-  const layerColors = React.useMemo(
-    () => collectDetectedRemoveColors(detectedColorItems),
-    [detectedColorItems],
-  );
-  const detectedColors = React.useMemo(
-    () => mergeDetectedColors(sourceColors, layerColors),
-    [sourceColors, layerColors],
+  const detectedColors = sourceColors;
+  const outputLayers = React.useMemo(
+    () =>
+      onOutputLayerChange
+        ? normalizeOutputLayers(outputLayerItems || detectedColorItems?.[0]?.layers)
+        : [],
+    [outputLayerItems, detectedColorItems, onOutputLayerChange],
   );
 
   if (!open) return null;
@@ -181,10 +234,20 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-        <span>
-          Advanced changes do not live preview automatically. Click Update
-          preview to apply these settings.
-        </span>
+        <div className="min-w-0">
+          <span>
+            Trace settings need Update preview. Output layer edits update the
+            current SVG directly.
+          </span>
+          {helpHref ? (
+            <a
+              href={helpHref}
+              className="ml-2 inline-flex font-semibold text-[#0b2dff] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              Learn what each setting does
+            </a>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={onUpdatePreview}
@@ -492,10 +555,10 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       </SettingSection>
 
       {showSelectedColors && (
-        <SettingSection title="Remove colors">
+        <SettingSection title="Remove detected input colors">
           <p className="text-[12px] leading-5 text-slate-600">
-            Choose colors from the image or enter a custom color. Increase
-            tolerance to remove nearby shades.
+            These are colors sampled from the uploaded image before tracing.
+            Use this to influence how the SVG is generated.
           </p>
           {!removeColorsEnabled ? (
             <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-600">
@@ -508,6 +571,8 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 colors={detectedColors}
                 selectedColors={merged.removeColors || []}
                 onToggle={toggleRemoveColor}
+                title="Detected input colors"
+                emptyText="Detected input colors will appear here after you upload or trace a raster image."
               />
               <Field label="Custom color">
                 <input
@@ -584,6 +649,22 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         </SettingSection>
       )}
 
+      {capabilities.supportsLayerEditing && (
+        <>
+          <OutputColorRemovalSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+          />
+          <OutputLayerStylingSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+            onResetAllOutputLayers={onResetAllOutputLayers}
+          />
+        </>
+      )}
+
       <SettingSection title="Appearance">
         {showSingleTrace && (
           <>
@@ -633,7 +714,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         )}
 
         {showLayered && showAlpha && (
-          <Field label={`Layer opacity (${Math.round(merged.layerAlpha * 100)}%)`}>
+          <Field label={`Global layer opacity (${Math.round(merged.layerAlpha * 100)}%)`}>
             <Range
               value={Math.round(merged.layerAlpha * 100)}
               min={10}
@@ -647,23 +728,31 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         )}
 
         {capabilities.supportsBackground && (
-          <Field label="Background">
-            <Checkbox
-              checked={settings.transparent}
-              onChange={(checked) => patch({ transparent: checked } as Partial<TSettings>)}
-            />
-            <span className="text-[13px] text-slate-700">Transparent</span>
-            <ColorInput
-              value={settings.bgColor}
-              disabled={settings.transparent}
-              title={
-                settings.transparent
-                  ? "Uncheck to pick a background color"
-                  : "Pick background color"
-              }
-              onCommit={(value) => patch({ bgColor: value } as Partial<TSettings>)}
-            />
-          </Field>
+          <>
+            <Field label="Transparent background">
+              <Checkbox
+                checked={settings.transparent}
+                onChange={(checked) => patch({ transparent: checked } as Partial<TSettings>)}
+              />
+            </Field>
+            <Field label="Background color">
+              <ColorInput
+                value={settings.bgColor}
+                disabled={settings.transparent}
+                title={
+                  settings.transparent
+                    ? "Disable transparent background to use this color"
+                    : "Pick background color"
+                }
+                onCommit={(value) => patch({ bgColor: value } as Partial<TSettings>)}
+              />
+            </Field>
+            {settings.transparent ? (
+              <p className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
+                Background color is ignored while transparent background is on.
+              </p>
+            ) : null}
+          </>
         )}
 
         {showAlpha && !settings.transparent && (
@@ -683,36 +772,12 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
       {capabilities.supportsOutputGeometry && !capabilities.supportsCutFriendlyOutput && (
         <SettingSection title="Size and export">
-          <Field label="SVG width">
-            <NumberInput
-              value={merged.outputWidth}
-              min={0}
-              max={6000}
-              step={1}
-              onCommit={(value) =>
-                patch({ outputWidth: Math.round(value) } as Partial<TSettings>)
-              }
-            />
-          </Field>
-          <Field label="SVG height">
-            <NumberInput
-              value={merged.outputHeight}
-              min={0}
-              max={6000}
-              step={1}
-              onCommit={(value) =>
-                patch({ outputHeight: Math.round(value) } as Partial<TSettings>)
-              }
-            />
-          </Field>
-          <Field label="Preserve aspect ratio">
-            <Checkbox
-              checked={merged.preserveAspectRatio}
-              onChange={(checked) =>
-                patch({ preserveAspectRatio: checked } as Partial<TSettings>)
-              }
-            />
-          </Field>
+          <OutputSizeControls
+            settings={merged}
+            outputSize={outputSize}
+            onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
+            onOutputSizeChange={onOutputSizeChange}
+          />
         </SettingSection>
       )}
     </div>
@@ -730,19 +795,26 @@ export function LayeredAdvancedSettingsPanel<
   detectedColorItems,
   sourceFile,
   removeColorsEnabled = true,
+  outputLayerItems,
+  outputSize,
+  onOutputLayerChange,
+  onResetOutputLayer,
+  onResetAllOutputLayers,
+  onOutputSizeChange,
+  helpHref,
   buttonDisabled = false,
   onUpdatePreview,
 }: LayeredProps<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
   const [customColor, setCustomColor] = React.useState("");
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
-  const layerColors = React.useMemo(
-    () => collectDetectedRemoveColors(detectedColorItems),
-    [detectedColorItems],
-  );
-  const detectedColors = React.useMemo(
-    () => mergeDetectedColors(sourceColors, layerColors),
-    [sourceColors, layerColors],
+  const detectedColors = sourceColors;
+  const outputLayers = React.useMemo(
+    () =>
+      onOutputLayerChange
+        ? normalizeOutputLayers(outputLayerItems || detectedColorItems?.[0]?.layers)
+        : [],
+    [outputLayerItems, detectedColorItems, onOutputLayerChange],
   );
 
   if (!open) return null;
@@ -790,10 +862,20 @@ export function LayeredAdvancedSettingsPanel<
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-        <span>
-          Advanced changes do not live preview automatically. Click Update
-          preview to apply these settings.
-        </span>
+        <div className="min-w-0">
+          <span>
+            Trace settings need Update preview. Output layer edits update the
+            current SVG directly.
+          </span>
+          {helpHref ? (
+            <a
+              href={helpHref}
+              className="ml-2 inline-flex font-semibold text-[#0b2dff] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              Learn what each setting does
+            </a>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={onUpdatePreview}
@@ -925,10 +1007,10 @@ export function LayeredAdvancedSettingsPanel<
       </SettingSection>
 
       {capabilities.supportsSelectedColorRemoval && (
-        <SettingSection title="Remove colors">
+        <SettingSection title="Remove detected input colors">
           <p className="text-[12px] leading-5 text-slate-600">
-            Choose colors from the image or enter a custom color. Increase
-            tolerance to remove nearby shades.
+            These are colors sampled from the uploaded image before tracing.
+            Use this to influence how the SVG is generated.
           </p>
           {!removeColorsEnabled ? (
             <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-600">
@@ -941,6 +1023,8 @@ export function LayeredAdvancedSettingsPanel<
                 colors={detectedColors}
                 selectedColors={merged.removeColors || []}
                 onToggle={toggleRemoveColor}
+                title="Detected input colors"
+                emptyText="Detected input colors will appear here after you upload or trace a raster image."
               />
               <Field label="Custom color">
                 <input
@@ -1000,6 +1084,22 @@ export function LayeredAdvancedSettingsPanel<
         </SettingSection>
       )}
 
+      {capabilities.supportsLayerEditing && (
+        <>
+          <OutputColorRemovalSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+          />
+          <OutputLayerStylingSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+            onResetAllOutputLayers={onResetAllOutputLayers}
+          />
+        </>
+      )}
+
       <SettingSection title="Edges and cleanup">
         <Field label={`Brightness (${merged.brightness})`}>
           <Range
@@ -1051,16 +1151,60 @@ export function LayeredAdvancedSettingsPanel<
               }
             />
           </Field>
+          <Field label="Background color">
+            <ColorInput
+              value={settings.bgColor}
+              disabled={settings.transparent}
+              title={
+                settings.transparent
+                  ? "Disable transparent background to use this color"
+                  : "Pick background color"
+              }
+              onCommit={(value) =>
+                patch({ bgColor: value } as Partial<TSettings>)
+              }
+            />
+          </Field>
+          {settings.transparent ? (
+            <p className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
+              Background color is ignored while transparent background is on.
+            </p>
+          ) : null}
+          <Field label={`Global layer opacity (${Math.round(merged.layerAlpha * 100)}%)`}>
+            <Range
+              value={Math.round(merged.layerAlpha * 100)}
+              min={10}
+              max={100}
+              step={1}
+              onCommit={(value) =>
+                patch({ layerAlpha: value / 100 } as Partial<TSettings>)
+              }
+            />
+          </Field>
           {!settings.transparent && (
-            <Field label="Background color">
-              <ColorInput
-                value={settings.bgColor}
+            <Field label={`Background opacity (${Math.round(merged.backgroundAlpha * 100)}%)`}>
+              <Range
+                value={Math.round(merged.backgroundAlpha * 100)}
+                min={10}
+                max={100}
+                step={1}
                 onCommit={(value) =>
-                  patch({ bgColor: value } as Partial<TSettings>)
+                  patch({ backgroundAlpha: value / 100 } as Partial<TSettings>)
                 }
               />
             </Field>
           )}
+        </SettingSection>
+      )}
+
+      {capabilities.supportsOutputGeometry && (
+        <SettingSection title="Size and export">
+          <OutputSizeControls
+            settings={merged}
+            outputSize={outputSize}
+            onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
+            onOutputSizeChange={onOutputSizeChange}
+          />
         </SettingSection>
       )}
     </div>
@@ -1220,15 +1364,19 @@ function DetectedColorSwatches({
   colors,
   selectedColors,
   onToggle,
+  title = "Detected colors",
+  emptyText = "Detected colors will appear here after a conversion or SVG upload.",
 }: {
   colors: Array<{ color: string; label: string }>;
   selectedColors: string[];
   onToggle: (color: string) => void;
+  title?: string;
+  emptyText?: string;
 }) {
   if (colors.length === 0) {
     return (
       <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
-        Detected colors will appear here after a conversion or SVG upload.
+        {emptyText}
       </div>
     );
   }
@@ -1236,7 +1384,7 @@ function DetectedColorSwatches({
   return (
     <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
       <div className="mb-1 text-[12px] font-semibold text-slate-700">
-        Detected colors
+        {title}
       </div>
       <div className="flex flex-wrap gap-1.5">
         {colors.map(({ color, label }) => {
@@ -1299,6 +1447,431 @@ function RemoveColorChips({
   );
 }
 
+function OutputColorRemovalSection({
+  layers,
+  onOutputLayerChange,
+  onResetOutputLayer,
+}: {
+  layers: OutputLayerControlItem[];
+  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onResetOutputLayer?: (layerId: string) => void;
+}) {
+  return (
+    <SettingSection title="Remove detected output colors">
+      <p className="text-[12px] leading-5 text-slate-600">
+        These are colors currently present in the generated SVG output. Use this
+        to remove final SVG colors directly without guessing which source colors
+        created them.
+      </p>
+      <p className="text-[12px] leading-5 text-slate-500">
+        Output colors update after each trace. If you change trace settings, the
+        available output colors may change.
+      </p>
+
+      {layers.length === 0 ? (
+        <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
+          Generate an SVG to view removable output colors.
+        </div>
+      ) : (
+        <div className="grid gap-1.5">
+          {layers.map((layer) => {
+            const visible = layer.visible !== false;
+            const label = layer.label || layer.name || layer.id;
+            const color = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
+            return (
+              <div
+                key={layer.id}
+                className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5"
+              >
+                <input
+                  type="checkbox"
+                  checked={visible}
+                  onChange={(event) =>
+                    onOutputLayerChange?.(layer.id, {
+                      visible: event.target.checked,
+                    })
+                  }
+                  className="h-4 w-4 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  aria-label={`${visible ? "Keep" : "Restore"} ${label}`}
+                />
+                <span
+                  className="h-4 w-4 rounded-sm border border-slate-300"
+                  style={{ background: color }}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-700">
+                  {label}
+                </span>
+                <span className="shrink-0 font-mono text-[11px] text-slate-500">
+                  {color}
+                </span>
+                {onResetOutputLayer ? (
+                  <button
+                    type="button"
+                    onClick={() => onResetOutputLayer(layer.id)}
+                    className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  >
+                    Reset
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </SettingSection>
+  );
+}
+
+function OutputLayerStylingSection({
+  layers,
+  onOutputLayerChange,
+  onResetOutputLayer,
+  onResetAllOutputLayers,
+}: {
+  layers: OutputLayerControlItem[];
+  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onResetOutputLayer?: (layerId: string) => void;
+  onResetAllOutputLayers?: () => void;
+}) {
+  return (
+    <SettingSection title="Output layer styling">
+      <p className="text-[12px] leading-5 text-slate-600">
+        These controls edit the current SVG output directly. Per-layer opacity
+        affects one layer; global layer opacity applies to all layers in the
+        next trace.
+      </p>
+      {layers.length === 0 ? (
+        <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
+          Generate an SVG to edit output layer colors and opacity.
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onResetAllOutputLayers}
+              disabled={!onResetAllOutputLayers}
+              className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Reset all
+            </button>
+          </div>
+          <div className="grid gap-2">
+            {layers.map((layer) => (
+              <OutputLayerStyleRow
+                key={layer.id}
+                layer={layer}
+                onOutputLayerChange={onOutputLayerChange}
+                onResetOutputLayer={onResetOutputLayer}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </SettingSection>
+  );
+}
+
+function OutputLayerStyleRow({
+  layer,
+  onOutputLayerChange,
+  onResetOutputLayer,
+}: {
+  layer: OutputLayerControlItem;
+  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onResetOutputLayer?: (layerId: string) => void;
+}) {
+  const colorCommitThrottleMs = 90;
+  const opacityCommitThrottleMs = 90;
+  const normalizedColor =
+    normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
+  const [localColor, setLocalColor] = React.useState(normalizedColor);
+  const [colorText, setColorText] = React.useState(normalizedColor);
+  const [localOpacity, setLocalOpacity] = React.useState(
+    Math.round(normalizeOpacity(layer.opacity) * 100),
+  );
+  const latestColorRef = React.useRef(normalizedColor);
+  const latestOpacityRef = React.useRef(normalizeOpacity(layer.opacity));
+  const colorTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const opacityTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    const next = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
+    setLocalColor(next);
+    setColorText(next);
+    latestColorRef.current = next;
+  }, [layer.color, layer.originalColor]);
+
+  React.useEffect(() => {
+    const nextOpacity = normalizeOpacity(layer.opacity);
+    setLocalOpacity(Math.round(nextOpacity * 100));
+    latestOpacityRef.current = nextOpacity;
+  }, [layer.opacity]);
+
+  React.useEffect(() => {
+    return () => {
+      if (colorTimerRef.current) clearTimeout(colorTimerRef.current);
+      if (opacityTimerRef.current) clearTimeout(opacityTimerRef.current);
+    };
+  }, []);
+
+  function commitColorNow(value = latestColorRef.current) {
+    const normalized = normalizeColorInput(value);
+    if (!normalized) {
+      setColorText(latestColorRef.current);
+      return;
+    }
+    if (colorTimerRef.current) {
+      clearTimeout(colorTimerRef.current);
+      colorTimerRef.current = null;
+    }
+    setLocalColor(normalized);
+    setColorText(normalized);
+    latestColorRef.current = normalized;
+    onOutputLayerChange?.(layer.id, { color: normalized });
+  }
+
+  function queueColorCommit(value: string) {
+    const normalized = normalizeColorInput(value);
+    setLocalColor(normalized || value);
+    setColorText(value);
+    if (!normalized) return;
+    latestColorRef.current = normalized;
+    if (colorTimerRef.current) return;
+    colorTimerRef.current = setTimeout(() => {
+      colorTimerRef.current = null;
+      commitColorNow(latestColorRef.current);
+    }, colorCommitThrottleMs);
+  }
+
+  function commitOpacityNow(value = latestOpacityRef.current) {
+    if (opacityTimerRef.current) {
+      clearTimeout(opacityTimerRef.current);
+      opacityTimerRef.current = null;
+    }
+    const opacity = normalizeOpacity(value);
+    latestOpacityRef.current = opacity;
+    setLocalOpacity(Math.round(opacity * 100));
+    onOutputLayerChange?.(layer.id, { opacity });
+  }
+
+  function queueOpacityCommit(percent: number) {
+    const opacity = normalizeOpacity(percent / 100);
+    latestOpacityRef.current = opacity;
+    setLocalOpacity(Math.round(opacity * 100));
+    if (opacityTimerRef.current) return;
+    opacityTimerRef.current = setTimeout(() => {
+      opacityTimerRef.current = null;
+      commitOpacityNow(latestOpacityRef.current);
+    }, opacityCommitThrottleMs);
+  }
+
+  const label = layer.label || layer.name || layer.id;
+  const original = normalizeColorInput(layer.originalColor || layer.color || "") || normalizedColor;
+
+  return (
+    <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="checkbox"
+          checked={layer.visible !== false}
+          onChange={(event) =>
+            onOutputLayerChange?.(layer.id, { visible: event.target.checked })
+          }
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          aria-label={`Show ${label}`}
+        />
+        <input
+          type="color"
+          value={normalizeColorInput(localColor) || normalizedColor}
+          onChange={(event) => queueColorCommit(event.target.value)}
+          onPointerUp={() => commitColorNow()}
+          onMouseUp={() => commitColorNow()}
+          onTouchEnd={() => commitColorNow()}
+          onBlur={() => commitColorNow()}
+          className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          aria-label={`Change ${label} color`}
+        />
+        <input
+          type="text"
+          value={colorText}
+          onChange={(event) => {
+            setColorText(event.target.value);
+            queueColorCommit(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitColorNow(colorText);
+            }
+          }}
+          onBlur={() => commitColorNow(colorText)}
+          aria-label={`${label} hex color`}
+          aria-invalid={!normalizeColorInput(colorText)}
+          className="w-[104px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
+        <div className="min-w-[120px] flex-1">
+          <div className="truncate text-[12px] font-semibold text-slate-700">
+            {label}
+          </div>
+          <div className="text-[11px] text-slate-500">
+            Original {original}
+            {typeof layer.pixelPercent === "number"
+              ? ` · ${layer.pixelPercent}%`
+              : ""}
+          </div>
+        </div>
+        {onResetOutputLayer ? (
+          <button
+            type="button"
+            onClick={() => onResetOutputLayer(layer.id)}
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Reset
+          </button>
+        ) : null}
+      </div>
+      <label className="mt-2 flex items-center gap-2 text-[12px] text-slate-600">
+        <span className="shrink-0">Per-layer opacity {localOpacity}%</span>
+        <input
+          type="range"
+          min={10}
+          max={100}
+          step={1}
+          value={localOpacity}
+          onChange={(event) => queueOpacityCommit(Number(event.target.value))}
+          onPointerUp={() => commitOpacityNow()}
+          onMouseUp={() => commitOpacityNow()}
+          onTouchEnd={() => commitOpacityNow()}
+          onBlur={() => commitOpacityNow()}
+          className="min-w-0 flex-1 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
+      </label>
+    </div>
+  );
+}
+
+function OutputSizeControls({
+  settings,
+  outputSize,
+  onPatch,
+  onOutputSizeChange,
+}: {
+  settings: TraceAdvancedSettings;
+  outputSize?: OutputSizeInfo | null;
+  onPatch: (patch: Partial<TraceAdvancedSettings>) => void;
+  onOutputSizeChange?: (size: { width: number; height: number }) => void;
+}) {
+  const originalWidth = positiveNumber(outputSize?.originalWidth) || positiveNumber(outputSize?.width);
+  const originalHeight = positiveNumber(outputSize?.originalHeight) || positiveNumber(outputSize?.height);
+  const currentWidth =
+    positiveNumber(outputSize?.width) ||
+    positiveNumber(settings.outputWidth) ||
+    originalWidth;
+  const currentHeight =
+    positiveNumber(outputSize?.height) ||
+    positiveNumber(settings.outputHeight) ||
+    originalHeight;
+
+  if (!currentWidth || !currentHeight) {
+    return (
+      <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
+        Generate an SVG to edit its exported width and height.
+      </div>
+    );
+  }
+
+  const aspect = currentWidth / currentHeight;
+  const baseWidth = originalWidth || currentWidth;
+  const baseHeight = originalHeight || currentHeight;
+
+  function commitSize(widthValue: number, heightValue: number) {
+    const width = Math.round(clampNumber(widthValue, 1, 6000));
+    const height = Math.round(clampNumber(heightValue, 1, 6000));
+    onPatch({ outputWidth: width, outputHeight: height });
+    onOutputSizeChange?.({ width, height });
+  }
+
+  function setWidth(widthValue: number) {
+    const width = Math.round(clampNumber(widthValue, 1, 6000));
+    const height = settings.preserveAspectRatio
+      ? Math.round(clampNumber(width / aspect, 1, 6000))
+      : currentHeight;
+    commitSize(width, height);
+  }
+
+  function setHeight(heightValue: number) {
+    const height = Math.round(clampNumber(heightValue, 1, 6000));
+    const width = settings.preserveAspectRatio
+      ? Math.round(clampNumber(height * aspect, 1, 6000))
+      : currentWidth;
+    commitSize(width, height);
+  }
+
+  function resizeBy(multiplier: number) {
+    commitSize(baseWidth * multiplier, baseHeight * multiplier);
+  }
+
+  function resetSize() {
+    onPatch({ outputWidth: 0, outputHeight: 0 });
+    onOutputSizeChange?.({ width: baseWidth, height: baseHeight });
+  }
+
+  return (
+    <>
+      <Field label="SVG width">
+        <NumberInput
+          value={currentWidth}
+          min={1}
+          max={6000}
+          step={1}
+          onCommit={setWidth}
+        />
+      </Field>
+      <Field label="SVG height">
+        <NumberInput
+          value={currentHeight}
+          min={1}
+          max={6000}
+          step={1}
+          onCommit={setHeight}
+        />
+      </Field>
+      <Field label="Preserve aspect ratio">
+        <Checkbox
+          checked={settings.preserveAspectRatio !== false}
+          onChange={(checked) => onPatch({ preserveAspectRatio: checked })}
+        />
+      </Field>
+      <div className="flex flex-wrap gap-1.5">
+        {[
+          ["0.5x", 0.5],
+          ["1x", 1],
+          ["1.5x", 1.5],
+          ["2x", 2],
+        ].map(([label, value]) => (
+          <button
+            key={String(label)}
+            type="button"
+            onClick={() => resizeBy(Number(value))}
+            className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={resetSize}
+          className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
+          Reset to original
+        </button>
+      </div>
+    </>
+  );
+}
+
 function collectDetectedRemoveColors(items?: DetectedColorItem[]) {
   const out: Array<{ color: string; label: string }> = [];
   const seen = new Set<string>();
@@ -1335,6 +1908,43 @@ function mergeDetectedColors(
   }
 
   return out.slice(0, 28);
+}
+
+function normalizeOutputLayers(
+  layers?: ReadonlyArray<OutputLayerControlItem | DetectedLayerItem>,
+): OutputLayerControlItem[] {
+  if (!layers?.length) return [];
+  const normalized: OutputLayerControlItem[] = [];
+
+  layers.forEach((layer, index) => {
+      const color = normalizeColorInput(layer.color || layer.originalColor || "");
+      if (!color) return;
+      const originalColor = normalizeColorInput(layer.originalColor || layer.color || "") || color;
+      normalized.push({
+        id: layer.id || `output-layer-${index + 1}-${color.replace("#", "")}`,
+        label: layer.label || layer.name || `Layer ${index + 1}`,
+        name: layer.name,
+        color,
+        originalColor,
+        visible: layer.visible !== false,
+        opacity: normalizeOpacity(layer.opacity),
+        originalOpacity: normalizeOpacity(layer.originalOpacity),
+        pixelPercent:
+          typeof layer.pixelPercent === "number" ? layer.pixelPercent : undefined,
+      });
+    });
+
+  return normalized;
+}
+
+function positiveNumber(value: unknown): number {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : 0;
+}
+
+function normalizeOpacity(value?: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.1, Math.min(1, Number(value)));
 }
 
 function useSourcePaletteColors(

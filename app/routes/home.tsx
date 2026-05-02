@@ -27,6 +27,7 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 export { ChevronDownIcon, PresetPicker };
 
 /** Stable server flag: true on SSR render, false in client bundle */
@@ -1691,6 +1692,8 @@ type SvgLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  opacity?: number;
+  originalOpacity?: number;
   kind?: SvgLayerKind;
 };
 
@@ -2106,6 +2109,8 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
+  originalWidth?: number;
+  originalHeight?: number;
   stamp: number;
 };
 
@@ -2170,6 +2175,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         })),
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
+        originalWidth: fetcher.data.width ?? 0,
+        originalHeight: fetcher.data.height ?? 0,
         stamp: Date.now(),
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
@@ -2462,15 +2469,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   function getHistoryItemSvg(item: HistoryItem): string {
-    return item.layers?.length
+    const edited = item.layers?.length
       ? applyLayerEditsToSvg(item.svg, item.layers)
       : item.svg;
+    return applySvgSizeAttributes(edited, item.width, item.height);
   }
 
   function setHistoryLayer(
     stamp: number,
     layerId: string,
-    patch: Partial<Pick<EditableSvgLayer, "color" | "visible">>,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
   ) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -2495,7 +2503,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               ...item,
               layers: item.layers?.map((layer) =>
                 layer.id === layerId
-                  ? { ...layer, color: layer.originalColor, visible: true }
+                  ? {
+                      ...layer,
+                      color: layer.originalColor,
+                      visible: true,
+                      opacity: layer.originalOpacity ?? 1,
+                    }
                   : layer,
               ),
             },
@@ -2514,8 +2527,46 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 ...layer,
                 color: layer.originalColor,
                 visible: true,
+                opacity: layer.originalOpacity ?? 1,
               })),
             },
+      ),
+    );
+  }
+
+  function setLatestHistoryLayer(
+    layerId: string,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
+  ) {
+    const latest = history[0];
+    if (!latest) return;
+    setHistoryLayer(latest.stamp, layerId, patch);
+  }
+
+  function resetLatestHistoryLayer(layerId: string) {
+    const latest = history[0];
+    if (!latest) return;
+    resetHistoryLayer(latest.stamp, layerId);
+  }
+
+  function resetAllLatestHistoryLayers() {
+    const latest = history[0];
+    if (!latest) return;
+    resetAllHistoryLayers(latest.stamp);
+  }
+
+  function setLatestHistorySize(size: { width: number; height: number }) {
+    setHistory((prev) =>
+      prev.map((item, index) =>
+        index === 0
+          ? {
+              ...item,
+              width: size.width,
+              height: size.height,
+              originalWidth: item.originalWidth || item.width,
+              originalHeight: item.originalHeight || item.height,
+            }
+          : item,
       ),
     );
   }
@@ -2589,6 +2640,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     detectedColorItems={history}
                     sourceFile={file}
                     removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
+                    outputLayerItems={history[0]?.layers}
+                    outputSize={
+                      history[0]
+                        ? {
+                            width: history[0].width,
+                            height: history[0].height,
+                            originalWidth:
+                              history[0].originalWidth || history[0].width,
+                            originalHeight:
+                              history[0].originalHeight || history[0].height,
+                          }
+                        : null
+                    }
+                    onOutputLayerChange={setLatestHistoryLayer}
+                    onResetOutputLayer={resetLatestHistoryLayer}
+                    onResetAllOutputLayers={resetAllLatestHistoryLayers}
+                    onOutputSizeChange={setLatestHistorySize}
+                    helpHref="#advanced-settings-help"
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => void submitConvert()}
                   />
@@ -2823,6 +2892,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       </div>
       <ContextualAffiliateCard />
+      <AdvancedSettingsHelpSection />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -2861,6 +2931,7 @@ function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
         "display",
         layer.visible ? null : "none",
       );
+      nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
       nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
       if (!layer.visible) nextAttrs += ` display="none"`;
       return `<g${nextAttrs}>${inner}${close}`;
@@ -2891,6 +2962,7 @@ function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
           "display",
           layer.visible ? null : "none",
         );
+        nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
         nextAttrs += ` ${paintProp}="${layer.color}"`;
         if (!layer.visible) nextAttrs += ` display="none"`;
         return `<${tagName}${nextAttrs}${endTag}`;
@@ -2898,6 +2970,26 @@ function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
     );
   }
   return out;
+}
+
+function applySvgSizeAttributes(svg: string, width: number, height: number): string {
+  const safeWidth = Math.round(Number(width));
+  const safeHeight = Math.round(Number(height));
+  if (
+    !Number.isFinite(safeWidth) ||
+    !Number.isFinite(safeHeight) ||
+    safeWidth <= 0 ||
+    safeHeight <= 0
+  ) {
+    return svg;
+  }
+
+  return String(svg).replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+    const nextAttrs = String(attrs)
+      .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "");
+    return `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`;
+  });
 }
 
 function LayerPaletteEditor({
@@ -3083,6 +3175,21 @@ function rewriteStyleProperty(
   );
 }
 /* ===== Client-side helpers (dimension precheck + compression ≤25MB) ===== */
+function applyOpacityAttribute(attrs: string, opacity?: number): string {
+  if (!Number.isFinite(opacity)) return attrs;
+  const value = Math.max(0.1, Math.min(1, Number(opacity)));
+  let nextAttrs = String(attrs)
+    .replace(/\sopacity\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sdata-editor-opacity\s*=\s*["'][^"']*["']/gi, "");
+  nextAttrs = rewriteStyleProperty(nextAttrs, "opacity", null);
+
+  if (value >= 0.999) return nextAttrs;
+  return `${nextAttrs} opacity="${value
+    .toFixed(3)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "")}" data-editor-opacity="true"`;
+}
+
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);

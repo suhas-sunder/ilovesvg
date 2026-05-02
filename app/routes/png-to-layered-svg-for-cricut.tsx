@@ -23,6 +23,7 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 
 const isServer = typeof document === "undefined";
 
@@ -1262,6 +1263,8 @@ type LayerState = {
   color: string;
   originalColor: string;
   visible: boolean;
+  opacity?: number;
+  originalOpacity?: number;
   pixelPercent: number;
   pathTags: string;
 };
@@ -1270,6 +1273,8 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
+  originalWidth?: number;
+  originalHeight?: number;
   stamp: number;
   layers: LayerState[];
 };
@@ -1360,6 +1365,8 @@ export default function PngToLayeredSvgForCricut({
       svg: fetcher.data.svg,
       width: fetcher.data.width ?? 0,
       height: fetcher.data.height ?? 0,
+      originalWidth: fetcher.data.width ?? 0,
+      originalHeight: fetcher.data.height ?? 0,
       stamp: Date.now(),
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
@@ -1367,6 +1374,8 @@ export default function PngToLayeredSvgForCricut({
         color: layer.color,
         originalColor: layer.color,
         visible: true,
+        opacity: 1,
+        originalOpacity: 1,
         pixelPercent: layer.pixelPercent,
         pathTags: layer.pathTags,
       })),
@@ -1571,6 +1580,62 @@ export default function PngToLayeredSvgForCricut({
     );
   }
 
+  function updateLatestOutputLayer(layerId: string, patch: Partial<LayerState>) {
+    const latest = history[0];
+    if (!latest) return;
+    updateHistoryItemLayers(latest.stamp, (layers) =>
+      layers.map((layer) =>
+        layer.id === layerId ? { ...layer, ...patch } : layer,
+      ),
+    );
+  }
+
+  function resetLatestOutputLayer(layerId: string) {
+    const latest = history[0];
+    if (!latest) return;
+    updateHistoryItemLayers(latest.stamp, (layers) =>
+      layers.map((layer) =>
+        layer.id === layerId
+          ? {
+              ...layer,
+              color: layer.originalColor,
+              visible: true,
+              opacity: layer.originalOpacity ?? 1,
+            }
+          : layer,
+      ),
+    );
+  }
+
+  function resetAllLatestOutputLayers() {
+    const latest = history[0];
+    if (!latest) return;
+    updateHistoryItemLayers(latest.stamp, (layers) =>
+      layers.map((layer) => ({
+        ...layer,
+        color: layer.originalColor,
+        visible: true,
+        opacity: layer.originalOpacity ?? 1,
+      })),
+    );
+  }
+
+  function updateLatestOutputSize(size: { width: number; height: number }) {
+    setHistory((prev) =>
+      prev.map((item, index) =>
+        index === 0
+          ? {
+              ...item,
+              width: size.width,
+              height: size.height,
+              originalWidth: item.originalWidth || item.width,
+              originalHeight: item.originalHeight || item.height,
+            }
+          : item,
+      ),
+    );
+  }
+
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
   return (
@@ -1631,6 +1696,24 @@ export default function PngToLayeredSvgForCricut({
                     detectedColorItems={history}
                     sourceFile={file}
                     removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
+                    outputLayerItems={history[0]?.layers}
+                    outputSize={
+                      history[0]
+                        ? {
+                            width: history[0].width,
+                            height: history[0].height,
+                            originalWidth:
+                              history[0].originalWidth || history[0].width,
+                            originalHeight:
+                              history[0].originalHeight || history[0].height,
+                          }
+                        : null
+                    }
+                    onOutputLayerChange={updateLatestOutputLayer}
+                    onResetOutputLayer={resetLatestOutputLayer}
+                    onResetAllOutputLayers={resetAllLatestOutputLayers}
+                    onOutputSizeChange={updateLatestOutputSize}
+                    helpHref="#advanced-settings-help"
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => void submitConvert(file, settings)}
                   />
@@ -1758,9 +1841,13 @@ export default function PngToLayeredSvgForCricut({
                     const editedSvg = buildClientLayeredSvg({
                       width: item.width,
                       height: item.height,
+                      viewBoxWidth: item.originalWidth || item.width,
+                      viewBoxHeight: item.originalHeight || item.height,
                       layers: item.layers,
                       transparent: settings.transparent,
                       bgColor: settings.bgColor,
+                      backgroundAlpha: settings.backgroundAlpha ?? 1,
+                      layerAlpha: settings.layerAlpha ?? 1,
                     });
 
                     return (
@@ -1840,6 +1927,7 @@ export default function PngToLayeredSvgForCricut({
                                 ...layer,
                                 color: layer.originalColor,
                                 visible: true,
+                                opacity: layer.originalOpacity ?? 1,
                               })),
                             )
                           }
@@ -1896,6 +1984,7 @@ export default function PngToLayeredSvgForCricut({
       </div>
       <ContextualAffiliateCard />
 
+      <AdvancedSettingsHelpSection />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />
@@ -2045,22 +2134,31 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 function buildClientLayeredSvg({
   width,
   height,
+  viewBoxWidth = width,
+  viewBoxHeight = height,
   layers,
   transparent,
   bgColor,
+  backgroundAlpha = 1,
+  layerAlpha = 1,
 }: {
   width: number;
   height: number;
+  viewBoxWidth?: number;
+  viewBoxHeight?: number;
   layers: LayerState[];
   transparent: boolean;
   bgColor: string;
+  backgroundAlpha?: number;
+  layerAlpha?: number;
 }) {
+  const safeBackgroundAlpha = normalizeClientOpacity(backgroundAlpha);
   const bg = transparent
     ? ""
-    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeClientColor(
+    : `<rect x="0" y="0" width="${viewBoxWidth}" height="${viewBoxHeight}" fill="${sanitizeClientColor(
         bgColor,
         "#ffffff",
-      )}" />`;
+      )}"${safeBackgroundAlpha < 1 ? ` opacity="${formatClientOpacity(safeBackgroundAlpha)}"` : ""} />`;
 
   const body = layers
     .filter((layer) => layer.visible)
@@ -2068,12 +2166,29 @@ function buildClientLayeredSvg({
       const color = sanitizeClientColor(layer.color, layer.originalColor);
       const safeId = escapeClientAttr(layer.id || `layer-${index + 1}`);
       const safeName = escapeClientAttr(layer.name || `Layer ${index + 1}`);
+      const opacity = normalizeClientOpacity(
+        normalizeClientOpacity(layer.opacity) * normalizeClientOpacity(layerAlpha),
+      );
+      const opacityAttr =
+        opacity < 1 ? ` opacity="${formatClientOpacity(opacity)}" data-editor-opacity="true"` : "";
 
-      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}">${layer.pathTags}</g>`;
+      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}"${opacityAttr}>${layer.pathTags}</g>`;
     })
     .join("");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from PNG for Cricut">${bg}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" role="img" aria-label="Layered SVG from PNG for Cricut">${bg}${body}</svg>`;
+}
+
+function normalizeClientOpacity(value?: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.1, Math.min(1, Number(value)));
+}
+
+function formatClientOpacity(value: number) {
+  return normalizeClientOpacity(value)
+    .toFixed(3)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
 }
 
 function sanitizeClientColor(input: string, fallback: string) {
@@ -2302,6 +2417,7 @@ function LayerControlRow({
             onLayerChange(layer.id, {
               color: layer.originalColor,
               visible: true,
+              opacity: layer.originalOpacity ?? 1,
             });
           }}
           className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100 cursor-pointer"
