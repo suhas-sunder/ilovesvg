@@ -82,7 +82,7 @@ export function normalizeColorList(colors: unknown): string[] {
 
   const out: string[] = [];
   for (const color of colors) {
-    const normalized = normalizeHexColor(String(color || ""));
+    const normalized = normalizeColorInput(String(color || ""));
     if (!normalized || out.includes(normalized)) continue;
     out.push(normalized);
     if (out.length >= 12) break;
@@ -97,4 +97,25 @@ export function normalizeHexColor(value: string): string | null {
     return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
   }
   return null;
+}
+
+export function normalizeColorInput(value: string): string | null {
+  const hex = normalizeHexColor(value);
+  if (hex) return hex;
+
+  const match = value
+    .trim()
+    .match(/^rgba?\(\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)(?:\s*,\s*(?:0|1|0?\.\d+|[+-]?\d+(?:\.\d+)?%))?\s*\)$/i);
+  if (!match) return null;
+
+  const channels = match.slice(1, 4).map((part) => {
+    const value = Number(part);
+    if (!Number.isFinite(value)) return null;
+    return Math.max(0, Math.min(255, Math.round(value)));
+  });
+  if (channels.some((channel) => channel == null)) return null;
+
+  return `#${channels
+    .map((channel) => Number(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
 }

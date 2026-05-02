@@ -2430,6 +2430,9 @@ export default function IconToSvgConverter({
                     settings={settings}
                     setSettings={setSettings}
                     capabilities={routeCapabilities}
+                    detectedColorItems={history}
+                    sourceFile={file}
+                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => void submitConvert()}
                   />

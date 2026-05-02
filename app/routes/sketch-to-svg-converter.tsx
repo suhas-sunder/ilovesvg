@@ -1181,7 +1181,7 @@ export default function SketchToSvgConverter({
   function setHistoryLayer(
     stamp: number,
     layerId: string,
-    patch: Partial<Pick<EditableSvgLayer, "color" | "visible">>,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
   ) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -1206,7 +1206,7 @@ export default function SketchToSvgConverter({
               ...item,
               layers: item.layers?.map((layer) =>
                 layer.id === layerId
-                  ? { ...layer, color: layer.originalColor, visible: true }
+                  ? { ...layer, color: layer.originalColor, visible: true, opacity: layer.originalOpacity ?? 1 }
                   : layer,
               ),
             },
@@ -1225,6 +1225,7 @@ export default function SketchToSvgConverter({
                 ...layer,
                 color: layer.originalColor,
                 visible: true,
+                opacity: layer.originalOpacity ?? 1,
               })),
             },
       ),
@@ -1357,6 +1358,9 @@ export default function SketchToSvgConverter({
                     settings={settings}
                     setSettings={setSettings}
                     capabilities={routeCapabilities}
+                    detectedColorItems={history}
+                    sourceFile={file}
+                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => void submitConvert()}
                   />
@@ -1485,6 +1489,9 @@ export default function SketchToSvgConverter({
                           item={item}
                           onColorChange={(layerId, color) =>
                             setHistoryLayer(item.stamp, layerId, { color })
+                          }
+                          onOpacityChange={(layerId, opacity) =>
+                            setHistoryLayer(item.stamp, layerId, { opacity })
                           }
                           onVisibilityChange={(layerId, visible) =>
                             setHistoryLayer(item.stamp, layerId, { visible })

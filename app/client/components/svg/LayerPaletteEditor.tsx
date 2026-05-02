@@ -8,6 +8,8 @@ export type SvgLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  opacity?: number;
+  originalOpacity?: number;
   kind?: SvgLayerKind;
 };
 
@@ -70,6 +72,7 @@ export function applyLayerEditsToSvg(
         "display",
         layer.visible ? null : "none",
       );
+      nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
       nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
       if (!layer.visible) nextAttrs += ` display="none"`;
 
@@ -113,6 +116,7 @@ export function applyLayerEditsToSvg(
           "display",
           layer.visible ? null : "none",
         );
+        nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
         nextAttrs += ` ${paintProp}="${layer.color}"`;
         if (!layer.visible) nextAttrs += ` display="none"`;
         return `<${tagName}${nextAttrs}${endTag}`;
@@ -126,12 +130,14 @@ export function applyLayerEditsToSvg(
 export function LayerPaletteEditor({
   item,
   onColorChange,
+  onOpacityChange,
   onVisibilityChange,
   onResetLayer,
   onResetAll,
 }: {
   item: LayeredHistoryItem;
   onColorChange: (layerId: string, color: string) => void;
+  onOpacityChange?: (layerId: string, opacity: number) => void;
   onVisibilityChange: (layerId: string, visible: boolean) => void;
   onResetLayer: (layerId: string) => void;
   onResetAll: () => void;
@@ -159,6 +165,7 @@ export function LayerPaletteEditor({
             key={layer.id}
             layer={layer}
             onColorChange={onColorChange}
+            onOpacityChange={onOpacityChange}
             onVisibilityChange={onVisibilityChange}
             onResetLayer={onResetLayer}
           />
@@ -280,19 +287,30 @@ export function LayeredTraceControls({
 function LayerPaletteRow({
   layer,
   onColorChange,
+  onOpacityChange,
   onVisibilityChange,
   onResetLayer,
 }: {
   layer: EditableSvgLayer;
   onColorChange: (layerId: string, color: string) => void;
+  onOpacityChange?: (layerId: string, opacity: number) => void;
   onVisibilityChange: (layerId: string, visible: boolean) => void;
   onResetLayer: (layerId: string) => void;
 }) {
   const colorCommitThrottleMs = 90;
+  const opacityCommitThrottleMs = 90;
   const [localColor, setLocalColor] = React.useState(layer.color);
+  const [localOpacity, setLocalOpacity] = React.useState(
+    Math.round(normalizeOpacity(layer.opacity) * 100),
+  );
   const latestColorRef = React.useRef(layer.color);
+  const latestOpacityRef = React.useRef(normalizeOpacity(layer.opacity));
   const lastCommitAtRef = React.useRef(0);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastOpacityCommitAtRef = React.useRef(0);
+  const opacityTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   React.useEffect(() => {
     setLocalColor(layer.color);
@@ -300,8 +318,15 @@ function LayerPaletteRow({
   }, [layer.color]);
 
   React.useEffect(() => {
+    const nextOpacity = normalizeOpacity(layer.opacity);
+    setLocalOpacity(Math.round(nextOpacity * 100));
+    latestOpacityRef.current = nextOpacity;
+  }, [layer.opacity]);
+
+  React.useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (opacityTimeoutRef.current) clearTimeout(opacityTimeoutRef.current);
     };
   }, []);
 
@@ -339,36 +364,94 @@ function LayerPaletteRow({
     }, remaining);
   }
 
+  function commitOpacityNow(opacity = latestOpacityRef.current) {
+    if (!onOpacityChange) return;
+    if (opacityTimeoutRef.current) {
+      clearTimeout(opacityTimeoutRef.current);
+      opacityTimeoutRef.current = null;
+    }
+
+    lastOpacityCommitAtRef.current =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    onOpacityChange(layer.id, normalizeOpacity(opacity));
+  }
+
+  function queueOpacityCommit(nextValue: number) {
+    const nextOpacity = normalizeOpacity(nextValue / 100);
+    latestOpacityRef.current = nextOpacity;
+    setLocalOpacity(Math.round(nextOpacity * 100));
+    if (!onOpacityChange) return;
+
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsed = now - lastOpacityCommitAtRef.current;
+    const remaining = opacityCommitThrottleMs - elapsed;
+
+    if (remaining <= 0) {
+      commitOpacityNow(nextOpacity);
+      return;
+    }
+
+    if (opacityTimeoutRef.current) return;
+
+    opacityTimeoutRef.current = setTimeout(() => {
+      opacityTimeoutRef.current = null;
+      commitOpacityNow(latestOpacityRef.current);
+    }, remaining);
+  }
+
   return (
-    <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
-      <input
-        type="checkbox"
-        checked={layer.visible}
-        onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
-        title={`Show ${layer.label}`}
-        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-      />
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <input
+          type="checkbox"
+          checked={layer.visible}
+          onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
+          title={`Show ${layer.label}`}
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
 
-      <input
-        type="color"
-        value={localColor}
-        onChange={(event) => queueColorCommit(event.target.value)}
-        onPointerUp={() => commitColorNow()}
-        onMouseUp={() => commitColorNow()}
-        onTouchEnd={() => commitColorNow()}
-        onBlur={() => commitColorNow()}
-        title={`Change ${layer.label} color`}
-        className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer"
-      />
+        <input
+          type="color"
+          value={localColor}
+          onChange={(event) => queueColorCommit(event.target.value)}
+          onPointerUp={() => commitColorNow()}
+          onMouseUp={() => commitColorNow()}
+          onTouchEnd={() => commitColorNow()}
+          onBlur={() => commitColorNow()}
+          title={`Change ${layer.label} color`}
+          className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
 
-      <span className="min-w-0 flex-1 truncate text-[12px] text-slate-700">
-        {layer.label} {layer.originalColor}
-      </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-slate-700">
+          {layer.label} {layer.originalColor}
+        </span>
+      </div>
+
+      {onOpacityChange && (
+        <label className="flex min-w-[140px] items-center gap-1.5 text-[11px] text-slate-600">
+          <span className="shrink-0">Opacity {localOpacity}%</span>
+          <input
+            type="range"
+            min={10}
+            max={100}
+            step={1}
+            value={localOpacity}
+            onChange={(event) => queueOpacityCommit(Number(event.target.value))}
+            onPointerUp={() => commitOpacityNow()}
+            onMouseUp={() => commitOpacityNow()}
+            onTouchEnd={() => commitOpacityNow()}
+            onBlur={() => commitOpacityNow()}
+            className="min-w-0 flex-1 cursor-pointer accent-[#0b2dff]"
+          />
+        </label>
+      )}
 
       <button
         type="button"
         onClick={() => onResetLayer(layer.id)}
-        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100"
+        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
       >
         Reset
       </button>
@@ -473,6 +556,30 @@ function rewriteStyleProperty(
     /\bstyle\s*=\s*(["'])[^"']*\1/i,
     `style=${quote}${nextStyle}${quote}`,
   );
+}
+
+function applyOpacityAttribute(attrs: string, opacity?: number): string {
+  if (opacity == null) return attrs;
+  const value = normalizeOpacity(opacity);
+  let nextAttrs = String(attrs)
+    .replace(/\sopacity\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sdata-editor-opacity\s*=\s*["'][^"']*["']/gi, "");
+  nextAttrs = rewriteStyleProperty(nextAttrs, "opacity", null);
+
+  if (value >= 0.999) return nextAttrs;
+  return `${nextAttrs} opacity="${formatOpacity(value)}" data-editor-opacity="true"`;
+}
+
+function normalizeOpacity(value?: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.1, Math.min(1, Number(value)));
+}
+
+function formatOpacity(value: number): string {
+  return normalizeOpacity(value)
+    .toFixed(3)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
 }
 
 function escapeLayerRegExp(value: string): string {

@@ -5,7 +5,7 @@ import type { ConverterRouteCapabilities } from "~/client/lib/converter/routeCap
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   normalizeColorList,
-  normalizeHexColor,
+  normalizeColorInput,
   type RemoveColorApplyTo,
   type SortLayersBy,
   type TraceAdvancedSettings,
@@ -44,6 +44,9 @@ type Props<TSettings extends MixedTraceSettings> = {
   settings: TSettings;
   setSettings: React.Dispatch<React.SetStateAction<TSettings>>;
   capabilities: ConverterRouteCapabilities;
+  detectedColorItems?: DetectedColorItem[];
+  sourceFile?: File | null;
+  removeColorsEnabled?: boolean;
   buttonDisabled?: boolean;
   onUpdatePreview: () => void;
 };
@@ -79,8 +82,20 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   settings: TSettings;
   setSettings: React.Dispatch<React.SetStateAction<TSettings>>;
   capabilities: ConverterRouteCapabilities;
+  detectedColorItems?: DetectedColorItem[];
+  sourceFile?: File | null;
+  removeColorsEnabled?: boolean;
   buttonDisabled?: boolean;
   onUpdatePreview: () => void;
+};
+
+type DetectedColorItem = {
+  layers?: ReadonlyArray<{
+    color?: string;
+    originalColor?: string;
+    label?: string;
+    name?: string;
+  }>;
 };
 
 type SvgRasterExportProps<TSettings extends SvgRasterExportSettings> = {
@@ -97,10 +112,23 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   settings,
   setSettings,
   capabilities,
+  detectedColorItems,
+  sourceFile,
+  removeColorsEnabled = true,
   buttonDisabled = false,
   onUpdatePreview,
 }: Props<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
+  const [customColor, setCustomColor] = React.useState("");
+  const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
+  const layerColors = React.useMemo(
+    () => collectDetectedRemoveColors(detectedColorItems),
+    [detectedColorItems],
+  );
+  const detectedColors = React.useMemo(
+    () => mergeDetectedColors(sourceColors, layerColors),
+    [sourceColors, layerColors],
+  );
 
   if (!open) return null;
 
@@ -116,11 +144,32 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
     setSettings((current) => ({ ...current, ...patchValue }) as TSettings);
   }
 
-  function addRemoveColor() {
-    const normalized = normalizeHexColor(draftColor);
+  function addRemoveColorValue(value: string) {
+    const normalized = normalizeColorInput(value);
     if (!normalized) return;
     const next = normalizeColorList([...(merged.removeColors || []), normalized]);
     patch({ removeColors: next } as Partial<TSettings>);
+  }
+
+  function addRemoveColor() {
+    addRemoveColorValue(draftColor);
+  }
+
+  function addCustomRemoveColor() {
+    const normalized = normalizeColorInput(customColor);
+    if (!normalized) return;
+    addRemoveColorValue(normalized);
+    setCustomColor("");
+  }
+
+  function toggleRemoveColor(color: string) {
+    const normalized = normalizeColorInput(color);
+    if (!normalized) return;
+    if ((merged.removeColors || []).includes(normalized)) {
+      removeRemoveColor(normalized);
+      return;
+    }
+    addRemoveColorValue(normalized);
   }
 
   function removeRemoveColor(color: string) {
@@ -150,7 +199,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         </button>
       </div>
 
-      <SettingSection title="Trace detail">
+      <SettingSection title="Line tracing">
         {capabilities.supportsLayeredTrace && capabilities.supportsSingleTrace && (
           <Field label="SVG mode">
             <Select
@@ -175,7 +224,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 onCommit={(value) => patch({ threshold: value } as Partial<TSettings>)}
               />
             </Field>
-            <Field label="Turd size">
+            <Field label="Remove tiny specks">
               <NumberInput
                 value={settings.turdSize}
                 min={0}
@@ -184,7 +233,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 onCommit={(value) => patch({ turdSize: Math.round(value) } as Partial<TSettings>)}
               />
             </Field>
-            <Field label="Curve tolerance">
+            <Field label="Curve smoothing">
               <NumberInput
                 value={settings.optTolerance}
                 min={0.05}
@@ -193,7 +242,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 onCommit={(value) => patch({ optTolerance: value } as Partial<TSettings>)}
               />
             </Field>
-            <Field label="Turn policy">
+            <Field label="Corner handling">
               <TurnPolicySelect
                 value={settings.turnPolicy}
                 onChange={(value) => patch({ turnPolicy: value } as Partial<TSettings>)}
@@ -203,7 +252,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         )}
 
         {capabilities.supportsOutputGeometry && (
-          <Field label="Internal trace size">
+          <Field label="Trace detail limit">
             <Select
               value={String(merged.maxTraceSide)}
               onChange={(value) => patch({ maxTraceSide: Number(value) } as Partial<TSettings>)}
@@ -231,7 +280,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               onCommit={(value) => patch({ colorLayerCount: Math.round(value) } as Partial<TSettings>)}
             />
           </Field>
-          <Field label="Layer trace size">
+          <Field label="Trace detail limit">
             <Select
               value={String(settings.layerMaxTraceSide ?? merged.maxTraceSide)}
               onChange={(value) =>
@@ -250,7 +299,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               ]}
             />
           </Field>
-          <Field label={`Minimum layer size (${settings.minRegionPercent ?? 0.35}%)`}>
+          <Field label={`Remove small color regions (${settings.minRegionPercent ?? 0.35}%)`}>
             <NumberInput
               value={settings.minRegionPercent ?? 0.35}
               min={0}
@@ -259,13 +308,13 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               onCommit={(value) => patch({ minRegionPercent: value } as Partial<TSettings>)}
             />
           </Field>
-          <Field label="Posterize colors">
+          <Field label="Simplify colors">
             <Checkbox
               checked={Boolean(settings.posterize)}
               onChange={(checked) => patch({ posterize: checked } as Partial<TSettings>)}
             />
           </Field>
-          <Field label={`Posterize strength (${merged.posterizeStrength})`}>
+          <Field label={`Color simplification (${merged.posterizeStrength})`}>
             <Range
               value={merged.posterizeStrength}
               min={2}
@@ -276,19 +325,19 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               }
             />
           </Field>
-          <Field label="Remove white background">
+          <Field label="Ignore white areas">
             <Checkbox
               checked={Boolean(settings.removeWhite)}
               onChange={(checked) => patch({ removeWhite: checked } as Partial<TSettings>)}
             />
           </Field>
-          <Field label="Remove transparent pixels">
+          <Field label="Ignore transparent pixels">
             <Checkbox
               checked={settings.removeTransparent !== false}
               onChange={(checked) => patch({ removeTransparent: checked } as Partial<TSettings>)}
             />
           </Field>
-          <Field label={`Color merge tolerance (${merged.colorMergeTolerance})`}>
+          <Field label={`Merge similar colors (${merged.colorMergeTolerance})`}>
             <Range
               value={merged.colorMergeTolerance}
               min={0}
@@ -317,7 +366,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
       <SettingSection title="Edges and cleanup">
         {capabilities.supportsEdgePreprocess && (
-          <Field label="Preprocess">
+            <Field label="Image preprocessing">
             <Select
               value={settings.preprocess}
               onChange={(value) =>
@@ -333,7 +382,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
         {settings.preprocess === "edge" && (
           <>
-            <Field label={`Blur sigma (${settings.blurSigma})`}>
+            <Field label={`Edge blur (${settings.blurSigma})`}>
               <NumberInput
                 value={settings.blurSigma}
                 min={0}
@@ -342,7 +391,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 onCommit={(value) => patch({ blurSigma: value } as Partial<TSettings>)}
               />
             </Field>
-            <Field label={`Edge boost (${settings.edgeBoost})`}>
+            <Field label={`Edge contrast (${settings.edgeBoost})`}>
               <NumberInput
                 value={settings.edgeBoost}
                 min={0.25}
@@ -351,7 +400,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 onCommit={(value) => patch({ edgeBoost: value } as Partial<TSettings>)}
               />
             </Field>
-            <Field label={`Edge threshold (${merged.edgeThreshold})`}>
+            <Field label={`Edge sensitivity (${merged.edgeThreshold})`}>
               <Range
                 value={merged.edgeThreshold}
                 min={0}
@@ -405,7 +454,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
         {showCleanup && (
           <>
-            <Field label={`Remove islands under ${merged.minIslandPx}px`}>
+            <Field label={`Remove tiny islands (${merged.minIslandPx}px)`}>
               <Range
                 value={merged.minIslandPx}
                 min={0}
@@ -416,7 +465,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 }
               />
             </Field>
-            <Field label={`Fill holes under ${merged.holeFillPx}px`}>
+            <Field label={`Fill tiny holes (${merged.holeFillPx}px)`}>
               <Range
                 value={merged.holeFillPx}
                 min={0}
@@ -427,7 +476,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 }
               />
             </Field>
-            <Field label={`Close gaps (${merged.gapCloseStrength})`}>
+            <Field label={`Close small gaps (${merged.gapCloseStrength})`}>
               <Range
                 value={merged.gapCloseStrength}
                 min={0}
@@ -443,43 +492,66 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       </SettingSection>
 
       {showSelectedColors && (
-        <SettingSection title="Remove selected colors">
-          <Field label="Color to remove">
-            <input
-              type="color"
-              value={draftColor}
-              onChange={(event) => setDraftColor(event.target.value)}
-              className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white"
-              aria-label="Pick color to remove"
-            />
-            <button
-              type="button"
-              onClick={addRemoveColor}
-              className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-800 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-            >
-              Add
-            </button>
-          </Field>
-          {(merged.removeColors || []).length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {(merged.removeColors || []).map((color) => (
+        <SettingSection title="Remove colors">
+          <p className="text-[12px] leading-5 text-slate-600">
+            Choose colors from the image or enter a custom color. Increase
+            tolerance to remove nearby shades.
+          </p>
+          {!removeColorsEnabled ? (
+            <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-600">
+              Uploaded SVG colors are edited in the layer controls after
+              upload. Remove colors applies to raster image tracing.
+            </div>
+          ) : (
+            <>
+              <DetectedColorSwatches
+                colors={detectedColors}
+                selectedColors={merged.removeColors || []}
+                onToggle={toggleRemoveColor}
+              />
+              <Field label="Custom color">
+                <input
+                  type="color"
+                  value={draftColor}
+                  onChange={(event) => setDraftColor(event.target.value)}
+                  className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  aria-label="Pick color to remove"
+                />
+                <input
+                  type="text"
+                  value={customColor}
+                  onChange={(event) => setCustomColor(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addCustomRemoveColor();
+                    }
+                  }}
+                  placeholder="#ff0000 or rgb(255,0,0)"
+                  aria-invalid={customColor.length > 0 && !normalizeColorInput(customColor)}
+                  className="min-w-0 flex-1 rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                />
                 <button
                   type="button"
-                  key={color}
-                  onClick={() => removeRemoveColor(color)}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  title={`Remove ${color} from list`}
+                  onClick={() => {
+                    if (customColor.trim()) {
+                      addCustomRemoveColor();
+                    } else {
+                      addRemoveColor();
+                    }
+                  }}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-800 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                 >
-                  <span
-                    className="h-3 w-3 rounded-sm border border-slate-300"
-                    style={{ background: color }}
-                    aria-hidden="true"
-                  />
-                  {color}
-                  <span aria-hidden="true">x</span>
+                  Add
                 </button>
-              ))}
-            </div>
+              </Field>
+            </>
+          )}
+          {(merged.removeColors || []).length > 0 && (
+            <RemoveColorChips
+              colors={merged.removeColors || []}
+              onRemove={removeRemoveColor}
+            />
           )}
           <Field label={`Color tolerance (${merged.removeColorTolerance})`}>
             <Range
@@ -610,7 +682,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       </SettingSection>
 
       {capabilities.supportsOutputGeometry && !capabilities.supportsCutFriendlyOutput && (
-        <SettingSection title="Output geometry">
+        <SettingSection title="Size and export">
           <Field label="SVG width">
             <NumberInput
               value={merged.outputWidth}
@@ -655,10 +727,23 @@ export function LayeredAdvancedSettingsPanel<
   settings,
   setSettings,
   capabilities,
+  detectedColorItems,
+  sourceFile,
+  removeColorsEnabled = true,
   buttonDisabled = false,
   onUpdatePreview,
 }: LayeredProps<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
+  const [customColor, setCustomColor] = React.useState("");
+  const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
+  const layerColors = React.useMemo(
+    () => collectDetectedRemoveColors(detectedColorItems),
+    [detectedColorItems],
+  );
+  const detectedColors = React.useMemo(
+    () => mergeDetectedColors(sourceColors, layerColors),
+    [sourceColors, layerColors],
+  );
 
   if (!open) return null;
 
@@ -668,11 +753,32 @@ export function LayeredAdvancedSettingsPanel<
     setSettings((current) => ({ ...current, ...patchValue }) as TSettings);
   }
 
-  function addRemoveColor() {
-    const normalized = normalizeHexColor(draftColor);
+  function addRemoveColorValue(value: string) {
+    const normalized = normalizeColorInput(value);
     if (!normalized) return;
     const next = normalizeColorList([...(merged.removeColors || []), normalized]);
     patch({ removeColors: next } as Partial<TSettings>);
+  }
+
+  function addRemoveColor() {
+    addRemoveColorValue(draftColor);
+  }
+
+  function addCustomRemoveColor() {
+    const normalized = normalizeColorInput(customColor);
+    if (!normalized) return;
+    addRemoveColorValue(normalized);
+    setCustomColor("");
+  }
+
+  function toggleRemoveColor(color: string) {
+    const normalized = normalizeColorInput(color);
+    if (!normalized) return;
+    if ((merged.removeColors || []).includes(normalized)) {
+      removeRemoveColor(normalized);
+      return;
+    }
+    addRemoveColorValue(normalized);
   }
 
   function removeRemoveColor(color: string) {
@@ -714,7 +820,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Trace detail size">
+        <Field label="Trace detail limit">
           <Select
             value={String(settings.maxTraceSide)}
             onChange={(value) =>
@@ -730,7 +836,7 @@ export function LayeredAdvancedSettingsPanel<
           ]}
         />
       </Field>
-        <Field label={`Minimum layer size (${settings.minRegionPercent}%)`}>
+        <Field label={`Remove small color regions (${settings.minRegionPercent}%)`}>
           <NumberInput
             value={settings.minRegionPercent}
             min={0}
@@ -741,7 +847,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Layer cleanup">
+        <Field label="Remove tiny specks">
           <NumberInput
             value={settings.turdSize}
             min={0}
@@ -752,7 +858,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Curve tolerance">
+        <Field label="Curve smoothing">
           <NumberInput
             value={settings.optTolerance}
             min={0.05}
@@ -763,7 +869,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Turn policy">
+        <Field label="Corner handling">
           <TurnPolicySelect
             value={settings.turnPolicy}
             onChange={(value) =>
@@ -771,7 +877,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Posterize colors">
+        <Field label="Simplify colors">
           <Checkbox
             checked={settings.posterize}
             onChange={(checked) =>
@@ -780,7 +886,7 @@ export function LayeredAdvancedSettingsPanel<
           />
         </Field>
         {settings.posterize && (
-          <Field label={`Posterize strength (${merged.posterizeStrength})`}>
+          <Field label={`Color simplification (${merged.posterizeStrength})`}>
             <Range
               value={merged.posterizeStrength}
               min={2}
@@ -792,7 +898,7 @@ export function LayeredAdvancedSettingsPanel<
             />
           </Field>
         )}
-        <Field label={`Color merge tolerance (${merged.colorMergeTolerance})`}>
+        <Field label={`Merge similar colors (${merged.colorMergeTolerance})`}>
           <Range
             value={merged.colorMergeTolerance}
             min={0}
@@ -819,43 +925,66 @@ export function LayeredAdvancedSettingsPanel<
       </SettingSection>
 
       {capabilities.supportsSelectedColorRemoval && (
-        <SettingSection title="Remove selected colors">
-          <Field label="Color to remove">
-            <input
-              type="color"
-              value={draftColor}
-              onChange={(event) => setDraftColor(event.target.value)}
-              className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white"
-              aria-label="Pick color to remove"
-            />
-            <button
-              type="button"
-              onClick={addRemoveColor}
-              className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-800 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-            >
-              Add
-            </button>
-          </Field>
-          {(merged.removeColors || []).length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {(merged.removeColors || []).map((color) => (
+        <SettingSection title="Remove colors">
+          <p className="text-[12px] leading-5 text-slate-600">
+            Choose colors from the image or enter a custom color. Increase
+            tolerance to remove nearby shades.
+          </p>
+          {!removeColorsEnabled ? (
+            <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-600">
+              Uploaded SVG colors are edited in the layer controls after
+              upload. Remove colors applies to raster image tracing.
+            </div>
+          ) : (
+            <>
+              <DetectedColorSwatches
+                colors={detectedColors}
+                selectedColors={merged.removeColors || []}
+                onToggle={toggleRemoveColor}
+              />
+              <Field label="Custom color">
+                <input
+                  type="color"
+                  value={draftColor}
+                  onChange={(event) => setDraftColor(event.target.value)}
+                  className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  aria-label="Pick color to remove"
+                />
+                <input
+                  type="text"
+                  value={customColor}
+                  onChange={(event) => setCustomColor(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addCustomRemoveColor();
+                    }
+                  }}
+                  placeholder="#ff0000 or rgb(255,0,0)"
+                  aria-invalid={customColor.length > 0 && !normalizeColorInput(customColor)}
+                  className="min-w-0 flex-1 rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                />
                 <button
                   type="button"
-                  key={color}
-                  onClick={() => removeRemoveColor(color)}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  title={`Remove ${color} from list`}
+                  onClick={() => {
+                    if (customColor.trim()) {
+                      addCustomRemoveColor();
+                    } else {
+                      addRemoveColor();
+                    }
+                  }}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-800 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                 >
-                  <span
-                    className="h-3 w-3 rounded-sm border border-slate-300"
-                    style={{ background: color }}
-                    aria-hidden="true"
-                  />
-                  {color}
-                  <span aria-hidden="true">x</span>
+                  Add
                 </button>
-              ))}
-            </div>
+              </Field>
+            </>
+          )}
+          {(merged.removeColors || []).length > 0 && (
+            <RemoveColorChips
+              colors={merged.removeColors || []}
+              onRemove={removeRemoveColor}
+            />
           )}
           <Field label={`Color tolerance (${merged.removeColorTolerance})`}>
             <Range
@@ -894,7 +1023,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Remove white background">
+        <Field label="Ignore white areas">
           <Checkbox
             checked={settings.removeWhite}
             onChange={(checked) =>
@@ -902,7 +1031,7 @@ export function LayeredAdvancedSettingsPanel<
             }
           />
         </Field>
-        <Field label="Remove transparent pixels">
+        <Field label="Ignore transparent pixels">
           <Checkbox
             checked={settings.removeTransparent}
             onChange={(checked) =>
@@ -1087,6 +1216,221 @@ export function AdvancedSettingsToggle({
   );
 }
 
+function DetectedColorSwatches({
+  colors,
+  selectedColors,
+  onToggle,
+}: {
+  colors: Array<{ color: string; label: string }>;
+  selectedColors: string[];
+  onToggle: (color: string) => void;
+}) {
+  if (colors.length === 0) {
+    return (
+      <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
+        Detected colors will appear here after a conversion or SVG upload.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
+      <div className="mb-1 text-[12px] font-semibold text-slate-700">
+        Detected colors
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {colors.map(({ color, label }) => {
+          const selected = selectedColors.includes(color);
+          return (
+            <button
+              type="button"
+              key={color}
+              onClick={() => onToggle(color)}
+              title={`${selected ? "Keep" : "Remove"} ${label}`}
+              aria-pressed={selected}
+              className={[
+                "inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                selected
+                  ? "border-[#0b2dff] bg-sky-50 text-slate-900 hover:bg-sky-100"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              <span
+                className="h-3.5 w-3.5 rounded-sm border border-slate-300"
+                style={{ background: color }}
+                aria-hidden="true"
+              />
+              {color}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RemoveColorChips({
+  colors,
+  onRemove,
+}: {
+  colors: string[];
+  onRemove: (color: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {colors.map((color) => (
+        <button
+          type="button"
+          key={color}
+          onClick={() => onRemove(color)}
+          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          title={`Remove ${color} from list`}
+        >
+          <span
+            className="h-3 w-3 rounded-sm border border-slate-300"
+            style={{ background: color }}
+            aria-hidden="true"
+          />
+          {color}
+          <span aria-hidden="true">x</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function collectDetectedRemoveColors(items?: DetectedColorItem[]) {
+  const out: Array<{ color: string; label: string }> = [];
+  const seen = new Set<string>();
+
+  for (const item of items || []) {
+    for (const layer of item.layers || []) {
+      for (const rawColor of [layer.color, layer.originalColor]) {
+        const color = normalizeColorInput(String(rawColor || ""));
+        if (!color || seen.has(color)) continue;
+        seen.add(color);
+        out.push({
+          color,
+          label: layer.label || layer.name || color,
+        });
+      }
+    }
+  }
+
+  return out.slice(0, 24);
+}
+
+function mergeDetectedColors(
+  sourceColors: Array<{ color: string; label: string }>,
+  layerColors: Array<{ color: string; label: string }>,
+) {
+  const out: Array<{ color: string; label: string }> = [];
+  const seen = new Set<string>();
+
+  for (const item of [...sourceColors, ...layerColors]) {
+    const color = normalizeColorInput(item.color);
+    if (!color || seen.has(color)) continue;
+    seen.add(color);
+    out.push({ color, label: item.label || color });
+  }
+
+  return out.slice(0, 28);
+}
+
+function useSourcePaletteColors(
+  sourceFile: File | null | undefined,
+  enabled: boolean,
+) {
+  const [colors, setColors] = React.useState<Array<{ color: string; label: string }>>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function detect() {
+      if (!enabled || !sourceFile || isSvgFile(sourceFile)) {
+        setColors([]);
+        return;
+      }
+
+      try {
+        objectUrl = URL.createObjectURL(sourceFile);
+        const image = new Image();
+        image.decoding = "async";
+        image.src = objectUrl;
+        await image.decode();
+        if (cancelled) return;
+
+        const canvas = document.createElement("canvas");
+        const maxSide = 72;
+        const scale = Math.min(
+          1,
+          maxSide / Math.max(image.naturalWidth || 1, image.naturalHeight || 1),
+        );
+        canvas.width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+        canvas.height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) {
+          setColors([]);
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        const buckets = new Map<string, { count: number; color: string }>();
+
+        for (let i = 0; i < data.length; i += 4) {
+          const alpha = data[i + 3];
+          if (alpha < 24) continue;
+          const r = quantizePaletteChannel(data[i]);
+          const g = quantizePaletteChannel(data[i + 1]);
+          const b = quantizePaletteChannel(data[i + 2]);
+          const color = rgbToHex(r, g, b);
+          const bucket = buckets.get(color) || { count: 0, color };
+          bucket.count += 1;
+          buckets.set(color, bucket);
+        }
+
+        const nextColors = Array.from(buckets.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 18)
+          .map((bucket) => ({
+            color: bucket.color,
+            label: `Source ${bucket.color}`,
+          }));
+
+        if (!cancelled) setColors(nextColors);
+      } catch {
+        if (!cancelled) setColors([]);
+      } finally {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
+    }
+
+    void detect();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [enabled, sourceFile]);
+
+  return colors;
+}
+
+function isSvgFile(file: File) {
+  return file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "");
+}
+
+function quantizePaletteChannel(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value / 24) * 24));
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b]
+    .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
 function SettingSection({
   title,
   children,
@@ -1112,7 +1456,9 @@ function Field({
   return (
     <label className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-[13px] text-slate-800">
       <span className="min-w-0 font-medium">{label}</span>
-      <span className="flex shrink-0 items-center gap-2">{children}</span>
+      <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+        {children}
+      </span>
     </label>
   );
 }

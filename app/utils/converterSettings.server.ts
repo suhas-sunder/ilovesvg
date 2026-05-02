@@ -218,7 +218,7 @@ function readColorList(value: FormDataEntryValue | null): string[] {
 
   const colors: string[] = [];
   for (const item of raw) {
-    const color = normalizeHexColor(String(item || ""));
+    const color = normalizeColorInput(String(item || ""));
     if (!color || colors.includes(color)) continue;
     colors.push(color);
     if (colors.length >= 12) break;
@@ -233,6 +233,27 @@ function normalizeHexColor(input: string): string | null {
     return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
   }
   return null;
+}
+
+function normalizeColorInput(input: string): string | null {
+  const hex = normalizeHexColor(input);
+  if (hex) return hex;
+
+  const match = input
+    .trim()
+    .match(/^rgba?\(\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)(?:\s*,\s*(?:0|1|0?\.\d+|[+-]?\d+(?:\.\d+)?%))?\s*\)$/i);
+  if (!match) return null;
+
+  const channels = match.slice(1, 4).map((part) => {
+    const value = Number(part);
+    if (!Number.isFinite(value)) return null;
+    return Math.max(0, Math.min(255, Math.round(value)));
+  });
+  if (channels.some((channel) => channel == null)) return null;
+
+  return `#${channels
+    .map((channel) => Number(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
 }
 
 function setSvgSizeAttributes(svg: string, width: number, height: number) {

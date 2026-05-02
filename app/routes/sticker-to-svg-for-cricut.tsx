@@ -1513,7 +1513,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
   function setHistoryLayer(
     stamp: number,
     layerId: string,
-    patch: Partial<Pick<EditableSvgLayer, "color" | "visible">>,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
   ) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -1681,6 +1681,9 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
                     settings={settings}
                     setSettings={setSettings}
                     capabilities={routeCapabilities}
+                    detectedColorItems={history}
+                    sourceFile={file}
+                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => { if (file) void submitFileForConversion(file, settings, "manual"); }}
                   />
