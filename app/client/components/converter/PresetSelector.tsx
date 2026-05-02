@@ -123,40 +123,38 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
         {expanded ? (
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
-              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                <div className="min-w-0">
-                  <label className="sr-only" htmlFor={searchInputId}>
-                    Search presets
-                  </label>
-                  <div className="relative min-w-0 flex-1">
-                    <input
-                      id={searchInputId}
-                      type="search"
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape" && query) {
-                          event.preventDefault();
-                          setQuery("");
-                        }
-                      }}
-                      placeholder="Search presets..."
-                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-sky-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
-                    />
-                    {query ? (
-                      <button
-                        type="button"
-                        onClick={() => setQuery("")}
-                        aria-label="Clear preset search"
-                        className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 cursor-pointer hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                      >
-                        <span aria-hidden="true">x</span>
-                      </button>
-                    ) : null}
-                  </div>
+              <div className="space-y-2">
+                <label className="sr-only" htmlFor={searchInputId}>
+                  Search presets
+                </label>
+                <div className="relative min-w-0">
+                  <input
+                    id={searchInputId}
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape" && query) {
+                        event.preventDefault();
+                        setQuery("");
+                      }
+                    }}
+                    placeholder="Search presets..."
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-sky-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                  />
+                  {query ? (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear preset search"
+                      className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 cursor-pointer hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      <span aria-hidden="true">x</span>
+                    </button>
+                  ) : null}
                 </div>
 
-                <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <label className="sr-only" htmlFor={`${searchInputId}-speed`}>
                     Filter presets by speed
                   </label>

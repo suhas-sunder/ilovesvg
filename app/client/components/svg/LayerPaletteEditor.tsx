@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useThrottledCommit } from "~/client/hooks/useThrottledCommit";
 
 export type SvgLayerKind = "fill" | "stroke";
 
@@ -42,10 +43,18 @@ type LayeredHistoryItem = {
   layers?: EditableSvgLayer[];
 };
 
+const layerEditSvgCache = new WeakMap<
+  EditableSvgLayer[],
+  { sourceSvg: string; editedSvg: string }
+>();
+
 export function applyLayerEditsToSvg(
   svg: string,
   layers: EditableSvgLayer[],
 ): string {
+  const cached = layerEditSvgCache.get(layers);
+  if (cached?.sourceSvg === svg) return cached.editedSvg;
+
   let out = svg;
 
   for (const layer of layers) {
@@ -124,6 +133,7 @@ export function applyLayerEditsToSvg(
     );
   }
 
+  layerEditSvgCache.set(layers, { sourceSvg: svg, editedSvg: out });
   return out;
 }
 
@@ -142,6 +152,12 @@ export function LayerPaletteEditor({
   onResetLayer: (layerId: string) => void;
   onResetAll: () => void;
 }) {
+  const [resetSignal, setResetSignal] = React.useState(0);
+  const handleResetAll = React.useCallback(() => {
+    setResetSignal((value) => value + 1);
+    onResetAll();
+  }, [onResetAll]);
+
   if (!item.layers?.length) return null;
 
   return (
@@ -152,7 +168,7 @@ export function LayerPaletteEditor({
         </span>
         <button
           type="button"
-          onClick={onResetAll}
+          onClick={handleResetAll}
           className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100"
         >
           Reset all
@@ -168,6 +184,7 @@ export function LayerPaletteEditor({
             onOpacityChange={onOpacityChange}
             onVisibilityChange={onVisibilityChange}
             onResetLayer={onResetLayer}
+            resetSignal={resetSignal}
           />
         ))}
       </div>
@@ -290,118 +307,93 @@ function LayerPaletteRow({
   onOpacityChange,
   onVisibilityChange,
   onResetLayer,
+  resetSignal,
 }: {
   layer: EditableSvgLayer;
   onColorChange: (layerId: string, color: string) => void;
   onOpacityChange?: (layerId: string, opacity: number) => void;
   onVisibilityChange: (layerId: string, visible: boolean) => void;
   onResetLayer: (layerId: string) => void;
+  resetSignal: number;
 }) {
-  const colorCommitThrottleMs = 90;
-  const opacityCommitThrottleMs = 90;
-  const [localColor, setLocalColor] = React.useState(layer.color);
-  const [localOpacity, setLocalOpacity] = React.useState(
-    Math.round(normalizeOpacity(layer.opacity) * 100),
+  const safeLayerColor =
+    normalizeHexColor(layer.color) ||
+    normalizeHexColor(layer.originalColor) ||
+    "#000000";
+  const colorCommit = useThrottledCommit({
+    value: safeLayerColor,
+    delayMs: 120,
+    normalize: normalizeHexColor,
+    onCommit: React.useCallback(
+      (color: string) => {
+        if (color !== normalizeHexColor(layer.color)) {
+          onColorChange(layer.id, color);
+        }
+      },
+      [layer.color, layer.id, onColorChange],
+    ),
+  });
+  const opacityCommit = useThrottledCommit({
+    value: Math.round(normalizeOpacity(layer.opacity) * 100),
+    delayMs: 120,
+    normalize: normalizeOpacityPercent,
+    onCommit: React.useCallback(
+      (opacityPercent: number) => {
+        if (!onOpacityChange) return;
+        const opacity = normalizeOpacity(opacityPercent / 100);
+        if (opacity !== normalizeOpacity(layer.opacity)) {
+          onOpacityChange(layer.id, opacity);
+        }
+      },
+      [layer.id, layer.opacity, onOpacityChange],
+    ),
+  });
+
+  const resetLayer = React.useCallback(() => {
+    colorCommit.cancel();
+    opacityCommit.cancel();
+    onResetLayer(layer.id);
+  }, [colorCommit, layer.id, onResetLayer, opacityCommit]);
+
+  const handleColorInput = React.useCallback(
+    (event: React.FormEvent<HTMLInputElement>) => {
+      colorCommit.schedule(event.currentTarget.value);
+    },
+    [colorCommit],
   );
-  const latestColorRef = React.useRef(layer.color);
-  const latestOpacityRef = React.useRef(normalizeOpacity(layer.opacity));
-  const lastCommitAtRef = React.useRef(0);
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastOpacityCommitAtRef = React.useRef(0);
-  const opacityTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
+
+  const handleColorChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      colorCommit.flush(event.currentTarget.value);
+    },
+    [colorCommit],
+  );
+
+  const flushColor = React.useCallback(() => colorCommit.flush(), [colorCommit]);
+
+  const handleOpacityInput = React.useCallback(
+    (event: React.FormEvent<HTMLInputElement>) => {
+      opacityCommit.schedule(Number(event.currentTarget.value));
+    },
+    [opacityCommit],
+  );
+
+  const handleOpacityChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      opacityCommit.flush(Number(event.currentTarget.value));
+    },
+    [opacityCommit],
+  );
+
+  const flushOpacity = React.useCallback(
+    () => opacityCommit.flush(),
+    [opacityCommit],
   );
 
   React.useEffect(() => {
-    setLocalColor((current) => (current === layer.color ? current : layer.color));
-    latestColorRef.current = layer.color;
-  }, [layer.color]);
-
-  React.useEffect(() => {
-    const nextOpacity = normalizeOpacity(layer.opacity);
-    const nextPercent = Math.round(nextOpacity * 100);
-    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
-    latestOpacityRef.current = nextOpacity;
-  }, [layer.opacity]);
-
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (opacityTimeoutRef.current) clearTimeout(opacityTimeoutRef.current);
-    };
-  }, []);
-
-  function commitColorNow(color = latestColorRef.current) {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
-    lastCommitAtRef.current =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-
-    onColorChange(layer.id, color);
-  }
-
-  function queueColorCommit(nextColor: string) {
-    latestColorRef.current = nextColor;
-    setLocalColor((current) => (current === nextColor ? current : nextColor));
-
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    const elapsed = now - lastCommitAtRef.current;
-    const remaining = colorCommitThrottleMs - elapsed;
-
-    if (remaining <= 0) {
-      commitColorNow(nextColor);
-      return;
-    }
-
-    if (timeoutRef.current) return;
-
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      commitColorNow(latestColorRef.current);
-    }, remaining);
-  }
-
-  function commitOpacityNow(opacity = latestOpacityRef.current) {
-    if (!onOpacityChange) return;
-    if (opacityTimeoutRef.current) {
-      clearTimeout(opacityTimeoutRef.current);
-      opacityTimeoutRef.current = null;
-    }
-
-    lastOpacityCommitAtRef.current =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-
-    onOpacityChange(layer.id, normalizeOpacity(opacity));
-  }
-
-  function queueOpacityCommit(nextValue: number) {
-    const nextOpacity = normalizeOpacity(nextValue / 100);
-    latestOpacityRef.current = nextOpacity;
-    const nextPercent = Math.round(nextOpacity * 100);
-    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
-    if (!onOpacityChange) return;
-
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    const elapsed = now - lastOpacityCommitAtRef.current;
-    const remaining = opacityCommitThrottleMs - elapsed;
-
-    if (remaining <= 0) {
-      commitOpacityNow(nextOpacity);
-      return;
-    }
-
-    if (opacityTimeoutRef.current) return;
-
-    opacityTimeoutRef.current = setTimeout(() => {
-      opacityTimeoutRef.current = null;
-      commitOpacityNow(latestOpacityRef.current);
-    }, remaining);
-  }
+    colorCommit.cancel();
+    opacityCommit.cancel();
+  }, [colorCommit.cancel, opacityCommit.cancel, resetSignal]);
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
@@ -416,12 +408,13 @@ function LayerPaletteRow({
 
         <input
           type="color"
-          value={localColor}
-          onChange={(event) => queueColorCommit(event.target.value)}
-          onPointerUp={() => commitColorNow()}
-          onMouseUp={() => commitColorNow()}
-          onTouchEnd={() => commitColorNow()}
-          onBlur={() => commitColorNow()}
+          value={colorCommit.draft}
+          onInput={handleColorInput}
+          onChange={handleColorChange}
+          onPointerUp={flushColor}
+          onMouseUp={flushColor}
+          onTouchEnd={flushColor}
+          onBlur={flushColor}
           title={`Change ${layer.label} color`}
           className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
@@ -433,18 +426,19 @@ function LayerPaletteRow({
 
       {onOpacityChange && (
         <label className="flex min-w-[140px] items-center gap-1.5 text-[11px] text-slate-600">
-          <span className="shrink-0">Opacity {localOpacity}%</span>
+          <span className="shrink-0">Opacity {opacityCommit.draft}%</span>
           <input
             type="range"
             min={0}
             max={100}
             step={1}
-            value={localOpacity}
-            onChange={(event) => queueOpacityCommit(Number(event.target.value))}
-            onPointerUp={() => commitOpacityNow()}
-            onMouseUp={() => commitOpacityNow()}
-            onTouchEnd={() => commitOpacityNow()}
-            onBlur={() => commitOpacityNow()}
+            value={opacityCommit.draft}
+            onInput={handleOpacityInput}
+            onChange={handleOpacityChange}
+            onPointerUp={flushOpacity}
+            onMouseUp={flushOpacity}
+            onTouchEnd={flushOpacity}
+            onBlur={flushOpacity}
             className="min-w-0 flex-1 cursor-pointer accent-[#0b2dff]"
           />
         </label>
@@ -452,7 +446,7 @@ function LayerPaletteRow({
 
       <button
         type="button"
-        onClick={() => onResetLayer(layer.id)}
+        onClick={resetLayer}
         className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
       >
         Reset
@@ -575,6 +569,25 @@ function applyOpacityAttribute(attrs: string, opacity?: number): string {
 function normalizeOpacity(value?: number): number {
   if (!Number.isFinite(value)) return 1;
   return Math.max(0, Math.min(1, Number(value)));
+}
+
+function normalizeOpacityPercent(value: number): number {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 100;
+  return Math.round(Math.max(0, Math.min(100, number)));
+}
+
+function normalizeHexColor(value: string): string | null {
+  const raw = String(value || "").trim().toLowerCase();
+  const short = raw.match(/^#?([0-9a-f]{3})$/i);
+  if (short) {
+    const [r, g, b] = short[1].split("");
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+
+  const full = raw.match(/^#?([0-9a-f]{6})$/i);
+  if (!full) return null;
+  return `#${full[1]}`;
 }
 
 function formatOpacity(value: number): string {

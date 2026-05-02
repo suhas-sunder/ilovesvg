@@ -1881,6 +1881,10 @@ function OutputLayerStyleRow({
   const opacityTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
+    if (colorTimerRef.current) {
+      clearTimeout(colorTimerRef.current);
+      colorTimerRef.current = null;
+    }
     const next = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
     setLocalColor((current) => (current === next ? current : next));
     setColorText((current) => (current === next ? current : next));
@@ -1890,6 +1894,10 @@ function OutputLayerStyleRow({
   }, [layer.color, layer.originalColor]);
 
   React.useEffect(() => {
+    if (opacityTimerRef.current) {
+      clearTimeout(opacityTimerRef.current);
+      opacityTimerRef.current = null;
+    }
     const nextOpacity = normalizeOpacity(layer.opacity);
     const nextPercent = Math.round(nextOpacity * 100);
     setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
@@ -1918,7 +1926,9 @@ function OutputLayerStyleRow({
     const nextRgb = hexToRgbParts(normalized);
     setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestColorRef.current = normalized;
-    onOutputLayerChange?.(layer.id, { color: normalized });
+    if (normalized !== normalizeColorInput(layer.color || "")) {
+      onOutputLayerChange?.(layer.id, { color: normalized });
+    }
   }
 
   function queueColorCommit(value: string) {
@@ -1951,7 +1961,9 @@ function OutputLayerStyleRow({
     latestOpacityRef.current = opacity;
     const nextPercent = Math.round(opacity * 100);
     setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
-    onOutputLayerChange?.(layer.id, { opacity });
+    if (opacity !== normalizeOpacity(layer.opacity)) {
+      onOutputLayerChange?.(layer.id, { opacity });
+    }
   }
 
   function queueOpacityCommit(percent: number) {
@@ -1984,7 +1996,8 @@ function OutputLayerStyleRow({
         <input
           type="color"
           value={normalizeColorInput(localColor) || normalizedColor}
-          onChange={(event) => queueColorCommit(event.target.value)}
+          onInput={(event) => queueColorCommit(event.currentTarget.value)}
+          onChange={(event) => commitColorNow(event.currentTarget.value)}
           onPointerUp={() => commitColorNow()}
           onMouseUp={() => commitColorNow()}
           onTouchEnd={() => commitColorNow()}
@@ -2061,7 +2074,8 @@ function OutputLayerStyleRow({
           max={100}
           step={1}
           value={localOpacity}
-          onChange={(event) => queueOpacityCommit(Number(event.target.value))}
+          onInput={(event) => queueOpacityCommit(Number(event.currentTarget.value))}
+          onChange={(event) => commitOpacityNow(Number(event.currentTarget.value) / 100)}
           onPointerUp={() => commitOpacityNow()}
           onMouseUp={() => commitOpacityNow()}
           onTouchEnd={() => commitOpacityNow()}
@@ -2618,8 +2632,8 @@ function ColorInput({
     }, 100);
   }
 
-  function flush() {
-    const normalized = normalizeColorInput(textValue) || latestRef.current;
+  function flush(nextValue = textValue) {
+    const normalized = normalizeColorInput(nextValue) || latestRef.current;
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -2646,11 +2660,16 @@ function ColorInput({
         value={localValue}
         disabled={disabled}
         title={title}
-        onChange={(event) => schedule(event.target.value)}
-        onPointerUp={flush}
-        onMouseUp={flush}
-        onTouchEnd={flush}
-        onBlur={flush}
+        onInput={(event) => schedule(event.currentTarget.value)}
+        onChange={(event) => {
+          const nextValue = event.currentTarget.value;
+          schedule(nextValue);
+          flush(nextValue);
+        }}
+        onPointerUp={() => flush()}
+        onMouseUp={() => flush()}
+        onTouchEnd={() => flush()}
+        onBlur={() => flush()}
         className={[
           "h-7 w-10 rounded-md border border-[#dbe3ef] bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
           disabled ? "opacity-50 pointer-events-none" : "",
@@ -2668,7 +2687,7 @@ function ColorInput({
             flush();
           }
         }}
-        onBlur={flush}
+        onBlur={() => flush()}
         aria-invalid={!normalizeColorInput(textValue)}
         className={[
           "w-[104px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
@@ -2695,7 +2714,7 @@ function ColorInput({
               value={rgbValue[channel]}
               disabled={disabled}
               onChange={(event) => updateRgb(channel, event.target.value)}
-              onBlur={flush}
+              onBlur={() => flush()}
               aria-label={`${channel.toUpperCase()} color channel`}
               className="w-14 rounded-md border border-[#dbe3ef] bg-white px-1 py-1 text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             />
