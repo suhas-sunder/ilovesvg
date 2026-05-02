@@ -1,4 +1,5 @@
 import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -963,6 +964,8 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
@@ -1427,7 +1430,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
               </h1>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

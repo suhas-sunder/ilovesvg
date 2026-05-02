@@ -1,4 +1,5 @@
 import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -1805,6 +1806,8 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
@@ -2355,7 +2358,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
               <h2 className="m-0 mb-3 text-lg text-slate-900">JPG input</h2>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

@@ -188,6 +188,12 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 }: Props<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
   const [customColor, setCustomColor] = React.useState("");
+  const [openLiveSection, setOpenLiveSection] = React.useState<string | null>(
+    null,
+  );
+  const [openConvertSection, setOpenConvertSection] = React.useState<
+    string | null
+  >(null);
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
   const detectedColors = sourceColors;
   const outputLayers = React.useMemo(
@@ -251,39 +257,103 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-        <div className="min-w-0">
-          <div className="text-[13px] font-bold text-sky-950">
-            Advanced settings (Click Convert)
-          </div>
-          <span>
-            These settings change the next server trace. Click Update preview
-            or Convert to generate a new SVG from them.
-          </span>
-          {helpHref ? (
-            <a
-              href={helpHref}
-              className="ml-2 inline-flex font-semibold text-[#0b2dff] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-            >
-              Learn what each setting does
-            </a>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={onUpdatePreview}
-          disabled={buttonDisabled}
-          className={[
-            "shrink-0 rounded-md border px-2.5 py-1 font-semibold transition-colors cursor-pointer",
-            "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
-          ].join(" ")}
-        >
-          Update preview
-        </button>
-      </div>
+      <AdvancedTopLevelSection
+        title="Advanced settings (Live Preview)"
+        description="These settings edit the current output preview directly when output data is available."
+        tone="live"
+      >
+        {(capabilities.supportsLayerEditing ||
+          (capabilities.supportsOutputGeometry &&
+            !capabilities.supportsCutFriendlyOutput)) && (
+          <LivePreviewSettingsHeader
+            outputTargets={outputTargets}
+            activeOutputId={activeOutputId}
+            onActiveOutputChange={onActiveOutputChange}
+          />
+        )}
 
-      <SettingSection title="Line tracing">
+        {capabilities.supportsLayerEditing && (
+          <>
+            <OutputColorRemovalSection
+              layers={outputLayers}
+              onOutputLayerChange={onOutputLayerChange}
+              onResetOutputLayer={onResetOutputLayer}
+              sectionId={`${id}-live-output-colors`}
+              open={openLiveSection === "output-colors"}
+              onToggle={() =>
+                toggleAccordionSection(setOpenLiveSection, "output-colors")
+              }
+            />
+            <OutputLayerStylingSection
+              layers={outputLayers}
+              onOutputLayerChange={onOutputLayerChange}
+              onResetOutputLayer={onResetOutputLayer}
+              onResetAllOutputLayers={onResetAllOutputLayers}
+              sectionId={`${id}-live-layer-styling`}
+              open={openLiveSection === "layer-styling"}
+              onToggle={() =>
+                toggleAccordionSection(setOpenLiveSection, "layer-styling")
+              }
+            />
+          </>
+        )}
+
+        {capabilities.supportsOutputGeometry &&
+          !capabilities.supportsCutFriendlyOutput && (
+            <SettingSection
+              title="Size and export"
+              sectionId={`${id}-live-size-export`}
+              open={openLiveSection === "size-export"}
+              onToggle={() =>
+                toggleAccordionSection(setOpenLiveSection, "size-export")
+              }
+            >
+              <OutputSizeControls
+                settings={merged}
+                outputSize={outputSize}
+                onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
+                onOutputSizeChange={onOutputSizeChange}
+              />
+            </SettingSection>
+          )}
+      </AdvancedTopLevelSection>
+
+      <AdvancedTopLevelSection
+        title="Advanced settings (Click to convert)"
+        description="These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them."
+        tone="convert"
+        action={
+          <button
+            type="button"
+            onClick={onUpdatePreview}
+            disabled={buttonDisabled}
+            className={[
+              "shrink-0 rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors cursor-pointer",
+              "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+              "disabled:opacity-60 disabled:cursor-not-allowed",
+            ].join(" ")}
+          >
+            Update preview
+          </button>
+        }
+      >
+        {helpHref ? (
+          <a
+            href={helpHref}
+            className="inline-flex w-fit text-[12px] font-semibold text-[#0b2dff] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Learn what each setting does
+          </a>
+        ) : null}
+
+      <SettingSection
+        title="Line tracing"
+        sectionId={`${id}-convert-line-tracing`}
+        open={openConvertSection === "line-tracing"}
+        onToggle={() =>
+          toggleAccordionSection(setOpenConvertSection, "line-tracing")
+        }
+      >
         {capabilities.supportsLayeredTrace && capabilities.supportsSingleTrace && (
           <Field label="SVG mode">
             <Select
@@ -354,7 +424,14 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       </SettingSection>
 
       {showLayered && (
-        <SettingSection title="Color and layers">
+        <SettingSection
+          title="Color and layers"
+          sectionId={`${id}-convert-color-layers`}
+          open={openConvertSection === "color-layers"}
+          onToggle={() =>
+            toggleAccordionSection(setOpenConvertSection, "color-layers")
+          }
+        >
           <Field label={`Color layers (${settings.colorLayerCount ?? 5})`}>
             <Range
               value={settings.colorLayerCount ?? 5}
@@ -448,7 +525,14 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         </SettingSection>
       )}
 
-      <SettingSection title="Edges and cleanup">
+      <SettingSection
+        title="Edges and cleanup"
+        sectionId={`${id}-convert-edges-cleanup`}
+        open={openConvertSection === "edges-cleanup"}
+        onToggle={() =>
+          toggleAccordionSection(setOpenConvertSection, "edges-cleanup")
+        }
+      >
         {capabilities.supportsEdgePreprocess && (
             <Field label="Image preprocessing">
             <Select
@@ -576,7 +660,14 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       </SettingSection>
 
       {showSelectedColors && (
-        <SettingSection title="Remove detected input colors">
+        <SettingSection
+          title="Remove detected input colors"
+          sectionId={`${id}-convert-input-colors`}
+          open={openConvertSection === "input-colors"}
+          onToggle={() =>
+            toggleAccordionSection(setOpenConvertSection, "input-colors")
+          }
+        >
           <p className="text-[12px] leading-5 text-slate-600">
             These are colors sampled from the uploaded image before tracing.
             Use this to influence how the SVG is generated.
@@ -670,7 +761,14 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         </SettingSection>
       )}
 
-      <SettingSection title="Appearance">
+      <SettingSection
+        title="Appearance"
+        sectionId={`${id}-convert-appearance`}
+        open={openConvertSection === "appearance"}
+        onToggle={() =>
+          toggleAccordionSection(setOpenConvertSection, "appearance")
+        }
+      >
         {showSingleTrace && (
           <>
             <Field label="Line color">
@@ -775,42 +873,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         )}
       </SettingSection>
 
-      {(capabilities.supportsLayerEditing ||
-        (capabilities.supportsOutputGeometry &&
-          !capabilities.supportsCutFriendlyOutput)) && (
-        <LivePreviewSettingsHeader
-          outputTargets={outputTargets}
-          activeOutputId={activeOutputId}
-          onActiveOutputChange={onActiveOutputChange}
-        />
-      )}
-
-      {capabilities.supportsLayerEditing && (
-        <>
-          <OutputColorRemovalSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-          />
-          <OutputLayerStylingSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-            onResetAllOutputLayers={onResetAllOutputLayers}
-          />
-        </>
-      )}
-
-      {capabilities.supportsOutputGeometry && !capabilities.supportsCutFriendlyOutput && (
-        <SettingSection title="Size and export">
-          <OutputSizeControls
-            settings={merged}
-            outputSize={outputSize}
-            onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
-            onOutputSizeChange={onOutputSizeChange}
-          />
-        </SettingSection>
-      )}
+      </AdvancedTopLevelSection>
     </div>
   );
 }
@@ -841,6 +904,12 @@ export function LayeredAdvancedSettingsPanel<
 }: LayeredProps<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
   const [customColor, setCustomColor] = React.useState("");
+  const [openLiveSection, setOpenLiveSection] = React.useState<string | null>(
+    null,
+  );
+  const [openConvertSection, setOpenConvertSection] = React.useState<
+    string | null
+  >(null);
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
   const detectedColors = sourceColors;
   const outputLayers = React.useMemo(
@@ -898,39 +967,101 @@ export function LayeredAdvancedSettingsPanel<
 
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-        <div className="min-w-0">
-          <div className="text-[13px] font-bold text-sky-950">
-            Advanced settings (Click Convert)
-          </div>
-          <span>
-            These settings change the next layered trace. Click Update preview
-            or Convert to generate a new SVG from them.
-          </span>
-          {helpHref ? (
-            <a
-              href={helpHref}
-              className="ml-2 inline-flex font-semibold text-[#0b2dff] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-            >
-              Learn what each setting does
-            </a>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={onUpdatePreview}
-          disabled={buttonDisabled}
-          className={[
-            "shrink-0 rounded-md border px-2.5 py-1 font-semibold transition-colors cursor-pointer",
-            "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
-          ].join(" ")}
-        >
-          Update preview
-        </button>
-      </div>
+      <AdvancedTopLevelSection
+        title="Advanced settings (Live Preview)"
+        description="These settings edit the current layered SVG preview directly when output data is available."
+        tone="live"
+      >
+        {(capabilities.supportsLayerEditing ||
+          capabilities.supportsOutputGeometry) && (
+          <LivePreviewSettingsHeader
+            outputTargets={outputTargets}
+            activeOutputId={activeOutputId}
+            onActiveOutputChange={onActiveOutputChange}
+          />
+        )}
 
-      <SettingSection title="Color and layers">
+        {capabilities.supportsLayerEditing && (
+          <>
+            <OutputColorRemovalSection
+              layers={outputLayers}
+              onOutputLayerChange={onOutputLayerChange}
+              onResetOutputLayer={onResetOutputLayer}
+              sectionId={`${id}-live-output-colors`}
+              open={openLiveSection === "output-colors"}
+              onToggle={() =>
+                toggleAccordionSection(setOpenLiveSection, "output-colors")
+              }
+            />
+            <OutputLayerStylingSection
+              layers={outputLayers}
+              onOutputLayerChange={onOutputLayerChange}
+              onResetOutputLayer={onResetOutputLayer}
+              onResetAllOutputLayers={onResetAllOutputLayers}
+              sectionId={`${id}-live-layer-styling`}
+              open={openLiveSection === "layer-styling"}
+              onToggle={() =>
+                toggleAccordionSection(setOpenLiveSection, "layer-styling")
+              }
+            />
+          </>
+        )}
+
+        {capabilities.supportsOutputGeometry && (
+          <SettingSection
+            title="Size and export"
+            sectionId={`${id}-live-size-export`}
+            open={openLiveSection === "size-export"}
+            onToggle={() =>
+              toggleAccordionSection(setOpenLiveSection, "size-export")
+            }
+          >
+            <OutputSizeControls
+              settings={merged}
+              outputSize={outputSize}
+              onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
+              onOutputSizeChange={onOutputSizeChange}
+            />
+          </SettingSection>
+        )}
+      </AdvancedTopLevelSection>
+
+      <AdvancedTopLevelSection
+        title="Advanced settings (Click to convert)"
+        description="These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them."
+        tone="convert"
+        action={
+          <button
+            type="button"
+            onClick={onUpdatePreview}
+            disabled={buttonDisabled}
+            className={[
+              "shrink-0 rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors cursor-pointer",
+              "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+              "disabled:opacity-60 disabled:cursor-not-allowed",
+            ].join(" ")}
+          >
+            Update preview
+          </button>
+        }
+      >
+        {helpHref ? (
+          <a
+            href={helpHref}
+            className="inline-flex w-fit text-[12px] font-semibold text-[#0b2dff] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Learn what each setting does
+          </a>
+        ) : null}
+
+      <SettingSection
+        title="Color and layers"
+        sectionId={`${id}-convert-color-layers`}
+        open={openConvertSection === "color-layers"}
+        onToggle={() =>
+          toggleAccordionSection(setOpenConvertSection, "color-layers")
+        }
+      >
         <Field label={`Layer count (${settings.layerCount})`}>
           <Range
             value={settings.layerCount}
@@ -1047,7 +1178,14 @@ export function LayeredAdvancedSettingsPanel<
       </SettingSection>
 
       {capabilities.supportsSelectedColorRemoval && (
-        <SettingSection title="Remove detected input colors">
+        <SettingSection
+          title="Remove detected input colors"
+          sectionId={`${id}-convert-input-colors`}
+          open={openConvertSection === "input-colors"}
+          onToggle={() =>
+            toggleAccordionSection(setOpenConvertSection, "input-colors")
+          }
+        >
           <p className="text-[12px] leading-5 text-slate-600">
             These are colors sampled from the uploaded image before tracing.
             Use this to influence how the SVG is generated.
@@ -1124,7 +1262,14 @@ export function LayeredAdvancedSettingsPanel<
         </SettingSection>
       )}
 
-      <SettingSection title="Edges and cleanup">
+      <SettingSection
+        title="Edges and cleanup"
+        sectionId={`${id}-convert-edges-cleanup`}
+        open={openConvertSection === "edges-cleanup"}
+        onToggle={() =>
+          toggleAccordionSection(setOpenConvertSection, "edges-cleanup")
+        }
+      >
         <Field label={`Brightness (${merged.brightness})`}>
           <Range
             value={merged.brightness}
@@ -1166,7 +1311,14 @@ export function LayeredAdvancedSettingsPanel<
       </SettingSection>
 
       {capabilities.supportsBackground && (
-        <SettingSection title="Appearance">
+        <SettingSection
+          title="Appearance"
+          sectionId={`${id}-convert-appearance`}
+          open={openConvertSection === "appearance"}
+          onToggle={() =>
+            toggleAccordionSection(setOpenConvertSection, "appearance")
+          }
+        >
           <Field label="Transparent background">
             <Checkbox
               checked={settings.transparent}
@@ -1221,41 +1373,7 @@ export function LayeredAdvancedSettingsPanel<
         </SettingSection>
       )}
 
-      {(capabilities.supportsLayerEditing ||
-        capabilities.supportsOutputGeometry) && (
-        <LivePreviewSettingsHeader
-          outputTargets={outputTargets}
-          activeOutputId={activeOutputId}
-          onActiveOutputChange={onActiveOutputChange}
-        />
-      )}
-
-      {capabilities.supportsLayerEditing && (
-        <>
-          <OutputColorRemovalSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-          />
-          <OutputLayerStylingSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-            onResetAllOutputLayers={onResetAllOutputLayers}
-          />
-        </>
-      )}
-
-      {capabilities.supportsOutputGeometry && (
-        <SettingSection title="Size and export">
-          <OutputSizeControls
-            settings={merged}
-            outputSize={outputSize}
-            onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
-            onOutputSizeChange={onOutputSizeChange}
-          />
-        </SettingSection>
-      )}
+      </AdvancedTopLevelSection>
     </div>
   );
 }
@@ -1269,6 +1387,9 @@ export function SvgRasterExportSettingsPanel<
   setSettings,
   aspect,
 }: SvgRasterExportProps<TSettings>) {
+  const [openLiveSection, setOpenLiveSection] = React.useState<string | null>(
+    null,
+  );
   if (!open) return null;
 
   function patch(patchValue: Partial<TSettings>) {
@@ -1320,78 +1441,110 @@ export function SvgRasterExportSettingsPanel<
 
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
-      <SettingSection title="SVG/raster export">
-        <Field label="Output width (px)">
-          <NumberInput
-            value={settings.width}
-            min={16}
-            max={16384}
-            step={1}
-            onCommit={setWidth}
-          />
-        </Field>
-        <Field label="Output height (px)">
-          <NumberInput
-            value={settings.height}
-            min={16}
-            max={16384}
-            step={1}
-            onCommit={setHeight}
-          />
-        </Field>
-        <Field label="Lock aspect ratio">
-          <Checkbox checked={settings.lockAspect} onChange={setLockAspect} />
-        </Field>
-        <Field label="Quality (pixel ratio)">
-          <Select
-            value={String(settings.dpiScale)}
-            onChange={(value) =>
-              patch({ dpiScale: Number(value) } as Partial<TSettings>)
-            }
-            options={[
-              ["1", "1x"],
-              ["2", "2x"],
-              ["3", "3x"],
-              ["4", "4x"],
-            ]}
-          />
-        </Field>
-        <Field label="Anti-aliasing">
-          <Checkbox
-            checked={settings.antiAlias}
-            onChange={(checked) =>
-              patch({ antiAlias: checked } as Partial<TSettings>)
-            }
-          />
-        </Field>
-      </SettingSection>
-
-      <SettingSection title="Appearance">
-        <Field label="Background">
-          <Select
-            value={settings.background}
-            onChange={(value) =>
-              patch({
-                background: value as SvgRasterExportSettings["background"],
-              } as Partial<TSettings>)
-            }
-            options={[
-              ["transparent", "Transparent"],
-              ["solid", "Solid color"],
-            ]}
-          />
-        </Field>
-        {settings.background === "solid" && (
-          <Field label="Background color">
-            <ColorInput
-              value={settings.bgColor}
-              onCommit={(value) =>
-                patch({ bgColor: value } as Partial<TSettings>)
+      <AdvancedTopLevelSection
+        title="Advanced settings (Live Preview)"
+        description="These settings update the browser-rendered raster preview before download."
+        tone="live"
+      >
+        <SettingSection
+          title="SVG/raster export"
+          sectionId={`${id}-live-raster-export`}
+          open={openLiveSection === "raster-export"}
+          onToggle={() =>
+            toggleAccordionSection(setOpenLiveSection, "raster-export")
+          }
+        >
+          <Field label="Output width (px)">
+            <NumberInput
+              value={settings.width}
+              min={16}
+              max={16384}
+              step={1}
+              onCommit={setWidth}
+            />
+          </Field>
+          <Field label="Output height (px)">
+            <NumberInput
+              value={settings.height}
+              min={16}
+              max={16384}
+              step={1}
+              onCommit={setHeight}
+            />
+          </Field>
+          <Field label="Lock aspect ratio">
+            <Checkbox checked={settings.lockAspect} onChange={setLockAspect} />
+          </Field>
+          <Field label="Quality (pixel ratio)">
+            <Select
+              value={String(settings.dpiScale)}
+              onChange={(value) =>
+                patch({ dpiScale: Number(value) } as Partial<TSettings>)
+              }
+              options={[
+                ["1", "1x"],
+                ["2", "2x"],
+                ["3", "3x"],
+                ["4", "4x"],
+              ]}
+            />
+          </Field>
+          <Field label="Anti-aliasing">
+            <Checkbox
+              checked={settings.antiAlias}
+              onChange={(checked) =>
+                patch({ antiAlias: checked } as Partial<TSettings>)
               }
             />
           </Field>
-        )}
-      </SettingSection>
+        </SettingSection>
+
+        <SettingSection
+          title="Appearance"
+          sectionId={`${id}-live-raster-appearance`}
+          open={openLiveSection === "raster-appearance"}
+          onToggle={() =>
+            toggleAccordionSection(setOpenLiveSection, "raster-appearance")
+          }
+        >
+          <Field label="Background">
+            <Select
+              value={settings.background}
+              onChange={(value) =>
+                patch({
+                  background: value as SvgRasterExportSettings["background"],
+                } as Partial<TSettings>)
+              }
+              options={[
+                ["transparent", "Transparent"],
+                ["solid", "Solid color"],
+              ]}
+            />
+          </Field>
+          {settings.background === "solid" && (
+            <Field label="Background color">
+              <ColorInput
+                value={settings.bgColor}
+                onCommit={(value) =>
+                  patch({ bgColor: value } as Partial<TSettings>)
+                }
+              />
+            </Field>
+          )}
+        </SettingSection>
+      </AdvancedTopLevelSection>
+
+      <AdvancedTopLevelSection
+        title="Advanced settings (Click to convert)"
+        description="SVG-to-raster export does not retrace the image. Click Convert to finalize the current preview settings into a downloadable file."
+        tone="convert"
+      >
+        <p className="m-0 rounded-md border border-indigo-100 bg-white/70 px-3 py-2 text-[12px] leading-5 text-slate-600">
+          Convert uses the live preview settings above for the final raster
+          export. Raster export pages intentionally do not show image-tracing
+          controls.
+        </p>
+      </AdvancedTopLevelSection>
     </div>
   );
 }
@@ -1513,13 +1666,24 @@ function OutputColorRemovalSection({
   layers,
   onOutputLayerChange,
   onResetOutputLayer,
+  sectionId,
+  open,
+  onToggle,
 }: {
   layers: OutputLayerControlItem[];
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
   onResetOutputLayer?: (layerId: string) => void;
+  sectionId?: string;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   return (
-    <SettingSection title="Remove detected output colors">
+    <SettingSection
+      title="Remove detected output colors"
+      sectionId={sectionId}
+      open={open}
+      onToggle={onToggle}
+    >
       <p className="text-[12px] leading-5 text-slate-600">
         These are colors currently present in the generated SVG output. Use this
         to remove final SVG colors directly without guessing which source colors
@@ -1634,14 +1798,25 @@ function OutputLayerStylingSection({
   onOutputLayerChange,
   onResetOutputLayer,
   onResetAllOutputLayers,
+  sectionId,
+  open,
+  onToggle,
 }: {
   layers: OutputLayerControlItem[];
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
+  sectionId?: string;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   return (
-    <SettingSection title="Output layer styling">
+    <SettingSection
+      title="Output layer styling"
+      sectionId={sectionId}
+      open={open}
+      onToggle={onToggle}
+    >
       <p className="text-[12px] leading-5 text-slate-600">
         These controls edit the current SVG output directly. Per-layer opacity
         affects one layer; global layer opacity applies to all layers in the
@@ -2224,16 +2399,92 @@ function rgbToHex(r: number, g: number, b: number) {
 function SettingSection({
   title,
   children,
+  sectionId,
+  open,
+  onToggle,
 }: {
   title: string;
   children: React.ReactNode;
+  sectionId?: string;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
+  if (sectionId && onToggle && typeof open === "boolean") {
+    return (
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={sectionId}
+          className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-bold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-inset"
+        >
+          <span>{title}</span>
+          <ChevronDownIcon open={open} />
+        </button>
+        <div
+          className={[
+            "grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none",
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          ].join(" ")}
+        >
+          <div id={sectionId} hidden={!open} className="overflow-hidden">
+            <div className="flex flex-col gap-2 border-t border-slate-100 p-3">
+              {children}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-3">
       <h3 className="m-0 mb-2 text-[13px] font-bold text-sky-950">{title}</h3>
       <div className="flex flex-col gap-2">{children}</div>
     </section>
   );
+}
+
+function AdvancedTopLevelSection({
+  title,
+  description,
+  tone,
+  action,
+  children,
+}: {
+  title: string;
+  description: string;
+  tone: "live" | "convert";
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const toneClass =
+    tone === "live"
+      ? "border-sky-200 bg-sky-50/80"
+      : "border-indigo-200 bg-indigo-50/80";
+
+  return (
+    <section className={["rounded-xl border p-3", toneClass].join(" ")}>
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="m-0 text-[13px] font-bold text-sky-950">{title}</h3>
+          <p className="m-0 mt-0.5 text-[12px] leading-5 text-slate-600">
+            {description}
+          </p>
+        </div>
+        {action}
+      </div>
+      <div className="flex flex-col gap-2">{children}</div>
+    </section>
+  );
+}
+
+function toggleAccordionSection(
+  setOpenSection: React.Dispatch<React.SetStateAction<string | null>>,
+  sectionId: string,
+) {
+  setOpenSection((current) => (current === sectionId ? null : sectionId));
 }
 
 function Field({

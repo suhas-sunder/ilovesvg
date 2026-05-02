@@ -20,6 +20,8 @@ import {
   ChevronDownIcon,
   PresetPicker,
 } from "~/client/components/converter/PresetSelector";
+import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
+import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -1662,8 +1664,7 @@ type Preset = {
   label: string;
   settings: Partial<Settings>;
   category?: "lineart" | "photo-edge" | "scan" | "logo" | "diagram" | "layered";
-  processType?: "client" | "server" | "hybrid";
-  processLabel?: string;
+  backendIntensity?: PresetBackendIntensity;
 };
 
 const PRESET_DEFINITIONS: Preset[] = [
@@ -1989,6 +1990,7 @@ const PRESET_DEFINITIONS: Preset[] = [
 ];
 
 const PRESETS: Preset[] = preparePresetList(PRESET_DEFINITIONS);
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 const DEFAULT_PRESET_ID = PRESETS[0]?.id ?? "line-accurate";
 
 function preparePresetList(presets: Preset[]): Preset[] {
@@ -1998,8 +2000,6 @@ function preparePresetList(presets: Preset[]): Preset[] {
       return {
         ...preset,
         category,
-        processType: preset.processType ?? "server",
-        processLabel: preset.processLabel ?? "Server trace",
       };
     })
     .sort((left, right) => presetCategoryRank(left.category) - presetCategoryRank(right.category));
@@ -2192,7 +2192,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       const submitted = lastSubmittedRef.current;
       const parentStamp = submitted.parentStamp;
       const presetLabel =
-        PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
+        DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
         "Custom settings";
       const stamp = Date.now();
       const item: HistoryItem = {
@@ -2771,7 +2771,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </h1>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

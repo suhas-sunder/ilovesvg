@@ -1,5 +1,9 @@
 import * as React from "react";
 import Icons from "~/client/assets/icons/Icons";
+import {
+  getPresetIntensityBadge,
+  type PresetBackendIntensity,
+} from "~/client/lib/converter/presetIntensity";
 
 export type ConverterPresetProcessType = "client" | "server" | "hybrid";
 
@@ -12,6 +16,7 @@ export type ConverterPresetOption = {
   category?: string;
   processType?: ConverterPresetProcessType;
   processLabel?: string;
+  backendIntensity?: PresetBackendIntensity;
 };
 
 export function PresetPicker<TPreset extends ConverterPresetOption>({
@@ -33,57 +38,52 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
     ? dedupedPresets
     : dedupedPresets.slice(0, visibleLimit);
   const showToggle = dedupedPresets.length > visibleLimit;
+  const groupedPresets = React.useMemo(
+    () => groupPresetsByCategory(visiblePresets),
+    [visiblePresets],
+  );
 
   return (
     <div className="mb-2 mt-[.67rem] min-w-0">
-      <div className="grid gap-2 sm:grid-cols-2">
-        {visiblePresets.map((preset, index) => {
-          const isActive = activePreset === preset.id;
-          const processBadge = getPresetProcessBadge(preset);
-          const title = [
-            preset.help || preset.description || preset.label,
-            processBadge?.title,
-          ]
-            .filter(Boolean)
-            .join(" ");
-
-          return (
-            <button
-              key={`${preset.id}-${index}`}
-              type="button"
-              onClick={() => applyPreset(preset)}
-              aria-pressed={isActive}
-              aria-label={preset.label}
-              title={title}
-              className={[
-                "px-3 py-2 rounded-md border transition-colors cursor-pointer",
-                "text-[13px] sm:text-sm leading-snug text-center font-semibold",
-                "break-words min-h-[2.75rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
-                isActive
-                  ? "bg-sky-200 border-sky-200 text-slate-900 hover:bg-sky-300"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50",
-              ].join(" ")}
-            >
-              <span className="inline-flex w-full flex-wrap items-center justify-center gap-1.5">
-                <span>{preset.label}</span>
-                {processBadge ? (
-                  <span
-                    className={[
-                      "rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-                      isActive
-                        ? "border-sky-300 bg-white/70 text-slate-700"
-                        : "border-slate-200 bg-slate-50 text-slate-500",
-                    ].join(" ")}
-                    aria-label={processBadge.title}
-                    title={processBadge.title}
-                  >
-                    {processBadge.label}
-                  </span>
-                ) : null}
-              </span>
-            </button>
-          );
-        })}
+      <div
+        className={[
+          expanded
+            ? "max-h-[28rem] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2"
+            : "",
+        ].join(" ")}
+      >
+        {expanded ? (
+          <div className="space-y-3">
+            {groupedPresets.map((group) => (
+              <div key={group.label}>
+                <div className="mb-1 px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  {group.label}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {group.presets.map((preset, index) => (
+                    <PresetButton
+                      key={`${preset.id}-${index}`}
+                      preset={preset}
+                      active={activePreset === preset.id}
+                      applyPreset={applyPreset}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {visiblePresets.map((preset, index) => (
+              <PresetButton
+                key={`${preset.id}-${index}`}
+                preset={preset}
+                active={activePreset === preset.id}
+                applyPreset={applyPreset}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {showToggle && (
@@ -106,58 +106,56 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   );
 }
 
-function getPresetProcessBadge(preset: ConverterPresetOption) {
-  const inferredProcessType =
-    preset.processType ?? inferPresetProcessType(preset);
-  if (!inferredProcessType && !preset.processLabel) return null;
+function PresetButton<TPreset extends ConverterPresetOption>({
+  preset,
+  active,
+  applyPreset,
+}: {
+  preset: TPreset;
+  active: boolean;
+  applyPreset: (preset: TPreset) => void;
+}) {
+  const intensityBadge = getPresetIntensityBadge(preset);
+  const title = [
+    preset.help || preset.description || preset.label,
+    intensityBadge.title,
+    "Speed tags estimate backend processing cost and do not change output.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  if (preset.processLabel) {
-    return {
-      label: preset.processLabel,
-      title: `${preset.processLabel} preset`,
-    };
-  }
-
-  if (inferredProcessType === "client") {
-    return {
-      label: "Local edit",
-      title: "This preset only changes the current SVG in the browser.",
-    };
-  }
-
-  if (inferredProcessType === "hybrid") {
-    return {
-      label: "Hybrid",
-      title:
-        "Some edits happen locally, but a new trace still uses backend conversion work.",
-    };
-  }
-
-  return {
-    label: "Server trace",
-    title: "This preset uses backend tracing and can be rate limited.",
-  };
-}
-
-function inferPresetProcessType(
-  preset: ConverterPresetOption,
-): ConverterPresetProcessType | null {
-  const settings = preset.settings as Record<string, unknown> | undefined;
-  if (settings?.traceMode === "single" || settings?.traceMode === "layered") {
-    return "server";
-  }
-  if (
-    settings &&
-    ("threshold" in settings ||
-      "turdSize" in settings ||
-      "preprocess" in settings ||
-      "colorLayerCount" in settings ||
-      "layerCount" in settings ||
-      "maxTraceSide" in settings)
-  ) {
-    return "server";
-  }
-  return null;
+  return (
+    <button
+      type="button"
+      onClick={() => applyPreset(preset)}
+      aria-pressed={active}
+      aria-label={`${preset.label}. ${intensityBadge.label}.`}
+      title={title}
+      className={[
+        "px-3 py-2 rounded-md border transition-colors cursor-pointer",
+        "text-[13px] sm:text-sm leading-snug text-center font-semibold",
+        "break-words min-h-[2.75rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+        active
+          ? "bg-sky-200 border-sky-200 text-slate-900 hover:bg-sky-300"
+          : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50",
+      ].join(" ")}
+    >
+      <span className="inline-flex w-full flex-wrap items-center justify-center gap-1.5">
+        <span>{preset.label}</span>
+        <span
+          className={[
+            "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+            intensityBadge.className,
+            active ? "shadow-sm" : "",
+          ].join(" ")}
+          aria-label={intensityBadge.title}
+          title={intensityBadge.title}
+        >
+          {intensityBadge.label}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 export function ChevronDownIcon({ open }: { open: boolean }) {
@@ -220,6 +218,54 @@ function presetDisplayRank(preset: ConverterPresetOption) {
   if (preset.id.startsWith("scan-")) return 20;
   if (preset.id.startsWith("logo-")) return 30;
   return 40;
+}
+
+function groupPresetsByCategory<TPreset extends ConverterPresetOption>(
+  presets: readonly TPreset[],
+) {
+  const groups = new Map<string, TPreset[]>();
+  for (const preset of presets) {
+    const key = presetCategoryLabel(preset);
+    const items = groups.get(key) || [];
+    items.push(preset);
+    groups.set(key, items);
+  }
+  return [...groups.entries()].map(([label, items]) => ({
+    label,
+    presets: items,
+  }));
+}
+
+function presetCategoryLabel(preset: ConverterPresetOption) {
+  switch (preset.category) {
+    case "lineart":
+      return "Lineart";
+    case "photo-edge":
+      return "Photo Edge";
+    case "scan":
+      return "Scan / Whiteboard";
+    case "logo":
+      return "Logo / Icon";
+    case "diagram":
+      return "Diagram / Cutting";
+    case "layered":
+      return "Layered Color";
+    default:
+      if (preset.id.startsWith("line-")) return "Lineart";
+      if (preset.id.startsWith("photo-") || preset.id.includes("edge")) {
+        return "Photo Edge";
+      }
+      if (preset.id.startsWith("scan-") || preset.id.startsWith("whiteboard-")) {
+        return "Scan / Whiteboard";
+      }
+      if (preset.id.startsWith("logo-") || preset.id.startsWith("icon-")) {
+        return "Logo / Icon";
+      }
+      if (preset.id.startsWith("layered-") || preset.id.includes("layered")) {
+        return "Layered Color";
+      }
+      return "Other";
+  }
 }
 
 function stablePresetSettingsSignature(value: unknown): string {

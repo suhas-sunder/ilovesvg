@@ -126,24 +126,24 @@ export function AdvancedSettingsHelpSection() {
               What each SVG tracing and output setting means
             </h2>
             <p className="mt-3 max-w-[85ch] text-slate-600">
-              Advanced settings are split into Click Convert settings and Live
-              Preview settings. Click Convert settings change how the uploaded
-              image is processed, so they apply after you click Update preview
-              or Convert. Live Preview controls edit the selected SVG result and
-              update preview, copy, and download directly.
+              Advanced settings are split into Live Preview settings and Click
+              to convert settings. Live Preview controls edit the selected SVG
+              result and update preview, copy, and download directly. Click to
+              convert settings change how the uploaded image is processed, so
+              they apply after you click Update preview or Convert.
             </p>
           </header>
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="text-lg font-bold text-sky-950">
-              Preset process tags
+              Preset speed tags
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Preset tags show where the work happens. Server trace presets use
-              backend conversion compute and can be rate limited. Local edits,
-              preview changes, layer color changes, opacity edits, copy, and
-              download generation happen in your browser when they do not
-              require a new trace.
+              Preset tags estimate backend processing intensity. Lightning Fast
+              and Insane Speed presets are expected to be the lightest; Low
+              Speed and Slow Speed presets usually request more detail, edge
+              cleanup, or layered color tracing. The tag is informational and
+              does not change the SVG by itself.
             </p>
           </section>
 
@@ -163,7 +163,7 @@ export function AdvancedSettingsHelpSection() {
                 "If a cream or white background becomes its own output layer, hide that output layer directly from Remove detected output colors.",
                 "If tiny fragments appear, increase Remove tiny specks or Remove small color regions. Use modest values for detailed illustrations.",
                 "If preserve aspect ratio is enabled and you change the width, the height updates automatically so the artwork does not stretch.",
-                "If you only recolor, hide, resize, or adjust opacity on output layers, copy and download should match the preview without another server trace.",
+                "If you only recolor, hide, resize, or adjust opacity on output layers, copy and download should match the preview without another backend trace.",
               ].map((body) => (
                 <p
                   key={body}

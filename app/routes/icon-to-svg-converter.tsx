@@ -16,6 +16,7 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -1804,6 +1805,8 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   traceMode: "layered",
@@ -2293,7 +2296,7 @@ export default function IconToSvgConverter({
               </h1>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

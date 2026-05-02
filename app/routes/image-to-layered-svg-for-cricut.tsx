@@ -16,6 +16,7 @@ import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -1354,6 +1355,8 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const DISPLAY_PRESETS = extendLayeredPresets<Preset>(PRESETS);
+
 type ServerResult = {
   svg?: string;
   error?: string;
@@ -1708,7 +1711,7 @@ export default function ImageToLayeredSvgForCricut({
               </p>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

@@ -16,6 +16,8 @@ import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
+import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -780,8 +782,7 @@ type Preset = {
   label: string;
   settings: Partial<Settings>;
   category?: "layered";
-  processType?: "client" | "server" | "hybrid";
-  processLabel?: string;
+  backendIntensity?: PresetBackendIntensity;
 };
 
 const DEFAULTS: Settings = {
@@ -1176,9 +1177,8 @@ const PRESET_DEFINITIONS: Preset[] = [
 const PRESETS: Preset[] = PRESET_DEFINITIONS.map((preset) => ({
   ...preset,
   category: preset.category ?? "layered",
-  processType: preset.processType ?? "server",
-  processLabel: preset.processLabel ?? "Server trace",
 }));
+const DISPLAY_PRESETS = extendLayeredPresets<Preset>(PRESETS);
 const DEFAULT_PRESET_ID = PRESETS[0]?.id ?? "layered-color";
 
 type ServerResult = {
@@ -1379,7 +1379,7 @@ export default function PngToLayeredSvgForCricut({
     outputCounterRef.current = outputNumber;
     const submitted = lastSubmittedRef.current;
     const presetLabel =
-      PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
+      DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
       "Custom settings";
     const stamp = Date.now();
     const item: HistoryItem = {
@@ -1817,7 +1817,7 @@ export default function PngToLayeredSvgForCricut({
               </p>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

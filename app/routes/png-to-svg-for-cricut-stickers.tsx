@@ -16,6 +16,7 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 
 const isServer = typeof document === "undefined";
 
@@ -591,6 +592,8 @@ type Preset = {
   id: string;
   label: string;
   description: string;
+  category?: string;
+  backendIntensity?: PresetBackendIntensity;
   settings: Partial<Settings>;
 };
 
@@ -762,6 +765,193 @@ const PRESETS: Preset[] = [
       showCutLine: true,
       transparent: false,
       bgColor: "#ffffff",
+    },
+  },
+];
+
+const DISPLAY_PRESETS: Preset[] = [
+  ...PRESETS,
+  {
+    id: "sticker-clean-edge",
+    label: "Sticker - Clean Edge",
+    description:
+      "Balanced sticker outline with moderate cleanup and a clean white border.",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 25,
+      offsetPx: 16,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 3,
+      turdSize: 5,
+      optTolerance: 0.44,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-thick-outline",
+    label: "Sticker - Thick Outline",
+    description:
+      "Larger border for bold stickers that need extra cutting tolerance.",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 20,
+      alphaThreshold: 22,
+      offsetPx: 34,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 4,
+      turdSize: 6,
+      optTolerance: 0.56,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-smooth",
+    label: "Sticker - Smooth",
+    description:
+      "Smooths the cut line for rounded sticker artwork and labels.",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 28,
+      offsetPx: 20,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 3,
+      turdSize: 7,
+      optTolerance: 0.68,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-fine-detail",
+    label: "Cricut - Fine Detail",
+    description:
+      "Preserves smaller sticker contour changes with a closer cut line.",
+    category: "diagram",
+    backendIntensity: "low-speed",
+    settings: {
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 12,
+      alphaThreshold: 38,
+      offsetPx: 10,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 2,
+      optTolerance: 0.28,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-vinyl-simple",
+    label: "Vinyl - Simple",
+    description:
+      "Simpler outline with stronger cleanup for vinyl-style decal shapes.",
+    category: "diagram",
+    backendIntensity: "extreme-speed",
+    settings: {
+      cutSource: "remove-white-page",
+      backgroundTolerance: 30,
+      alphaThreshold: 25,
+      offsetPx: 16,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 8,
+      optTolerance: 0.7,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-white-remove-soft",
+    label: "White Remove - Soft",
+    description:
+      "Soft white-page removal for light backgrounds close to the artwork.",
+    category: "scan",
+    backendIntensity: "high-speed",
+    settings: {
+      cutSource: "remove-white-page",
+      backgroundTolerance: 24,
+      alphaThreshold: 22,
+      offsetPx: 18,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 5,
+      optTolerance: 0.46,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-white-remove-strong",
+    label: "White Remove - Strong",
+    description:
+      "More aggressive white-page cleanup for scans or compressed JPG art.",
+    category: "scan",
+    backendIntensity: "low-speed",
+    settings: {
+      cutSource: "remove-white-page",
+      backgroundTolerance: 46,
+      alphaThreshold: 18,
+      offsetPx: 20,
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      turdSize: 8,
+      optTolerance: 0.62,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-blue-cutline",
+    label: "Color - Blue Line",
+    description:
+      "Uses a visible blue cut line for previewing sticker artwork edges.",
+    category: "diagram",
+    backendIntensity: "extreme-speed",
+    settings: {
+      cutLineColor: DEFAULT_CUT_COLOR,
+      cutLineWidth: 2,
+      showCutLine: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "sticker-dark-preview",
+    label: "Invert - Chalkboard",
+    description:
+      "Dark preview background with a light cut line for pale sticker art.",
+    category: "diagram",
+    backendIntensity: "extreme-speed",
+    settings: {
+      cutSource: "transparent-alpha",
+      backgroundTolerance: 18,
+      alphaThreshold: 25,
+      offsetPx: 18,
+      cutLineColor: "#ffffff",
+      cutLineWidth: 3,
+      turdSize: 4,
+      optTolerance: 0.42,
+      smoothMask: true,
+      showCutLine: true,
+      transparent: false,
+      bgColor: "#0b1020",
     },
   },
 ];
@@ -1059,7 +1249,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </p>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

@@ -16,6 +16,7 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 
 const isServer = typeof document === "undefined";
 
@@ -1192,6 +1193,8 @@ type Settings = {
 type Preset = {
   id: string;
   label: string;
+  category?: string;
+  backendIntensity?: PresetBackendIntensity;
   settings: Partial<Settings>;
 };
 
@@ -1332,6 +1335,173 @@ const PRESETS: Preset[] = [
       lineColor: "#ffffff",
       transparent: false,
       bgColor: DARK_BG_DEFAULT,
+    },
+  },
+];
+
+const DISPLAY_PRESETS: Preset[] = [
+  ...PRESETS,
+  {
+    id: "bw-clean-lines",
+    label: "Lineart - Clean",
+    category: "lineart",
+    backendIntensity: "extreme-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 210,
+      turdSize: 3,
+      optTolerance: 0.34,
+      turnPolicy: "majority",
+      lineColor: "#000000",
+      invert: false,
+      transparent: true,
+    },
+  },
+  {
+    id: "bw-thin-lines",
+    label: "Lineart - Thin",
+    category: "lineart",
+    backendIntensity: "high-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 230,
+      turdSize: 1,
+      optTolerance: 0.22,
+      turnPolicy: "minority",
+      lineColor: "#000000",
+      invert: false,
+    },
+  },
+  {
+    id: "bw-thick-lines",
+    label: "Lineart - Thick",
+    category: "lineart",
+    backendIntensity: "extreme-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 182,
+      turdSize: 4,
+      optTolerance: 0.42,
+      turnPolicy: "black",
+    },
+  },
+  {
+    id: "bw-scan-faded",
+    label: "Scan - Faded",
+    category: "scan",
+    backendIntensity: "high-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 226,
+      turdSize: 2,
+      optTolerance: 0.28,
+      turnPolicy: "minority",
+    },
+  },
+  {
+    id: "bw-scan-cleanup",
+    label: "Scan - Ink Cleanup",
+    category: "scan",
+    backendIntensity: "extreme-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 204,
+      turdSize: 7,
+      optTolerance: 0.42,
+      turnPolicy: "majority",
+    },
+  },
+  {
+    id: "bw-stencil-bold",
+    label: "Stencil - Bold",
+    category: "diagram",
+    backendIntensity: "extreme-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 176,
+      turdSize: 6,
+      optTolerance: 0.55,
+      turnPolicy: "black",
+      lineColor: "#000000",
+    },
+  },
+  {
+    id: "bw-whiteboard-clean",
+    label: "Whiteboard - Clean",
+    category: "scan",
+    backendIntensity: "extreme-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 218,
+      turdSize: 5,
+      optTolerance: 0.38,
+      turnPolicy: "majority",
+      binaryInvertInput: false,
+    },
+  },
+  {
+    id: "bw-invert-chalkboard",
+    label: "Invert - Chalkboard",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      traceMode: "single",
+      binaryMode: true,
+      threshold: 202,
+      turdSize: 2,
+      optTolerance: 0.3,
+      turnPolicy: "minority",
+      invert: true,
+      lineColor: "#ffffff",
+      transparent: false,
+      bgColor: "#111827",
+    },
+  },
+  {
+    id: "bw-layered-three",
+    label: "Layered - 3 Color",
+    category: "layered",
+    backendIntensity: "high-speed",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 3,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.75,
+      layerOptTolerance: 0.72,
+      layerTurdSize: 8,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: true,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "bw-layered-detail",
+    label: "Layered - Detail",
+    category: "layered",
+    backendIntensity: "slow-speed",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 8,
+      layerMaxTraceSide: 2000,
+      minRegionPercent: 0.18,
+      layerOptTolerance: 0.32,
+      layerTurdSize: 2,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
     },
   },
 ];
@@ -1728,7 +1898,7 @@ export default function BlackAndWhiteImageToSvgConverter({
               </h1>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

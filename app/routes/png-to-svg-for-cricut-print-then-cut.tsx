@@ -16,6 +16,7 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 
 const isServer = typeof document === "undefined";
 
@@ -652,6 +653,8 @@ type Settings = {
 type Preset = {
   id: string;
   label: string;
+  category?: string;
+  backendIntensity?: PresetBackendIntensity;
   settings: Partial<Settings>;
 };
 
@@ -781,6 +784,156 @@ const PRESETS: Preset[] = [
       includePrintableBorder: true,
       printableBorderColor: "#ffffff",
       addWhitePage: true,
+    },
+  },
+];
+
+const DISPLAY_PRESETS: Preset[] = [
+  ...PRESETS,
+  {
+    id: "ptc-clean-cut",
+    label: "Cricut - Clean Cut",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      outlineSource: "auto",
+      cutOffset: 18,
+      backgroundTolerance: 24,
+      darkThreshold: 220,
+      edgeThreshold: 42,
+      speckCleanup: 6,
+      curveSmoothness: 0.75,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-tight-cut",
+    label: "Cricut - Fine Detail",
+    category: "diagram",
+    backendIntensity: "low-speed",
+    settings: {
+      outlineSource: "auto",
+      cutOffset: 8,
+      backgroundTolerance: 20,
+      darkThreshold: 226,
+      edgeThreshold: 38,
+      speckCleanup: 3,
+      curveSmoothness: 0.48,
+      includePrintableBorder: false,
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-bold-cut",
+    label: "Cricut - Bold Cut",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      outlineSource: "auto",
+      cutOffset: 30,
+      backgroundTolerance: 32,
+      darkThreshold: 210,
+      edgeThreshold: 46,
+      speckCleanup: 7,
+      curveSmoothness: 0.92,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-transparent-clean",
+    label: "Transparent - Clean",
+    category: "diagram",
+    backendIntensity: "extreme-speed",
+    settings: {
+      outlineSource: "transparency",
+      cutOffset: 14,
+      backgroundTolerance: 18,
+      speckCleanup: 4,
+      curveSmoothness: 0.58,
+      includePrintableBorder: false,
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-sticker-outline",
+    label: "Sticker - Thick Outline",
+    category: "diagram",
+    backendIntensity: "high-speed",
+    settings: {
+      outlineSource: "auto",
+      cutOffset: 28,
+      backgroundTolerance: 28,
+      edgeThreshold: 40,
+      speckCleanup: 6,
+      curveSmoothness: 0.86,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-low-light",
+    label: "Photo Edge - Low Light",
+    category: "photo-edge",
+    backendIntensity: "low-speed",
+    settings: {
+      outlineSource: "edge",
+      cutOffset: 22,
+      backgroundTolerance: 34,
+      darkThreshold: 196,
+      edgeThreshold: 28,
+      speckCleanup: 8,
+      curveSmoothness: 1,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-white-remove-soft",
+    label: "White Remove - Soft",
+    category: "scan",
+    backendIntensity: "high-speed",
+    settings: {
+      outlineSource: "light",
+      cutOffset: 16,
+      backgroundTolerance: 30,
+      speckCleanup: 5,
+      curveSmoothness: 0.68,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-white-remove-strong",
+    label: "White Remove - Strong",
+    category: "scan",
+    backendIntensity: "high-speed",
+    settings: {
+      outlineSource: "light",
+      cutOffset: 20,
+      backgroundTolerance: 52,
+      speckCleanup: 8,
+      curveSmoothness: 0.82,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
+      addWhitePage: false,
+    },
+  },
+  {
+    id: "ptc-preview-white",
+    label: "White Page - Preview",
+    category: "diagram",
+    backendIntensity: "extreme-speed",
+    settings: {
+      addWhitePage: true,
+      includePrintableBorder: true,
+      printableBorderColor: "#ffffff",
     },
   },
 ];
@@ -1046,7 +1199,7 @@ export default function PngToSvgForCricutPrintThenCut({
 
   function applyPreset(preset: Preset) {
     const nextSettings = {
-      ...settings,
+      ...DEFAULTS,
       ...preset.settings,
     } as Settings;
     setActivePreset(preset.id);
@@ -1098,7 +1251,7 @@ export default function PngToSvgForCricutPrintThenCut({
               </p>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />

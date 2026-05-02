@@ -24,6 +24,7 @@ import {
 } from "~/client/components/svg/LayerPaletteEditor";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -930,6 +931,8 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 220,
@@ -1053,7 +1056,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
   const busy = fetcher.state !== "idle";
 
   const activePresetObject =
-    PRESETS.find((preset) => preset.id === activePreset) ?? PRESETS[0];
+    DISPLAY_PRESETS.find((preset) => preset.id === activePreset) ?? PRESETS[0];
 
   React.useEffect(() => {
     setHydrated(true);
@@ -1556,7 +1559,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
               </p>
 
               <PresetPicker
-                presets={PRESETS}
+                presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />
