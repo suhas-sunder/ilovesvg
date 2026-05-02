@@ -2902,23 +2902,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
               </div>
 
-              {/* Input preview below controls */}
-              {previewUrl && (
-                <div className="mt-3 hidden flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:flex">
-                  <p className="m-0 px-3 py-2 text-[13px] font-semibold text-slate-700">
-                    Original image
-                  </p>
-                  <img
-                    src={previewUrl}
-                    alt="Input"
-                    className="relative w-full h-auto block transparent-checkerboard"
-                  />
-                </div>
-              )}
             </div>
 
             {/* RESULTS */}
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:row-span-2 md:h-full md:max-h-[124.25em]">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item, index) => {
@@ -3042,21 +3029,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
 
-            <div className="order-3 min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2">
+            <div className="order-3 min-w-0 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2">
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="w-full inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold text-slate-900 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
+                className="w-full inline-flex items-center justify-between rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-sky-950 cursor-pointer transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
                 aria-expanded={showAdvanced}
                 aria-controls="advanced-settings"
               >
-                <span className="inline-flex items-center gap-2">
-                  Advanced settings
+                <span className="inline-flex min-w-0 items-center gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-white shadow-sm">
+                    <SettingsGearIcon />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-bold leading-5">
+                      Advanced settings
+                    </span>
+                    <span className="block truncate text-[12px] font-medium leading-4 text-sky-700">
+                      Trace detail, cleanup, layers, and export
+                    </span>
+                  </span>
                 </span>
 
                 <svg
                   className={[
-                    "h-4 w-4 text-slate-500 transition-transform",
+                    "h-4 w-4 shrink-0 text-sky-700 transition-transform",
                     showAdvanced ? "rotate-180" : "rotate-0",
                   ].join(" ")}
                   viewBox="0 0 20 20"
@@ -3119,6 +3116,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </div>
               )}
             </div>
+
+            {previewUrl && !showAdvanced && (
+              <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
+                <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
+                  Original image
+                </p>
+                <img
+                  src={previewUrl}
+                  alt="Input"
+                  className="relative block h-auto w-full transparent-checkerboard"
+                />
+              </div>
+            )}
           </section>
         </div>
 
@@ -3158,8 +3168,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       </div>
       <ContextualAffiliateCard />
-      <AdvancedSettingsHelpSection />
       <SeoSections />
+      <AdvancedSettingsHelpSection />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -3477,6 +3487,24 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 }
 
 /* ===== UI helpers ===== */
+function SettingsGearIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.35.33.66.66.85.26.15.55.23.85.24H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
+    </svg>
+  );
+}
+
 function Field({
   label,
   children,
@@ -3560,7 +3588,7 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           {/* Header / Hero */}
-          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+          <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 PNG/JPEG to SVG vectorizer
@@ -3590,7 +3618,7 @@ function SeoSections() {
                 ].map((x) => (
                   <div
                     key={x.k}
-                    className="rounded-xl border border-slate-200 bg-white p-4"
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
                   >
                     <div className="text-sm font-semibold">{x.k}</div>
                     <div className="mt-1 text-sm text-slate-600">{x.v}</div>
@@ -3614,8 +3642,10 @@ function SeoSections() {
             />
           </div>
           {/* Use cases */}
-          <section className="">
-            <h3 className="text-lg font-bold">Best for</h3>
+          <section>
+            <h3 className="font-display text-xl font-[800] tracking-[-0.025em] text-sky-950">
+              Best for
+            </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {[
                 "Logos",
@@ -3637,17 +3667,17 @@ function SeoSections() {
             </div>
 
             <div className="mt-4 grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 p-5">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
                 <div className="text-sm font-semibold">Lineart and ink</div>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm leading-6 text-slate-600">
                   Choose “Lineart - Accurate” for crisp strokes and clean fills.
                   Lower curve tolerance for detail, raise turd size to kill
                   dust.
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 p-5">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
                 <div className="text-sm font-semibold">Logos and icons</div>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm leading-6 text-slate-600">
                   Use “Logo - Clean shapes” for smoother curves and fewer nodes.
                   Adjust threshold to control what becomes solid.
                 </p>
@@ -3662,7 +3692,10 @@ function SeoSections() {
             className="mt-12"
           >
             <div className="flex items-end justify-between gap-4">
-              <h3 itemProp="name" className="text-lg font-bold">
+              <h3
+                itemProp="name"
+                className="font-display text-xl font-[800] tracking-[-0.025em] text-sky-950"
+              >
                 How to convert an image to SVG
               </h3>
               <span className="text-xs text-slate-500">
@@ -3698,7 +3731,7 @@ function SeoSections() {
                   itemScope
                   itemType="https://schema.org/HowToStep"
                   itemProp="step"
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
                 >
                   <div className="flex gap-3">
                     <div className="shrink-0 h-8 w-8 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">
@@ -3710,7 +3743,7 @@ function SeoSections() {
                       </div>
                       <div
                         itemProp="itemListElement"
-                        className="mt-1 text-sm text-slate-600"
+                        className="mt-1 text-sm leading-6 text-slate-600"
                       >
                         {s.body}
                       </div>
@@ -3723,8 +3756,10 @@ function SeoSections() {
 
           {/* Settings */}
           <section className="mt-12">
-            <h3 className="text-lg font-bold">Settings explained</h3>
-            <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
+            <h3 className="font-display text-xl font-[800] tracking-[-0.025em] text-sky-950">
+              Settings explained
+            </h3>
+            <p className="mt-2 max-w-[80ch] text-sm leading-6 text-slate-600">
               Small tweaks make a huge difference. Use these to control detail,
               smoothness, and cleanup.
             </p>
@@ -3762,10 +3797,12 @@ function SeoSections() {
               ].map((c) => (
                 <div
                   key={c.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
                 >
                   <div className="text-sm font-semibold">{c.title}</div>
-                  <p className="mt-1 text-sm text-slate-600">{c.body}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {c.body}
+                  </p>
                 </div>
               ))}
             </div>
@@ -3773,10 +3810,12 @@ function SeoSections() {
 
           {/* Performance */}
           <section className="mt-12">
-            <h3 className="text-lg font-bold">Performance and limits</h3>
+            <h3 className="font-display text-xl font-[800] tracking-[-0.025em] text-sky-950">
+              Performance and limits
+            </h3>
 
             <div className="mt-4 grid lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
                 <div className="text-sm font-semibold">Specs</div>
                 <dl className="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
                   <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
@@ -3805,7 +3844,7 @@ function SeoSections() {
                 </dl>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
                 <div className="text-sm font-semibold">Server stability</div>
                 <p className="mt-2 text-sm text-slate-700">
                   This PNG to SVG conversion page only rate limits backend
@@ -3825,7 +3864,9 @@ function SeoSections() {
 
           {/* Troubleshooting */}
           <section className="mt-12">
-            <h3 className="text-lg font-bold">Troubleshooting and tips</h3>
+            <h3 className="font-display text-xl font-[800] tracking-[-0.025em] text-sky-950">
+              Troubleshooting and tips
+            </h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               {[
                 ["Image too large", "Downscale or crop unused borders."],
@@ -3846,10 +3887,10 @@ function SeoSections() {
               ].map(([t, d]) => (
                 <div
                   key={t}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
                 >
                   <div className="text-sm font-semibold">{t}</div>
-                  <p className="mt-1 text-sm text-slate-600">{d}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">{d}</p>
                 </div>
               ))}
             </div>
@@ -3861,7 +3902,9 @@ function SeoSections() {
             itemScope
             itemType="https://schema.org/FAQPage"
           >
-            <h3 className="text-lg font-bold">Frequently asked questions</h3>
+            <h3 className="font-display text-xl font-[800] tracking-[-0.025em] text-sky-950">
+              Frequently asked questions
+            </h3>
 
             <div className="mt-4 grid gap-3">
               {[
@@ -3891,7 +3934,7 @@ function SeoSections() {
                   itemScope
                   itemType="https://schema.org/Question"
                   itemProp="mainEntity"
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
                 >
                   <h4 itemProp="name" className="m-0 font-semibold">
                     {x.q}
@@ -3900,7 +3943,7 @@ function SeoSections() {
                     itemScope
                     itemType="https://schema.org/Answer"
                     itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
+                    className="mt-2 text-sm leading-6 text-slate-600"
                   >
                     <span itemProp="text">{x.a}</span>
                   </p>

@@ -115,27 +115,32 @@ const backgroundSizeItems: HelpItem[] = [
 
 export function AdvancedSettingsHelpSection() {
   return (
-    <section id="advanced-settings-help" className="bg-white border-t border-slate-200">
+    <section
+      id="advanced-settings-help"
+      className="bg-slate-50 border-t border-slate-200"
+    >
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
-          <header className="rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-6">
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              Advanced settings guide
-            </p>
-            <h2 className="mt-2 text-2xl md:text-3xl font-bold leading-tight text-sky-950">
-              What each SVG tracing and output setting means
-            </h2>
-            <p className="mt-3 max-w-[85ch] text-slate-600">
-              Advanced settings are split into Live Preview settings and Click
-              to convert settings. Live Preview controls edit the selected SVG
-              result and update preview, copy, and download directly. Click to
-              convert settings change how the uploaded image is processed, so
-              they apply after you click Update preview or Convert.
-            </p>
+          <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+            <div className="max-w-[86ch]">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                Advanced settings reference
+              </p>
+              <h2 className="font-display mt-2 text-xl font-[800] leading-tight tracking-[-0.025em] text-sky-950 md:text-2xl">
+                Tune SVG tracing without guessing
+              </h2>
+              <p className="mt-2 text-[15px] leading-6 text-slate-700">
+                Use this reference after the basic upload and example sections
+                when you want finer control. Live Preview settings edit the
+                selected SVG result directly. Click to convert settings change
+                how the uploaded image is processed, so they apply after Update
+                preview or Convert.
+              </p>
+            </div>
           </header>
 
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 className="text-lg font-bold text-sky-950">
+          <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <h3 className="font-display text-lg font-[800] tracking-[-0.02em] text-sky-950">
               Preset speed tags
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -152,8 +157,8 @@ export function AdvancedSettingsHelpSection() {
           <HelpGrid title="Input colors vs output colors" items={inputOutputItems} />
           <HelpGrid title="Background, size, and export" items={backgroundSizeItems} />
 
-          <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="text-lg font-bold text-sky-950">
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <h3 className="font-display text-lg font-[800] tracking-[-0.02em] text-sky-950">
               Practical examples
             </h3>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -167,7 +172,7 @@ export function AdvancedSettingsHelpSection() {
               ].map((body) => (
                 <p
                   key={body}
-                  className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600"
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
                 >
                   {body}
                 </p>
@@ -182,18 +187,22 @@ export function AdvancedSettingsHelpSection() {
 
 function HelpGrid({ title, items }: { title: string; items: HelpItem[] }) {
   return (
-    <section className="mt-8">
-      <h3 className="text-lg font-bold text-sky-950">{title}</h3>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+    <section className="mt-6">
+      <h3 className="font-display text-lg font-[800] tracking-[-0.02em] text-sky-950">
+        {title}
+      </h3>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
         {items.map((item) => (
           <div
             key={item.title}
-            className="rounded-2xl border border-slate-200 bg-white p-5"
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
           >
             <div className="text-sm font-semibold text-slate-900">
               {item.title}
             </div>
-            <p className="mt-1 text-sm leading-6 text-slate-600">{item.body}</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {item.body}
+            </p>
           </div>
         ))}
       </div>
