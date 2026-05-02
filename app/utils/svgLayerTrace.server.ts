@@ -1,5 +1,9 @@
 import { createRequire } from "node:module";
 import { sanitizeSvgMarkup } from "./svgSanitize.server";
+import {
+  resolveOutputDimensions,
+  type SortLayersBy,
+} from "./converterSettings.server";
 
 export type TraceMode = "single" | "layered";
 export type SvgLayerKind = "fill" | "stroke";
@@ -35,6 +39,47 @@ export type LayeredColorSvgOptions = {
   transparent: boolean;
   bgColor: string;
   turnPolicy: LayerTurnPolicy;
+  removeColors?: string[];
+  removeColorTolerance?: number;
+  layerAlpha?: number;
+  backgroundAlpha?: number;
+  colorMergeTolerance?: number;
+  posterizeStrength?: number;
+  sortLayersBy?: SortLayersBy;
+  brightness?: number;
+  contrast?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+  preserveAspectRatio?: boolean;
+};
+
+type NormalizedLayeredColorSvgOptions = Omit<
+  LayeredColorSvgOptions,
+  | "removeColors"
+  | "removeColorTolerance"
+  | "layerAlpha"
+  | "backgroundAlpha"
+  | "colorMergeTolerance"
+  | "posterizeStrength"
+  | "sortLayersBy"
+  | "brightness"
+  | "contrast"
+  | "outputWidth"
+  | "outputHeight"
+  | "preserveAspectRatio"
+> & {
+  removeColors: RGB[];
+  removeColorTolerance: number;
+  layerAlpha: number;
+  backgroundAlpha: number;
+  colorMergeTolerance: number;
+  posterizeStrength: number;
+  sortLayersBy: SortLayersBy;
+  brightness: number;
+  contrast: number;
+  outputWidth: number;
+  outputHeight: number;
+  preserveAspectRatio: boolean;
 };
 
 export const MIN_LAYER_COUNT = 2;
@@ -112,7 +157,12 @@ export async function createLayeredColorSvg(
   const { neutralizeTransparencyCheckerboard } = await import(
     "./imagePreprocess.server"
   );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+  let sourceInput = await neutralizeTransparencyCheckerboard(input);
+  sourceInput = await preprocessLayeredRasterInput(
+    sourceInput,
+    safeOptions,
+    sharp,
+  );
 
   const { data, info } = await sharp(sourceInput)
     .rotate()
@@ -137,6 +187,9 @@ export async function createLayeredColorSvg(
     removeTransparent: safeOptions.removeTransparent,
     removeWhite: safeOptions.removeWhite,
     posterize: safeOptions.posterize,
+    posterizeStrength: safeOptions.posterizeStrength ?? 4,
+    removeColors: safeOptions.removeColors ?? [],
+    removeColorTolerance: safeOptions.removeColorTolerance ?? 18,
   });
 
   if (pixels.length < 20) {
@@ -145,12 +198,18 @@ export async function createLayeredColorSvg(
     );
   }
 
-  const paletteRgb = buildLayerPalette(pixels, safeOptions.layerCount);
+  const paletteRgb = mergeNearPaletteColors(
+    buildLayerPalette(pixels, safeOptions.layerCount),
+    safeOptions.colorMergeTolerance,
+  );
   const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
     palette: paletteRgb,
     removeTransparent: safeOptions.removeTransparent,
     removeWhite: safeOptions.removeWhite,
     posterize: safeOptions.posterize,
+    posterizeStrength: safeOptions.posterizeStrength ?? 4,
+    removeColors: safeOptions.removeColors ?? [],
+    removeColorTolerance: safeOptions.removeColorTolerance ?? 18,
   });
   const totalAssignable = assignments.assignableCount || 1;
   const rawLayerItems = paletteRgb
@@ -159,12 +218,10 @@ export async function createLayeredColorSvg(
       const percent = (count / totalAssignable) * 100;
       return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
     })
-    .filter((item) => item.count > 0 && item.percent >= opts.minRegionPercent)
-    .sort((a, b) => {
-      const lumDiff = luminance(b.rgb) - luminance(a.rgb);
-      if (Math.abs(lumDiff) > 8) return lumDiff;
-      return b.count - a.count;
-    });
+    .filter(
+      (item) => item.count > 0 && item.percent >= safeOptions.minRegionPercent,
+    )
+    .sort((a, b) => sortLayerItems(a, b, safeOptions.sortLayersBy));
 
   if (rawLayerItems.length === 0) {
     throw new Error(
@@ -215,12 +272,22 @@ export async function createLayeredColorSvg(
     layers: builtLayers,
     transparent: safeOptions.transparent,
     bgColor: safeOptions.bgColor,
+    backgroundAlpha: safeOptions.backgroundAlpha,
+    layerAlpha: safeOptions.layerAlpha,
+    outputWidth: safeOptions.outputWidth,
+    outputHeight: safeOptions.outputHeight,
+    preserveAspectRatio: safeOptions.preserveAspectRatio,
   });
+  const outputDimensions = resolveOutputDimensions(
+    safeOptions,
+    width,
+    height,
+  );
 
   return {
     svg,
-    width,
-    height,
+    width: outputDimensions.width,
+    height: outputDimensions.height,
     layers: builtLayers.map((layer) => ({
       id: layer.id,
       label: layer.label,
@@ -234,7 +301,7 @@ export async function createLayeredColorSvg(
 
 function normalizeLayeredColorOptions(
   options: LayeredColorSvgOptions,
-): LayeredColorSvgOptions {
+): NormalizedLayeredColorSvgOptions {
   return {
     layerCount: Math.round(
       clampLayerNumber(Number(options.layerCount), MIN_LAYER_COUNT, MAX_LAYER_COUNT),
@@ -251,6 +318,36 @@ function normalizeLayeredColorOptions(
     transparent: Boolean(options.transparent),
     bgColor: sanitizeLayerHexColor(options.bgColor, "#ffffff"),
     turnPolicy: readLayerTurnPolicy(String(options.turnPolicy)),
+    removeColors: normalizeRemoveColorList(options.removeColors),
+    removeColorTolerance: clampLayerNumber(
+      Number(options.removeColorTolerance ?? 18),
+      0,
+      160,
+    ),
+    layerAlpha: clampLayerNumber(Number(options.layerAlpha ?? 1), 0.05, 1),
+    backgroundAlpha: clampLayerNumber(
+      Number(options.backgroundAlpha ?? 1),
+      0,
+      1,
+    ),
+    colorMergeTolerance: clampLayerNumber(
+      Number(options.colorMergeTolerance ?? 0),
+      0,
+      100,
+    ),
+    posterizeStrength: Math.round(
+      clampLayerNumber(Number(options.posterizeStrength ?? 8), 2, 8),
+    ),
+    sortLayersBy: readSortLayersBy(String(options.sortLayersBy ?? "luminance")),
+    brightness: clampLayerNumber(Number(options.brightness ?? 0), -50, 50),
+    contrast: clampLayerNumber(Number(options.contrast ?? 0), -50, 75),
+    outputWidth: Math.round(
+      clampLayerNumber(Number(options.outputWidth ?? 0), 0, 6000),
+    ),
+    outputHeight: Math.round(
+      clampLayerNumber(Number(options.outputHeight ?? 0), 0, 6000),
+    ),
+    preserveAspectRatio: options.preserveAspectRatio !== false,
   };
 }
 
@@ -445,6 +542,9 @@ function collectLayerPixels(
     removeTransparent: boolean;
     removeWhite: boolean;
     posterize: boolean;
+    posterizeStrength: number;
+    removeColors: RGB[];
+    removeColorTolerance: number;
   },
 ): RGB[] {
   const total = width * height;
@@ -465,10 +565,11 @@ function collectLayerPixels(
       b = blendChannel(b, a, 255);
     }
     if (options.posterize) {
-      r = posterizeChannel(r);
-      g = posterizeChannel(g);
-      b = posterizeChannel(b);
+      r = posterizeChannel(r, options.posterizeStrength);
+      g = posterizeChannel(g, options.posterizeStrength);
+      b = posterizeChannel(b, options.posterizeStrength);
     }
+    if (isSelectedRemoveColor({ r, g, b }, options)) continue;
     if (options.removeWhite && isNearWhite({ r, g, b })) continue;
     pixels.push({ r, g, b });
   }
@@ -485,6 +586,9 @@ function assignAllPixelsToLayerPalette(
     removeTransparent: boolean;
     removeWhite: boolean;
     posterize: boolean;
+    posterizeStrength: number;
+    removeColors: RGB[];
+    removeColorTolerance: number;
   },
 ): { layerForPixel: Int16Array; counts: number[]; assignableCount: number } {
   const total = width * height;
@@ -507,12 +611,13 @@ function assignAllPixelsToLayerPalette(
       b = blendChannel(b, a, 255);
     }
     if (options.posterize) {
-      r = posterizeChannel(r);
-      g = posterizeChannel(g);
-      b = posterizeChannel(b);
+      r = posterizeChannel(r, options.posterizeStrength);
+      g = posterizeChannel(g, options.posterizeStrength);
+      b = posterizeChannel(b, options.posterizeStrength);
     }
 
     const rgb = { r, g, b };
+    if (isSelectedRemoveColor(rgb, options)) continue;
     if (options.removeWhite && isNearWhite(rgb)) continue;
 
     const nearest = nearestPaletteIndex(rgb, options.palette);
@@ -559,6 +664,96 @@ function buildLayerPalette(pixels: RGB[], requestedCount: number): RGB[] {
   return dedupeLayerPalette(centroids).slice(0, k);
 }
 
+async function preprocessLayeredRasterInput(
+  input: Buffer,
+  options: NormalizedLayeredColorSvgOptions,
+  sharp: typeof import("sharp"),
+) {
+  const removeColors = options.removeColors ?? [];
+  const hasRemoveColors = removeColors.length > 0;
+  const brightness = Number(options.brightness ?? 0);
+  const contrast = Number(options.contrast ?? 0);
+
+  if (!hasRemoveColors && brightness === 0 && contrast === 0) return input;
+
+  const { data, info } = await sharp(input)
+    .rotate()
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const width = info.width | 0;
+  const height = info.height | 0;
+  const channels = info.channels | 0;
+  if (!width || !height || channels < 4) return input;
+
+  const raw = Buffer.from(data as Buffer);
+  const removeColorTolerance = Number(options.removeColorTolerance ?? 18);
+  const contrastFactor = Math.max(0.1, 1 + contrast / 100);
+  const brightnessFactor = Math.max(0.05, 1 + brightness / 100);
+
+  for (let i = 0; i < width * height; i++) {
+    const off = i * channels;
+    let r = raw[off];
+    let g = raw[off + 1];
+    let b = raw[off + 2];
+    if (
+      hasRemoveColors &&
+      removeColors.some(
+        (color) => colorDistance({ r, g, b }, color) <= removeColorTolerance,
+      )
+    ) {
+      raw[off] = 255;
+      raw[off + 1] = 255;
+      raw[off + 2] = 255;
+      raw[off + 3] = 0;
+      continue;
+    }
+
+    if (brightness !== 0 || contrast !== 0) {
+      r = clampByte((r - 128) * contrastFactor + 128);
+      g = clampByte((g - 128) * contrastFactor + 128);
+      b = clampByte((b - 128) * contrastFactor + 128);
+      raw[off] = clampByte(r * brightnessFactor);
+      raw[off + 1] = clampByte(g * brightnessFactor);
+      raw[off + 2] = clampByte(b * brightnessFactor);
+    }
+  }
+
+  return await sharp(raw, {
+    raw: { width, height, channels: channels as 1 | 2 | 3 | 4 },
+  })
+    .png()
+    .toBuffer();
+}
+
+function mergeNearPaletteColors(palette: RGB[], tolerance = 0): RGB[] {
+  if (tolerance <= 0) return palette;
+  const merged: RGB[] = [];
+  for (const color of palette) {
+    const existing = merged.find((item) => colorDistance(item, color) <= tolerance);
+    if (!existing) {
+      merged.push(color);
+      continue;
+    }
+    existing.r = Math.round((existing.r + color.r) / 2);
+    existing.g = Math.round((existing.g + color.g) / 2);
+    existing.b = Math.round((existing.b + color.b) / 2);
+  }
+  return merged;
+}
+
+function sortLayerItems(
+  a: { rgb: RGB; count: number },
+  b: { rgb: RGB; count: number },
+  sortBy?: SortLayersBy,
+) {
+  if (sortBy === "area") return b.count - a.count;
+  if (sortBy === "original") return 0;
+  const lumDiff = luminance(b.rgb) - luminance(a.rgb);
+  if (Math.abs(lumDiff) > 8) return lumDiff;
+  return b.count - a.count;
+}
+
 function seedLayerCentroids(pixels: RGB[], k: number): RGB[] {
   const sorted = [...pixels].sort((a, b) => {
     const lumDiff = luminance(a) - luminance(b);
@@ -591,25 +786,52 @@ function buildLayeredSvgString({
   layers,
   transparent,
   bgColor,
+  backgroundAlpha,
+  layerAlpha,
+  outputWidth,
+  outputHeight,
+  preserveAspectRatio,
 }: {
   width: number;
   height: number;
   layers: TraceLayerBuildItem[];
   transparent: boolean;
   bgColor: string;
+  backgroundAlpha?: number;
+  layerAlpha?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+  preserveAspectRatio?: boolean;
 }): string {
+  const outputDimensions = resolveOutputDimensions(
+    {
+      outputWidth: outputWidth ?? 0,
+      outputHeight: outputHeight ?? 0,
+      preserveAspectRatio: preserveAspectRatio !== false,
+    },
+    width,
+    height,
+  );
+  const backgroundOpacity =
+    backgroundAlpha != null && backgroundAlpha < 0.999
+      ? ` fill-opacity="${formatAlpha(backgroundAlpha)}"`
+      : "";
+  const groupOpacity =
+    layerAlpha != null && layerAlpha < 0.999
+      ? ` opacity="${formatAlpha(layerAlpha)}"`
+      : "";
   const background = transparent
     ? ""
-    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeLayerHexColor(bgColor, "#ffffff")}" />`;
+    : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeLayerHexColor(bgColor, "#ffffff")}"${backgroundOpacity} />`;
   const body = layers
     .map((layer) => {
       const fill = sanitizeLayerHexColor(layer.color, "#000000");
       const safeId = escapeXmlAttr(layer.id);
       const safeLabel = escapeXmlAttr(layer.label);
-      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}">${layer.pathTags}</g>`;
+      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}"${groupOpacity}>${layer.pathTags}</g>`;
     })
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${outputDimensions.width}" height="${outputDimensions.height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}</svg>`;
 }
 
 function pathTagsHaveDrawablePath(pathTags: string): boolean {
@@ -835,7 +1057,7 @@ function colorDistance(a: RGB, b: RGB): number {
   const dr = a.r - b.r;
   const dg = a.g - b.g;
   const db = a.b - b.b;
-  return dr * dr * 0.32 + dg * dg * 0.52 + db * db * 0.16;
+  return Math.sqrt(dr * dr * 0.32 + dg * dg * 0.52 + db * db * 0.16);
 }
 
 function luminance(color: RGB): number {
@@ -846,8 +1068,20 @@ function blendChannel(channel: number, alpha: number, bg: number): number {
   return Math.round((channel * alpha + bg * (255 - alpha)) / 255);
 }
 
-function posterizeChannel(value: number): number {
-  return Math.round(value / 32) * 32;
+function posterizeChannel(value: number, strength = 4): number {
+  const levels = clampInt(strength, 2, 8);
+  const step = 255 / Math.max(1, levels - 1);
+  return clampByte(Math.round(value / step) * step);
+}
+
+function isSelectedRemoveColor(
+  color: RGB,
+  options: { removeColors?: RGB[]; removeColorTolerance?: number },
+): boolean {
+  const colors = options.removeColors || [];
+  if (!colors.length) return false;
+  const tolerance = Number(options.removeColorTolerance ?? 18);
+  return colors.some((item) => colorDistance(color, item) <= tolerance);
 }
 
 function isNearWhite(color: RGB): boolean {
@@ -866,6 +1100,46 @@ function rgbToHex(r: number, g: number, b: number): string {
 
 function clampByte(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function normalizeRemoveColorList(colors: unknown): RGB[] {
+  if (!Array.isArray(colors)) return [];
+  const out: RGB[] = [];
+  for (const color of colors) {
+    const parsed = parseHexToRgb(String(color || ""));
+    if (!parsed) continue;
+    out.push(parsed);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function parseHexToRgb(value: string): RGB | null {
+  const raw = value.trim().toLowerCase();
+  let hex = "";
+  if (/^#[0-9a-f]{6}$/.test(raw)) hex = raw.slice(1);
+  else if (/^#[0-9a-f]{3}$/.test(raw)) {
+    hex = `${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+  } else return null;
+
+  return {
+    r: Number.parseInt(hex.slice(0, 2), 16),
+    g: Number.parseInt(hex.slice(2, 4), 16),
+    b: Number.parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function readSortLayersBy(value: string): SortLayersBy {
+  if (value === "area" || value === "original" || value === "luminance") {
+    return value;
+  }
+  return "luminance";
+}
+
+function formatAlpha(value: number): string {
+  return String(Math.max(0, Math.min(1, value)).toFixed(3))
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
 }
 
 function clampInt(value: number, min: number, max: number): number {

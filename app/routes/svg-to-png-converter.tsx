@@ -9,6 +9,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { SvgRasterExportSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 
 /* ========================
    Meta
@@ -469,148 +470,13 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </button>
 
                   {showAdvanced && (
-                    <div
+                    <SvgRasterExportSettingsPanel
                       id="advanced-settings"
-                      className="flex flex-col gap-2 min-w-0"
-                    >
-                      <div className="grid gap-2">
-                        <Field label="Output width (px)">
-                          <NumInt
-                            value={settings.width}
-                            min={16}
-                            max={16384}
-                            step={1}
-                            onChange={onWidthChange}
-                          />
-                        </Field>
-
-                        <Field label="Output height (px)">
-                          <NumInt
-                            value={settings.height}
-                            min={16}
-                            max={16384}
-                            step={1}
-                            onChange={onHeightChange}
-                          />
-                        </Field>
-
-                        <Field label="Lock aspect ratio">
-                          <input
-                            type="checkbox"
-                            checked={settings.lockAspect}
-                            onChange={(e) =>
-                              setSettings((s) => {
-                                const lockAspect = e.target.checked;
-                                if (!lockAspect) return { ...s, lockAspect };
-                                const info = svgInfo || parseSvgSize(svgText);
-                                if (!info) return { ...s, lockAspect };
-                                const height = clampInt(
-                                  Math.round(s.width / info.aspect),
-                                  16,
-                                  16384,
-                                );
-                                return { ...s, lockAspect, height };
-                              })
-                            }
-                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                          />
-                          <span className="text-[13px] text-slate-700">
-                            Keep original proportions
-                          </span>
-                        </Field>
-
-                        <Field label="Quality (pixel ratio)">
-                          <select
-                            value={settings.dpiScale}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                dpiScale: Number(e.target.value),
-                              }))
-                            }
-                            className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                          >
-                            <option value={1}>1x (smallest)</option>
-                            <option value={2}>2x (sharper)</option>
-                            <option value={3}>3x</option>
-                            <option value={4}>4x (largest)</option>
-                          </select>
-                          <span className="text-[12px] text-slate-500">
-                            Renders higher-res PNG
-                          </span>
-                        </Field>
-
-                        <Field label="Background">
-                          <select
-                            value={settings.background}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                background: e.target.value as any,
-                              }))
-                            }
-                            className="px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                          >
-                            <option value="transparent">Transparent</option>
-                            <option value="solid">Solid color</option>
-                          </select>
-
-                          <input
-                            type="color"
-                            value={settings.bgColor}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                bgColor: e.target.value,
-                              }))
-                            }
-                            aria-disabled={settings.background !== "solid"}
-                            className={[
-                              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
-                              settings.background !== "solid"
-                                ? "opacity-50 pointer-events-none"
-                                : "",
-                            ].join(" ")}
-                            title={
-                              settings.background !== "solid"
-                                ? "Switch to Solid color to pick a background"
-                                : "Pick background color"
-                            }
-                          />
-                        </Field>
-
-                        <Field label="Anti-aliasing">
-                          <input
-                            type="checkbox"
-                            checked={settings.antiAlias}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                antiAlias: e.target.checked,
-                              }))
-                            }
-                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                          />
-                          <span className="text-[13px] text-slate-700">
-                            Smoother edges
-                          </span>
-                        </Field>
-
-                        <Field label="PNG filename">
-                          <input
-                            value={settings.fileName}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                fileName: e.target.value,
-                              }))
-                            }
-                            className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
-                            placeholder="converted"
-                          />
-                        </Field>
-                      </div>
-                    </div>
+                      open={showAdvanced}
+                      settings={settings}
+                      setSettings={setSettings}
+                      aspect={svgInfo?.aspect ?? null}
+                    />
                   )}
                 </div>
 

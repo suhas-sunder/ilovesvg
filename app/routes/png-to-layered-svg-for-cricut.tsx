@@ -16,6 +16,13 @@ import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
+import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import {
+  DEFAULT_TRACE_ADVANCED_SETTINGS,
+  appendAdvancedTraceSettings,
+  type TraceAdvancedSettings,
+} from "~/client/lib/converter/settings";
 
 const isServer = typeof document === "undefined";
 
@@ -371,7 +378,16 @@ export async function action({ request }: ActionFunctionArgs) {
         | "minority"
         | "majority";
 
-      const result = await rasterToLayeredSvg(input, {
+      const {
+        readAdvancedTraceFormSettings,
+        shouldRemoveSelectedColors,
+      } = await import("../utils/converterSettings.server");
+      const advancedTraceSettings = readAdvancedTraceFormSettings(form);
+
+      const { createLayeredColorSvg } = await import(
+        "../utils/svgLayerTrace.server"
+      );
+      const result = await createLayeredColorSvg(input, {
         layerCount,
         maxTraceSide,
         minRegionPercent,
@@ -383,7 +399,21 @@ export async function action({ request }: ActionFunctionArgs) {
         transparent,
         bgColor,
         turnPolicy,
-      });
+        removeColors: shouldRemoveSelectedColors(advancedTraceSettings, "layered")
+          ? advancedTraceSettings.removeColors
+          : [],
+        removeColorTolerance: advancedTraceSettings.removeColorTolerance,
+        backgroundAlpha: advancedTraceSettings.backgroundAlpha,
+        layerAlpha: advancedTraceSettings.layerAlpha,
+        colorMergeTolerance: advancedTraceSettings.colorMergeTolerance,
+        posterizeStrength: advancedTraceSettings.posterizeStrength,
+        sortLayersBy: advancedTraceSettings.sortLayersBy,
+        brightness: advancedTraceSettings.brightness,
+        contrast: advancedTraceSettings.contrast,
+        outputWidth: advancedTraceSettings.outputWidth,
+        outputHeight: advancedTraceSettings.outputHeight,
+        preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+      })
 
       return json({
         ...result,
@@ -445,147 +475,7 @@ async function rasterToLayeredSvg(
   layers: ServerLayer[];
   palette: string[];
 }> {
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-  const sharp = req("sharp") as typeof import("sharp");
-
-  try {
-    (sharp as any).concurrency?.(1);
-    (sharp as any).cache?.({ files: 0, memory: 48 });
-  } catch {}
-
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
-
-  const { data, info } = await sharp(sourceInput)
-    .rotate()
-    .resize({
-      width: options.maxTraceSide,
-      height: options.maxTraceSide,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const width = info.width | 0;
-  const height = info.height | 0;
-
-  if (!width || !height) {
-    throw new Error("Could not decode PNG image.");
-  }
-
-  const pixels = collectPixels(data as Buffer, width, height, {
-    removeTransparent: options.removeTransparent,
-    removeWhite: options.removeWhite,
-    posterize: options.posterize,
-  });
-
-  if (pixels.length < 20) {
-    throw new Error(
-      "Not enough visible PNG image data to build layers. Try disabling transparent or white background removal.",
-    );
-  }
-
-  const paletteRgb = buildPalette(pixels, options.layerCount);
-
-  const assignments = assignAllPixelsToPalette(data as Buffer, width, height, {
-    palette: paletteRgb,
-    removeTransparent: options.removeTransparent,
-    removeWhite: options.removeWhite,
-    posterize: options.posterize,
-  });
-
-  const totalAssignable = assignments.assignableCount || 1;
-
-  const rawLayerItems = paletteRgb
-    .map((rgb, index) => {
-      const count = assignments.counts[index] || 0;
-      const percent = (count / totalAssignable) * 100;
-
-      return {
-        index,
-        rgb,
-        color: rgbToHex(rgb),
-        count,
-        percent,
-      };
-    })
-    .filter((x) => x.count > 0 && x.percent >= options.minRegionPercent)
-    .sort((a, b) => {
-      const lumDiff = luminance(b.rgb) - luminance(a.rgb);
-      if (Math.abs(lumDiff) > 8) return lumDiff;
-      return b.count - a.count;
-    });
-
-  if (rawLayerItems.length === 0) {
-    throw new Error(
-      "No usable PNG color layers were found. Try lowering minimum layer size or disabling background removal.",
-    );
-  }
-
-  const layers: ServerLayer[] = [];
-
-  for (let i = 0; i < rawLayerItems.length; i++) {
-    const item = rawLayerItems[i];
-
-    const mask = Buffer.alloc(width * height, 255);
-
-    for (let px = 0; px < assignments.layerForPixel.length; px++) {
-      if (assignments.layerForPixel[px] === item.index) {
-        mask[px] = 0;
-      }
-    }
-
-    if (!maskHasInk(mask)) continue;
-
-    const maskPng = await sharp(mask, {
-      raw: { width, height, channels: 1 },
-    })
-      .png()
-      .toBuffer();
-
-    const pathTags = await traceMaskToPathTags(maskPng, {
-      turdSize: options.turdSize,
-      optTolerance: options.optTolerance,
-      turnPolicy: options.turnPolicy,
-    });
-
-    if (!pathTags.trim()) continue;
-
-    layers.push({
-      id: `layer-${i + 1}`,
-      name: `Layer ${i + 1}`,
-      color: item.color,
-      pixelPercent: Number(item.percent.toFixed(2)),
-      pathTags,
-    });
-  }
-
-  if (layers.length === 0) {
-    throw new Error(
-      "The PNG did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast PNG.",
-    );
-  }
-
-  const svg = buildLayeredSvgString({
-    width,
-    height,
-    layers,
-    transparent: options.transparent,
-    bgColor: options.bgColor,
-  });
-
-  return {
-    svg,
-    width,
-    height,
-    layers,
-    palette: layers.map((layer) => layer.color),
-  };
+  throw new Error("Layered SVG tracing is handled by the server action.");
 }
 
 function collectPixels(
@@ -945,7 +835,7 @@ function clampInt(n: number, min: number, max: number) {
 /* ========================
    UI types and presets
 ======================== */
-type Settings = {
+type Settings = TraceAdvancedSettings & {
   layerCount: number;
   maxTraceSide: number;
   minRegionPercent: number;
@@ -966,6 +856,7 @@ type Preset = {
 };
 
 const DEFAULTS: Settings = {
+  ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   layerCount: 5,
   maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
   minRegionPercent: 0.35,
@@ -978,6 +869,8 @@ const DEFAULTS: Settings = {
   transparent: true,
   bgColor: "#ffffff",
 };
+
+const routeCapabilities = getRouteCapabilities("png-to-layered-svg-for-cricut");
 
 const PRESETS: Preset[] = [
   {
@@ -1622,6 +1515,7 @@ export default function PngToLayeredSvgForCricut({
     fd.append("removeTransparent", String(sourceSettings.removeTransparent));
     fd.append("transparent", String(sourceSettings.transparent));
     fd.append("bgColor", sourceSettings.bgColor);
+    appendAdvancedTraceSettings(fd, sourceSettings);
 
     setErr(null);
 
@@ -1728,191 +1622,15 @@ export default function PngToLayeredSvgForCricut({
                 </button>
 
                 {showAdvanced && (
-                  <div
+                  <LayeredAdvancedSettingsPanel
                     id="advanced-settings"
-                    className="flex flex-col gap-2 min-w-0"
-                  >
-                    <Field label={`Layer count (${settings.layerCount})`}>
-                      <input
-                        type="range"
-                        min={MIN_LAYER_COUNT}
-                        max={MAX_LAYER_COUNT}
-                        step={1}
-                        value={settings.layerCount}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            layerCount: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full accent-[#0b2dff]"
-                      />
-                    </Field>
-
-                    <Field label="Trace detail size">
-                      <select
-                        value={settings.maxTraceSide}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            maxTraceSide: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                      >
-                        <option value={900}>Fast preview</option>
-                        <option value={1200}>Balanced</option>
-                        <option value={1600}>Detailed</option>
-                        <option value={2000}>High detail</option>
-                        <option value={2400}>Maximum detail</option>
-                      </select>
-                    </Field>
-
-                    <Field
-                      label={`Minimum layer size (${settings.minRegionPercent}%)`}
-                    >
-                      <Num
-                        value={settings.minRegionPercent}
-                        min={0}
-                        max={5}
-                        step={0.05}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            minRegionPercent: v,
-                          }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Posterize PNG colors">
-                      <input
-                        type="checkbox"
-                        checked={settings.posterize}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            posterize: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label="Remove white background">
-                      <input
-                        type="checkbox"
-                        checked={settings.removeWhite}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            removeWhite: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label="Remove transparent pixels">
-                      <input
-                        type="checkbox"
-                        checked={settings.removeTransparent}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            removeTransparent: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label="Speckle removal">
-                      <Num
-                        value={settings.turdSize}
-                        min={0}
-                        max={20}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, turdSize: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Curve tolerance">
-                      <Num
-                        value={settings.optTolerance}
-                        min={0.05}
-                        max={1.2}
-                        step={0.05}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, optTolerance: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Turn policy">
-                      <select
-                        value={settings.turnPolicy}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            turnPolicy: e.target.value as any,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                      >
-                        <option value="black">black</option>
-                        <option value="white">white</option>
-                        <option value="left">left</option>
-                        <option value="right">right</option>
-                        <option value="minority">minority</option>
-                        <option value="majority">majority</option>
-                      </select>
-                    </Field>
-
-                    <Field label="SVG background">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.transparent}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              transparent: e.target.checked,
-                            }))
-                          }
-                          title="Transparent background"
-                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700">
-                          Transparent
-                        </span>
-                        <input
-                          type="color"
-                          value={settings.bgColor}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              bgColor: e.target.value,
-                            }))
-                          }
-                          aria-disabled={settings.transparent}
-                          className={[
-                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
-                            settings.transparent
-                              ? "opacity-50 pointer-events-none"
-                              : "",
-                          ].join(" ")}
-                          title={
-                            settings.transparent
-                              ? "Uncheck to pick a background color"
-                              : "Pick background color"
-                          }
-                        />
-                      </div>
-                    </Field>
-                  </div>
+                    open={showAdvanced}
+                    settings={settings}
+                    setSettings={setSettings}
+                    capabilities={routeCapabilities}
+                    buttonDisabled={buttonDisabled}
+                    onUpdatePreview={() => void submitConvert(file, settings)}
+                  />
                 )}
               </div>
 

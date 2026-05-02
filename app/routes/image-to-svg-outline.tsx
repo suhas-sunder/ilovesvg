@@ -24,6 +24,13 @@ import {
   type TraceMode,
 } from "~/client/components/svg/LayerPaletteEditor";
 import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
+import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import {
+  DEFAULT_TRACE_ADVANCED_SETTINGS,
+  appendAdvancedTraceSettings,
+  type TraceAdvancedSettings,
+} from "~/client/lib/converter/settings";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -486,6 +493,12 @@ export async function action({ request }: ActionFunctionArgs) {
         | "edge";
       const blurSigma = Number(form.get("blurSigma") ?? 0.9);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.2);
+      const {
+        applyTraceSvgOutputSettings,
+        readAdvancedTraceFormSettings,
+        shouldRemoveSelectedColors,
+      } = await import("../utils/converterSettings.server");
+      const advancedTraceSettings = readAdvancedTraceFormSettings(form);
 
       const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
       const { createLayeredColorSvg, annotateSingleTraceSvg } = await import(
@@ -508,7 +521,10 @@ export async function action({ request }: ActionFunctionArgs) {
         "true";
 
       if (traceMode === "layered") {
-        const layered = await createLayeredColorSvg(input, {
+        const { createLayeredColorSvg: createServerLayeredColorSvg } = await import(
+          "../utils/svgLayerTrace.server"
+        );
+        const layered = await createServerLayeredColorSvg(input, {
           layerCount: Math.round(colorLayerCount),
           maxTraceSide: Math.round(layerMaxTraceSide),
           minRegionPercent,
@@ -520,6 +536,20 @@ export async function action({ request }: ActionFunctionArgs) {
           transparent,
           bgColor,
           turnPolicy: layerTurnPolicy,
+          removeColors: shouldRemoveSelectedColors(advancedTraceSettings, "layered")
+            ? advancedTraceSettings.removeColors
+            : [],
+          removeColorTolerance: advancedTraceSettings.removeColorTolerance,
+          layerAlpha: advancedTraceSettings.layerAlpha,
+          backgroundAlpha: advancedTraceSettings.backgroundAlpha,
+          colorMergeTolerance: advancedTraceSettings.colorMergeTolerance,
+          posterizeStrength: advancedTraceSettings.posterizeStrength,
+          sortLayersBy: advancedTraceSettings.sortLayersBy,
+          brightness: advancedTraceSettings.brightness,
+          contrast: advancedTraceSettings.contrast,
+          outputWidth: advancedTraceSettings.outputWidth,
+          outputHeight: advancedTraceSettings.outputHeight,
+          preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
         });
 
         return json({
@@ -533,10 +563,27 @@ export async function action({ request }: ActionFunctionArgs) {
         });
       }
 
-      const prepped = await normalizeForPotrace(input, {
+      const { normalizeRasterForTrace } = await import(
+        "../utils/imagePreprocess.server"
+      );
+      const prepped = await normalizeRasterForTrace(input, {
         preprocess,
         blurSigma,
         edgeBoost,
+        threshold,
+        maxTraceSide: advancedTraceSettings.maxTraceSide,
+        removeColors: shouldRemoveSelectedColors(advancedTraceSettings, "single")
+          ? advancedTraceSettings.removeColors
+          : [],
+        removeColorTolerance: advancedTraceSettings.removeColorTolerance,
+        brightness: advancedTraceSettings.brightness,
+        contrast: advancedTraceSettings.contrast,
+        edgeThreshold: advancedTraceSettings.edgeThreshold,
+        edgeThickness: advancedTraceSettings.edgeThickness,
+        noiseReduction: advancedTraceSettings.noiseReduction,
+        gapCloseStrength: advancedTraceSettings.gapCloseStrength,
+        minIslandPx: advancedTraceSettings.minIslandPx,
+        holeFillPx: advancedTraceSettings.holeFillPx,
       });
 
       const potrace = await import("potrace");
@@ -616,318 +663,27 @@ export async function action({ request }: ActionFunctionArgs) {
 /* ---------- Image normalization for Potrace (server-side, robust) ---------- */
 async function normalizeForPotrace(
   input: Buffer,
-  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number },
+  _opts: {
+    preprocess: "none" | "edge";
+    blurSigma: number;
+    edgeBoost: number;
+    threshold?: number;
+    maxTraceSide?: number;
+    removeColors?: string[];
+    removeColorTolerance?: number;
+    brightness?: number;
+    contrast?: number;
+    edgeThreshold?: number;
+    edgeThickness?: number;
+    noiseReduction?: number;
+    gapCloseStrength?: number;
+    minIslandPx?: number;
+    holeFillPx?: number;
+  },
 ): Promise<Buffer> {
-  try {
-    const { createRequire } = await import("node:module");
-    const req = createRequire(import.meta.url);
-    const sharp = req("sharp") as typeof import("sharp");
-
-    // Tight droplet settings (best-effort)
-    try {
-      (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 28 });
-    } catch {}
-
-    const { neutralizeTransparencyCheckerboard } = await import(
-      "../utils/imagePreprocess.server"
-    );
-    const sourceInput = await neutralizeTransparencyCheckerboard(input);
-
-    let base = sharp(sourceInput).rotate();
-
-    // Soft guard to avoid OOM
-    try {
-      const meta = await base.metadata();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      const mp = (w * h) / 1_000_000;
-      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-        base = base.resize({ width: 4000, height: 4000, fit: "inside" });
-      }
-    } catch {}
-
-    const cleaned = await createBackgroundCleanedImage(sharp, base);
-
-    if (opts.preprocess === "edge") {
-      const { data, info } = await sharp(cleaned.data, {
-        raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
-      })
-        .grayscale()
-        .median(1)
-        .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const W = info.width | 0;
-      const H = info.height | 0;
-
-      if (W <= 1 || H <= 1) {
-        return await sharp(cleaned.data, {
-          raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
-        })
-          .grayscale()
-          .gamma()
-          .normalize()
-          .png()
-          .toBuffer();
-      }
-
-      const src = data as Buffer;
-      const out = Buffer.alloc(W * H, 255);
-
-      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-      const minimumEdge = cleaned.backgroundWasCleaned ? 18 : 0;
-
-      for (let y = 1; y < H - 1; y++) {
-        for (let x = 1; x < W - 1; x++) {
-          let gx = 0,
-            gy = 0,
-            n = 0;
-          for (let j = -1; j <= 1; j++) {
-            for (let i = -1; i <= 1; i++) {
-              const v = src[(y + j) * W + (x + i)];
-              gx += v * kx[n];
-              gy += v * ky[n];
-              n++;
-            }
-          }
-          let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
-          if (m < minimumEdge) m = 0;
-          if (m > 255) m = 255;
-          out[y * W + x] = 255 - m; // edges dark, background light
-        }
-      }
-
-      if (isFlatBuffer(out)) {
-        return await sharp(cleaned.data, {
-          raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
-        })
-          .grayscale()
-          .gamma()
-          .normalize()
-          .png()
-          .toBuffer();
-      }
-
-      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
-        .png()
-        .toBuffer();
-    }
-
-    // Plain grayscale prep (useful for already line-based images)
-    return await sharp(cleaned.data, {
-      raw: { width: cleaned.width, height: cleaned.height, channels: 3 },
-    })
-      .grayscale()
-      .gamma()
-      .normalize()
-      .png()
-      .toBuffer();
-  } catch {
-    return input;
-  }
+  return input;
 }
 
-type CleanedImage = {
-  data: Buffer;
-  width: number;
-  height: number;
-  backgroundWasCleaned: boolean;
-};
-
-async function createBackgroundCleanedImage(
-  sharp: typeof import("sharp"),
-  base: import("sharp").Sharp,
-): Promise<CleanedImage> {
-  const { data, info } = await base
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const width = info.width | 0;
-  const height = info.height | 0;
-  if (!width || !height) {
-    throw new Error("Could not decode image for preprocessing.");
-  }
-
-  const rgba = data as Buffer;
-  const bg = estimateBackgroundFromBorder(rgba, width, height);
-  const out = Buffer.alloc(width * height * 3, 255);
-  let cleanedCount = 0;
-
-  for (let i = 0; i < width * height; i++) {
-    const src = i * 4;
-    const dst = i * 3;
-    const a = rgba[src + 3];
-    let r = rgba[src];
-    let g = rgba[src + 1];
-    let b = rgba[src + 2];
-
-    if (a < 245) {
-      r = blendChannel(r, a, 255);
-      g = blendChannel(g, a, 255);
-      b = blendChannel(b, a, 255);
-    }
-
-    const shouldClean =
-      a < 20 ||
-      isCheckerboardOrTransparencyBackdropPixel(r, g, b) ||
-      (bg.usable && isCloseToBackground(r, g, b, bg));
-
-    if (shouldClean) {
-      out[dst] = 255;
-      out[dst + 1] = 255;
-      out[dst + 2] = 255;
-      cleanedCount++;
-    } else {
-      out[dst] = r;
-      out[dst + 1] = g;
-      out[dst + 2] = b;
-    }
-  }
-
-  return {
-    data: out,
-    width,
-    height,
-    backgroundWasCleaned: cleanedCount > Math.max(8, width * height * 0.01),
-  };
-}
-
-type EstimatedBackground = RGB & { usable: boolean; threshold: number };
-
-type RGB = { r: number; g: number; b: number };
-
-function estimateBackgroundFromBorder(
-  raw: Buffer,
-  width: number,
-  height: number,
-): EstimatedBackground {
-  const bins = new Map<
-    string,
-    { r: number; g: number; b: number; count: number }
-  >();
-  const step = Math.max(1, Math.floor(Math.min(width, height) / 80));
-
-  function addPixel(x: number, y: number) {
-    const off = (y * width + x) * 4;
-    const a = raw[off + 3];
-    if (a < 20) return;
-    let r = raw[off];
-    let g = raw[off + 1];
-    let b = raw[off + 2];
-    if (a < 245) {
-      r = blendChannel(r, a, 255);
-      g = blendChannel(g, a, 255);
-      b = blendChannel(b, a, 255);
-    }
-    const key = `${Math.round(r / 12)},${Math.round(g / 12)},${Math.round(
-      b / 12,
-    )}`;
-    const existing = bins.get(key);
-    if (existing) {
-      existing.r += r;
-      existing.g += g;
-      existing.b += b;
-      existing.count++;
-    } else {
-      bins.set(key, { r, g, b, count: 1 });
-    }
-  }
-
-  for (let x = 0; x < width; x += step) {
-    addPixel(x, 0);
-    addPixel(x, height - 1);
-  }
-  for (let y = 0; y < height; y += step) {
-    addPixel(0, y);
-    addPixel(width - 1, y);
-  }
-
-  let best: { r: number; g: number; b: number; count: number } | null = null;
-  for (const value of bins.values()) {
-    if (!best || value.count > best.count) best = value;
-  }
-
-  if (!best || best.count < 4) {
-    return { r: 255, g: 255, b: 255, usable: false, threshold: 0 };
-  }
-
-  const bg = {
-    r: Math.round(best.r / best.count),
-    g: Math.round(best.g / best.count),
-    b: Math.round(best.b / best.count),
-  };
-  const bgLuma = luminance(bg.r, bg.g, bg.b);
-  const bgSat = saturationRange(bg.r, bg.g, bg.b);
-  const usable = bgLuma >= 150 && bgSat <= 70;
-
-  return {
-    ...bg,
-    usable,
-    threshold: bgLuma >= 225 && bgSat <= 30 ? 62 : 42,
-  };
-}
-
-function isCheckerboardOrTransparencyBackdropPixel(
-  r: number,
-  g: number,
-  b: number,
-): boolean {
-  const luma = luminance(r, g, b);
-  const sat = saturationRange(r, g, b);
-
-  // Common transparent-preview checkerboards are neutral, low-saturation, and
-  // very light. Force them to white before edge detection so square boundaries
-  // are not converted into SVG paths.
-  if (luma >= 205 && sat <= 30) return true;
-
-  // Some screenshot/export tools use slightly darker light-gray checkerboards.
-  if (luma >= 185 && sat <= 14) return true;
-
-  return false;
-}
-
-function isCloseToBackground(
-  r: number,
-  g: number,
-  b: number,
-  bg: EstimatedBackground,
-): boolean {
-  const lumaValue = luminance(r, g, b);
-  if (lumaValue < 135) return false;
-
-  const dist = colorDistance({ r, g, b }, bg);
-  if (dist <= bg.threshold) return true;
-
-  // Border-estimated checkerboard backgrounds often contain two alternating
-  // neutral tones. This catches the second tone even when the most common bin
-  // only matched the first one.
-  return lumaValue >= 190 && saturationRange(r, g, b) <= 24;
-}
-
-function luminance(r: number, g: number, b: number): number {
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function saturationRange(r: number, g: number, b: number): number {
-  return Math.max(r, g, b) - Math.min(r, g, b);
-}
-
-function colorDistance(a: RGB, b: RGB): number {
-  const dr = a.r - b.r;
-  const dg = a.g - b.g;
-  const db = a.b - b.b;
-  return Math.sqrt(dr * dr + dg * dg + db * db);
-}
-
-function blendChannel(channel: number, alpha: number, background: number): number {
-  return Math.round((channel * alpha + background * (255 - alpha)) / 255);
-}
-
-/** Flat if min==max or low variance or near extremes */
 function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
   const len = buf.length;
   if (len === 0) return true;
@@ -1062,7 +818,7 @@ function escapeReg(s: string) {
 /* ========================
    UI (types)
 ======================== */
-type Settings = {
+type Settings = TraceAdvancedSettings & {
   threshold: number;
   turdSize: number;
   optTolerance: number;
@@ -1659,6 +1415,7 @@ function getPresetLabel(presetId?: string | null): string {
 }
 
 const DEFAULTS: Settings = {
+  ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 232,
   turdSize: 2,
   optTolerance: 0.45,
@@ -1684,6 +1441,8 @@ const DEFAULTS: Settings = {
   blurSigma: 0.9,
   edgeBoost: 1.2,
 };
+
+const routeCapabilities = getRouteCapabilities("image-to-svg-outline");
 
 type ServerResult = {
   requestId?: string;
@@ -2034,6 +1793,7 @@ export default function ImageToSvgOutline({
     fd.append("preprocess", effective.preprocess);
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
+    appendAdvancedTraceSettings(fd, effective);
     setErr(null);
 
     fetcher.submit(fd, {
@@ -2278,218 +2038,15 @@ export default function ImageToSvgOutline({
                 </button>
 
                 {showAdvanced && (
-                  <div
+                  <TraceAdvancedSettingsPanel
                     id="advanced-settings"
-                    className="flex flex-col gap-2 min-w-0"
-                  >
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span>
-                          Advanced changes do not live preview automatically.
-                          Click Update preview to apply these settings.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void submitConvert()}
-                          disabled={buttonDisabled}
-                          className={[
-                            "inline-flex items-center justify-center rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors",
-                            "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 cursor-pointer",
-                            "disabled:opacity-60 disabled:cursor-not-allowed",
-                          ].join(" ")}
-                        >
-                          Update preview
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-1 flex flex-col gap-2 min-w-0">
-                      <LayeredTraceControls
-                        settings={settings}
-                        onChange={(patch) =>
-                          setSettings((current) => ({ ...current, ...patch }))
-                        }
-                      />
-
-                      <Field label="Preprocess">
-                        <select
-                          value={settings.preprocess}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              preprocess: e.target.value as any,
-                            }))
-                          }
-                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer hover:border-sky-300"
-                        >
-                          <option value="edge">
-                            Edge (outline extraction)
-                          </option>
-                          <option value="none">
-                            None (already line-based)
-                          </option>
-                        </select>
-                      </Field>
-
-                      {settings.preprocess === "edge" && (
-                        <>
-                          <Field label={`Blur σ (${settings.blurSigma})`}>
-                            <Num
-                              value={settings.blurSigma}
-                              min={0}
-                              max={3}
-                              step={0.1}
-                              onChange={(v) =>
-                                setSettings((s) => ({ ...s, blurSigma: v }))
-                              }
-                            />
-                          </Field>
-                          <Field label={`Edge boost (${settings.edgeBoost})`}>
-                            <Num
-                              value={settings.edgeBoost}
-                              min={0.5}
-                              max={2.0}
-                              step={0.1}
-                              onChange={(v) =>
-                                setSettings((s) => ({ ...s, edgeBoost: v }))
-                              }
-                            />
-                          </Field>
-                        </>
-                      )}
-
-                      <Field label={`Threshold (${settings.threshold})`}>
-                        <input
-                          type="range"
-                          min={0}
-                          max={255}
-                          step={1}
-                          value={settings.threshold}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              threshold: Number(e.target.value),
-                            }))
-                          }
-                          className="w-full accent-[#0b2dff] cursor-pointer"
-                        />
-                      </Field>
-
-                      <Field label="Turd size (speck removal)">
-                        <Num
-                          value={settings.turdSize}
-                          min={0}
-                          max={10}
-                          step={1}
-                          onChange={(v) =>
-                            setSettings((s) => ({ ...s, turdSize: v }))
-                          }
-                        />
-                      </Field>
-
-                      <Field label="Curve tolerance (smoothing)">
-                        <Num
-                          value={settings.optTolerance}
-                          min={0.05}
-                          max={1.2}
-                          step={0.05}
-                          onChange={(v) =>
-                            setSettings((s) => ({ ...s, optTolerance: v }))
-                          }
-                        />
-                      </Field>
-
-                      <Field label="Turn policy">
-                        <select
-                          value={settings.turnPolicy}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              turnPolicy: e.target.value as any,
-                            }))
-                          }
-                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer hover:border-sky-300"
-                        >
-                          <option value="black">black</option>
-                          <option value="white">white</option>
-                          <option value="left">left</option>
-                          <option value="right">right</option>
-                          <option value="minority">minority</option>
-                          <option value="majority">majority</option>
-                        </select>
-                      </Field>
-
-                      <Field label="Outline color">
-                        <input
-                          type="color"
-                          value={settings.lineColor}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              lineColor: e.target.value,
-                            }))
-                          }
-                          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer hover:border-sky-300"
-                        />
-                      </Field>
-
-                      <Field label="Invert">
-                        <input
-                          type="checkbox"
-                          checked={settings.invert}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              invert: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                        />
-                      </Field>
-
-                      <Field label="Background">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={settings.transparent}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                transparent: e.target.checked,
-                              }))
-                            }
-                            title="Transparent background"
-                            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                          />
-                          <span className="text-[13px] text-slate-700">
-                            Transparent
-                          </span>
-                          <input
-                            type="color"
-                            value={settings.bgColor}
-                            onChange={(e) =>
-                              setSettings((s) => ({
-                                ...s,
-                                bgColor: e.target.value,
-                              }))
-                            }
-                            aria-disabled={settings.transparent}
-                            className={[
-                              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer hover:border-sky-300",
-                              settings.transparent
-                                ? "opacity-50 pointer-events-none"
-                                : "",
-                            ].join(" ")}
-                            title={
-                              settings.transparent
-                                ? "Uncheck to pick a background color"
-                                : "Pick background color"
-                            }
-                          />
-                        </div>
-                      </Field>
-                    </div>
-                  </div>
+                    open={showAdvanced}
+                    settings={settings}
+                    setSettings={setSettings}
+                    capabilities={routeCapabilities}
+                    buttonDisabled={buttonDisabled}
+                    onUpdatePreview={() => void submitConvert()}
+                  />
                 )}
               </div>
 

@@ -4,6 +4,115 @@ type RGB = { r: number; g: number; b: number };
 
 const req = createRequire(import.meta.url);
 
+export type RasterTracePreprocessOptions = {
+  preprocess: "none" | "edge";
+  blurSigma: number;
+  edgeBoost: number;
+  threshold?: number;
+  maxTraceSide?: number;
+  removeColors?: string[];
+  removeColorTolerance?: number;
+  brightness?: number;
+  contrast?: number;
+  edgeThreshold?: number;
+  edgeThickness?: number;
+  noiseReduction?: number;
+  gapCloseStrength?: number;
+  minIslandPx?: number;
+  holeFillPx?: number;
+};
+
+const MAX_PREPROCESS_SIDE = 3000;
+const MAX_PREPROCESS_MP = 24;
+
+export async function normalizeRasterForTrace(
+  input: Buffer,
+  opts: RasterTracePreprocessOptions,
+): Promise<Buffer> {
+  try {
+    const sharp = req("sharp") as typeof import("sharp");
+
+    try {
+      (sharp as any).concurrency?.(1);
+      (sharp as any).cache?.({ files: 0, memory: 32 });
+    } catch {}
+
+    let sourceInput = await neutralizeTransparencyCheckerboard(input);
+    const removeColors = normalizeRemoveColors(opts.removeColors);
+    const removeColorTolerance = clampNumber(opts.removeColorTolerance ?? 18, 0, 160);
+
+    if (removeColors.length > 0) {
+      sourceInput = await removeSelectedColorsFromRaster(
+        sourceInput,
+        removeColors,
+        removeColorTolerance,
+      );
+    }
+
+    let base = sharp(sourceInput).rotate();
+
+    try {
+      const metadata = await base.metadata();
+      const width = metadata.width ?? 0;
+      const height = metadata.height ?? 0;
+      const mp = (width * height) / 1_000_000;
+      const maxTraceSide = Math.round(
+        clampNumber(opts.maxTraceSide ?? MAX_PREPROCESS_SIDE, 64, MAX_PREPROCESS_SIDE),
+      );
+      if (
+        width > maxTraceSide ||
+        height > maxTraceSide ||
+        mp > MAX_PREPROCESS_MP
+      ) {
+        base = base.resize({
+          width: maxTraceSide,
+          height: maxTraceSide,
+          fit: "inside",
+          withoutEnlargement: true,
+        });
+      }
+    } catch {}
+
+    const brightness = clampNumber(opts.brightness ?? 0, -50, 50);
+    const contrast = clampNumber(opts.contrast ?? 0, -50, 75);
+    if (brightness !== 0) {
+      base = base.modulate({ brightness: Math.max(0.05, 1 + brightness / 100) });
+    }
+    if (contrast !== 0) {
+      const factor = Math.max(0.1, 1 + contrast / 100);
+      base = base.linear(factor, 128 * (1 - factor));
+    }
+
+    if (opts.noiseReduction && opts.noiseReduction > 0) {
+      base = base.median(Math.round(clampNumber(opts.noiseReduction, 1, 5)));
+    }
+
+    if (opts.preprocess === "edge") {
+      return await buildEdgeTraceMask(base, sourceInput, opts, sharp);
+    }
+
+    const prepared = await base
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .removeAlpha()
+      .grayscale()
+      .gamma()
+      .normalize()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const width = prepared.info.width | 0;
+    const height = prepared.info.height | 0;
+    let gray: Buffer<ArrayBufferLike> = Buffer.from(prepared.data as Buffer);
+    gray = applyBinaryCleanup(gray, width, height, opts);
+
+    return await sharp(gray, { raw: { width, height, channels: 1 } })
+      .png()
+      .toBuffer();
+  } catch {
+    return input;
+  }
+}
+
 export async function neutralizeTransparencyCheckerboard(
   input: Buffer,
 ): Promise<Buffer> {
@@ -216,6 +325,328 @@ function isLightNeutral(rgb: RGB) {
   const max = Math.max(rgb.r, rgb.g, rgb.b);
   const min = Math.min(rgb.r, rgb.g, rgb.b);
   return min >= 178 && max - min <= 10;
+}
+
+async function buildEdgeTraceMask(
+  base: import("sharp").Sharp,
+  sourceInput: Buffer,
+  opts: RasterTracePreprocessOptions,
+  sharp: typeof import("sharp"),
+) {
+  const { data, info } = await base
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .removeAlpha()
+    .grayscale()
+    .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const width = info.width | 0;
+  const height = info.height | 0;
+
+  if (width <= 1 || height <= 1) {
+    return await sharp(sourceInput)
+      .rotate()
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .removeAlpha()
+      .grayscale()
+      .gamma()
+      .normalize()
+      .png()
+      .toBuffer();
+  }
+
+  const src = data as Buffer;
+  let out: Buffer<ArrayBufferLike> = Buffer.alloc(width * height, 255);
+  const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+  const edgeThreshold = clampNumber(opts.edgeThreshold ?? 18, 0, 160);
+  const edgeBoost = clampNumber(opts.edgeBoost ?? 1, 0.25, 3);
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let gx = 0;
+      let gy = 0;
+      let n = 0;
+      for (let j = -1; j <= 1; j++) {
+        for (let i = -1; i <= 1; i++) {
+          const value = src[(y + j) * width + (x + i)];
+          gx += value * kx[n];
+          gy += value * ky[n];
+          n++;
+        }
+      }
+      const magnitude = Math.sqrt(gx * gx + gy * gy) * edgeBoost;
+      out[y * width + x] =
+        magnitude < edgeThreshold ? 255 : 255 - Math.min(255, magnitude);
+    }
+  }
+
+  const edgeThickness = Math.round(clampNumber(opts.edgeThickness ?? 1, 1, 4));
+  if (edgeThickness > 1) {
+    out = dilateDarkPixels(out, width, height, edgeThickness - 1);
+  }
+  out = applyBinaryCleanup(out, width, height, opts);
+
+  if (isFlatBuffer(out)) {
+    return await sharp(sourceInput)
+      .rotate()
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .removeAlpha()
+      .grayscale()
+      .gamma()
+      .normalize()
+      .png()
+      .toBuffer();
+  }
+
+  return await sharp(out, { raw: { width, height, channels: 1 } })
+    .png()
+    .toBuffer();
+}
+
+async function removeSelectedColorsFromRaster(
+  input: Buffer,
+  colors: RGB[],
+  tolerance: number,
+) {
+  const sharp = req("sharp") as typeof import("sharp");
+  const { data, info } = await sharp(input)
+    .rotate()
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const width = info.width | 0;
+  const height = info.height | 0;
+  const channels = info.channels | 0;
+  if (!width || !height || channels < 4) return input;
+
+  const raw = Buffer.from(data as Buffer);
+  for (let i = 0; i < width * height; i++) {
+    const off = i * channels;
+    const pixel = { r: raw[off], g: raw[off + 1], b: raw[off + 2] };
+    if (colors.some((color) => colorDistance(pixel, color) <= tolerance)) {
+      raw[off] = 255;
+      raw[off + 1] = 255;
+      raw[off + 2] = 255;
+      raw[off + 3] = 0;
+    }
+  }
+
+  return await sharp(raw, {
+    raw: { width, height, channels: channels as 1 | 2 | 3 | 4 },
+  })
+    .png()
+    .toBuffer();
+}
+
+function applyBinaryCleanup(
+  gray: Buffer<ArrayBufferLike>,
+  width: number,
+  height: number,
+  opts: RasterTracePreprocessOptions,
+): Buffer<ArrayBufferLike> {
+  if (!width || !height) return gray;
+  const threshold = clampNumber(opts.threshold ?? 128, 0, 255);
+  const minIslandPx = Math.round(clampNumber(opts.minIslandPx ?? 0, 0, 120));
+  const holeFillPx = Math.round(clampNumber(opts.holeFillPx ?? 0, 0, 120));
+  const gapCloseStrength = Math.round(
+    clampNumber(opts.gapCloseStrength ?? 0, 0, 3),
+  );
+
+  if (!minIslandPx && !holeFillPx && !gapCloseStrength) return gray;
+
+  let mask = new Uint8Array(width * height);
+  for (let i = 0; i < mask.length; i++) {
+    mask[i] = gray[i] <= threshold ? 1 : 0;
+  }
+
+  if (gapCloseStrength > 0) {
+    mask = erodeDarkPixels(
+      dilateBinaryMask(mask, width, height, gapCloseStrength),
+      width,
+      height,
+      gapCloseStrength,
+    );
+  }
+  if (minIslandPx > 0) {
+    removeSmallComponents(mask, width, height, minIslandPx, 1, 0, true);
+  }
+  if (holeFillPx > 0) {
+    removeSmallComponents(mask, width, height, holeFillPx, 0, 1, false);
+  }
+
+  const out = Buffer.alloc(mask.length);
+  for (let i = 0; i < mask.length; i++) {
+    out[i] = mask[i] ? 0 : 255;
+  }
+  return out;
+}
+
+function removeSmallComponents(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  maxSize: number,
+  targetValue: 0 | 1,
+  replacementValue: 0 | 1,
+  allowBorder: boolean,
+) {
+  const total = width * height;
+  const visited = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  const component = new Int32Array(Math.max(1, maxSize + 1));
+
+  for (let start = 0; start < total; start++) {
+    if (visited[start] || mask[start] !== targetValue) continue;
+
+    let head = 0;
+    let tail = 0;
+    let count = 0;
+    let touchesBorder = false;
+    function enqueue(index: number) {
+      if (visited[index] || mask[index] !== targetValue) return;
+      visited[index] = 1;
+      queue[tail++] = index;
+    }
+
+    queue[tail++] = start;
+    visited[start] = 1;
+
+    while (head < tail) {
+      const index = queue[head++];
+      const x = index % width;
+      const y = Math.floor(index / width);
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+        touchesBorder = true;
+      }
+      if (count <= maxSize) component[count] = index;
+      count++;
+
+      if (x > 0) enqueue(index - 1);
+      if (x < width - 1) enqueue(index + 1);
+      if (y > 0) enqueue(index - width);
+      if (y < height - 1) enqueue(index + width);
+    }
+
+    if (count <= maxSize && (allowBorder || !touchesBorder)) {
+      for (let i = 0; i < count; i++) mask[component[i]] = replacementValue;
+    }
+  }
+
+}
+
+function dilateDarkPixels(
+  gray: Buffer<ArrayBufferLike>,
+  width: number,
+  height: number,
+  radius: number,
+): Buffer<ArrayBufferLike> {
+  const mask = new Uint8Array(width * height);
+  for (let i = 0; i < mask.length; i++) mask[i] = gray[i] < 240 ? 1 : 0;
+  const dilated = dilateBinaryMask(mask, width, height, radius);
+  const out = Buffer.from(gray);
+  for (let i = 0; i < dilated.length; i++) {
+    if (dilated[i]) out[i] = Math.min(out[i], 0);
+  }
+  return out;
+}
+
+function dilateBinaryMask(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const out = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          out[ny * width + nx] = 1;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function erodeDarkPixels(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const out = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let keep = true;
+      for (let dy = -radius; dy <= radius && keep; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) {
+          keep = false;
+          break;
+        }
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= width || !mask[ny * width + nx]) {
+            keep = false;
+            break;
+          }
+        }
+      }
+      out[y * width + x] = keep ? 1 : 0;
+    }
+  }
+  return out;
+}
+
+function normalizeRemoveColors(colors: unknown): RGB[] {
+  if (!Array.isArray(colors)) return [];
+  const out: RGB[] = [];
+  for (const color of colors) {
+    const parsed = parseHexColor(String(color || ""));
+    if (!parsed) continue;
+    out.push(parsed);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function parseHexColor(value: string): RGB | null {
+  const raw = value.trim().toLowerCase();
+  let hex = "";
+  if (/^#[0-9a-f]{6}$/.test(raw)) hex = raw.slice(1);
+  else if (/^#[0-9a-f]{3}$/.test(raw)) {
+    hex = `${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+  } else return null;
+
+  return {
+    r: Number.parseInt(hex.slice(0, 2), 16),
+    g: Number.parseInt(hex.slice(2, 4), 16),
+    b: Number.parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function isFlatBuffer(buffer: Buffer) {
+  if (buffer.length === 0) return true;
+  const first = buffer[0];
+  for (let i = 1; i < buffer.length; i++) {
+    if (Math.abs(buffer[i] - first) > 2) return false;
+  }
+  return true;
 }
 
 function colorDistance(a: RGB, b: RGB) {

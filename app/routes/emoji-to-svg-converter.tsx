@@ -1018,124 +1018,8 @@ async function createLayeredColorSvg(
   width: number;
   height: number;
   layers: SvgLayerMeta[];
-}> {
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-  const sharp = req("sharp") as typeof import("sharp");
-  try {
-    (sharp as any).concurrency?.(1);
-    (sharp as any).cache?.({ files: 0, memory: 48 });
-  } catch {}
-
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
-
-  const { data, info } = await sharp(sourceInput)
-    .rotate()
-    .resize({
-      width: opts.maxTraceSide,
-      height: opts.maxTraceSide,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const width = info.width | 0;
-  const height = info.height | 0;
-  if (!width || !height)
-    throw new Error("Could not decode image for layered SVG tracing.");
-
-  const raw = data as Buffer;
-  const pixels = collectLayerPixels(raw, width, height, {
-    removeTransparent: opts.removeTransparent,
-    removeWhite: opts.removeWhite,
-    posterize: opts.posterize,
-  });
-  if (pixels.length < 20)
-    throw new Error(
-      "Not enough visible image data to build layers. Try disabling white background removal.",
-    );
-
-  const paletteRgb = buildLayerPalette(pixels, opts.layerCount);
-  const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
-    palette: paletteRgb,
-    removeTransparent: opts.removeTransparent,
-    removeWhite: opts.removeWhite,
-    posterize: opts.posterize,
-  });
-  const totalAssignable = assignments.assignableCount || 1;
-  const rawLayerItems = paletteRgb
-    .map((rgb, index) => {
-      const count = assignments.counts[index] || 0;
-      const percent = (count / totalAssignable) * 100;
-      return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
-    })
-    .filter((item) => item.count > 0 && item.percent >= opts.minRegionPercent)
-    .sort((a, b) => {
-      const lumDiff = luminance(b.rgb) - luminance(a.rgb);
-      if (Math.abs(lumDiff) > 8) return lumDiff;
-      return b.count - a.count;
-    });
-  if (rawLayerItems.length === 0)
-    throw new Error(
-      "No usable color layers were found. Try lowering minimum layer size or disabling white background removal.",
-    );
-
-  const builtLayers: TraceLayerBuildItem[] = [];
-  for (let i = 0; i < rawLayerItems.length; i++) {
-    const item = rawLayerItems[i];
-    const mask = Buffer.alloc(width * height, 255);
-    for (let px = 0; px < assignments.layerForPixel.length; px++) {
-      if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
-    }
-    if (!maskHasInk(mask)) continue;
-    const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
-      .png()
-      .toBuffer();
-    const pathTags = await traceMaskToPathTags(maskPng, {
-      turdSize: opts.turdSize,
-      optTolerance: opts.optTolerance,
-      turnPolicy: opts.turnPolicy,
-    });
-    if (!pathTags.trim()) continue;
-    const label = `Layer ${builtLayers.length + 1}`;
-    builtLayers.push({
-      id: sanitizeLayerId(
-        `layer-${builtLayers.length + 1}-${item.color.replace("#", "")}`,
-      ),
-      label,
-      color: item.color,
-      pixelPercent: Number(item.percent.toFixed(2)),
-      pathTags,
-    });
-  }
-  if (builtLayers.length === 0)
-    throw new Error(
-      "The image did not produce traceable layers. Try fewer layers, lower speckle removal, or a higher-contrast image.",
-    );
-  const svg = buildLayeredSvgString({
-    width,
-    height,
-    layers: builtLayers,
-    transparent: opts.transparent,
-    bgColor: opts.bgColor,
-  });
-  return {
-    svg,
-    width,
-    height,
-    layers: builtLayers.map((layer) => ({
-      id: layer.id,
-      label: layer.label,
-      color: layer.color,
-      originalColor: layer.color,
-      visible: true,
-    })),
-  };
+}>{
+  throw new Error("Layered SVG tracing is handled by the server action.");
 }
 
 function collectLayerPixels(
@@ -1587,7 +1471,10 @@ async function handleImageTrace(
       ).toLowerCase() === "true";
 
     if (traceMode === "layered" && !invert) {
-      const layered = await createLayeredColorSvg(input, {
+      const { createLayeredColorSvg: createServerLayeredColorSvg } = await import(
+          "../utils/svgLayerTrace.server"
+        );
+        const layered = await createServerLayeredColorSvg(input, {
         layerCount: Math.round(colorLayerCount),
         maxTraceSide: Math.round(layerMaxTraceSide),
         minRegionPercent,
@@ -1611,7 +1498,10 @@ async function handleImageTrace(
       });
     }
 
-    const prepped = await normalizeForPotrace(input, {
+    const { normalizeRasterForTrace } = await import(
+        "../utils/imagePreprocess.server"
+      );
+      const prepped = await normalizeRasterForTrace(input, {
       preprocess,
       blurSigma,
       edgeBoost,
@@ -1688,114 +1578,25 @@ async function handleImageTrace(
 /* ---------- Image normalization for Potrace (server-side, tight) ---------- */
 async function normalizeForPotrace(
   input: Buffer,
-  opts: { preprocess: "none" | "edge"; blurSigma: number; edgeBoost: number },
+  _opts: {
+    preprocess: "none" | "edge";
+    blurSigma: number;
+    edgeBoost: number;
+    threshold?: number;
+    maxTraceSide?: number;
+    removeColors?: string[];
+    removeColorTolerance?: number;
+    brightness?: number;
+    contrast?: number;
+    edgeThreshold?: number;
+    edgeThickness?: number;
+    noiseReduction?: number;
+    gapCloseStrength?: number;
+    minIslandPx?: number;
+    holeFillPx?: number;
+  },
 ): Promise<Buffer> {
-  try {
-    const { createRequire } = await import("node:module");
-    const req = createRequire(import.meta.url);
-    const sharp = req("sharp") as typeof import("sharp");
-
-    // Tight droplet settings (best-effort)
-    try {
-      (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 28 });
-    } catch {}
-
-    const { neutralizeTransparencyCheckerboard } = await import(
-      "../utils/imagePreprocess.server"
-    );
-    const sourceInput = await neutralizeTransparencyCheckerboard(input);
-
-    let base = sharp(sourceInput).rotate();
-
-    // Soft guard to avoid OOM
-    try {
-      const meta = await base.metadata();
-      const w = meta.width ?? 0;
-      const h = meta.height ?? 0;
-      const mp = (w * h) / 1_000_000;
-      if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-        base = base.resize({ width: 4000, height: 4000, fit: "inside" });
-      }
-    } catch {}
-
-    if (opts.preprocess === "edge") {
-      const { data, info } = await base
-        .flatten({ background: { r: 255, g: 255, b: 255 } })
-        .removeAlpha()
-        .grayscale()
-        .blur(opts.blurSigma > 0 ? opts.blurSigma : undefined)
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-
-      const W = info.width | 0;
-      const H = info.height | 0;
-
-      if (W <= 1 || H <= 1) {
-        return await sharp(sourceInput)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .removeAlpha()
-          .grayscale()
-          .gamma()
-          .normalize()
-          .png()
-          .toBuffer();
-      }
-
-      const src = data as Buffer;
-      const out = Buffer.alloc(W * H, 255);
-
-      const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-      const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-      for (let y = 1; y < H - 1; y++) {
-        for (let x = 1; x < W - 1; x++) {
-          let gx = 0,
-            gy = 0,
-            n = 0;
-          for (let j = -1; j <= 1; j++) {
-            for (let i = -1; i <= 1; i++) {
-              const v = src[(y + j) * W + (x + i)];
-              gx += v * kx[n];
-              gy += v * ky[n];
-              n++;
-            }
-          }
-          let m = Math.sqrt(gx * gx + gy * gy) * opts.edgeBoost;
-          if (m > 255) m = 255;
-          out[y * W + x] = 255 - m;
-        }
-      }
-
-      if (isFlatBuffer(out)) {
-        return await sharp(sourceInput)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .removeAlpha()
-          .grayscale()
-          .gamma()
-          .normalize()
-          .png()
-          .toBuffer();
-      }
-
-      return await sharp(out, { raw: { width: W, height: H, channels: 1 } })
-        .png()
-        .toBuffer();
-    }
-
-    return await base
-      .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .removeAlpha()
-      .grayscale()
-      .gamma()
-      .normalize()
-      .png()
-      .toBuffer();
-  } catch {
-    return input;
-  }
+  return input;
 }
 
 function isFlatBuffer(buf: Buffer, sampleStep = 53): boolean {
