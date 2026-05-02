@@ -1,7 +1,61 @@
+# macOS
 .DS_Store
-/node_modules/
-*.tsbuildinfo
+.AppleDouble
+.LSOverride
+
+# Dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Build outputs
+build/
+dist/
+out/
+.cache/
+.tmp/
+temp/
+tmp/
 
 # React Router
-/.react-router/
-/build/
+.react-router/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# IDE/editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+*.swp
+*.swo
+
+# Local system/cache files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
