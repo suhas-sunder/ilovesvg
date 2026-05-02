@@ -419,22 +419,62 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    await validateRasterInputForLayering(parsed.buffer);
+    const { validateBufferSignature } = await import(
+      "~/utils/backendSecurity.server"
+    );
+    const signatureError = validateBufferSignature(parsed.buffer, {
+      allowedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+      mimeType: `image/${parsed.mime}`,
+    });
+    if (signatureError) return signatureError;
 
-    if (rasterMode === "single") {
-      const result = await rasterToSingleColorSvg(
-        parsed.buffer,
-        readSingleTraceOptions(formValues, transparent, bgColor),
-      );
-      return json(result);
+    const { getConversionGate } = await import("~/utils/conversionGate.server");
+    const gate = await getConversionGate();
+    let release: (() => void) | null = null;
+    try {
+      release = await gate.acquireOrQueue();
+    } catch (gateError: any) {
+      if (gateError?.code === "BUSY") {
+        const retryAfterSeconds = Math.ceil(
+          Number(gateError.retryAfterMs || 3000) / 1000,
+        );
+        return json(
+          {
+            ok: false,
+            code: "SERVER_BUSY",
+            message: "The conversion server is busy. Please try again in a moment.",
+            error: "The conversion server is busy. Please try again in a moment.",
+            retryAfterSeconds,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(retryAfterSeconds) },
+          },
+        );
+      }
+      throw gateError;
     }
 
-    const result = await rasterToLayeredSvg(
-      parsed.buffer,
-      readLayeredTraceOptions(formValues, transparent, bgColor),
-    );
+    try {
+      await validateRasterInputForLayering(parsed.buffer);
 
-    return json(result);
+      if (rasterMode === "single") {
+        const result = await rasterToSingleColorSvg(
+          parsed.buffer,
+          readSingleTraceOptions(formValues, transparent, bgColor),
+        );
+        return json(result);
+      }
+
+      const result = await rasterToLayeredSvg(
+        parsed.buffer,
+        readLayeredTraceOptions(formValues, transparent, bgColor),
+      );
+
+      return json(result);
+    } finally {
+      release?.();
+    }
   } catch (err: any) {
     const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
@@ -940,9 +980,7 @@ async function traceBitmapToSvg(
     turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   },
 ): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import(
-    "~/utils/potraceCompat"
-  );
+  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
   const opts: any = {
     color: "#000000",
     threshold: options.threshold,

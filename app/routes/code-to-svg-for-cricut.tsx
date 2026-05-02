@@ -77,266 +77,9 @@ type Gate = {
   queued: number;
 };
 
-const PAGE_RATE_LIMITS = {
-  perMinute: 120,
-  perFiveMinutes: 400,
-  perHour: 1500,
-  perDay: 3000,
-};
-
-type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
-type RateLimitWindowState = { count: number; resetAt: number };
-type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
-type BackendRateLimitResult =
-  | {
-      allowed: true;
-      headers: Headers;
-    }
-  | {
-      allowed: false;
-      headers: Headers;
-      retryAfterMs: number;
-      retryAfterText: string;
-    };
-
-const RATE_LIMIT_WINDOWS: Array<{
-  name: RateLimitWindowName;
-  ms: number;
-  limit: number;
-  limitHeader: string;
-  remainingHeader: string;
-}> = [
-  {
-    name: "minute",
-    ms: 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perMinute,
-    limitHeader: "X-RateLimit-Limit-Minute",
-    remainingHeader: "X-RateLimit-Remaining-Minute",
-  },
-  {
-    name: "fiveMinutes",
-    ms: 5 * 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perFiveMinutes,
-    limitHeader: "X-RateLimit-Limit-Five-Minutes",
-    remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
-  },
-  {
-    name: "hour",
-    ms: 60 * 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perHour,
-    limitHeader: "X-RateLimit-Limit-Hour",
-    remainingHeader: "X-RateLimit-Remaining-Hour",
-  },
-  {
-    name: "day",
-    ms: 24 * 60 * 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perDay,
-    limitHeader: "X-RateLimit-Limit-Day",
-    remainingHeader: "X-RateLimit-Remaining-Day",
-  },
-];
-
-function getRateLimitStore(): Map<string, RateLimitRecord> {
-  const g = globalThis as any;
-  if (!g.__ilovesvg_code_to_svg_action_rate_limits) {
-    g.__ilovesvg_code_to_svg_action_rate_limits = new Map<
-      string,
-      RateLimitRecord
-    >();
-  }
-  return g.__ilovesvg_code_to_svg_action_rate_limits as Map<
-    string,
-    RateLimitRecord
-  >;
-}
-
-function getClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
-function normalizeKeyPart(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9._:-]+/g, "_")
-    .slice(0, 160);
-}
-
-function getBackendRateLimitKey(
-  request: Request,
-  routeName: string,
-  actionName: string,
-): string {
-  const ip = normalizeKeyPart(getClientIp(request));
-  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
-  return `${ip}:${ua}:${normalizeKeyPart(routeName)}:${normalizeKeyPart(
-    actionName,
-  )}`;
-}
-
-function createFreshRateLimitRecord(now: number): RateLimitRecord {
-  return {
-    minute: { count: 0, resetAt: now + 60 * 1000 },
-    fiveMinutes: { count: 0, resetAt: now + 5 * 60 * 1000 },
-    hour: { count: 0, resetAt: now + 60 * 60 * 1000 },
-    day: { count: 0, resetAt: now + 24 * 60 * 60 * 1000 },
-  };
-}
-
-function formatRetryAfter(ms: number): string {
-  const seconds = Math.max(1, Math.ceil(ms / 1000));
-  if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
-  const minutes = Math.ceil(seconds / 60);
-  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
-}
-
-function checkBackendConversionRateLimit(
-  request: Request,
-  routeName: string,
-  actionName: string,
-): BackendRateLimitResult {
-  const now = Date.now();
-  const store = getRateLimitStore();
-  const key = getBackendRateLimitKey(request, routeName, actionName);
-  const record = store.get(key) ?? createFreshRateLimitRecord(now);
-
-  for (const windowConfig of RATE_LIMIT_WINDOWS) {
-    const state = record[windowConfig.name];
-    if (now >= state.resetAt) {
-      state.count = 0;
-      state.resetAt = now + windowConfig.ms;
-    }
-  }
-
-  const exceeded = RATE_LIMIT_WINDOWS.filter(
-    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
-  );
-
-  const headers = new Headers();
-  for (const windowConfig of RATE_LIMIT_WINDOWS) {
-    const state = record[windowConfig.name];
-    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
-    headers.set(
-      windowConfig.remainingHeader,
-      String(Math.max(0, windowConfig.limit - state.count)),
-    );
-  }
-
-  if (exceeded.length > 0) {
-    const retryAfterMs = Math.max(
-      1000,
-      Math.min(
-        ...exceeded.map(
-          (windowConfig) => record[windowConfig.name].resetAt - now,
-        ),
-      ),
-    );
-    headers.set("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
-    store.set(key, record);
-    return {
-      allowed: false,
-      headers,
-      retryAfterMs,
-      retryAfterText: formatRetryAfter(retryAfterMs),
-    };
-  }
-
-  for (const windowConfig of RATE_LIMIT_WINDOWS) {
-    record[windowConfig.name].count += 1;
-  }
-
-  for (const windowConfig of RATE_LIMIT_WINDOWS) {
-    const state = record[windowConfig.name];
-    headers.set(
-      windowConfig.remainingHeader,
-      String(Math.max(0, windowConfig.limit - state.count)),
-    );
-  }
-
-  store.set(key, record);
-  return { allowed: true, headers };
-}
-
 async function getGate(): Promise<Gate> {
-  const g = globalThis as any;
-  if (g.__ilovesvg_code_to_svg_gate) return g.__ilovesvg_code_to_svg_gate;
-
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-
-  let cpuCount = 1;
-  try {
-    const os = req("os") as typeof import("os");
-    cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
-  } catch {}
-
-  const MAX = Math.max(1, Math.min(2, cpuCount));
-  const QUEUE_MAX = 8;
-  const EST_JOB_MS = 3000;
-
-  class SimpleGate implements Gate {
-    max: number;
-    queueMax: number;
-    running = 0;
-    queue: Array<(r: ReleaseFn) => void> = [];
-
-    constructor(max: number, queueMax: number) {
-      this.max = max;
-      this.queueMax = queueMax;
-    }
-
-    get queued() {
-      return this.queue.length;
-    }
-
-    private mkRelease(): ReleaseFn {
-      let released = false;
-      return () => {
-        if (released) return;
-        released = true;
-        this.running = Math.max(0, this.running - 1);
-
-        const next = this.queue.shift();
-        if (next) {
-          this.running++;
-          next(this.mkRelease());
-        }
-      };
-    }
-
-    estimateRetryMs() {
-      const waves = Math.ceil((this.queued + 1) / this.max);
-      return Math.min(15000, Math.max(1000, waves * EST_JOB_MS));
-    }
-
-    acquireOrQueue(): Promise<ReleaseFn> {
-      return new Promise((resolve, reject) => {
-        if (this.running < this.max) {
-          this.running++;
-          resolve(this.mkRelease());
-          return;
-        }
-
-        if (this.queue.length >= this.queueMax) {
-          const err: any = new Error("Server busy");
-          err.code = "BUSY";
-          err.retryAfterMs = this.estimateRetryMs();
-          reject(err);
-          return;
-        }
-
-        this.queue.push((rel) => resolve(rel));
-      });
-    }
-  }
-
-  g.__ilovesvg_code_to_svg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__ilovesvg_code_to_svg_gate;
+  const { getConversionGate } = await import("~/utils/conversionGate.server");
+  return getConversionGate();
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -369,6 +112,9 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const { checkBackendConversionRateLimit } = await import(
+      "~/utils/backendSecurity.server"
+    );
     const rateLimit = checkBackendConversionRateLimit(
       request,
       "code-to-svg-for-cricut",
@@ -378,7 +124,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
-          retryAfterMs: rateLimit.retryAfterMs,
+          retryAfterMs: rateLimit.retryAfterSeconds * 1000,
           code: "RATE_LIMITED",
         },
         { status: 429, headers: rateLimit.headers },
@@ -456,6 +202,10 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       let input: Buffer = Buffer.from(ab);
+
+      const { validateFileSignature } = await import("~/utils/backendSecurity.server");
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       try {
         const { getSharp } = await import("~/utils/conversionModules.server");
@@ -781,9 +531,7 @@ function sanitizeLayerId(value: string): string {
 }
 
 async function traceBitmapToSvg(input: Buffer, opts: any): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import(
-    "~/utils/potraceCompat"
-  );
+  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
   return await traceBitmapToSvgWithPotrace(input, opts);
 }
 

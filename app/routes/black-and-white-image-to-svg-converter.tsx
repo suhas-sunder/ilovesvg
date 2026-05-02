@@ -96,207 +96,8 @@ type Gate = {
 };
 
 async function getGate(): Promise<Gate> {
-  const g = globalThis as any;
-  if (g.__ilovesvg_gate) return g.__ilovesvg_gate as Gate;
-
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-  let cpuCount = 1;
-  try {
-    const os = req("os") as typeof import("os");
-    cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
-  } catch {}
-
-  const MAX = Math.max(1, Math.min(2, cpuCount));
-  const QUEUE_MAX = 8;
-  const EST_JOB_MS = 3000;
-
-  class SimpleGate implements Gate {
-    max: number;
-    queueMax: number;
-    running = 0;
-    queue: Array<(r: ReleaseFn) => void> = [];
-    constructor(max: number, queueMax: number) {
-      this.max = max;
-      this.queueMax = queueMax;
-    }
-    get queued() {
-      return this.queue.length;
-    }
-    private mkRelease(): ReleaseFn {
-      let released = false;
-      return () => {
-        if (released) return;
-        released = true;
-        this.running = Math.max(0, this.running - 1);
-        const next = this.queue.shift();
-        if (next) {
-          this.running++;
-          next(this.mkRelease());
-        }
-      };
-    }
-    estimateRetryMs() {
-      const waves = Math.ceil((this.queued + 1) / this.max);
-      return Math.min(15000, Math.max(1000, waves * EST_JOB_MS));
-    }
-    acquireOrQueue(): Promise<ReleaseFn> {
-      return new Promise((resolve, reject) => {
-        if (this.running < this.max) {
-          this.running++;
-          resolve(this.mkRelease());
-          return;
-        }
-        if (this.queue.length >= this.queueMax) {
-          const err: any = new Error("Server busy");
-          err.code = "BUSY";
-          err.retryAfterMs = this.estimateRetryMs();
-          reject(err);
-          return;
-        }
-        this.queue.push((rel) => resolve(rel));
-      });
-    }
-  }
-
-  g.__ilovesvg_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__ilovesvg_gate as Gate;
-}
-
-const PAGE_RATE_LIMITS = {
-  perMinute: 120,
-  perFiveMinutes: 400,
-  perHour: 1500,
-  perDay: 3000,
-};
-
-type RateLimitWindowName = "Minute" | "Five-Minutes" | "Hour" | "Day";
-
-type RateLimitWindow = {
-  name: RateLimitWindowName;
-  limit: number;
-  ms: number;
-};
-
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
-
-type RateLimitCheck = {
-  limited: boolean;
-  retryAfterSeconds: number;
-  retryAfterText: string;
-  headers: Record<string, string>;
-};
-
-const RATE_LIMIT_WINDOWS: RateLimitWindow[] = [
-  { name: "Minute", limit: PAGE_RATE_LIMITS.perMinute, ms: 60 * 1000 },
-  {
-    name: "Five-Minutes",
-    limit: PAGE_RATE_LIMITS.perFiveMinutes,
-    ms: 5 * 60 * 1000,
-  },
-  { name: "Hour", limit: PAGE_RATE_LIMITS.perHour, ms: 60 * 60 * 1000 },
-  { name: "Day", limit: PAGE_RATE_LIMITS.perDay, ms: 24 * 60 * 60 * 1000 },
-];
-
-function getRateLimitStore(): Map<string, RateLimitBucket> {
-  const g = globalThis as any;
-  if (!g.__ilovesvg_rate_limit_store) {
-    g.__ilovesvg_rate_limit_store = new Map<string, RateLimitBucket>();
-  }
-  return g.__ilovesvg_rate_limit_store as Map<string, RateLimitBucket>;
-}
-
-function getClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const firstForwarded = forwarded?.split(",")[0]?.trim();
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-real-ip") ||
-    firstForwarded ||
-    "unknown"
-  );
-}
-
-function buildRateLimitKey(
-  request: Request,
-  routeName: string,
-  actionName: string,
-) {
-  const ip = getClientIp(request);
-  const userAgent = request.headers.get("user-agent") || "unknown";
-  return `${routeName}:${actionName}:${ip}:${userAgent}`;
-}
-
-function formatRetryAfterText(seconds: number) {
-  if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"}`;
-  const minutes = Math.ceil(seconds / 60);
-  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-}
-
-function checkBackendRateLimit(key: string, now = Date.now()): RateLimitCheck {
-  const store = getRateLimitStore();
-  const buckets = RATE_LIMIT_WINDOWS.map((window) => {
-    const bucketKey = `${key}:${window.name}`;
-    let bucket = store.get(bucketKey);
-    if (!bucket || bucket.resetAt <= now) {
-      bucket = { count: 0, resetAt: now + window.ms };
-      store.set(bucketKey, bucket);
-    }
-    return { window, bucket, bucketKey };
-  });
-
-  const exceeded = buckets.filter(
-    ({ window, bucket }) => bucket.count >= window.limit,
-  );
-  const retryAfterMs = exceeded.length
-    ? Math.max(...exceeded.map(({ bucket }) => bucket.resetAt - now))
-    : 0;
-  const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
-
-  if (!exceeded.length) {
-    for (const { bucket } of buckets) bucket.count++;
-  }
-
-  for (const [bucketKey, bucket] of store) {
-    if (bucket.resetAt <= now) store.delete(bucketKey);
-  }
-
-  const byName = Object.fromEntries(
-    buckets.map(({ window, bucket }) => [window.name, { window, bucket }]),
-  ) as Record<
-    RateLimitWindowName,
-    { window: RateLimitWindow; bucket: RateLimitBucket }
-  >;
-
-  const remaining = (name: RateLimitWindowName) => {
-    const item = byName[name];
-    return String(Math.max(0, item.window.limit - item.bucket.count));
-  };
-
-  const headers: Record<string, string> = {
-    "X-RateLimit-Limit-Minute": String(PAGE_RATE_LIMITS.perMinute),
-    "X-RateLimit-Limit-Five-Minutes": String(PAGE_RATE_LIMITS.perFiveMinutes),
-    "X-RateLimit-Limit-Hour": String(PAGE_RATE_LIMITS.perHour),
-    "X-RateLimit-Limit-Day": String(PAGE_RATE_LIMITS.perDay),
-    "X-RateLimit-Remaining-Minute": remaining("Minute"),
-    "X-RateLimit-Remaining-Five-Minutes": remaining("Five-Minutes"),
-    "X-RateLimit-Remaining-Hour": remaining("Hour"),
-    "X-RateLimit-Remaining-Day": remaining("Day"),
-  };
-
-  if (exceeded.length) {
-    headers["Retry-After"] = String(retryAfterSeconds);
-  }
-
-  return {
-    limited: exceeded.length > 0,
-    retryAfterSeconds,
-    retryAfterText: formatRetryAfterText(retryAfterSeconds),
-    headers,
-  };
+  const { getConversionGate } = await import("~/utils/conversionGate.server");
+  return getConversionGate();
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -328,17 +129,20 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    const rateLimit = checkBackendRateLimit(
-      buildRateLimitKey(
-        request,
-        "black-and-white-image-to-svg-converter",
-        "raster-trace",
-      ),
+    const { checkBackendConversionRateLimit } = await import(
+      "~/utils/backendSecurity.server"
     );
-    if (rateLimit.limited) {
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "black-and-white-image-to-svg-converter",
+      "raster-trace",
+    );
+    if (!rateLimit.allowed) {
       return json(
         {
           error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+          retryAfterMs: rateLimit.retryAfterSeconds * 1000,
+          code: "RATE_LIMITED",
         },
         { status: 429, headers: rateLimit.headers },
       );
@@ -399,6 +203,10 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore
       const input: Buffer = Buffer.from(ab);
+
+      const { validateFileSignature } = await import("~/utils/backendSecurity.server");
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
       const threshold = clampInt(Number(form.get("threshold") ?? 200), 0, 255);
@@ -655,9 +463,7 @@ async function normalizeForPotraceBW(
 }
 
 async function runPotrace(input: Buffer, opts: any): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import(
-    "~/utils/potraceCompat"
-  );
+  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
   return await traceBitmapToSvgWithPotrace(input, opts);
 }
 

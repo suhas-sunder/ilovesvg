@@ -258,51 +258,78 @@ export async function action({ request }: ActionFunctionArgs) {
       warnings.push(`Too many items. Only first ${MAX_ITEMS} exported.`);
     }
 
-    const outlineFont = await loadOutlineFont(
-      fontSource,
-      builtinFont,
-      uploadedFont,
-    );
-    if (!outlineFont)
-      return json<ActionResult>(
-        { error: "Could not load the selected font." },
-        { status: 422 },
-      );
-
-    const outItems: ResultItem[] = [];
-    for (const t of itemsText) {
-      const svg = buildOutlinedSvgFromText(t, outlineFont, {
-        fontSize,
-        lineHeight,
-        letterSpacing,
-        wordSpacing,
-        align,
-        fill,
-        stroke,
-        strokeWidth,
-        pad,
-        canvasMode,
-        canvasW,
-        canvasH,
-        fit,
-        repeatPad,
-        bg,
-        bgColor,
-      });
-      outItems.push({ text: t, svg });
+    const { getConversionGate } = await import("~/utils/conversionGate.server");
+    const gate = await getConversionGate();
+    let release: (() => void) | null = null;
+    try {
+      release = await gate.acquireOrQueue();
+    } catch (gateError: any) {
+      if (gateError?.code === "BUSY") {
+        const retryAfterSeconds = Math.ceil(
+          Number(gateError.retryAfterMs || 3000) / 1000,
+        );
+        return json<ActionResult>(
+          {
+            error: "The conversion server is busy. Please try again in a moment.",
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(retryAfterSeconds) },
+          },
+        );
+      }
+      throw gateError;
     }
 
-    return json<ActionResult>({
-      groupedSvg: outputMode === "grouped" ? outItems[0]?.svg : undefined,
-      items: outputMode === "individual" ? outItems : undefined,
-      warnings: warnings.length ? warnings : undefined,
-      meta: {
-        renderMode,
-        outputMode,
-        splitMode,
-        count: outputMode === "individual" ? outItems.length : 1,
-      },
-    });
+    try {
+      const outlineFont = await loadOutlineFont(
+        fontSource,
+        builtinFont,
+        uploadedFont,
+      );
+      if (!outlineFont)
+        return json<ActionResult>(
+          { error: "Could not load the selected font." },
+          { status: 422 },
+        );
+
+      const outItems: ResultItem[] = [];
+      for (const t of itemsText) {
+        const svg = buildOutlinedSvgFromText(t, outlineFont, {
+          fontSize,
+          lineHeight,
+          letterSpacing,
+          wordSpacing,
+          align,
+          fill,
+          stroke,
+          strokeWidth,
+          pad,
+          canvasMode,
+          canvasW,
+          canvasH,
+          fit,
+          repeatPad,
+          bg,
+          bgColor,
+        });
+        outItems.push({ text: t, svg });
+      }
+
+      return json<ActionResult>({
+        groupedSvg: outputMode === "grouped" ? outItems[0]?.svg : undefined,
+        items: outputMode === "individual" ? outItems : undefined,
+        warnings: warnings.length ? warnings : undefined,
+        meta: {
+          renderMode,
+          outputMode,
+          splitMode,
+          count: outputMode === "individual" ? outItems.length : 1,
+        },
+      });
+    } finally {
+      release?.();
+    }
   } catch (err: any) {
     const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json<ActionResult>(
@@ -519,6 +546,11 @@ async function loadOutlineFont(
 
     const ab = await uploaded.arrayBuffer();
     const u8 = new Uint8Array(ab);
+    if (!isSupportedFontSignature(u8)) {
+      throw new Error(
+        "That file does not look like a supported font. Upload TTF, OTF, or WOFF.",
+      );
+    }
     try {
       return opentype.parse(u8.buffer);
     } catch {
@@ -560,6 +592,20 @@ async function loadOutlineFont(
       return await loadOutlineFont("builtin", "roboto", null);
     throw new Error("Could not parse the builtin font.");
   }
+}
+
+function isSupportedFontSignature(bytes: Uint8Array) {
+  if (bytes.byteLength < 4) return false;
+  const tag = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+  return (
+    tag === "OTTO" ||
+    tag === "wOFF" ||
+    tag === "true" ||
+    (bytes[0] === 0x00 &&
+      bytes[1] === 0x01 &&
+      bytes[2] === 0x00 &&
+      bytes[3] === 0x00)
+  );
 }
 
 /* ========================

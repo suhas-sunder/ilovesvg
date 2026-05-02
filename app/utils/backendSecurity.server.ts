@@ -395,6 +395,50 @@ export function validateFileSignature(
   );
 }
 
+export function validateBufferSignature(
+  input: Buffer,
+  options: {
+    allowedMimeTypes: Iterable<string>;
+    mimeType?: string;
+    extension?: string;
+  },
+): Response | null {
+  const detected = detectFileSignature(input);
+  const mimeType = String(options.mimeType || "").toLowerCase();
+  const extension = String(options.extension || "")
+    .toLowerCase()
+    .replace(/^\./, "");
+  const allowed = new Set(
+    [...options.allowedMimeTypes].map((item) => item.toLowerCase()),
+  );
+
+  if (!detected) {
+    return createSafeErrorResponse(
+      "INVALID_FILE",
+      "Could not read the uploaded file. Try a different file.",
+      415,
+    );
+  }
+
+  if (!isDetectedSignatureAllowed(detected, allowed, extension)) {
+    return createSafeErrorResponse(
+      "UNSUPPORTED_TYPE",
+      "The uploaded file type does not match the expected format.",
+      415,
+    );
+  }
+
+  if (mimeType && !doesMimeMatchSignature(mimeType, detected)) {
+    return createSafeErrorResponse(
+      "UNSUPPORTED_TYPE",
+      "The uploaded file type does not match the expected format.",
+      415,
+    );
+  }
+
+  return null;
+}
+
 export function safeErrorMessage(message: string, fallback = "Conversion failed.") {
   return String(message || fallback)
     .replace(/[A-Z]:\\[^\s"'<>]+/g, "[path]")
@@ -444,6 +488,43 @@ function mimeTypesToExtensions(mimeTypes: Set<string>): Set<string> {
     }
   }
   return out;
+}
+
+function isDetectedSignatureAllowed(
+  detected: NonNullable<ReturnType<typeof detectFileSignature>>,
+  allowed: Set<string>,
+  extension: string,
+): boolean {
+  if (detected === "jpg") {
+    return (
+      (allowed.has("image/jpeg") || allowed.has("image/jpg")) &&
+      (!extension || ["jpg", "jpeg"].includes(extension))
+    );
+  }
+  if (detected === "svg") {
+    return allowed.has("image/svg+xml") && (!extension || extension === "svg");
+  }
+  if (detected === "tiff") {
+    return allowed.has("image/tiff") && (!extension || ["tif", "tiff"].includes(extension));
+  }
+  if (detected === "bmp") {
+    return (
+      (allowed.has("image/bmp") || allowed.has("image/x-ms-bmp")) &&
+      (!extension || extension === "bmp")
+    );
+  }
+  return allowed.has(`image/${detected}`) && (!extension || extension === detected);
+}
+
+function doesMimeMatchSignature(
+  mimeType: string,
+  detected: NonNullable<ReturnType<typeof detectFileSignature>>,
+): boolean {
+  if (detected === "jpg") return mimeType === "image/jpeg" || mimeType === "image/jpg";
+  if (detected === "svg") return mimeType === "image/svg+xml";
+  if (detected === "bmp") return mimeType === "image/bmp" || mimeType === "image/x-ms-bmp";
+  if (detected === "tiff") return mimeType === "image/tiff";
+  return mimeType === `image/${detected}`;
 }
 
 function detectFileSignature(input: Buffer):

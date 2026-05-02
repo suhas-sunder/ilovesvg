@@ -277,88 +277,10 @@ type Gate = {
 };
 
 async function getGate(): Promise<Gate> {
-  const g = globalThis as any;
-  if (g.__iheartsvg_sketch_layer_gate) {
-    return g.__iheartsvg_sketch_layer_gate as Gate;
-  }
-
-  const { createRequire } = await import("node:module");
-  const req = createRequire(import.meta.url);
-
-  let cpuCount = 1;
-  try {
-    const os = req("os") as typeof import("os");
-    cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
-  } catch {}
-
-  const MAX = Math.max(1, Math.min(2, cpuCount));
-  const QUEUE_MAX = 6;
-  const EST_JOB_MS = 4500;
-
-  class SimpleGate implements Gate {
-    max: number;
-    queueMax: number;
-    running = 0;
-    queue: Array<(r: ReleaseFn) => void> = [];
-
-    constructor(max: number, queueMax: number) {
-      this.max = max;
-      this.queueMax = queueMax;
-    }
-
-    get queued() {
-      return this.queue.length;
-    }
-
-    private mkRelease(): ReleaseFn {
-      let released = false;
-
-      return () => {
-        if (released) return;
-        released = true;
-        this.running = Math.max(0, this.running - 1);
-
-        const next = this.queue.shift();
-        if (next) {
-          this.running++;
-          next(this.mkRelease());
-        }
-      };
-    }
-
-    estimateRetryMs() {
-      const waves = Math.ceil((this.queued + 1) / this.max);
-      return Math.min(20000, Math.max(1500, waves * EST_JOB_MS));
-    }
-
-    acquireOrQueue(): Promise<ReleaseFn> {
-      return new Promise((resolve, reject) => {
-        if (this.running < this.max) {
-          this.running++;
-          resolve(this.mkRelease());
-          return;
-        }
-
-        if (this.queue.length >= this.queueMax) {
-          const err: any = new Error("Server busy");
-          err.code = "BUSY";
-          err.retryAfterMs = this.estimateRetryMs();
-          reject(err);
-          return;
-        }
-
-        this.queue.push((rel) => resolve(rel));
-      });
-    }
-  }
-
-  g.__iheartsvg_sketch_layer_gate = new SimpleGate(MAX, QUEUE_MAX);
-  return g.__iheartsvg_sketch_layer_gate as Gate;
+  const { getConversionGate } = await import("~/utils/conversionGate.server");
+  return getConversionGate();
 }
 
-/* ========================
-   Action
-======================== */
 export async function action({ request }: ActionFunctionArgs) {
   try {
     if (request.method.toUpperCase() !== "POST") {
@@ -464,6 +386,10 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       const input: Buffer = Buffer.from(ab);
+
+      const { validateFileSignature } = await import("~/utils/backendSecurity.server");
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       try {
         const { getSharp } = await import("~/utils/conversionModules.server");
