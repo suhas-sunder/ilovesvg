@@ -158,6 +158,22 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "text-to-svg-converter",
+      "server-convert"
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: Math.max(MAX_FONT_BYTES, 2 * 1024 * 1024),
     });
@@ -1300,7 +1316,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitConvert}
+                  onClick={() => void submitConvert()}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[

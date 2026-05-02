@@ -189,6 +189,25 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "png-to-svg-for-cricut-vinyl",
+      "raster-trace"
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     // --- Early reject: don't parse multipart if request is huge ---
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
@@ -208,6 +227,9 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const form = await parseMultipartFormData(request, uploadHandler);
 
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
+
     const file = form.get("file");
     if (!file || typeof file === "string") {
       return json({ error: "No file uploaded." }, { status: 400 });
@@ -215,6 +237,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Basic type/size checks (authoritative)
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -261,6 +289,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       let input: Buffer = Buffer.from(ab);
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
       try {
@@ -1317,7 +1347,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || busy || !file;
@@ -1332,8 +1362,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(preset);
     setActivePreset(preset.id);
-    setSettings(buildPresetSettings(preset));
+    setSettings(nextSettings);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && autoMode !== "off") {
+      void submitConvert(file, nextSettings);
+    }
   }
 
   const [toast, setToast] = React.useState<string | null>(null);

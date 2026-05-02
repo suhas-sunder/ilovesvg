@@ -311,6 +311,21 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const contentType = request.headers.get("content-type") || "";
+    if (
+      !contentType.includes("application/json") &&
+      !contentType.includes("multipart/form-data")
+    ) {
+      return json(
+        {
+          ok: false,
+          code: "UNSUPPORTED_TYPE",
+          message: "Unsupported content type. Use JSON or multipart form data.",
+        },
+        { status: 415 },
+      );
+    }
+
     const rateLimit = checkRateLimit(
       request,
       BACKEND_CONVERSION_RATE_LIMITS,
@@ -318,15 +333,21 @@ export async function action({ request }: ActionFunctionArgs) {
     );
 
     if (!rateLimit.allowed) {
+      const retryAfterSeconds = rateLimit.retryAfterSeconds;
+      const message = `Too many conversions from this connection. Please try again in ${formatRetryAfterText(retryAfterSeconds)}.`;
+
       return json(
         {
-          error: `Too many conversions from this connection. Please try again in ${formatRetryAfterText(rateLimit.retryAfterSeconds)}.`,
-          retryAfterSeconds: rateLimit.retryAfterSeconds,
+          ok: false,
+          code: "RATE_LIMITED",
+          message,
+          error: message,
+          retryAfterSeconds,
         },
         {
           status: 429,
           headers: {
-            "Retry-After": String(rateLimit.retryAfterSeconds),
+            "Retry-After": String(retryAfterSeconds),
             "X-RateLimit-Limit-Minute": String(
               BACKEND_CONVERSION_RATE_LIMITS.perMinute,
             ),
@@ -350,7 +371,6 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    const contentType = request.headers.get("content-type") || "";
     let rasterDataUrl = "";
     let transparent = true;
     let bgColor = "#ffffff";
@@ -2098,31 +2118,9 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
     });
   }, [
     activePreset,
-    fetcher,
     isRasterInput,
     manualRasterSubmitNonce,
     settings.input,
-    settings.backgroundMode,
-    settings.backgroundColor,
-    settings.rasterMode,
-    settings.layerCount,
-    settings.maxTraceSide,
-    settings.minRegionPercent,
-    settings.layerOptTolerance,
-    settings.layerTurdSize,
-    settings.layerTurnPolicy,
-    settings.posterize,
-    settings.removeWhite,
-    settings.removeTransparent,
-    settings.threshold,
-    settings.turdSize,
-    settings.optTolerance,
-    settings.turnPolicy,
-    settings.lineColor,
-    settings.invert,
-    settings.preprocess,
-    settings.blurSigma,
-    settings.edgeBoost,
   ]);
 
   React.useEffect(() => {
@@ -2296,6 +2294,7 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
       ...current,
       ...preset.settings,
     }));
+    setManualRasterSubmitNonce((value) => value + 1);
   }
 
   function showToastMessage(message: string) {

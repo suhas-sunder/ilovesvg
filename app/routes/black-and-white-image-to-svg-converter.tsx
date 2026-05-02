@@ -2312,7 +2312,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                       </span>
                       <button
                         type="button"
-                        onClick={submitConvert}
+                        onClick={() => void submitConvert()}
                         disabled={buttonDisabled}
                         className={[
                           "shrink-0 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors",
@@ -2385,7 +2385,7 @@ export default function BlackAndWhiteImageToSvgConverter({
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitConvert}
+                  onClick={() => void submitConvert()}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[

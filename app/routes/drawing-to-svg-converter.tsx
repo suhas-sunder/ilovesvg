@@ -2565,7 +2565,7 @@ export default function DrawingToSvgConverter({
                       </span>
                       <button
                         type="button"
-                        onClick={submitConvert}
+                        onClick={() => void submitConvert()}
                         disabled={buttonDisabled}
                         className={[
                           "shrink-0 rounded-md border px-2.5 py-1 font-semibold transition-colors cursor-pointer",
@@ -3016,7 +3016,7 @@ export default function DrawingToSvgConverter({
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitConvert}
+                  onClick={() => void submitConvert()}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[

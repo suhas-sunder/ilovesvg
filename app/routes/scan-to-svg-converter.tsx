@@ -167,6 +167,25 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "scan-to-svg-converter",
+      "raster-trace"
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
@@ -181,11 +200,20 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const form = await parseMultipartFormData(request, uploadHandler);
 
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
+
     const file = form.get("file");
     if (!file || typeof file === "string")
       return json({ error: "No file uploaded." }, { status: 400 });
 
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -226,6 +254,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       const input: Buffer = Buffer.from(ab);
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       // Authoritative dimension guard via sharp metadata (best-effort)
       try {
@@ -1039,32 +1069,32 @@ export default function ScanToSvgConverter({
     await measureAndSet(chosen);
   }
 
-  async function submitConvert() {
-    if (!file) {
+  async function submitConvert(targetFile = file, targetSettings = settings) {
+    if (!targetFile) {
       setErr("Choose a scan first.");
       return;
     }
 
     try {
-      await validateBeforeSubmit(file);
+      await validateBeforeSubmit(targetFile);
     } catch (e: any) {
       setErr(e?.message || "Scan is too large.");
       return;
     }
 
     const fd = new FormData();
-    fd.append("file", file);
-    fd.append("threshold", String(settings.threshold));
-    fd.append("turdSize", String(settings.turdSize));
-    fd.append("optTolerance", String(settings.optTolerance));
-    fd.append("turnPolicy", settings.turnPolicy);
-    fd.append("lineColor", settings.lineColor);
-    fd.append("invert", String(settings.invert));
-    fd.append("transparent", String(settings.transparent));
-    fd.append("bgColor", settings.bgColor);
-    fd.append("preprocess", settings.preprocess);
-    fd.append("blurSigma", String(settings.blurSigma));
-    fd.append("edgeBoost", String(settings.edgeBoost));
+    fd.append("file", targetFile);
+    fd.append("threshold", String(targetSettings.threshold));
+    fd.append("turdSize", String(targetSettings.turdSize));
+    fd.append("optTolerance", String(targetSettings.optTolerance));
+    fd.append("turnPolicy", targetSettings.turnPolicy);
+    fd.append("lineColor", targetSettings.lineColor);
+    fd.append("invert", String(targetSettings.invert));
+    fd.append("transparent", String(targetSettings.transparent));
+    fd.append("bgColor", targetSettings.bgColor);
+    fd.append("preprocess", targetSettings.preprocess);
+    fd.append("blurSigma", String(targetSettings.blurSigma));
+    fd.append("edgeBoost", String(targetSettings.edgeBoost));
     setErr(null);
 
     fetcher.submit(fd, {
@@ -1082,13 +1112,13 @@ export default function ScanToSvgConverter({
 
     const delay = autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => submitConvert(), delay);
+    debounceRef.current = setTimeout(() => void submitConvert(file, settings), delay);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
@@ -1101,8 +1131,13 @@ export default function ScanToSvgConverter({
   }
 
   function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(preset);
     setActivePreset(preset.id);
-    setSettings(buildPresetSettings(preset));
+    setSettings(nextSettings);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && autoMode !== "off") {
+      void submitConvert(file, nextSettings);
+    }
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
@@ -1480,7 +1515,7 @@ export default function ScanToSvgConverter({
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitConvert}
+                  onClick={() => void submitConvert()}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[

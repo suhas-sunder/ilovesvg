@@ -170,6 +170,25 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "webp-to-svg-converter",
+      "raster-trace"
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     // Early reject: avoid parsing huge multipart
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
@@ -185,12 +204,21 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const form = await parseMultipartFormData(request, uploadHandler);
 
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
+
     const file = form.get("file");
     if (!file || typeof file === "string") {
       return json({ error: "No file uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
 
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
@@ -235,6 +263,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       const input: Buffer = Buffer.from(ab);
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       // Authoritative megapixel/side guard via sharp metadata (cheap)
       try {
@@ -1718,7 +1748,7 @@ export default function WebpToSvgConverter({
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={submitConvert}
+                  onClick={() => void submitConvert()}
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[

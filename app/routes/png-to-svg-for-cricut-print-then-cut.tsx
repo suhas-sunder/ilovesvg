@@ -172,6 +172,27 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      HEAVY_BACKEND_RATE_LIMITS,
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "png-to-svg-for-cricut-print-then-cut",
+      "raster-trace",
+      HEAVY_BACKEND_RATE_LIMITS
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
 
@@ -190,6 +211,9 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     const form = await parseMultipartFormData(request, uploadHandler);
+
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
     const file = form.get("file");
 
     if (!file || typeof file === "string") {
@@ -197,6 +221,12 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
 
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
@@ -929,14 +959,14 @@ export default function PngToSvgForCricutPrintThenCut({
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     debounceRef.current = setTimeout(() => {
-      submitConvert(file);
+      void submitConvert(file, settings);
     }, delay);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   React.useEffect(() => {
     if (fetcher.data?.svg) {
@@ -1052,11 +1082,15 @@ export default function PngToSvgForCricutPrintThenCut({
     await measureAndSet(chosen);
 
     suppressLiveRef.current = false;
-    setTimeout(() => submitConvert(chosen), 0);
+    void submitConvert(chosen, DEFAULTS);
   }
 
-  async function submitConvert(targetFile?: File | null) {
+  async function submitConvert(
+    targetFile?: File | null,
+    settingsOverride?: Settings,
+  ) {
     const currentFile = targetFile || file;
+    const currentSettings = settingsOverride ?? settings;
 
     if (!currentFile) {
       setErr("Choose an image first.");
@@ -1072,21 +1106,21 @@ export default function PngToSvgForCricutPrintThenCut({
 
     const fd = new FormData();
     fd.append("file", currentFile);
-    fd.append("outlineSource", settings.outlineSource);
-    fd.append("cutOffset", String(settings.cutOffset));
-    fd.append("backgroundTolerance", String(settings.backgroundTolerance));
-    fd.append("darkThreshold", String(settings.darkThreshold));
-    fd.append("edgeThreshold", String(settings.edgeThreshold));
-    fd.append("speckCleanup", String(settings.speckCleanup));
-    fd.append("curveSmoothness", String(settings.curveSmoothness));
-    fd.append("cutLineColor", settings.cutLineColor);
-    fd.append("cutLineWidth", String(settings.cutLineWidth));
+    fd.append("outlineSource", currentSettings.outlineSource);
+    fd.append("cutOffset", String(currentSettings.cutOffset));
+    fd.append("backgroundTolerance", String(currentSettings.backgroundTolerance));
+    fd.append("darkThreshold", String(currentSettings.darkThreshold));
+    fd.append("edgeThreshold", String(currentSettings.edgeThreshold));
+    fd.append("speckCleanup", String(currentSettings.speckCleanup));
+    fd.append("curveSmoothness", String(currentSettings.curveSmoothness));
+    fd.append("cutLineColor", currentSettings.cutLineColor);
+    fd.append("cutLineWidth", String(currentSettings.cutLineWidth));
     fd.append(
       "includePrintableBorder",
-      String(settings.includePrintableBorder),
+      String(currentSettings.includePrintableBorder),
     );
-    fd.append("printableBorderColor", settings.printableBorderColor);
-    fd.append("addWhitePage", String(settings.addWhitePage));
+    fd.append("printableBorderColor", currentSettings.printableBorderColor);
+    fd.append("addWhitePage", String(currentSettings.addWhitePage));
 
     setErr(null);
 
@@ -1098,11 +1132,16 @@ export default function PngToSvgForCricutPrintThenCut({
   }
 
   function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-    setSettings((s) => ({
-      ...s,
+    const nextSettings = {
+      ...settings,
       ...preset.settings,
-    }));
+    } as Settings;
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && autoMode !== "off") {
+      void submitConvert(file, nextSettings);
+    }
   }
 
   function showToast(msg: string) {

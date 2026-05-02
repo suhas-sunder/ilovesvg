@@ -11,6 +11,17 @@ const app = express();
 
 app.use(compression());
 app.disable("x-powered-by");
+app.use((_, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader(
+    "Content-Security-Policy",
+    "base-uri 'self'; object-src 'none'; frame-ancestors 'self'",
+  );
+  next();
+});
 
 if (DEVELOPMENT) {
   console.log("Starting development server");
@@ -23,6 +34,9 @@ if (DEVELOPMENT) {
   app.use(async (req, res, next) => {
     try {
       const source = await viteDevServer.ssrLoadModule("./server/app.ts");
+      if (typeof source.app?.disable === "function") {
+        source.app.disable("x-powered-by");
+      }
       return await source.app(req, res, next);
     } catch (error) {
       if (typeof error === "object" && error instanceof Error) {
@@ -39,7 +53,11 @@ if (DEVELOPMENT) {
   );
   app.use(morgan("tiny"));
   app.use(express.static("build/client", { maxAge: "1h" }));
-  app.use(await import(BUILD_PATH).then((mod) => mod.app));
+  const reactRouterApp = await import(BUILD_PATH).then((mod) => mod.app);
+  if (typeof reactRouterApp?.disable === "function") {
+    reactRouterApp.disable("x-powered-by");
+  }
+  app.use(reactRouterApp);
 }
 
 app.listen(PORT, "0.0.0.0", () => {

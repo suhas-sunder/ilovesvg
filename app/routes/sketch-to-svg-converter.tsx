@@ -160,6 +160,25 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "sketch-to-svg-converter",
+      "raster-trace"
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
@@ -177,12 +196,21 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const form = await parseMultipartFormData(request, uploadHandler);
 
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
+
     const file = form.get("file");
     if (!file || typeof file === "string") {
       return json({ error: "No file uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -225,6 +253,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore
       let input: Buffer = Buffer.from(ab);
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       try {
         const { createRequire } = await import("node:module");
@@ -994,7 +1024,7 @@ export default function SketchToSvgConverter({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [settings, activePreset, autoMode, file]);
+  }, [autoMode, file]);
 
   async function measureAndSet(f: File) {
     try {
@@ -1075,8 +1105,9 @@ export default function SketchToSvgConverter({
     submitConvert(chosen);
   }
 
-  async function submitConvert(f?: File | null) {
+  async function submitConvert(f?: File | null, settingsOverride?: Settings) {
     const current = f || fileRef.current;
+    const currentSettings = settingsOverride ?? settings;
     if (!current) {
       setErr("Choose an image first.");
       return;
@@ -1090,22 +1121,22 @@ export default function SketchToSvgConverter({
     }
 
     const effective = (() => {
-      if (settings.traceMode === "layered" || !settings.invert) return settings;
+      if (currentSettings.traceMode === "layered" || !currentSettings.invert) return currentSettings;
       const bg =
-        !settings.bgColor ||
-        settings.bgColor.toLowerCase() === "#ffffff" ||
-        settings.bgColor.toLowerCase() === "#fff"
+        !currentSettings.bgColor ||
+        currentSettings.bgColor.toLowerCase() === "#ffffff" ||
+        currentSettings.bgColor.toLowerCase() === "#fff"
           ? DARK_BG_DEFAULT
-          : settings.bgColor;
+          : currentSettings.bgColor;
 
       return {
-        ...settings,
+        ...currentSettings,
         transparent: false,
         bgColor: bg,
         lineColor:
-          settings.lineColor?.toLowerCase() === "#000000"
+          currentSettings.lineColor?.toLowerCase() === "#000000"
             ? "#ffffff"
-            : settings.lineColor,
+            : currentSettings.lineColor,
       };
     })();
 
@@ -1153,8 +1184,13 @@ export default function SketchToSvgConverter({
   }
 
   function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(preset);
     setActivePreset(preset.id);
-    setSettings(buildPresetSettings(preset));
+    setSettings(nextSettings);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && autoMode !== "off") {
+      void submitConvert(file, nextSettings);
+    }
   }
 
   const [toast, setToast] = React.useState<string | null>(null);

@@ -187,6 +187,25 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "png-to-svg-for-cricut",
+      "raster-trace"
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     // --- Early reject: don't parse multipart if request is huge ---
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
@@ -206,6 +225,9 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const form = await parseMultipartFormData(request, uploadHandler);
 
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
+
     const file = form.get("file");
     if (!file || typeof file === "string") {
       return json({ error: "No file uploaded." }, { status: 400 });
@@ -213,6 +235,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Basic type/size checks (authoritative)
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -259,6 +287,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       let input: Buffer = Buffer.from(ab);
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
       try {
@@ -1132,7 +1162,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (fetcher.data.code === "BUSY" && file) {
       const retryAfterMs = Math.max(1000, fetcher.data.retryAfterMs ?? 1500);
       setInfo("Server is busy. Retrying conversion automatically...");
-      const t = setTimeout(() => submitConvert(), retryAfterMs);
+      const t = setTimeout(() => submitConvert(file, settings), retryAfterMs);
       return () => clearTimeout(t);
     }
 
@@ -1223,7 +1253,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Re-enable live preview and force one conversion for the new file
     suppressLiveRef.current = false;
-    setTimeout(() => submitConvert(chosen, DEFAULTS), 0);
+    void submitConvert(chosen, DEFAULTS);
   }
 
   async function submitConvert(
@@ -1311,38 +1341,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const delay = mode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      submitConvert();
+      void submitConvert(file, settings);
     }, delay);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
   // Apply preset without carrying user overrides except background choices
   function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-    setSettings((s) => {
-      const baseline: Settings = {
-        ...DEFAULTS,
-        transparent: s.transparent,
-        bgColor: s.bgColor,
-      };
-      const lineColor =
+    const nextSettings = {
+      ...DEFAULTS,
+      transparent: settings.transparent,
+      bgColor: settings.bgColor,
+      lineColor:
         preset.settings.lineColor !== undefined
           ? preset.settings.lineColor
-          : s.lineColor;
-
-      return {
-        ...baseline,
-        lineColor,
-        ...preset.settings,
-      } as Settings;
-    });
+          : settings.lineColor,
+      ...preset.settings,
+    } as Settings;
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && autoMode !== "off") {
+      void submitConvert(file, nextSettings);
+    }
   }
 
   function showToast(msg: string) {

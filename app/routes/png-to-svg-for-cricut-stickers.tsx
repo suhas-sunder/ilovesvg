@@ -172,6 +172,27 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const {
+      HEAVY_BACKEND_RATE_LIMITS,
+      checkBackendConversionRateLimit,
+      createRateLimitedResponse,
+      validateSameOrigin,
+      validateMultipartFileCount,
+      validateUploadedFileBasics,
+      validateFileSignature,
+    } = await import("~/utils/backendSecurity.server");
+
+    const originError = validateSameOrigin(request);
+    if (originError) return originError;
+
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "png-to-svg-for-cricut-stickers",
+      "raster-trace",
+      HEAVY_BACKEND_RATE_LIMITS
+    );
+    if (!rateLimit.allowed) return createRateLimitedResponse(rateLimit);
+
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
@@ -189,12 +210,21 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const form = await parseMultipartFormData(request, uploadHandler);
 
+    const fileCountError = validateMultipartFileCount(form);
+    if (fileCountError) return fileCountError;
+
     const file = form.get("file");
     if (!file || typeof file === "string") {
       return json({ error: "No file uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
+    const uploadError = validateUploadedFileBasics(webFile, {
+      allowedMimeTypes: ALLOWED_MIME,
+      maxBytes: MAX_UPLOAD_BYTES,
+      label: "supported image",
+    });
+    if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
         { error: "Only PNG or JPEG images are allowed." },
@@ -235,6 +265,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
       const input: Buffer = Buffer.from(ab);
+      const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
+      if (signatureError) return signatureError;
 
       const opts: StickerOptions = {
         cutSource: String(
@@ -902,7 +934,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   async function measureAndSet(f: File) {
     try {
@@ -975,7 +1007,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     await measureAndSet(chosen);
 
     suppressLiveRef.current = false;
-    setTimeout(() => submitConvert(chosen, DEFAULTS), 0);
+    void submitConvert(chosen, DEFAULTS);
   }
 
   async function submitConvert(
@@ -1026,13 +1058,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
   function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-    setSettings((s) => ({
+    const nextSettings = {
       ...DEFAULTS,
-      transparent: s.transparent,
-      bgColor: s.bgColor,
+      transparent: settings.transparent,
+      bgColor: settings.bgColor,
       ...preset.settings,
-    }));
+    } as Settings;
+
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && autoMode !== "off") {
+      void submitConvert(file, nextSettings);
+    }
   }
 
   function showToast(msg: string) {

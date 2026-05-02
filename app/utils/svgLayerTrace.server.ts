@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { sanitizeSvgMarkup } from "./svgSanitize.server";
 
 export type TraceMode = "single" | "layered";
 export type SvgLayerKind = "fill" | "stroke";
@@ -37,8 +38,9 @@ export type LayeredColorSvgOptions = {
 };
 
 export const MIN_LAYER_COUNT = 2;
-export const MAX_LAYER_COUNT = 10;
+export const MAX_LAYER_COUNT = 12;
 export const MAX_TRACE_SIDE_DEFAULT = 1600;
+export const MAX_TRACE_SIDE = 3000;
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -106,6 +108,7 @@ export async function createLayeredColorSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
+  const safeOptions = normalizeLayeredColorOptions(opts);
   const { neutralizeTransparencyCheckerboard } = await import(
     "./imagePreprocess.server"
   );
@@ -114,8 +117,8 @@ export async function createLayeredColorSvg(
   const { data, info } = await sharp(sourceInput)
     .rotate()
     .resize({
-      width: opts.maxTraceSide,
-      height: opts.maxTraceSide,
+      width: safeOptions.maxTraceSide,
+      height: safeOptions.maxTraceSide,
       fit: "inside",
       withoutEnlargement: true,
     })
@@ -131,9 +134,9 @@ export async function createLayeredColorSvg(
 
   const raw = data as Buffer;
   const pixels = collectLayerPixels(raw, width, height, {
-    removeTransparent: opts.removeTransparent,
-    removeWhite: opts.removeWhite,
-    posterize: opts.posterize,
+    removeTransparent: safeOptions.removeTransparent,
+    removeWhite: safeOptions.removeWhite,
+    posterize: safeOptions.posterize,
   });
 
   if (pixels.length < 20) {
@@ -142,12 +145,12 @@ export async function createLayeredColorSvg(
     );
   }
 
-  const paletteRgb = buildLayerPalette(pixels, opts.layerCount);
+  const paletteRgb = buildLayerPalette(pixels, safeOptions.layerCount);
   const assignments = assignAllPixelsToLayerPalette(raw, width, height, {
     palette: paletteRgb,
-    removeTransparent: opts.removeTransparent,
-    removeWhite: opts.removeWhite,
-    posterize: opts.posterize,
+    removeTransparent: safeOptions.removeTransparent,
+    removeWhite: safeOptions.removeWhite,
+    posterize: safeOptions.posterize,
   });
   const totalAssignable = assignments.assignableCount || 1;
   const rawLayerItems = paletteRgb
@@ -182,9 +185,9 @@ export async function createLayeredColorSvg(
       .png()
       .toBuffer();
     const pathTags = await traceMaskToPathTags(maskPng, {
-      turdSize: opts.turdSize,
-      optTolerance: opts.optTolerance,
-      turnPolicy: opts.turnPolicy,
+      turdSize: safeOptions.turdSize,
+      optTolerance: safeOptions.optTolerance,
+      turnPolicy: safeOptions.turnPolicy,
     });
     if (!pathTagsHaveDrawablePath(pathTags)) continue;
 
@@ -210,8 +213,8 @@ export async function createLayeredColorSvg(
     width,
     height,
     layers: builtLayers,
-    transparent: opts.transparent,
-    bgColor: opts.bgColor,
+    transparent: safeOptions.transparent,
+    bgColor: safeOptions.bgColor,
   });
 
   return {
@@ -226,6 +229,28 @@ export async function createLayeredColorSvg(
       visible: true,
       kind: "fill",
     })),
+  };
+}
+
+function normalizeLayeredColorOptions(
+  options: LayeredColorSvgOptions,
+): LayeredColorSvgOptions {
+  return {
+    layerCount: Math.round(
+      clampLayerNumber(Number(options.layerCount), MIN_LAYER_COUNT, MAX_LAYER_COUNT),
+    ),
+    maxTraceSide: Math.round(
+      clampLayerNumber(Number(options.maxTraceSide), 64, MAX_TRACE_SIDE),
+    ),
+    minRegionPercent: clampLayerNumber(Number(options.minRegionPercent), 0, 15),
+    optTolerance: clampLayerNumber(Number(options.optTolerance), 0.05, 2),
+    turdSize: Math.round(clampLayerNumber(Number(options.turdSize), 0, 100)),
+    posterize: Boolean(options.posterize),
+    removeWhite: Boolean(options.removeWhite),
+    removeTransparent: Boolean(options.removeTransparent),
+    transparent: Boolean(options.transparent),
+    bgColor: sanitizeLayerHexColor(options.bgColor, "#ffffff"),
+    turnPolicy: readLayerTurnPolicy(String(options.turnPolicy)),
   };
 }
 
@@ -273,6 +298,12 @@ export function annotateUploadedSvgLayers(svg: string): {
   svg: string;
   layers: SvgLayerMeta[];
 } {
+  const sanitized = sanitizeSvgMarkup(svg);
+  if (!sanitized.ok) {
+    throw new Error(sanitized.message);
+  }
+  svg = sanitized.svg;
+
   const excludedTags = new Set([
     "svg",
     "defs",
