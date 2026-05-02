@@ -308,6 +308,16 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
 
+        if (w < 2 || h < 2) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+            },
+            { status: 415 },
+          );
+        }
+
         const mp = (w * h) / 1_000_000;
 
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
@@ -535,8 +545,9 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
-      { error: err?.message || "Server error during sticker SVG conversion." },
+      { error: safeErrorMessage(err?.message || "Server error during sticker SVG conversion.", "Server error during sticker SVG conversion.") },
       { status: 500 },
     );
   }

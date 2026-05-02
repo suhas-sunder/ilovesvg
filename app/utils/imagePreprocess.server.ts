@@ -24,6 +24,7 @@ export type RasterTracePreprocessOptions = {
 
 const MAX_PREPROCESS_SIDE = 3000;
 const MAX_PREPROCESS_MP = 24;
+const MIN_TRACE_DIMENSION = 2;
 
 export async function normalizeRasterForTrace(
   input: Buffer,
@@ -55,6 +56,7 @@ export async function normalizeRasterForTrace(
       const metadata = await base.metadata();
       const width = metadata.width ?? 0;
       const height = metadata.height ?? 0;
+      ensureTraceableDimensions(width, height);
       const mp = (width * height) / 1_000_000;
       const maxTraceSide = Math.round(
         clampNumber(opts.maxTraceSide ?? MAX_PREPROCESS_SIDE, 64, MAX_PREPROCESS_SIDE),
@@ -102,13 +104,15 @@ export async function normalizeRasterForTrace(
 
     const width = prepared.info.width | 0;
     const height = prepared.info.height | 0;
+    ensureTraceableDimensions(width, height);
     let gray: Buffer<ArrayBufferLike> = Buffer.from(prepared.data as Buffer);
     gray = applyBinaryCleanup(gray, width, height, opts);
 
     return await sharp(gray, { raw: { width, height, channels: 1 } })
       .png()
       .toBuffer();
-  } catch {
+  } catch (error) {
+    if (isTraceDimensionError(error)) throw error;
     return input;
   }
 }
@@ -343,6 +347,7 @@ async function buildEdgeTraceMask(
 
   const width = info.width | 0;
   const height = info.height | 0;
+  ensureTraceableDimensions(width, height);
 
   if (width <= 1 || height <= 1) {
     return await sharp(sourceInput)
@@ -638,6 +643,23 @@ function parseHexColor(value: string): RGB | null {
 function clampNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+function ensureTraceableDimensions(width: number, height: number) {
+  if (width >= MIN_TRACE_DIMENSION && height >= MIN_TRACE_DIMENSION) return;
+  const error = new Error(
+    "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+  ) as Error & { code?: string };
+  error.code = "TRACE_IMAGE_TOO_SMALL";
+  throw error;
+}
+
+function isTraceDimensionError(error: unknown) {
+  return (
+    Boolean(error) &&
+    typeof error === "object" &&
+    (error as { code?: unknown }).code === "TRACE_IMAGE_TOO_SMALL"
+  );
 }
 
 function isFlatBuffer(buffer: Buffer) {

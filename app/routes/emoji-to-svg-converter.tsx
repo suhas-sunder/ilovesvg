@@ -387,7 +387,11 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return await handleImageTrace(form, request);
   } catch (err: any) {
-    return json({ error: err?.message || "Server error." }, { status: 500 });
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
+    return json(
+      { error: safeErrorMessage(err?.message || "Server error.", "Server error.") },
+      { status: 500 },
+    );
   }
 }
 
@@ -1371,6 +1375,16 @@ async function handleImageTrace(
       if (!w || !h) {
         return json<ImageActionResult>(
           { mode: "image", error: "Could not read image dimensions." },
+          { status: 415 },
+        );
+      }
+      if (w < 2 || h < 2) {
+        return json<ImageActionResult>(
+          {
+            mode: "image",
+            error:
+              "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+          },
           { status: 415 },
         );
       }
@@ -3612,7 +3626,9 @@ function EmojiLayerControlPanel({
 
   React.useEffect(() => {
     if (items.length === 0) return;
-    if (selectedIndex >= items.length) setSelectedIndex(0);
+    if (selectedIndex >= items.length && selectedIndex !== 0) {
+      setSelectedIndex(0);
+    }
   }, [items.length, selectedIndex, setSelectedIndex]);
 
   if (!items.length || !selected) return null;
@@ -3859,7 +3875,7 @@ function SameEmojiLayerBatchRow({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(group.currentColor);
+    setLocalColor((current) => (current === group.currentColor ? current : group.currentColor));
     latestColorRef.current = group.currentColor;
   }, [group.currentColor]);
 
@@ -3899,7 +3915,7 @@ function SameEmojiLayerBatchRow({
         value={localColor}
         onChange={(event) => {
           const nextColor = event.target.value;
-          setLocalColor(nextColor);
+          setLocalColor((current) => (current === nextColor ? current : nextColor));
           latestColorRef.current = nextColor;
           scheduleColorCommit();
         }}
@@ -3994,7 +4010,7 @@ function LayerPaletteRow({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -4036,7 +4052,7 @@ function LayerPaletteRow({
         value={localColor}
         onChange={(event) => {
           const nextColor = event.target.value;
-          setLocalColor(nextColor);
+          setLocalColor((current) => (current === nextColor ? current : nextColor));
           latestColorRef.current = nextColor;
           scheduleColorCommit(nextColor);
         }}

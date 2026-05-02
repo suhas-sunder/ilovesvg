@@ -24,6 +24,7 @@ import {
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
+import { logAppError } from "~/client/lib/errorLogging";
 
 const isServer = typeof document === "undefined";
 
@@ -73,6 +74,7 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_MP = 30;
 const MAX_SIDE = 8000;
+const MIN_TRACE_SIDE = 2;
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
@@ -230,6 +232,7 @@ export async function action({ request }: ActionFunctionArgs) {
       maxPartSize: MAX_UPLOAD_BYTES,
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const clientRunId = sanitizeClientRunId(form.get("clientRunId"));
 
     const fileCountError = validateMultipartFileCount(form);
     if (fileCountError) return fileCountError;
@@ -279,6 +282,7 @@ export async function action({ request }: ActionFunctionArgs) {
             "Server is busy converting other PNG layered SVGs. Retrying automatically.",
           retryAfterMs,
           code: "BUSY",
+          clientRunId,
         },
         {
           status: 429,
@@ -308,6 +312,16 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!w || !h) {
           return json(
             { error: "Could not read PNG dimensions. Try a different file." },
+            { status: 415 },
+          );
+        }
+
+        if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2×2 pixels.",
+            },
             { status: 415 },
           );
         }
@@ -418,6 +432,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       return json({
         ...result,
+        clientRunId,
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -429,10 +444,12 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    void err;
     return json(
       {
         error:
-          err?.message || "Server error during PNG to layered SVG conversion.",
+          "Layered SVG conversion failed. Please try a smaller image or fewer color layers.",
+        code: "CONVERSION_FAILED",
       },
       { status: 500 },
     );
@@ -831,6 +848,11 @@ function clampNumber(n: number, min: number, max: number) {
 function clampInt(n: number, min: number, max: number) {
   if (!Number.isFinite(n)) return min;
   return Math.round(Math.min(max, Math.max(min, n)));
+}
+
+function sanitizeClientRunId(value: FormDataEntryValue | null): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/[^a-zA-Z0-9._:-]/g, "").slice(0, 80);
 }
 
 /* ========================
@@ -1263,6 +1285,7 @@ type ServerResult = {
   height?: number;
   retryAfterMs?: number;
   code?: string;
+  clientRunId?: string;
   gate?: { running: number; queued: number };
   layers?: ServerLayer[];
   palette?: string[];
@@ -1362,12 +1385,18 @@ export default function PngToLayeredSvgForCricut({
     const stamp = Number(id);
     const item = history.find((candidate) => candidate.stamp === stamp);
     if (!item) return;
-    setActiveHistoryStamp(item.stamp);
-    if (item.settingsSnapshot) {
-      setSettings(item.settingsSnapshot);
+    setActiveHistoryStamp((current) =>
+      current === item.stamp ? current : item.stamp,
+    );
+    const snapshot = item.settingsSnapshot;
+    if (snapshot) {
+      setSettings((current) =>
+        settingsEqual(current, snapshot) ? current : snapshot,
+      );
     }
-    if (item.presetId) {
-      setActivePreset(item.presetId);
+    const presetId = item.presetId;
+    if (presetId) {
+      setActivePreset((current) => (current === presetId ? current : presetId));
     }
   }
 
@@ -1376,6 +1405,12 @@ export default function PngToLayeredSvgForCricut({
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const outputCounterRef = React.useRef(0);
   const activeHistoryStampRef = React.useRef<number | null>(null);
+  const latestSubmittedRunIdRef = React.useRef("");
+  const clientRunIdCounterRef = React.useRef(0);
+  const lastProcessedResultKeyRef = React.useRef("");
+  const fileMeasureRunIdRef = React.useRef(0);
+  const busyRetryCountRef = React.useRef(0);
+  const lastHandledBusyKeyRef = React.useRef("");
   const lastSubmittedRef = React.useRef<{
     settings: Settings;
     presetId: string;
@@ -1416,6 +1451,26 @@ export default function PngToLayeredSvgForCricut({
 
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
+    const clientRunId = fetcher.data.clientRunId || "";
+    if (
+      clientRunId &&
+      latestSubmittedRunIdRef.current &&
+      clientRunId !== latestSubmittedRunIdRef.current
+    ) {
+      return;
+    }
+
+    const resultKey = [
+      clientRunId || "legacy",
+      fetcher.data.svg.length,
+      fetcher.data.width ?? 0,
+      fetcher.data.height ?? 0,
+      fetcher.data.layers.length,
+    ].join(":");
+    if (lastProcessedResultKeyRef.current === resultKey) return;
+    lastProcessedResultKeyRef.current = resultKey;
+    busyRetryCountRef.current = 0;
+    lastHandledBusyKeyRef.current = "";
 
     const outputNumber = outputCounterRef.current + 1;
     outputCounterRef.current = outputNumber;
@@ -1452,9 +1507,15 @@ export default function PngToLayeredSvgForCricut({
     };
 
     setHistory((prev) => [item, ...prev].slice(0, 10));
-    setActiveHistoryStamp(stamp);
+    setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
     setInfo(null);
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+  }, [
+    fetcher.data?.svg,
+    fetcher.data?.width,
+    fetcher.data?.height,
+    fetcher.data?.clientRunId,
+    fetcher.data?.layers,
+  ]);
 
   React.useEffect(() => {
     if (history.length === 0) {
@@ -1469,8 +1530,41 @@ export default function PngToLayeredSvgForCricut({
 
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
+    const clientRunId = fetcher.data.clientRunId || "";
+    if (
+      clientRunId &&
+      latestSubmittedRunIdRef.current &&
+      clientRunId !== latestSubmittedRunIdRef.current
+    ) {
+      return;
+    }
 
     if (fetcher.data.code === "BUSY" && file) {
+      const busyKey = [
+        clientRunId || "legacy",
+        fetcher.data.retryAfterMs ?? "",
+        fetcher.data.error,
+      ].join(":");
+      if (lastHandledBusyKeyRef.current === busyKey) return;
+      lastHandledBusyKeyRef.current = busyKey;
+
+      if (busyRetryCountRef.current >= 3) {
+        setInfo(null);
+        setErr(
+          "Server is still busy converting other images. Please try again in a moment.",
+        );
+        logAppError(new Error(fetcher.data.error), {
+          flowStep: "png_layered_busy_retry_limit",
+          flowKind: "conversion",
+          action: "BUSY",
+          selectedFileType: file.type,
+          selectedFileSize: file.size,
+          imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
+          settingsSnapshot: settings,
+        });
+        return;
+      }
+      busyRetryCountRef.current += 1;
       const retryAfterMs = Math.max(1500, fetcher.data.retryAfterMs ?? 2500);
       setInfo("Server is busy. Retrying automatically.");
 
@@ -1483,8 +1577,27 @@ export default function PngToLayeredSvgForCricut({
       return;
     }
 
-    setErr(fetcher.data.error);
-  }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
+    setErr((current) =>
+      current === fetcher.data?.error ? current : fetcher.data?.error || null,
+    );
+    logAppError(new Error(fetcher.data.error), {
+      flowStep: "png_layered_conversion_response",
+      flowKind: "conversion",
+      action: fetcher.data.code || "server_response",
+      selectedFileType: file?.type,
+      selectedFileSize: file?.size,
+      imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
+      settingsSnapshot: settings,
+    });
+  }, [
+    fetcher.data?.error,
+    fetcher.data?.code,
+    fetcher.data?.retryAfterMs,
+    fetcher.data?.clientRunId,
+    file,
+    dims,
+    settings,
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -1494,13 +1607,25 @@ export default function PngToLayeredSvgForCricut({
     };
   }, [previewUrl]);
 
-  async function measureAndSet(f: File) {
+  async function measureAndSet(f: File, runId = fileMeasureRunIdRef.current) {
     try {
       const { w, h } = await getImageSize(f);
+      if (fileMeasureRunIdRef.current !== runId) return;
       const mp = (w * h) / 1_000_000;
-      setDims({ w, h, mp });
-    } catch {
-      setDims(null);
+      setDims((current) =>
+        current && current.w === w && current.h === h && current.mp === mp
+          ? current
+          : { w, h, mp },
+      );
+    } catch (error) {
+      if (fileMeasureRunIdRef.current !== runId) return;
+      setDims((current) => (current === null ? current : null));
+      logAppError(error, {
+        flowStep: "png_layered_measure_image",
+        flowKind: "async-processing",
+        selectedFileType: f.type,
+        selectedFileSize: f.size,
+      });
     }
   }
 
@@ -1528,6 +1653,12 @@ export default function PngToLayeredSvgForCricut({
     }
 
     suppressLiveRef.current = true;
+    busyRetryCountRef.current = 0;
+    latestSubmittedRunIdRef.current = "";
+    lastProcessedResultKeyRef.current = "";
+    lastHandledBusyKeyRef.current = "";
+    const measureRunId = fileMeasureRunIdRef.current + 1;
+    fileMeasureRunIdRef.current = measureRunId;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (retryRef.current) clearTimeout(retryRef.current);
@@ -1569,7 +1700,7 @@ export default function PngToLayeredSvgForCricut({
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
 
-    await measureAndSet(chosen);
+    await measureAndSet(chosen, measureRunId);
 
     suppressLiveRef.current = false;
 
@@ -1613,6 +1744,9 @@ export default function PngToLayeredSvgForCricut({
     fd.append("transparent", String(sourceSettings.transparent));
     fd.append("bgColor", sourceSettings.bgColor);
     appendAdvancedTraceSettings(fd, sourceSettings);
+    const clientRunId = `png-layered-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    latestSubmittedRunIdRef.current = clientRunId;
+    fd.append("clientRunId", clientRunId);
 
     setErr(null);
     lastSubmittedRef.current = {
@@ -1636,8 +1770,10 @@ export default function PngToLayeredSvgForCricut({
       ...DEFAULTS,
       ...preset.settings,
     } as Settings;
-    setActivePreset(preset.id);
-    setSettings(nextSettings);
+    setActivePreset((current) => (current === preset.id ? current : preset.id));
+    setSettings((current) =>
+      settingsEqual(current, nextSettings) ? current : nextSettings,
+    );
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
       void submitConvert(file, nextSettings, {
@@ -1662,23 +1798,29 @@ export default function PngToLayeredSvgForCricut({
     stamp: number,
     updater: (layers: LayerState[]) => LayerState[],
   ) {
-    setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp === stamp
-          ? {
-              ...item,
-              layers: updater(item.layers),
-            }
-          : item,
-      ),
-    );
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp) return item;
+        const layers = updater(item.layers);
+        if (layerStateArraysEqual(item.layers, layers)) return item;
+        changed = true;
+        return {
+          ...item,
+          layers,
+        };
+      });
+      return changed ? next : prev;
+    });
   }
 
   function updateLatestOutputLayer(layerId: string, patch: Partial<LayerState>) {
     if (!activeHistoryItem) return;
     updateHistoryItemLayers(activeHistoryItem.stamp, (layers) =>
       layers.map((layer) =>
-        layer.id === layerId ? { ...layer, ...patch } : layer,
+        layer.id === layerId && hasLayerPatchChanges(layer, patch)
+          ? { ...layer, ...patch }
+          : layer,
       ),
     );
   }
@@ -1712,19 +1854,33 @@ export default function PngToLayeredSvgForCricut({
   }
 
   function updateLatestOutputSize(size: { width: number; height: number }) {
-    setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp === activeHistoryItem?.stamp
-          ? {
-              ...item,
-              width: size.width,
-              height: size.height,
-              originalWidth: item.originalWidth || item.width,
-              originalHeight: item.originalHeight || item.height,
-            }
-          : item,
-      ),
-    );
+    const stamp = activeHistoryItem?.stamp;
+    if (!stamp) return;
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp) return item;
+        const originalWidth = item.originalWidth || item.width;
+        const originalHeight = item.originalHeight || item.height;
+        if (
+          item.width === size.width &&
+          item.height === size.height &&
+          item.originalWidth === originalWidth &&
+          item.originalHeight === originalHeight
+        ) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          width: size.width,
+          height: size.height,
+          originalWidth,
+          originalHeight,
+        };
+      });
+      return changed ? next : prev;
+    });
   }
 
   const buttonDisabled = isServer || !hydrated || busy || !file;
@@ -2145,6 +2301,11 @@ async function validateBeforeSubmit(file: File) {
   const { w, h } = await getImageSize(file);
 
   if (!w || !h) throw new Error("Could not read PNG dimensions.");
+  if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
+    throw new Error(
+      "Image is too small to trace safely. Please upload an image at least 2×2 pixels.",
+    );
+  }
 
   const mp = (w * h) / 1_000_000;
 
@@ -2295,6 +2456,38 @@ function buildClientLayeredSvg({
     .join("");
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" role="img" aria-label="Layered SVG from PNG for Cricut">${bg}${body}</svg>`;
+}
+
+function settingsEqual(a: Settings, b: Settings): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function hasLayerPatchChanges(
+  layer: LayerState,
+  patch: Partial<LayerState>,
+): boolean {
+  if ("color" in patch && patch.color !== layer.color) return true;
+  if ("visible" in patch && patch.visible !== layer.visible) return true;
+  if ("opacity" in patch && patch.opacity !== layer.opacity) return true;
+  return false;
+}
+
+function layerStateArraysEqual(a: LayerState[], b: LayerState[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((layer, index) => {
+    const next = b[index];
+    return (
+      layer.id === next.id &&
+      layer.name === next.name &&
+      layer.color === next.color &&
+      layer.originalColor === next.originalColor &&
+      layer.visible === next.visible &&
+      layer.opacity === next.opacity &&
+      layer.originalOpacity === next.originalOpacity &&
+      layer.pixelPercent === next.pixelPercent &&
+      layer.pathTags === next.pathTags
+    );
+  });
 }
 
 function normalizeClientOpacity(value?: number) {
@@ -2452,8 +2645,8 @@ function LayerControlRow({
   );
 
   React.useEffect(() => {
-    setDraftColor(layer.color);
-    setDraftHex(layer.color);
+    setDraftColor((current) => (current === layer.color ? current : layer.color));
+    setDraftHex((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -2477,7 +2670,7 @@ function LayerControlRow({
     }
 
     setDraftColor(normalized);
-    setDraftHex(normalized);
+    setDraftHex((current) => (current === normalized ? current : normalized));
 
     if (normalized !== layer.color) {
       onLayerChange(layer.id, { color: normalized });
@@ -2485,10 +2678,10 @@ function LayerControlRow({
   }
 
   function scheduleColorCommit(color: string) {
-    setDraftHex(color);
+    setDraftHex((current) => (current === color ? current : color));
     const normalized = normalizeClientColorInput(color);
     if (!normalized) return;
-    setDraftColor(normalized);
+    setDraftColor((current) => (current === normalized ? current : normalized));
     latestColorRef.current = normalized;
 
     if (commitTimerRef.current) return;

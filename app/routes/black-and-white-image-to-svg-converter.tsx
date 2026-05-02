@@ -455,6 +455,16 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
 
+        if (w < 2 || h < 2) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+            },
+            { status: 415 },
+          );
+        }
+
         const mp = (w * h) / 1_000_000;
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
@@ -588,8 +598,9 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
-      { error: err?.message || "Server error during conversion." },
+      { error: safeErrorMessage(err?.message || "Server error during conversion.", "Server error during conversion.") },
       { status: 500 },
     );
   }
@@ -2639,7 +2650,7 @@ function ThrottledColorInput({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(value);
+    setLocalColor((current) => (current === value ? current : value));
     latestColorRef.current = value;
   }, [value]);
 
@@ -2670,7 +2681,7 @@ function ThrottledColorInput({
       disabled={disabled}
       onChange={(e) => {
         const next = e.target.value;
-        setLocalColor(next);
+        setLocalColor((current) => (current === next ? current : next));
         latestColorRef.current = next;
         schedule(next);
       }}
@@ -2860,7 +2871,7 @@ function LayerPaletteRow({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -2898,7 +2909,7 @@ function LayerPaletteRow({
         value={localColor}
         onChange={(e) => {
           const nextColor = e.target.value;
-          setLocalColor(nextColor);
+          setLocalColor((current) => (current === nextColor ? current : nextColor));
           latestColorRef.current = nextColor;
           scheduleCommit();
         }}

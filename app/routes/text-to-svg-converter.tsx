@@ -304,8 +304,14 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json<ActionResult>(
-      { error: err?.message || "Server error during conversion." },
+      {
+        error: safeErrorMessage(
+          err?.message || "Server error during conversion.",
+          "Server error during conversion.",
+        ),
+      },
       { status: 500 },
     );
   }

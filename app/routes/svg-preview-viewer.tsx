@@ -699,7 +699,9 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
       setTab("elements");
       if (!settings.showInspector)
-        setSettings((s) => ({ ...s, showInspector: true }));
+        setSettings((s) =>
+          s.showInspector ? s : { ...s, showInspector: true },
+        );
     }
 
     host.addEventListener("click", handler, true);

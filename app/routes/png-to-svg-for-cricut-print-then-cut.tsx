@@ -299,6 +299,15 @@ export async function action({ request }: ActionFunctionArgs) {
           { status: 415 },
         );
       }
+      if (width < 2 || height < 2) {
+        return json(
+          {
+            error:
+              "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+          },
+          { status: 415 },
+        );
+      }
 
       const mp = (width * height) / 1_000_000;
 
@@ -453,8 +462,9 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
-      { error: err?.message || "Server error during conversion." },
+      { error: safeErrorMessage(err?.message || "Server error during conversion.", "Server error during conversion.") },
       { status: 500 },
     );
   }
@@ -486,6 +496,11 @@ async function createCutMask(
 
   if (!width || !height) {
     throw new Error("Could not read image dimensions.");
+  }
+  if (width < 2 || height < 2) {
+    throw new Error(
+      "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+    );
   }
 
   const hasAlpha = Boolean(meta.hasAlpha);

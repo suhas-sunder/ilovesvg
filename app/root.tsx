@@ -12,6 +12,7 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import { PHProvider } from "./provider";
 import NavBar from "./client/components/navigation/NavBar";
+import { logAppError } from "./client/lib/errorLogging";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -83,6 +84,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <PHProvider>
+          <ClientRuntimeErrorLogger />
           <NavBar />
           {children}
           <ScrollRestoration />
@@ -104,10 +106,45 @@ export default function App() {
   return <Outlet />;
 }
 
+function ClientRuntimeErrorLogger() {
+  React.useEffect(() => {
+    function onError(event: ErrorEvent) {
+      logAppError(event.error || event.message, {
+        flowStep: "window_error",
+        flowKind: "runtime",
+      });
+    }
+
+    function onUnhandledRejection(event: PromiseRejectionEvent) {
+      logAppError(event.reason, {
+        flowStep: "unhandled_rejection",
+        flowKind: "runtime",
+      });
+    }
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
+
+  return null;
+}
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
   let stack: string | undefined;
+
+  React.useEffect(() => {
+    if (isRouteErrorResponse(error) && error.status === 404) return;
+    logAppError(error, {
+      flowStep: "root_error_boundary",
+      flowKind: "error-boundary",
+    });
+  }, [error]);
 
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? "404" : "Error";
@@ -122,8 +159,14 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
+      <h1 className="text-2xl font-bold text-sky-950">{message}</h1>
+      <p className="mt-2 text-slate-700">{details}</p>
+      <a
+        href="/"
+        className="mt-4 inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      >
+        Back to the converter
+      </a>
       {stack && (
         <pre className="w-full p-4 overflow-x-auto">
           <code>{stack}</code>

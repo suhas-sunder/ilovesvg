@@ -82,26 +82,31 @@ export default function SvgAccessibilityAndContrastChecker() {
   // When SVG changes, try to auto-select sensible fg/bg, but never override user changes.
   React.useEffect(() => {
     if (!workingSvg.trim()) {
-      setErr(null);
-      setInfo(null);
+      setErr((current) => (current === null ? current : null));
+      setInfo((current) => (current === null ? current : null));
       return;
     }
     if (!parsed.ok) {
-      setErr(parsed.error || "Could not parse SVG.");
-      setInfo(null);
+      const nextError = parsed.error || "Could not parse SVG.";
+      setErr((current) => (current === nextError ? current : nextError));
+      setInfo((current) => (current === null ? current : null));
       return;
     }
 
-    setErr(null);
+    setErr((current) => (current === null ? current : null));
 
     // Auto-pick bg if a full-size rect is detected, but only if user has not set bg manually.
     if (parsed.autoBg && isHex(parsed.autoBg) && bgSource !== "user") {
       const next = normalizeHex(parsed.autoBg);
-      setBg(next);
-      setBgSource("auto");
-      setInfo("Detected a likely background color from the SVG.");
+      setBg((current) => (current === next ? current : next));
+      setBgSource((current) => (current === "auto" ? current : "auto"));
+      setInfo((current) =>
+        current === "Detected a likely background color from the SVG."
+          ? current
+          : "Detected a likely background color from the SVG.",
+      );
     } else {
-      setInfo(null);
+      setInfo((current) => (current === null ? current : null));
     }
 
     // Auto pick a foreground if we can find a non-background prominent color,
@@ -113,8 +118,8 @@ export default function SvgAccessibilityAndContrastChecker() {
         normalized.find((c) => c.toLowerCase() !== bgN.toLowerCase()) ??
         normalized[0];
       if (firstNonBg && isHex(firstNonBg)) {
-        setFg(firstNonBg);
-        setFgSource("auto");
+        setFg((current) => (current === firstNonBg ? current : firstNonBg));
+        setFgSource((current) => (current === "auto" ? current : "auto"));
       }
     }
   }, [

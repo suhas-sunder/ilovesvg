@@ -28,6 +28,7 @@ import {
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
+import { logAppError } from "~/client/lib/errorLogging";
 export { ChevronDownIcon, PresetPicker };
 
 /** Stable server flag: true on SSR render, false in client bundle */
@@ -68,6 +69,7 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
+const MIN_TRACE_SIDE = 2; // Potrace/Jimp can crash on 1x1 rasters.
 const ALLOWED_MIME = new Set([
   "image/png",
   "image/jpeg",
@@ -419,6 +421,7 @@ export async function action({ request }: ActionFunctionArgs) {
       maxPartSize: MAX_UPLOAD_BYTES,
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const clientRunId = sanitizeClientRunId(form.get("clientRunId"));
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
@@ -454,6 +457,7 @@ export async function action({ request }: ActionFunctionArgs) {
         width: layeredSvg.width,
         height: layeredSvg.height,
         sourceKind: "svg",
+        clientRunId,
       });
     }
 
@@ -471,6 +475,7 @@ export async function action({ request }: ActionFunctionArgs) {
             "Server is busy converting other images. We'll retry automatically.",
           retryAfterMs,
           code: "BUSY",
+          clientRunId,
         },
         {
           status: 429,
@@ -499,6 +504,16 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!w || !h) {
           return json(
             { error: "Could not read image dimensions. Try a different file." },
+            { status: 415 },
+          );
+        }
+
+        if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2×2 pixels.",
+            },
             { status: 415 },
           );
         }
@@ -668,6 +683,7 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
+          clientRunId,
           gate: {
             running: gate.running,
             queued: gate.queued,
@@ -765,6 +781,7 @@ export async function action({ request }: ActionFunctionArgs) {
         layers: editableSingle.layers,
         width: adjustedSingle.width,
         height: adjustedSingle.height,
+        clientRunId,
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -776,8 +793,13 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    void err;
     return json(
-      { error: err?.message || "Server error during conversion." },
+      {
+        error:
+          "Conversion failed. Please try a smaller image or adjust the advanced settings.",
+        code: "CONVERSION_FAILED",
+      },
       { status: 500 },
     );
   }
@@ -840,6 +862,11 @@ type TraceLayerBuildItem = {
 function clampNumber(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+function sanitizeClientRunId(value: FormDataEntryValue | null): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/[^a-zA-Z0-9._:-]/g, "").slice(0, 80);
 }
 
 function clampInt(value: number, min: number, max: number): number {
@@ -2151,6 +2178,7 @@ type ServerResult = {
   height?: number;
   retryAfterMs?: number;
   code?: string;
+  clientRunId?: string;
   gate?: { running: number; queued: number };
 };
 
@@ -2219,6 +2247,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   >(null);
   const outputCounterRef = React.useRef(0);
   const activeHistoryStampRef = React.useRef<number | null>(null);
+  const latestSubmittedRunIdRef = React.useRef("");
+  const clientRunIdCounterRef = React.useRef(0);
+  const lastProcessedResultKeyRef = React.useRef("");
+  const fileMeasureRunIdRef = React.useRef(0);
+  const busyRetryCountRef = React.useRef(0);
   const lastSubmittedRef = React.useRef<{
     settings: Settings;
     presetId: string;
@@ -2239,6 +2272,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
+      const clientRunId = fetcher.data.clientRunId || "";
+      if (
+        clientRunId &&
+        latestSubmittedRunIdRef.current &&
+        clientRunId !== latestSubmittedRunIdRef.current
+      ) {
+        return;
+      }
+
+      const resultKey = [
+        clientRunId || "legacy",
+        fetcher.data.svg.length,
+        fetcher.data.width ?? 0,
+        fetcher.data.height ?? 0,
+        fetcher.data.layers?.length ?? 0,
+      ].join(":");
+      if (lastProcessedResultKeyRef.current === resultKey) return;
+      lastProcessedResultKeyRef.current = resultKey;
+      busyRetryCountRef.current = 0;
+
       const outputNumber = outputCounterRef.current + 1;
       outputCounterRef.current = outputNumber;
       const submitted = lastSubmittedRef.current;
@@ -2268,13 +2321,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         settingsSnapshot: submitted.settings,
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
-      setActiveHistoryStamp(stamp);
+      setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
     }
   }, [
     fetcher.data?.svg,
     fetcher.data?.layers,
     fetcher.data?.width,
     fetcher.data?.height,
+    fetcher.data?.clientRunId,
   ]);
 
   React.useEffect(() => {
@@ -2290,9 +2344,35 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   React.useEffect(() => {
     if (fetcher.data?.error) {
-      setErr(fetcher.data.error);
+      const clientRunId = fetcher.data.clientRunId || "";
+      if (
+        clientRunId &&
+        latestSubmittedRunIdRef.current &&
+        clientRunId !== latestSubmittedRunIdRef.current
+      ) {
+        return;
+      }
+      setErr((current) =>
+        current === fetcher.data?.error ? current : fetcher.data?.error || null,
+      );
+      logAppError(new Error(fetcher.data.error), {
+        flowStep: "home_conversion_response",
+        flowKind: "conversion",
+        action: fetcher.data.code || "server_response",
+        selectedFileType: file?.type,
+        selectedFileSize: file?.size,
+        imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
+        settingsSnapshot: settings,
+      });
     }
-  }, [fetcher.data?.error]);
+  }, [
+    fetcher.data?.error,
+    fetcher.data?.code,
+    fetcher.data?.clientRunId,
+    file,
+    dims,
+    settings,
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -2300,18 +2380,32 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
   }, [previewUrl]);
 
-  async function measureAndSet(f: File) {
+  async function measureAndSet(f: File, runId = fileMeasureRunIdRef.current) {
     if (isSvgFile(f)) {
-      setDims(null);
+      if (fileMeasureRunIdRef.current === runId) {
+        setDims((current) => (current === null ? current : null));
+      }
       return;
     }
 
     try {
       const { w, h } = await getImageSize(f);
+      if (fileMeasureRunIdRef.current !== runId) return;
       const mp = (w * h) / 1_000_000;
-      setDims({ w, h, mp });
-    } catch {
-      setDims(null);
+      setDims((current) =>
+        current && current.w === w && current.h === h && current.mp === mp
+          ? current
+          : { w, h, mp },
+      );
+    } catch (error) {
+      if (fileMeasureRunIdRef.current !== runId) return;
+      setDims((current) => (current === null ? current : null));
+      logAppError(error, {
+        flowStep: "home_measure_image",
+        flowKind: "async-processing",
+        selectedFileType: f.type,
+        selectedFileSize: f.size,
+      });
     }
   }
 
@@ -2337,6 +2431,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Stop live preview while we swap state
     suppressLiveRef.current = true;
+    busyRetryCountRef.current = 0;
+    latestSubmittedRunIdRef.current = "";
+    lastProcessedResultKeyRef.current = "";
+    const measureRunId = fileMeasureRunIdRef.current + 1;
+    fileMeasureRunIdRef.current = measureRunId;
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     // Clear current file first so nothing submits with the old one
@@ -2364,7 +2463,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
-    await measureAndSet(chosen);
+    await measureAndSet(chosen, measureRunId);
 
     // Re-enable live preview and submit the selected file directly so the first upload
     // never depends on stale React state.
@@ -2448,6 +2547,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
+    const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    latestSubmittedRunIdRef.current = clientRunId;
+    fd.append("clientRunId", clientRunId);
     setErr(null);
     lastSubmittedRef.current = {
       settings: effective,
@@ -2515,8 +2617,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   function applyPreset(preset: Preset) {
     const nextSettings = buildPresetSettings(settings, preset);
 
-    setActivePreset(preset.id);
-    setSettings(nextSettings);
+    setActivePreset((current) => (current === preset.id ? current : preset.id));
+    setSettings((current) =>
+      settingsEqual(current, nextSettings) ? current : nextSettings,
+    );
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -2546,12 +2650,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const stamp = Number(id);
     const item = history.find((candidate) => candidate.stamp === stamp);
     if (!item) return;
-    setActiveHistoryStamp(item.stamp);
-    if (item.settingsSnapshot) {
-      setSettings(item.settingsSnapshot);
+    setActiveHistoryStamp((current) =>
+      current === item.stamp ? current : item.stamp,
+    );
+    const snapshot = item.settingsSnapshot;
+    if (snapshot) {
+      setSettings((current) =>
+        settingsEqual(current, snapshot) ? current : snapshot,
+      );
     }
-    if (item.presetId) {
-      setActivePreset(item.presetId);
+    const presetId = item.presetId;
+    if (presetId) {
+      setActivePreset((current) => (current === presetId ? current : presetId));
     }
   }
 
@@ -2574,10 +2684,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       delete settingsCommitTimersRef.current[key];
     }
 
-    setSettings((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setSettings((current) => {
+      if (Object.is(current[key], value)) return current;
+      return {
+        ...current,
+        [key]: value,
+      };
+    });
   }
 
   function setSettingThrottled<K extends keyof Settings>(
@@ -2590,10 +2703,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     settingsCommitTimersRef.current[key] = setTimeout(() => {
       delete settingsCommitTimersRef.current[key];
-      setSettings((current) => ({
-        ...current,
-        [key]: value,
-      }));
+      setSettings((current) => {
+        if (Object.is(current[key], value)) return current;
+        return {
+          ...current,
+          [key]: value,
+        };
+      });
     }, delay);
   }
 
@@ -2620,58 +2736,72 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     layerId: string,
     patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
   ) {
-    setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp !== stamp
-          ? item
-          : {
-              ...item,
-              layers: item.layers?.map((layer) =>
-                layer.id === layerId ? { ...layer, ...patch } : layer,
-              ),
-            },
-      ),
-    );
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp || !item.layers?.length) return item;
+        let itemChanged = false;
+        const layers = item.layers.map((layer) => {
+          if (layer.id !== layerId) return layer;
+          if (!hasLayerPatchChanges(layer, patch)) return layer;
+          itemChanged = true;
+          return { ...layer, ...patch };
+        });
+        if (!itemChanged) return item;
+        changed = true;
+        return { ...item, layers };
+      });
+      return changed ? next : prev;
+    });
   }
 
   function resetHistoryLayer(stamp: number, layerId: string) {
-    setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp !== stamp
-          ? item
-          : {
-              ...item,
-              layers: item.layers?.map((layer) =>
-                layer.id === layerId
-                  ? {
-                      ...layer,
-                      color: layer.originalColor,
-                      visible: true,
-                      opacity: layer.originalOpacity ?? 1,
-                    }
-                  : layer,
-              ),
-            },
-      ),
-    );
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp || !item.layers?.length) return item;
+        let itemChanged = false;
+        const layers = item.layers.map((layer) => {
+          if (layer.id !== layerId) return layer;
+          const resetPatch = {
+            color: layer.originalColor,
+            visible: true,
+            opacity: layer.originalOpacity ?? 1,
+          };
+          if (!hasLayerPatchChanges(layer, resetPatch)) return layer;
+          itemChanged = true;
+          return { ...layer, ...resetPatch };
+        });
+        if (!itemChanged) return item;
+        changed = true;
+        return { ...item, layers };
+      });
+      return changed ? next : prev;
+    });
   }
 
   function resetAllHistoryLayers(stamp: number) {
-    setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp !== stamp
-          ? item
-          : {
-              ...item,
-              layers: item.layers?.map((layer) => ({
-                ...layer,
-                color: layer.originalColor,
-                visible: true,
-                opacity: layer.originalOpacity ?? 1,
-              })),
-            },
-      ),
-    );
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp || !item.layers?.length) return item;
+        let itemChanged = false;
+        const layers = item.layers.map((layer) => {
+          const resetPatch = {
+            color: layer.originalColor,
+            visible: true,
+            opacity: layer.originalOpacity ?? 1,
+          };
+          if (!hasLayerPatchChanges(layer, resetPatch)) return layer;
+          itemChanged = true;
+          return { ...layer, ...resetPatch };
+        });
+        if (!itemChanged) return item;
+        changed = true;
+        return { ...item, layers };
+      });
+      return changed ? next : prev;
+    });
   }
 
   function setLatestHistoryLayer(
@@ -2693,19 +2823,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   function setLatestHistorySize(size: { width: number; height: number }) {
-    setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp === activeHistoryItem?.stamp
-          ? {
-              ...item,
-              width: size.width,
-              height: size.height,
-              originalWidth: item.originalWidth || item.width,
-              originalHeight: item.originalHeight || item.height,
-            }
-          : item,
-      ),
-    );
+    const stamp = activeHistoryItem?.stamp;
+    if (!stamp) return;
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp) return item;
+        const originalWidth = item.originalWidth || item.width;
+        const originalHeight = item.originalHeight || item.height;
+        if (
+          item.width === size.width &&
+          item.height === size.height &&
+          item.originalWidth === originalWidth &&
+          item.originalHeight === originalHeight
+        ) {
+          return item;
+        }
+        changed = true;
+        return {
+          ...item,
+          width: size.width,
+          height: size.height,
+          originalWidth,
+          originalHeight,
+        };
+      });
+      return changed ? next : prev;
+    });
   }
 
   return (
@@ -3156,6 +3300,20 @@ function applySvgSizeAttributes(svg: string, width: number, height: number): str
   });
 }
 
+function hasLayerPatchChanges(
+  layer: EditableSvgLayer,
+  patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
+): boolean {
+  if ("color" in patch && patch.color !== layer.color) return true;
+  if ("visible" in patch && patch.visible !== layer.visible) return true;
+  if ("opacity" in patch && patch.opacity !== layer.opacity) return true;
+  return false;
+}
+
+function settingsEqual(a: Settings, b: Settings): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function LayerPaletteEditor({
   item,
   onColorChange,
@@ -3225,7 +3383,7 @@ function LayerPaletteRow({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -3251,7 +3409,7 @@ function LayerPaletteRow({
 
   function queueColorCommit(nextColor: string) {
     latestColorRef.current = nextColor;
-    setLocalColor(nextColor);
+    setLocalColor((current) => (current === nextColor ? current : nextColor));
 
     const now =
       typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -3414,6 +3572,11 @@ async function validateBeforeSubmit(file: File) {
   try {
     const { w, h } = await getImageSize(file);
     if (!w || !h) return;
+    if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
+      throw new Error(
+        "Image is too small to trace safely. Please upload an image at least 2×2 pixels.",
+      );
+    }
     const mp = (w * h) / 1_000_000;
     if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
       throw new Error(
@@ -3421,7 +3584,12 @@ async function validateBeforeSubmit(file: File) {
       );
     }
   } catch (error: any) {
-    if (error?.message?.startsWith("Image too large:")) throw error;
+    if (
+      error?.message?.startsWith("Image too large:") ||
+      error?.message?.startsWith("Image is too small")
+    ) {
+      throw error;
+    }
     return;
   }
 }
@@ -3553,7 +3721,8 @@ function Num({
   const [localValue, setLocalValue] = React.useState(String(value));
 
   React.useEffect(() => {
-    setLocalValue(String(value));
+    const nextValue = String(value);
+    setLocalValue((current) => (current === nextValue ? current : nextValue));
   }, [value]);
 
   function commit() {

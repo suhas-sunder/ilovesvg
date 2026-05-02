@@ -464,6 +464,16 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
 
+        if (w < 2 || h < 2) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+            },
+            { status: 415 },
+          );
+        }
+
         const mp = (w * h) / 1_000_000;
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
@@ -581,8 +591,9 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
-      { error: err?.message || "Server error during layered SVG conversion." },
+      { error: safeErrorMessage(err?.message || "Server error during layered SVG conversion.", "Server error during layered SVG conversion.") },
       { status: 500 },
     );
   }
@@ -2374,18 +2385,18 @@ function Num({
   const [draft, setDraft] = React.useState(String(value));
 
   React.useEffect(() => {
-    setDraft(String(value));
+    setDraft((current) => (current === String(value) ? current : String(value)));
   }, [value]);
 
   function commitDraft() {
     const parsed = Number(draft);
     if (!Number.isFinite(parsed)) {
-      setDraft(String(value));
+      setDraft((current) => (current === String(value) ? current : String(value)));
       return;
     }
 
     const next = clampNumber(parsed, min, max);
-    setDraft(String(next));
+    setDraft((current) => (current === String(next) ? current : String(next)));
     if (next !== value) onChange(next);
   }
 
@@ -2471,7 +2482,7 @@ function LayerControlRow({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -2499,7 +2510,7 @@ function LayerControlRow({
 
   function queueColorCommit(nextColor: string) {
     latestColorRef.current = nextColor;
-    setLocalColor(nextColor);
+    setLocalColor((current) => (current === nextColor ? current : nextColor));
 
     const now =
       typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -2528,7 +2539,7 @@ function LayerControlRow({
     }
 
     latestColorRef.current = layer.originalColor;
-    setLocalColor(layer.originalColor);
+    setLocalColor((current) => (current === layer.originalColor ? current : layer.originalColor));
     onLayerChange(layer.id, {
       color: layer.originalColor,
       visible: true,

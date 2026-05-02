@@ -86,6 +86,7 @@ export const MIN_LAYER_COUNT = 2;
 export const MAX_LAYER_COUNT = 12;
 export const MAX_TRACE_SIDE_DEFAULT = 1600;
 export const MAX_TRACE_SIDE = 3000;
+const MIN_TRACE_DIMENSION = 2;
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -180,6 +181,11 @@ export async function createLayeredColorSvg(
   const height = info.height | 0;
   if (!width || !height) {
     throw new Error("Could not decode image for layered SVG tracing.");
+  }
+  if (width < MIN_TRACE_DIMENSION || height < MIN_TRACE_DIMENSION) {
+    throw new Error(
+      "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+    );
   }
 
   const raw = data as Buffer;

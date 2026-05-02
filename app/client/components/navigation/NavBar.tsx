@@ -647,7 +647,21 @@ export default function NavBar() {
     const btn = moreBtnRef.current;
     if (!btn) return;
     const r = btn.getBoundingClientRect();
-    setMoreRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    const nextRect = {
+      top: r.top,
+      left: r.left,
+      width: r.width,
+      height: r.height,
+    };
+    setMoreRect((current) =>
+      current &&
+      current.top === nextRect.top &&
+      current.left === nextRect.left &&
+      current.width === nextRect.width &&
+      current.height === nextRect.height
+        ? current
+        : nextRect,
+    );
   }
 
   // Measure and keep dropdown positioned during scroll/resize

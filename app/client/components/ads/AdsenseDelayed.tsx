@@ -62,7 +62,8 @@ export function AdSenseDelayed({
   };
 
   const updateFilled = () => {
-    setIsFilled(isActuallyFilled());
+    const nextFilled = isActuallyFilled();
+    setIsFilled((current) => (current === nextFilled ? current : nextFilled));
   };
 
   const clearTimer = () => {
@@ -120,7 +121,7 @@ export function AdSenseDelayed({
     if (typeof window === "undefined") return;
 
     pushedSlotRef.current = null;
-    setIsFilled(false);
+    setIsFilled((current) => (current === false ? current : false));
 
     const removeInteractionListeners = () => {
       window.removeEventListener("pointerdown", onFirstInteraction);

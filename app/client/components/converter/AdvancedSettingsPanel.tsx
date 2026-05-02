@@ -209,7 +209,10 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   const showCleanup = capabilities.supportsMaskCleanup && showSingleTrace;
 
   function patch(patchValue: Partial<TSettings>) {
-    setSettings((current) => ({ ...current, ...patchValue }) as TSettings);
+    setSettings((current) => {
+      if (!hasPatchChanges(current, patchValue)) return current;
+      return { ...current, ...patchValue } as TSettings;
+    });
   }
 
   function addRemoveColorValue(value: string) {
@@ -853,7 +856,10 @@ export function LayeredAdvancedSettingsPanel<
   const merged = { ...DEFAULT_TRACE_ADVANCED_SETTINGS, ...settings };
 
   function patch(patchValue: Partial<TSettings>) {
-    setSettings((current) => ({ ...current, ...patchValue }) as TSettings);
+    setSettings((current) => {
+      if (!hasPatchChanges(current, patchValue)) return current;
+      return { ...current, ...patchValue } as TSettings;
+    });
   }
 
   function addRemoveColorValue(value: string) {
@@ -1266,16 +1272,21 @@ export function SvgRasterExportSettingsPanel<
   if (!open) return null;
 
   function patch(patchValue: Partial<TSettings>) {
-    setSettings((current) => ({ ...current, ...patchValue }) as TSettings);
+    setSettings((current) => {
+      if (!hasPatchChanges(current, patchValue)) return current;
+      return { ...current, ...patchValue } as TSettings;
+    });
   }
 
   function setWidth(widthValue: number) {
     setSettings((current) => {
       const width = Math.round(clampNumber(widthValue, 16, 16384));
       if (!aspect || !current.lockAspect) {
+        if (current.width === width) return current;
         return { ...current, width } as TSettings;
       }
       const height = Math.round(clampNumber(width / aspect, 16, 16384));
+      if (current.width === width && current.height === height) return current;
       return { ...current, width, height } as TSettings;
     });
   }
@@ -1284,17 +1295,25 @@ export function SvgRasterExportSettingsPanel<
     setSettings((current) => {
       const height = Math.round(clampNumber(heightValue, 16, 16384));
       if (!aspect || !current.lockAspect) {
+        if (current.height === height) return current;
         return { ...current, height } as TSettings;
       }
       const width = Math.round(clampNumber(height * aspect, 16, 16384));
+      if (current.width === width && current.height === height) return current;
       return { ...current, width, height } as TSettings;
     });
   }
 
   function setLockAspect(lockAspect: boolean) {
     setSettings((current) => {
-      if (!aspect || !lockAspect) return { ...current, lockAspect } as TSettings;
+      if (!aspect || !lockAspect) {
+        if (current.lockAspect === lockAspect) return current;
+        return { ...current, lockAspect } as TSettings;
+      }
       const height = Math.round(clampNumber(current.width / aspect, 16, 16384));
+      if (current.lockAspect === lockAspect && current.height === height) {
+        return current;
+      }
       return { ...current, lockAspect, height } as TSettings;
     });
   }
@@ -1688,15 +1707,17 @@ function OutputLayerStyleRow({
 
   React.useEffect(() => {
     const next = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
-    setLocalColor(next);
-    setColorText(next);
-    setRgbValue(hexToRgbParts(next));
+    setLocalColor((current) => (current === next ? current : next));
+    setColorText((current) => (current === next ? current : next));
+    const nextRgb = hexToRgbParts(next);
+    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestColorRef.current = next;
   }, [layer.color, layer.originalColor]);
 
   React.useEffect(() => {
     const nextOpacity = normalizeOpacity(layer.opacity);
-    setLocalOpacity(Math.round(nextOpacity * 100));
+    const nextPercent = Math.round(nextOpacity * 100);
+    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
     latestOpacityRef.current = nextOpacity;
   }, [layer.opacity]);
 
@@ -1717,9 +1738,10 @@ function OutputLayerStyleRow({
       clearTimeout(colorTimerRef.current);
       colorTimerRef.current = null;
     }
-    setLocalColor(normalized);
-    setColorText(normalized);
-    setRgbValue(hexToRgbParts(normalized));
+    setLocalColor((current) => (current === normalized ? current : normalized));
+    setColorText((current) => (current === normalized ? current : normalized));
+    const nextRgb = hexToRgbParts(normalized);
+    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestColorRef.current = normalized;
     onOutputLayerChange?.(layer.id, { color: normalized });
   }
@@ -1752,14 +1774,16 @@ function OutputLayerStyleRow({
     }
     const opacity = normalizeOpacity(value);
     latestOpacityRef.current = opacity;
-    setLocalOpacity(Math.round(opacity * 100));
+    const nextPercent = Math.round(opacity * 100);
+    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
     onOutputLayerChange?.(layer.id, { opacity });
   }
 
   function queueOpacityCommit(percent: number) {
     const opacity = normalizeOpacity(percent / 100);
     latestOpacityRef.current = opacity;
-    setLocalOpacity(Math.round(opacity * 100));
+    const nextPercent = Math.round(opacity * 100);
+    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
     if (opacityTimerRef.current) return;
     opacityTimerRef.current = setTimeout(() => {
       opacityTimerRef.current = null;
@@ -2069,6 +2093,34 @@ function normalizeOpacity(value?: number): number {
   return Math.max(0, Math.min(1, Number(value)));
 }
 
+function hasPatchChanges<T extends object>(
+  current: T,
+  patchValue: Partial<T>,
+): boolean {
+  for (const key of Object.keys(patchValue) as Array<keyof T>) {
+    if (!Object.is(current[key], patchValue[key])) return true;
+  }
+  return false;
+}
+
+function detectedColorListsEqual(
+  a: Array<{ color: string; label: string }>,
+  b: Array<{ color: string; label: string }>,
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every(
+    (item, index) =>
+      item.color === b[index]?.color && item.label === b[index]?.label,
+  );
+}
+
+function sameRgbParts(
+  a: { r: string; g: string; b: string },
+  b: { r: string; g: string; b: string },
+): boolean {
+  return a.r === b.r && a.g === b.g && a.b === b.b;
+}
+
 function useSourcePaletteColors(
   sourceFile: File | null | undefined,
   enabled: boolean,
@@ -2081,7 +2133,7 @@ function useSourcePaletteColors(
 
     async function detect() {
       if (!enabled || !sourceFile || isSvgFile(sourceFile)) {
-        setColors([]);
+        setColors((current) => (detectedColorListsEqual(current, []) ? current : []));
         return;
       }
 
@@ -2103,7 +2155,7 @@ function useSourcePaletteColors(
         canvas.height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
         const context = canvas.getContext("2d", { willReadFrequently: true });
         if (!context) {
-          setColors([]);
+          setColors((current) => (detectedColorListsEqual(current, []) ? current : []));
           return;
         }
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -2130,9 +2182,15 @@ function useSourcePaletteColors(
             label: `Source ${bucket.color}`,
           }));
 
-        if (!cancelled) setColors(nextColors);
+        if (!cancelled) {
+          setColors((current) =>
+            detectedColorListsEqual(current, nextColors) ? current : nextColors,
+          );
+        }
       } catch {
-        if (!cancelled) setColors([]);
+        if (!cancelled) {
+          setColors((current) => (detectedColorListsEqual(current, []) ? current : []));
+        }
       } finally {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       }
@@ -2281,9 +2339,10 @@ function ColorInput({
 
   React.useEffect(() => {
     const normalized = normalizeColorInput(value) || "#ffffff";
-    setLocalValue(normalized);
-    setTextValue(normalized);
-    setRgbValue(hexToRgbParts(normalized));
+    setLocalValue((current) => (current === normalized ? current : normalized));
+    setTextValue((current) => (current === normalized ? current : normalized));
+    const nextRgb = hexToRgbParts(normalized);
+    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestRef.current = normalized;
   }, [value]);
 
@@ -2295,10 +2354,11 @@ function ColorInput({
 
   function schedule(nextValue: string) {
     const normalized = normalizeColorInput(nextValue);
-    setTextValue(nextValue);
+    setTextValue((current) => (current === nextValue ? current : nextValue));
     if (!normalized) return;
-    setLocalValue(normalized);
-    setRgbValue(hexToRgbParts(normalized));
+    setLocalValue((current) => (current === normalized ? current : normalized));
+    const nextRgb = hexToRgbParts(normalized);
+    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestRef.current = normalized;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
@@ -2314,15 +2374,16 @@ function ColorInput({
       timeoutRef.current = null;
     }
     latestRef.current = normalized;
-    setLocalValue(normalized);
-    setTextValue(normalized);
-    setRgbValue(hexToRgbParts(normalized));
+    setLocalValue((current) => (current === normalized ? current : normalized));
+    setTextValue((current) => (current === normalized ? current : normalized));
+    const nextRgb = hexToRgbParts(normalized);
+    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     onCommit(normalized);
   }
 
   function updateRgb(channel: "r" | "g" | "b", next: string) {
     const draft = { ...rgbValue, [channel]: next };
-    setRgbValue(draft);
+    setRgbValue((current) => (sameRgbParts(current, draft) ? current : draft));
     const hex = rgbPartsToHex(draft);
     if (hex) schedule(hex);
   }
@@ -2433,7 +2494,7 @@ function Range({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalValue(value);
+    setLocalValue((current) => (current === value ? current : value));
     latestRef.current = value;
   }, [value]);
 
@@ -2445,7 +2506,7 @@ function Range({
 
   function schedule(next: number) {
     const clamped = clampNumber(next, min, max);
-    setLocalValue(clamped);
+    setLocalValue((current) => (current === clamped ? current : clamped));
     latestRef.current = clamped;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
@@ -2495,7 +2556,8 @@ function NumberInput({
   const [text, setText] = React.useState(String(value));
 
   React.useEffect(() => {
-    setText(String(value));
+    const nextText = String(value);
+    setText((current) => (current === nextText ? current : nextText));
   }, [value]);
 
   function commit() {

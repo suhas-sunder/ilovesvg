@@ -481,6 +481,16 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
 
+        if (w < 2 || h < 2) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+            },
+            { status: 415 },
+          );
+        }
+
         const mp = (w * h) / 1_000_000;
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
@@ -598,10 +608,13 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
       {
-        error:
+        error: safeErrorMessage(
           err?.message || "Server error during JPG to layered SVG conversion.",
+          "Server error during JPG to layered SVG conversion.",
+        ),
       },
       { status: 500 },
     );
@@ -2405,7 +2418,7 @@ const LayerControlRow = React.memo(function LayerControlRow({
   );
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     pendingColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -2461,7 +2474,7 @@ const LayerControlRow = React.memo(function LayerControlRow({
           value={localColor}
           onChange={(e) => {
             const nextColor = e.target.value;
-            setLocalColor(nextColor);
+            setLocalColor((current) => (current === nextColor ? current : nextColor));
             scheduleColorCommit(nextColor);
           }}
           onBlur={() => commitColor()}
@@ -2490,7 +2503,7 @@ const LayerControlRow = React.memo(function LayerControlRow({
             }
 
             pendingColorRef.current = layer.originalColor;
-            setLocalColor(layer.originalColor);
+            setLocalColor((current) => (current === layer.originalColor ? current : layer.originalColor));
             onLayerChange(layer.id, {
               color: layer.originalColor,
               visible: true,

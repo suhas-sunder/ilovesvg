@@ -436,11 +436,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return json(result);
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
       {
-        error:
+        error: safeErrorMessage(
           err?.message ||
+            "Layered SVG conversion failed. Try a smaller or higher-contrast image.",
           "Layered SVG conversion failed. Try a smaller or higher-contrast image.",
+        ),
       },
       { status: 500 },
     );
@@ -661,6 +664,12 @@ async function validateRasterInputForLayering(input: Buffer) {
 
     if (!w || !h) {
       throw new Error("Could not read the Base64 image dimensions.");
+    }
+
+    if (w < 2 || h < 2) {
+      throw new Error(
+        "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+      );
     }
 
     const mp = (w * h) / 1_000_000;
@@ -4526,7 +4535,7 @@ function LayerControlRow({
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -4554,7 +4563,7 @@ function LayerControlRow({
 
   function queueColorCommit(nextColor: string) {
     latestColorRef.current = nextColor;
-    setLocalColor(nextColor);
+    setLocalColor((current) => (current === nextColor ? current : nextColor));
 
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -4573,7 +4582,7 @@ function LayerControlRow({
     }
 
     latestColorRef.current = layer.originalColor;
-    setLocalColor(layer.originalColor);
+    setLocalColor((current) => (current === layer.originalColor ? current : layer.originalColor));
     onLayerChange(layer.id, {
       color: layer.originalColor,
       visible: true,

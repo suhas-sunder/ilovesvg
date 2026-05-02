@@ -313,13 +313,14 @@ function LayerPaletteRow({
   );
 
   React.useEffect(() => {
-    setLocalColor(layer.color);
+    setLocalColor((current) => (current === layer.color ? current : layer.color));
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
   React.useEffect(() => {
     const nextOpacity = normalizeOpacity(layer.opacity);
-    setLocalOpacity(Math.round(nextOpacity * 100));
+    const nextPercent = Math.round(nextOpacity * 100);
+    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
     latestOpacityRef.current = nextOpacity;
   }, [layer.opacity]);
 
@@ -344,7 +345,7 @@ function LayerPaletteRow({
 
   function queueColorCommit(nextColor: string) {
     latestColorRef.current = nextColor;
-    setLocalColor(nextColor);
+    setLocalColor((current) => (current === nextColor ? current : nextColor));
 
     const now =
       typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -380,7 +381,8 @@ function LayerPaletteRow({
   function queueOpacityCommit(nextValue: number) {
     const nextOpacity = normalizeOpacity(nextValue / 100);
     latestOpacityRef.current = nextOpacity;
-    setLocalOpacity(Math.round(nextOpacity * 100));
+    const nextPercent = Math.round(nextOpacity * 100);
+    setLocalOpacity((current) => (current === nextPercent ? current : nextPercent));
     if (!onOpacityChange) return;
 
     const now =
@@ -434,7 +436,7 @@ function LayerPaletteRow({
           <span className="shrink-0">Opacity {localOpacity}%</span>
           <input
             type="range"
-            min={10}
+            min={0}
             max={100}
             step={1}
             value={localOpacity}
@@ -492,19 +494,19 @@ function CommittedNumberInput({
   const [draft, setDraft] = React.useState(String(value));
 
   React.useEffect(() => {
-    setDraft(String(value));
+    setDraft((current) => (current === String(value) ? current : String(value)));
   }, [value]);
 
   function commit() {
     const parsed = Number(draft);
     if (!Number.isFinite(parsed)) {
-      setDraft(String(value));
+      setDraft((current) => (current === String(value) ? current : String(value)));
       return;
     }
 
     const clamped = Math.max(min, Math.min(max, parsed));
-    setDraft(String(clamped));
-    onCommit(clamped);
+    setDraft((current) => (current === String(clamped) ? current : String(clamped)));
+    if (clamped !== value) onCommit(clamped);
   }
 
   return (
@@ -572,7 +574,7 @@ function applyOpacityAttribute(attrs: string, opacity?: number): string {
 
 function normalizeOpacity(value?: number): number {
   if (!Number.isFinite(value)) return 1;
-  return Math.max(0.1, Math.min(1, Number(value)));
+  return Math.max(0, Math.min(1, Number(value)));
 }
 
 function formatOpacity(value: number): string {

@@ -269,6 +269,37 @@ export async function action({ request }: ActionFunctionArgs) {
       const signatureError = validateFileSignature(input, webFile, ALLOWED_MIME);
       if (signatureError) return signatureError;
 
+      try {
+        const { createRequire } = await import("node:module");
+        const req = createRequire(import.meta.url);
+        const sharp = req("sharp") as typeof import("sharp");
+        const meta = await sharp(input).metadata();
+        const width = meta.width ?? 0;
+        const height = meta.height ?? 0;
+
+        if (!width || !height) {
+          return json(
+            { error: "Could not read image dimensions. Try a different file." },
+            { status: 415 },
+          );
+        }
+
+        if (width < 2 || height < 2) {
+          return json(
+            {
+              error:
+                "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
+            },
+            { status: 415 },
+          );
+        }
+      } catch {
+        return json(
+          { error: "Could not read image dimensions. Try a different file." },
+          { status: 415 },
+        );
+      }
+
       const opts: StickerOptions = {
         cutSource: String(
           form.get("cutSource") ?? "transparent-alpha",
@@ -325,8 +356,9 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
+    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
-      { error: err?.message || "Server error during sticker SVG conversion." },
+      { error: safeErrorMessage(err?.message || "Server error during sticker SVG conversion.", "Server error during sticker SVG conversion.") },
       { status: 500 },
     );
   }
@@ -373,6 +405,11 @@ async function buildStickerSvg(
   if (!originalW || !originalH) {
     throw new Error("Could not read image dimensions. Try a different file.");
   }
+  if (originalW < 2 || originalH < 2) {
+    throw new Error(
+      "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+    );
+  }
 
   const mp = (originalW * originalH) / 1_000_000;
   if (originalW > MAX_SIDE || originalH > MAX_SIDE || mp > MAX_MP) {
@@ -397,6 +434,11 @@ async function buildStickerSvg(
   const channels = info.channels | 0;
   if (width <= 0 || height <= 0 || channels < 4) {
     throw new Error("Could not prepare sticker image pixels.");
+  }
+  if (width < 2 || height < 2) {
+    throw new Error(
+      "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
+    );
   }
 
   const rawChannels = channels as 1 | 2 | 3 | 4;
