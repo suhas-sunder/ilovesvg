@@ -878,7 +878,7 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -947,7 +947,7 @@ export default function WebpToSvgConverter({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("webp-edge-balanced");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1062,7 +1062,7 @@ export default function WebpToSvgConverter({
     setInfo(null);
     setDims(null);
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("webp-edge-balanced");
     setOriginalFileSize(f.size);
 
     let chosen = f;

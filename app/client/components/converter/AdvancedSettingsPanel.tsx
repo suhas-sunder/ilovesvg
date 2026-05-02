@@ -53,6 +53,9 @@ type Props<TSettings extends MixedTraceSettings> = {
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   onOutputSizeChange?: (size: { width: number; height: number }) => void;
+  outputTargets?: OutputTargetOption[];
+  activeOutputId?: string | null;
+  onActiveOutputChange?: (id: string) => void;
   helpHref?: string;
   buttonDisabled?: boolean;
   onUpdatePreview: () => void;
@@ -98,6 +101,9 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   onOutputSizeChange?: (size: { width: number; height: number }) => void;
+  outputTargets?: OutputTargetOption[];
+  activeOutputId?: string | null;
+  onActiveOutputChange?: (id: string) => void;
   helpHref?: string;
   buttonDisabled?: boolean;
   onUpdatePreview: () => void;
@@ -152,6 +158,12 @@ type OutputSizeInfo = {
   originalHeight?: number;
 };
 
+export type OutputTargetOption = {
+  id: string;
+  label: string;
+  description?: string;
+};
+
 export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>({
   id = "advanced-settings",
   open,
@@ -167,6 +179,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
+  outputTargets,
+  activeOutputId,
+  onActiveOutputChange,
   helpHref,
   buttonDisabled = false,
   onUpdatePreview,
@@ -235,9 +250,12 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
         <div className="min-w-0">
+          <div className="text-[13px] font-bold text-sky-950">
+            Advanced settings (Click Convert)
+          </div>
           <span>
-            Trace settings need Update preview. Output layer edits update the
-            current SVG directly.
+            These settings change the next server trace. Click Update preview
+            or Convert to generate a new SVG from them.
           </span>
           {helpHref ? (
             <a
@@ -649,22 +667,6 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         </SettingSection>
       )}
 
-      {capabilities.supportsLayerEditing && (
-        <>
-          <OutputColorRemovalSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-          />
-          <OutputLayerStylingSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-            onResetAllOutputLayers={onResetAllOutputLayers}
-          />
-        </>
-      )}
-
       <SettingSection title="Appearance">
         {showSingleTrace && (
           <>
@@ -770,6 +772,32 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         )}
       </SettingSection>
 
+      {(capabilities.supportsLayerEditing ||
+        (capabilities.supportsOutputGeometry &&
+          !capabilities.supportsCutFriendlyOutput)) && (
+        <LivePreviewSettingsHeader
+          outputTargets={outputTargets}
+          activeOutputId={activeOutputId}
+          onActiveOutputChange={onActiveOutputChange}
+        />
+      )}
+
+      {capabilities.supportsLayerEditing && (
+        <>
+          <OutputColorRemovalSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+          />
+          <OutputLayerStylingSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+            onResetAllOutputLayers={onResetAllOutputLayers}
+          />
+        </>
+      )}
+
       {capabilities.supportsOutputGeometry && !capabilities.supportsCutFriendlyOutput && (
         <SettingSection title="Size and export">
           <OutputSizeControls
@@ -801,6 +829,9 @@ export function LayeredAdvancedSettingsPanel<
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
+  outputTargets,
+  activeOutputId,
+  onActiveOutputChange,
   helpHref,
   buttonDisabled = false,
   onUpdatePreview,
@@ -863,9 +894,12 @@ export function LayeredAdvancedSettingsPanel<
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
         <div className="min-w-0">
+          <div className="text-[13px] font-bold text-sky-950">
+            Advanced settings (Click Convert)
+          </div>
           <span>
-            Trace settings need Update preview. Output layer edits update the
-            current SVG directly.
+            These settings change the next layered trace. Click Update preview
+            or Convert to generate a new SVG from them.
           </span>
           {helpHref ? (
             <a
@@ -1084,22 +1118,6 @@ export function LayeredAdvancedSettingsPanel<
         </SettingSection>
       )}
 
-      {capabilities.supportsLayerEditing && (
-        <>
-          <OutputColorRemovalSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-          />
-          <OutputLayerStylingSection
-            layers={outputLayers}
-            onOutputLayerChange={onOutputLayerChange}
-            onResetOutputLayer={onResetOutputLayer}
-            onResetAllOutputLayers={onResetAllOutputLayers}
-          />
-        </>
-      )}
-
       <SettingSection title="Edges and cleanup">
         <Field label={`Brightness (${merged.brightness})`}>
           <Range
@@ -1195,6 +1213,31 @@ export function LayeredAdvancedSettingsPanel<
             </Field>
           )}
         </SettingSection>
+      )}
+
+      {(capabilities.supportsLayerEditing ||
+        capabilities.supportsOutputGeometry) && (
+        <LivePreviewSettingsHeader
+          outputTargets={outputTargets}
+          activeOutputId={activeOutputId}
+          onActiveOutputChange={onActiveOutputChange}
+        />
+      )}
+
+      {capabilities.supportsLayerEditing && (
+        <>
+          <OutputColorRemovalSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+          />
+          <OutputLayerStylingSection
+            layers={outputLayers}
+            onOutputLayerChange={onOutputLayerChange}
+            onResetOutputLayer={onResetOutputLayer}
+            onResetAllOutputLayers={onResetAllOutputLayers}
+          />
+        </>
       )}
 
       {capabilities.supportsOutputGeometry && (
@@ -1523,6 +1566,50 @@ function OutputColorRemovalSection({
   );
 }
 
+function LivePreviewSettingsHeader({
+  outputTargets,
+  activeOutputId,
+  onActiveOutputChange,
+}: {
+  outputTargets?: OutputTargetOption[];
+  activeOutputId?: string | null;
+  onActiveOutputChange?: (id: string) => void;
+}) {
+  const hasTargets = Boolean(outputTargets?.length && onActiveOutputChange);
+
+  return (
+    <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-[12px] text-slate-600">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[13px] font-bold text-sky-950">
+            Advanced settings (Live Preview)
+          </div>
+          <p className="m-0 leading-5">
+            These controls edit the selected SVG output directly. Preview, copy,
+            and download use the edited result immediately.
+          </p>
+        </div>
+        {hasTargets ? (
+          <label className="flex shrink-0 items-center gap-2 text-[12px] font-semibold text-slate-700">
+            Editing
+            <select
+              value={activeOutputId || outputTargets?.[0]?.id || ""}
+              onChange={(event) => onActiveOutputChange?.(event.target.value)}
+              className="max-w-[220px] cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-medium text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              {(outputTargets || []).map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function OutputLayerStylingSection({
   layers,
   onOutputLayerChange,
@@ -1588,6 +1675,9 @@ function OutputLayerStyleRow({
     normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
   const [localColor, setLocalColor] = React.useState(normalizedColor);
   const [colorText, setColorText] = React.useState(normalizedColor);
+  const [rgbValue, setRgbValue] = React.useState(() =>
+    hexToRgbParts(normalizedColor),
+  );
   const [localOpacity, setLocalOpacity] = React.useState(
     Math.round(normalizeOpacity(layer.opacity) * 100),
   );
@@ -1600,6 +1690,7 @@ function OutputLayerStyleRow({
     const next = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
     setLocalColor(next);
     setColorText(next);
+    setRgbValue(hexToRgbParts(next));
     latestColorRef.current = next;
   }, [layer.color, layer.originalColor]);
 
@@ -1628,6 +1719,7 @@ function OutputLayerStyleRow({
     }
     setLocalColor(normalized);
     setColorText(normalized);
+    setRgbValue(hexToRgbParts(normalized));
     latestColorRef.current = normalized;
     onOutputLayerChange?.(layer.id, { color: normalized });
   }
@@ -1643,6 +1735,14 @@ function OutputLayerStyleRow({
       colorTimerRef.current = null;
       commitColorNow(latestColorRef.current);
     }, colorCommitThrottleMs);
+  }
+
+  function queueRgbCommit(channel: "r" | "g" | "b", value: string) {
+    const draft = { ...rgbValue, [channel]: value };
+    setRgbValue(draft);
+    const hex = rgbPartsToHex(draft);
+    if (!hex) return;
+    queueColorCommit(hex);
   }
 
   function commitOpacityNow(value = latestOpacityRef.current) {
@@ -1711,6 +1811,28 @@ function OutputLayerStyleRow({
           aria-invalid={!normalizeColorInput(colorText)}
           className="w-[104px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
+        <details className="relative">
+          <summary className="list-none rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
+            RGB
+          </summary>
+          <div className="absolute left-0 z-20 mt-1 flex gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+            {(["r", "g", "b"] as const).map((channel) => (
+              <input
+                key={channel}
+                type="number"
+                min={0}
+                max={255}
+                value={rgbValue[channel]}
+                onChange={(event) =>
+                  queueRgbCommit(channel, event.target.value)
+                }
+                onBlur={() => commitColorNow()}
+                aria-label={`${label} ${channel.toUpperCase()} channel`}
+                className="w-14 rounded-md border border-[#dbe3ef] bg-white px-1 py-1 text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              />
+            ))}
+          </div>
+        </details>
         <div className="min-w-[120px] flex-1">
           <div className="truncate text-[12px] font-semibold text-slate-700">
             {label}
@@ -1736,7 +1858,7 @@ function OutputLayerStyleRow({
         <span className="shrink-0">Per-layer opacity {localOpacity}%</span>
         <input
           type="range"
-          min={10}
+          min={0}
           max={100}
           step={1}
           value={localOpacity}
@@ -1944,7 +2066,7 @@ function positiveNumber(value: unknown): number {
 
 function normalizeOpacity(value?: number): number {
   if (!Number.isFinite(value)) return 1;
-  return Math.max(0.1, Math.min(1, Number(value)));
+  return Math.max(0, Math.min(1, Number(value)));
 }
 
 function useSourcePaletteColors(
@@ -2148,13 +2270,21 @@ function ColorInput({
   title?: string;
   onCommit: (value: string) => void;
 }) {
-  const [localValue, setLocalValue] = React.useState(value);
-  const latestRef = React.useRef(value);
+  const normalizedInitial = normalizeColorInput(value) || "#ffffff";
+  const [localValue, setLocalValue] = React.useState(normalizedInitial);
+  const [textValue, setTextValue] = React.useState(normalizedInitial);
+  const [rgbValue, setRgbValue] = React.useState(() =>
+    hexToRgbParts(normalizedInitial),
+  );
+  const latestRef = React.useRef(normalizedInitial);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    setLocalValue(value);
-    latestRef.current = value;
+    const normalized = normalizeColorInput(value) || "#ffffff";
+    setLocalValue(normalized);
+    setTextValue(normalized);
+    setRgbValue(hexToRgbParts(normalized));
+    latestRef.current = normalized;
   }, [value]);
 
   React.useEffect(() => {
@@ -2163,9 +2293,13 @@ function ColorInput({
     };
   }, []);
 
-  function schedule(next: string) {
-    setLocalValue(next);
-    latestRef.current = next;
+  function schedule(nextValue: string) {
+    const normalized = normalizeColorInput(nextValue);
+    setTextValue(nextValue);
+    if (!normalized) return;
+    setLocalValue(normalized);
+    setRgbValue(hexToRgbParts(normalized));
+    latestRef.current = normalized;
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       timeoutRef.current = null;
@@ -2174,30 +2308,111 @@ function ColorInput({
   }
 
   function flush() {
+    const normalized = normalizeColorInput(textValue) || latestRef.current;
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    onCommit(latestRef.current);
+    latestRef.current = normalized;
+    setLocalValue(normalized);
+    setTextValue(normalized);
+    setRgbValue(hexToRgbParts(normalized));
+    onCommit(normalized);
+  }
+
+  function updateRgb(channel: "r" | "g" | "b", next: string) {
+    const draft = { ...rgbValue, [channel]: next };
+    setRgbValue(draft);
+    const hex = rgbPartsToHex(draft);
+    if (hex) schedule(hex);
   }
 
   return (
-    <input
-      type="color"
-      value={localValue}
-      disabled={disabled}
-      title={title}
-      onChange={(event) => schedule(event.target.value)}
-      onPointerUp={flush}
-      onMouseUp={flush}
-      onTouchEnd={flush}
-      onBlur={flush}
-      className={[
-        "h-7 w-14 rounded-md border border-[#dbe3ef] bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-        disabled ? "opacity-50 pointer-events-none" : "",
-      ].join(" ")}
-    />
+    <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+      <input
+        type="color"
+        value={localValue}
+        disabled={disabled}
+        title={title}
+        onChange={(event) => schedule(event.target.value)}
+        onPointerUp={flush}
+        onMouseUp={flush}
+        onTouchEnd={flush}
+        onBlur={flush}
+        className={[
+          "h-7 w-10 rounded-md border border-[#dbe3ef] bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+          disabled ? "opacity-50 pointer-events-none" : "",
+        ].join(" ")}
+        aria-label={title || "Pick color"}
+      />
+      <input
+        type="text"
+        value={textValue}
+        disabled={disabled}
+        onChange={(event) => schedule(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            flush();
+          }
+        }}
+        onBlur={flush}
+        aria-invalid={!normalizeColorInput(textValue)}
+        className={[
+          "w-[104px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+          disabled ? "opacity-50 pointer-events-none" : "",
+        ].join(" ")}
+        aria-label="Hex color"
+      />
+      <details className="relative">
+        <summary
+          className={[
+            "list-none rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+            disabled ? "opacity-50 pointer-events-none" : "",
+          ].join(" ")}
+        >
+          RGB
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 flex gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+          {(["r", "g", "b"] as const).map((channel) => (
+            <input
+              key={channel}
+              type="number"
+              min={0}
+              max={255}
+              value={rgbValue[channel]}
+              disabled={disabled}
+              onChange={(event) => updateRgb(channel, event.target.value)}
+              onBlur={flush}
+              aria-label={`${channel.toUpperCase()} color channel`}
+              className="w-14 rounded-md border border-[#dbe3ef] bg-white px-1 py-1 text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            />
+          ))}
+        </div>
+      </details>
+    </span>
   );
+}
+
+function hexToRgbParts(hex: string) {
+  const normalized = normalizeColorInput(hex) || "#ffffff";
+  return {
+    r: String(parseInt(normalized.slice(1, 3), 16)),
+    g: String(parseInt(normalized.slice(3, 5), 16)),
+    b: String(parseInt(normalized.slice(5, 7), 16)),
+  };
+}
+
+function rgbPartsToHex(rgb: { r: string; g: string; b: string }) {
+  const channels = [rgb.r, rgb.g, rgb.b].map((value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    return Math.max(0, Math.min(255, Math.round(parsed)));
+  });
+  if (channels.some((channel) => channel == null)) return null;
+  return `#${channels
+    .map((channel) => Number(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
 }
 
 function Range({

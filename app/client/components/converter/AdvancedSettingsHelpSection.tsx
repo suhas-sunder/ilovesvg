@@ -126,12 +126,26 @@ export function AdvancedSettingsHelpSection() {
               What each SVG tracing and output setting means
             </h2>
             <p className="mt-3 max-w-[85ch] text-slate-600">
-              Advanced settings fall into two groups. Trace settings change how
-              the uploaded image is processed, so they apply after you click
-              Update preview or Convert. Output editing controls work on the
-              current SVG result and update preview, copy, and download directly.
+              Advanced settings are split into Click Convert settings and Live
+              Preview settings. Click Convert settings change how the uploaded
+              image is processed, so they apply after you click Update preview
+              or Convert. Live Preview controls edit the selected SVG result and
+              update preview, copy, and download directly.
             </p>
           </header>
+
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-lg font-bold text-sky-950">
+              Preset process tags
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Preset tags show where the work happens. Server trace presets use
+              backend conversion compute and can be rate limited. Local edits,
+              preview changes, layer color changes, opacity edits, copy, and
+              download generation happen in your browser when they do not
+              require a new trace.
+            </p>
+          </section>
 
           <HelpGrid title="Tracing detail" items={traceItems} />
           <HelpGrid title="Color and cleanup" items={colorItems} />

@@ -1026,14 +1026,14 @@ type Preset = {
 
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
-  layerCount: 5,
-  maxTraceSide: MAX_TRACE_SIDE_DEFAULT,
-  minRegionPercent: 0.35,
-  optTolerance: 0.45,
-  turdSize: 4,
-  turnPolicy: "majority",
+  layerCount: 4,
+  maxTraceSide: 1600,
+  minRegionPercent: 0.25,
+  optTolerance: 0.35,
+  turdSize: 3,
+  turnPolicy: "minority",
   posterize: true,
-  removeWhite: false,
+  removeWhite: true,
   removeTransparent: true,
   transparent: true,
   bgColor: "#ffffff",
@@ -1396,6 +1396,8 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const DEFAULT_PRESET_ID = "sketch-balanced";
+
 type ServerResult = {
   svg?: string;
   error?: string;
@@ -1461,7 +1463,7 @@ export default function SketchToSvgForCricut({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>(DEFAULT_PRESET_ID);
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1608,7 +1610,7 @@ export default function SketchToSvgForCricut({
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]);
     setErr(null);
     setInfo(null);

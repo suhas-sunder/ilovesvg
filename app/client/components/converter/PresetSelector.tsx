@@ -1,12 +1,17 @@
 import * as React from "react";
 import Icons from "~/client/assets/icons/Icons";
 
+export type ConverterPresetProcessType = "client" | "server" | "hybrid";
+
 export type ConverterPresetOption = {
   id: string;
   label: string;
   settings?: unknown;
   help?: string;
   description?: string;
+  category?: string;
+  processType?: ConverterPresetProcessType;
+  processLabel?: string;
 };
 
 export function PresetPicker<TPreset extends ConverterPresetOption>({
@@ -21,7 +26,7 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   const [expanded, setExpanded] = React.useState(false);
   const visibleLimit = 2;
   const dedupedPresets = React.useMemo(
-    () => dedupePresets(presets),
+    () => sortPresetDisplayOrder(dedupePresets(presets)),
     [presets],
   );
   const visiblePresets = expanded
@@ -34,7 +39,13 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
       <div className="grid gap-2 sm:grid-cols-2">
         {visiblePresets.map((preset, index) => {
           const isActive = activePreset === preset.id;
-          const title = preset.help || preset.description || preset.label;
+          const processBadge = getPresetProcessBadge(preset);
+          const title = [
+            preset.help || preset.description || preset.label,
+            processBadge?.title,
+          ]
+            .filter(Boolean)
+            .join(" ");
 
           return (
             <button
@@ -53,7 +64,23 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                   : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50",
               ].join(" ")}
             >
-              {preset.label}
+              <span className="inline-flex w-full flex-wrap items-center justify-center gap-1.5">
+                <span>{preset.label}</span>
+                {processBadge ? (
+                  <span
+                    className={[
+                      "rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                      isActive
+                        ? "border-sky-300 bg-white/70 text-slate-700"
+                        : "border-slate-200 bg-slate-50 text-slate-500",
+                    ].join(" ")}
+                    aria-label={processBadge.title}
+                    title={processBadge.title}
+                  >
+                    {processBadge.label}
+                  </span>
+                ) : null}
+              </span>
             </button>
           );
         })}
@@ -77,6 +104,60 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
       )}
     </div>
   );
+}
+
+function getPresetProcessBadge(preset: ConverterPresetOption) {
+  const inferredProcessType =
+    preset.processType ?? inferPresetProcessType(preset);
+  if (!inferredProcessType && !preset.processLabel) return null;
+
+  if (preset.processLabel) {
+    return {
+      label: preset.processLabel,
+      title: `${preset.processLabel} preset`,
+    };
+  }
+
+  if (inferredProcessType === "client") {
+    return {
+      label: "Local edit",
+      title: "This preset only changes the current SVG in the browser.",
+    };
+  }
+
+  if (inferredProcessType === "hybrid") {
+    return {
+      label: "Hybrid",
+      title:
+        "Some edits happen locally, but a new trace still uses backend conversion work.",
+    };
+  }
+
+  return {
+    label: "Server trace",
+    title: "This preset uses backend tracing and can be rate limited.",
+  };
+}
+
+function inferPresetProcessType(
+  preset: ConverterPresetOption,
+): ConverterPresetProcessType | null {
+  const settings = preset.settings as Record<string, unknown> | undefined;
+  if (settings?.traceMode === "single" || settings?.traceMode === "layered") {
+    return "server";
+  }
+  if (
+    settings &&
+    ("threshold" in settings ||
+      "turdSize" in settings ||
+      "preprocess" in settings ||
+      "colorLayerCount" in settings ||
+      "layerCount" in settings ||
+      "maxTraceSide" in settings)
+  ) {
+    return "server";
+  }
+  return null;
 }
 
 export function ChevronDownIcon({ open }: { open: boolean }) {
@@ -118,6 +199,27 @@ function dedupePresets<TPreset extends ConverterPresetOption>(
   }
 
   return result;
+}
+
+function sortPresetDisplayOrder<TPreset extends ConverterPresetOption>(
+  presets: TPreset[],
+) {
+  return [...presets].sort(
+    (left, right) => presetDisplayRank(left) - presetDisplayRank(right),
+  );
+}
+
+function presetDisplayRank(preset: ConverterPresetOption) {
+  if (preset.category === "layered") return 50;
+  if (preset.category === "lineart") return 0;
+
+  const settings = preset.settings as Record<string, unknown> | undefined;
+  if (settings?.traceMode === "layered") return 50;
+  if (preset.id.startsWith("line-")) return 0;
+  if (preset.id.startsWith("photo-") || preset.id.includes("edge")) return 10;
+  if (preset.id.startsWith("scan-")) return 20;
+  if (preset.id.startsWith("logo-")) return 30;
+  return 40;
 }
 
 function stablePresetSettingsSignature(value: unknown): string {

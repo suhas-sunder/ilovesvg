@@ -1269,7 +1269,7 @@ const DEFAULTS: Settings = {
   preprocess: "none",
   blurSigma: 0.8,
   edgeBoost: 1.0,
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -1287,7 +1287,7 @@ const PRESETS: Preset[] = [
     label: "Layered color SVG",
     help: "Preserves separated color layers for Cricut-style layered designs.",
     settings: {
-      traceMode: "layered",
+      traceMode: "single",
       colorLayerCount: 5,
       layerMaxTraceSide: 1600,
       minRegionPercent: 0.35,

@@ -1882,7 +1882,7 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: BASE_LAYERED_COLOR_DEFAULTS.layerCount,
   layerMaxTraceSide: BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
   minRegionPercent: BASE_LAYERED_COLOR_DEFAULTS.minRegionPercent,
@@ -1951,7 +1951,7 @@ export default function DrawingToSvgConverter({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("drawing-accurate");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2054,7 +2054,7 @@ export default function DrawingToSvgConverter({
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("drawing-accurate");
 
     setErr(null);
     setInfo(null);

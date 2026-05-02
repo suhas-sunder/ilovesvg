@@ -1030,7 +1030,7 @@ const DEFAULTS: Settings = {
   turnPolicy: "majority",
   lineColor: "#000000",
   invert: false,
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -1112,7 +1112,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("sticker-clean");
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [dims, setDims] = React.useState<{
@@ -1289,7 +1289,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("sticker-clean");
     setHistory([]);
     setErr(null);
     setInfo(null);

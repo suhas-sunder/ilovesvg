@@ -2097,7 +2097,7 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: BASE_LAYERED_COLOR_DEFAULTS.layerCount,
   layerMaxTraceSide: BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
   minRegionPercent: BASE_LAYERED_COLOR_DEFAULTS.minRegionPercent,

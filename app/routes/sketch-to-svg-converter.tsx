@@ -865,7 +865,7 @@ const DEFAULTS: Settings = {
   turnPolicy: "minority",
   lineColor: "#000000",
   invert: false,
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -936,7 +936,7 @@ export default function SketchToSvgConverter({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("sketch-pencil-light");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1032,7 +1032,7 @@ export default function SketchToSvgConverter({
     setDims(null);
 
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("sketch-pencil-light");
     setHistory([]);
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);

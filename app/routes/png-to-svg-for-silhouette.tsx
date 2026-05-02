@@ -1053,7 +1053,7 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -1120,7 +1120,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("line-accurate");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1222,7 +1222,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("line-accurate");
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);

@@ -854,6 +854,9 @@ type Preset = {
   id: string;
   label: string;
   settings: Partial<Settings>;
+  category?: "layered";
+  processType?: "client" | "server" | "hybrid";
+  processLabel?: string;
 };
 
 const DEFAULTS: Settings = {
@@ -873,7 +876,7 @@ const DEFAULTS: Settings = {
 
 const routeCapabilities = getRouteCapabilities("png-to-layered-svg-for-cricut");
 
-const PRESETS: Preset[] = [
+const PRESET_DEFINITIONS: Preset[] = [
   {
     id: "layered-color",
     label: "Layered color SVG",
@@ -1245,6 +1248,14 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const PRESETS: Preset[] = PRESET_DEFINITIONS.map((preset) => ({
+  ...preset,
+  category: preset.category ?? "layered",
+  processType: preset.processType ?? "server",
+  processLabel: preset.processLabel ?? "Server trace",
+}));
+const DEFAULT_PRESET_ID = PRESETS[0]?.id ?? "layered-color";
+
 type ServerResult = {
   svg?: string;
   error?: string;
@@ -1276,6 +1287,11 @@ type HistoryItem = {
   originalWidth?: number;
   originalHeight?: number;
   stamp: number;
+  name: string;
+  parentStamp?: number | null;
+  presetId?: string;
+  presetLabel?: string;
+  settingsSnapshot?: Settings;
   layers: LayerState[];
 };
 
@@ -1314,7 +1330,7 @@ export default function PngToLayeredSvgForCricut({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>(DEFAULT_PRESET_ID);
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1326,17 +1342,57 @@ export default function PngToLayeredSvgForCricut({
 
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [activeHistoryStamp, setActiveHistoryStamp] = React.useState<
+    number | null
+  >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const activeHistoryItem =
+    history.find((item) => item.stamp === activeHistoryStamp) ||
+    history[0] ||
+    null;
+  const outputTargets = history.map((item) => ({
+    id: String(item.stamp),
+    label: item.name,
+    description: item.presetLabel,
+  }));
+
+  function selectHistoryOutput(id: string | number) {
+    const stamp = Number(id);
+    const item = history.find((candidate) => candidate.stamp === stamp);
+    if (!item) return;
+    setActiveHistoryStamp(item.stamp);
+    if (item.settingsSnapshot) {
+      setSettings(item.settingsSnapshot);
+    }
+    if (item.presetId) {
+      setActivePreset(item.presetId);
+    }
+  }
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const outputCounterRef = React.useRef(0);
+  const activeHistoryStampRef = React.useRef<number | null>(null);
+  const lastSubmittedRef = React.useRef<{
+    settings: Settings;
+    presetId: string;
+    parentStamp: number | null;
+  }>({
+    settings: DEFAULTS,
+    presetId: DEFAULT_PRESET_ID,
+    parentStamp: null,
+  });
 
   const busy = fetcher.state !== "idle";
 
   React.useEffect(() => setHydrated(true), []);
+
+  React.useEffect(() => {
+    activeHistoryStampRef.current = activeHistoryStamp;
+  }, [activeHistoryStamp]);
 
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
@@ -1361,13 +1417,27 @@ export default function PngToLayeredSvgForCricut({
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
 
+    const outputNumber = outputCounterRef.current + 1;
+    outputCounterRef.current = outputNumber;
+    const submitted = lastSubmittedRef.current;
+    const presetLabel =
+      PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
+      "Custom settings";
+    const stamp = Date.now();
     const item: HistoryItem = {
       svg: fetcher.data.svg,
       width: fetcher.data.width ?? 0,
       height: fetcher.data.height ?? 0,
       originalWidth: fetcher.data.width ?? 0,
       originalHeight: fetcher.data.height ?? 0,
-      stamp: Date.now(),
+      stamp,
+      name: submitted.parentStamp
+        ? `Output ${outputNumber} · Derived from Output`
+        : `Output ${outputNumber} · ${presetLabel}`,
+      parentStamp: submitted.parentStamp,
+      presetId: submitted.presetId,
+      presetLabel,
+      settingsSnapshot: submitted.settings,
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
         name: layer.name,
@@ -1382,8 +1452,20 @@ export default function PngToLayeredSvgForCricut({
     };
 
     setHistory((prev) => [item, ...prev].slice(0, 10));
+    setActiveHistoryStamp(stamp);
     setInfo(null);
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+
+  React.useEffect(() => {
+    if (history.length === 0) {
+      if (activeHistoryStamp !== null) setActiveHistoryStamp(null);
+      return;
+    }
+
+    if (!activeHistoryStamp || !history.some((item) => item.stamp === activeHistoryStamp)) {
+      setActiveHistoryStamp(history[0].stamp);
+    }
+  }, [history, activeHistoryStamp]);
 
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
@@ -1456,8 +1538,10 @@ export default function PngToLayeredSvgForCricut({
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]);
+    setActiveHistoryStamp(null);
+    outputCounterRef.current = 0;
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1489,12 +1573,16 @@ export default function PngToLayeredSvgForCricut({
 
     suppressLiveRef.current = false;
 
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, DEFAULTS, {
+      presetId: DEFAULT_PRESET_ID,
+      parentStamp: null,
+    });
   }
 
   async function submitConvert(
     fileOverride?: File | null,
     settingsOverride?: Settings,
+    meta?: { presetId?: string; parentStamp?: number | null },
   ) {
     const sourceFile = fileOverride ?? file;
     const sourceSettings = settingsOverride ?? settings;
@@ -1527,6 +1615,11 @@ export default function PngToLayeredSvgForCricut({
     appendAdvancedTraceSettings(fd, sourceSettings);
 
     setErr(null);
+    lastSubmittedRef.current = {
+      settings: sourceSettings,
+      presetId: meta?.presetId ?? activePreset,
+      parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
+    };
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1541,15 +1634,16 @@ export default function PngToLayeredSvgForCricut({
   function applyPreset(preset: Preset) {
     const nextSettings = {
       ...DEFAULTS,
-      transparent: settings.transparent,
-      bgColor: settings.bgColor,
       ...preset.settings,
     } as Settings;
     setActivePreset(preset.id);
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, {
+        presetId: preset.id,
+        parentStamp: activeHistoryStamp,
+      });
     }
   }
 
@@ -1581,9 +1675,8 @@ export default function PngToLayeredSvgForCricut({
   }
 
   function updateLatestOutputLayer(layerId: string, patch: Partial<LayerState>) {
-    const latest = history[0];
-    if (!latest) return;
-    updateHistoryItemLayers(latest.stamp, (layers) =>
+    if (!activeHistoryItem) return;
+    updateHistoryItemLayers(activeHistoryItem.stamp, (layers) =>
       layers.map((layer) =>
         layer.id === layerId ? { ...layer, ...patch } : layer,
       ),
@@ -1591,9 +1684,8 @@ export default function PngToLayeredSvgForCricut({
   }
 
   function resetLatestOutputLayer(layerId: string) {
-    const latest = history[0];
-    if (!latest) return;
-    updateHistoryItemLayers(latest.stamp, (layers) =>
+    if (!activeHistoryItem) return;
+    updateHistoryItemLayers(activeHistoryItem.stamp, (layers) =>
       layers.map((layer) =>
         layer.id === layerId
           ? {
@@ -1608,9 +1700,8 @@ export default function PngToLayeredSvgForCricut({
   }
 
   function resetAllLatestOutputLayers() {
-    const latest = history[0];
-    if (!latest) return;
-    updateHistoryItemLayers(latest.stamp, (layers) =>
+    if (!activeHistoryItem) return;
+    updateHistoryItemLayers(activeHistoryItem.stamp, (layers) =>
       layers.map((layer) => ({
         ...layer,
         color: layer.originalColor,
@@ -1622,8 +1713,8 @@ export default function PngToLayeredSvgForCricut({
 
   function updateLatestOutputSize(size: { width: number; height: number }) {
     setHistory((prev) =>
-      prev.map((item, index) =>
-        index === 0
+      prev.map((item) =>
+        item.stamp === activeHistoryItem?.stamp
           ? {
               ...item,
               width: size.width,
@@ -1696,16 +1787,18 @@ export default function PngToLayeredSvgForCricut({
                     detectedColorItems={history}
                     sourceFile={file}
                     removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    outputLayerItems={history[0]?.layers}
+                    outputLayerItems={activeHistoryItem?.layers}
                     outputSize={
-                      history[0]
+                      activeHistoryItem
                         ? {
-                            width: history[0].width,
-                            height: history[0].height,
+                            width: activeHistoryItem.width,
+                            height: activeHistoryItem.height,
                             originalWidth:
-                              history[0].originalWidth || history[0].width,
+                              activeHistoryItem.originalWidth ||
+                              activeHistoryItem.width,
                             originalHeight:
-                              history[0].originalHeight || history[0].height,
+                              activeHistoryItem.originalHeight ||
+                              activeHistoryItem.height,
                           }
                         : null
                     }
@@ -1713,6 +1806,11 @@ export default function PngToLayeredSvgForCricut({
                     onResetOutputLayer={resetLatestOutputLayer}
                     onResetAllOutputLayers={resetAllLatestOutputLayers}
                     onOutputSizeChange={updateLatestOutputSize}
+                    outputTargets={outputTargets}
+                    activeOutputId={
+                      activeHistoryItem ? String(activeHistoryItem.stamp) : null
+                    }
+                    onActiveOutputChange={selectHistoryOutput}
                     helpHref="#advanced-settings-help"
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => void submitConvert(file, settings)}
@@ -1763,6 +1861,8 @@ export default function PngToLayeredSvgForCricut({
                         setInfo(null);
                         setOriginalFileSize(null);
                         setHistory([]);
+                        setActiveHistoryStamp(null);
+                        outputCounterRef.current = 0;
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -1838,31 +1938,49 @@ export default function PngToLayeredSvgForCricut({
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item) => {
+                    const isActiveOutput =
+                      activeHistoryItem?.stamp === item.stamp;
+                    const itemSettings = isActiveOutput
+                      ? settings
+                      : item.settingsSnapshot || settings;
                     const editedSvg = buildClientLayeredSvg({
                       width: item.width,
                       height: item.height,
                       viewBoxWidth: item.originalWidth || item.width,
                       viewBoxHeight: item.originalHeight || item.height,
                       layers: item.layers,
-                      transparent: settings.transparent,
-                      bgColor: settings.bgColor,
-                      backgroundAlpha: settings.backgroundAlpha ?? 1,
-                      layerAlpha: settings.layerAlpha ?? 1,
+                      transparent: itemSettings.transparent,
+                      bgColor: itemSettings.bgColor,
+                      backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
+                      layerAlpha: itemSettings.layerAlpha ?? 1,
                     });
 
                     return (
                       <div
                         key={item.stamp}
-                        className="rounded-xl border border-slate-200 bg-white p-2"
+                        onDoubleClick={() => selectHistoryOutput(item.stamp)}
+                        className={[
+                          "rounded-xl border bg-white p-2 transition-colors",
+                          isActiveOutput
+                            ? "border-sky-400 ring-2 ring-sky-100"
+                            : "border-slate-200",
+                        ].join(" ")}
                       >
                         <div className="flex gap-3 items-center flex-wrap justify-between">
-                          <span className="text-[13px] text-slate-700">
+                          <span className="text-[13px] font-semibold text-slate-700">
+                            {item.name}
+                            {isActiveOutput ? " · editing" : ""}
+                          </span>
+                          <span className="text-[13px] text-slate-600">
                             {item.width > 0 && item.height > 0
                               ? `${item.width} × ${item.height} px`
                               : "size unknown"}{" "}
                             • {item.layers.length} layers
                           </span>
                         </div>
+                        <p className="m-0 mt-1 text-[12px] text-slate-500">
+                          Double-click an output to edit it in Advanced settings.
+                        </p>
 
                         <div className="flex gap-2 flex-wrap my-2">
                           <button
@@ -2181,7 +2299,7 @@ function buildClientLayeredSvg({
 
 function normalizeClientOpacity(value?: number) {
   if (!Number.isFinite(value)) return 1;
-  return Math.max(0.1, Math.min(1, Number(value)));
+  return Math.max(0, Math.min(1, Number(value)));
 }
 
 function formatClientOpacity(value: number) {
@@ -2192,6 +2310,10 @@ function formatClientOpacity(value: number) {
 }
 
 function sanitizeClientColor(input: string, fallback: string) {
+  return normalizeClientColorInput(input) || fallback || "#000000";
+}
+
+function normalizeClientColorInput(input: string) {
   const value = String(input || "").trim();
 
   if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
@@ -2200,7 +2322,7 @@ function sanitizeClientColor(input: string, fallback: string) {
     return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
   }
 
-  return fallback || "#000000";
+  return null;
 }
 
 function escapeClientAttr(value: string) {
@@ -2323,6 +2445,7 @@ function LayerControlRow({
   onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
 }) {
   const [draftColor, setDraftColor] = React.useState(layer.color);
+  const [draftHex, setDraftHex] = React.useState(layer.color);
   const latestColorRef = React.useRef(layer.color);
   const commitTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -2330,6 +2453,7 @@ function LayerControlRow({
 
   React.useEffect(() => {
     setDraftColor(layer.color);
+    setDraftHex(layer.color);
     latestColorRef.current = layer.color;
   }, [layer.color]);
 
@@ -2340,20 +2464,32 @@ function LayerControlRow({
   }, []);
 
   function commitColor(color: string) {
-    latestColorRef.current = color;
+    const normalized = normalizeClientColorInput(color);
+    if (!normalized) {
+      setDraftHex(latestColorRef.current);
+      return;
+    }
+    latestColorRef.current = normalized;
 
     if (commitTimerRef.current) {
       clearTimeout(commitTimerRef.current);
       commitTimerRef.current = null;
     }
 
-    if (color !== layer.color) {
-      onLayerChange(layer.id, { color });
+    setDraftColor(normalized);
+    setDraftHex(normalized);
+
+    if (normalized !== layer.color) {
+      onLayerChange(layer.id, { color: normalized });
     }
   }
 
   function scheduleColorCommit(color: string) {
-    latestColorRef.current = color;
+    setDraftHex(color);
+    const normalized = normalizeClientColorInput(color);
+    if (!normalized) return;
+    setDraftColor(normalized);
+    latestColorRef.current = normalized;
 
     if (commitTimerRef.current) return;
 
@@ -2394,6 +2530,20 @@ function LayerControlRow({
           className="w-10 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
           title="Change layer color"
         />
+        <input
+          type="text"
+          value={draftHex}
+          onChange={(event) => scheduleColorCommit(event.target.value)}
+          onBlur={() => commitColor(draftHex)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitColor(draftHex);
+            }
+          }}
+          aria-label={`Layer ${index + 1} hex color`}
+          className="w-[104px] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-xs text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
 
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-slate-800">
@@ -2425,6 +2575,24 @@ function LayerControlRow({
           Reset
         </button>
       </div>
+      <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+        <span className="shrink-0">
+          Opacity {Math.round(normalizeClientOpacity(layer.opacity) * 100)}%
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={Math.round(normalizeClientOpacity(layer.opacity) * 100)}
+          onChange={(event) =>
+            onLayerChange(layer.id, {
+              opacity: normalizeClientOpacity(Number(event.target.value) / 100),
+            })
+          }
+          className="min-w-0 flex-1 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
+      </label>
     </div>
   );
 }

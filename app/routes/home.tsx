@@ -1739,9 +1739,12 @@ type Preset = {
   id: string;
   label: string;
   settings: Partial<Settings>;
+  category?: "lineart" | "photo-edge" | "scan" | "logo" | "diagram" | "layered";
+  processType?: "client" | "server" | "hybrid";
+  processLabel?: string;
 };
 
-const PRESETS: Preset[] = [
+const PRESET_DEFINITIONS: Preset[] = [
   {
     id: "layered-color",
     label: "Layered color SVG",
@@ -2063,16 +2066,63 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const PRESETS: Preset[] = preparePresetList(PRESET_DEFINITIONS);
+const DEFAULT_PRESET_ID = PRESETS[0]?.id ?? "line-accurate";
+
+function preparePresetList(presets: Preset[]): Preset[] {
+  return presets
+    .map((preset) => {
+      const category = preset.category ?? inferPresetCategory(preset);
+      return {
+        ...preset,
+        category,
+        processType: preset.processType ?? "server",
+        processLabel: preset.processLabel ?? "Server trace",
+      };
+    })
+    .sort((left, right) => presetCategoryRank(left.category) - presetCategoryRank(right.category));
+}
+
+function inferPresetCategory(preset: Preset): NonNullable<Preset["category"]> {
+  if (preset.settings.traceMode === "layered") return "layered";
+  if (preset.id.startsWith("line-")) return "lineart";
+  if (preset.id.startsWith("photo-") || preset.id === "edge-clean" || preset.id === "noisy-denoise" || preset.id === "low-contrast") {
+    return "photo-edge";
+  }
+  if (preset.id.startsWith("scan-")) return "scan";
+  if (preset.id.startsWith("logo-")) return "logo";
+  return "diagram";
+}
+
+function presetCategoryRank(category?: Preset["category"]) {
+  switch (category) {
+    case "lineart":
+      return 0;
+    case "photo-edge":
+      return 1;
+    case "scan":
+      return 2;
+    case "logo":
+      return 3;
+    case "diagram":
+      return 4;
+    case "layered":
+      return 5;
+    default:
+      return 6;
+  }
+}
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
   turdSize: 2,
-  optTolerance: 0.32,
+  optTolerance: 0.28,
   turnPolicy: "minority",
   lineColor: "#000000",
   invert: false,
 
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: BASE_LAYERED_COLOR_DEFAULTS.layerCount,
   layerMaxTraceSide: BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
   minRegionPercent: BASE_LAYERED_COLOR_DEFAULTS.minRegionPercent,
@@ -2112,6 +2162,11 @@ type HistoryItem = {
   originalWidth?: number;
   originalHeight?: number;
   stamp: number;
+  name: string;
+  parentStamp?: number | null;
+  presetId?: string;
+  presetLabel?: string;
+  settingsSnapshot?: Settings;
 };
 
 // ---- tiering helpers (client) ----
@@ -2141,7 +2196,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>(DEFAULT_PRESET_ID);
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2159,6 +2214,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [activeHistoryStamp, setActiveHistoryStamp] = React.useState<
+    number | null
+  >(null);
+  const outputCounterRef = React.useRef(0);
+  const activeHistoryStampRef = React.useRef<number | null>(null);
+  const lastSubmittedRef = React.useRef<{
+    settings: Settings;
+    presetId: string;
+    parentStamp: number | null;
+  }>({
+    settings: DEFAULTS,
+    presetId: DEFAULT_PRESET_ID,
+    parentStamp: null,
+  });
+
+  React.useEffect(() => {
+    activeHistoryStampRef.current = activeHistoryStamp;
+  }, [activeHistoryStamp]);
 
   // Live preview tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
@@ -2166,6 +2239,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
+      const outputNumber = outputCounterRef.current + 1;
+      outputCounterRef.current = outputNumber;
+      const submitted = lastSubmittedRef.current;
+      const parentStamp = submitted.parentStamp;
+      const presetLabel =
+        PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
+        "Custom settings";
+      const stamp = Date.now();
       const item: HistoryItem = {
         svg: fetcher.data.svg,
         layers: fetcher.data.layers?.map((layer) => ({
@@ -2177,9 +2258,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         height: fetcher.data.height ?? 0,
         originalWidth: fetcher.data.width ?? 0,
         originalHeight: fetcher.data.height ?? 0,
-        stamp: Date.now(),
+        stamp,
+        name: parentStamp
+          ? `Output ${outputNumber} · Derived from Output`
+          : `Output ${outputNumber} · ${presetLabel}`,
+        parentStamp,
+        presetId: submitted.presetId,
+        presetLabel,
+        settingsSnapshot: submitted.settings,
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
+      setActiveHistoryStamp(stamp);
     }
   }, [
     fetcher.data?.svg,
@@ -2187,6 +2276,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fetcher.data?.width,
     fetcher.data?.height,
   ]);
+
+  React.useEffect(() => {
+    if (history.length === 0) {
+      if (activeHistoryStamp !== null) setActiveHistoryStamp(null);
+      return;
+    }
+
+    if (!activeHistoryStamp || !history.some((item) => item.stamp === activeHistoryStamp)) {
+      setActiveHistoryStamp(history[0].stamp);
+    }
+  }, [history, activeHistoryStamp]);
 
   React.useEffect(() => {
     if (fetcher.data?.error) {
@@ -2246,8 +2346,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]); // optional, remove if you want to keep old results
+    setActiveHistoryStamp(null);
+    outputCounterRef.current = 0;
 
     setErr(null);
     setInfo(null);
@@ -2268,16 +2370,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // never depends on stale React state.
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, DEFAULTS, {
+      presetId: DEFAULT_PRESET_ID,
+      parentStamp: null,
+    });
   }
 
   async function submitConvert() {
-    await submitConvertWith(file, settings);
+    await submitConvertWith(file, settings, {
+      presetId: activePreset,
+      parentStamp: activeHistoryStamp,
+    });
   }
 
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
+    meta?: { presetId?: string; parentStamp?: number | null },
   ) {
     if (!targetFile) {
       setErr("Choose an image first.");
@@ -2340,6 +2449,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
     setErr(null);
+    lastSubmittedRef.current = {
+      settings: effective,
+      presetId: meta?.presetId ?? activePreset,
+      parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
+    };
 
     // Target this route's index action
     fetcher.submit(fd, {
@@ -2407,13 +2521,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWith(file, nextSettings);
+      void submitConvertWith(file, nextSettings, {
+        presetId: preset.id,
+        parentStamp: activeHistoryStamp,
+      });
     }
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const activeHistoryItem =
+    history.find((item) => item.stamp === activeHistoryStamp) ||
+    history[0] ||
+    null;
+  const outputTargets = history.map((item) => ({
+    id: String(item.stamp),
+    label: item.name,
+    description: item.presetLabel,
+  }));
+
+  function selectHistoryOutput(id: string | number) {
+    const stamp = Number(id);
+    const item = history.find((candidate) => candidate.stamp === stamp);
+    if (!item) return;
+    setActiveHistoryStamp(item.stamp);
+    if (item.settingsSnapshot) {
+      setSettings(item.settingsSnapshot);
+    }
+    if (item.presetId) {
+      setActivePreset(item.presetId);
+    }
+  }
 
   const settingsCommitTimersRef = React.useRef<
     Partial<Record<keyof Settings, ReturnType<typeof setTimeout>>>
@@ -2538,27 +2678,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     layerId: string,
     patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
   ) {
-    const latest = history[0];
-    if (!latest) return;
-    setHistoryLayer(latest.stamp, layerId, patch);
+    if (!activeHistoryItem) return;
+    setHistoryLayer(activeHistoryItem.stamp, layerId, patch);
   }
 
   function resetLatestHistoryLayer(layerId: string) {
-    const latest = history[0];
-    if (!latest) return;
-    resetHistoryLayer(latest.stamp, layerId);
+    if (!activeHistoryItem) return;
+    resetHistoryLayer(activeHistoryItem.stamp, layerId);
   }
 
   function resetAllLatestHistoryLayers() {
-    const latest = history[0];
-    if (!latest) return;
-    resetAllHistoryLayers(latest.stamp);
+    if (!activeHistoryItem) return;
+    resetAllHistoryLayers(activeHistoryItem.stamp);
   }
 
   function setLatestHistorySize(size: { width: number; height: number }) {
     setHistory((prev) =>
-      prev.map((item, index) =>
-        index === 0
+      prev.map((item) =>
+        item.stamp === activeHistoryItem?.stamp
           ? {
               ...item,
               width: size.width,
@@ -2640,16 +2777,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     detectedColorItems={history}
                     sourceFile={file}
                     removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    outputLayerItems={history[0]?.layers}
+                    outputLayerItems={activeHistoryItem?.layers}
                     outputSize={
-                      history[0]
+                      activeHistoryItem
                         ? {
-                            width: history[0].width,
-                            height: history[0].height,
+                            width: activeHistoryItem.width,
+                            height: activeHistoryItem.height,
                             originalWidth:
-                              history[0].originalWidth || history[0].width,
+                              activeHistoryItem.originalWidth ||
+                              activeHistoryItem.width,
                             originalHeight:
-                              history[0].originalHeight || history[0].height,
+                              activeHistoryItem.originalHeight ||
+                              activeHistoryItem.height,
                           }
                         : null
                     }
@@ -2657,6 +2796,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     onResetOutputLayer={resetLatestHistoryLayer}
                     onResetAllOutputLayers={resetAllLatestHistoryLayers}
                     onOutputSizeChange={setLatestHistorySize}
+                    outputTargets={outputTargets}
+                    activeOutputId={
+                      activeHistoryItem ? String(activeHistoryItem.stamp) : null
+                    }
+                    onActiveOutputChange={selectHistoryOutput}
                     helpHref="#advanced-settings-help"
                     buttonDisabled={buttonDisabled}
                     onUpdatePreview={() => void submitConvert()}
@@ -2778,18 +2922,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
-                  {history.map((item) => (
+                  {history.map((item) => {
+                    const isActiveOutput =
+                      activeHistoryItem?.stamp === item.stamp;
+                    return (
                     <div
                       key={item.stamp}
-                      className="rounded-xl border border-slate-200 bg-white p-2"
+                      onDoubleClick={() => selectHistoryOutput(item.stamp)}
+                      className={[
+                        "rounded-xl border bg-white p-2 transition-colors",
+                        isActiveOutput
+                          ? "border-sky-400 ring-2 ring-sky-100"
+                          : "border-slate-200",
+                      ].join(" ")}
                     >
                       <div className="flex gap-3 items-center flex-wrap justify-between">
-                        <span className="text-[13px] text-slate-700">
+                        <span className="text-[13px] font-semibold text-slate-700">
+                          {item.name}
+                          {isActiveOutput ? " · editing" : ""}
+                        </span>
+                        <span className="text-[13px] text-slate-600">
                           {item.width > 0 && item.height > 0
                             ? `${item.width} × ${item.height} px`
                             : "size unknown"}
                         </span>
                       </div>
+                      <p className="m-0 mt-1 text-[12px] text-slate-500">
+                        Double-click an output to edit it in Advanced settings.
+                      </p>
                       <div className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
@@ -2838,6 +2998,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onVisibilityChange={(layerId, visible) =>
                             setHistoryLayer(item.stamp, layerId, { visible })
                           }
+                          onOpacityChange={(layerId, opacity) =>
+                            setHistoryLayer(item.stamp, layerId, { opacity })
+                          }
                           onResetLayer={(layerId) =>
                             resetHistoryLayer(item.stamp, layerId)
                           }
@@ -2855,7 +3018,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="justify-center items-center flex text-white m-0 font-semibold">
@@ -2996,12 +3160,14 @@ function LayerPaletteEditor({
   item,
   onColorChange,
   onVisibilityChange,
+  onOpacityChange,
   onResetLayer,
   onResetAll,
 }: {
   item: HistoryItem;
   onColorChange: (layerId: string, color: string) => void;
   onVisibilityChange: (layerId: string, visible: boolean) => void;
+  onOpacityChange: (layerId: string, opacity: number) => void;
   onResetLayer: (layerId: string) => void;
   onResetAll: () => void;
 }) {
@@ -3029,6 +3195,7 @@ function LayerPaletteEditor({
             layer={layer}
             onColorChange={onColorChange}
             onVisibilityChange={onVisibilityChange}
+            onOpacityChange={onOpacityChange}
             onResetLayer={onResetLayer}
           />
         ))}
@@ -3041,11 +3208,13 @@ function LayerPaletteRow({
   layer,
   onColorChange,
   onVisibilityChange,
+  onOpacityChange,
   onResetLayer,
 }: {
   layer: EditableSvgLayer;
   onColorChange: (layerId: string, color: string) => void;
   onVisibilityChange: (layerId: string, visible: boolean) => void;
+  onOpacityChange: (layerId: string, opacity: number) => void;
   onResetLayer: (layerId: string) => void;
 }) {
   const COLOR_COMMIT_THROTTLE_MS = 90;
@@ -3106,40 +3275,66 @@ function LayerPaletteRow({
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
-      <input
-        type="checkbox"
-        checked={layer.visible}
-        onChange={(e) => onVisibilityChange(layer.id, e.target.checked)}
-        title={`Show ${layer.label}`}
-        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-      />
+    <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5">
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={layer.visible}
+          onChange={(e) => onVisibilityChange(layer.id, e.target.checked)}
+          title={`Show ${layer.label}`}
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+        />
 
-      <input
-        type="color"
-        value={localColor}
-        onChange={(e) => queueColorCommit(e.target.value)}
-        onPointerUp={() => commitColorNow()}
-        onMouseUp={() => commitColorNow()}
-        onTouchEnd={() => commitColorNow()}
-        onBlur={() => commitColorNow()}
-        title={`Change ${layer.label} color`}
-        className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer"
-      />
+        <input
+          type="color"
+          value={localColor}
+          onChange={(e) => queueColorCommit(e.target.value)}
+          onPointerUp={() => commitColorNow()}
+          onMouseUp={() => commitColorNow()}
+          onTouchEnd={() => commitColorNow()}
+          onBlur={() => commitColorNow()}
+          title={`Change ${layer.label} color`}
+          className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer"
+        />
 
-      <span className="min-w-0 flex-1 truncate text-[12px] text-slate-700">
-        {layer.label} {layer.originalColor}
-      </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-slate-700">
+          {layer.label} {layer.originalColor}
+        </span>
 
-      <button
-        type="button"
-        onClick={() => onResetLayer(layer.id)}
-        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100"
-      >
-        Reset
-      </button>
+        <button
+          type="button"
+          onClick={() => onResetLayer(layer.id)}
+          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100"
+        >
+          Reset
+        </button>
+      </div>
+      <label className="mt-2 flex items-center gap-2 text-[12px] text-slate-600">
+        <span className="shrink-0">
+          Opacity {Math.round(normalizeLayerOpacity(layer.opacity) * 100)}%
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={Math.round(normalizeLayerOpacity(layer.opacity) * 100)}
+          onChange={(event) =>
+            onOpacityChange(
+              layer.id,
+              normalizeLayerOpacity(Number(event.target.value) / 100),
+            )
+          }
+          className="min-w-0 flex-1 accent-[#0b2dff] cursor-pointer"
+        />
+      </label>
     </div>
   );
+}
+
+function normalizeLayerOpacity(value?: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, Number(value)));
 }
 function rewriteStyleProperty(
   attrs: string,
@@ -3177,7 +3372,7 @@ function rewriteStyleProperty(
 /* ===== Client-side helpers (dimension precheck + compression ≤25MB) ===== */
 function applyOpacityAttribute(attrs: string, opacity?: number): string {
   if (!Number.isFinite(opacity)) return attrs;
-  const value = Math.max(0.1, Math.min(1, Number(opacity)));
+  const value = Math.max(0, Math.min(1, Number(opacity)));
   let nextAttrs = String(attrs)
     .replace(/\sopacity\s*=\s*["'][^"']*["']/gi, "")
     .replace(/\sdata-editor-opacity\s*=\s*["'][^"']*["']/gi, "");

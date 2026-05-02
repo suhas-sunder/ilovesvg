@@ -1935,7 +1935,7 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: MAX_TRACE_SIDE_DEFAULT,
   minRegionPercent: 0.35,
@@ -2003,7 +2003,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("scan-clean");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2116,7 +2116,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("scan-clean");
 
     setErr(null);
     setInfo(null);

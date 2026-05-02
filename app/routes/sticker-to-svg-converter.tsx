@@ -934,7 +934,7 @@ const DEFAULTS: Settings = {
   turnPolicy: "majority",
   lineColor: "#000000",
   invert: false,
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -1081,7 +1081,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color");
+    React.useState<string>("line-accurate");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1168,7 +1168,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("layered-color");
+    setActivePreset("line-accurate");
     setHistory([]);
 
     setErr(null);
@@ -1546,7 +1546,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
                         setOriginalFileSize(null);
                         setHistory([]);
                         setSettings(DEFAULTS);
-                        setActivePreset("layered-color");
+                        setActivePreset("line-accurate");
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
