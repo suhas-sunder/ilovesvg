@@ -10,6 +10,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 
 /* ========================
    Meta
@@ -4465,80 +4466,6 @@ function Num({
       onChange={(event) => onChange(Number(event.target.value))}
       className="w-[110px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900"
     />
-  );
-}
-
-function ChevronDownIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={[
-        "h-4 w-4 text-slate-500 transition-transform",
-        open ? "rotate-180" : "rotate-0",
-      ].join(" ")}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function PresetPicker({
-  presets,
-  activePreset,
-  applyPreset,
-}: {
-  presets: Preset[];
-  activePreset: string | null;
-  applyPreset: (preset: Preset) => void;
-}) {
-  const [expanded, setExpanded] = React.useState(false);
-
-  const DEFAULT_VISIBLE = 4;
-  const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
-  const showToggle = presets.length > DEFAULT_VISIBLE;
-
-  return (
-    <div className="mb-2 mt-[.67rem] min-w-0">
-      <div className="grid gap-2 sm:grid-cols-2">
-        {visiblePresets.map((preset) => {
-          const isActive = activePreset === preset.id;
-
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => applyPreset(preset)}
-              aria-pressed={isActive}
-              title={preset.help}
-              className={[
-                "min-w-0 cursor-pointer rounded-lg border px-3 py-2 text-left text-[13px] font-semibold transition-colors",
-                isActive
-                  ? "border-sky-600 bg-sky-600 text-white hover:bg-sky-700"
-                  : "border-slate-200 bg-slate-50 text-slate-900 hover:border-sky-300 hover:bg-sky-50",
-              ].join(" ")}
-            >
-              <span className="block truncate">{preset.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {showToggle && (
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          className="mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-        >
-          {expanded ? "Show fewer presets" : "Show more presets"}
-        </button>
-      )}
-    </div>
   );
 }
 

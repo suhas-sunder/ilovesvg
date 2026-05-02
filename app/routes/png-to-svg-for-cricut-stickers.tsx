@@ -15,6 +15,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 
 const isServer = typeof document === "undefined";
 
@@ -1747,84 +1748,6 @@ function prettyBytes(bytes: number) {
     i++;
   }
   return `${v.toFixed(1)} ${u[i]}`;
-}
-
-export function ChevronDownIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={[
-        "h-4 w-4 text-slate-500 transition-transform",
-        open ? "rotate-180" : "rotate-0",
-      ].join(" ")}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-export function PresetPicker({
-  presets,
-  activePreset,
-  applyPreset,
-}: {
-  presets: Preset[];
-  activePreset: string | null;
-  applyPreset: (p: Preset) => void;
-}) {
-  const [expanded, setExpanded] = React.useState(false);
-  const DEFAULT_VISIBLE = 2;
-  const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
-  const showToggle = presets.length > DEFAULT_VISIBLE;
-
-  return (
-    <div className="mb-2 mt-[.67rem] min-w-0">
-      <div className="grid sm:grid-cols-2 gap-2">
-        {visiblePresets.map((p) => {
-          const isActive = activePreset === p.id;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => applyPreset(p)}
-              aria-pressed={isActive}
-              title={p.description}
-              className={[
-                "text-left px-3 py-2 rounded-lg border text-sm font-semibold transition-colors cursor-pointer",
-                isActive
-                  ? "bg-sky-200 border-sky-300 text-sky-950"
-                  : "bg-white border-slate-200 text-slate-900 hover:bg-slate-50",
-              ].join(" ")}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {showToggle && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-2 w-full inline-flex items-center justify-between rounded-md border border-slate-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 cursor-pointer"
-          aria-expanded={expanded}
-        >
-          <span>
-            {expanded
-              ? "Show fewer presets"
-              : `Show ${presets.length - DEFAULT_VISIBLE} more presets`}
-          </span>
-          <ChevronDownIcon open={expanded} />
-        </button>
-      )}
-    </div>
-  );
 }
 
 function SeoSections() {

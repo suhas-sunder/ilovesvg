@@ -16,6 +16,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { PresetPicker } from "~/client/components/converter/PresetSelector";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -4142,89 +4143,5 @@ function SeoSections() {
         </article>
       </div>
     </section>
-  );
-}
-
-export function ChevronDownIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={[
-        "h-4 w-4 text-slate-500 transition-transform",
-        open ? "rotate-180" : "rotate-0",
-      ].join(" ")}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-export function PresetPicker({
-  presets,
-  activePreset,
-  applyPreset,
-}: {
-  presets: Preset[];
-  activePreset: string | null;
-  applyPreset: (p: Preset) => void;
-}) {
-  const [expanded, setExpanded] = React.useState(false);
-
-  const DEFAULT_VISIBLE = 4; // show the layered color presets first
-  const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
-
-  const showToggle = presets.length > DEFAULT_VISIBLE;
-
-  return (
-    <div className="mb-2 mt-[.67rem] min-w-0">
-      {/* Always 2 columns */}
-      <div className="grid sm:grid-cols-2 gap-2">
-        {visiblePresets.map((p) => {
-          const isActive = activePreset === p.id;
-
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => applyPreset(p)}
-              aria-pressed={isActive}
-              title={p.label}
-              className={[
-                "w-full min-w-0 px-3 py-1.5 rounded-md border transition-colors cursor-pointer text-sm font-medium",
-                "truncate",
-                isActive
-                  ? "bg-[#0b2dff] text-white border-[#0b2dff]"
-                  : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50",
-              ].join(" ")}
-            >
-              <span className="block truncate">{p.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {showToggle && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          className="mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-        >
-          <span className="flex items-center justify-center text-sm font-medium">
-            <Icons name="sliders" size={16} className="inline-block mr-1" />
-            {expanded
-              ? "Show fewer presets"
-              : `Show ${presets.length - DEFAULT_VISIBLE} more presets`}
-          </span>
-          <ChevronDownIcon open={expanded} />
-        </button>
-      )}
-    </div>
   );
 }

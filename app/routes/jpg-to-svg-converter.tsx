@@ -1,3 +1,4 @@
+import { PresetPicker } from "~/client/components/converter/PresetSelector";
 // app/routes/jpg-to-svg-converter.tsx
 import * as React from "react";
 import type { Route } from "./+types/jpg-to-svg-converter";
@@ -12,7 +13,6 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
-import { PresetPicker } from "./home";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";

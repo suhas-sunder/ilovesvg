@@ -1,3 +1,4 @@
+import { PresetPicker } from "~/client/components/converter/PresetSelector";
 // app/routes/jpeg-to-svg-converter.tsx
 import * as React from "react";
 import type { Route } from "./+types/jpeg-to-svg-converter";
@@ -14,7 +15,6 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
-import { PresetPicker } from "./home";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 

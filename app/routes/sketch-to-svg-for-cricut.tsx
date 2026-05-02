@@ -15,6 +15,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 
 const isServer = typeof document === "undefined";
 
@@ -2628,82 +2629,6 @@ function Num({
       onChange={(e) => onChange(Number(e.target.value))}
       className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
     />
-  );
-}
-
-function ChevronDownIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      className={[
-        "h-4 w-4 text-slate-500 transition-transform",
-        open ? "rotate-180" : "rotate-0",
-      ].join(" ")}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function PresetPicker({
-  presets,
-  activePreset,
-  applyPreset,
-}: {
-  presets: Preset[];
-  activePreset: string | null;
-  applyPreset: (p: Preset) => void;
-}) {
-  const [expanded, setExpanded] = React.useState(false);
-
-  const DEFAULT_VISIBLE = 4;
-  const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
-  const showToggle = presets.length > DEFAULT_VISIBLE;
-
-  return (
-    <div className="mb-2 mt-[.67rem] min-w-0">
-      <div className="grid sm:grid-cols-2 gap-2">
-        {visiblePresets.map((p) => {
-          const isActive = activePreset === p.id;
-
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => applyPreset(p)}
-              aria-pressed={isActive}
-              title={p.label}
-              className={[
-                "w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors cursor-pointer",
-                isActive
-                  ? "border-sky-600 bg-sky-50 text-sky-950 font-semibold hover:bg-sky-100"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-              ].join(" ")}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {showToggle && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-2 w-full inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
-          aria-expanded={expanded}
-        >
-          {expanded ? "Show fewer sketch presets" : "Show more sketch presets"}
-          <ChevronDownIcon open={expanded} />
-        </button>
-      )}
-    </div>
   );
 }
 
