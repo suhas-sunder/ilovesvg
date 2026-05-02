@@ -10,6 +10,10 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { SvgRasterExportSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
+import {
+  FullscreenOutputPreview,
+  FullscreenPreviewButton,
+} from "~/client/components/converter/FullscreenOutputPreview";
 
 /* ========================
    Meta
@@ -100,6 +104,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   const [toast, setToast] = React.useState<string | null>(null);
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
+    number | null
+  >(null);
 
   React.useEffect(() => {
     return () => {
@@ -334,6 +341,16 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   const buttonDisabled = !hydrated || busy || !svgText;
   const previewSrc = liveResult?.blobUrl || result?.blobUrl || null;
   const previewMeta = liveResult || result;
+  const fullscreenPreviewItems = React.useMemo(() => {
+    const items: Array<Result & { id: string; label: string }> = [];
+    if (liveResult) {
+      items.push({ ...liveResult, id: "live", label: "Live PNG preview" });
+    }
+    if (result && result.blobUrl !== liveResult?.blobUrl) {
+      items.push({ ...result, id: "converted", label: "Converted PNG" });
+    }
+    return items;
+  }, [liveResult, result]);
 
   return (
     <>
@@ -535,13 +552,18 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 <div className="px-3 py-2 text-[13px] text-slate-600 border-b border-slate-200 bg-slate-50">
                   PNG preview {liveBusy ? "(updating…)" : ""}
                 </div>
-                <div className="p-3 bg-slate-200">
+                <div className="relative p-3 bg-slate-200">
                   {previewSrc ? (
-                    <img
-                      src={previewSrc}
-                      alt="PNG result"
-                      className="w-full h-auto block transparent-checkerboard"
-                    />
+                    <>
+                      <FullscreenPreviewButton
+                        onOpen={() => setFullscreenPreviewIndex(0)}
+                      />
+                      <img
+                        src={previewSrc}
+                        alt="PNG result"
+                        className="w-full h-auto block transparent-checkerboard"
+                      />
+                    </>
                   ) : (
                     <div className="text-slate-600 text-sm">
                       Upload an SVG to see a live PNG preview here.
@@ -552,6 +574,20 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
             </div>
           </section>
         </div>
+
+        <FullscreenOutputPreview
+          items={fullscreenPreviewItems}
+          activeIndex={fullscreenPreviewIndex}
+          setActiveIndex={setFullscreenPreviewIndex}
+          getPreviewImage={(item, index) => ({
+            id: item.id,
+            label: item.label || `Output ${index + 1}`,
+            src: item.blobUrl,
+            width: item.width,
+            height: item.height,
+            kind: "PNG",
+          })}
+        />
 
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">

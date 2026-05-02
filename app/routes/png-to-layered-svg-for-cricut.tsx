@@ -16,6 +16,10 @@ import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  FullscreenOutputPreview,
+  FullscreenPreviewButton,
+} from "~/client/components/converter/FullscreenOutputPreview";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
@@ -1268,6 +1272,9 @@ export default function PngToLayeredSvgForCricut({
 
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
+    number | null
+  >(null);
   const [activeHistoryStamp, setActiveHistoryStamp] = React.useState<
     number | null
   >(null);
@@ -1278,7 +1285,7 @@ export default function PngToLayeredSvgForCricut({
     history.find((item) => item.stamp === activeHistoryStamp) ||
     history[0] ||
     null;
-  const outputTargets = history.map((item) => ({
+  const outputTargets = history.map((item, index) => ({
     id: String(item.stamp),
     label: item.name,
     description: item.presetLabel,
@@ -1983,7 +1990,7 @@ export default function PngToLayeredSvgForCricut({
                   <img
                     src={previewUrl}
                     alt="Input PNG"
-                    className="w-full h-auto block transparent-checkerboard"
+                    className="relative w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -1996,7 +2003,7 @@ export default function PngToLayeredSvgForCricut({
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
-                  {history.map((item) => {
+                  {history.map((item, index) => {
                     const isActiveOutput =
                       activeHistoryItem?.stamp === item.stamp;
                     const itemSettings = isActiveOutput
@@ -2110,7 +2117,8 @@ export default function PngToLayeredSvgForCricut({
                           }
                         />
 
-                        <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                        <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                          <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
                           <img
                             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                               editedSvg,
@@ -2140,6 +2148,20 @@ export default function PngToLayeredSvgForCricut({
             </div>
           </section>
         </div>
+
+        <FullscreenOutputPreview
+          items={history}
+          activeIndex={fullscreenPreviewIndex}
+          setActiveIndex={setFullscreenPreviewIndex}
+          getPreviewImage={(item, index) => ({
+            id: String(item.stamp),
+            label: `Output ${index + 1}`,
+            svg: buildClientLayeredSvg({ width: item.width, height: item.height, viewBoxWidth: item.originalWidth || item.width, viewBoxHeight: item.originalHeight || item.height, layers: item.layers, transparent: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).transparent, bgColor: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).bgColor, backgroundAlpha: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).backgroundAlpha ?? 1, layerAlpha: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).layerAlpha ?? 1 }),
+            width: item.width,
+            height: item.height,
+            kind: "SVG",
+          })}
+        />
 
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">

@@ -16,6 +16,10 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  FullscreenOutputPreview,
+  FullscreenPreviewButton,
+} from "~/client/components/converter/FullscreenOutputPreview";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 
 const isServer = typeof document === "undefined";
@@ -1012,6 +1016,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   } | null>(null);
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
+    number | null
+  >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -1572,7 +1579,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <img
                     src={previewUrl}
                     alt="Input"
-                    className="w-full h-auto block transparent-checkerboard"
+                    className="relative w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -1584,7 +1591,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
-                  {history.map((item) => (
+                  {history.map((item, index) => (
                     <div
                       key={item.stamp}
                       className="rounded-xl border border-slate-200 bg-white p-2"
@@ -1636,7 +1643,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                      <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
                         <SvgObjectPreview
                           svg={item.svg}
                           title="Sticker SVG result"
@@ -1662,6 +1670,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
           </section>
         </div>
+
+        <FullscreenOutputPreview
+          items={history}
+          activeIndex={fullscreenPreviewIndex}
+          setActiveIndex={setFullscreenPreviewIndex}
+          getPreviewImage={(item, index) => ({
+            id: String(item.stamp),
+            label: `Output ${index + 1}`,
+            svg: item.svg,
+            width: item.width,
+            height: item.height,
+            kind: "SVG",
+          })}
+        />
 
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">

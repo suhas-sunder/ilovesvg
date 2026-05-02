@@ -15,6 +15,10 @@ import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  FullscreenOutputPreview,
+  FullscreenPreviewButton,
+} from "~/client/components/converter/FullscreenOutputPreview";
 
 const isServer = typeof document === "undefined";
 
@@ -1579,6 +1583,9 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     PRESETS[0]?.id ?? "layered-color",
   );
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
+    number | null
+  >(null);
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -2440,7 +2447,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
 
               {history.length > 0 ? (
                 <div className="grid gap-3">
-                  {history.map((item) => (
+                  {history.map((item, index) => (
                     <div
                       key={item.stamp}
                       className="rounded-xl border border-slate-200 bg-white p-2"
@@ -2508,7 +2515,8 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
                         />
                       ) : null}
 
-                      <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white transparent-checkerboard p-2">
+                      <div className="relative flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white transparent-checkerboard p-2">
+                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                             getHistoryItemSvg(item),
@@ -2535,6 +2543,20 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
             </div>
           </section>
         </div>
+
+        <FullscreenOutputPreview
+          items={history}
+          activeIndex={fullscreenPreviewIndex}
+          setActiveIndex={setFullscreenPreviewIndex}
+          getPreviewImage={(item, index) => ({
+            id: String(item.stamp),
+            label: `Output ${index + 1}`,
+            svg: getHistoryItemSvg(item),
+            width: item.width,
+            height: item.height,
+            kind: "SVG",
+          })}
+        />
 
         {toast && (
           <div className="fixed bottom-4 right-4 z-[1000] rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">

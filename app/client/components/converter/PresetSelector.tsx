@@ -2,8 +2,15 @@ import * as React from "react";
 import Icons from "~/client/assets/icons/Icons";
 import {
   getPresetIntensityBadge,
+  getPresetIntensityLabel,
+  isPresetBackendIntensity,
   type PresetBackendIntensity,
 } from "~/client/lib/converter/presetIntensity";
+import {
+  createPresetSearchRecords,
+  filterPresetSearchRecords,
+  normalizeSearchText,
+} from "~/client/lib/converter/presetSearch";
 
 export type ConverterPresetProcessType = "client" | "server" | "hybrid";
 
@@ -17,7 +24,18 @@ export type ConverterPresetOption = {
   processType?: ConverterPresetProcessType;
   processLabel?: string;
   backendIntensity?: PresetBackendIntensity;
+  searchKeywords?: readonly string[];
 };
+
+const SPEED_FILTERS: Array<PresetBackendIntensity | "all"> = [
+  "all",
+  "lightning-fast",
+  "insane-speed",
+  "extreme-speed",
+  "high-speed",
+  "low-speed",
+  "slow-speed",
+];
 
 export function PresetPicker<TPreset extends ConverterPresetOption>({
   presets,
@@ -29,52 +47,221 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   applyPreset: (preset: TPreset) => void;
 }) {
   const [expanded, setExpanded] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const [speedFilter, setSpeedFilter] = React.useState<
+    PresetBackendIntensity | "all"
+  >("all");
+  const searchInputId = React.useId();
   const visibleLimit = 2;
   const dedupedPresets = React.useMemo(
     () => sortPresetDisplayOrder(dedupePresets(presets)),
     [presets],
   );
-  const visiblePresets = expanded
-    ? dedupedPresets
-    : dedupedPresets.slice(0, visibleLimit);
+  const presetSignature = React.useMemo(
+    () => dedupedPresets.map((preset) => preset.id).join("|"),
+    [dedupedPresets],
+  );
+  const searchRecords = React.useMemo(
+    () => createPresetSearchRecords(dedupedPresets),
+    [dedupedPresets],
+  );
+  const normalizedQuery = React.useMemo(() => normalizeSearchText(query), [query]);
+  const filteredPresets = React.useMemo(
+    () =>
+      filterPresetSearchRecords({
+        records: searchRecords,
+        query: normalizedQuery,
+        speed: speedFilter,
+      }),
+    [searchRecords, normalizedQuery, speedFilter],
+  );
+  const compactPresets = dedupedPresets.slice(0, visibleLimit);
   const showToggle = dedupedPresets.length > visibleLimit;
   const groupedPresets = React.useMemo(
-    () => groupPresetsByCategory(visiblePresets),
-    [visiblePresets],
+    () => groupPresetsByCategory(filteredPresets),
+    [filteredPresets],
   );
+  const filtersActive = normalizedQuery.length > 0 || speedFilter !== "all";
+  const speedFilterBadge =
+    speedFilter === "all"
+      ? null
+      : getPresetIntensityBadge({ backendIntensity: speedFilter });
+  const speedFilterLabel =
+    speedFilter === "all" ? "All speeds" : getPresetIntensityLabel(speedFilter);
+
+  const clearFilters = React.useCallback(() => {
+    setQuery("");
+    setSpeedFilter("all");
+  }, []);
+
+  const toggleExpanded = React.useCallback(() => {
+    if (expanded) clearFilters();
+    setExpanded((value) => !value);
+  }, [clearFilters, expanded]);
+
+  const handleSpeedFilterChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value;
+      setSpeedFilter(isPresetBackendIntensity(value) ? value : "all");
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    clearFilters();
+  }, [clearFilters, presetSignature]);
 
   return (
     <div className="mb-2 mt-[.67rem] min-w-0">
       <div
         className={[
           expanded
-            ? "max-h-[28rem] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2"
+            ? "rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
             : "",
         ].join(" ")}
       >
         {expanded ? (
           <div className="space-y-3">
-            {groupedPresets.map((group) => (
-              <div key={group.label}>
-                <div className="mb-1 px-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                  {group.label}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {group.presets.map((preset, index) => (
-                    <PresetButton
-                      key={`${preset.id}-${index}`}
-                      preset={preset}
-                      active={activePreset === preset.id}
-                      applyPreset={applyPreset}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="min-w-0">
+                  <label className="sr-only" htmlFor={searchInputId}>
+                    Search presets
+                  </label>
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      id={searchInputId}
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape" && query) {
+                          event.preventDefault();
+                          setQuery("");
+                        }
+                      }}
+                      placeholder="Search presets..."
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-sky-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
                     />
-                  ))}
+                    {query ? (
+                      <button
+                        type="button"
+                        onClick={() => setQuery("")}
+                        aria-label="Clear preset search"
+                        className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 cursor-pointer hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        <span aria-hidden="true">x</span>
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+                  <label className="sr-only" htmlFor={`${searchInputId}-speed`}>
+                    Filter presets by speed
+                  </label>
+                  <div
+                    className={[
+                      "relative inline-flex h-10 min-w-[10.75rem] max-w-full items-center rounded-lg border px-2.5 text-xs font-semibold transition-colors",
+                      speedFilterBadge
+                        ? speedFilterBadge.className
+                        : "border-slate-200 bg-white text-slate-700",
+                    ].join(" ")}
+                    title="Speed tags estimate backend processing cost and do not change output."
+                  >
+                    <span className="mr-1.5 hidden text-[11px] font-bold uppercase tracking-wide opacity-70 sm:inline">
+                      Speed
+                    </span>
+                    <select
+                      id={`${searchInputId}-speed`}
+                      value={speedFilter}
+                      onChange={handleSpeedFilterChange}
+                      aria-label="Filter presets by speed"
+                      className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-6 text-xs font-bold outline-none"
+                    >
+                      {SPEED_FILTERS.map((speed) => (
+                        <option key={speed} value={speed}>
+                          {speed === "all"
+                            ? "All speeds"
+                            : getPresetIntensityLabel(speed)}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                      <ChevronDownIcon open={false} />
+                    </span>
+                  </div>
+
+                  <span
+                    className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-500"
+                    aria-live="polite"
+                  >
+                    {filteredPresets.length} presets
+                  </span>
+
+                  {filtersActive ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      Clear filters
+                    </button>
+                  ) : (
+                    <span className="sr-only">{speedFilterLabel}</span>
+                  )}
                 </div>
               </div>
-            ))}
+            </div>
+
+            <div
+              className="max-h-[22rem] space-y-4 overflow-y-auto pr-1 sm:max-h-[24rem]"
+              style={{ scrollbarWidth: "thin" }}
+            >
+              {groupedPresets.length > 0 ? (
+                groupedPresets.map((group) => (
+                  <div key={group.label}>
+                    <div className="mb-1.5 flex items-center gap-2 px-0.5">
+                      <div className="h-px flex-1 bg-slate-100" />
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                        {group.label}
+                      </div>
+                      <div className="h-px flex-1 bg-slate-100" />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {group.presets.map((preset, index) => (
+                        <PresetButton
+                          key={`${preset.id}-${index}`}
+                          preset={preset}
+                          active={activePreset === preset.id}
+                          applyPreset={applyPreset}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-sm text-slate-600">
+                  <div className="font-semibold text-slate-700">No presets found.</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    Try clearing search or choosing All speeds.
+                  </div>
+                  {filtersActive ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      Clear filters
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
-            {visiblePresets.map((preset, index) => (
+            {compactPresets.map((preset, index) => (
               <PresetButton
                 key={`${preset.id}-${index}`}
                 preset={preset}
@@ -89,9 +276,9 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
       {showToggle && (
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
+          onClick={toggleExpanded}
           aria-expanded={expanded}
-          className="mt-2 w-full inline-flex items-center justify-between px-3 py-2 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
+          className="mt-2 w-full inline-flex items-center justify-between px-3 py-2.5 rounded-lg border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
         >
           <span className="flex items-center justify-center text-sm font-medium">
             <Icons name="sliders" size={16} className="inline-block mr-1" />
@@ -132,19 +319,26 @@ function PresetButton<TPreset extends ConverterPresetOption>({
       aria-label={`${preset.label}. ${intensityBadge.label}.`}
       title={title}
       className={[
-        "px-3 py-2 rounded-md border transition-colors cursor-pointer",
-        "text-[13px] sm:text-sm leading-snug text-center font-semibold",
-        "break-words min-h-[2.75rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+        "group flex min-h-[2.85rem] w-full items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors cursor-pointer",
+        "text-[13px] sm:text-sm leading-snug text-left font-semibold",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
         active
-          ? "bg-sky-200 border-sky-200 text-slate-900 hover:bg-sky-300"
-          : "bg-white text-slate-700 border-slate-200 hover:bg-sky-50",
+          ? "bg-sky-50 border-sky-300 text-sky-950 shadow-sm ring-1 ring-sky-100 hover:bg-sky-100"
+          : "bg-white text-slate-700 border-slate-200 hover:border-sky-200 hover:bg-sky-50",
       ].join(" ")}
     >
-      <span className="inline-flex w-full flex-wrap items-center justify-center gap-1.5">
-        <span>{preset.label}</span>
+      <span
+        className={[
+          "h-2 w-2 shrink-0 rounded-full transition-colors",
+          active ? "bg-sky-500" : "bg-slate-200 group-hover:bg-sky-300",
+        ].join(" ")}
+        aria-hidden="true"
+      />
+      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+        <span className="min-w-0 flex-1 break-words">{preset.label}</span>
         <span
           className={[
-            "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+            "shrink-0 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
             intensityBadge.className,
             active ? "shadow-sm" : "",
           ].join(" ")}

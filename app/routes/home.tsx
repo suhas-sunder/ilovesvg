@@ -14,6 +14,10 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
+import {
+  FullscreenOutputPreview,
+  FullscreenPreviewButton,
+} from "~/client/components/converter/FullscreenOutputPreview";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import {
@@ -2137,6 +2141,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
+    number | null
+  >(null);
   const [activeHistoryStamp, setActiveHistoryStamp] = React.useState<
     number | null
   >(null);
@@ -2535,7 +2542,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     history.find((item) => item.stamp === activeHistoryStamp) ||
     history[0] ||
     null;
-  const outputTargets = history.map((item) => ({
+  const outputTargets = history.map((item, index) => ({
     id: String(item.stamp),
     label: item.name,
     description: item.presetLabel,
@@ -2948,7 +2955,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <img
                     src={previewUrl}
                     alt="Input"
-                    className="w-full h-auto block transparent-checkerboard"
+                    className="relative w-full h-auto block transparent-checkerboard"
                   />
                 </div>
               )}
@@ -2961,7 +2968,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
               {history.length > 0 ? (
                 <div className="grid gap-3">
-                  {history.map((item) => {
+                  {history.map((item, index) => {
                     const isActiveOutput =
                       activeHistoryItem?.stamp === item.stamp;
                     return (
@@ -3047,7 +3054,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         />
                       ) : null}
 
-                      <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                      <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
                             getHistoryItemSvg(item),
@@ -3077,6 +3085,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Toast */}
+        <FullscreenOutputPreview
+          items={history}
+          activeIndex={fullscreenPreviewIndex}
+          setActiveIndex={setFullscreenPreviewIndex}
+          getPreviewImage={(item, index) => ({
+            id: String(item.stamp),
+            label: `Output ${index + 1}`,
+            svg: getHistoryItemSvg(item),
+            width: item.width,
+            height: item.height,
+            kind: "SVG",
+          })}
+        />
+
         {toast && (
           <div className="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-[1000]">
             {toast}
