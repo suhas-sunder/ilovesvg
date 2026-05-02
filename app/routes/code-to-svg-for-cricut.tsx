@@ -2440,7 +2440,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               {busy && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
               )}
@@ -2529,7 +2529,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
                   ))}
                 </div>
               ) : (
-                <p className="m-0 flex items-center justify-center font-semibold text-white">
+                <p className="converter-empty-output-state">
                   {!busy && (
                     <Icons
                       name="success"

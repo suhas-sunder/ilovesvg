@@ -69,6 +69,74 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   letter-spacing: -0.025em;
 }
 
+button[aria-controls="advanced-settings"] + [id="advanced-settings"] {
+  margin-top: 0.75rem;
+}
+
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="bg-white"][class*="p-4"] > div:has(> button[aria-controls="advanced-settings"]) {
+  margin-top: 0.75rem;
+  border: 1px solid #bae6fd;
+  border-radius: 1rem;
+  background: rgba(240, 249, 255, 0.78);
+  padding: 0.75rem;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 8px 18px rgba(14, 165, 233, 0.06);
+}
+
+main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class] {
+  min-height: 3.5rem;
+  border-color: #bae6fd !important;
+  border-radius: 0.75rem !important;
+  background: #ffffff !important;
+  color: #082f49 !important;
+  font-weight: 700;
+}
+
+main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class]:hover {
+  background: #e0f2fe !important;
+}
+
+.converter-empty-output-state {
+  display: flex;
+  min-height: 12rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #f8fafc;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.converter-empty-output-state svg {
+  margin: 0 0 0.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.converter-empty-output-state::after {
+  content: "Convert your input to preview, copy, or download the result.";
+  display: block;
+  max-width: 22rem;
+  margin-top: 0.35rem;
+  color: #e2e8f0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
 button[class*="bg-[#0b2dff]"],
 a[class*="bg-[#0b2dff]"] {
   background-color: #2563eb !important;

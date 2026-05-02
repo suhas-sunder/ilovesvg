@@ -1218,52 +1218,6 @@ export default function PhotoToSvgOutline({
                 </>
               )}
 
-              {/* Settings */}
-              <div className="mt-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                  aria-expanded={showAdvanced}
-                  aria-controls="advanced-settings"
-                >
-                  <span className="inline-flex items-center justify-center">
-                    <Icons name="settings" className="mr-1" />
-                    Advanced settings
-                  </span>
-
-                  <svg
-                    className={[
-                      "h-4 w-4 text-slate-500 transition-transform",
-                      showAdvanced ? "rotate-180" : "rotate-0",
-                    ].join(" ")}
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-
-                {showAdvanced && (
-                  <TraceAdvancedSettingsPanel
-                    id="advanced-settings"
-                    open={showAdvanced}
-                    settings={settings}
-                    setSettings={setSettings}
-                    capabilities={routeCapabilities}
-                    detectedColorItems={history}
-                    sourceFile={file}
-                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    buttonDisabled={buttonDisabled}
-                    onUpdatePreview={() => void submitConvert()}
-                  />
-                )}
-              </div>
 
               {/* Convert + status */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -1294,15 +1248,6 @@ export default function PhotoToSvgOutline({
                 )}
               </div>
 
-              {previewUrl && (
-                <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <img
-                    src={previewUrl}
-                    alt="Input"
-                    className="relative w-full h-auto block transparent-checkerboard"
-                  />
-                </div>
-              )}
 
               <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-semibold">
@@ -1325,8 +1270,76 @@ export default function PhotoToSvgOutline({
               </div>
             </div>
 
+            <div className="order-3 min-w-0 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="w-full inline-flex items-center justify-between rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-sky-950 cursor-pointer transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
+                aria-expanded={showAdvanced}
+                aria-controls="advanced-settings"
+              >
+                <span className="inline-flex min-w-0 items-center gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-white shadow-sm">
+                    <Icons name="settings" size={18} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-bold leading-5">
+                      Advanced settings
+                    </span>
+                    <span className="block truncate text-[12px] font-medium leading-4 text-sky-700">
+                      Trace detail, cleanup, layers, and export
+                    </span>
+                  </span>
+                </span>
+
+                <svg
+                  className={[
+                    "h-4 w-4 shrink-0 text-sky-700 transition-transform",
+                    showAdvanced ? "rotate-180" : "rotate-0",
+                  ].join(" ")}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+                {showAdvanced && (
+                  <TraceAdvancedSettingsPanel
+                    id="advanced-settings"
+                    open={showAdvanced}
+                    settings={settings}
+                    setSettings={setSettings}
+                    capabilities={routeCapabilities}
+                    detectedColorItems={history}
+                    sourceFile={file}
+                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
+                    buttonDisabled={buttonDisabled}
+                    onUpdatePreview={() => void submitConvert()}
+                  />
+                )}
+            </div>
+
+            {previewUrl && !showAdvanced && (
+              <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
+                <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
+                  Original image
+                </p>
+                <img
+                  src={previewUrl}
+                  alt="Input"
+                  className="relative block h-auto w-full transparent-checkerboard"
+                />
+              </div>
+            )}
+
             {/* RESULTS */}
-            <div className="bg-sky-50 border border-slate-200 rounded-xl p-4 h-full max-h-[124.25em] overflow-auto shadow-sm min-w-0">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               <h2 className="m-0 mb-3 text-lg text-slate-900 flex items-center gap-2">
                 Result
                 {busy && (
@@ -1411,7 +1424,7 @@ export default function PhotoToSvgOutline({
                   ))}
                 </div>
               ) : (
-                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                <p className="converter-empty-output-state">
                   {!busy && (
                     <Icons
                       name="success"

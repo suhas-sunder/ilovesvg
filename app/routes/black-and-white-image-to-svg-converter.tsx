@@ -2393,7 +2393,7 @@ export default function BlackAndWhiteImageToSvgConverter({
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               {busy && (
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
               )}
@@ -2481,7 +2481,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                   ))}
                 </div>
               ) : (
-                <p className="justify-center items-center flex text-white m-0 font-semibold">
+                <p className="converter-empty-output-state">
                   {!busy && (
                     <Icons
                       name="success"

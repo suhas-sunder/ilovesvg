@@ -3305,7 +3305,7 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start">
+            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               {decoded.svg && !decoded.error ? (
                 <div className="grid gap-3">
                   <div className="rounded-xl border border-slate-200 bg-white p-2">
@@ -3454,7 +3454,7 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
                   ) : null}
                 </div>
               ) : (
-                <p className="m-0 flex items-center justify-center font-semibold text-white">
+                <p className="converter-empty-output-state">
                   <Icons
                     name="success"
                     size={20}
