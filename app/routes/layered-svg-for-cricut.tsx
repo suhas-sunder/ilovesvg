@@ -1142,13 +1142,77 @@ const DEFAULTS: Settings = {
   turdSize: 4,
   turnPolicy: "majority",
   posterize: true,
-  removeWhite: true,
+  removeWhite: false,
   removeTransparent: true,
   transparent: true,
   bgColor: "#ffffff",
 };
 
 const PRESETS: Preset[] = [
+  {
+    id: "layered-color",
+    label: "Layered color SVG",
+    settings: {
+      layerCount: 5,
+      maxTraceSide: 1600,
+      minRegionPercent: 0.35,
+      optTolerance: 0.45,
+      turdSize: 4,
+      turnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "layered-color-smoother",
+    label: "Layered color SVG - Smoother",
+    settings: {
+      layerCount: 4,
+      maxTraceSide: 1200,
+      minRegionPercent: 0.55,
+      optTolerance: 0.65,
+      turdSize: 7,
+      turnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "layered-color-detail",
+    label: "Layered color SVG - More detail",
+    settings: {
+      layerCount: 8,
+      maxTraceSide: 2000,
+      minRegionPercent: 0.2,
+      optTolerance: 0.32,
+      turdSize: 2,
+      turnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+    },
+  },
+  {
+    id: "layered-color-fewer",
+    label: "Layered color SVG - Fewer larger layers",
+    settings: {
+      layerCount: 3,
+      maxTraceSide: 1200,
+      minRegionPercent: 0.8,
+      optTolerance: 0.75,
+      turdSize: 9,
+      turnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+    },
+  },
   {
     id: "balanced-layered-svg",
     label: "Balanced Layered SVG",
@@ -1456,7 +1520,7 @@ export default function LayeredSvgForCricut({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("balanced-layered-svg");
+    React.useState<string>("layered-color");
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1674,7 +1738,7 @@ export default function LayeredSvgForCricut({
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("balanced-layered-svg");
+    setActivePreset("layered-color");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -1759,10 +1823,10 @@ export default function LayeredSvgForCricut({
     currentSettings: Settings,
     preset: Preset,
   ): Settings {
+    void currentSettings;
+
     return {
       ...DEFAULTS,
-      transparent: currentSettings.transparent,
-      bgColor: currentSettings.bgColor,
       ...preset.settings,
     };
   }
@@ -2632,7 +2696,7 @@ function PresetPicker({
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
-  const DEFAULT_VISIBLE = 2;
+  const DEFAULT_VISIBLE = 4;
   const visiblePresets = expanded ? presets : presets.slice(0, DEFAULT_VISIBLE);
   const showToggle = presets.length > DEFAULT_VISIBLE;
 

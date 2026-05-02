@@ -14,6 +14,14 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  LayerPaletteEditor,
+  LayeredTraceControls,
+  applyLayerEditsToSvg,
+  type EditableSvgLayer,
+  type SvgLayerMeta,
+  type TraceMode,
+} from "~/client/components/svg/LayerPaletteEditor";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 
 const isServer = typeof document === "undefined";
@@ -302,6 +310,53 @@ export async function action({ request }: ActionFunctionArgs) {
       const blurSigma = Number(form.get("blurSigma") ?? 0.8);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
+      const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
+      const { createLayeredColorSvg, annotateSingleTraceSvg } = await import(
+        "../utils/svgLayerTrace.server"
+      );
+      const colorLayerCount = Number(form.get("colorLayerCount") ?? 5);
+      const layerMaxTraceSide = Number(form.get("layerMaxTraceSide") ?? 1600);
+      const minRegionPercent = Number(form.get("minRegionPercent") ?? 0.35);
+      const layerOptTolerance = Number(form.get("layerOptTolerance") ?? 0.45);
+      const layerTurdSize = Number(form.get("layerTurdSize") ?? 4);
+      const layerTurnPolicy = String(
+        form.get("layerTurnPolicy") ?? "majority",
+      ) as Settings["layerTurnPolicy"];
+      const posterize =
+        String(form.get("posterize") ?? "true").toLowerCase() === "true";
+      const removeWhite =
+        String(form.get("removeWhite") ?? "false").toLowerCase() === "true";
+      const removeTransparent =
+        String(form.get("removeTransparent") ?? "true").toLowerCase() ===
+        "true";
+
+      if (traceMode === "layered") {
+        const layered = await createLayeredColorSvg(input, {
+          layerCount: Math.round(colorLayerCount),
+          maxTraceSide: Math.round(layerMaxTraceSide),
+          minRegionPercent,
+          optTolerance: layerOptTolerance,
+          turdSize: Math.round(layerTurdSize),
+          posterize,
+          removeWhite,
+          removeTransparent,
+          transparent,
+          bgColor,
+          turnPolicy: layerTurnPolicy,
+        });
+
+        return json({
+          svg: layered.svg,
+          layers: layered.layers,
+          width: layered.width,
+          height: layered.height,
+          gate: {
+            running: gate.running,
+            queued: gate.queued,
+          },
+        });
+      }
+
       if (whiteOnDark) {
         transparent = false;
 
@@ -378,8 +433,11 @@ export async function action({ request }: ActionFunctionArgs) {
             bgColor,
           );
 
+      const editable = annotateSingleTraceSvg(finalSVG, lineColor);
+
       return json({
-        svg: finalSVG,
+        svg: editable.svg,
+        layers: editable.layers,
         width: ensured.width,
         height: ensured.height,
         gate: {
@@ -676,6 +734,23 @@ type Settings = {
   turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   lineColor: string;
   invert: boolean;
+  traceMode: TraceMode;
+  colorLayerCount: number;
+  layerMaxTraceSide: number;
+  minRegionPercent: number;
+  layerOptTolerance: number;
+  layerTurdSize: number;
+  layerTurnPolicy:
+    | "black"
+    | "white"
+    | "left"
+    | "right"
+    | "minority"
+    | "majority";
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
+
   transparent: boolean;
   bgColor: string;
   preprocess: "none" | "edge";
@@ -691,6 +766,82 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
+  {
+    id: "layered-color",
+    label: "Layered color SVG",
+    help: "Preserves separated color layers for Cricut-style sticker artwork.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 5,
+      layerMaxTraceSide: 1600,
+      minRegionPercent: 0.35,
+      layerOptTolerance: 0.45,
+      layerTurdSize: 4,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-smoother",
+    label: "Layered color SVG - Smoother",
+    help: "Uses fewer, smoother color layers for simpler sticker cuts.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 4,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.55,
+      layerOptTolerance: 0.65,
+      layerTurdSize: 7,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-detail",
+    label: "Layered color SVG - More detail",
+    help: "Keeps more color layers and fine details for richer sticker artwork.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 8,
+      layerMaxTraceSide: 2000,
+      minRegionPercent: 0.2,
+      layerOptTolerance: 0.32,
+      layerTurdSize: 2,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-fewer",
+    label: "Layered color SVG - Fewer larger layers",
+    help: "Creates fewer larger color regions for simpler layered assembly.",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 3,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.8,
+      layerOptTolerance: 0.75,
+      layerTurdSize: 9,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
   {
     id: "sticker-clean",
     label: "Sticker - Clean default",
@@ -887,6 +1038,17 @@ const DEFAULTS: Settings = {
   turnPolicy: "majority",
   lineColor: "#000000",
   invert: false,
+  traceMode: "layered",
+  colorLayerCount: 5,
+  layerMaxTraceSide: 1600,
+  minRegionPercent: 0.35,
+  layerOptTolerance: 0.45,
+  layerTurdSize: 4,
+  layerTurnPolicy: "majority",
+  posterize: true,
+  removeWhite: false,
+  removeTransparent: true,
+
   transparent: true,
   bgColor: "#ffffff",
   preprocess: "none",
@@ -896,6 +1058,7 @@ const DEFAULTS: Settings = {
 
 type ServerResult = {
   svg?: string;
+  layers?: SvgLayerMeta[];
   error?: string;
   width?: number;
   height?: number;
@@ -906,6 +1069,7 @@ type ServerResult = {
 
 type HistoryItem = {
   svg: string;
+  layers?: EditableSvgLayer[];
   width: number;
   height: number;
   stamp: number;
@@ -954,7 +1118,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("sticker-clean");
+    React.useState<string>("layered-color");
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [dims, setDims] = React.useState<{
@@ -1131,7 +1295,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset("sticker-clean");
+    setActivePreset("layered-color");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -1226,6 +1390,16 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
       effective.preprocess,
       effective.blurSigma,
       effective.edgeBoost,
+      effective.traceMode,
+      effective.colorLayerCount,
+      effective.layerMaxTraceSide,
+      effective.minRegionPercent,
+      effective.layerOptTolerance,
+      effective.layerTurdSize,
+      effective.layerTurnPolicy,
+      effective.posterize,
+      effective.removeWhite,
+      effective.removeTransparent,
     ].join("|");
 
     if (reason !== "manual" && lastSubmittedKeyRef.current === submitKey) {
@@ -1242,6 +1416,16 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
     fd.append("turnPolicy", effective.turnPolicy);
     fd.append("lineColor", effective.lineColor);
     fd.append("invert", String(effective.invert));
+    fd.append("traceMode", effective.traceMode);
+    fd.append("colorLayerCount", String(effective.colorLayerCount));
+    fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
+    fd.append("minRegionPercent", String(effective.minRegionPercent));
+    fd.append("layerOptTolerance", String(effective.layerOptTolerance));
+    fd.append("layerTurdSize", String(effective.layerTurdSize));
+    fd.append("layerTurnPolicy", effective.layerTurnPolicy);
+    fd.append("posterize", String(effective.posterize));
+    fd.append("removeWhite", String(effective.removeWhite));
+    fd.append("removeTransparent", String(effective.removeTransparent));
     fd.append("transparent", String(effective.transparent));
     fd.append("bgColor", effective.bgColor);
     fd.append("preprocess", effective.preprocess);
@@ -1262,7 +1446,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
   }
 
   function getEffectiveSettings(settingsToUse: Settings): Settings {
-    if (!settingsToUse.invert) return settingsToUse;
+    if (settingsToUse.traceMode === "layered" || !settingsToUse.invert) return settingsToUse;
 
     const bg =
       !settingsToUse.bgColor ||
@@ -1284,23 +1468,22 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
 
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
-  function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-
-    const nextSettings = {
+  function buildPresetSettings(preset: Preset): Settings {
+    return {
       ...DEFAULTS,
-      transparent: settings.transparent,
-      bgColor: settings.bgColor,
+      traceMode: preset.settings.traceMode ?? "single",
       ...preset.settings,
     } as Settings;
+  }
 
+  function applyPreset(preset: Preset) {
+    setActivePreset(preset.id);
+    const nextSettings = buildPresetSettings(preset);
     setSettings(nextSettings);
 
     if (file && autoMode !== "off" && !busy) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-
       const presetFile = file;
-
       debounceRef.current = setTimeout(
         () => {
           submitFileForConversion(presetFile, nextSettings, "live-preview");
@@ -1326,8 +1509,67 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
     );
   }
 
+  function getHistoryItemSvg(item: HistoryItem): string {
+    return item.layers?.length
+      ? applyLayerEditsToSvg(item.svg, item.layers)
+      : item.svg;
+  }
+
+  function setHistoryLayer(
+    stamp: number,
+    layerId: string,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible">>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp !== stamp
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) =>
+                layer.id === layerId ? { ...layer, ...patch } : layer,
+              ),
+            },
+      ),
+    );
+  }
+
+  function resetHistoryLayer(stamp: number, layerId: string) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp !== stamp
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, color: layer.originalColor, visible: true }
+                  : layer,
+              ),
+            },
+      ),
+    );
+  }
+
+  function resetAllHistoryLayers(stamp: number) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp !== stamp
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) => ({
+                ...layer,
+                color: layer.originalColor,
+                visible: true,
+              })),
+            },
+      ),
+    );
+  }
+
   function downloadSvg(item: HistoryItem) {
-    const b = new Blob([item.svg], {
+    const b = new Blob([getHistoryItemSvg(item)], {
       type: "image/svg+xml;charset=utf-8",
     });
     const u = URL.createObjectURL(b);
@@ -1442,6 +1684,13 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
                     id="advanced-settings"
                     className="flex min-w-0 flex-col gap-2"
                   >
+                    <LayeredTraceControls
+                      settings={settings}
+                      onChange={(patch) =>
+                        setSettings((current) => ({ ...current, ...patch }))
+                      }
+                    />
+
                     <Field label="Preprocess">
                       <select
                         value={settings.preprocess}
@@ -1843,7 +2092,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
 
                         <button
                           type="button"
-                          onClick={() => handleCopySvg(item.svg)}
+                          onClick={() => handleCopySvg(getHistoryItemSvg(item))}
                           className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 hover:bg-slate-100"
                         >
                           <Icons
@@ -1873,9 +2122,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
 
                       <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white transparent-checkerboard p-2">
                         <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            item.svg,
-                          )}`}
+                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(getHistoryItemSvg(item))}`}
                           alt="Converted sticker SVG result"
                           className="h-auto max-w-full"
                         />

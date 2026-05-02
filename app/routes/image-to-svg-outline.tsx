@@ -16,6 +16,14 @@ import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  LayerPaletteEditor,
+  LayeredTraceControls,
+  applyLayerEditsToSvg,
+  type EditableSvgLayer,
+  type SvgLayerMeta,
+  type TraceMode,
+} from "~/client/components/svg/LayerPaletteEditor";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -479,6 +487,52 @@ export async function action({ request }: ActionFunctionArgs) {
       const blurSigma = Number(form.get("blurSigma") ?? 0.9);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.2);
 
+      const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
+      const { createLayeredColorSvg, annotateSingleTraceSvg } = await import(
+        "../utils/svgLayerTrace.server"
+      );
+      const colorLayerCount = Number(form.get("colorLayerCount") ?? 5);
+      const layerMaxTraceSide = Number(form.get("layerMaxTraceSide") ?? 1600);
+      const minRegionPercent = Number(form.get("minRegionPercent") ?? 0.35);
+      const layerOptTolerance = Number(form.get("layerOptTolerance") ?? 0.45);
+      const layerTurdSize = Number(form.get("layerTurdSize") ?? 4);
+      const layerTurnPolicy = String(
+        form.get("layerTurnPolicy") ?? "majority",
+      ) as Settings["layerTurnPolicy"];
+      const posterize =
+        String(form.get("posterize") ?? "true").toLowerCase() === "true";
+      const removeWhite =
+        String(form.get("removeWhite") ?? "false").toLowerCase() === "true";
+      const removeTransparent =
+        String(form.get("removeTransparent") ?? "true").toLowerCase() ===
+        "true";
+
+      if (traceMode === "layered") {
+        const layered = await createLayeredColorSvg(input, {
+          layerCount: Math.round(colorLayerCount),
+          maxTraceSide: Math.round(layerMaxTraceSide),
+          minRegionPercent,
+          optTolerance: layerOptTolerance,
+          turdSize: Math.round(layerTurdSize),
+          posterize,
+          removeWhite,
+          removeTransparent,
+          transparent,
+          bgColor,
+          turnPolicy: layerTurnPolicy,
+        });
+
+        return json({
+          requestId,
+          presetId,
+          svg: layered.svg,
+          layers: layered.layers,
+          width: layered.width,
+          height: layered.height,
+          gate: { running: gate.running, queued: gate.queued },
+        });
+      }
+
       const prepped = await normalizeForPotrace(input, {
         preprocess,
         blurSigma,
@@ -535,11 +589,13 @@ export async function action({ request }: ActionFunctionArgs) {
             ensured.height,
             bgColor,
           );
+      const editable = annotateSingleTraceSvg(finalSVG, lineColor);
 
       return json({
         requestId,
         presetId,
-        svg: finalSVG,
+        svg: editable.svg,
+        layers: editable.layers,
         width: ensured.width,
         height: ensured.height,
         gate: { running: gate.running, queued: gate.queued },
@@ -1014,6 +1070,23 @@ type Settings = {
   lineColor: string;
   invert: boolean;
 
+  traceMode: TraceMode;
+  colorLayerCount: number;
+  layerMaxTraceSide: number;
+  minRegionPercent: number;
+  layerOptTolerance: number;
+  layerTurdSize: number;
+  layerTurnPolicy:
+    | "black"
+    | "white"
+    | "left"
+    | "right"
+    | "minority"
+    | "majority";
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
+
   transparent: boolean;
   bgColor: string;
 
@@ -1025,6 +1098,78 @@ type Settings = {
 type Preset = { id: string; label: string; settings: Partial<Settings> };
 
 const PRESETS: Preset[] = [
+  {
+    id: "layered-color",
+    label: "Layered color SVG",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 5,
+      layerMaxTraceSide: 1600,
+      minRegionPercent: 0.35,
+      layerOptTolerance: 0.45,
+      layerTurdSize: 4,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-smoother",
+    label: "Layered color SVG - Smoother",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 4,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.55,
+      layerOptTolerance: 0.65,
+      layerTurdSize: 7,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-detail",
+    label: "Layered color SVG - More detail",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 8,
+      layerMaxTraceSide: 2000,
+      minRegionPercent: 0.2,
+      layerOptTolerance: 0.32,
+      layerTurdSize: 2,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-fewer",
+    label: "Layered color SVG - Fewer larger layers",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 3,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.8,
+      layerOptTolerance: 0.75,
+      layerTurdSize: 9,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
   {
     id: "outline-clean",
     label: "Clean outline",
@@ -1521,6 +1666,17 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
+  traceMode: "layered",
+  colorLayerCount: 5,
+  layerMaxTraceSide: 1600,
+  minRegionPercent: 0.35,
+  layerOptTolerance: 0.45,
+  layerTurdSize: 4,
+  layerTurnPolicy: "majority",
+  posterize: true,
+  removeWhite: false,
+  removeTransparent: true,
+
   transparent: true,
   bgColor: "#ffffff",
 
@@ -1533,6 +1689,7 @@ type ServerResult = {
   requestId?: string;
   presetId?: string;
   svg?: string;
+  layers?: SvgLayerMeta[];
   error?: string;
   width?: number;
   height?: number;
@@ -1546,6 +1703,7 @@ type HistoryItem = {
   presetId: string | null;
   presetLabel: string;
   svg: string;
+  layers?: EditableSvgLayer[];
   width: number;
   height: number;
   stamp: number;
@@ -1595,7 +1753,7 @@ export default function ImageToSvgOutline({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("outline-clean");
+    React.useState<string>("layered-color");
 
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
@@ -1661,6 +1819,7 @@ export default function ImageToSvgOutline({
           data.presetId || latestPlanRef.current?.presetId || null,
         ),
         svg: data.svg,
+        layers: (data.layers ?? []).map((layer) => ({ ...layer })),
         width: data.width ?? 0,
         height: data.height ?? 0,
         stamp: Date.now(),
@@ -1730,6 +1889,8 @@ export default function ImageToSvgOutline({
     setInfo(null);
     setDims(null);
     setOriginalFileSize(f.size);
+    setSettings(DEFAULTS);
+    setActivePreset("layered-color");
     setHistory([]);
     latestPlanRef.current = null;
     lastAcceptedRequestIdRef.current = "";
@@ -1794,31 +1955,33 @@ export default function ImageToSvgOutline({
     await measureAndSet(chosen);
 
     if (nextAutoMode !== "off") {
-      await submitConvertWith(chosen, settings, {
-        presetId: activePreset || null,
-        presetLabel: getPresetLabel(activePreset),
+      await submitConvertWith(chosen, DEFAULTS, {
+        presetId: "layered-color",
+        presetLabel: getPresetLabel("layered-color"),
         reason: "upload",
       });
     }
   }
 
   function normalizeSettingsForSubmit(targetSettings: Settings): Settings {
-    return targetSettings.invert
-      ? {
-          ...targetSettings,
-          transparent: false,
-          bgColor:
-            !targetSettings.bgColor ||
-            targetSettings.bgColor.toLowerCase() === "#ffffff" ||
-            targetSettings.bgColor.toLowerCase() === "#fff"
-              ? "#0b1020"
-              : targetSettings.bgColor,
-          lineColor:
-            targetSettings.lineColor?.toLowerCase() === "#000000"
-              ? "#ffffff"
-              : targetSettings.lineColor,
-        }
-      : targetSettings;
+    if (targetSettings.traceMode === "layered" || !targetSettings.invert) {
+      return targetSettings;
+    }
+
+    return {
+      ...targetSettings,
+      transparent: false,
+      bgColor:
+        !targetSettings.bgColor ||
+        targetSettings.bgColor.toLowerCase() === "#ffffff" ||
+        targetSettings.bgColor.toLowerCase() === "#fff"
+          ? "#0b1020"
+          : targetSettings.bgColor,
+      lineColor:
+        targetSettings.lineColor?.toLowerCase() === "#000000"
+          ? "#ffffff"
+          : targetSettings.lineColor,
+    };
   }
 
   async function submitPlan(plan: SubmitPlan, makeLatest = true) {
@@ -1856,6 +2019,16 @@ export default function ImageToSvgOutline({
     fd.append("turnPolicy", effective.turnPolicy);
     fd.append("lineColor", effective.lineColor);
     fd.append("invert", String(effective.invert));
+    fd.append("traceMode", effective.traceMode);
+    fd.append("colorLayerCount", String(effective.colorLayerCount));
+    fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
+    fd.append("minRegionPercent", String(effective.minRegionPercent));
+    fd.append("layerOptTolerance", String(effective.layerOptTolerance));
+    fd.append("layerTurdSize", String(effective.layerTurdSize));
+    fd.append("layerTurnPolicy", effective.layerTurnPolicy);
+    fd.append("posterize", String(effective.posterize));
+    fd.append("removeWhite", String(effective.removeWhite));
+    fd.append("removeTransparent", String(effective.removeTransparent));
     fd.append("transparent", String(effective.transparent));
     fd.append("bgColor", effective.bgColor);
     fd.append("preprocess", effective.preprocess);
@@ -1942,6 +2115,7 @@ export default function ImageToSvgOutline({
   function buildPresetSettings(preset: Preset): Settings {
     return {
       ...DEFAULTS,
+      traceMode: preset.settings.traceMode ?? "single",
       ...preset.settings,
     } as Settings;
   }
@@ -1979,6 +2153,65 @@ export default function ImageToSvgOutline({
   }
   function handleCopySvg(svg: string) {
     navigator.clipboard.writeText(svg).then(() => showToast("SVG copied"));
+  }
+
+  function getHistoryItemSvg(item: HistoryItem): string {
+    return item.layers?.length
+      ? applyLayerEditsToSvg(item.svg, item.layers)
+      : item.svg;
+  }
+
+  function setHistoryLayer(
+    requestId: string,
+    layerId: string,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible">>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.requestId !== requestId
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) =>
+                layer.id === layerId ? { ...layer, ...patch } : layer,
+              ),
+            },
+      ),
+    );
+  }
+
+  function resetHistoryLayer(requestId: string, layerId: string) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.requestId !== requestId
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, color: layer.originalColor, visible: true }
+                  : layer,
+              ),
+            },
+      ),
+    );
+  }
+
+  function resetAllHistoryLayers(requestId: string) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.requestId !== requestId
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) => ({
+                ...layer,
+                color: layer.originalColor,
+                visible: true,
+              })),
+            },
+      ),
+    );
   }
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -2071,6 +2304,13 @@ export default function ImageToSvgOutline({
                     </div>
 
                     <div className="mt-1 flex flex-col gap-2 min-w-0">
+                      <LayeredTraceControls
+                        settings={settings}
+                        onChange={(patch) =>
+                          setSettings((current) => ({ ...current, ...patch }))
+                        }
+                      />
+
                       <Field label="Preprocess">
                         <select
                           value={settings.preprocess}
@@ -2372,11 +2612,28 @@ export default function ImageToSvgOutline({
                     >
                       <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svg)}`}
+                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(getHistoryItemSvg(item))}`}
                           alt="SVG outline result"
                           className="max-w-full h-auto"
                         />
                       </div>
+                      {item.layers?.length ? (
+                        <LayerPaletteEditor
+                          item={item}
+                          onColorChange={(layerId, color) =>
+                            setHistoryLayer(item.requestId, layerId, { color })
+                          }
+                          onVisibilityChange={(layerId, visible) =>
+                            setHistoryLayer(item.requestId, layerId, { visible })
+                          }
+                          onResetLayer={(layerId) =>
+                            resetHistoryLayer(item.requestId, layerId)
+                          }
+                          onResetAll={() =>
+                            resetAllHistoryLayers(item.requestId)
+                          }
+                        />
+                      ) : null}
 
                       <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
                         <div className="flex flex-col gap-0.5">
@@ -2393,7 +2650,7 @@ export default function ImageToSvgOutline({
                           <button
                             type="button"
                             onClick={() => {
-                              const b = new Blob([item.svg], {
+                              const b = new Blob([getHistoryItemSvg(item)], {
                                 type: "image/svg+xml;charset=utf-8",
                               });
                               const u = URL.createObjectURL(b);
@@ -2412,7 +2669,7 @@ export default function ImageToSvgOutline({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleCopySvg(item.svg)}
+                            onClick={() => handleCopySvg(getHistoryItemSvg(item))}
                             className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />

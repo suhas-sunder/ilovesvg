@@ -17,6 +17,12 @@ import Icons from "~/client/assets/icons/Icons";
 import { PresetPicker } from "./home";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  LayerPaletteEditor,
+  applyLayerEditsToSvg,
+  type EditableSvgLayer,
+  type SvgLayerMeta,
+} from "~/client/components/svg/LayerPaletteEditor";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -315,6 +321,50 @@ export async function action({ request }: ActionFunctionArgs) {
       const blurSigma = Number(form.get("blurSigma") ?? 0.8);
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
+      const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
+      const { createLayeredColorSvg, annotateSingleTraceSvg } = await import(
+        "../utils/svgLayerTrace.server"
+      );
+      const colorLayerCount = Number(form.get("colorLayerCount") ?? 5);
+      const layerMaxTraceSide = Number(form.get("layerMaxTraceSide") ?? 1600);
+      const minRegionPercent = Number(form.get("minRegionPercent") ?? 0.35);
+      const layerOptTolerance = Number(form.get("layerOptTolerance") ?? 0.45);
+      const layerTurdSize = Number(form.get("layerTurdSize") ?? 4);
+      const layerTurnPolicy = String(
+        form.get("layerTurnPolicy") ?? "majority",
+      ) as Settings["layerTurnPolicy"];
+      const posterize =
+        String(form.get("posterize") ?? "true").toLowerCase() === "true";
+      const removeWhite =
+        String(form.get("removeWhite") ?? "false").toLowerCase() === "true";
+      const removeTransparent =
+        String(form.get("removeTransparent") ?? "true").toLowerCase() ===
+        "true";
+
+      if (traceMode === "layered") {
+        const layered = await createLayeredColorSvg(input, {
+          layerCount: Math.round(colorLayerCount),
+          maxTraceSide: Math.round(layerMaxTraceSide),
+          minRegionPercent,
+          optTolerance: layerOptTolerance,
+          turdSize: Math.round(layerTurdSize),
+          posterize,
+          removeWhite,
+          removeTransparent,
+          transparent,
+          bgColor,
+          turnPolicy: layerTurnPolicy,
+        });
+
+        return json({
+          svg: layered.svg,
+          layers: layered.layers,
+          width: layered.width,
+          height: layered.height,
+          gate: { running: gate.running, queued: gate.queued },
+        });
+      }
+
       if (whiteOnDark) {
         transparent = false;
         if (
@@ -385,9 +435,11 @@ export async function action({ request }: ActionFunctionArgs) {
             ensured.height,
             bgColor,
           );
+      const editable = annotateSingleTraceSvg(finalSVG, lineColor);
 
       return json({
-        svg: finalSVG,
+        svg: editable.svg,
+        layers: editable.layers,
         width: ensured.width,
         height: ensured.height,
         gate: { running: gate.running, queued: gate.queued },
@@ -653,6 +705,8 @@ function escapeReg(s: string) {
 /* ========================
    UI types + presets
 ======================== */
+type TraceMode = "single" | "layered";
+
 type Settings = {
   threshold: number;
   turdSize: number;
@@ -660,6 +714,23 @@ type Settings = {
   turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   lineColor: string;
   invert: boolean;
+
+  traceMode: TraceMode;
+  colorLayerCount: number;
+  layerMaxTraceSide: number;
+  minRegionPercent: number;
+  layerOptTolerance: number;
+  layerTurdSize: number;
+  layerTurnPolicy:
+    | "black"
+    | "white"
+    | "left"
+    | "right"
+    | "minority"
+    | "majority";
+  posterize: boolean;
+  removeWhite: boolean;
+  removeTransparent: boolean;
 
   transparent: boolean;
   bgColor: string;
@@ -676,6 +747,78 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
+  {
+    id: "layered-color",
+    label: "Layered color SVG",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 5,
+      layerMaxTraceSide: 1600,
+      minRegionPercent: 0.35,
+      layerOptTolerance: 0.45,
+      layerTurdSize: 4,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-smoother",
+    label: "Layered color SVG - Smoother",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 4,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.55,
+      layerOptTolerance: 0.65,
+      layerTurdSize: 7,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-detail",
+    label: "Layered color SVG - More detail",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 8,
+      layerMaxTraceSide: 2000,
+      minRegionPercent: 0.2,
+      layerOptTolerance: 0.32,
+      layerTurdSize: 2,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
+  {
+    id: "layered-color-fewer",
+    label: "Layered color SVG - Fewer larger layers",
+    settings: {
+      traceMode: "layered",
+      colorLayerCount: 3,
+      layerMaxTraceSide: 1200,
+      minRegionPercent: 0.8,
+      layerOptTolerance: 0.75,
+      layerTurdSize: 9,
+      layerTurnPolicy: "majority",
+      posterize: true,
+      removeWhite: false,
+      removeTransparent: true,
+      transparent: true,
+      invert: false,
+    },
+  },
   {
     id: "line-accurate",
     label: "Lineart - Accurate (default)",
@@ -915,6 +1058,17 @@ const DEFAULTS: Settings = {
   lineColor: "#000000",
   invert: false,
 
+  traceMode: "layered",
+  colorLayerCount: 5,
+  layerMaxTraceSide: 1600,
+  minRegionPercent: 0.35,
+  layerOptTolerance: 0.45,
+  layerTurdSize: 4,
+  layerTurnPolicy: "majority",
+  posterize: true,
+  removeWhite: false,
+  removeTransparent: true,
+
   transparent: true,
   bgColor: "#ffffff",
 
@@ -925,6 +1079,7 @@ const DEFAULTS: Settings = {
 
 type ServerResult = {
   svg?: string;
+  layers?: SvgLayerMeta[];
   error?: string;
   width?: number;
   height?: number;
@@ -935,6 +1090,7 @@ type ServerResult = {
 
 type HistoryItem = {
   svg: string;
+  layers?: EditableSvgLayer[];
   width: number;
   height: number;
   stamp: number;
@@ -967,7 +1123,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("line-accurate");
+    React.useState<string>("layered-color");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1005,13 +1161,23 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     if (fetcher.data?.svg) {
       const item: HistoryItem = {
         svg: fetcher.data.svg,
+        layers: fetcher.data.layers?.map((layer) => ({
+          ...layer,
+          color: layer.color || layer.originalColor,
+          visible: layer.visible !== false,
+        })),
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+  }, [
+    fetcher.data?.svg,
+    fetcher.data?.layers,
+    fetcher.data?.width,
+    fetcher.data?.height,
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -1058,7 +1224,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     setPreviewUrl(null);
 
     setSettings(DEFAULTS);
-    setActivePreset("line-accurate");
+    setActivePreset("layered-color");
     setHistory([]);
 
     setErr(null);
@@ -1129,7 +1295,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   }
 
   function getEffectiveSettings(input: Settings): Settings {
-    if (!input.invert) return input;
+    if (input.traceMode === "layered" || !input.invert) return input;
 
     const bg =
       !input.bgColor ||
@@ -1170,6 +1336,16 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     fd.append("turnPolicy", effective.turnPolicy);
     fd.append("lineColor", effective.lineColor);
     fd.append("invert", String(effective.invert));
+    fd.append("traceMode", effective.traceMode);
+    fd.append("colorLayerCount", String(effective.colorLayerCount));
+    fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
+    fd.append("minRegionPercent", String(effective.minRegionPercent));
+    fd.append("layerOptTolerance", String(effective.layerOptTolerance));
+    fd.append("layerTurdSize", String(effective.layerTurdSize));
+    fd.append("layerTurnPolicy", effective.layerTurnPolicy);
+    fd.append("posterize", String(effective.posterize));
+    fd.append("removeWhite", String(effective.removeWhite));
+    fd.append("removeTransparent", String(effective.removeTransparent));
     fd.append("transparent", String(effective.transparent));
     fd.append("bgColor", effective.bgColor);
     fd.append("preprocess", effective.preprocess);
@@ -1212,29 +1388,27 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, settings, activePreset, autoMode]);
+  }, [file, autoMode]);
 
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
-  function applyPreset(preset: Preset) {
-    setActivePreset(preset.id);
-    setSettings((s) => {
-      const baseline: Settings = {
-        ...DEFAULTS,
-        transparent: s.transparent,
-        bgColor: s.bgColor,
-      };
-      const lineColor =
-        preset.settings.lineColor !== undefined
-          ? preset.settings.lineColor
-          : s.lineColor;
+  function buildPresetSettings(preset: Preset): Settings {
+    return {
+      ...DEFAULTS,
+      traceMode: preset.settings.traceMode ?? "single",
+      ...preset.settings,
+    } as Settings;
+  }
 
-      return {
-        ...baseline,
-        lineColor,
-        ...preset.settings,
-      } as Settings;
-    });
+  function applyPreset(preset: Preset) {
+    const nextSettings = buildPresetSettings(preset);
+    setActivePreset(preset.id);
+    setSettings(nextSettings);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (file && getAutoMode(file.size) !== "off") {
+      void submitConvertForFile(file, nextSettings);
+    }
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
@@ -1248,6 +1422,65 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     navigator.clipboard.writeText(svg).then(() => {
       showToast("SVG copied");
     });
+  }
+
+  function getHistoryItemSvg(item: HistoryItem): string {
+    return item.layers?.length
+      ? applyLayerEditsToSvg(item.svg, item.layers)
+      : item.svg;
+  }
+
+  function setHistoryLayer(
+    stamp: number,
+    layerId: string,
+    patch: Partial<Pick<EditableSvgLayer, "color" | "visible">>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp !== stamp
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) =>
+                layer.id === layerId ? { ...layer, ...patch } : layer,
+              ),
+            },
+      ),
+    );
+  }
+
+  function resetHistoryLayer(stamp: number, layerId: string) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp !== stamp
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) =>
+                layer.id === layerId
+                  ? { ...layer, color: layer.originalColor, visible: true }
+                  : layer,
+              ),
+            },
+      ),
+    );
+  }
+
+  function resetAllHistoryLayers(stamp: number) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp !== stamp
+          ? item
+          : {
+              ...item,
+              layers: item.layers?.map((layer) => ({
+                ...layer,
+                color: layer.originalColor,
+                visible: true,
+              })),
+            },
+      ),
+    );
   }
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -1317,6 +1550,129 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                     className="flex flex-col gap-2 min-w-0"
                   >
                     <div className="mt-3 flex flex-col gap-2 min-w-0">
+                      <Field label="SVG mode">
+                        <select
+                          value={settings.traceMode}
+                          onChange={(e) =>
+                            setSettings((s) => ({
+                              ...s,
+                              traceMode: e.target.value as TraceMode,
+                            }))
+                          }
+                          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <option value="layered">Layered color</option>
+                          <option value="single">Single-color trace</option>
+                        </select>
+                      </Field>
+
+                      {settings.traceMode === "layered" && (
+                        <>
+                          <Field label={`Color layers (${settings.colorLayerCount})`}>
+                            <Num
+                              value={settings.colorLayerCount}
+                              min={2}
+                              max={10}
+                              step={1}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  colorLayerCount: Math.round(v),
+                                }))
+                              }
+                            />
+                          </Field>
+                          <Field label="Trace detail size">
+                            <select
+                              value={settings.layerMaxTraceSide}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  layerMaxTraceSide: Number(e.target.value),
+                                }))
+                              }
+                              className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                            >
+                              <option value={900}>Fast preview</option>
+                              <option value={1200}>Balanced</option>
+                              <option value={1600}>Detailed</option>
+                              <option value={2000}>High detail</option>
+                              <option value={2400}>Maximum detail</option>
+                            </select>
+                          </Field>
+                          <Field
+                            label={`Minimum layer size (${settings.minRegionPercent}%)`}
+                          >
+                            <Num
+                              value={settings.minRegionPercent}
+                              min={0}
+                              max={5}
+                              step={0.05}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  minRegionPercent: v,
+                                }))
+                              }
+                            />
+                          </Field>
+                          <Field label="Posterize colors">
+                            <input
+                              type="checkbox"
+                              checked={settings.posterize}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  posterize: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                          </Field>
+                          <Field label="Remove white background">
+                            <input
+                              type="checkbox"
+                              checked={settings.removeWhite}
+                              onChange={(e) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  removeWhite: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+                            />
+                          </Field>
+                          <Field label="Layer speckle removal">
+                            <Num
+                              value={settings.layerTurdSize}
+                              min={0}
+                              max={20}
+                              step={1}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  layerTurdSize: v,
+                                }))
+                              }
+                            />
+                          </Field>
+                          <Field label="Layer curve tolerance">
+                            <Num
+                              value={settings.layerOptTolerance}
+                              min={0.05}
+                              max={1.2}
+                              step={0.05}
+                              onChange={(v) =>
+                                setSettings((s) => ({
+                                  ...s,
+                                  layerOptTolerance: v,
+                                }))
+                              }
+                            />
+                          </Field>
+                        </>
+                      )}
+
                       <Field label="Preprocess">
                         <select
                           value={settings.preprocess}
@@ -1606,12 +1962,27 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                       <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <img
                           src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            item.svg,
+                            getHistoryItemSvg(item),
                           )}`}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
                       </div>
+                      {item.layers?.length ? (
+                        <LayerPaletteEditor
+                          item={item}
+                          onColorChange={(layerId, color) =>
+                            setHistoryLayer(item.stamp, layerId, { color })
+                          }
+                          onVisibilityChange={(layerId, visible) =>
+                            setHistoryLayer(item.stamp, layerId, { visible })
+                          }
+                          onResetLayer={(layerId) =>
+                            resetHistoryLayer(item.stamp, layerId)
+                          }
+                          onResetAll={() => resetAllHistoryLayers(item.stamp)}
+                        />
+                      ) : null}
                       <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
                         <span className="text-[13px] text-slate-700">
                           {item.width > 0 && item.height > 0
@@ -1622,7 +1993,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                           <button
                             type="button"
                             onClick={() => {
-                              const b = new Blob([item.svg], {
+                              const b = new Blob([getHistoryItemSvg(item)], {
                                 type: "image/svg+xml;charset=utf-8",
                               });
                               const u = URL.createObjectURL(b);
@@ -1640,7 +2011,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleCopySvg(item.svg)}
+                            onClick={() => handleCopySvg(getHistoryItemSvg(item))}
                             className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons name="copy" size={16} className="mr-1" />

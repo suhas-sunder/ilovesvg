@@ -598,7 +598,7 @@ export async function action({ request }: ActionFunctionArgs) {
         ).toLowerCase() === "true";
 
       // Force sensible output for white-on-dark
-      if (whiteOnDark) {
+      if (whiteOnDark && traceMode !== "layered") {
         transparent = false;
         if (
           !bgColor ||
@@ -613,7 +613,7 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       }
 
-      if (traceMode === "layered" && !whiteOnDark) {
+      if (traceMode === "layered") {
         const layered = await createLayeredColorSvg(input, {
           layerCount: Math.round(colorLayerCount),
           maxTraceSide: Math.round(layerMaxTraceSide),
@@ -2262,7 +2262,9 @@ export default function DrawingToSvgConverter({
 
     // Ensure invert always produces visible output (white on dark)
     const effective = (() => {
-      if (!targetSettings.invert) return targetSettings;
+      if (targetSettings.traceMode === "layered" || !targetSettings.invert) {
+        return targetSettings;
+      }
       const bg =
         !targetSettings.bgColor ||
         targetSettings.bgColor.toLowerCase() === "#ffffff" ||
