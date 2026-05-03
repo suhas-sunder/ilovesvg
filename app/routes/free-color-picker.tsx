@@ -2460,18 +2460,34 @@ function DragArea({
   MAX_SIDE: number;
   extracting: boolean;
 }) {
+  const [isDragging, setIsDragging] = React.useState(false);
+
   return (
     <label
-      onDrop={onDrop}
+      onDrop={(e) => {
+        setIsDragging(false);
+        onDrop(e);
+      }}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        setIsDragging(true);
       }}
       onDragEnter={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        setIsDragging(true);
       }}
-      className="block rounded-2xl border border-dashed border-blue-200 bg-[#f8fbff] hover:bg-[#f1f6ff] transition-colors cursor-pointer p-5 text-center"
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setIsDragging(false);
+        }
+      }}
+      className={`group block cursor-pointer rounded-2xl border p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 ${
+        isDragging
+          ? "border-sky-400 bg-sky-100/80 shadow-[0_0_0_3px_rgba(14,165,233,0.12)]"
+          : "border-sky-200 bg-sky-50/70 hover:border-sky-300 hover:bg-sky-50"
+      }`}
     >
       <input
         type="file"
@@ -2480,24 +2496,41 @@ function DragArea({
         className="hidden"
       />
 
-      <div className="text-[13px] text-slate-700 mb-3">
-        Limits:{" "}
-        <b>
-          {prettyBytes(MAX_UPLOAD_BYTES)} • {MAX_MP} MP • {MAX_SIDE}px longest
-          side
-        </b>{" "}
-        each max.
-      </div>
+      <div
+        className={`rounded-xl border-2 border-dashed px-4 py-6 transition-all duration-200 ${
+          isDragging
+            ? "border-sky-500 bg-white/80"
+            : "border-sky-400/80 bg-white/45 group-hover:border-sky-500 group-hover:bg-white/70"
+        }`}
+      >
+        <div className="mb-3 text-[13px] text-slate-700">
+          Limits:{" "}
+          <b>
+            {prettyBytes(MAX_UPLOAD_BYTES)} - {MAX_MP} MP - {MAX_SIDE}px
+            longest side
+          </b>{" "}
+          each max.
+        </div>
 
-      <div className="flex items-center justify-center gap-3 text-xl font-semibold text-slate-700">
-        <Icons name="upload" className="w-8 h-8 text-sky-700" />
-        <span>{extracting ? "Extracting…" : "Click/drag & drop file"}</span>
-      </div>
+        <div className="flex items-center justify-center gap-3 text-xl font-semibold text-slate-800">
+          <span
+            className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${
+              isDragging
+                ? "border-sky-300 bg-sky-100 text-sky-700"
+                : "border-sky-200 bg-white text-sky-600 group-hover:border-sky-300 group-hover:bg-sky-100"
+            }`}
+            aria-hidden="true"
+          >
+            <Icons name="upload" className="h-8 w-8" />
+          </span>
+          <span>{extracting ? "Extracting..." : "Click or drag a file"}</span>
+        </div>
 
-      <p className="mt-4 text-sm text-sky-700">
-        Live preview runs in your browser. SVG, PNG, JPG, and WebP are
-        supported. No files are stored after conversion.
-      </p>
+        <p className="mt-4 text-sm font-medium text-slate-600">
+          Live preview runs in your browser. SVG, PNG, JPG, and WebP are
+          supported. No files are stored after conversion.
+        </p>
+      </div>
     </label>
   );
 }
