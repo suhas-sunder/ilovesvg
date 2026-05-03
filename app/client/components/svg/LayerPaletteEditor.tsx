@@ -73,7 +73,9 @@ export function applyLayerEditsToSvg(
           new RegExp(`\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
           "",
         )
-        .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
+        .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "")
+        .replace(/\sdata-layer-color\s*=\s*["'][^"']*["']/gi, "")
+        .replace(/\sdata-layer-editor-hidden\s*=\s*["'][^"']*["']/gi, "");
 
       nextAttrs = rewriteStyleProperty(nextAttrs, groupPaintProp, layer.color);
       nextAttrs = rewriteStyleProperty(
@@ -82,8 +84,10 @@ export function applyLayerEditsToSvg(
         layer.visible ? null : "none",
       );
       nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
+      nextAttrs += ` data-layer-color="${escapeSvgAttribute(layer.color)}"`;
       nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
-      if (!layer.visible) nextAttrs += ` display="none"`;
+      if (!layer.visible)
+        nextAttrs += ` display="none" data-layer-editor-hidden="true"`;
 
       const childPaintPattern = new RegExp(
         `\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`,
@@ -118,7 +122,9 @@ export function applyLayerEditsToSvg(
             new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
             "",
           )
-          .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
+          .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "")
+          .replace(/\sdata-layer-color\s*=\s*["'][^"']*["']/gi, "")
+          .replace(/\sdata-layer-editor-hidden\s*=\s*["'][^"']*["']/gi, "");
         nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
         nextAttrs = rewriteStyleProperty(
           nextAttrs,
@@ -126,8 +132,10 @@ export function applyLayerEditsToSvg(
           layer.visible ? null : "none",
         );
         nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
+        nextAttrs += ` data-layer-color="${escapeSvgAttribute(layer.color)}"`;
         nextAttrs += ` ${paintProp}="${layer.color}"`;
-        if (!layer.visible) nextAttrs += ` display="none"`;
+        if (!layer.visible)
+          nextAttrs += ` display="none" data-layer-editor-hidden="true"`;
         return `<${tagName}${nextAttrs}${endTag}`;
       },
     );
@@ -599,4 +607,12 @@ function formatOpacity(value: number): string {
 
 function escapeLayerRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeSvgAttribute(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }

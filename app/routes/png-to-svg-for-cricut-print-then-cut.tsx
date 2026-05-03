@@ -20,6 +20,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 
 const isServer = typeof document === "undefined";
@@ -1648,10 +1649,8 @@ export default function PngToSvgForCricutPrintThenCut({
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            item.svg,
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={item.svg}
                           alt="Print Then Cut SVG result"
                           className="max-w-full h-auto"
                         />

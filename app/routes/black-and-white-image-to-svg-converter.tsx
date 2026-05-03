@@ -20,6 +20,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 
 const isServer = typeof document === "undefined";
@@ -1875,9 +1876,7 @@ export default function BlackAndWhiteImageToSvgConverter({
   }
 
   function getHistoryItemSvg(item: HistoryItem) {
-    return item.layers?.length
-      ? applyLayerEditsToSvg(item.svg, item.layers)
-      : item.svg;
+    return getEditedSvg(item.svg, item.layers);
   }
 
   const [showTraceSettings, setShowTraceSettings] = React.useState(false);
@@ -2407,10 +2406,9 @@ export default function BlackAndWhiteImageToSvgConverter({
                     >
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            getHistoryItemSvg(item),
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={item.svg}
+                          layers={item.layers}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
@@ -2917,67 +2915,6 @@ function LayerPaletteRow({
   );
 }
 
-function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]) {
-  if (!layers.length) return svg;
-
-  if (
-    typeof DOMParser !== "undefined" &&
-    typeof XMLSerializer !== "undefined"
-  ) {
-    try {
-      const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
-      const parserError = doc.querySelector("parsererror");
-      if (!parserError) {
-        for (const layer of layers) {
-          const groupNodes = doc.querySelectorAll(
-            `[data-layer-id="${cssEscape(layer.id)}"]`,
-          );
-          groupNodes.forEach((node) => {
-            if (layer.kind === "stroke") {
-              node.setAttribute("stroke", layer.color);
-              node.setAttribute("data-layer-color", layer.color);
-              node.querySelectorAll("[stroke]").forEach((child) => {
-                child.removeAttribute("stroke");
-              });
-            } else {
-              node.setAttribute("fill", layer.color);
-              node.setAttribute("data-layer-color", layer.color);
-              node.querySelectorAll("[fill]").forEach((child) => {
-                child.removeAttribute("fill");
-              });
-            }
-            applyEditorDisplay(node, layer.visible);
-          });
-
-          const fillNodes = doc.querySelectorAll(
-            `[data-fill-layer-id="${cssEscape(layer.id)}"]`,
-          );
-          fillNodes.forEach((node) => {
-            node.setAttribute("fill", layer.color);
-            node.setAttribute("data-layer-color", layer.color);
-            applyEditorDisplay(node, layer.visible);
-          });
-
-          const strokeNodes = doc.querySelectorAll(
-            `[data-stroke-layer-id="${cssEscape(layer.id)}"]`,
-          );
-          strokeNodes.forEach((node) => {
-            node.setAttribute("stroke", layer.color);
-            node.setAttribute("data-layer-color", layer.color);
-            applyEditorDisplay(node, layer.visible);
-          });
-        }
-        return new XMLSerializer().serializeToString(doc.documentElement);
-      }
-    } catch {}
-  }
-
-  let out = svg;
-  for (const layer of layers) {
-    out = applyLayerEditByString(out, layer);
-  }
-  return out;
-}
 
 function applyEditorDisplay(node: Element, visible: boolean) {
   if (!visible) {

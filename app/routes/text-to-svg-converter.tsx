@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/text-to-svg-converter";
+import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -1412,8 +1413,8 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                 groupedSvg ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-2">
                     <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                      <img
-                        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(groupedSvg)}`}
+                      <EditedSvgPreviewImage
+                        svg={groupedSvg}
                         alt="SVG result"
                         className="w-full h-[340px] max-h-[60vh]"
                         style={{ objectFit: "contain" }}
@@ -1512,8 +1513,8 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                       </div>
 
                       <div className="mt-2 rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[140px] flex items-center justify-center p-2">
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(it.svg)}`}
+                        <EditedSvgPreviewImage
+                          svg={it.svg}
                           alt="SVG"
                           className="w-full h-[220px]"
                           style={{ objectFit: "contain" }}

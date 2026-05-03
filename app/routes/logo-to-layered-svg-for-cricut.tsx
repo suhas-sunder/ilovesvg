@@ -20,6 +20,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -1784,10 +1785,8 @@ export default function LogoToLayeredSvgForCricut({
 
                         <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                           <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                          <img
-                            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                              editedSvg,
-                            )}`}
+                          <EditedSvgPreviewImage
+                            svg={editedSvg}
                             alt="Layered SVG result from logo"
                             className="max-w-full h-auto"
                           />

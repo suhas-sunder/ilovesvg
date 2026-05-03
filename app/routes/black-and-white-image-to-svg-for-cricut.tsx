@@ -21,6 +21,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -2182,9 +2183,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   function getHistoryItemSvg(item: HistoryItem) {
-    return item.layers?.length
-      ? applyLayerEditsToSvg(item.svg, item.layers)
-      : item.svg;
+    return getEditedSvg(item.svg, item.layers);
   }
 
   return (
@@ -2451,10 +2450,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            getHistoryItemSvg(item),
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={item.svg}
+                          layers={item.layers}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
@@ -2521,81 +2519,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]) {
-  let out = svg;
-
-  for (const layer of layers) {
-    const color = normalizeHexColor(
-      layer.color || layer.originalColor || "#000000",
-    );
-    const escapedId = escapeReg(layer.id);
-    const displayAttr = layer.visible
-      ? ""
-      : ' display="none" data-editor-hidden="true"';
-
-    out = out.replace(
-      new RegExp(
-        `<g\\b([^>]*data-layer-id\\s*=\\s*["']${escapedId}["'][^>]*)>`,
-        "gi",
-      ),
-      (_match, attrs) => {
-        let next = removeEditorDisplayAttrs(attrs);
-        if (layer.kind === "stroke") {
-          next = setSvgAttr(next, "stroke", color);
-        } else {
-          next = setSvgAttr(next, "fill", color);
-        }
-        if (!layer.visible) next += displayAttr;
-        return `<g${next}>`;
-      },
-    );
-
-    out = out.replace(
-      new RegExp(
-        `(<g\\b[^>]*data-layer-id\\s*=\\s*["']${escapedId}["'][^>]*>)([\\s\\S]*?)(<\\/g>)`,
-        "gi",
-      ),
-      (_match, open, body, close) => {
-        const cleanedBody = body.replace(
-          /<path\b[^>]*\/?>/gi,
-          (pathTag: string) =>
-            layer.kind === "stroke"
-              ? removeSvgAttr(pathTag, "stroke")
-              : removeSvgAttr(pathTag, "fill"),
-        );
-        return `${open}${cleanedBody}${close}`;
-      },
-    );
-
-    out = out.replace(
-      new RegExp(
-        `<([a-zA-Z][\\w:-]*)\\b([^>]*data-fill-layer-id\\s*=\\s*["']${escapedId}["'][^>]*)(\\/?)>`,
-        "gi",
-      ),
-      (_match, tag, attrs, slash) => {
-        let next = removeEditorDisplayAttrs(attrs);
-        next = setSvgAttr(next, "fill", color);
-        if (!layer.visible) next += displayAttr;
-        return `<${tag}${next}${slash}>`;
-      },
-    );
-
-    out = out.replace(
-      new RegExp(
-        `<([a-zA-Z][\\w:-]*)\\b([^>]*data-stroke-layer-id\\s*=\\s*["']${escapedId}["'][^>]*)(\\/?)>`,
-        "gi",
-      ),
-      (_match, tag, attrs, slash) => {
-        let next = removeEditorDisplayAttrs(attrs);
-        next = setSvgAttr(next, "stroke", color);
-        if (!layer.visible) next += displayAttr;
-        return `<${tag}${next}${slash}>`;
-      },
-    );
-  }
-
-  return out;
-}
 
 function setSvgAttr(attrsOrTag: string, name: string, value: string) {
   const re = new RegExp(`\\s${name}\\s*=\\s*["'][^"']*["']`, "i");

@@ -19,6 +19,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 
 const isServer = typeof document === "undefined";
 
@@ -1952,9 +1953,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
   }
 
   function getHistoryItemSvg(item: HistoryItem) {
-    return item.layers?.length
-      ? applyLayerEditsToSvg(item.svg, item.layers)
-      : item.svg;
+    return getEditedSvg(item.svg, item.layers);
   }
 
   return (
@@ -2517,10 +2516,9 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
 
                       <div className="relative flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white transparent-checkerboard p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            getHistoryItemSvg(item),
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={item.svg}
+                          layers={item.layers}
                           alt="SVG result"
                           className="h-auto max-w-full"
                         />
@@ -3269,69 +3267,6 @@ function escapeLayerRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
-  let out = svg;
-  for (const layer of layers) {
-    const id = escapeLayerRegExp(layer.id);
-
-    const groupPattern = new RegExp(
-      `(<g\\b(?=[^>]*data-layer-id=["']${id}["'])([^>]*)>)([\\s\\S]*?)(<\\/g>)`,
-      "i",
-    );
-
-    out = out.replace(groupPattern, (_match, _open, attrs, inner, close) => {
-      const groupPaintProp =
-        (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-      let nextAttrs = String(attrs)
-        .replace(
-          new RegExp(`\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
-          "",
-        )
-        .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
-      nextAttrs = rewriteStyleProperty(nextAttrs, groupPaintProp, layer.color);
-      nextAttrs = rewriteStyleProperty(
-        nextAttrs,
-        "display",
-        layer.visible ? null : "none",
-      );
-      nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
-      if (!layer.visible) nextAttrs += ` display="none"`;
-      return `<g${nextAttrs}>${inner}${close}`;
-    });
-
-    const attrName =
-      (layer.kind || "fill") === "stroke"
-        ? "data-stroke-layer-id"
-        : "data-fill-layer-id";
-    const paintProp = (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-    const elementPattern = new RegExp(
-      `(<(?!g\\b)([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\\/?>)`,
-      "gi",
-    );
-
-    out = out.replace(
-      elementPattern,
-      (_match, _start, tagName, attrs, endTag) => {
-        let nextAttrs = String(attrs)
-          .replace(
-            new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
-            "",
-          )
-          .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
-        nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
-        nextAttrs = rewriteStyleProperty(
-          nextAttrs,
-          "display",
-          layer.visible ? null : "none",
-        );
-        nextAttrs += ` ${paintProp}="${layer.color}"`;
-        if (!layer.visible) nextAttrs += ` display="none"`;
-        return `<${tagName}${nextAttrs}${endTag}`;
-      },
-    );
-  }
-  return out;
-}
 
 function rewriteStyleProperty(
   attrs: string,

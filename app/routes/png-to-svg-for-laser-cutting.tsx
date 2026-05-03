@@ -19,7 +19,6 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 import {
   LayerPaletteEditor,
   LayeredTraceControls,
-  applyLayerEditsToSvg,
   type EditableSvgLayer,
   type SvgLayerMeta,
   type TraceMode,
@@ -29,6 +28,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -1337,9 +1337,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   function getHistoryItemSvg(item: HistoryItem): string {
-    return item.layers?.length
-      ? applyLayerEditsToSvg(item.svg, item.layers)
-      : item.svg;
+    return getEditedSvg(item.svg, item.layers);
   }
 
   function setHistoryLayer(
@@ -1661,10 +1659,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            getHistoryItemSvg(item),
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={item.svg}
+                          layers={item.layers}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />

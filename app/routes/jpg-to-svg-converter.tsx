@@ -3,6 +3,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -2249,9 +2250,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
   }
 
   function getHistoryItemSvg(item: HistoryItem): string {
-    return item.layers?.length
-      ? applyLayerEditsToSvg(item.svg, item.layers)
-      : item.svg;
+    return getEditedSvg(item.svg, item.layers);
   }
 
   function setHistoryLayer(
@@ -2539,10 +2538,9 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
                     >
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            getHistoryItemSvg(item),
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={item.svg}
+                          layers={item.layers}
                           alt="SVG result"
                           className="max-w-full h-auto"
                         />
@@ -2709,64 +2707,6 @@ function stripChildPaintOverrides(inner: string, paintProp: "fill" | "stroke") {
   );
 }
 
-function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
-  let out = svg;
-  for (const layer of layers) {
-    const id = escapeLayerRegExp(layer.id);
-
-    const groupPattern = new RegExp(
-      `(<g\\b(?=[^>]*data-layer-id=["']${id}["'])([^>]*)>)([\\s\\S]*?)(<\\/g>)`,
-      "gi",
-    );
-
-    out = out.replace(groupPattern, (_match, _open, attrs, inner, close) => {
-      const groupPaintProp =
-        (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-      let nextAttrs = String(attrs);
-      nextAttrs = stripSvgAttr(nextAttrs, groupPaintProp);
-      nextAttrs = stripSvgAttr(nextAttrs, "display");
-      nextAttrs = rewriteStyleProperty(nextAttrs, groupPaintProp, layer.color);
-      nextAttrs = rewriteStyleProperty(
-        nextAttrs,
-        "display",
-        layer.visible ? null : "none",
-      );
-      nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
-      if (!layer.visible) nextAttrs += ` display="none"`;
-      const nextInner = stripChildPaintOverrides(inner, groupPaintProp);
-      return `<g${nextAttrs}>${nextInner}${close}`;
-    });
-
-    const attrName =
-      (layer.kind || "fill") === "stroke"
-        ? "data-stroke-layer-id"
-        : "data-fill-layer-id";
-    const paintProp = (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-    const elementPattern = new RegExp(
-      `(<(?!g\\b)([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\/?>)`,
-      "gi",
-    );
-
-    out = out.replace(
-      elementPattern,
-      (_match, _start, tagName, attrs, endTag) => {
-        let nextAttrs = String(attrs);
-        nextAttrs = stripSvgAttr(nextAttrs, paintProp);
-        nextAttrs = stripSvgAttr(nextAttrs, "display");
-        nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
-        nextAttrs = rewriteStyleProperty(
-          nextAttrs,
-          "display",
-          layer.visible ? null : "none",
-        );
-        nextAttrs += ` ${paintProp}="${layer.color}"`;
-        if (!layer.visible) nextAttrs += ` display="none"`;
-        return `<${tagName}${nextAttrs}${endTag}`;
-      },
-    );
-  }
-  return out;
-}
 
 function LayerPaletteEditor({
   item,

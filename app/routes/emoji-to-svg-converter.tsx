@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/emoji-to-svg-converter";
+import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -3178,10 +3179,8 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                     groupedSvg ? (
                       <div className="rounded-xl border border-slate-200 bg-white p-2">
                         <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                          <img
-                            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                              groupedSvg,
-                            )}`}
+                          <EditedSvgPreviewImage
+                            svg={groupedSvg}
                             alt="Grouped SVG"
                             className="max-w-full h-auto"
                           />
@@ -3301,10 +3300,9 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                           </div>
 
                           <div className="mt-2 rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[140px] flex items-center justify-center p-2">
-                            <img
-                              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                                getTextItemSvg(it),
-                              )}`}
+                            <EditedSvgPreviewImage
+                              svg={it.svg}
+                              layers={it.layers}
                               alt="Emoji SVG"
                               className="max-w-full h-auto"
                             />
@@ -3340,10 +3338,8 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                   {tracedSvg ? (
                     <div className="rounded-xl border border-slate-200 bg-white p-2">
                       <div className="rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                        <img
-                          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                            tracedSvg,
-                          )}`}
+                        <EditedSvgPreviewImage
+                          svg={tracedSvg}
                           alt="Traced SVG"
                           className="max-w-full h-auto"
                         />

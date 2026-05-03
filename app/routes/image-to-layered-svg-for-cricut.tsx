@@ -20,6 +20,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -1966,10 +1967,8 @@ export default function ImageToLayeredSvgForCricut({
                           <FullscreenPreviewButton
                             onOpen={() => setFullscreenPreviewIndex(index)}
                           />
-                          <img
-                            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                              editedSvg,
-                            )}`}
+                          <EditedSvgPreviewImage
+                            svg={editedSvg}
                             alt="Layered SVG result"
                             className="max-w-full h-auto"
                           />
@@ -2187,64 +2186,9 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 }
 
 function getHistoryItemSvg(item: HistoryItem): string {
-  if (!item.layers?.length) return item.svg;
-  return applyLayerEditsToSvg(item.svg, item.layers);
+  return getEditedSvg(item.svg, item.layers);
 }
 
-function applyLayerEditsToSvg(svg: string, layers: LayerState[]): string {
-  let out = String(svg || "");
-
-  for (const layer of layers) {
-    const id = escapeRegExp(layer.id);
-    const color = sanitizeHexColor(layer.color, layer.originalColor || "#000000");
-    const visible = layer.visible !== false;
-    const kind = layer.kind || "fill";
-
-    out = out.replace(
-      new RegExp(`(<g\\b(?=[^>]*\\bdata-layer-id=["']${id}["'])([^>]*)>)([\\s\\S]*?)(<\\/g>)`, "gi"),
-      (_match, _openTag, attrs, inner, closeTag) => {
-        let nextAttrs = String(attrs);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-color", color);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, kind === "stroke" ? "stroke" : "fill", color);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "display", visible ? null : "none");
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-editor-hidden", visible ? null : "true");
-
-        let nextInner = String(inner);
-        nextInner = kind === "stroke" ? stripPaintAttrs(nextInner, "stroke") : stripPaintAttrs(nextInner, "fill");
-
-        return `<g${nextAttrs}>${nextInner}${closeTag}`;
-      },
-    );
-
-    out = out.replace(
-      new RegExp(`(<(?!g\\b)([a-zA-Z][\\w:-]*)\\b(?=[^>]*\\bdata-fill-layer-id=["']${id}["'])([^>]*?)(\\/?>))`, "gi"),
-      (match, _whole, tagName, attrs) => {
-        const full = String(match);
-        const selfClose = /\/\s*>$/.test(full);
-        let nextAttrs = String(attrs);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "fill", color);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "display", visible ? null : "none");
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-editor-hidden", visible ? null : "true");
-        return `<${tagName}${nextAttrs}${selfClose ? " />" : ">"}`;
-      },
-    );
-
-    out = out.replace(
-      new RegExp(`(<(?!g\\b)([a-zA-Z][\\w:-]*)\\b(?=[^>]*\\bdata-stroke-layer-id=["']${id}["'])([^>]*?)(\\/?>))`, "gi"),
-      (match, _whole, tagName, attrs) => {
-        const full = String(match);
-        const selfClose = /\/\s*>$/.test(full);
-        let nextAttrs = String(attrs);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "stroke", color);
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "display", visible ? null : "none");
-        nextAttrs = setOrRemoveSvgAttr(nextAttrs, "data-layer-editor-hidden", visible ? null : "true");
-        return `<${tagName}${nextAttrs}${selfClose ? " />" : ">"}`;
-      },
-    );
-  }
-
-  return out;
-}
 
 function stripPaintAttrs(markup: string, attrName: "fill" | "stroke") {
   const attrPattern = new RegExp(`\\s${attrName}\\s*=\\s*(["'])(.*?)\\1`, "gi");
