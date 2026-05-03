@@ -977,6 +977,7 @@ type HistoryItem = {
   height: number;
   stamp: number;
   cutSource: string;
+  settingsSnapshot: Settings;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1021,10 +1022,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [openSettingsStamp, setOpenSettingsStamp] = React.useState<
+    number | null
+  >(null);
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
+  const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const pendingReplaceStampRef = React.useRef<number | null>(null);
   const busy = fetcher.state !== "idle";
 
   React.useEffect(() => setHydrated(true), []);
@@ -1037,8 +1042,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
         cutSource: fetcher.data.cutSource ?? settings.cutSource,
+        settingsSnapshot: lastSubmittedSettingsRef.current,
       };
-      setHistory((prev) => [item, ...prev].slice(0, 8));
+      const replaceStamp = pendingReplaceStampRef.current;
+      pendingReplaceStampRef.current = null;
+      if (replaceStamp) {
+        setHistory((prev) => {
+          let replaced = false;
+          const next = prev.map((candidate) => {
+            if (candidate.stamp !== replaceStamp) return candidate;
+            replaced = true;
+            return { ...item, stamp: candidate.stamp };
+          });
+          return replaced ? next : [item, ...prev].slice(0, 8);
+        });
+        setOpenSettingsStamp(replaceStamp);
+      } else {
+        setHistory((prev) => [item, ...prev].slice(0, 8));
+      }
       setInfo(null);
     }
   }, [
@@ -1093,10 +1114,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -1122,6 +1144,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setSettings(DEFAULTS);
     setActivePreset("white-border");
     setHistory([]);
+    setOpenSettingsStamp(null);
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1160,6 +1183,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function submitConvert(
     fileOverride?: File | null,
     settingsOverride?: Settings,
+    replaceStamp?: number | null,
   ) {
     const targetFile = fileOverride ?? file;
     const targetSettings = settingsOverride ?? settings;
@@ -1194,6 +1218,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("transparent", String(targetSettings.transparent));
     fd.append("bgColor", targetSettings.bgColor);
     setErr(null);
+    lastSubmittedSettingsRef.current = targetSettings;
+    pendingReplaceStampRef.current = replaceStamp ?? null;
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1268,221 +1294,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 converter.
               </div>
 
-              <div className="mt-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                  aria-expanded={showAdvanced}
-                  aria-controls="advanced-settings"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    Sticker settings
-                  </span>
-                  <ChevronDownIcon open={showAdvanced} />
-                </button>
-
-                {showAdvanced && (
-                  <div
-                    id="advanced-settings"
-                    className="flex flex-col gap-2 min-w-0"
-                  >
-                    <Field label="Cut source">
-                      <select
-                        value={settings.cutSource}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            cutSource: e.target.value as CutSource,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                      >
-                        <option value="transparent-alpha">
-                          Transparent alpha
-                        </option>
-                        <option value="remove-white-page">
-                          Remove white page
-                        </option>
-                        <option value="edge-outline">
-                          Visible artwork outline
-                        </option>
-                      </select>
-                    </Field>
-
-                    <Field
-                      label={`Sticker border offset (${settings.offsetPx}px)`}
-                    >
-                      <input
-                        type="range"
-                        min={0}
-                        max={60}
-                        step={1}
-                        value={settings.offsetPx}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            offsetPx: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full accent-[#0b2dff]"
-                      />
-                    </Field>
-
-                    <Field
-                      label={`White background tolerance (${settings.backgroundTolerance})`}
-                    >
-                      <input
-                        type="range"
-                        min={0}
-                        max={90}
-                        step={1}
-                        value={settings.backgroundTolerance}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            backgroundTolerance: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full accent-[#0b2dff]"
-                      />
-                    </Field>
-
-                    <Field label="Alpha threshold">
-                      <Num
-                        value={settings.alphaThreshold}
-                        min={0}
-                        max={255}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, alphaThreshold: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Cut line color">
-                      <input
-                        type="color"
-                        value={settings.cutLineColor}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            cutLineColor: e.target.value,
-                          }))
-                        }
-                        className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label="Cut line width">
-                      <Num
-                        value={settings.cutLineWidth}
-                        min={0.25}
-                        max={16}
-                        step={0.25}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, cutLineWidth: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Turd size">
-                      <Num
-                        value={settings.turdSize}
-                        min={0}
-                        max={25}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, turdSize: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Curve tolerance">
-                      <Num
-                        value={settings.optTolerance}
-                        min={0.05}
-                        max={1.2}
-                        step={0.05}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, optTolerance: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Smooth cut mask">
-                      <input
-                        type="checkbox"
-                        checked={settings.smoothMask}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            smoothMask: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label="Show cut line">
-                      <input
-                        type="checkbox"
-                        checked={settings.showCutLine}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            showCutLine: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label="Background">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.transparent}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              transparent: e.target.checked,
-                            }))
-                          }
-                          title="Transparent background"
-                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700">
-                          Transparent
-                        </span>
-                        <input
-                          type="color"
-                          value={settings.bgColor}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              bgColor: e.target.value,
-                            }))
-                          }
-                          aria-disabled={settings.transparent}
-                          className={[
-                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
-                            settings.transparent
-                              ? "opacity-50 pointer-events-none"
-                              : "",
-                          ].join(" ")}
-                          title={
-                            settings.transparent
-                              ? "Uncheck to pick a background color"
-                              : "Pick background color"
-                          }
-                        />
-                      </div>
-                    </Field>
-                  </div>
-                )}
-              </div>
-
               {!file ? (
                 <DragArea
                   onPick={onPick}
@@ -1520,6 +1331,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
+                        setOpenSettingsStamp(null);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -1641,7 +1453,60 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           />
                           Copy SVG
                         </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettings(item.settingsSnapshot);
+                            setOpenSettingsStamp((current) =>
+                              current === item.stamp ? null : item.stamp,
+                            );
+                          }}
+                          aria-expanded={openSettingsStamp === item.stamp}
+                          aria-controls={`output-settings-${item.stamp}`}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                        >
+                          <Icons
+                            name="settings"
+                            size={16}
+                            className="mr-1 inline-block"
+                          />
+                          Settings
+                        </button>
                       </div>
+
+                      {openSettingsStamp === item.stamp && (
+                        <div
+                          id={`output-settings-${item.stamp}`}
+                          className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3"
+                        >
+                          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h3 className="m-0 text-base font-bold text-sky-950">
+                                Settings
+                              </h3>
+                              <p className="m-0 mt-1 text-[13px] text-slate-600">
+                                These settings regenerate this sticker output
+                                card only.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void submitConvert(file, settings, item.stamp)
+                              }
+                              disabled={buttonDisabled}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 cursor-pointer transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Update preview
+                            </button>
+                          </div>
+                          <StickerSettingsFields
+                            settings={settings}
+                            setSettings={setSettings}
+                          />
+                        </div>
+                      )}
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
@@ -1712,6 +1577,191 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
+function StickerSettingsFields({
+  settings,
+  setSettings,
+}: {
+  settings: Settings;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <Field label="Cut source">
+        <select
+          value={settings.cutSource}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              cutSource: e.target.value as CutSource,
+            }))
+          }
+          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+        >
+          <option value="transparent-alpha">Transparent alpha</option>
+          <option value="remove-white-page">Remove white page</option>
+          <option value="edge-outline">Visible artwork outline</option>
+        </select>
+      </Field>
+
+      <Field label={`Sticker border offset (${settings.offsetPx}px)`}>
+        <input
+          type="range"
+          min={0}
+          max={60}
+          step={1}
+          value={settings.offsetPx}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              offsetPx: Number(e.target.value),
+            }))
+          }
+          className="w-full accent-[#0b2dff]"
+        />
+      </Field>
+
+      <Field label={`White background tolerance (${settings.backgroundTolerance})`}>
+        <input
+          type="range"
+          min={0}
+          max={90}
+          step={1}
+          value={settings.backgroundTolerance}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              backgroundTolerance: Number(e.target.value),
+            }))
+          }
+          className="w-full accent-[#0b2dff]"
+        />
+      </Field>
+
+      <Field label="Alpha threshold">
+        <Num
+          value={settings.alphaThreshold}
+          min={0}
+          max={255}
+          step={1}
+          onChange={(v) =>
+            setSettings((s) => ({ ...s, alphaThreshold: v }))
+          }
+        />
+      </Field>
+
+      <Field label="Cut line color">
+        <input
+          type="color"
+          value={settings.cutLineColor}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              cutLineColor: e.target.value,
+            }))
+          }
+          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+        />
+      </Field>
+
+      <Field label="Cut line width">
+        <Num
+          value={settings.cutLineWidth}
+          min={0.25}
+          max={16}
+          step={0.25}
+          onChange={(v) => setSettings((s) => ({ ...s, cutLineWidth: v }))}
+        />
+      </Field>
+
+      <Field label="Remove tiny specks">
+        <Num
+          value={settings.turdSize}
+          min={0}
+          max={25}
+          step={1}
+          onChange={(v) => setSettings((s) => ({ ...s, turdSize: v }))}
+        />
+      </Field>
+
+      <Field label="Curve smoothing">
+        <Num
+          value={settings.optTolerance}
+          min={0.05}
+          max={1.2}
+          step={0.05}
+          onChange={(v) => setSettings((s) => ({ ...s, optTolerance: v }))}
+        />
+      </Field>
+
+      <Field label="Smooth cut mask">
+        <input
+          type="checkbox"
+          checked={settings.smoothMask}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              smoothMask: e.target.checked,
+            }))
+          }
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+        />
+      </Field>
+
+      <Field label="Show cut line">
+        <input
+          type="checkbox"
+          checked={settings.showCutLine}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              showCutLine: e.target.checked,
+            }))
+          }
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+        />
+      </Field>
+
+      <Field label="Background">
+        <div className="flex items-center gap-2 min-w-0">
+          <input
+            type="checkbox"
+            checked={settings.transparent}
+            onChange={(e) =>
+              setSettings((s) => ({
+                ...s,
+                transparent: e.target.checked,
+              }))
+            }
+            title="Transparent background"
+            className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
+          />
+          <span className="text-[13px] text-slate-700">Transparent</span>
+          <input
+            type="color"
+            value={settings.bgColor}
+            onChange={(e) =>
+              setSettings((s) => ({
+                ...s,
+                bgColor: e.target.value,
+              }))
+            }
+            aria-disabled={settings.transparent}
+            className={[
+              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+              settings.transparent ? "opacity-50 pointer-events-none" : "",
+            ].join(" ")}
+            title={
+              settings.transparent
+                ? "Uncheck to pick a background color"
+                : "Pick background color"
+            }
+          />
+        </div>
+      </Field>
+    </div>
+  );
+}
+
 function SvgObjectPreview({ svg, title }: { svg: string; title: string }) {
   const [url, setUrl] = React.useState<string | null>(null);
 
@@ -1749,7 +1799,11 @@ function formatCutSource(source: string) {
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
   const url = URL.createObjectURL(file);
   try {

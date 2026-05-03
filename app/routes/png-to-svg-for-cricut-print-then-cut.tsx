@@ -958,6 +958,7 @@ type HistoryItem = {
   width: number;
   height: number;
   stamp: number;
+  settingsSnapshot: Settings;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1013,11 +1014,15 @@ export default function PngToSvgForCricutPrintThenCut({
   >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [openSettingsStamp, setOpenSettingsStamp] = React.useState<
+    number | null
+  >(null);
 
   const busy = fetcher.state !== "idle";
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
+  const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const pendingReplaceStampRef = React.useRef<number | null>(null);
 
   React.useEffect(() => setHydrated(true), []);
 
@@ -1049,9 +1054,25 @@ export default function PngToSvgForCricutPrintThenCut({
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
+        settingsSnapshot: lastSubmittedSettingsRef.current,
       };
 
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      const replaceStamp = pendingReplaceStampRef.current;
+      pendingReplaceStampRef.current = null;
+      if (replaceStamp) {
+        setHistory((prev) => {
+          let replaced = false;
+          const next = prev.map((candidate) => {
+            if (candidate.stamp !== replaceStamp) return candidate;
+            replaced = true;
+            return { ...item, stamp: candidate.stamp };
+          });
+          return replaced ? next : [item, ...prev].slice(0, 10);
+        });
+        setOpenSettingsStamp(replaceStamp);
+      } else {
+        setHistory((prev) => [item, ...prev].slice(0, 10));
+      }
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
 
@@ -1078,11 +1099,11 @@ export default function PngToSvgForCricutPrintThenCut({
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
-
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -1112,6 +1133,7 @@ export default function PngToSvgForCricutPrintThenCut({
     setSettings(DEFAULTS);
     setActivePreset("sticker-clean-offset");
     setHistory([]);
+    setOpenSettingsStamp(null);
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1162,6 +1184,7 @@ export default function PngToSvgForCricutPrintThenCut({
   async function submitConvert(
     targetFile?: File | null,
     settingsOverride?: Settings,
+    replaceStamp?: number | null,
   ) {
     const currentFile = targetFile || file;
     const currentSettings = settingsOverride ?? settings;
@@ -1197,6 +1220,8 @@ export default function PngToSvgForCricutPrintThenCut({
     fd.append("addWhitePage", String(currentSettings.addWhitePage));
 
     setErr(null);
+    lastSubmittedSettingsRef.current = currentSettings;
+    pendingReplaceStampRef.current = replaceStamp ?? null;
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1270,214 +1295,6 @@ export default function PngToSvgForCricutPrintThenCut({
                 It is not a layered vinyl converter.
               </div>
 
-              <div className="mt-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                  aria-expanded={showAdvanced}
-                  aria-controls="advanced-settings"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    Print Then Cut settings
-                  </span>
-                  <ChevronDownIcon open={showAdvanced} />
-                </button>
-
-                {showAdvanced && (
-                  <div
-                    id="advanced-settings"
-                    className="flex flex-col gap-2 min-w-0"
-                  >
-                    <Field label="Cut outline source">
-                      <select
-                        value={settings.outlineSource}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            outlineSource: e.target.value as OutlineSource,
-                          }))
-                        }
-                        className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                      >
-                        <option value="auto">
-                          Auto - transparency first, then background
-                        </option>
-                        <option value="transparency">Transparent PNG</option>
-                        <option value="light">
-                          Light / white background removal
-                        </option>
-                        <option value="dark">Dark artwork threshold</option>
-                        <option value="edge">Photo / art edge outline</option>
-                      </select>
-                    </Field>
-
-                    <Field label={`Cut offset (${settings.cutOffset}px)`}>
-                      <input
-                        type="range"
-                        min={0}
-                        max={96}
-                        step={1}
-                        value={settings.cutOffset}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            cutOffset: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full accent-[#0b2dff]"
-                      />
-                    </Field>
-
-                    <Field
-                      label={`Background tolerance (${settings.backgroundTolerance})`}
-                    >
-                      <Num
-                        value={settings.backgroundTolerance}
-                        min={0}
-                        max={120}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({
-                            ...s,
-                            backgroundTolerance: v,
-                          }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label={`Dark threshold (${settings.darkThreshold})`}>
-                      <Num
-                        value={settings.darkThreshold}
-                        min={0}
-                        max={255}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, darkThreshold: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label={`Edge threshold (${settings.edgeThreshold})`}>
-                      <Num
-                        value={settings.edgeThreshold}
-                        min={1}
-                        max={255}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, edgeThreshold: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label={`Speck cleanup (${settings.speckCleanup})`}>
-                      <Num
-                        value={settings.speckCleanup}
-                        min={0}
-                        max={40}
-                        step={1}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, speckCleanup: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field
-                      label={`Curve smoothness (${settings.curveSmoothness})`}
-                    >
-                      <Num
-                        value={settings.curveSmoothness}
-                        min={0.05}
-                        max={2.5}
-                        step={0.05}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, curveSmoothness: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Cut line color">
-                      <input
-                        type="color"
-                        value={settings.cutLineColor}
-                        onChange={(e) =>
-                          setSettings((s) => ({
-                            ...s,
-                            cutLineColor: e.target.value,
-                          }))
-                        }
-                        className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
-                      />
-                    </Field>
-
-                    <Field label={`Cut line width (${settings.cutLineWidth})`}>
-                      <Num
-                        value={settings.cutLineWidth}
-                        min={0.25}
-                        max={12}
-                        step={0.25}
-                        onChange={(v) =>
-                          setSettings((s) => ({ ...s, cutLineWidth: v }))
-                        }
-                      />
-                    </Field>
-
-                    <Field label="Printable border">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <input
-                          type="checkbox"
-                          checked={settings.includePrintableBorder}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              includePrintableBorder: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700">
-                          Add printable border behind artwork
-                        </span>
-                        <input
-                          type="color"
-                          value={settings.printableBorderColor}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              printableBorderColor: e.target.value,
-                            }))
-                          }
-                          aria-disabled={!settings.includePrintableBorder}
-                          className={[
-                            "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
-                            !settings.includePrintableBorder
-                              ? "opacity-50 pointer-events-none"
-                              : "",
-                          ].join(" ")}
-                        />
-                      </div>
-                    </Field>
-
-                    <Field label="Preview page">
-                      <label className="inline-flex items-center gap-2 text-[13px] text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={settings.addWhitePage}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              addWhitePage: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
-                        />
-                        Add white page rectangle behind the preview
-                      </label>
-                    </Field>
-                  </div>
-                )}
-              </div>
-
               {!file ? (
                 <DragArea
                   onPick={onPick}
@@ -1517,6 +1334,7 @@ export default function PngToSvgForCricutPrintThenCut({
                         setInfo(null);
                         setOriginalFileSize(null);
                         setHistory([]);
+                        setOpenSettingsStamp(null);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -1645,7 +1463,59 @@ export default function PngToSvgForCricutPrintThenCut({
                           />
                           Copy SVG
                         </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettings(item.settingsSnapshot);
+                            setOpenSettingsStamp((current) =>
+                              current === item.stamp ? null : item.stamp,
+                            );
+                          }}
+                          aria-expanded={openSettingsStamp === item.stamp}
+                          aria-controls={`output-settings-${item.stamp}`}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                        >
+                          <Icons
+                            name="settings"
+                            size={16}
+                            className="mr-1 inline-block"
+                          />
+                          Settings
+                        </button>
                       </div>
+
+                      {openSettingsStamp === item.stamp && (
+                        <div
+                          id={`output-settings-${item.stamp}`}
+                          className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3"
+                        >
+                          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h3 className="m-0 text-base font-bold text-sky-950">
+                                Settings
+                              </h3>
+                              <p className="m-0 mt-1 text-[13px] text-slate-600">
+                                These settings regenerate this output card only.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void submitConvert(file, settings, item.stamp)
+                              }
+                              disabled={buttonDisabled}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 cursor-pointer transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Update preview
+                            </button>
+                          </div>
+                          <PrintThenCutSettingsFields
+                            settings={settings}
+                            setSettings={setSettings}
+                          />
+                        </div>
+                      )}
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
@@ -1726,7 +1596,11 @@ export default function PngToSvgForCricutPrintThenCut({
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
 
   const url = URL.createObjectURL(file);
@@ -2186,6 +2060,174 @@ function SeoSections() {
         </article>
       </div>
     </section>
+  );
+}
+
+function PrintThenCutSettingsFields({
+  settings,
+  setSettings,
+}: {
+  settings: Settings;
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+}) {
+  return (
+    <div className="grid gap-2 min-w-0">
+      <Field label="Cut outline source">
+        <select
+          value={settings.outlineSource}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              outlineSource: e.target.value as OutlineSource,
+            }))
+          }
+          className="w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+        >
+          <option value="auto">Auto - transparency first, then background</option>
+          <option value="transparency">Transparent PNG</option>
+          <option value="light">Light / white background removal</option>
+          <option value="dark">Dark artwork threshold</option>
+          <option value="edge">Photo / art edge outline</option>
+        </select>
+      </Field>
+
+      <Field label={`Cut offset (${settings.cutOffset}px)`}>
+        <input
+          type="range"
+          min={0}
+          max={96}
+          step={1}
+          value={settings.cutOffset}
+          onChange={(e) =>
+            setSettings((s) => ({ ...s, cutOffset: Number(e.target.value) }))
+          }
+          className="w-full accent-[#2563eb]"
+        />
+      </Field>
+
+      <Field label={`Background tolerance (${settings.backgroundTolerance})`}>
+        <Num
+          value={settings.backgroundTolerance}
+          min={0}
+          max={120}
+          step={1}
+          onChange={(v) =>
+            setSettings((s) => ({ ...s, backgroundTolerance: v }))
+          }
+        />
+      </Field>
+
+      <Field label={`Dark threshold (${settings.darkThreshold})`}>
+        <Num
+          value={settings.darkThreshold}
+          min={0}
+          max={255}
+          step={1}
+          onChange={(v) => setSettings((s) => ({ ...s, darkThreshold: v }))}
+        />
+      </Field>
+
+      <Field label={`Edge threshold (${settings.edgeThreshold})`}>
+        <Num
+          value={settings.edgeThreshold}
+          min={1}
+          max={255}
+          step={1}
+          onChange={(v) => setSettings((s) => ({ ...s, edgeThreshold: v }))}
+        />
+      </Field>
+
+      <Field label={`Speck cleanup (${settings.speckCleanup})`}>
+        <Num
+          value={settings.speckCleanup}
+          min={0}
+          max={40}
+          step={1}
+          onChange={(v) => setSettings((s) => ({ ...s, speckCleanup: v }))}
+        />
+      </Field>
+
+      <Field label={`Curve smoothness (${settings.curveSmoothness})`}>
+        <Num
+          value={settings.curveSmoothness}
+          min={0.05}
+          max={2.5}
+          step={0.05}
+          onChange={(v) => setSettings((s) => ({ ...s, curveSmoothness: v }))}
+        />
+      </Field>
+
+      <Field label="Cut line color">
+        <input
+          type="color"
+          value={settings.cutLineColor}
+          onChange={(e) =>
+            setSettings((s) => ({ ...s, cutLineColor: e.target.value }))
+          }
+          className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
+        />
+      </Field>
+
+      <Field label={`Cut line width (${settings.cutLineWidth})`}>
+        <Num
+          value={settings.cutLineWidth}
+          min={0.25}
+          max={12}
+          step={0.25}
+          onChange={(v) => setSettings((s) => ({ ...s, cutLineWidth: v }))}
+        />
+      </Field>
+
+      <Field label="Printable border">
+        <div className="flex items-center gap-2 min-w-0">
+          <input
+            type="checkbox"
+            checked={settings.includePrintableBorder}
+            onChange={(e) =>
+              setSettings((s) => ({
+                ...s,
+                includePrintableBorder: e.target.checked,
+              }))
+            }
+            className="h-4 w-4 accent-[#2563eb] cursor-pointer"
+          />
+          <span className="text-[13px] text-slate-700">
+            Add printable border behind artwork
+          </span>
+          <input
+            type="color"
+            value={settings.printableBorderColor}
+            onChange={(e) =>
+              setSettings((s) => ({
+                ...s,
+                printableBorderColor: e.target.value,
+              }))
+            }
+            aria-disabled={!settings.includePrintableBorder}
+            className={[
+              "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",
+              !settings.includePrintableBorder
+                ? "opacity-50 pointer-events-none"
+                : "",
+            ].join(" ")}
+          />
+        </div>
+      </Field>
+
+      <Field label="Preview page">
+        <label className="inline-flex items-center gap-2 text-[13px] text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.addWhitePage}
+            onChange={(e) =>
+              setSettings((s) => ({ ...s, addWhitePage: e.target.checked }))
+            }
+            className="h-4 w-4 accent-[#2563eb] cursor-pointer"
+          />
+          Add white page rectangle behind the preview
+        </label>
+      </Field>
+    </div>
   );
 }
 

@@ -1117,7 +1117,7 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                   >
                     <span className="inline-flex items-center justify-center">
                       <Icons name="settings" size={16} className="mr-1" />
-                      Advanced settings
+                      Settings
                     </span>
                     <svg
                       className={[

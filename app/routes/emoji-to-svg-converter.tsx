@@ -2272,10 +2272,11 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -2512,7 +2513,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                       aria-controls="advanced-settings"
                     >
                       <span className="inline-flex items-center gap-2">
-                        Advanced settings
+                        Settings
                       </span>
                       <svg
                         className={[
@@ -2538,7 +2539,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
                           <span>
-                            Advanced changes do not live preview automatically.
+                            Setting changes do not live preview automatically.
                             Click Update preview to apply these settings.
                           </span>
                           <button
@@ -2899,7 +2900,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                       aria-controls="advanced-settings"
                     >
                       <span className="inline-flex items-center gap-2">
-                        Advanced settings
+                        Settings
                       </span>
                       <svg
                         className={[
@@ -2925,7 +2926,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
                           <span>
-                            Advanced changes do not live preview automatically.
+                            Setting changes do not live preview automatically.
                             Click Update preview to apply these settings.
                           </span>
                           <button
@@ -3433,7 +3434,11 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
   const url = URL.createObjectURL(file);
   try {

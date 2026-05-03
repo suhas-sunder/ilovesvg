@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import Icons from "~/client/assets/icons/Icons";
 
 export default function DragArea({
@@ -7,8 +7,11 @@ export default function DragArea({
   MAX_UPLOAD_BYTES,
   MAX_MP,
   MAX_SIDE,
+  accept,
+  multiple,
 }: any) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const inputId = useId();
   const [isDragging, setIsDragging] = useState(false);
 
   return (
@@ -23,7 +26,24 @@ export default function DragArea({
         <div className="mt-3" />
       )}
 
-      <div
+      <input
+        ref={fileRef}
+        id={inputId}
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        onChange={(e) => {
+          const input = e.currentTarget;
+          onPick?.(e);
+          // allow selecting the same file again without touching a pooled/null target
+          input.value = "";
+        }}
+        className="sr-only"
+        tabIndex={-1}
+      />
+
+      <label
+        htmlFor={inputId}
         role="button"
         tabIndex={0}
         onDragEnter={(e) => {
@@ -44,9 +64,11 @@ export default function DragArea({
           setIsDragging(false);
           onDrop?.(e);
         }}
-        onClick={() => fileRef.current?.click()}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileRef.current?.click();
+          }
         }}
         className={`group flex cursor-pointer items-center justify-center rounded-2xl border p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 ${
           isDragging
@@ -79,20 +101,8 @@ export default function DragArea({
             uploads may be compressed on-device when possible; files are not
             stored after conversion.
           </span>
-
-          <input
-            ref={fileRef}
-            id="file-inp"
-            type="file"
-            onChange={(e) => {
-              onPick?.(e);
-              // allow selecting the same file again
-              e.currentTarget.value = "";
-            }}
-            className="hidden"
-          />
         </div>
-      </div>
+      </label>
     </>
   );
 }

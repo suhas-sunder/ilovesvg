@@ -53,16 +53,13 @@ type Props<TSettings extends MixedTraceSettings> = {
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   onOutputSizeChange?: (size: { width: number; height: number }) => void;
-  outputTargets?: OutputTargetOption[];
-  activeOutputId?: string | null;
-  onActiveOutputChange?: (id: string) => void;
   helpHref?: string;
   buttonDisabled?: boolean;
   liveSectionTitle?: string;
   liveSectionDescription?: string;
+  livePreviewLead?: React.ReactNode;
   convertSectionTitle?: string;
   convertSectionDescription?: string;
-  hideLivePreviewHeader?: boolean;
   hideOutputLayerStyling?: boolean;
   updatePreviewLabel?: string;
   onUpdatePreview: () => void;
@@ -108,16 +105,13 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   onOutputSizeChange?: (size: { width: number; height: number }) => void;
-  outputTargets?: OutputTargetOption[];
-  activeOutputId?: string | null;
-  onActiveOutputChange?: (id: string) => void;
   helpHref?: string;
   buttonDisabled?: boolean;
   liveSectionTitle?: string;
   liveSectionDescription?: string;
+  livePreviewLead?: React.ReactNode;
   convertSectionTitle?: string;
   convertSectionDescription?: string;
-  hideLivePreviewHeader?: boolean;
   hideOutputLayerStyling?: boolean;
   updatePreviewLabel?: string;
   onUpdatePreview: () => void;
@@ -172,12 +166,6 @@ type OutputSizeInfo = {
   originalHeight?: number;
 };
 
-export type OutputTargetOption = {
-  id: string;
-  label: string;
-  description?: string;
-};
-
 export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>({
   id = "advanced-settings",
   open,
@@ -193,16 +181,13 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
-  outputTargets,
-  activeOutputId,
-  onActiveOutputChange,
   helpHref,
   buttonDisabled = false,
-  liveSectionTitle = "Advanced settings (Live Preview)",
+  liveSectionTitle = "Live preview edits",
   liveSectionDescription = "These settings edit the current output preview directly when output data is available.",
-  convertSectionTitle = "Advanced settings (Click to convert)",
+  livePreviewLead,
+  convertSectionTitle = "Click to convert",
   convertSectionDescription = "These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them.",
-  hideLivePreviewHeader = false,
   hideOutputLayerStyling = false,
   updatePreviewLabel = "Update preview",
   onUpdatePreview,
@@ -297,16 +282,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         description={liveSectionDescription}
         tone="live"
       >
-        {!hideLivePreviewHeader &&
-          (capabilities.supportsLayerEditing ||
-          (capabilities.supportsOutputGeometry &&
-            !capabilities.supportsCutFriendlyOutput)) && (
-          <LivePreviewSettingsHeader
-            outputTargets={outputTargets}
-            activeOutputId={activeOutputId}
-            onActiveOutputChange={onActiveOutputChange}
-          />
-        )}
+        {livePreviewLead}
 
         {capabilities.supportsLayerEditing && (
           <>
@@ -937,16 +913,13 @@ export function LayeredAdvancedSettingsPanel<
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
-  outputTargets,
-  activeOutputId,
-  onActiveOutputChange,
   helpHref,
   buttonDisabled = false,
-  liveSectionTitle = "Advanced settings (Live Preview)",
+  liveSectionTitle = "Live preview edits",
   liveSectionDescription = "These settings edit the current layered SVG preview directly when output data is available.",
-  convertSectionTitle = "Advanced settings (Click to convert)",
+  livePreviewLead,
+  convertSectionTitle = "Click to convert",
   convertSectionDescription = "These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them.",
-  hideLivePreviewHeader = false,
   hideOutputLayerStyling = false,
   updatePreviewLabel = "Update preview",
   onUpdatePreview,
@@ -1037,15 +1010,7 @@ export function LayeredAdvancedSettingsPanel<
         description={liveSectionDescription}
         tone="live"
       >
-        {!hideLivePreviewHeader &&
-          (capabilities.supportsLayerEditing ||
-          capabilities.supportsOutputGeometry) && (
-          <LivePreviewSettingsHeader
-            outputTargets={outputTargets}
-            activeOutputId={activeOutputId}
-            onActiveOutputChange={onActiveOutputChange}
-          />
-        )}
+        {livePreviewLead}
 
         {capabilities.supportsLayerEditing && (
           <>
@@ -1516,7 +1481,7 @@ export function SvgRasterExportSettingsPanel<
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
-        title="Advanced settings (Live Preview)"
+        title="Live preview edits"
         description="These settings update the browser-rendered raster preview before download."
         tone="live"
       >
@@ -1609,7 +1574,7 @@ export function SvgRasterExportSettingsPanel<
       </AdvancedTopLevelSection>
 
       <AdvancedTopLevelSection
-        title="Advanced settings (Click to convert)"
+        title="Click to convert"
         description="SVG-to-raster export does not retrace the image. Click Convert to finalize the current preview settings into a downloadable file."
         tone="convert"
       >
@@ -1642,7 +1607,7 @@ export function AdvancedSettingsToggle({
     >
       <span className="inline-flex items-center gap-2">
         <Icons name="settings" size={16} />
-        Advanced settings
+        Settings
       </span>
       <ChevronDownIcon open={open} />
     </button>
@@ -1820,50 +1785,6 @@ function OutputColorRemovalSection({
         </div>
       )}
     </SettingSection>
-  );
-}
-
-function LivePreviewSettingsHeader({
-  outputTargets,
-  activeOutputId,
-  onActiveOutputChange,
-}: {
-  outputTargets?: OutputTargetOption[];
-  activeOutputId?: string | null;
-  onActiveOutputChange?: (id: string) => void;
-}) {
-  const hasTargets = Boolean(outputTargets?.length && onActiveOutputChange);
-
-  return (
-    <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-[12px] text-slate-600">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[13px] font-bold text-sky-950">
-            Advanced settings (Live Preview)
-          </div>
-          <p className="m-0 leading-5">
-            These controls edit the selected SVG output directly. Preview, copy,
-            and download use the edited result immediately.
-          </p>
-        </div>
-        {hasTargets ? (
-          <label className="flex shrink-0 items-center gap-2 text-[12px] font-semibold text-slate-700">
-            Editing
-            <select
-              value={activeOutputId || outputTargets?.[0]?.id || ""}
-              onChange={(event) => onActiveOutputChange?.(event.target.value)}
-              className="max-w-[220px] cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-medium text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-            >
-              {(outputTargets || []).map((target) => (
-                <option key={target.id} value={target.id}>
-                  {target.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-      </div>
-    </div>
   );
 }
 

@@ -1281,16 +1281,13 @@ export default function PngToLayeredSvgForCricut({
   >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [openSettingsStamp, setOpenSettingsStamp] = React.useState<
+    number | null
+  >(null);
   const activeHistoryItem =
     history.find((item) => item.stamp === activeHistoryStamp) ||
     history[0] ||
     null;
-  const outputTargets = history.map((item, index) => ({
-    id: String(item.stamp),
-    label: item.name,
-    description: item.presetLabel,
-  }));
 
   function selectHistoryOutput(id: string | number) {
     const stamp = Number(id);
@@ -1326,10 +1323,12 @@ export default function PngToLayeredSvgForCricut({
     settings: Settings;
     presetId: string;
     parentStamp: number | null;
+    replaceStamp: number | null;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
     parentStamp: null,
+    replaceStamp: null,
   });
 
   const busy = fetcher.state !== "idle";
@@ -1417,8 +1416,27 @@ export default function PngToLayeredSvgForCricut({
       })),
     };
 
-    setHistory((prev) => [item, ...prev].slice(0, 10));
-    setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
+    if (submitted.replaceStamp) {
+      setHistory((prev) => {
+        let replaced = false;
+        const next = prev.map((candidate) => {
+          if (candidate.stamp !== submitted.replaceStamp) return candidate;
+          replaced = true;
+          return {
+            ...item,
+            stamp: candidate.stamp,
+            name: candidate.name,
+            parentStamp: candidate.parentStamp,
+          };
+        });
+        return replaced ? next : [item, ...prev].slice(0, 10);
+      });
+      setActiveHistoryStamp(submitted.replaceStamp);
+      setOpenSettingsStamp(submitted.replaceStamp);
+    } else {
+      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
+    }
     setInfo(null);
   }, [
     fetcher.data?.svg,
@@ -1541,10 +1559,11 @@ export default function PngToLayeredSvgForCricut({
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -1583,6 +1602,7 @@ export default function PngToLayeredSvgForCricut({
     setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]);
     setActiveHistoryStamp(null);
+    setOpenSettingsStamp(null);
     outputCounterRef.current = 0;
     setErr(null);
     setInfo(null);
@@ -1624,7 +1644,11 @@ export default function PngToLayeredSvgForCricut({
   async function submitConvert(
     fileOverride?: File | null,
     settingsOverride?: Settings,
-    meta?: { presetId?: string; parentStamp?: number | null },
+    meta?: {
+      presetId?: string;
+      parentStamp?: number | null;
+      replaceStamp?: number | null;
+    },
   ) {
     const sourceFile = fileOverride ?? file;
     const sourceSettings = settingsOverride ?? settings;
@@ -1664,6 +1688,7 @@ export default function PngToLayeredSvgForCricut({
       settings: sourceSettings,
       presetId: meta?.presetId ?? activePreset,
       parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
+      replaceStamp: meta?.replaceStamp ?? null,
     };
 
     fetcher.submit(fd, {
@@ -1830,61 +1855,6 @@ export default function PngToLayeredSvgForCricut({
                 applyPreset={applyPreset}
               />
 
-              <div className="mt-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                  aria-expanded={showAdvanced}
-                  aria-controls="advanced-settings"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    Advanced PNG layer settings
-                  </span>
-                  <ChevronDownIcon open={showAdvanced} />
-                </button>
-
-                {showAdvanced && (
-                  <LayeredAdvancedSettingsPanel
-                    id="advanced-settings"
-                    open={showAdvanced}
-                    settings={settings}
-                    setSettings={setSettings}
-                    capabilities={routeCapabilities}
-                    detectedColorItems={history}
-                    sourceFile={file}
-                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    outputLayerItems={activeHistoryItem?.layers}
-                    outputSize={
-                      activeHistoryItem
-                        ? {
-                            width: activeHistoryItem.width,
-                            height: activeHistoryItem.height,
-                            originalWidth:
-                              activeHistoryItem.originalWidth ||
-                              activeHistoryItem.width,
-                            originalHeight:
-                              activeHistoryItem.originalHeight ||
-                              activeHistoryItem.height,
-                          }
-                        : null
-                    }
-                    onOutputLayerChange={updateLatestOutputLayer}
-                    onResetOutputLayer={resetLatestOutputLayer}
-                    onResetAllOutputLayers={resetAllLatestOutputLayers}
-                    onOutputSizeChange={updateLatestOutputSize}
-                    outputTargets={outputTargets}
-                    activeOutputId={
-                      activeHistoryItem ? String(activeHistoryItem.stamp) : null
-                    }
-                    onActiveOutputChange={selectHistoryOutput}
-                    helpHref="#advanced-settings-help"
-                    buttonDisabled={buttonDisabled}
-                    onUpdatePreview={() => void submitConvert(file, settings)}
-                  />
-                )}
-              </div>
-
               {!file ? (
                 <DragArea
                   onPick={onPick}
@@ -1929,6 +1899,7 @@ export default function PngToLayeredSvgForCricut({
                         setOriginalFileSize(null);
                         setHistory([]);
                         setActiveHistoryStamp(null);
+                        setOpenSettingsStamp(null);
                         outputCounterRef.current = 0;
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
@@ -2046,7 +2017,7 @@ export default function PngToLayeredSvgForCricut({
                           </span>
                         </div>
                         <p className="m-0 mt-1 text-[12px] text-slate-500">
-                          Double-click an output to edit it in Advanced settings.
+                          Open Settings on an output to edit that preview.
                         </p>
 
                         <div className="flex gap-2 flex-wrap my-2">
@@ -2087,36 +2058,138 @@ export default function PngToLayeredSvgForCricut({
                             />
                             Copy SVG
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              selectHistoryOutput(item.stamp);
+                              setOpenSettingsStamp((current) =>
+                                current === item.stamp ? null : item.stamp,
+                              );
+                            }}
+                            aria-expanded={openSettingsStamp === item.stamp}
+                            aria-controls={`output-settings-${item.stamp}`}
+                            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            <Icons
+                              name="settings"
+                              size={16}
+                              className="mr-1 inline-block"
+                            />
+                            Settings
+                          </button>
                         </div>
 
-                        <LayerControls
-                          layers={item.layers}
-                          onChange={(nextLayers) =>
-                            updateHistoryItemLayers(
-                              item.stamp,
-                              () => nextLayers,
-                            )
-                          }
-                          onLayerChange={(layerId, patch) =>
-                            updateHistoryItemLayers(item.stamp, (layers) =>
-                              layers.map((layer) =>
-                                layer.id === layerId
-                                  ? { ...layer, ...patch }
-                                  : layer,
-                              ),
-                            )
-                          }
-                          onReset={() =>
-                            updateHistoryItemLayers(item.stamp, (layers) =>
-                              layers.map((layer) => ({
-                                ...layer,
-                                color: layer.originalColor,
-                                visible: true,
-                                opacity: layer.originalOpacity ?? 1,
-                              })),
-                            )
-                          }
-                        />
+                        {openSettingsStamp === item.stamp && (
+                          <div
+                            id={`output-settings-${item.stamp}`}
+                            className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
+                          >
+                            <LayeredAdvancedSettingsPanel
+                              id={`output-settings-panel-${item.stamp}`}
+                              open={true}
+                              settings={itemSettings}
+                              setSettings={setSettings}
+                              capabilities={routeCapabilities}
+                              detectedColorItems={[item]}
+                              sourceFile={file}
+                              removeColorsEnabled={
+                                !(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))
+                              }
+                              outputLayerItems={item.layers}
+                              outputSize={{
+                                width: item.width,
+                                height: item.height,
+                                originalWidth: item.originalWidth || item.width,
+                                originalHeight: item.originalHeight || item.height,
+                              }}
+                              onOutputLayerChange={(layerId, patch) =>
+                                updateHistoryItemLayers(item.stamp, (layers) =>
+                                  layers.map((layer) =>
+                                    layer.id === layerId
+                                      ? { ...layer, ...patch }
+                                      : layer,
+                                  ),
+                                )
+                              }
+                              onResetOutputLayer={(layerId) =>
+                                updateHistoryItemLayers(item.stamp, (layers) =>
+                                  layers.map((layer) =>
+                                    layer.id === layerId
+                                      ? {
+                                          ...layer,
+                                          color: layer.originalColor,
+                                          visible: true,
+                                          opacity: layer.originalOpacity ?? 1,
+                                        }
+                                      : layer,
+                                  ),
+                                )
+                              }
+                              onResetAllOutputLayers={() =>
+                                updateHistoryItemLayers(item.stamp, (layers) =>
+                                  layers.map((layer) => ({
+                                    ...layer,
+                                    color: layer.originalColor,
+                                    visible: true,
+                                    opacity: layer.originalOpacity ?? 1,
+                                  })),
+                                )
+                              }
+                              onOutputSizeChange={(size) => {
+                                selectHistoryOutput(item.stamp);
+                                updateLatestOutputSize(size);
+                              }}
+                              helpHref="#advanced-settings-help"
+                              buttonDisabled={buttonDisabled}
+                              liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                              livePreviewLead={
+                                <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                  <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                    Layer colors
+                                  </p>
+                                  <LayerControls
+                                    layers={item.layers}
+                                    onChange={(nextLayers) =>
+                                      updateHistoryItemLayers(
+                                        item.stamp,
+                                        () => nextLayers,
+                                      )
+                                    }
+                                    onLayerChange={(layerId, patch) =>
+                                      updateHistoryItemLayers(item.stamp, (layers) =>
+                                        layers.map((layer) =>
+                                          layer.id === layerId
+                                            ? { ...layer, ...patch }
+                                            : layer,
+                                        ),
+                                      )
+                                    }
+                                    onReset={() =>
+                                      updateHistoryItemLayers(item.stamp, (layers) =>
+                                        layers.map((layer) => ({
+                                          ...layer,
+                                          color: layer.originalColor,
+                                          visible: true,
+                                          opacity: layer.originalOpacity ?? 1,
+                                        })),
+                                      )
+                                    }
+                                  />
+                                </div>
+                              }
+                              convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                              hideOutputLayerStyling={true}
+                              onUpdatePreview={() =>
+                                void submitConvert(file, itemSettings, {
+                                  presetId: item.presetId,
+                                  parentStamp: item.parentStamp,
+                                  replaceStamp: item.stamp,
+                                })
+                              }
+                            />
+                          </div>
+                        )}
 
                         <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                           <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
@@ -2198,7 +2271,11 @@ export default function PngToLayeredSvgForCricut({
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
 
   const url = URL.createObjectURL(file);

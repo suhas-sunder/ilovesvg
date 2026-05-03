@@ -28,6 +28,14 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import {
+  getTraceOutputSvg,
+  replaceTraceOutputCurrent,
+  stepTraceOutputVersion,
+  TraceOutputPanel,
+  type TraceOutputItem,
+  type TraceOutputLayerPatch,
+} from "~/client/components/converter/TraceOutputPanel";
 import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
@@ -1066,6 +1074,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
+    number | null
+  >(null);
+  const pendingReplaceStampRef = React.useRef<number | null>(null);
+  const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
@@ -1095,16 +1109,63 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
-      const item: HistoryItem = {
+      const resultKey = `${fetcher.data.svg}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
+      if (lastHandledResultKeyRef.current === resultKey) return;
+      lastHandledResultKeyRef.current = resultKey;
+
+      const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
+      const replaceStamp = pendingReplaceStampRef.current;
+      const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
+      
+        settingsSnapshot,
+        draftSettings: settingsSnapshot,
       };
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setHistory((prev) => {
+        if (replaceStamp) {
+          return prev.map((existing) =>
+            existing.stamp === replaceStamp
+              ? (replaceTraceOutputCurrent(
+                  existing as HistoryItem & TraceOutputItem<Settings>,
+                  item,
+                ) as HistoryItem)
+              : existing,
+          );
+        }
+
+        return [item, ...prev].slice(0, 10);
+      });
+
+      pendingReplaceStampRef.current = null;
+      pendingOutputSettingsRef.current = null;
+      setUpdatingOutputStamp(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+
+  React.useEffect(() => {
+    if (!fetcher.data?.error || !pendingReplaceStampRef.current) return;
+
+    const replaceStamp = pendingReplaceStampRef.current;
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === replaceStamp
+          ? {
+              ...item,
+              updateError:
+                fetcher.data?.error ||
+                "Could not update this output. The current preview was preserved.",
+            }
+          : item,
+      ),
+    );
+    pendingReplaceStampRef.current = null;
+    pendingOutputSettingsRef.current = null;
+    setUpdatingOutputStamp(null);
+  }, [fetcher.data?.error]);
 
   React.useEffect(() => {
     return () => {
@@ -1123,10 +1184,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
   async function onDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -1316,13 +1378,78 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   function getHistoryItemSvg(item: HistoryItem): string {
-    return getEditedSvg(item.svg, item.layers);
+    return getTraceOutputSvg(item as HistoryItem & TraceOutputItem<Settings>);
+  }
+
+  function toggleOutputSettings(stamp: number) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              settingsOpen: !(item as HistoryItem & TraceOutputItem<Settings>)
+                .settingsOpen,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function updateOutputDraftSettings(
+    stamp: number,
+    updater: React.SetStateAction<Settings>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) => {
+        if (item.stamp !== stamp) return item;
+
+        const outputItem = item as HistoryItem & TraceOutputItem<Settings>;
+        const current =
+          outputItem.draftSettings ?? outputItem.settingsSnapshot ?? settings;
+        const next =
+          typeof updater === "function"
+            ? (updater as (value: Settings) => Settings)(current)
+            : updater;
+
+        return {
+          ...item,
+          draftSettings: next,
+        };
+      }),
+    );
+  }
+
+  function submitOutputUpdate(stamp: number) {
+    const item = history.find((candidate) => candidate.stamp === stamp) as
+      | (HistoryItem & TraceOutputItem<Settings>)
+      | undefined;
+    if (!item) return;
+
+    const nextSettings =
+      item.draftSettings ?? item.settingsSnapshot ?? settings;
+    pendingReplaceStampRef.current = stamp;
+    pendingOutputSettingsRef.current = nextSettings;
+    setUpdatingOutputStamp(stamp);
+    void submitConvert(file, nextSettings);
+  }
+
+  function stepOutputVersion(stamp: number, direction: "previous" | "next") {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? (stepTraceOutputVersion(
+              item as HistoryItem & TraceOutputItem<Settings>,
+              direction,
+            ) as HistoryItem)
+          : item,
+      ),
+    );
   }
 
   function setHistoryLayer(
     stamp: number,
     layerId: string,
-    patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
+    patch: TraceOutputLayerPatch,
   ) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -1372,6 +1499,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     );
   }
 
+
+  function setHistorySize(
+    stamp: number,
+    size: { width: number; height: number },
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              width: size.width,
+              height: size.height,
+            }
+          : item,
+      ),
+    );
+  }
 
   return (
     <>
@@ -1496,62 +1640,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
             </div>
 
-            <div className="order-3 min-w-0 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((v) => !v)}
-                className="w-full inline-flex items-center justify-between rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-sky-950 cursor-pointer transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
-                aria-expanded={showAdvanced}
-                aria-controls="advanced-settings"
-              >
-                <span className="inline-flex min-w-0 items-center gap-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-white shadow-sm">
-                    <Icons name="settings" size={18} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[15px] font-bold leading-5">
-                      Advanced settings
-                    </span>
-                    <span className="block truncate text-[12px] font-medium leading-4 text-sky-700">
-                      Trace detail, cleanup, layers, and export
-                    </span>
-                  </span>
-                </span>
-
-                <svg
-                  className={[
-                    "h-4 w-4 shrink-0 text-sky-700 transition-transform",
-                    showAdvanced ? "rotate-180" : "rotate-0",
-                  ].join(" ")}
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-                {showAdvanced && (
-                  <TraceAdvancedSettingsPanel
-                    id="advanced-settings"
-                    open={showAdvanced}
-                    settings={settings}
-                    setSettings={setSettings}
-                    capabilities={routeCapabilities}
-                    detectedColorItems={history}
-                    sourceFile={file}
-                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    buttonDisabled={buttonDisabled}
-                    onUpdatePreview={() => void submitConvert()}
-                  />
-                )}
-            </div>
-
-            {previewUrl && !showAdvanced && (
+            {previewUrl && (
               <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
                 <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
                   Original image
@@ -1563,92 +1652,30 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 />
               </div>
             )}
-
-            {/* RESULTS */}
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
-              {busy && (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-              )}
-              {history.length > 0 ? (
-                <div className="grid gap-3">
-                  {history.map((item, index) => (
-                    <div
-                      key={item.stamp}
-                      className="rounded-xl border border-slate-200 bg-white p-2"
-                    >
-                      <div className="flex gap-3 items-center flex-wrap justify-between">
-                        <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0
-                            ? `${item.width} × ${item.height} px`
-                            : "size unknown"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 flex-wrap my-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const b = new Blob([getHistoryItemSvg(item)], {
-                              type: "image/svg+xml;charset=utf-8",
-                            });
-                            const u = URL.createObjectURL(b);
-                            const a = document.createElement("a");
-                            a.href = u;
-                            a.download = "silhouette-cut-file.svg";
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                            URL.revokeObjectURL(u);
-                          }}
-                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
-                        >
-                          <Icons
-                            name="download"
-                            size={16}
-                            className="inline-block mr-1"
-                          />
-                          Download SVG
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopySvg(getHistoryItemSvg(item))}
-                          className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
-                        >
-                          <Icons
-                            name="copy"
-                            size={16}
-                            className="inline-block mr-1"
-                          />
-                          Copy SVG
-                        </button>
-                      </div>
-
-                      <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <EditedSvgPreviewImage
-                          svg={item.svg}
-                          layers={item.layers}
-                          alt="SVG result"
-                          className="max-w-full h-auto"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="converter-empty-output-state">
-                  {!busy && (
-                    <Icons
-                      name="success"
-                      size={20}
-                      className="inline-block mr-1"
-                    />
-                  )}
-                  {busy
-                    ? "Converting…"
-                    : "Converted Silhouette SVG files appear here...  "}
-                </p>
-              )}
-            </div>
+            <TraceOutputPanel
+              history={history}
+              busy={busy}
+              buttonDisabled={buttonDisabled}
+              updatingStamp={updatingOutputStamp}
+              file={file}
+              fallbackSettings={settings}
+              routeCapabilities={routeCapabilities}
+              downloadLabel="Download SVG"
+              downloadFileName="png-to-svg-for-silhouette.svg"
+              emptyTitle="Converted files appear here..."
+              emptyDescription="Convert your input to preview, copy, or download the result."
+              fullscreenPreviewIndex={fullscreenPreviewIndex}
+              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              onCopySvg={handleCopySvg}
+              onToggleSettings={toggleOutputSettings}
+              onDraftSettingsChange={updateOutputDraftSettings}
+              onUpdatePreview={submitOutputUpdate}
+              onStepVersion={stepOutputVersion}
+              onOutputLayerChange={setHistoryLayer}
+              onResetOutputLayer={resetHistoryLayer}
+              onResetAllOutputLayers={resetAllHistoryLayers}
+              onOutputSizeChange={setHistorySize}
+            />
           </section>
         </div>
 
@@ -1698,7 +1725,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
   const url = URL.createObjectURL(file);
   try {

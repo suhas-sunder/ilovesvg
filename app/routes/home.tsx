@@ -16,6 +16,7 @@ import Icons from "~/client/assets/icons/Icons";
 import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
+  PreviewHistoryArrowButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
 import {
   LayerPaletteEditor,
@@ -2735,10 +2736,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
   async function onDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -3731,24 +3733,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => stepOutputVersion(item.stamp, "back")}
-                          disabled={!item.previousVersion}
-                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Back
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            stepOutputVersion(item.stamp, "forward")
-                          }
-                          disabled={!item.nextVersion}
-                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Forward
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => toggleOutputSettings(item.stamp)}
                           aria-expanded={!!item.settingsOpen}
                           aria-controls={`output-settings-${item.stamp}`}
@@ -3770,38 +3754,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           id={`output-settings-${item.stamp}`}
                           className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
                         >
-                          {item.layers?.length ? (
-                            <div className="mb-2 rounded-xl border border-slate-200 bg-white p-2">
-                              <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                Layer colors
-                              </p>
-                              <LayerPaletteEditor
-                                item={item}
-                                onColorChange={(layerId, color) =>
-                                  setHistoryLayer(item.stamp, layerId, {
-                                    color,
-                                  })
-                                }
-                                onVisibilityChange={(layerId, visible) =>
-                                  setHistoryLayer(item.stamp, layerId, {
-                                    visible,
-                                  })
-                                }
-                                onOpacityChange={(layerId, opacity) =>
-                                  setHistoryLayer(item.stamp, layerId, {
-                                    opacity,
-                                  })
-                                }
-                                onResetLayer={(layerId) =>
-                                  resetHistoryLayer(item.stamp, layerId)
-                                }
-                                onResetAll={() =>
-                                  resetAllHistoryLayers(item.stamp)
-                                }
-                              />
-                            </div>
-                          ) : null}
-
                           <TraceAdvancedSettingsPanel
                             id={`output-settings-panel-${item.stamp}`}
                             open={true}
@@ -3842,9 +3794,41 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             buttonDisabled={buttonDisabled || isUpdating}
                             liveSectionTitle="Live preview edits"
                             liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                            livePreviewLead={
+                              item.layers?.length ? (
+                                <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                  <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                    Layer colors
+                                  </p>
+                                  <LayerPaletteEditor
+                                    item={item}
+                                    onColorChange={(layerId, color) =>
+                                      setHistoryLayer(item.stamp, layerId, {
+                                        color,
+                                      })
+                                    }
+                                    onVisibilityChange={(layerId, visible) =>
+                                      setHistoryLayer(item.stamp, layerId, {
+                                        visible,
+                                      })
+                                    }
+                                    onOpacityChange={(layerId, opacity) =>
+                                      setHistoryLayer(item.stamp, layerId, {
+                                        opacity,
+                                      })
+                                    }
+                                    onResetLayer={(layerId) =>
+                                      resetHistoryLayer(item.stamp, layerId)
+                                    }
+                                    onResetAll={() =>
+                                      resetAllHistoryLayers(item.stamp)
+                                    }
+                                  />
+                                </div>
+                              ) : null
+                            }
                             convertSectionTitle="Click to convert"
                             convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
-                            hideLivePreviewHeader={true}
                             hideOutputLayerStyling={true}
                             updatePreviewLabel={
                               isUpdating ? "Updating..." : "Update preview"
@@ -4004,7 +3988,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       )}
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
+                        <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+                          <PreviewHistoryArrowButton
+                            direction="left"
+                            disabled={!item.previousVersion}
+                            onClick={() => stepOutputVersion(item.stamp, "back")}
+                          />
+                          <PreviewHistoryArrowButton
+                            direction="right"
+                            disabled={!item.nextVersion}
+                            onClick={() =>
+                              stepOutputVersion(item.stamp, "forward")
+                            }
+                          />
+                          <FullscreenPreviewButton
+                            onOpen={() => setFullscreenPreviewIndex(index)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur cursor-pointer transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          />
+                        </div>
                         <img
                           src={previewData.src}
                           alt="SVG result"

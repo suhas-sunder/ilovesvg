@@ -167,10 +167,11 @@ export default function SvgMinify(_: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -428,7 +429,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
                   >
                     <span className="inline-flex items-center justify-center">
                       <Icons name="settings" size={16} className="mr-1" />
-                      Advanced settings
+                      Settings
                     </span>
                     <svg
                       className={[
@@ -1116,7 +1117,7 @@ function minifyTransformValue(input: string) {
 }
 
 function minifyPointsValue(input: string) {
-  // points="x,y x,y" -> "x y x y" (commas not needed), collapse spaces
+  // points="x,y x,y" -> "x y ?? y" (commas not needed), collapse spaces
   let s = input.trim();
   s = s.replace(/[\n\r\t]+/g, " ");
   s = s.replace(/,/g, " ");

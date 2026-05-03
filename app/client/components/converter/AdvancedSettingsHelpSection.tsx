@@ -124,7 +124,7 @@ export function AdvancedSettingsHelpSection() {
           <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
             <div className="max-w-[86ch]">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Advanced settings reference
+          Settings reference
               </p>
               <h2 className="font-display mt-2 text-xl font-[800] leading-tight tracking-[-0.025em] text-sky-950 md:text-2xl">
                 Tune SVG tracing without guessing

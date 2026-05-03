@@ -1662,10 +1662,11 @@ export default function BlackAndWhiteImageToSvgConverter({
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -2279,7 +2280,7 @@ export default function BlackAndWhiteImageToSvgConverter({
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-[#edf2fb] bg-[#fafcff] px-3 py-2">
                       <span className="text-[12px] text-slate-600">
-                        Advanced changes do not live preview automatically.
+                        Setting changes do not live preview automatically.
                         Click Update preview to apply these settings.
                       </span>
                       <button
@@ -2539,7 +2540,11 @@ export default function BlackAndWhiteImageToSvgConverter({
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
   const url = URL.createObjectURL(file);
   try {

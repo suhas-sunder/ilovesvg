@@ -2107,7 +2107,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
                   aria-controls="advanced-settings"
                 >
                   <span className="inline-flex items-center gap-2">
-                    Advanced settings
+                    Settings
                   </span>
                   <ChevronDownIcon open={showAdvanced} />
                 </button>
@@ -2119,7 +2119,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-5 text-slate-700">
                       <span>
-                        Advanced changes do not live preview automatically.
+                        Setting changes do not live preview automatically.
                         Click Update preview to apply these settings.
                       </span>
                       <button

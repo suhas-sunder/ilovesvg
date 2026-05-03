@@ -41,21 +41,35 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   presets,
   activePreset,
   applyPreset,
+  defaultPresetId,
 }: {
   presets: readonly TPreset[];
   activePreset: string | null;
   applyPreset: (preset: TPreset) => void;
+  defaultPresetId?: string | null;
 }) {
   const [expanded, setExpanded] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [speedFilter, setSpeedFilter] = React.useState<
     PresetBackendIntensity | "all"
   >("all");
+  const initialActivePresetIdRef = React.useRef<string | null>(activePreset);
   const searchInputId = React.useId();
   const visibleLimit = 2;
-  const dedupedPresets = React.useMemo(
-    () => sortPresetDisplayOrder(dedupePresets(presets)),
+  const basePresets = React.useMemo(
+    () => dedupePresets(presets),
     [presets],
+  );
+  const orderAnchorPresetId = React.useMemo(
+    () =>
+      defaultPresetId ||
+      findLabeledDefaultPresetId(basePresets) ||
+      initialActivePresetIdRef.current,
+    [basePresets, defaultPresetId],
+  );
+  const dedupedPresets = React.useMemo(
+    () => prioritizeDefaultPreset(basePresets, orderAnchorPresetId),
+    [basePresets, orderAnchorPresetId],
   );
   const presetSignature = React.useMemo(
     () => dedupedPresets.map((preset) => preset.id).join("|"),
@@ -391,25 +405,27 @@ function dedupePresets<TPreset extends ConverterPresetOption>(
   return result;
 }
 
-function sortPresetDisplayOrder<TPreset extends ConverterPresetOption>(
-  presets: TPreset[],
+function prioritizeDefaultPreset<TPreset extends ConverterPresetOption>(
+  presets: readonly TPreset[],
+  defaultPresetId: string | null,
 ) {
-  return [...presets].sort(
-    (left, right) => presetDisplayRank(left) - presetDisplayRank(right),
-  );
+  if (!defaultPresetId) return [...presets];
+
+  const index = presets.findIndex((preset) => preset.id === defaultPresetId);
+  if (index <= 0) return [...presets];
+
+  const result = [...presets];
+  const [defaultPreset] = result.splice(index, 1);
+  result.unshift(defaultPreset);
+  return result;
 }
 
-function presetDisplayRank(preset: ConverterPresetOption) {
-  if (preset.category === "layered") return 50;
-  if (preset.category === "lineart") return 0;
-
-  const settings = preset.settings as Record<string, unknown> | undefined;
-  if (settings?.traceMode === "layered") return 50;
-  if (preset.id.startsWith("line-")) return 0;
-  if (preset.id.startsWith("photo-") || preset.id.includes("edge")) return 10;
-  if (preset.id.startsWith("scan-")) return 20;
-  if (preset.id.startsWith("logo-")) return 30;
-  return 40;
+function findLabeledDefaultPresetId(
+  presets: readonly ConverterPresetOption[],
+): string | null {
+  return (
+    presets.find((preset) => /\bdefault\b/i.test(preset.label))?.id || null
+  );
 }
 
 function groupPresetsByCategory<TPreset extends ConverterPresetOption>(

@@ -179,10 +179,11 @@ export default function SvgCleaner(_: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -571,7 +572,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
                 >
                   <span className="inline-flex items-center justify-center">
                     <Icons name="settings" size={16} className="mr-1" />
-                    Advanced settings
+                    Settings
                   </span>
 
                   <svg

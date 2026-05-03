@@ -1440,6 +1440,10 @@ export default function ImageToLayeredSvgForCricut({
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [openSettingsStamp, setOpenSettingsStamp] = React.useState<
+    number | null
+  >(null);
+  const pendingReplaceStampRef = React.useRef<number | null>(null);
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
@@ -1473,7 +1477,22 @@ export default function ImageToLayeredSvgForCricut({
       })),
     };
 
-    setHistory((prev) => [item, ...prev].slice(0, 10));
+    const replaceStamp = pendingReplaceStampRef.current;
+    pendingReplaceStampRef.current = null;
+
+    setHistory((prev) => {
+      if (replaceStamp) {
+        let replaced = false;
+        const next = prev.map((historyItem) => {
+          if (historyItem.stamp !== replaceStamp) return historyItem;
+          replaced = true;
+          return { ...historyItem, ...item, stamp: historyItem.stamp };
+        });
+        return replaced ? next : [item, ...prev].slice(0, 10);
+      }
+
+      return [item, ...prev].slice(0, 10);
+    });
     setInfo(null);
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
 
@@ -1516,10 +1535,11 @@ export default function ImageToLayeredSvgForCricut({
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -1551,6 +1571,7 @@ export default function ImageToLayeredSvgForCricut({
     setSettings(DEFAULTS);
     setActivePreset("layered-color");
     setHistory([]);
+    setOpenSettingsStamp(null);
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1591,6 +1612,7 @@ export default function ImageToLayeredSvgForCricut({
   async function submitConvert(
     fileOverride?: File | null,
     settingsOverride?: Settings,
+    replaceStamp?: number | null,
   ) {
     const sourceFile = fileOverride ?? file;
     const sourceSettings = settingsOverride ?? settings;
@@ -1633,6 +1655,7 @@ export default function ImageToLayeredSvgForCricut({
     appendAdvancedTraceSettings(fd, sourceSettings);
 
     setErr(null);
+    pendingReplaceStampRef.current = replaceStamp ?? null;
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1723,37 +1746,6 @@ export default function ImageToLayeredSvgForCricut({
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />
-
-              {/* Settings */}
-              <div className="mt-3 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                  className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
-                  aria-expanded={showAdvanced}
-                  aria-controls="advanced-settings"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    Advanced layered SVG settings
-                  </span>
-                  <ChevronDownIcon open={showAdvanced} />
-                </button>
-
-                {showAdvanced && (
-                  <LayeredAdvancedSettingsPanel
-                    id="advanced-settings"
-                    open={showAdvanced}
-                    settings={settings}
-                    setSettings={setSettings}
-                    capabilities={routeCapabilities}
-                    detectedColorItems={history}
-                    sourceFile={file}
-                    removeColorsEnabled={!(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))}
-                    buttonDisabled={buttonDisabled}
-                    onUpdatePreview={() => void submitConvert(file, settings)}
-                  />
-                )}
-              </div>
 
               {/* Dropzone */}
               {!file ? (
@@ -1933,9 +1925,88 @@ export default function ImageToLayeredSvgForCricut({
                             />
                             Copy SVG
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenSettingsStamp((current) =>
+                                current === item.stamp ? null : item.stamp,
+                              )
+                            }
+                            aria-expanded={openSettingsStamp === item.stamp}
+                            aria-controls={`output-settings-${item.stamp}`}
+                            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            <Icons
+                              name="settings"
+                              size={16}
+                              className="mr-1 inline-block"
+                            />
+                            Settings
+                          </button>
                         </div>
 
-                        <LayerControls
+                        {openSettingsStamp === item.stamp && (
+                          <div
+                            id={`output-settings-${item.stamp}`}
+                            className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
+                          >
+                            <LayeredAdvancedSettingsPanel
+                              id={`output-settings-panel-${item.stamp}`}
+                              open={true}
+                              settings={settings}
+                              setSettings={setSettings}
+                              capabilities={routeCapabilities}
+                              detectedColorItems={[item]}
+                              sourceFile={file}
+                              removeColorsEnabled={
+                                !(
+                                  file &&
+                                  (file.type === "image/svg+xml" ||
+                                    /\.svg$/i.test(file.name || ""))
+                                )
+                              }
+                              outputLayerItems={item.layers}
+                              onOutputLayerChange={(layerId, patch) =>
+                                updateHistoryItemLayers(item.stamp, (layers) =>
+                                  layers.map((layer) =>
+                                    layer.id === layerId
+                                      ? { ...layer, ...patch }
+                                      : layer,
+                                  ),
+                                )
+                              }
+                              onResetOutputLayer={(layerId) =>
+                                updateHistoryItemLayers(item.stamp, (layers) =>
+                                  layers.map((layer) =>
+                                    layer.id === layerId
+                                      ? {
+                                          ...layer,
+                                          color: layer.originalColor,
+                                          visible: true,
+                                        }
+                                      : layer,
+                                  ),
+                                )
+                              }
+                              onResetAllOutputLayers={() =>
+                                updateHistoryItemLayers(item.stamp, (layers) =>
+                                  layers.map((layer) => ({
+                                    ...layer,
+                                    color: layer.originalColor,
+                                    visible: true,
+                                  })),
+                                )
+                              }
+                              buttonDisabled={buttonDisabled || busy}
+                              helpHref="#advanced-settings-help"
+                              liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                              livePreviewLead={
+                                <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                  <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                    Layer colors
+                                  </p>
+<LayerControls
                           layers={item.layers}
                           onChange={(nextLayers) =>
                             updateHistoryItemLayers(
@@ -1962,6 +2033,16 @@ export default function ImageToLayeredSvgForCricut({
                             )
                           }
                         />
+                                </div>
+                              }
+                              convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                              hideOutputLayerStyling={true}
+                              onUpdatePreview={() =>
+                                void submitConvert(file, settings, item.stamp)
+                              }
+                            />
+                          </div>
+                        )}
 
                         <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                           <FullscreenPreviewButton
@@ -2044,7 +2125,11 @@ export default function ImageToLayeredSvgForCricut({
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
-    return { w: bmp.width, h: bmp.height };
+    try {
+      return { w: bmp.width, h: bmp.height };
+    } finally {
+      bmp.close?.();
+    }
   }
 
   const url = URL.createObjectURL(file);

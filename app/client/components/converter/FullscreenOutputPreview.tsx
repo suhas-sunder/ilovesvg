@@ -12,8 +12,10 @@ export type FullscreenPreviewImage = {
 
 export function FullscreenPreviewButton({
   onOpen,
+  className,
 }: {
   onOpen: () => void;
+  className?: string;
 }) {
   return (
     <button
@@ -24,7 +26,10 @@ export function FullscreenPreviewButton({
       }}
       aria-label="Preview full screen"
       title="Preview full screen"
-      className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur cursor-pointer transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      className={
+        className ||
+        "absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur cursor-pointer transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      }
     >
       <svg
         aria-hidden="true"
@@ -41,6 +46,36 @@ export function FullscreenPreviewButton({
         <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
         <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
       </svg>
+    </button>
+  );
+}
+
+export function PreviewHistoryArrowButton({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "left" | "right";
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const label =
+    direction === "left"
+      ? "Show previous version of this output"
+      : "Show next version of this output";
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur cursor-pointer transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/90 disabled:hover:text-slate-700"
+    >
+      <ArrowIcon direction={direction} />
     </button>
   );
 }
@@ -166,9 +201,9 @@ export function FullscreenOutputPreview<TItem>({
             <div className="text-xs text-slate-300">
               {safeIndex + 1} of {items.length}
               {preview.width && preview.height
-                ? ` · ${Math.round(preview.width)} x ${Math.round(preview.height)} px`
+                ? ` - ${Math.round(preview.width)} x ${Math.round(preview.height)} px`
                 : ""}
-              {preview.kind ? ` · ${preview.kind}` : ""}
+              {preview.kind ? ` - ${preview.kind}` : ""}
             </div>
           </div>
 

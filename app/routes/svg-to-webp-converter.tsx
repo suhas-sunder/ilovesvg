@@ -122,10 +122,11 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    input.value = "";
     if (!f) return;
     await handleNewFile(f);
-    e.currentTarget.value = "";
   }
 
   async function onDrop(e: React.DragEvent) {
@@ -253,7 +254,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG → WebP", href: "/svg-to-webp-converter" },
+    { name: "SVG to WebP", href: "/svg-to-webp-converter" },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;
@@ -279,7 +280,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
             <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
-              <h1 className="inline-flex text-center text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
+              <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] tracking-[-0.035em] text-sky-950 sm:text-[34px]">
                 SVG to WebP Converter
               </h1>
 
@@ -287,7 +288,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                 <DragArea onPick={onPick} onDrop={onDrop} />
               ) : (
                 <>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
+                  <div className="mt-0 flex items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-slate-900">
                     <div className="flex items-center min-w-0 gap-2">
                       <span className="truncate" title={file.name}>
                         {file.name}
@@ -296,9 +297,10 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     <button
                       type="button"
                       onClick={clearAll}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                      aria-label="Remove selected file"
+                      className="rounded-md border border-sky-200 bg-white px-2 py-1 text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
-                      ×
+                      x
                     </button>
                   </div>
 
@@ -306,12 +308,13 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected:{" "}
                       <b>
-                        {Math.round(svgInfo.width)}×{Math.round(svgInfo.height)}
+                        {Math.round(svgInfo.width)} x{" "}
+                        {Math.round(svgInfo.height)}
                       </b>
                       {svgInfo.viewBox ? (
                         <span className="text-slate-500">
                           {" "}
-                          • viewBox {svgInfo.viewBox}
+                          - viewBox {svgInfo.viewBox}
                         </span>
                       ) : null}
                     </div>
@@ -363,28 +366,37 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
             {/* SETTINGS + RESULT */}
             <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
-                Convert Settings
+                WebP output
                 {busy && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
                 )}
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-xl p-3">
-                <div className="mt-3 min-w-0">
+                <div className="min-w-0">
                   <button
                     type="button"
                     onClick={() => setShowAdvanced((v) => !v)}
-                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    className="mb-2 w-full inline-flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2.5 text-left text-sm font-semibold text-sky-950 cursor-pointer transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
-                    <span className="inline-flex items-center justify-center">
-                      <Icons name="settings" size={16} className="mr-1" />
-                      Advanced settings
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-600 text-white">
+                        <Icons name="settings" size={16} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[15px] font-bold leading-5">
+                          Settings
+                        </span>
+                        <span className="block truncate text-[12px] font-medium leading-4 text-sky-700">
+                          Size, scale, transparency, and export
+                        </span>
+                      </span>
                     </span>
                     <svg
                       className={[
-                        "h-4 w-4 text-slate-500 transition-transform",
+                        "h-4 w-4 shrink-0 text-sky-700 transition-transform",
                         showAdvanced ? "rotate-180" : "rotate-0",
                       ].join(" ")}
                       viewBox="0 0 20 20"
@@ -575,12 +587,12 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     disabled={buttonDisabled}
                     className={[
                       "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
-                      "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
+                      "text-white bg-[#2563eb] border-[#1d4ed8] hover:bg-[#1d4ed8] hover:border-[#1e40af] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
                     <Icons name="convert" size={20} className="mr-1" />
-                    {busy ? "Converting…" : "Convert to WebP"}
+                    {busy ? "Converting..." : "Convert to WebP"}
                   </button>
 
                   <button
@@ -589,7 +601,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     disabled={!result || busy}
                     className={[
                       "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
-                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
+                      "text-white bg-sky-500 border-sky-600 hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
                       "disabled:opacity-70 disabled:cursor-not-allowed",
                     ].join(" ")}
                   >
@@ -602,7 +614,7 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                     <span className="text-[13px] text-slate-600">
                       Output:{" "}
                       <b>
-                        {result.width}×{result.height}
+                        {result.width}x{result.height}
                       </b>{" "}
                       px
                     </span>
