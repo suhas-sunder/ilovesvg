@@ -16,7 +16,10 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
-import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  getPresetLabelById,
+  PresetPicker,
+} from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
@@ -2003,6 +2006,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
+        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
       
         settingsSnapshot,
         draftSettings: settingsSnapshot,

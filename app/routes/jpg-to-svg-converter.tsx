@@ -1,4 +1,7 @@
-import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  getPresetLabelById,
+  PresetPicker,
+} from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
@@ -1963,6 +1966,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
+        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
       
         settingsSnapshot,
         draftSettings: settingsSnapshot,

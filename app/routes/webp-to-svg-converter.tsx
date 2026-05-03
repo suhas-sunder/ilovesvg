@@ -20,7 +20,10 @@ import {
   type EditableSvgLayer,
   type SvgLayerMeta,
 } from "~/client/components/svg/LayerPaletteEditor";
-import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  getPresetLabelById,
+  PresetPicker,
+} from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
 } from "~/client/components/converter/FullscreenOutputPreview";
@@ -940,6 +943,7 @@ export default function WebpToSvgConverter({
         width: fetcher?.data?.width ?? 0,
         height: fetcher?.data?.height ?? 0,
         stamp: Date.now(),
+        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };

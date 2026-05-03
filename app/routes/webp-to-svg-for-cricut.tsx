@@ -21,7 +21,10 @@ import {
   type TraceMode,
 } from "~/client/components/svg/LayerPaletteEditor";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  getPresetLabelById,
+  PresetPicker,
+} from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
 } from "~/client/components/converter/FullscreenOutputPreview";
@@ -1047,6 +1050,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
+        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
         settingsSnapshot,
         draftSettings: settingsSnapshot,
@@ -1485,6 +1489,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
+                defaultPresetId="cricut-clean-cut"
               />
 
 

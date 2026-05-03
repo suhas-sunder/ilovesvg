@@ -53,7 +53,7 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   const [speedFilter, setSpeedFilter] = React.useState<
     PresetBackendIntensity | "all"
   >("all");
-  const initialActivePresetIdRef = React.useRef<string | null>(activePreset);
+  const initialActivePresetIdRef = React.useRef(activePreset);
   const searchInputId = React.useId();
   const visibleLimit = 2;
   const basePresets = React.useMemo(
@@ -426,6 +426,14 @@ function findLabeledDefaultPresetId(
   return (
     presets.find((preset) => /\bdefault\b/i.test(preset.label))?.id || null
   );
+}
+
+export function getPresetLabelById(
+  presets: readonly ConverterPresetOption[],
+  presetId: string | null | undefined,
+): string | undefined {
+  if (!presetId) return undefined;
+  return presets.find((preset) => preset.id === presetId)?.label;
 }
 
 function groupPresetsByCategory<TPreset extends ConverterPresetOption>(

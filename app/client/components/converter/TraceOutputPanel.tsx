@@ -206,7 +206,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
               item.draftSettings ?? item.settingsSnapshot ?? fallbackSettings;
             const isUpdating = updatingStamp === item.stamp;
             const previewSvg = getTraceOutputSvg(item);
-            const label = item.name || buildOutputLabel(item, index);
+            const label = getOutputLabel(item, index);
 
             return (
               <div
@@ -374,7 +374,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   <EditedSvgPreviewImage
                     svg={item.svg}
                     layers={item.layers}
-                    alt="SVG result"
+                    alt={`${label} SVG result`}
                     className="h-auto max-w-full"
                   />
                 </div>
@@ -407,6 +407,21 @@ function buildOutputLabel<TSettings extends MixedTraceSettings>(
 ): string {
   const preset = item.presetLabel ? ` - ${item.presetLabel}` : "";
   return `Output ${index + 1}${preset}`;
+}
+
+function getOutputLabel<TSettings extends MixedTraceSettings>(
+  item: TraceOutputItem<TSettings>,
+  index: number,
+): string {
+  const fallback = buildOutputLabel(item, index);
+  const explicitName = item.name?.trim();
+  if (!explicitName) return fallback;
+  if (!item.presetLabel) return explicitName;
+  if (explicitName.includes(item.presetLabel)) return explicitName;
+  if (/^Output\s+\d+$/i.test(explicitName)) {
+    return `${explicitName} - ${item.presetLabel}`;
+  }
+  return explicitName;
 }
 
 function downloadSvg(svg: string, filename: string) {

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { type ChangeEvent, useId, useRef, useState } from "react";
 import Icons from "~/client/assets/icons/Icons";
 
 export default function DragArea({
@@ -26,26 +26,7 @@ export default function DragArea({
         <div className="mt-3" />
       )}
 
-      <input
-        ref={fileRef}
-        id={inputId}
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        onChange={(e) => {
-          const input = e.currentTarget;
-          onPick?.(e);
-          // allow selecting the same file again without touching a pooled/null target
-          input.value = "";
-        }}
-        className="sr-only"
-        tabIndex={-1}
-      />
-
       <label
-        htmlFor={inputId}
-        role="button"
-        tabIndex={0}
         onDragEnter={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -64,20 +45,35 @@ export default function DragArea({
           setIsDragging(false);
           onDrop?.(e);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            fileRef.current?.click();
-          }
-        }}
-        className={`group flex cursor-pointer items-center justify-center rounded-2xl border p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2 ${
+        className={`group relative flex cursor-pointer items-center justify-center rounded-2xl border p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 focus-within:outline-none focus-within:ring-2 focus-within:ring-sky-300 focus-within:ring-offset-2 ${
           isDragging
             ? "border-sky-400 bg-sky-100/80 shadow-[0_0_0_3px_rgba(14,165,233,0.12)]"
             : "border-sky-200 bg-sky-50/70 hover:border-sky-300 hover:bg-sky-50"
         }`}
       >
+        <input
+          ref={fileRef}
+          id={inputId}
+          type="file"
+          accept={accept}
+          multiple={multiple}
+          onChange={(e) => {
+            const input = e.currentTarget;
+            // Route-level upload handlers are shared across direct inputs and this
+            // wrapper. React clears currentTarget after the original handler
+            // returns, so pass a stable input reference to avoid crashes in async
+            // route handlers that read currentTarget.
+            onPick?.({
+              currentTarget: input,
+              target: input,
+            } as ChangeEvent<HTMLInputElement>);
+            // Allow selecting the same file again without touching a pooled/null target.
+            input.value = "";
+          }}
+          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+        />
         <div
-          className={`flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-sm font-semibold text-slate-800 transition-all duration-200 sm:min-h-[7.5em] sm:px-6 sm:py-7 sm:text-lg ${
+          className={`pointer-events-none flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-sm font-semibold text-slate-800 transition-all duration-200 sm:min-h-[7.5em] sm:px-6 sm:py-7 sm:text-lg ${
             isDragging
               ? "border-sky-500 bg-white/80"
               : "border-sky-400/80 bg-white/45 group-hover:border-sky-500 group-hover:bg-white/70"

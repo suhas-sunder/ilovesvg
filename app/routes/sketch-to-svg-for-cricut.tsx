@@ -15,12 +15,18 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  ChevronDownIcon,
+  PresetPicker,
+} from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
-import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
+import {
+  EditedSvgPreviewImage,
+  getEditedSvg as getSharedEditedSvg,
+} from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -573,8 +579,12 @@ type LayeredOptions = {
 
 type ServerLayer = {
   id: string;
-  name: string;
+  name?: string;
+  label?: string;
   color: string;
+  originalColor?: string;
+  visible?: boolean;
+  opacity?: number;
   pixelPercent: number;
   pathTags: string;
 };
@@ -1340,9 +1350,12 @@ type ServerResult = {
 type LayerState = {
   id: string;
   name: string;
+  label: string;
   color: string;
   originalColor: string;
   visible: boolean;
+  opacity: number;
+  originalOpacity: number;
   pixelPercent: number;
   pathTags: string;
 };
@@ -1458,15 +1471,21 @@ export default function SketchToSvgForCricut({
       width: fetcher.data.width ?? 0,
       height: fetcher.data.height ?? 0,
       stamp: Date.now(),
-      layers: fetcher.data.layers.map((layer) => ({
-        id: layer.id,
-        name: layer.name,
-        color: layer.color,
-        originalColor: layer.color,
-        visible: true,
-        pixelPercent: layer.pixelPercent,
-        pathTags: layer.pathTags,
-      })),
+      layers: fetcher.data.layers.map((layer, index) => {
+        const label = layer.label || layer.name || `Layer ${index + 1}`;
+        return {
+          id: layer.id,
+          name: label,
+          label,
+          color: layer.color,
+          originalColor: layer.originalColor || layer.color,
+          visible: layer.visible ?? true,
+          opacity: layer.opacity ?? 1,
+          originalOpacity: layer.opacity ?? 1,
+          pixelPercent: layer.pixelPercent,
+          pathTags: layer.pathTags || "",
+        };
+      }),
     };
 
     const replaceStamp = pendingReplaceStampRef.current;
@@ -1732,6 +1751,7 @@ export default function SketchToSvgForCricut({
                 presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
+                defaultPresetId={DEFAULT_PRESET_ID}
               />
 
               {!file ? (
@@ -1853,13 +1873,7 @@ export default function SketchToSvgForCricut({
                 <div className="grid gap-3">
                   {history.map((item, index) => {
                     const getEditedSvg = () =>
-                      buildClientLayeredSvg({
-                        width: item.width,
-                        height: item.height,
-                        layers: item.layers,
-                        transparent: settings.transparent,
-                        bgColor: settings.bgColor,
-                      });
+                      getSketchEditedSvg(item, settings);
 
                     return (
                       <div
@@ -1973,6 +1987,7 @@ export default function SketchToSvgForCricut({
                                           ...layer,
                                           color: layer.originalColor,
                                           visible: true,
+                                          opacity: layer.originalOpacity,
                                         }
                                       : layer,
                                   ),
@@ -1984,6 +1999,7 @@ export default function SketchToSvgForCricut({
                                     ...layer,
                                     color: layer.originalColor,
                                     visible: true,
+                                    opacity: layer.originalOpacity,
                                   })),
                                 )
                               }
@@ -2016,6 +2032,7 @@ export default function SketchToSvgForCricut({
                                             ...layer,
                                             color: layer.originalColor,
                                             visible: true,
+                                            opacity: layer.originalOpacity,
                                           })),
                                       )
                                     }
@@ -2068,7 +2085,7 @@ export default function SketchToSvgForCricut({
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,
-            svg: buildClientLayeredSvg({ width: item.width, height: item.height, layers: item.layers, transparent: settings.transparent, bgColor: settings.bgColor }),
+            svg: getSketchEditedSvg(item, settings),
             width: item.width,
             height: item.height,
             kind: "SVG",
@@ -2255,6 +2272,24 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
   }
 }
 
+function getSketchEditedSvg(item: HistoryItem, settings: Settings) {
+  if (
+    /\bdata-layer-id\s*=/i.test(item.svg) ||
+    /\bdata-fill-layer-id\s*=/i.test(item.svg) ||
+    /\bdata-stroke-layer-id\s*=/i.test(item.svg)
+  ) {
+    return getSharedEditedSvg(item.svg, item.layers);
+  }
+
+  return buildClientLayeredSvg({
+    width: item.width,
+    height: item.height,
+    layers: item.layers,
+    transparent: settings.transparent,
+    bgColor: settings.bgColor,
+  });
+}
+
 function buildClientLayeredSvg({
   width,
   height,
@@ -2280,9 +2315,15 @@ function buildClientLayeredSvg({
     .map((layer, index) => {
       const color = sanitizeClientColor(layer.color, layer.originalColor);
       const safeId = escapeClientAttr(layer.id || `layer-${index + 1}`);
-      const safeName = escapeClientAttr(layer.name || `Layer ${index + 1}`);
+      const safeName = escapeClientAttr(
+        layer.label || layer.name || `Layer ${index + 1}`,
+      );
+      const opacity =
+        Number.isFinite(layer.opacity) && layer.opacity < 1
+          ? ` opacity="${Math.max(0, Math.min(1, layer.opacity))}"`
+          : "";
 
-      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}">${layer.pathTags}</g>`;
+      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeName}" data-layer-color="${color}" data-layer-name="${safeName}" fill="${color}"${opacity}>${layer.pathTags}</g>`;
     })
     .join("");
 

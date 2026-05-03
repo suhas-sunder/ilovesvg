@@ -23,7 +23,10 @@ import {
   type SvgLayerMeta,
   type TraceMode,
 } from "~/client/components/svg/LayerPaletteEditor";
-import { PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  getPresetLabelById,
+  PresetPicker,
+} from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
@@ -1111,6 +1114,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
         stamp: Date.now(),
+        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
       
         settingsSnapshot,
