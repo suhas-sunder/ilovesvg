@@ -2,6 +2,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"),
+  route("api/batch-svg", "routes/api.batch-svg.tsx"),
 
   // SVG -> raster/pdf
   route("svg-to-png-converter", "routes/svg-to-png-converter.tsx"),

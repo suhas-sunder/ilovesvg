@@ -29,7 +29,18 @@ import {
   PresetPicker,
 } from "~/client/components/converter/PresetSelector";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
-import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
+import {
+  inferPresetBackendIntensity,
+  type PresetBackendIntensity,
+} from "~/client/lib/converter/presetIntensity";
+import {
+  getBatchMaxForPreview,
+  getBatchMaxForSpeedTier,
+  getBatchSpeedTierForPreview,
+  getBatchSpeedTierForPresetIntensity,
+  getBatchSpeedTierForSettings,
+  type BatchSpeedTier,
+} from "~/client/lib/converter/batchLimits";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -123,6 +134,21 @@ const PAGE_RATE_LIMITS = {
   perDay: 3000,
 };
 
+const BATCH_RATE_LIMITS = {
+  perMinute: 4,
+  perFiveMinutes: 10,
+  perHour: 30,
+  perDay: 80,
+};
+
+const BATCH_PRO_INTEREST_STORAGE_KEY =
+  "ilovesvg:pro-interest:batch-100:v1";
+const PRO_INTEREST_LOG_URL =
+  "https://script.google.com/macros/s/AKfycbw0anrpo5a_6gxXjfrEln-1o_pNcaSjj21-0xJB6qds4cuOrP4FPblqM2Rpb_9JUFClZA/exec";
+const BATCH_SESSION_TTL_MS = 20 * 60 * 1000;
+
+type BackendRateLimits = typeof PAGE_RATE_LIMITS;
+type BackendRateLimitKey = keyof BackendRateLimits;
 type RateLimitWindowName = "minute" | "fiveMinutes" | "hour" | "day";
 type RateLimitWindowState = { count: number; resetAt: number };
 type RateLimitRecord = Record<RateLimitWindowName, RateLimitWindowState>;
@@ -141,35 +167,35 @@ type BackendRateLimitResult =
 const RATE_LIMIT_WINDOWS: Array<{
   name: RateLimitWindowName;
   ms: number;
-  limit: number;
+  limitKey: BackendRateLimitKey;
   limitHeader: string;
   remainingHeader: string;
 }> = [
   {
     name: "minute",
     ms: 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perMinute,
+    limitKey: "perMinute",
     limitHeader: "X-RateLimit-Limit-Minute",
     remainingHeader: "X-RateLimit-Remaining-Minute",
   },
   {
     name: "fiveMinutes",
     ms: 5 * 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perFiveMinutes,
+    limitKey: "perFiveMinutes",
     limitHeader: "X-RateLimit-Limit-Five-Minutes",
     remainingHeader: "X-RateLimit-Remaining-Five-Minutes",
   },
   {
     name: "hour",
     ms: 60 * 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perHour,
+    limitKey: "perHour",
     limitHeader: "X-RateLimit-Limit-Hour",
     remainingHeader: "X-RateLimit-Remaining-Hour",
   },
   {
     name: "day",
     ms: 24 * 60 * 60 * 1000,
-    limit: PAGE_RATE_LIMITS.perDay,
+    limitKey: "perDay",
     limitHeader: "X-RateLimit-Limit-Day",
     remainingHeader: "X-RateLimit-Remaining-Day",
   },
@@ -232,6 +258,7 @@ function checkBackendConversionRateLimit(
   request: Request,
   routeName: string,
   actionName: string,
+  limits: BackendRateLimits = PAGE_RATE_LIMITS,
 ): BackendRateLimitResult {
   const now = Date.now();
   const store = getRateLimitStore();
@@ -246,17 +273,19 @@ function checkBackendConversionRateLimit(
     }
   }
 
-  const exceeded = RATE_LIMIT_WINDOWS.filter(
-    (windowConfig) => record[windowConfig.name].count >= windowConfig.limit,
-  );
+  const exceeded = RATE_LIMIT_WINDOWS.filter((windowConfig) => {
+    const limit = limits[windowConfig.limitKey];
+    return record[windowConfig.name].count >= limit;
+  });
 
   const headers = new Headers();
   for (const windowConfig of RATE_LIMIT_WINDOWS) {
     const state = record[windowConfig.name];
-    headers.set(windowConfig.limitHeader, String(windowConfig.limit));
+    const limit = limits[windowConfig.limitKey];
+    headers.set(windowConfig.limitHeader, String(limit));
     headers.set(
       windowConfig.remainingHeader,
-      String(Math.max(0, windowConfig.limit - state.count)),
+      String(Math.max(0, limit - state.count)),
     );
   }
 
@@ -285,14 +314,171 @@ function checkBackendConversionRateLimit(
 
   for (const windowConfig of RATE_LIMIT_WINDOWS) {
     const state = record[windowConfig.name];
+    const limit = limits[windowConfig.limitKey];
     headers.set(
       windowConfig.remainingHeader,
-      String(Math.max(0, windowConfig.limit - state.count)),
+      String(Math.max(0, limit - state.count)),
     );
   }
 
   store.set(key, record);
   return { allowed: true, headers };
+}
+
+type BatchSessionRecord = {
+  count: number;
+  max: number;
+  speedTier: BatchSpeedTier;
+  expiresAt: number;
+};
+
+type BatchSessionResult =
+  | {
+      allowed: true;
+      max: number;
+      speedTier: BatchSpeedTier;
+    }
+  | {
+      allowed: false;
+      status: number;
+      headers?: Headers;
+      retryAfterMs?: number;
+      error: string;
+    };
+
+function getBatchSessionStore(): Map<string, BatchSessionRecord> {
+  const g = globalThis as any;
+  if (!g.__ilovesvg_batch_sessions) {
+    g.__ilovesvg_batch_sessions = new Map<string, BatchSessionRecord>();
+  }
+  return g.__ilovesvg_batch_sessions as Map<string, BatchSessionRecord>;
+}
+
+function getBatchSessionKey(request: Request, sessionId: string): string {
+  const ip = normalizeKeyPart(getClientIp(request));
+  const ua = normalizeKeyPart(request.headers.get("user-agent") || "unknown");
+  return `${ip}:${ua}:${normalizeKeyPart(sessionId)}`;
+}
+
+function getBatchSettingsSnapshotFromForm(form: FormData): Record<string, unknown> {
+  return {
+    traceMode: form.get("traceMode"),
+    preprocess: form.get("preprocess"),
+    maxTraceSide: form.get("maxTraceSide"),
+    turdSize: form.get("turdSize"),
+    optTolerance: form.get("optTolerance"),
+    blurSigma: form.get("blurSigma"),
+    edgeBoost: form.get("edgeBoost"),
+    removeColors: form.get("removeColors"),
+    brightness: form.get("brightness"),
+    contrast: form.get("contrast"),
+    edgeThreshold: form.get("edgeThreshold"),
+    edgeThickness: form.get("edgeThickness"),
+    noiseReduction: form.get("noiseReduction"),
+    gapCloseStrength: form.get("gapCloseStrength"),
+    minIslandPx: form.get("minIslandPx"),
+    holeFillPx: form.get("holeFillPx"),
+    colorLayerCount: form.get("colorLayerCount"),
+    layerMaxTraceSide: form.get("layerMaxTraceSide"),
+    colorMergeTolerance: form.get("colorMergeTolerance"),
+    posterizeStrength: form.get("posterizeStrength"),
+  };
+}
+
+function getServerBatchSpeedFromForm(form: FormData): BatchSpeedTier {
+  const presetId = String(form.get("presetId") || "");
+  const presetTier = getBatchSpeedTierForPresetIntensity(
+    getPresetBackendIntensityById(presetId),
+  );
+  return presetTier ?? getBatchSpeedTierForSettings(getBatchSettingsSnapshotFromForm(form));
+}
+
+function checkBatchConversionSession(
+  request: Request,
+  form: FormData,
+): BatchSessionResult {
+  const rawSessionId = String(form.get("batchSessionId") || "");
+  const sessionId = normalizeKeyPart(rawSessionId);
+  if (!sessionId) {
+    return {
+      allowed: false,
+      status: 400,
+      error: "Batch session is missing. Please start the batch again.",
+    };
+  }
+
+  const now = Date.now();
+  const store = getBatchSessionStore();
+  for (const [key, record] of store) {
+    if (record.expiresAt <= now) store.delete(key);
+  }
+
+  const key = getBatchSessionKey(request, sessionId);
+  let session = store.get(key);
+  const isNewSession =
+    !session || String(form.get("batchIndex") || "0") === "0";
+
+  if (isNewSession) {
+    const rateLimit = checkBackendConversionRateLimit(
+      request,
+      "png-to-svg-converter",
+      "batch-raster-trace",
+      BATCH_RATE_LIMITS,
+    );
+    if (!rateLimit.allowed) {
+      return {
+        allowed: false,
+        status: 429,
+        headers: rateLimit.headers,
+        retryAfterMs: rateLimit.retryAfterMs,
+        error: `Too many batch conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+      };
+    }
+
+    const speedTier = getServerBatchSpeedFromForm(form);
+    session = {
+      count: 0,
+      max: getBatchMaxForSpeedTier(speedTier),
+      speedTier,
+      expiresAt: now + BATCH_SESSION_TTL_MS,
+    };
+    store.set(key, session);
+  }
+
+  if (!session) {
+    return {
+      allowed: false,
+      status: 400,
+      error: "Batch session could not be created. Please start the batch again.",
+    };
+  }
+
+  if (session.expiresAt <= now) {
+    store.delete(key);
+    return {
+      allowed: false,
+      status: 429,
+      error: "Batch session expired. Please start the batch again.",
+    };
+  }
+
+  if (session.count >= session.max) {
+    return {
+      allowed: false,
+      status: 429,
+      error: `This selected preview allows up to ${session.max} batch conversions.`,
+    };
+  }
+
+  session.count += 1;
+  session.expiresAt = now + BATCH_SESSION_TTL_MS;
+  store.set(key, session);
+
+  return {
+    allowed: true,
+    max: session.max,
+    speedTier: session.speedTier,
+  };
 }
 
 // -------- Concurrency gate (server) --------
@@ -340,27 +526,42 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    const rateLimit = checkBackendConversionRateLimit(
-      request,
-      "png-to-svg-converter",
-      "raster-trace",
-    );
-    if (!rateLimit.allowed) {
-      return json(
-        {
-          error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
-          retryAfterMs: rateLimit.retryAfterMs,
-          code: "RATE_LIMITED",
-        },
-        { status: 429, headers: rateLimit.headers },
-      );
-    }
-
     // Parse multipart with strict per-part limit (RAM upload handler)
     const uploadHandler = createMemoryUploadHandler({
       maxPartSize: MAX_UPLOAD_BYTES,
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const intent = String(form.get("intent") || "single");
+    const isBatchFile = intent === "batch-file";
+    if (isBatchFile) {
+      const batchSession = checkBatchConversionSession(request, form);
+      if (!batchSession.allowed) {
+        return json(
+          {
+            error: batchSession.error,
+            retryAfterMs: batchSession.retryAfterMs,
+            code: "BATCH_RATE_LIMITED",
+          },
+          { status: batchSession.status, headers: batchSession.headers },
+        );
+      }
+    } else {
+      const rateLimit = checkBackendConversionRateLimit(
+        request,
+        "png-to-svg-converter",
+        "raster-trace",
+      );
+      if (!rateLimit.allowed) {
+        return json(
+          {
+            error: `Too many conversions from this connection. Please try again in ${rateLimit.retryAfterText}.`,
+            retryAfterMs: rateLimit.retryAfterMs,
+            code: "RATE_LIMITED",
+          },
+          { status: 429, headers: rateLimit.headers },
+        );
+      }
+    }
     const clientRunId = sanitizeClientRunId(form.get("clientRunId"));
 
     const file = form.get("file");
@@ -2001,6 +2202,15 @@ const PRESETS: Preset[] = preparePresetList(PRESET_DEFINITIONS);
 const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 const DEFAULT_PRESET_ID = PRESETS[0]?.id ?? "line-accurate";
 
+function getPresetBackendIntensityById(
+  presetId?: string | null,
+): PresetBackendIntensity | undefined {
+  if (!presetId) return undefined;
+  const preset = DISPLAY_PRESETS.find((candidate) => candidate.id === presetId);
+  if (!preset) return undefined;
+  return preset.backendIntensity ?? inferPresetBackendIntensity(preset.settings);
+}
+
 function preparePresetList(presets: Preset[]): Preset[] {
   return presets
     .map((preset) => {
@@ -2097,12 +2307,23 @@ type HistoryItem = {
   parentStamp?: number | null;
   presetId?: string;
   presetLabel?: string;
+  presetBackendIntensity?: PresetBackendIntensity;
   settingsSnapshot?: Settings;
 };
 
 type HistoryPreviewData = {
   svg: string;
   src: string;
+};
+
+type BatchZipResult = {
+  filename: string;
+  blob: Blob;
+  count: number;
+  failed: number;
+  errors: string[];
+  speedTier: BatchSpeedTier;
+  dynamicMax: number;
 };
 
 // ---- tiering helpers (client) ----
@@ -2125,6 +2346,7 @@ function autoModeDetail(mode: AutoMode): string {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
+  const batchFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -2136,6 +2358,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
+  const [batchFiles, setBatchFiles] = React.useState<File[]>([]);
+  const [batchRunning, setBatchRunning] = React.useState(false);
+  const [batchProgress, setBatchProgress] = React.useState({ done: 0, total: 0 });
+  const [batchError, setBatchError] = React.useState<string | null>(null);
+  const [batchInfo, setBatchInfo] = React.useState<string | null>(null);
+  const [batchZip, setBatchZip] = React.useState<BatchZipResult | null>(null);
 
   // client-side measured dims
   const [dims, setDims] = React.useState<{
@@ -2168,7 +2396,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const busyRetryCountRef = React.useRef(0);
   const lastSubmittedRef = React.useRef<{
     settings: Settings;
-    presetId: string;
+    presetId: string | null;
     parentStamp: number | null;
   }>({
     settings: DEFAULTS,
@@ -2230,8 +2458,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           ? `Output ${outputNumber} · Derived from Output`
           : `Output ${outputNumber} · ${presetLabel}`,
         parentStamp,
-        presetId: submitted.presetId,
+        presetId: submitted.presetId ?? undefined,
         presetLabel,
+        presetBackendIntensity: getPresetBackendIntensityById(
+          submitted.presetId,
+        ),
         settingsSnapshot: submitted.settings,
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
@@ -2363,6 +2594,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setHistory([]); // optional, remove if you want to keep old results
     setActiveHistoryStamp(null);
     outputCounterRef.current = 0;
+    setBatchFiles([]);
+    setBatchZip(null);
+    setBatchError(null);
+    setBatchInfo(null);
+    setBatchProgress({ done: 0, total: 0 });
 
     setErr(null);
     setInfo(null);
@@ -2389,6 +2625,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
+  function getEffectiveSubmitSettings(targetSettings: Settings): Settings {
+    if (targetSettings.traceMode === "layered" || !targetSettings.invert) {
+      return targetSettings;
+    }
+    const bg =
+      !targetSettings.bgColor ||
+      targetSettings.bgColor.toLowerCase() === "#ffffff" ||
+      targetSettings.bgColor.toLowerCase() === "#fff"
+        ? DARK_BG_DEFAULT
+        : targetSettings.bgColor;
+
+    return {
+      ...targetSettings,
+      transparent: false,
+      bgColor: bg,
+      lineColor:
+        targetSettings.lineColor?.toLowerCase() === "#000000"
+          ? "#ffffff"
+          : targetSettings.lineColor,
+    };
+  }
+
   async function submitConvert() {
     await submitConvertWith(file, settings, {
       presetId: activePreset,
@@ -2396,49 +2654,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  async function submitConvertWith(
-    targetFile: File | null,
-    targetSettings: Settings,
-    meta?: { presetId?: string; parentStamp?: number | null },
-  ) {
-    if (!targetFile) {
-      setErr("Choose an image first.");
-      return;
-    }
-
-    // Client-side precheck
-    try {
-      await validateBeforeSubmit(targetFile);
-    } catch (e: any) {
-      setErr(e?.message || "Image is too large.");
-      return;
-    }
-
-    // Ensure invert always produces visible output (white on dark)
-    const effective = (() => {
-      if (targetSettings.traceMode === "layered" || !targetSettings.invert) {
-        return targetSettings;
-      }
-      const bg =
-        !targetSettings.bgColor ||
-        targetSettings.bgColor.toLowerCase() === "#ffffff" ||
-        targetSettings.bgColor.toLowerCase() === "#fff"
-          ? DARK_BG_DEFAULT
-          : targetSettings.bgColor;
-
-      return {
-        ...targetSettings,
-        transparent: false,
-        bgColor: bg,
-        lineColor:
-          targetSettings.lineColor?.toLowerCase() === "#000000"
-            ? "#ffffff"
-            : targetSettings.lineColor,
-      };
-    })();
-
-    const fd = new FormData();
-    fd.append("file", targetFile);
+  function appendTraceSettingsPayload(fd: FormData, effective: Settings) {
     fd.append("threshold", String(effective.threshold));
     fd.append("turdSize", String(effective.turdSize));
     fd.append("optTolerance", String(effective.optTolerance));
@@ -2461,13 +2677,55 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
+  }
+
+  function resolveSubmittedPresetId(
+    candidatePresetId: string | undefined,
+    effective: Settings,
+  ): string | null {
+    const preset = DISPLAY_PRESETS.find(
+      (candidate) => candidate.id === candidatePresetId,
+    );
+    if (!preset) return null;
+    const expected = buildPresetSettings(DEFAULTS, preset);
+    return settingsEqual(expected, effective) ? preset.id : null;
+  }
+
+  async function submitConvertWith(
+    targetFile: File | null,
+    targetSettings: Settings,
+    meta?: { presetId?: string; parentStamp?: number | null },
+  ) {
+    if (!targetFile) {
+      setErr("Choose an image first.");
+      return;
+    }
+
+    // Client-side precheck
+    try {
+      await validateBeforeSubmit(targetFile);
+    } catch (e: any) {
+      setErr(e?.message || "Image is too large.");
+      return;
+    }
+
+    // Ensure invert always produces visible output (white on dark)
+    const effective = getEffectiveSubmitSettings(targetSettings);
+
+    const fd = new FormData();
+    fd.append("file", targetFile);
+    appendTraceSettingsPayload(fd, effective);
     const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
     latestSubmittedRunIdRef.current = clientRunId;
     fd.append("clientRunId", clientRunId);
     setErr(null);
+    const submittedPresetId = resolveSubmittedPresetId(
+      meta?.presetId ?? activePreset,
+      effective,
+    );
     lastSubmittedRef.current = {
       settings: effective,
-      presetId: meta?.presetId ?? activePreset,
+      presetId: submittedPresetId,
       parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
     };
 
@@ -2477,6 +2735,255 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       encType: "multipart/form-data",
       action: `${window.location.pathname}?index`,
     });
+  }
+
+  function handleBatchFilesPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.currentTarget.files || []);
+    e.currentTarget.value = "";
+    setBatchZip(null);
+    setBatchInfo(null);
+
+    if (!activeHistoryItem?.settingsSnapshot) {
+      setBatchError("Convert one preview first, then batch from that selected output.");
+      return;
+    }
+
+    const accepted: File[] = [];
+    let rejected = 0;
+    for (const candidate of picked) {
+      if (!isAllowedImageFile(candidate) || candidate.size > MAX_UPLOAD_BYTES) {
+        rejected += 1;
+        continue;
+      }
+      accepted.push(candidate);
+    }
+
+    const limited = accepted.slice(0, batchDynamicMax);
+    const skippedByLimit = Math.max(0, accepted.length - limited.length);
+    setBatchFiles(limited);
+    setBatchError(
+      rejected > 0
+        ? `${rejected} file${rejected === 1 ? "" : "s"} skipped. Batch files must be ${ACCEPTED_IMAGE_LABEL} images under 30 MB each.`
+        : null,
+    );
+    setBatchInfo(
+      skippedByLimit > 0
+        ? `${skippedByLimit} extra file${skippedByLimit === 1 ? "" : "s"} skipped because this selected preview allows up to ${batchDynamicMax} batch conversions.`
+        : null,
+    );
+  }
+
+  async function submitBatchConvert() {
+    if (batchRunning) return;
+    const sourceItem = activeHistoryItem;
+    if (!sourceItem?.settingsSnapshot) {
+      setBatchError("Convert one preview first, then batch from that selected output.");
+      return;
+    }
+
+    const effective = getEffectiveSubmitSettings(settings);
+    const submittedPresetId = resolveSubmittedPresetId(
+      sourceItem.presetId,
+      effective,
+    );
+    const runPreview = {
+      presetId: submittedPresetId,
+      presetBackendIntensity: submittedPresetId
+        ? getPresetBackendIntensityById(submittedPresetId)
+        : undefined,
+      settingsSnapshot: effective as Record<string, unknown>,
+    };
+    const runSpeedTier = getBatchSpeedTierForPreview(runPreview);
+    const runDynamicMax = getBatchMaxForPreview(runPreview);
+    const filesToConvert = batchFiles.slice(0, runDynamicMax);
+    if (filesToConvert.length === 0) {
+      setBatchError("Choose files for the batch first.");
+      return;
+    }
+    if (batchFiles.length > runDynamicMax) {
+      setBatchFiles(filesToConvert);
+      setBatchInfo(
+        `${batchFiles.length - runDynamicMax} extra file${
+          batchFiles.length - runDynamicMax === 1 ? "" : "s"
+        } skipped because the selected preview now allows up to ${runDynamicMax} batch conversions.`,
+      );
+    }
+
+    setBatchRunning(true);
+    setBatchError(null);
+    if (batchFiles.length <= runDynamicMax) setBatchInfo(null);
+    setBatchZip(null);
+    setBatchProgress({ done: 0, total: filesToConvert.length });
+
+    try {
+      const { zipSync, strToU8 } = await import("fflate");
+      const zipEntries: Record<string, Uint8Array> = {};
+      const failures: string[] = [];
+      const sourceLayerEdits = sourceItem.layers;
+      const batchSessionId = `home-batch-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+
+      for (let index = 0; index < filesToConvert.length; index += 1) {
+        const batchFile = filesToConvert[index];
+        const fd = new FormData();
+        fd.append("intent", "batch-file");
+        fd.append("batchSessionId", batchSessionId);
+        fd.append("batchIndex", String(index));
+        fd.append("batchTotal", String(filesToConvert.length));
+        fd.append("file", batchFile);
+        fd.append("batchSpeedTier", runSpeedTier);
+        fd.append("batchDynamicMax", String(runDynamicMax));
+        fd.append("sourceOutputStamp", String(sourceItem.stamp));
+        fd.append("presetId", submittedPresetId ?? "");
+        appendTraceSettingsPayload(fd, effective);
+        fd.append(
+          "clientRunId",
+          `home-batch-${Date.now()}-${index + 1}-${filesToConvert.length}`,
+        );
+
+        try {
+          const response = await fetch("/api/batch-svg", {
+            method: "POST",
+            body: fd,
+            headers: { Accept: "application/json" },
+          });
+          const data = await readBatchConversionResponse(response);
+          if (!response.ok || data.error || !data.svg) {
+            const message =
+              data.error ||
+              `Server returned ${response.status || "an"} error for this file.`;
+            logAppError(new Error(message), {
+              flowStep: "home_batch_conversion_response",
+              flowKind: "conversion",
+              action: data.code || `batch_response_${response.status}`,
+              selectedFileType: batchFile.type,
+              selectedFileSize: batchFile.size,
+              settingsSnapshot: effective,
+            });
+            failures.push(
+              `${batchFile.name}: ${message}`,
+            );
+          } else {
+            const svgForZip = sourceLayerEdits?.length
+              ? applyLayerEditsToSvg(data.svg, sourceLayerEdits)
+              : data.svg;
+            zipEntries[makeBatchZipEntryName(batchFile.name, index)] = strToU8(
+              svgForZip,
+            );
+          }
+        } catch (error) {
+          logAppError(error, {
+            flowStep: "home_batch_conversion_request",
+            flowKind: "conversion",
+            action: "batch_fetch_failed",
+            selectedFileType: batchFile.type,
+            selectedFileSize: batchFile.size,
+            settingsSnapshot: effective,
+          });
+          failures.push(
+            `${batchFile.name}: The batch request did not complete. Try fewer files or smaller images.`,
+          );
+        } finally {
+          setBatchProgress({ done: index + 1, total: filesToConvert.length });
+        }
+      }
+
+      const successCount = Object.keys(zipEntries).length;
+      if (successCount === 0) {
+        setBatchError(
+          failures[0] ||
+            "No files converted. Try fewer files or a faster selected preview.",
+        );
+        return;
+      }
+
+      const zipped = zipSync(zipEntries, { level: 6 });
+      const zipBuffer = new ArrayBuffer(zipped.byteLength);
+      new Uint8Array(zipBuffer).set(zipped);
+      const result: BatchZipResult = {
+        filename: buildBatchZipFilename(sourceItem),
+        blob: new Blob([zipBuffer], { type: "application/zip" }),
+        count: successCount,
+        failed: failures.length,
+        errors: failures,
+        speedTier: runSpeedTier,
+        dynamicMax: runDynamicMax,
+      };
+      setBatchZip(result);
+      setBatchInfo(
+        failures.length
+          ? `${successCount} file${successCount === 1 ? "" : "s"} converted. ${failures.length} failed.`
+          : `${successCount} file${successCount === 1 ? "" : "s"} converted. Download the ZIP when ready, or choose a new batch to run again.`,
+      );
+      maybeSendBatchProInterestSignal({
+        batchCount: successCount,
+        batchSpeedTier: runSpeedTier,
+        batchDynamicMax: runDynamicMax,
+      });
+    } finally {
+      setBatchRunning(false);
+    }
+  }
+
+  function downloadBatchZip() {
+    if (!batchZip) return;
+    const url = URL.createObjectURL(batchZip.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = batchZip.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function maybeSendBatchProInterestSignal(payload: {
+    batchCount: number;
+    batchSpeedTier: BatchSpeedTier;
+    batchDynamicMax: number;
+  }) {
+    if (
+      payload.batchCount !== 100 ||
+      payload.batchSpeedTier !== "fastest" ||
+      payload.batchDynamicMax !== 100
+    ) {
+      return;
+    }
+    try {
+      if (window.localStorage.getItem(BATCH_PRO_INTEREST_STORAGE_KEY)) return;
+      const body = JSON.stringify({
+        event: "batch_100",
+        route: "home",
+        page_url: window.location.origin + window.location.pathname,
+        batch_count: payload.batchCount,
+        batch_speed_tier: payload.batchSpeedTier,
+        batch_dynamic_max: payload.batchDynamicMax,
+        occurred_at: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+      });
+      const sent =
+        typeof navigator.sendBeacon === "function"
+          ? navigator.sendBeacon(
+              PRO_INTEREST_LOG_URL,
+              new Blob([body], { type: "application/json" }),
+            )
+          : false;
+      if (!sent) {
+        void fetch(PRO_INTEREST_LOG_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+      }
+      window.localStorage.setItem(
+        BATCH_PRO_INTEREST_STORAGE_KEY,
+        new Date().toISOString(),
+      );
+    } catch {
+      // Pro-interest tracking is best-effort and must never block downloads.
+    }
   }
 
   // ---- Tiered auto conversion for allowed upload sizes ----
@@ -2563,6 +3070,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       })),
     [history],
   );
+  const selectedBatchSettings = activeHistoryItem?.settingsSnapshot
+    ? getEffectiveSubmitSettings(settings)
+    : null;
+  const selectedBatchPresetId =
+    selectedBatchSettings && activeHistoryItem
+      ? resolveSubmittedPresetId(activeHistoryItem.presetId, selectedBatchSettings)
+      : null;
+  const selectedBatchPreview = selectedBatchSettings
+    ? {
+        presetId: selectedBatchPresetId,
+        presetBackendIntensity: selectedBatchPresetId
+          ? getPresetBackendIntensityById(selectedBatchPresetId)
+          : undefined,
+        settingsSnapshot: selectedBatchSettings as Record<string, unknown>,
+      }
+    : null;
+  const batchSpeedTier = getBatchSpeedTierForPreview(selectedBatchPreview);
+  const batchDynamicMax = getBatchMaxForPreview(selectedBatchPreview);
+
+  React.useEffect(() => {
+    setBatchFiles((current) =>
+      current.length > batchDynamicMax
+        ? current.slice(0, batchDynamicMax)
+        : current,
+    );
+  }, [batchDynamicMax]);
+
+  React.useEffect(() => {
+    setBatchZip(null);
+    setBatchInfo(null);
+    setBatchError(null);
+  }, [activeHistoryStamp]);
 
   function selectHistoryOutput(id: string | number) {
     const stamp = Number(id);
@@ -2905,6 +3444,118 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
               </div>
 
+              {activeHistoryItem?.settingsSnapshot && (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="m-0 text-[13px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                        Batch to ZIP
+                      </p>
+                      <p className="m-0 mt-1 text-sm font-bold text-slate-900">
+                        Use the selected preview settings
+                      </p>
+                      <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
+                        Batch conversion runs only when you click Convert batch.
+                        It uses the selected output's current settings and
+                        layer edits, then creates a ZIP without adding batch
+                        items to the live preview history.
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1 text-[12px] font-semibold text-sky-800">
+                      Max {batchDynamicMax}
+                    </span>
+                  </div>
+
+                  <p className="m-0 mt-2 text-[12px] leading-5 text-slate-600">
+                    {batchDynamicMax === 100
+                      ? "This selected preview allows up to 100 batch conversions because it uses the fastest conversion settings."
+                      : "This selected preview allows up to 20 batch conversions because these settings may take longer to process."}
+                  </p>
+
+                  <input
+                    ref={batchFileInputRef}
+                    type="file"
+                    multiple
+                    accept={Array.from(ALLOWED_EXTENSIONS)
+                      .map((ext) => `.${ext}`)
+                      .join(",")}
+                    className="sr-only"
+                    onChange={handleBatchFilesPicked}
+                  />
+
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => batchFileInputRef.current?.click()}
+                      className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      Choose batch files
+                    </button>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+                    <span>
+                      {batchFiles.length
+                        ? `${batchFiles.length} file${
+                            batchFiles.length === 1 ? "" : "s"
+                          } selected`
+                        : "No batch files selected"}
+                    </span>
+                    {batchRunning && (
+                      <span>
+                        Converting {batchProgress.done}/{batchProgress.total}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {batchZip ? (
+                      <button
+                        type="button"
+                        onClick={downloadBatchZip}
+                        className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-emerald-700 bg-emerald-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                      >
+                        Download ZIP
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void submitBatchConvert()}
+                        disabled={batchRunning || batchFiles.length === 0}
+                        className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-[#1d4ed8] bg-[#2563eb] px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {batchRunning
+                          ? "Converting batch..."
+                          : `Convert ${batchFiles.length} to ZIP`}
+                      </button>
+                    )}
+                  </div>
+
+                  {batchError && (
+                    <p className="m-0 mt-2 text-[13px] leading-5 text-red-700">
+                      {batchError}
+                    </p>
+                  )}
+                  {!batchError && batchInfo && (
+                    <p className="m-0 mt-2 text-[13px] leading-5 text-slate-600">
+                      {batchInfo}
+                    </p>
+                  )}
+                  {batchZip?.errors.length ? (
+                    <details className="mt-2 text-[12px] text-slate-600">
+                      <summary className="cursor-pointer font-semibold text-slate-700">
+                        Show failed files
+                      </summary>
+                      <ul className="mt-1 list-disc pl-5">
+                        {batchZip.errors.slice(0, 8).map((message) => (
+                          <li key={message}>{message}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
+                </div>
+              )}
+
             </div>
 
             {/* RESULTS */}
@@ -3199,6 +3850,62 @@ function applySvgSizeAttributes(svg: string, width: number, height: number): str
       .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "");
     return `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`;
   });
+}
+
+async function readBatchConversionResponse(response: Response): Promise<ServerResult> {
+  const rawText = await response.text();
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    return response.ok
+      ? {}
+      : {
+          error: `Server returned ${response.status} ${
+            response.statusText || "without details"
+          }.`.trim(),
+        };
+  }
+
+  try {
+    return JSON.parse(trimmed) as ServerResult;
+  } catch {
+    const summary = summarizeBatchResponseText(trimmed);
+    const prefix = response.ok
+      ? "Server returned an unreadable conversion response"
+      : `Server returned ${response.status} ${response.statusText || "error"}`;
+    return {
+      error: summary ? `${prefix}: ${summary}` : `${prefix}.`,
+    };
+  }
+}
+
+function summarizeBatchResponseText(text: string): string {
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
+function makeBatchZipEntryName(filename: string, index: number): string {
+  const cleanBase =
+    filename
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[^a-z0-9._-]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "converted";
+  return `${String(index + 1).padStart(3, "0")}-${cleanBase}.svg`;
+}
+
+function buildBatchZipFilename(item: HistoryItem | null): string {
+  const base =
+    item?.presetLabel
+      ?.replace(/[^a-z0-9._-]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase()
+      .slice(0, 50) || "svg-batch";
+  return `${base || "svg-batch"}-converted.zip`;
 }
 
 function hasLayerPatchChanges(
