@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-flip-and-rotate-editor";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -15,9 +15,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Flip & Rotate Editor (Live Preview)";
+  const title =
+    `SVG Flip and Rotate Editor - Mirror or Rotate SVG | iLoveSVG`;
   const description =
-    "Flip or rotate an SVG instantly with iLoveSVG. Paste or upload SVG, flip horizontally or vertically, rotate by degrees or 90° steps, preview changes live, then copy or download the updated SVG. Free, fully client-side, no uploads.";
+    `Flip, mirror, or rotate SVG files in your browser. Preview horizontal and vertical flips, degree rotation, 90-degree steps, then copy or download the updated SVG.`;
   const canonical = "https://www.ilovesvg.com/svg-flip-and-rotate-editor";
 
   return [
@@ -1541,6 +1542,8 @@ function SeoSections() {
           </section>
 
           {/* Visible FAQ (bottom) - keep content as-is; just align styling */}
+          <CurrentRouteGuide />
+
           <section className="mt-12" aria-label="Frequently asked questions">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
 

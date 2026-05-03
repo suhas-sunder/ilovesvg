@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-preview-viewer";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -14,9 +14,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Viewer (Zoom, Pan, Inspect)";
+  const title =
+    `SVG Viewer - Preview, Zoom, Pan and Inspect | iLoveSVG`;
   const description =
-    "Inspect SVG files instantly with iLoveSVG. Zoom and pan intuitively, fit to view, pick elements, inspect metadata, and view source. Free, fully client-side, no uploads.";
+    `Preview SVG files in your browser with zoom, pan, fit-to-view, source inspection, and metadata checks before using the artwork in web, app, or design workflows.`;
   const canonical = "https://www.ilovesvg.com/svg-preview-viewer";
 
   return [
@@ -2135,6 +2136,8 @@ function SeoSections() {
               ))}
             </ol>
           </section>
+
+          <CurrentRouteGuide />
 
           <section
             className="mt-12"

@@ -2,7 +2,7 @@
 import * as React from "react";
 import type { Route } from "./+types/free-color-picker";
 import { Link } from "react-router";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -22,9 +22,10 @@ const MAX_SIDE = 8000;
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Color Picker & Palette Extractor (PNG, JPG)";
+  const title =
+    `Free Color Picker - Pick HEX, RGB, HSL and SVG Palettes | iLoveSVG`;
   const description =
-    "Pick colors and extract palettes from SVG and images with iLoveSVG. Preview fills and strokes, copy HEX, RGB, or HSL values, and generate palettes from SVG, PNG, JPG, or WebP. Free, fast, runs entirely in your browser.";
+    `Pick colors and extract palettes from SVG, PNG, JPG, JPEG, and WebP in your browser. Preview fills and strokes, copy HEX, RGB, or HSL values, and build clean design palettes.`;
   const canonical = "https://www.ilovesvg.com/free-color-picker";
 
   return [
@@ -2638,6 +2639,8 @@ function SeoSections() {
               ))}
             </ol>
           </section>
+
+          <CurrentRouteGuide />
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-800">

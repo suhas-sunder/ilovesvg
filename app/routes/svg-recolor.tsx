@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-recolor";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -16,9 +16,10 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Recolor Tool (Replace Fill & Stroke Colors)";
+  const title =
+    `SVG Recolor Tool - Replace Fill and Stroke Colors | iLoveSVG`;
   const description =
-    "Recolor SVGs instantly with iLoveSVG. Automatically extract the SVG color palette, replace specific fill and stroke colors, convert icons to currentColor, and download a clean updated SVG. Paste or upload SVG markup. Free, client-side only, no server.";
+    `Recolor SVG files in your browser. Extract the color palette, replace fill and stroke colors, convert icons to currentColor, preview, and download the updated SVG.`;
   const canonical = "https://www.ilovesvg.com/svg-recolor";
 
   return [
@@ -1401,6 +1402,32 @@ function SeoSections() {
               </div>
             </div>
           </div>
+
+          <CurrentRouteGuide />
+
+          <section className="mt-12" aria-label="Frequently asked questions">
+            <h3 className="m-0 text-xl font-extrabold tracking-tight text-sky-800">
+              FAQ
+            </h3>
+            <div className="mt-4 grid gap-3">
+              {faq.map((item) => (
+                <details
+                  key={item.q}
+                  className="group rounded-xl border border-slate-200 bg-white px-4 py-3"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-900">
+                    <span>{item.q}</span>
+                    <span className="select-none text-slate-400 transition-transform group-open:rotate-45">
+                      +
+                    </span>
+                  </summary>
+                  <p className="pt-2 text-[14px] leading-relaxed text-slate-700">
+                    {item.a}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </section>
 
           <OtherToolsLinks />
         </div>

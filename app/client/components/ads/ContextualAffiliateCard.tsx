@@ -638,7 +638,9 @@ export function ContextualAffiliateCard() {
                   key={benefit}
                   className="rounded-lg border border-white/80 bg-white/80 px-3 py-2 shadow-sm"
                 >
-                  <span className="font-bold text-emerald-700">✓</span>{" "}
+                  <span className="font-bold text-emerald-700" aria-hidden>
+                    +
+                  </span>{" "}
                   {benefit}
                 </li>
               ))}

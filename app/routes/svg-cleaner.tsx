@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-cleaner";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -2135,6 +2135,8 @@ function SeoSections() {
           </section>
 
           {/* FAQ (rendered + schema from same list) */}
+          <CurrentRouteGuide />
+
           <section className="mt-8" aria-label="Frequently asked questions">
             <div className="flex items-end justify-between gap-3 flex-wrap">
               <h3 className="m-0 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">

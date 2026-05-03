@@ -6,7 +6,7 @@ import {
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { useState } from "react";
@@ -3897,6 +3897,8 @@ function SeoSections() {
           </section>
 
           {/* FAQ */}
+          <CurrentRouteGuide />
+
           <section
             className="mt-12"
             itemScope

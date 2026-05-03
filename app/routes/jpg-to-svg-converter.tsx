@@ -20,7 +20,7 @@ import {
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -3240,6 +3240,8 @@ function JpgSeoSections() {
               </div>
             </div>
           </section>
+
+          <CurrentRouteGuide />
 
           <section
             itemScope

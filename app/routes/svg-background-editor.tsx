@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-background-editor";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -1238,6 +1238,8 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
               </div>
             </div>
           </header>
+
+          <CurrentRouteGuide />
 
           <section className="mt-8">
             <div className="flex items-end justify-between gap-3 flex-wrap">

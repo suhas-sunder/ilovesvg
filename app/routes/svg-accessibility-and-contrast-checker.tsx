@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-accessibility-and-contrast-checker";
 import { Link } from "react-router";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "./cookies";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "iLoveSVG | SVG Contrast Checker (WCAG AA/AAA + Color Blindness)";
+    `SVG Contrast Checker - WCAG Color Accessibility | iLoveSVG`;
   const description =
-    "Check SVG color contrast against WCAG AA/AAA with iLoveSVG. Preview common color blindness modes, generate higher-contrast color options, and apply changes directly to download an updated SVG.";
+    `Check SVG color contrast against WCAG AA and AAA, preview color blindness modes, test higher-contrast options, and download an updated SVG.`;
   const canonical =
     "https://www.ilovesvg.com/svg-accessibility-and-contrast-checker";
 
@@ -1250,6 +1250,8 @@ function SeoSections() {
               ))}
             </div>
           </section>
+
+          <CurrentRouteGuide />
 
           <section
             className="mt-12"

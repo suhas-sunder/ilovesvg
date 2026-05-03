@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-base64";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -1745,6 +1745,8 @@ function SeoSections() {
             </div>
           </section>
         </article>
+
+        <CurrentRouteGuide />
 
         <section className="mt-10">
           <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">

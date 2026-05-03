@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-png-converter";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -1128,56 +1128,143 @@ function SeoSections() {
           </section>
 
           <section
-            className="mt-8"
+            className="not-prose mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
             itemScope
             itemType="https://schema.org/HowTo"
           >
-            <h3 itemProp="name" className="m-0 font-bold">
+            <h3
+              itemProp="name"
+              className="m-0 text-xl font-extrabold tracking-tight text-sky-950 sm:text-2xl"
+            >
               How to Convert SVG to PNG
             </h3>
-            <ol className="mt-3 list-decimal pl-5 grid gap-2">
-              <li itemProp="step">Upload (or paste) an SVG file.</li>
-              <li itemProp="step">
-                Set output width and height (enable Lock aspect ratio if
-                needed).
+            <ol className="mt-4 grid gap-3 sm:grid-cols-2">
+              <li
+                itemProp="step"
+                className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-extrabold text-sky-800">
+                  1
+                </span>
+                <span>Upload (or paste) an SVG file.</span>
               </li>
-              <li itemProp="step">
-                Choose Transparent background or a Solid background color.
+              <li
+                itemProp="step"
+                className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-extrabold text-sky-800">
+                  2
+                </span>
+                <span>
+                  Set output width and height (enable Lock aspect ratio if
+                  needed).
+                </span>
               </li>
-              <li itemProp="step">Click Convert to PNG, then Download PNG.</li>
+              <li
+                itemProp="step"
+                className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-extrabold text-sky-800">
+                  3
+                </span>
+                <span>
+                  Choose Transparent background or a Solid background color.
+                </span>
+              </li>
+              <li
+                itemProp="step"
+                className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-extrabold text-sky-800">
+                  4
+                </span>
+                <span>Click Convert to PNG, then Download PNG.</span>
+              </li>
             </ol>
           </section>
 
-          <section className="mt-8">
-            <h3 className="m-0 font-bold">Common Uses</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                Export an SVG logo to PNG for social media or email signatures
-              </li>
-              <li>Create PNG icons from SVGs for apps or favicons</li>
-              <li>Generate transparent PNG stickers from vector art</li>
-              <li>Resize SVG artwork to a specific pixel size</li>
-            </ul>
+          <section className="not-prose mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <h3 className="m-0 text-lg font-extrabold tracking-tight text-sky-950">
+                Common Uses
+              </h3>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>
+                    Export an SVG logo to PNG for social media or email
+                    signatures
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>Create PNG icons from SVGs for apps or favicons</span>
+                </li>
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>Generate transparent PNG stickers from vector art</span>
+                </li>
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>Resize SVG artwork to a specific pixel size</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <h3 className="m-0 text-lg font-extrabold tracking-tight text-sky-950">
+                Tips for Best Quality
+              </h3>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>
+                    If the output looks soft, raise{" "}
+                    <strong>Quality (pixel ratio)</strong> or export larger
+                    dimensions.
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>
+                    For crisp edges on icons, keep{" "}
+                    <strong>Anti-aliasing</strong> enabled (or disable it for
+                    pixel-art-like sharp edges).
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <span>
+                    If your SVG uses external fonts/images, embed them to
+                    improve compatibility.
+                  </span>
+                </li>
+              </ul>
+            </div>
           </section>
 
-          <section className="mt-8">
-            <h3 className="m-0 font-bold">Tips for Best Quality</h3>
-            <ul className="mt-3 text-slate-700 list-disc pl-5">
-              <li>
-                If the output looks soft, raise{" "}
-                <strong>Quality (pixel ratio)</strong> or export larger
-                dimensions.
-              </li>
-              <li>
-                For crisp edges on icons, keep <strong>Anti-aliasing</strong>{" "}
-                enabled (or disable it for pixel-art-like sharp edges).
-              </li>
-              <li>
-                If your SVG uses external fonts/images, embed them to improve
-                compatibility.
-              </li>
-            </ul>
-          </section>
+          <CurrentRouteGuide />
 
           <section>
             <h3 className="m-0 font-bold">FAQ</h3>

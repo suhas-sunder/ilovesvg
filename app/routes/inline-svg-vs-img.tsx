@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/inline-svg-vs-img";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -14,9 +14,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | Inline SVG vs IMG Tag (Comparison & Code)";
+  const title =
+    `Inline SVG vs IMG Tag - Compare Embed Options | iLoveSVG`;
   const description =
-    "Compare inline SVG vs the img tag with iLoveSVG and generate the correct embed code. Paste an SVG to preview both approaches side by side, test CSS styling like currentColor, accessibility options, and caching tradeoffs, then copy ready-to-use snippets. Runs entirely in your browser.";
+    `Compare inline SVG and img tag usage in your browser. Preview styling, accessibility, caching tradeoffs, currentColor behavior, and copy ready-to-use embed snippets.`;
   const canonical = "https://www.ilovesvg.com/inline-svg-vs-img";
 
   return [
@@ -1654,6 +1655,8 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
       <ContextualAffiliateCard />
 
       <SeoSections />
+      <CurrentRouteGuide />
+      <FaqSection />
       <JsonLdFaq />
       <Breadcrumbs crumbs={crumbs} />
       <JsonLdBreadcrumbs />
@@ -2743,6 +2746,29 @@ function JsonLdBreadcrumbs() {
   );
 }
 
+const INLINE_SVG_FAQS = [
+  {
+    q: "What is the difference between inline SVG and <img>?",
+    a: "Inline SVG inserts the <svg> markup directly into the page, which allows styling internal shapes with CSS and manipulating elements with JavaScript. Using <img> links to an SVG file or data URI, which is simpler and cache-friendly but does not allow styling the SVG's internal paths with CSS.",
+  },
+  {
+    q: "Which is better for icons: inline SVG or <img>?",
+    a: "Inline SVG is better when you need currentColor, hover states, or per-path styling. <img> is better when you want simple embedding, strong caching, and you do not need to style internal shapes.",
+  },
+  {
+    q: "Can I change the color of an SVG used in an <img> tag?",
+    a: "Not reliably. You can style the <img> element itself, but you cannot directly target the SVG's internal paths with CSS. For currentColor icons, inline SVG is the usual solution.",
+  },
+  {
+    q: "Is it safe to inline SVG?",
+    a: "Untrusted SVG can include scripts, event handlers, or foreignObject content. If you inline SVG you should sanitize it first by removing risky elements and attributes.",
+  },
+  {
+    q: "Do you upload my SVG?",
+    a: "No. Everything runs client-side in your browser. Nothing is uploaded to a server.",
+  },
+];
+
 /* ========================
    FAQ JSON-LD
 ======================== */
@@ -2750,54 +2776,47 @@ function JsonLdFaq() {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What is the difference between inline SVG and <img>?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Inline SVG inserts the <svg> markup directly into the page, which allows styling internal shapes with CSS and manipulating elements with JavaScript. Using <img> links to an SVG file or data URI, which is simpler and cache-friendly but does not allow styling the SVG’s internal paths with CSS.",
-        },
+    mainEntity: INLINE_SVG_FAQS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
       },
-      {
-        "@type": "Question",
-        name: "Which is better for icons: inline SVG or <img>?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Inline SVG is better when you need currentColor, hover states, or per-path styling. <img> is better when you want simple embedding, strong caching, and you do not need to style internal shapes.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can I change the color of an SVG used in an <img> tag?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Not reliably. You can style the <img> element itself, but you cannot directly target the SVG’s internal paths with CSS. For currentColor icons, inline SVG is the usual solution.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is it safe to inline SVG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Untrusted SVG can include scripts, event handlers, or foreignObject content. If you inline SVG you should sanitize it first by removing risky elements and attributes.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Do you upload my SVG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. Everything runs client-side in your browser. Nothing is uploaded to a server.",
-        },
-      },
-    ],
+    })),
   };
   return (
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
+  );
+}
+
+function FaqSection() {
+  return (
+    <section className="bg-white border-t border-slate-200">
+      <div className="mx-auto max-w-[1180px] px-4 py-10 text-slate-800">
+        <div className="max-w-[900px]">
+          <h2 className="m-0 text-2xl font-extrabold text-slate-900">FAQ</h2>
+          <div className="mt-4 grid gap-3">
+            {INLINE_SVG_FAQS.map((item) => (
+              <details
+                key={item.q}
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+              >
+                <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-900">
+                  {item.q}
+                </summary>
+                <p className="m-0 border-t border-slate-100 px-4 py-3 text-sm leading-relaxed text-slate-700">
+                  {item.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

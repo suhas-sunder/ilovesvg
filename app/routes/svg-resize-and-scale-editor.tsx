@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-resize-and-scale-editor";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -14,9 +14,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Resize & Scale Tool (Width, Height, viewBox)";
+  const title =
+    `SVG Resize and Scale Tool - Change Width, Height and ViewBox | iLoveSVG`;
   const description =
-    "Resize and scale SVG files instantly with iLoveSVG. Change width and height, preserve aspect ratio, scale by percentage, update the viewBox, and download the resized SVG. Free, fully client-side, no uploads.";
+    `Resize and scale SVG files in your browser. Change width, height, aspect ratio, scale percentage, and viewBox behavior before copying or downloading.`;
   const canonical = "https://www.ilovesvg.com/svg-resize-and-scale-editor";
 
   return [
@@ -1284,6 +1285,8 @@ function SeoSections() {
               </div>
             </div>
           </section>
+
+          <CurrentRouteGuide />
 
           <section>
             <h3 className="mt-8 font-bold">FAQ</h3>

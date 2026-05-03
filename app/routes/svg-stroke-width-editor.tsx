@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-stroke-width-editor";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -15,9 +15,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Stroke Width Editor (Live Preview)";
+  const title =
+    `SVG Stroke Width Editor - Adjust SVG Line Thickness | iLoveSVG`;
   const description =
-    "Adjust stroke width in SVG files instantly with iLoveSVG. Multiply stroke widths, set exact values, add missing stroke-width, clamp min or max values, target specific paths or shapes, and preview changes live. Free, fully client-side, no uploads.";
+    `Adjust SVG stroke width in your browser. Multiply line thickness, set exact stroke values, clamp min or max widths, preview, copy, and download.`;
   const canonical = "https://www.ilovesvg.com/svg-stroke-width-editor";
 
   return [
@@ -2198,6 +2199,8 @@ function SeoSections() {
               </div>
             </div>
           </section>
+
+          <CurrentRouteGuide />
 
           {/* FAQ (do not change) */}
           <section>

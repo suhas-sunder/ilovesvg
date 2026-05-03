@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-file-size-inspector";
 
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -16,9 +16,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "iLoveSVG | SVG File Size Inspector (KB, Compression, Optimize)";
+    `SVG File Size Inspector - Check KB and Compression | iLoveSVG`;
   const description =
-    "Inspect SVG file size instantly with iLoveSVG. See exact KB/MB size, detect bloat, estimate compression savings, and identify heavy elements. Paste or upload SVG files. Free, fully client-side, no uploads.";
+    `Inspect SVG file size in your browser. See bytes, KB, estimated compression savings, heavy elements, and cleanup opportunities before publishing or embedding.`;
   const canonical = "https://www.ilovesvg.com/svg-file-size-inspector";
 
   return [
@@ -1375,6 +1375,8 @@ function SeoSections() {
               cases.
             </div>
           </section>
+
+          <CurrentRouteGuide />
 
           <section className="mt-12" aria-label="Frequently asked questions">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>

@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-dimensions-inspector";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -15,9 +15,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Dimensions Inspector (Width, Height, viewBox)";
+  const title =
+    `SVG Dimensions Inspector - ViewBox, Width and Height | iLoveSVG`;
   const description =
-    "Inspect SVG dimensions instantly with iLoveSVG. Paste or upload an SVG to read width, height, and viewBox, compute pixel size, detect sizing issues, and apply fixes like adding a viewBox or setting explicit dimensions. Live preview. Free, no uploads.";
+    `Inspect SVG width, height, viewBox, aspect ratio, and computed pixel size in your browser. Paste or upload SVG, preview sizing, and apply dimension fixes.`;
   const canonical = "https://www.ilovesvg.com/svg-dimensions-inspector";
 
   return [
@@ -1877,6 +1878,8 @@ function SeoSections() {
           </section>
 
           {/* FAQ (leave content as-is; only minor styling fixes + hover/cursor) */}
+          <CurrentRouteGuide />
+
           <section className="mt-12" aria-label="Frequently asked questions">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
             <div className="mt-4 grid gap-3">

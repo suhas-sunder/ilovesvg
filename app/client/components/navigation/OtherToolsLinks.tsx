@@ -41,12 +41,18 @@ type RouteGuide = {
     label: string;
     reason: string;
   }>;
+  questions?: Array<{
+    q: string;
+    a: string;
+  }>;
 };
 
 type Props = {
   title?: string;
   subtitle?: string;
 };
+
+const LONG_CONTENT_AD_SLOT = "2346286299";
 
 /**
  * Full site navigation for all public SVG tools.
@@ -56,7 +62,7 @@ type Props = {
  * - Highlights the current page instead of hiding it
  *
  * NOTE:
- * Home page ("/") is Image → SVG on your site.
+ * Home page ("/") is Image -> SVG on your site.
  * Legal pages exist in routes but are intentionally excluded from this list.
  */
 export function OtherToolsLinks({
@@ -66,10 +72,6 @@ export function OtherToolsLinks({
   const { pathname } = useLocation();
 
   const normalizedPathname = normalizePath(pathname);
-  const routeGuide = React.useMemo(
-    () => getRouteGuide(normalizedPathname),
-    [normalizedPathname],
-  );
 
   const sections = React.useMemo(() => {
     return UTILITY_SECTIONS.map((section) => {
@@ -90,9 +92,7 @@ export function OtherToolsLinks({
       className="mt-12 border-t border-slate-200 bg-white"
     >
       <div className="max-w-[1180px] mx-auto px-4 py-10">
-        {routeGuide ? <RouteIntentGuide guide={routeGuide} /> : null}
-
-        <div className={routeGuide ? "mt-10 flex flex-col gap-2" : "flex flex-col gap-2"}>
+        <div className="flex flex-col gap-2">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-sky-800">
             {title}
           </h2>
@@ -172,7 +172,7 @@ export function OtherToolsLinks({
 
                       <div className="mt-3 text-sm font-semibold text-sky-700 group-hover:text-sky-800">
                         {isCurrent ? "Current tool" : "Open tool"}{" "}
-                        <span aria-hidden>{isCurrent ? "✓" : "→"}</span>
+                        {isCurrent ? null : <span aria-hidden>{"->"}</span>}
                       </div>
                     </Link>
                   );
@@ -186,29 +186,47 @@ export function OtherToolsLinks({
   );
 }
 
+export function CurrentRouteGuide() {
+  const { pathname } = useLocation();
+  const normalizedPathname = normalizePath(pathname);
+  const routeGuide = React.useMemo(
+    () => getRouteGuide(normalizedPathname),
+    [normalizedPathname],
+  );
+
+  if (!routeGuide) return null;
+  return <RouteIntentGuide guide={routeGuide} />;
+}
+
 function RouteIntentGuide({ guide }: { guide: RouteGuide }) {
   return (
     <section
       aria-labelledby="current-tool-guide-heading"
       className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm sm:p-6"
     >
-      <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
-        {guide.eyebrow}
-      </p>
-      <h2
-        id="current-tool-guide-heading"
-        className="mt-2 max-w-[920px] text-2xl font-extrabold tracking-tight text-sky-950 sm:text-3xl"
-      >
-        {guide.heading}
-      </h2>
-      <p className="mt-3 max-w-[88ch] text-[15px] leading-7 text-slate-700">
-        {guide.intro}
-      </p>
+      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_336px] 2xl:items-start">
+        <div className="min-w-0">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
+            {guide.eyebrow}
+          </p>
+          <h2
+            id="current-tool-guide-heading"
+            className="mt-2 max-w-[820px] text-2xl font-extrabold tracking-tight text-sky-950 sm:text-3xl"
+          >
+            {guide.heading}
+          </h2>
+          <p className="mt-3 max-w-[78ch] text-[15px] leading-7 text-slate-700">
+            {guide.intro}
+          </p>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-3">
-        <GuideList title="Best for" items={guide.bestFor} />
-        <GuideList title="Settings to try" items={guide.settings} />
-        <GuideList title="Useful limits" items={guide.limitations} />
+          <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            <GuideList title="Best for" items={guide.bestFor} />
+            <GuideList title="Settings to try" items={guide.settings} />
+            <GuideList title="Useful limits" items={guide.limitations} />
+          </div>
+        </div>
+
+        <LongContentAd />
       </div>
 
       {guide.related.length ? (
@@ -234,7 +252,31 @@ function RouteIntentGuide({ guide }: { guide: RouteGuide }) {
           </div>
         </div>
       ) : null}
+
     </section>
+  );
+}
+
+function LongContentAd() {
+  return (
+    <aside
+      aria-label="Sponsored"
+      className="mx-auto w-full max-w-[360px] rounded-xl border border-slate-200 bg-white/80 p-2 shadow-sm sm:p-3 2xl:mx-0 2xl:justify-self-end"
+    >
+      <div className="mx-auto flex min-h-[336px] w-full max-w-[336px] items-center justify-center overflow-hidden">
+        <AdSenseDelayed
+          slot={LONG_CONTENT_AD_SLOT}
+          delayMs={2500}
+          afterInteraction={true}
+          minHeight={336}
+          maxHeight={336}
+          format="rectangle"
+          fullWidth={false}
+          className="mx-auto w-full max-w-[336px]"
+          showPlaceholder={true}
+        />
+      </div>
+    </aside>
   );
 }
 
@@ -325,6 +367,7 @@ function getRouteGuide(pathname: string): RouteGuide | null {
     settings: groupDefaults.settings,
     limitations: groupDefaults.limitations,
     related: relatedForUtility(utility),
+    questions: groupDefaults.questions,
   };
 }
 
@@ -346,6 +389,16 @@ function fallbackGuideByGroup(group: UtilityGroup) {
         "External fonts or linked images may render differently unless embedded.",
         "Use SVG cleanup first if the source markup is messy or unsafe.",
       ],
+      questions: [
+        {
+          q: "Does this route trace images?",
+          a: "No. SVG export routes render an existing SVG into PNG, JPG, WebP, PDF, or favicon output instead of retracing raster pixels.",
+        },
+        {
+          q: "Can I keep transparency?",
+          a: "Use PNG or WebP export when transparency matters. JPG and most PDF workflows need a solid background.",
+        },
+      ],
     };
   }
 
@@ -365,6 +418,16 @@ function fallbackGuideByGroup(group: UtilityGroup) {
         "These tools help prepare SVGs but cannot guarantee every cutter or material result.",
         "Very small islands, noisy photos, and busy backgrounds may need manual cleanup.",
         "Cricut is a trademark of its owner; iLoveSVG is not affiliated with Cricut.",
+      ],
+      questions: [
+        {
+          q: "Is this officially affiliated with Cricut?",
+          a: "No. The page is built for common Cricut Design Space workflows, but iLoveSVG is not affiliated with Cricut.",
+        },
+        {
+          q: "What should I check before cutting?",
+          a: "Inspect tiny islands, line thickness, final size, background cleanup, and layer separation before sending the SVG to a cutter.",
+        },
       ],
     };
   }
@@ -386,6 +449,16 @@ function fallbackGuideByGroup(group: UtilityGroup) {
         "Complex filters, external references, or missing fonts can affect browser previews.",
         "Use image-to-SVG tools when your source is PNG, JPG, JPEG, or WebP.",
       ],
+      questions: [
+        {
+          q: "Are SVG utility files uploaded?",
+          a: "These browser utility pages work with pasted or uploaded SVG data locally unless the specific page says otherwise.",
+        },
+        {
+          q: "When should I use an image-to-SVG converter instead?",
+          a: "Use image-to-SVG when your source is a PNG, JPG, JPEG, WebP, scan, photo, logo, or drawing that needs vector tracing.",
+        },
+      ],
     };
   }
 
@@ -406,6 +479,16 @@ function fallbackGuideByGroup(group: UtilityGroup) {
         "Very large encoded assets can be awkward in CSS or HTML.",
         "Sanitization can remove unsafe scripts or event handlers from decoded SVG.",
       ],
+      questions: [
+        {
+          q: "Is Base64 conversion the same as image tracing?",
+          a: "No. Base64 tools encode or decode SVG strings and data URLs; they do not turn raster pixels into vector paths.",
+        },
+        {
+          q: "When should I use Base64 output?",
+          a: "Use it for small SVG embeds in CSS, HTML, documentation, prototypes, or code snippets where a data URL is useful.",
+        },
+      ],
     };
   }
 
@@ -424,6 +507,16 @@ function fallbackGuideByGroup(group: UtilityGroup) {
       "This tool only exposes controls that affect the current output.",
       "Use a related converter if your input or output format is different.",
       "Some browser-rendered previews can differ when external assets are missing.",
+    ],
+    questions: [
+      {
+        q: "Which tool should I use next?",
+        a: "Use the related links below when you need a different input type, output format, cleanup step, or craft-file workflow.",
+      },
+      {
+        q: "Will this change the conversion engine?",
+        a: "No. These notes explain the current route behavior and point you toward the right existing tool.",
+      },
     ],
   };
 }
@@ -676,6 +769,16 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Change or remove SVG backgrounds after conversion." },
       { to: "/logo-to-svg-converter", label: "Logo to SVG Converter", reason: "Use a logo-specific workflow for brand marks and small-business files." },
     ],
+    questions: [
+      {
+        q: "Does the home converter upload files?",
+        a: "Yes. Raster-to-SVG tracing is server-assisted, protected by upload and concurrency limits, and files are not stored after conversion.",
+      },
+      {
+        q: "What do the preset speed tags mean?",
+        a: "Speed tags estimate backend processing cost. They help you choose between quick single-trace presets and heavier layered or high-detail presets.",
+      },
+    ],
   },
   "/png-to-svg-converter": {
     eyebrow: "PNG to SVG keyword cluster",
@@ -705,6 +808,16 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Export the finished SVG back to transparent PNG." },
       { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Fix background color or transparency after conversion." },
     ],
+    questions: [
+      {
+        q: "Can a transparent PNG become an editable SVG?",
+        a: "Yes, when the trace can separate useful shapes. Layered presets can help when the PNG has clear color regions.",
+      },
+      {
+        q: "Is PNG to SVG lossless?",
+        a: "No. Tracing interprets pixels as vector paths, so cleanup and preset choice matter for smooth SVG output.",
+      },
+    ],
   },
   "/jpg-to-svg-converter": {
     eyebrow: "JPG to SVG keyword cluster",
@@ -732,6 +845,16 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       { to: "/scan-to-svg-converter", label: "Scan to SVG", reason: "Better for paper shadows, ink, and scanned documents." },
       { to: "/image-to-svg-outline", label: "Image to SVG Outline", reason: "Use an outline-first workflow for line extraction." },
       { to: "/jpg-to-svg-for-cricut", label: "JPG to SVG for Cricut", reason: "Prepare a JPG as a craft or cut-file SVG." },
+    ],
+    questions: [
+      {
+        q: "Why can a JPG trace look different from the photo?",
+        a: "JPG files are continuous-tone raster images. The converter simplifies them into paths, so outlines, contrast, and cleanup settings shape the result.",
+      },
+      {
+        q: "Which preset should I start with for JPG?",
+        a: "Use Photo Edge for contour art, Scan for paper or whiteboard images, and Lineart presets for clear drawings or black ink.",
+      },
     ],
   },
   "/svg-to-png-converter": {
@@ -761,6 +884,16 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Edit the SVG dimensions before raster export." },
       { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean markup before exporting difficult SVGs." },
     ],
+    questions: [
+      {
+        q: "Can I export a transparent PNG?",
+        a: "Yes. Keep the transparent background option when you need icons, overlays, product graphics, or social assets with alpha.",
+      },
+      {
+        q: "Does SVG to PNG use the tracing engine?",
+        a: "No. It renders the SVG in the browser and exports pixels, so raster tracing presets are intentionally not shown here.",
+      },
+    ],
   },
   "/svg-background-editor": {
     eyebrow: "SVG background workflow",
@@ -788,6 +921,16 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       { to: "/svg-recolor", label: "SVG Recolor", reason: "Change fill and stroke colors after background cleanup." },
       { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Fix viewBox and canvas sizing." },
     ],
+    questions: [
+      {
+        q: "Can this remove a photo background?",
+        a: "No. This tool edits SVG background shapes and canvas behavior. It does not use AI photo background removal.",
+      },
+      {
+        q: "What should I do before exporting a transparent PNG?",
+        a: "Remove or change the SVG background here first, then export with the SVG to PNG converter using transparency enabled.",
+      },
+    ],
   },
   "/text-to-svg-converter": {
     eyebrow: "Text and font workflow",
@@ -814,6 +957,352 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       { to: "/cricut-svg-converter", label: "Cricut SVG Converter", reason: "Prepare text graphics for craft and cut-file workflows." },
       { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean text SVG markup before sharing or embedding." },
       { to: "/svg-recolor", label: "SVG Recolor", reason: "Change fill or stroke colors after export." },
+    ],
+    questions: [
+      {
+        q: "Can I turn text into SVG paths?",
+        a: "Yes. The text tool can export SVG text graphics and path-style output depending on the selected settings.",
+      },
+      {
+        q: "Can I use uploaded fonts?",
+        a: "Yes, when you have the right to use the font. Check the exported result before using it in commercial or craft projects.",
+      },
+    ],
+  },
+  "/svg-to-pdf-converter": {
+    eyebrow: "SVG to PDF export workflow",
+    heading: "SVG to PDF for print, documents, classroom handouts, and design handoff",
+    intro:
+      "Use this browser export route when an existing SVG needs to become a PDF for printing, sharing, documentation, client review, or classroom materials. It uses PDF export settings instead of raster-to-SVG tracing presets.",
+    bestFor: [
+      "svg to pdf, convert svg to pdf, and svg to pdf converter searches.",
+      "Print-ready documents, worksheets, product labels, icon sheets, and design handoff.",
+      "Users who need paper size, orientation, margin, DPI, and preview controls.",
+    ],
+    settings: [
+      "Choose paper size and orientation before exporting.",
+      "Set margin and DPI based on print or document use.",
+      "Use SVG cleaner first when the source has editor metadata or unsafe markup.",
+    ],
+    limitations: [
+      "PDF export preserves the visual result, not every editing feature from the original design app.",
+      "External fonts, filters, or linked images can affect browser-rendered export output.",
+      "Use SVG to PNG or JPG when you need an image instead of a document.",
+    ],
+    related: [
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Export transparent or exact-size raster images." },
+      { to: "/svg-to-jpg-converter", label: "SVG to JPG", reason: "Flatten SVG onto a solid image background." },
+      { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Adjust viewBox or dimensions before PDF export." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean markup before print or document handoff." },
+    ],
+    questions: [
+      {
+        q: "Is SVG to PDF good for printing?",
+        a: "Yes for many SVG graphics, worksheets, labels, and documents. Check paper size, margin, and preview before downloading.",
+      },
+      {
+        q: "Does this upload my SVG?",
+        a: "No. This route exports the SVG to PDF in the browser with client-side PDF/rendering tools.",
+      },
+    ],
+  },
+  "/svg-to-jpg-converter": {
+    eyebrow: "SVG to JPG export workflow",
+    heading: "SVG to JPG for flattened previews, email, social uploads, and web sharing",
+    intro:
+      "Use SVG to JPG when the destination does not support transparency or SVG files. The route renders SVG in the browser and exports JPEG with size, background, and quality controls.",
+    bestFor: [
+      "svg to jpg, svg to jpeg, and convert svg to jpg searches.",
+      "Flattened previews, email attachments, social uploads, product mockups, and white-background graphics.",
+      "Users who need a standard JPEG instead of transparent PNG.",
+    ],
+    settings: [
+      "Choose a solid background because JPG does not preserve transparency.",
+      "Set exact width and height for production or upload requirements.",
+      "Adjust JPEG quality when file size matters.",
+    ],
+    limitations: [
+      "JPG is raster output and can introduce compression artifacts.",
+      "Transparent SVG areas are flattened onto the selected background.",
+      "Use SVG to PNG when transparency matters.",
+    ],
+    related: [
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Use when transparent output is required." },
+      { to: "/svg-to-pdf-converter", label: "SVG to PDF", reason: "Use for print or document workflows." },
+      { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Set the SVG background before flattening to JPG." },
+      { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Fix dimensions before export." },
+    ],
+    questions: [
+      {
+        q: "Can JPG keep transparency?",
+        a: "No. JPG output is flattened onto a solid background. Use SVG to PNG when you need transparency.",
+      },
+      {
+        q: "Does this retrace the SVG?",
+        a: "No. It renders the existing SVG to a JPEG image in the browser.",
+      },
+    ],
+  },
+  "/svg-to-base64": {
+    eyebrow: "SVG Base64 workflow",
+    heading: "SVG to Base64 for data URLs, CSS embeds, HTML snippets, and prototypes",
+    intro:
+      "Use this page when you already have SVG markup and need encoded output for a data URL, CSS background, HTML image source, documentation, or quick prototype.",
+    bestFor: [
+      "svg to base64, SVG data URL, Base64 SVG, and encode SVG searches.",
+      "Small SVG icons, code snippets, CSS embeds, email prototypes, and documentation examples.",
+      "Users who need copy-ready Base64 or UTF-8 data URI output.",
+    ],
+    settings: [
+      "Choose Base64 or UTF-8 data URL output based on where the SVG will be pasted.",
+      "Use sanitization and minification before encoding unknown or messy SVG markup.",
+      "Copy snippets for code, or download output when you need a reusable file.",
+    ],
+    limitations: [
+      "Base64 makes source text longer and can be awkward for large SVGs.",
+      "This route encodes SVG data; it does not trace PNG or JPG files.",
+      "Use SVG cleaner first if the markup contains editor junk or unsafe content.",
+    ],
+    related: [
+      { to: "/base64-to-svg", label: "Base64 to SVG", reason: "Decode SVG data URLs back into editable SVG source." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean and sanitize before encoding." },
+      { to: "/svg-minifier", label: "SVG Minifier", reason: "Reduce SVG text size before embedding." },
+      { to: "/svg-embed-code-generator", label: "SVG Embed Code Generator", reason: "Generate HTML, CSS, and React embed snippets." },
+    ],
+    questions: [
+      {
+        q: "Should I use Base64 for every SVG?",
+        a: "No. It is best for small embeds and snippets. Larger SVGs are usually easier to maintain as normal files.",
+      },
+      {
+        q: "Can I decode the result later?",
+        a: "Yes. Use Base64 to SVG to decode a Base64 SVG string or data URL back into SVG markup.",
+      },
+    ],
+  },
+  "/svg-cleaner": {
+    eyebrow: "SVG cleanup workflow",
+    heading: "SVG cleaner for safer markup, smaller files, and easier export",
+    intro:
+      "Use SVG Cleaner when an SVG has editor metadata, comments, unsafe script-like content, duplicated markup, or extra whitespace that gets in the way of embedding, export, or handoff.",
+    bestFor: [
+      "svg cleaner, clean svg, optimize svg, and remove SVG metadata searches.",
+      "Web icons, app assets, design-system SVGs, craft files, and SVGs before Base64 or raster export.",
+      "Users who need preview, copy, and download after cleanup.",
+    ],
+    settings: [
+      "Remove metadata, comments, unsafe content, and unneeded markup where supported.",
+      "Preview the cleaned output before copying or downloading.",
+      "Use minifier next if the main goal is file size reduction.",
+    ],
+    limitations: [
+      "Cleanup can remove unsafe or unnecessary markup, but it cannot fix every malformed SVG.",
+      "Visual output should be checked after cleaning complex files.",
+      "This route edits SVG markup and does not trace raster images.",
+    ],
+    related: [
+      { to: "/svg-minifier", label: "SVG Minifier", reason: "Compress cleaned markup further." },
+      { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Change background behavior after cleanup." },
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Export cleaned SVG to PNG." },
+      { to: "/svg-to-base64", label: "SVG to Base64", reason: "Encode cleaned SVG for embeds." },
+    ],
+    questions: [
+      {
+        q: "Does SVG Cleaner change the artwork?",
+        a: "It is intended to remove unnecessary or unsafe markup while preserving visual output, but always preview complex files after cleanup.",
+      },
+      {
+        q: "Should I clean SVG before Base64?",
+        a: "Yes, cleaning and minifying before encoding usually makes data URLs easier to use.",
+      },
+    ],
+  },
+  "/image-to-svg-outline": {
+    eyebrow: "Image outline workflow",
+    heading: "Image to SVG outline for contour art, decals, maps, and simplified line work",
+    intro:
+      "Use this outline-focused route when the goal is not full-color vectorization, but a simplified edge, contour, or line-art SVG from a PNG or JPG image.",
+    bestFor: [
+      "image to SVG outline, photo outline SVG, line art outline, and laser/CNC outline searches.",
+      "Decals, contour posters, simplified maps, classroom art, and maker paths.",
+      "Users who want edge presets, cleanup controls, and full-screen output inspection.",
+    ],
+    settings: [
+      "Start with Photo Edge or Lineart presets depending on the source image.",
+      "Use edge threshold and cleanup controls for noisy photos or screenshots.",
+      "Use SVG to PNG after tracing if you need a raster preview of the outline.",
+    ],
+    limitations: [
+      "Outline conversion intentionally simplifies detail and may omit subtle tones.",
+      "Very busy photos can produce too many paths unless edge cleanup is increased.",
+      "Use PNG to SVG or JPG to SVG when you want a broader vector trace instead of outline-first output.",
+    ],
+    related: [
+      { to: "/photo-to-svg-outline", label: "Photo to SVG Outline", reason: "Use a photo-specific contour workflow." },
+      { to: "/line-art-to-svg-converter", label: "Line Art to SVG", reason: "Trace clear ink or drawing lines." },
+      { to: "/scan-to-svg-converter", label: "Scan to SVG", reason: "Clean paper shadows and scanned marks." },
+      { to: "/png-to-svg-for-laser-cutting", label: "PNG to SVG for Laser Cutting", reason: "Prepare outline-style paths for maker workflows." },
+    ],
+    questions: [
+      {
+        q: "Is outline SVG the same as layered SVG?",
+        a: "No. Outline mode focuses on edges and contours. Layered SVG splits color regions into editable groups.",
+      },
+      {
+        q: "What images work best?",
+        a: "High-contrast images with clear subjects usually trace into cleaner outlines than low-contrast, busy photos.",
+      },
+    ],
+  },
+  "/cricut-svg-converter": {
+    eyebrow: "Cricut SVG workflow",
+    heading: "Cricut SVG converter for vinyl, stickers, labels, stencils, and cut-file prep",
+    intro:
+      "Use this route for craft-oriented SVG conversion. It keeps the tool focused on cut-friendly presets, cleanup, backgrounds, editable layers, and practical checks before importing into Cricut Design Space.",
+    bestFor: [
+      "Cricut SVG converter, PNG to SVG for Cricut, cut file SVG, vinyl SVG, and sticker SVG searches.",
+      "Vinyl decals, sticker sheets, labels, stencils, classroom projects, Etsy files, and small-business craft graphics.",
+      "Users who need route-specific Cricut presets without claiming official compatibility.",
+    ],
+    settings: [
+      "Start with clean cut, vinyl, sticker, print then cut, or layered presets.",
+      "Use cleanup settings to reduce tiny islands before cutting.",
+      "Inspect layer visibility, colors, and final size before download.",
+    ],
+    limitations: [
+      "iLoveSVG is not affiliated with Cricut.",
+      "Material, blade, mat, and Design Space import behavior still need user review.",
+      "No converter can guarantee perfect cut results for every noisy image or material.",
+    ],
+    related: [
+      { to: "/png-to-svg-for-cricut", label: "PNG to SVG for Cricut", reason: "Use a PNG-specific craft workflow." },
+      { to: "/png-to-svg-for-cricut-vinyl", label: "PNG to SVG for Cricut Vinyl", reason: "Focus on simple vinyl cut paths." },
+      { to: "/png-to-svg-for-cricut-stickers", label: "PNG to SVG for Cricut Stickers", reason: "Prepare sticker and label artwork." },
+      { to: "/layered-svg-for-cricut", label: "Layered SVG for Cricut", reason: "Create multicolor editable layers." },
+      { to: "/png-to-svg-for-cricut-print-then-cut", label: "Print Then Cut SVG", reason: "Use printable artwork with cut-outline intent." },
+    ],
+    questions: [
+      {
+        q: "What preset should I use for Cricut?",
+        a: "Start with clean cut for simple art, vinyl for decals, sticker for label edges, and layered presets for multicolor designs.",
+      },
+      {
+        q: "Does this guarantee Cricut compatibility?",
+        a: "No. It prepares cleaner SVG output, but you should inspect the file in your cutter software before cutting.",
+      },
+    ],
+  },
+  "/svg-to-favicon-generator": {
+    eyebrow: "Favicon workflow",
+    heading: "SVG to favicon generator for browser icons, app icons, and web projects",
+    intro:
+      "Use this route when an SVG logo or icon needs favicon output: browser icon sizes, favicon.ico, touch icons, manifest snippets, and preview assets.",
+    bestFor: [
+      "svg to favicon, favicon from SVG, favicon generator from SVG, and create favicon from SVG searches.",
+      "Website launches, landing pages, portfolios, small-business sites, and app icon handoff.",
+      "Users who need browser icon assets from an existing SVG mark.",
+    ],
+    settings: [
+      "Start with a simple square SVG for best small-size readability.",
+      "Generate the icon sizes your project needs rather than every possible file.",
+      "Use SVG cleaner first if the source logo has extra editor markup.",
+    ],
+    limitations: [
+      "Tiny favicons need simple shapes; detailed logos can become unreadable at 16 px.",
+      "Different browsers may choose different favicon assets from your markup.",
+      "This generator starts from SVG and does not vectorize raster logos.",
+    ],
+    related: [
+      { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Create PNG exports for icons and previews." },
+      { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Fix square canvas and viewBox sizing." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean logo markup before icon generation." },
+      { to: "/logo-to-svg-converter", label: "Logo to SVG", reason: "Vectorize a raster logo before making favicons." },
+    ],
+    questions: [
+      {
+        q: "What SVG works best for favicons?",
+        a: "Simple, high-contrast marks with a square viewBox usually survive small browser icon sizes best.",
+      },
+      {
+        q: "Can I make a favicon from a PNG logo?",
+        a: "First convert or trace the PNG with Logo to SVG, then use this favicon generator from the SVG result.",
+      },
+    ],
+  },
+  "/logo-to-svg-converter": {
+    eyebrow: "Logo vectorization workflow",
+    heading: "Logo to SVG for brand marks, small-business graphics, stickers, and web assets",
+    intro:
+      "Use this route when the source is a logo or simple brand mark rather than a general photo. Logo-tuned presets emphasize sharper edges, cleaner curves, transparent backgrounds, and editable SVG output.",
+    bestFor: [
+      "logo to SVG, vectorize logo, convert logo to SVG, and PNG logo to SVG searches.",
+      "Small-business logos, sticker labels, web headers, favicons, decals, and merch graphics.",
+      "Users who need copy, download, preview, and cleanup controls after tracing.",
+    ],
+    settings: [
+      "Start with Logo - Sharp, Logo - Smooth, Icon - Bold, or clean lineart presets.",
+      "Use transparent or white-remove presets when the logo sits on a plain canvas.",
+      "Use layer editing to check brand colors before copy or download.",
+    ],
+    limitations: [
+      "Logo tracing works best on clear, high-contrast source images.",
+      "Tiny text, gradients, shadows, and compression artifacts may need cleanup or manual editing.",
+      "Use SVG to Favicon after the logo is already a clean SVG.",
+    ],
+    related: [
+      { to: "/png-to-svg-converter", label: "PNG to SVG", reason: "Use for transparent PNG logos and icons." },
+      { to: "/svg-to-favicon-generator", label: "SVG to Favicon", reason: "Turn the finished logo SVG into browser icons." },
+      { to: "/svg-background-editor", label: "SVG Background Editor", reason: "Remove or change logo backgrounds." },
+      { to: "/svg-recolor", label: "SVG Recolor", reason: "Adjust brand colors after conversion." },
+      { to: "/logo-to-svg-for-cricut", label: "Logo to SVG for Cricut", reason: "Prepare logo artwork for decals, labels, and craft files." },
+    ],
+    questions: [
+      {
+        q: "Can I convert a JPG logo to SVG?",
+        a: "Yes, but JPG compression can add noise. Use logo or cleanup presets and inspect the SVG before using it commercially.",
+      },
+      {
+        q: "Will the logo remain editable?",
+        a: "The SVG output can be copied, downloaded, previewed, and edited with supported layer/color controls when metadata is available.",
+      },
+    ],
+  },
+  "/png-to-svg-for-cricut": {
+    eyebrow: "PNG to Cricut SVG workflow",
+    heading: "PNG to SVG for Cricut Design Space, vinyl decals, stickers, and labels",
+    intro:
+      "This route keeps PNG-to-SVG conversion focused on craft use. It emphasizes cut-friendly presets, background cleanup, visible speed tags, editable output, and practical review before importing into Cricut Design Space.",
+    bestFor: [
+      "png to SVG for Cricut, Cricut SVG converter, cut file SVG, vinyl SVG, and sticker SVG searches.",
+      "Transparent PNG craft art, decals, labels, sticker sheets, stencils, and small-shop SVG files.",
+      "Creators who need a more specific workflow than the general PNG to SVG page.",
+    ],
+    settings: [
+      "Use clean cut for simple artwork, vinyl for decals, and sticker presets for edge-focused designs.",
+      "Use remove white or transparent/background controls for PNGs with plain backgrounds.",
+      "Use full-screen preview and layer editing before downloading the SVG.",
+    ],
+    limitations: [
+      "The tool prepares SVG output, but it cannot guarantee final cutter, material, or Design Space behavior.",
+      "Noisy PNGs, tiny islands, and thin lines can make weeding or cutting harder.",
+      "Use layered SVG routes when each color needs a separate editable layer.",
+    ],
+    related: [
+      { to: "/cricut-svg-converter", label: "Cricut SVG Converter", reason: "Use the broader craft SVG workflow." },
+      { to: "/png-to-svg-for-cricut-vinyl", label: "PNG to SVG for Vinyl", reason: "Focus on simpler vinyl decals and weedable paths." },
+      { to: "/png-to-svg-for-cricut-stickers", label: "PNG to SVG for Stickers", reason: "Prepare sticker and label artwork." },
+      { to: "/png-to-layered-svg-for-cricut", label: "PNG to Layered SVG", reason: "Split multicolor PNG artwork into layers." },
+      { to: "/png-to-svg-converter", label: "PNG to SVG", reason: "Use the general PNG vectorizer for non-craft output." },
+    ],
+    questions: [
+      {
+        q: "What PNG works best for Cricut SVG?",
+        a: "Clean, high-contrast PNG artwork with simple shapes usually converts into more usable craft SVG output.",
+      },
+      {
+        q: "Should I use layered SVG for Cricut?",
+        a: "Use layered SVG when colors need to be separated and edited. Use a single cut preset for simpler vinyl or stencil output.",
+      },
     ],
   },
 };
@@ -878,7 +1367,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "image-to-svg",
     title: "Image to SVG Converter",
-    shortTitle: "Image → SVG",
+    shortTitle: "Image -> SVG",
     description:
       "Convert an image into an SVG vector for scaling, logos, icons, and clean print output.",
     to: "/",
@@ -895,7 +1384,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "png-to-svg",
     title: "PNG to SVG Converter",
-    shortTitle: "PNG → SVG",
+    shortTitle: "PNG -> SVG",
     description:
       "Convert PNG images to SVG vectors for scalable logos, icons, graphics, and print-ready artwork.",
     to: "/png-to-svg-converter",
@@ -905,7 +1394,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "jpg-to-svg",
     title: "JPG to SVG Converter",
-    shortTitle: "JPG → SVG",
+    shortTitle: "JPG -> SVG",
     description:
       "Convert JPG images into scalable SVG files for web graphics, posters, and print projects.",
     to: "/jpg-to-svg-converter",
@@ -915,7 +1404,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "jpeg-to-svg",
     title: "JPEG to SVG Converter",
-    shortTitle: "JPEG → SVG",
+    shortTitle: "JPEG -> SVG",
     description:
       "Convert JPEG images to SVG with clean vector-style output for resizing without blur.",
     to: "/jpeg-to-svg-converter",
@@ -925,7 +1414,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "webp-to-svg",
     title: "WebP to SVG Converter",
-    shortTitle: "WebP → SVG",
+    shortTitle: "WebP -> SVG",
     description:
       "Convert WebP images to SVG for scalable assets and consistent rendering across sizes.",
     to: "/webp-to-svg-converter",
@@ -935,7 +1424,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "logo-to-svg",
     title: "Logo to SVG Converter",
-    shortTitle: "Logo → SVG",
+    shortTitle: "Logo -> SVG",
     description:
       "Turn a logo into a scalable SVG for brand kits, websites, printing, and sharp resizing.",
     to: "/logo-to-svg-converter",
@@ -945,7 +1434,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "icon-to-svg",
     title: "Icon to SVG Converter",
-    shortTitle: "Icon → SVG",
+    shortTitle: "Icon -> SVG",
     description:
       "Convert icons to SVG for crisp scaling, theming, UI use, and consistent rendering.",
     to: "/icon-to-svg-converter",
@@ -955,7 +1444,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "emoji-to-svg",
     title: "Emoji to SVG Converter",
-    shortTitle: "Emoji → SVG",
+    shortTitle: "Emoji -> SVG",
     description:
       "Convert emoji-style images to SVG for scalable stickers, icons, overlays, and graphics.",
     to: "/emoji-to-svg-converter",
@@ -965,7 +1454,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "text-to-svg",
     title: "Text to SVG Converter",
-    shortTitle: "Text → SVG",
+    shortTitle: "Text -> SVG",
     description:
       "Convert text into SVG for logos, wordmarks, headings, and scalable typography graphics.",
     to: "/text-to-svg-converter",
@@ -975,7 +1464,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "sticker-to-svg",
     title: "Sticker to SVG Converter",
-    shortTitle: "Sticker → SVG",
+    shortTitle: "Sticker -> SVG",
     description:
       "Convert sticker images to SVG for clean cut lines, scaling, decals, and print-ready output.",
     to: "/sticker-to-svg-converter",
@@ -985,7 +1474,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "line-art-to-svg",
     title: "Line Art to SVG Converter",
-    shortTitle: "Line Art → SVG",
+    shortTitle: "Line Art -> SVG",
     description:
       "Convert line art into SVG for crisp outlines, coloring pages, decals, and cut-friendly paths.",
     to: "/line-art-to-svg-converter",
@@ -995,7 +1484,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "drawing-to-svg",
     title: "Drawing to SVG Converter",
-    shortTitle: "Drawing → SVG",
+    shortTitle: "Drawing -> SVG",
     description:
       "Convert a drawing into SVG so it stays sharp at any size for prints, merch, and design edits.",
     to: "/drawing-to-svg-converter",
@@ -1005,7 +1494,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "scan-to-svg",
     title: "Scan to SVG Converter",
-    shortTitle: "Scan → SVG",
+    shortTitle: "Scan -> SVG",
     description:
       "Convert scanned images to SVG for cleanup, scaling, document graphics, and printable art.",
     to: "/scan-to-svg-converter",
@@ -1015,7 +1504,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "sketch-to-svg",
     title: "Sketch to SVG Converter",
-    shortTitle: "Sketch → SVG",
+    shortTitle: "Sketch -> SVG",
     description:
       "Vectorize sketches into SVG for clean scaling, editing, and consistent line output.",
     to: "/sketch-to-svg-converter",
@@ -1025,7 +1514,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "image-to-svg-outline",
     title: "Image to SVG Outline Converter",
-    shortTitle: "Image → Outline",
+    shortTitle: "Image -> Outline",
     description:
       "Generate an outline SVG from an image for clean line art, decals, and cut-ready shapes.",
     to: "/image-to-svg-outline",
@@ -1035,7 +1524,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "photo-to-svg-outline",
     title: "Photo to SVG Outline Converter",
-    shortTitle: "Photo → Outline",
+    shortTitle: "Photo -> Outline",
     description:
       "Create an outline-style SVG from a photo for posters, stickers, simplified art, and decals.",
     to: "/photo-to-svg-outline",
@@ -1045,7 +1534,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "black-and-white-image-to-svg",
     title: "Black and White Image to SVG Converter",
-    shortTitle: "B&W → SVG",
+    shortTitle: "B&W -> SVG",
     description:
       "Convert black and white images to SVG with clear edges for stencils, decals, signs, and prints.",
     to: "/black-and-white-image-to-svg-converter",
@@ -1074,7 +1563,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "image-to-svg-for-cricut",
     title: "Image to SVG for Cricut",
-    shortTitle: "Image → Cricut SVG",
+    shortTitle: "Image -> Cricut SVG",
     description:
       "Convert PNG, JPG, WebP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG files into Cricut-friendly SVG output.",
     to: "/image-to-svg-for-cricut",
@@ -1093,7 +1582,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "png-to-svg-for-cricut",
     title: "PNG to SVG for Cricut",
-    shortTitle: "PNG → Cricut SVG",
+    shortTitle: "PNG -> Cricut SVG",
     description:
       "Convert PNG images into Cricut-friendly SVG files for cut files, decals, stickers, and crafts.",
     to: "/png-to-svg-for-cricut",
@@ -1110,7 +1599,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "jpg-to-svg-for-cricut",
     title: "JPG to SVG for Cricut",
-    shortTitle: "JPG → Cricut SVG",
+    shortTitle: "JPG -> Cricut SVG",
     description:
       "Convert JPG images into Cricut-friendly SVG files for stickers, decals, vinyl, labels, and craft projects.",
     to: "/jpg-to-svg-for-cricut",
@@ -1127,7 +1616,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "jpeg-to-svg-for-cricut",
     title: "JPEG to SVG for Cricut",
-    shortTitle: "JPEG → Cricut SVG",
+    shortTitle: "JPEG -> Cricut SVG",
     description:
       "Convert JPEG images into Cricut-friendly SVG files for cut files, decals, stickers, and craft use.",
     to: "/jpeg-to-svg-for-cricut",
@@ -1143,7 +1632,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "webp-to-svg-for-cricut",
     title: "WebP to SVG for Cricut",
-    shortTitle: "WebP → Cricut SVG",
+    shortTitle: "WebP -> Cricut SVG",
     description:
       "Convert WebP images into Cricut-friendly SVG files for Design Space, vinyl, stickers, and crafts.",
     to: "/webp-to-svg-for-cricut",
@@ -1159,7 +1648,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "photo-to-svg-for-cricut",
     title: "Photo to SVG for Cricut",
-    shortTitle: "Photo → Cricut SVG",
+    shortTitle: "Photo -> Cricut SVG",
     description:
       "Convert photos into Cricut-friendly SVG output for simplified art, decals, stickers, and craft projects.",
     to: "/photo-to-svg-for-cricut",
@@ -1175,7 +1664,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "black-and-white-image-to-svg-for-cricut",
     title: "Black and White Image to SVG for Cricut",
-    shortTitle: "B&W → Cricut SVG",
+    shortTitle: "B&W -> Cricut SVG",
     description:
       "Convert black and white images into Cricut-friendly SVG files for stencils, decals, stickers, and signs.",
     to: "/black-and-white-image-to-svg-for-cricut",
@@ -1191,7 +1680,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "line-art-to-svg-for-cricut",
     title: "Line Art to SVG for Cricut",
-    shortTitle: "Line Art → Cricut SVG",
+    shortTitle: "Line Art -> Cricut SVG",
     description:
       "Convert line art into Cricut-friendly SVG outlines for decals, coloring pages, vinyl, and cut projects.",
     to: "/line-art-to-svg-for-cricut",
@@ -1206,7 +1695,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "drawing-to-svg-for-cricut",
     title: "Drawing to SVG for Cricut",
-    shortTitle: "Drawing → Cricut SVG",
+    shortTitle: "Drawing -> Cricut SVG",
     description:
       "Convert drawings into Cricut-friendly SVG files for craft projects, stickers, decals, and vinyl cuts.",
     to: "/drawing-to-svg-for-cricut",
@@ -1221,7 +1710,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "sketch-to-svg-for-cricut",
     title: "Sketch to SVG for Cricut",
-    shortTitle: "Sketch → Cricut SVG",
+    shortTitle: "Sketch -> Cricut SVG",
     description:
       "Convert sketches into Cricut-friendly SVG files for decals, labels, stickers, and cut-file workflows.",
     to: "/sketch-to-svg-for-cricut",
@@ -1236,7 +1725,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "sticker-to-svg-for-cricut",
     title: "Sticker to SVG for Cricut",
-    shortTitle: "Sticker → Cricut SVG",
+    shortTitle: "Sticker -> Cricut SVG",
     description:
       "Convert sticker artwork into Cricut-friendly SVG files for Print Then Cut, decals, labels, and sticker sheets.",
     to: "/sticker-to-svg-for-cricut",
@@ -1252,7 +1741,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "logo-to-svg-for-cricut",
     title: "Logo to SVG for Cricut",
-    shortTitle: "Logo → Cricut SVG",
+    shortTitle: "Logo -> Cricut SVG",
     description:
       "Convert logo files into Cricut-friendly SVG cut files for decals, branding, signs, labels, and craft projects.",
     to: "/logo-to-svg-for-cricut",
@@ -1270,7 +1759,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "base64-to-svg-for-cricut",
     title: "Base64 to SVG for Cricut",
-    shortTitle: "Base64 → Cricut SVG",
+    shortTitle: "Base64 -> Cricut SVG",
     description:
       "Decode Base64 SVG data and prepare the SVG for Cricut Design Space, downloads, and craft workflows.",
     to: "/base64-to-svg-for-cricut",
@@ -1286,7 +1775,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "code-to-svg-for-cricut",
     title: "Code to SVG for Cricut",
-    shortTitle: "Code → Cricut SVG",
+    shortTitle: "Code -> Cricut SVG",
     description:
       "Convert SVG code or markup into a downloadable Cricut-friendly SVG file for Design Space.",
     to: "/code-to-svg-for-cricut",
@@ -1318,7 +1807,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "image-to-layered-svg-for-cricut",
     title: "Image to Layered SVG for Cricut",
-    shortTitle: "Image → Layered SVG",
+    shortTitle: "Image -> Layered SVG",
     description:
       "Convert PNG or JPG images into color-separated layered SVG files for Cricut Design Space.",
     to: "/image-to-layered-svg-for-cricut",
@@ -1334,7 +1823,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "png-to-layered-svg-for-cricut",
     title: "PNG to Layered SVG for Cricut",
-    shortTitle: "PNG → Layered SVG",
+    shortTitle: "PNG -> Layered SVG",
     description:
       "Create layered SVG output from PNG artwork for Cricut projects, vinyl, stickers, and multicolor designs.",
     to: "/png-to-layered-svg-for-cricut",
@@ -1350,7 +1839,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "jpg-to-layered-svg-for-cricut",
     title: "JPG to Layered SVG for Cricut",
-    shortTitle: "JPG → Layered SVG",
+    shortTitle: "JPG -> Layered SVG",
     description:
       "Convert JPG or JPEG images into color-separated layered SVG files for Cricut Design Space.",
     to: "/jpg-to-layered-svg-for-cricut",
@@ -1366,7 +1855,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "logo-to-layered-svg-for-cricut",
     title: "Logo to Layered SVG for Cricut",
-    shortTitle: "Logo → Layered SVG",
+    shortTitle: "Logo -> Layered SVG",
     description:
       "Convert logos into layered SVG files for Cricut projects with editable color-separated layers.",
     to: "/logo-to-layered-svg-for-cricut",
@@ -1431,7 +1920,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "png-to-svg-for-etsy",
     title: "PNG to SVG for Etsy",
-    shortTitle: "PNG → Etsy SVG",
+    shortTitle: "PNG -> Etsy SVG",
     description:
       "Convert PNG designs into SVG files for Etsy digital downloads, craft bundles, decals, stickers, and printable product listings.",
     to: "/png-to-svg-for-etsy",
@@ -1450,7 +1939,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "png-to-svg-for-silhouette",
     title: "PNG to SVG for Silhouette",
-    shortTitle: "PNG → Silhouette SVG",
+    shortTitle: "PNG -> Silhouette SVG",
     description:
       "Convert PNG artwork into SVG files for Silhouette Studio projects, decals, stickers, labels, and cut-file workflows.",
     to: "/png-to-svg-for-silhouette",
@@ -1485,7 +1974,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "svg-to-png",
     title: "SVG to PNG Converter",
-    shortTitle: "SVG → PNG",
+    shortTitle: "SVG -> PNG",
     description:
       "Convert SVG to PNG with clean edges, transparent background support, and fast export.",
     to: "/svg-to-png-converter",
@@ -1495,7 +1984,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "svg-to-jpg",
     title: "SVG to JPG Converter",
-    shortTitle: "SVG → JPG",
+    shortTitle: "SVG -> JPG",
     description:
       "Export SVG as JPG or JPEG for sharing, email, previews, and standard image workflows.",
     to: "/svg-to-jpg-converter",
@@ -1505,7 +1994,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "svg-to-webp",
     title: "SVG to WebP Converter",
-    shortTitle: "SVG → WebP",
+    shortTitle: "SVG -> WebP",
     description:
       "Convert SVG to WebP for smaller files, modern websites, and efficient image delivery.",
     to: "/svg-to-webp-converter",
@@ -1515,7 +2004,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "svg-to-pdf",
     title: "SVG to PDF Converter",
-    shortTitle: "SVG → PDF",
+    shortTitle: "SVG -> PDF",
     description:
       "Convert SVG to PDF for printing, sharing, design handoff, and document workflows.",
     to: "/svg-to-pdf-converter",
@@ -1681,7 +2170,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "svg-to-base64",
     title: "SVG to Base64 Encoder",
-    shortTitle: "SVG → Base64",
+    shortTitle: "SVG -> Base64",
     description:
       "Encode SVG as Base64 for embedding in CSS, HTML, image tags, or data URLs.",
     to: "/svg-to-base64",
@@ -1691,7 +2180,7 @@ export const UTILITIES: UtilityLink[] = [
   {
     id: "base64-to-svg",
     title: "Base64 to SVG Decoder",
-    shortTitle: "Base64 → SVG",
+    shortTitle: "Base64 -> SVG",
     description:
       "Decode Base64 or SVG data URLs back into SVG source you can preview, copy, and download.",
     to: "/base64-to-svg",

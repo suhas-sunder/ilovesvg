@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-minifier";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -15,9 +15,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Minify Tool (Client-Side SVG Minifier)";
+  const title =
+    `SVG Minifier - Compress SVG Markup in Your Browser | iLoveSVG`;
   const description =
-    "Minify SVG files instantly with iLoveSVG. Remove comments, collapse whitespace, optionally strip XML or DOCTYPE, clean style attributes, minify path/transform spacing, remove metadata, and download the optimized SVG. Free, fully client-side, no uploads.";
+    `Minify SVG files in your browser by removing comments, extra whitespace, optional XML or DOCTYPE markup, metadata, and safe spacing bloat before download.`;
   const canonical = "https://www.ilovesvg.com/svg-minifier";
 
   return [
@@ -1571,6 +1572,8 @@ function SeoSections() {
           </section>
 
           {/* FAQ (kept short, tool-focused) */}
+          <CurrentRouteGuide />
+
           <section className="mt-12" aria-label="Frequently asked questions">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">FAQ</h3>
 

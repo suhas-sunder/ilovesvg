@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-favicon-generator";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -1395,6 +1395,8 @@ function SeoSections() {
               </li>
             </ul>
           </section>
+
+          <CurrentRouteGuide />
 
           <section className="mt-12">
             <h3 className="m-0 font-bold">FAQ</h3>

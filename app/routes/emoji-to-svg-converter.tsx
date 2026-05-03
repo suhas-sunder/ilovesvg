@@ -6,7 +6,7 @@ import {
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -3422,6 +3422,7 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
       <ContextualAffiliateCard />
 
       <SeoSections />
+      <EmojiFaqJsonLd />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -4021,6 +4022,25 @@ function Num({
   );
 }
 
+const EMOJI_FAQS = [
+  {
+    q: "Does emoji to SVG upload images?",
+    a: "Text emoji conversion uses vector emoji sources. Uploaded emoji images are processed for tracing when you choose image mode, and files are not stored after conversion.",
+  },
+  {
+    q: "When should I use text emoji instead of image tracing?",
+    a: "Use text emoji when you want a clean, predictable vector emoji. Use image tracing only when you need to preserve a specific raster emoji style.",
+  },
+  {
+    q: "Can I group multiple emoji into one SVG?",
+    a: "Yes. The layout controls can combine multiple emoji into one SVG canvas for badges, sticker-style graphics, headers, and design-system assets.",
+  },
+  {
+    q: "Why can traced emoji images look different?",
+    a: "Tracing converts pixels into paths, so shadows, antialiasing, and tiny gradients can simplify differently than the original raster image.",
+  },
+];
+
 /* ========================
    SEO section (kept short)
 ======================== */
@@ -4294,9 +4314,68 @@ function SeoSections() {
                 </p>
               </div>
             </section>
+
+            <CurrentRouteGuide />
+
+            <section
+              className="mt-12"
+              itemScope
+              itemType="https://schema.org/FAQPage"
+            >
+              <h3 className="m-0 text-xl font-extrabold tracking-tight text-sky-800">
+                FAQ
+              </h3>
+              <div className="mt-4 grid gap-3">
+                {EMOJI_FAQS.map((item) => (
+                  <article
+                    key={item.q}
+                    itemScope
+                    itemType="https://schema.org/Question"
+                    itemProp="mainEntity"
+                    className="rounded-2xl border border-slate-200 bg-white p-5"
+                  >
+                    <h4 itemProp="name" className="m-0 font-semibold">
+                      {item.q}
+                    </h4>
+                    <p
+                      itemScope
+                      itemType="https://schema.org/Answer"
+                      itemProp="acceptedAnswer"
+                      className="mt-2 text-sm leading-relaxed text-slate-700"
+                    >
+                      <span itemProp="text">{item.a}</span>
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </section>
           </article>
         </div>
       </div>
     </section>
+  );
+}
+
+function EmojiFaqJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: EMOJI_FAQS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
+    />
   );
 }

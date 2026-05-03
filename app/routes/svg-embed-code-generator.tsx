@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-embed-code-generator";
-import { OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -14,9 +14,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | SVG Embed Code Generator (IMG, Inline, CSS, React)";
+  const title =
+    `SVG Embed Code Generator - IMG, Inline, CSS and React | iLoveSVG`;
   const description =
-    "Generate SVG embed code instantly in your browser with iLoveSVG. Create HTML <img>, inline SVG, CSS background or mask, Data URI (UTF-8 or Base64), React/JSX, and <object> or <iframe> snippets. Control sizing and accessibility. Free, client-side only, no uploads.";
+    `Generate SVG embed snippets in your browser for img tags, inline SVG, CSS background or mask, data URLs, React JSX, object, and iframe usage.`;
   const canonical = "https://www.ilovesvg.com/svg-embed-code-generator";
 
   return [
@@ -1276,6 +1277,8 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 
       {/* SEO + FAQ (single instances; no duplicates) */}
       <SeoSections />
+      <CurrentRouteGuide />
+
       <FaqSection />
 
       {/* Single JSON-LD instances */}
