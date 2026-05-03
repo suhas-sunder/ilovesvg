@@ -9,7 +9,6 @@ import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { useState } from "react";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -922,7 +921,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return json(
       {
         error:
-          "Conversion failed. Please try a smaller image or adjust the advanced settings.",
+          "Conversion failed. Please try a smaller image or adjust the output settings.",
         code: "CONVERSION_FAILED",
       },
       { status: 500 },
@@ -2295,6 +2294,19 @@ type ServerResult = {
   gate?: { running: number; queued: number };
 };
 
+type OutputVersion = {
+  svg: string;
+  layers?: EditableSvgLayer[];
+  width: number;
+  height: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  presetId?: string;
+  presetLabel?: string;
+  presetBackendIntensity?: PresetBackendIntensity;
+  settingsSnapshot?: Settings;
+};
+
 type HistoryItem = {
   svg: string;
   layers?: EditableSvgLayer[];
@@ -2309,6 +2321,13 @@ type HistoryItem = {
   presetLabel?: string;
   presetBackendIntensity?: PresetBackendIntensity;
   settingsSnapshot?: Settings;
+  draftSettings?: Settings;
+  settingsOpen?: boolean;
+  batchOpen?: boolean;
+  batch?: OutputBatchState;
+  updateError?: string | null;
+  previousVersion?: OutputVersion | null;
+  nextVersion?: OutputVersion | null;
 };
 
 type HistoryPreviewData = {
@@ -2324,6 +2343,15 @@ type BatchZipResult = {
   errors: string[];
   speedTier: BatchSpeedTier;
   dynamicMax: number;
+};
+
+type OutputBatchState = {
+  files: File[];
+  running: boolean;
+  progress: { done: number; total: number };
+  error: string | null;
+  info: string | null;
+  zip: BatchZipResult | null;
 };
 
 // ---- tiering helpers (client) ----
@@ -2344,9 +2372,90 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
+function createOutputBatchState(): OutputBatchState {
+  return {
+    files: [],
+    running: false,
+    progress: { done: 0, total: 0 },
+    error: null,
+    info: null,
+    zip: null,
+  };
+}
+
+function cloneEditableLayers(
+  layers?: EditableSvgLayer[],
+): EditableSvgLayer[] | undefined {
+  return layers?.map((layer) => ({ ...layer }));
+}
+
+function snapshotOutputVersion(item: HistoryItem): OutputVersion {
+  return {
+    svg: item.svg,
+    layers: cloneEditableLayers(item.layers),
+    width: item.width,
+    height: item.height,
+    originalWidth: item.originalWidth,
+    originalHeight: item.originalHeight,
+    presetId: item.presetId,
+    presetLabel: item.presetLabel,
+    presetBackendIntensity: item.presetBackendIntensity,
+    settingsSnapshot: item.settingsSnapshot,
+  };
+}
+
+function mergeLayerEditsIntoResultLayers(
+  resultLayers: SvgLayerMeta[] | undefined,
+  sourceLayerEdits?: EditableSvgLayer[],
+): EditableSvgLayer[] | undefined {
+  if (!resultLayers?.length) return undefined;
+  const sourceById = new Map(
+    (sourceLayerEdits || []).map((layer) => [layer.id, layer]),
+  );
+  return resultLayers.map((layer) => {
+    const source = sourceById.get(layer.id);
+    return {
+      ...layer,
+      color: source?.color || layer.color || layer.originalColor,
+      visible: source?.visible ?? (layer.visible !== false),
+      opacity: source?.opacity ?? layer.opacity,
+    };
+  });
+}
+
+function clearOutputBatchResult(batch?: OutputBatchState): OutputBatchState | undefined {
+  if (!batch) return batch;
+  if (
+    !batch.zip &&
+    !batch.info &&
+    !batch.error &&
+    batch.progress.done === 0 &&
+    batch.progress.total === 0
+  ) {
+    return batch;
+  }
+  return {
+    ...batch,
+    zip: null,
+    info: null,
+    error: null,
+    progress: { done: 0, total: 0 },
+  };
+}
+
+function hasVisibleSizeOverride(item: HistoryItem): boolean {
+  const originalWidth = item.originalWidth || item.width;
+  const originalHeight = item.originalHeight || item.height;
+  return (
+    item.width > 0 &&
+    item.height > 0 &&
+    (item.width !== originalWidth || item.height !== originalHeight)
+  );
+}
+
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useFetcher<ServerResult>();
-  const batchFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const batchFileInputRefs = React.useRef(new Map<number, HTMLInputElement>());
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -2358,12 +2467,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
-  const [batchFiles, setBatchFiles] = React.useState<File[]>([]);
-  const [batchRunning, setBatchRunning] = React.useState(false);
-  const [batchProgress, setBatchProgress] = React.useState({ done: 0, total: 0 });
-  const [batchError, setBatchError] = React.useState<string | null>(null);
-  const [batchInfo, setBatchInfo] = React.useState<string | null>(null);
-  const [batchZip, setBatchZip] = React.useState<BatchZipResult | null>(null);
+  const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
+    number | null
+  >(null);
 
   // client-side measured dims
   const [dims, setDims] = React.useState<{
@@ -2398,10 +2504,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     settings: Settings;
     presetId: string | null;
     parentStamp: number | null;
+    replaceStamp?: number | null;
+    sourceLayerEdits?: EditableSvgLayer[];
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
     parentStamp: null,
+    replaceStamp: null,
   });
 
   React.useEffect(() => {
@@ -2434,25 +2543,74 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       lastProcessedResultKeyRef.current = resultKey;
       busyRetryCountRef.current = 0;
 
-      const outputNumber = outputCounterRef.current + 1;
-      outputCounterRef.current = outputNumber;
       const submitted = lastSubmittedRef.current;
       const parentStamp = submitted.parentStamp;
       const presetLabel =
         DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
         "Custom settings";
+      const presetBackendIntensity = getPresetBackendIntensityById(
+        submitted.presetId,
+      );
+      const resultLayers = mergeLayerEditsIntoResultLayers(
+        fetcher.data.layers,
+        submitted.sourceLayerEdits,
+      );
+      const resultSvg = fetcher.data.svg;
+      const resultWidth = fetcher.data.width ?? 0;
+      const resultHeight = fetcher.data.height ?? 0;
+
+      if (submitted.replaceStamp) {
+        const replaceStamp = submitted.replaceStamp;
+        setHistory((prev) =>
+          prev.map((item) =>
+            item.stamp === replaceStamp
+              ? {
+                  ...item,
+                  svg: resultSvg,
+                  layers: resultLayers,
+                  width: resultWidth,
+                  height: resultHeight,
+                  originalWidth: resultWidth,
+                  originalHeight: resultHeight,
+                  parentStamp,
+                  presetId: submitted.presetId ?? undefined,
+                  presetLabel,
+                  presetBackendIntensity,
+                  settingsSnapshot: submitted.settings,
+                  draftSettings: submitted.settings,
+                  updateError: null,
+                  batch: item.batch
+                    ? {
+                        ...item.batch,
+                        zip: null,
+                        info: null,
+                        error: null,
+                        progress: { done: 0, total: 0 },
+                      }
+                    : item.batch,
+                  previousVersion: snapshotOutputVersion(item),
+                  nextVersion: null,
+                }
+              : item,
+          ),
+        );
+        setActiveHistoryStamp((current) =>
+          current === replaceStamp ? current : replaceStamp,
+        );
+        setUpdatingOutputStamp(null);
+        return;
+      }
+
+      const outputNumber = outputCounterRef.current + 1;
+      outputCounterRef.current = outputNumber;
       const stamp = Date.now();
       const item: HistoryItem = {
-        svg: fetcher.data.svg,
-        layers: fetcher.data.layers?.map((layer) => ({
-          ...layer,
-          color: layer.color || layer.originalColor,
-          visible: layer.visible !== false,
-        })),
-        width: fetcher.data.width ?? 0,
-        height: fetcher.data.height ?? 0,
-        originalWidth: fetcher.data.width ?? 0,
-        originalHeight: fetcher.data.height ?? 0,
+        svg: resultSvg,
+        layers: resultLayers,
+        width: resultWidth,
+        height: resultHeight,
+        originalWidth: resultWidth,
+        originalHeight: resultHeight,
         stamp,
         name: parentStamp
           ? `Output ${outputNumber} · Derived from Output`
@@ -2460,10 +2618,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         parentStamp,
         presetId: submitted.presetId ?? undefined,
         presetLabel,
-        presetBackendIntensity: getPresetBackendIntensityById(
-          submitted.presetId,
-        ),
+        presetBackendIntensity,
         settingsSnapshot: submitted.settings,
+        draftSettings: submitted.settings,
+        batch: createOutputBatchState(),
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
@@ -2495,6 +2653,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         latestSubmittedRunIdRef.current &&
         clientRunId !== latestSubmittedRunIdRef.current
       ) {
+        return;
+      }
+      const submitted = lastSubmittedRef.current;
+      if (submitted.replaceStamp) {
+        const message = fetcher.data.error || "Update preview failed.";
+        setHistory((prev) =>
+          prev.map((item) =>
+            item.stamp === submitted.replaceStamp
+              ? { ...item, updateError: message }
+              : item,
+          ),
+        );
+        setUpdatingOutputStamp(null);
+        logAppError(new Error(message), {
+          flowStep: "home_output_update_response",
+          flowKind: "conversion",
+          action: fetcher.data.code || "server_response",
+          selectedFileType: file?.type,
+          selectedFileSize: file?.size,
+          imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
+          settingsSnapshot: submitted.settings,
+        });
         return;
       }
       setErr((current) =>
@@ -2593,12 +2773,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]); // optional, remove if you want to keep old results
     setActiveHistoryStamp(null);
+    setUpdatingOutputStamp(null);
     outputCounterRef.current = 0;
-    setBatchFiles([]);
-    setBatchZip(null);
-    setBatchError(null);
-    setBatchInfo(null);
-    setBatchProgress({ done: 0, total: 0 });
 
     setErr(null);
     setInfo(null);
@@ -2694,11 +2870,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
-    meta?: { presetId?: string; parentStamp?: number | null },
+    meta?: {
+      presetId?: string;
+      parentStamp?: number | null;
+      replaceStamp?: number | null;
+      sourceLayerEdits?: EditableSvgLayer[];
+    },
   ) {
     if (!targetFile) {
       setErr("Choose an image first.");
-      return;
+      return false;
     }
 
     // Client-side precheck
@@ -2706,7 +2887,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       await validateBeforeSubmit(targetFile);
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
-      return;
+      return false;
     }
 
     // Ensure invert always produces visible output (white on dark)
@@ -2727,6 +2908,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       settings: effective,
       presetId: submittedPresetId,
       parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
+      replaceStamp: meta?.replaceStamp ?? null,
+      sourceLayerEdits: cloneEditableLayers(meta?.sourceLayerEdits),
     };
 
     // Target this route's index action
@@ -2735,16 +2918,157 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       encType: "multipart/form-data",
       action: `${window.location.pathname}?index`,
     });
+    return true;
   }
 
-  function handleBatchFilesPicked(e: React.ChangeEvent<HTMLInputElement>) {
+  function patchHistoryItem(
+    stamp: number,
+    updater: (item: HistoryItem) => HistoryItem,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) => (item.stamp === stamp ? updater(item) : item)),
+    );
+  }
+
+  function patchOutputBatchState(
+    stamp: number,
+    updater: (batch: OutputBatchState) => OutputBatchState,
+  ) {
+    patchHistoryItem(stamp, (item) => ({
+      ...item,
+      batch: updater(item.batch || createOutputBatchState()),
+    }));
+  }
+
+  function updateOutputDraftSettings(
+    stamp: number,
+    updater: React.SetStateAction<Settings>,
+  ) {
+    patchHistoryItem(stamp, (item) => {
+      const current =
+        item.draftSettings || item.settingsSnapshot || getEffectiveSubmitSettings(settings);
+      const next =
+        typeof updater === "function"
+          ? (updater as (value: Settings) => Settings)(current)
+          : updater;
+      return settingsEqual(current, next)
+        ? item
+        : { ...item, draftSettings: next };
+    });
+  }
+
+  function toggleOutputSettings(stamp: number) {
+    patchHistoryItem(stamp, (item) => ({
+      ...item,
+      settingsOpen: !item.settingsOpen,
+      updateError: null,
+    }));
+  }
+
+  function toggleOutputBatch(stamp: number) {
+    patchHistoryItem(stamp, (item) => ({
+      ...item,
+      batchOpen: !item.batchOpen,
+      batch: item.batch || createOutputBatchState(),
+    }));
+  }
+
+  function stepOutputVersion(stamp: number, direction: "back" | "forward") {
+    patchHistoryItem(stamp, (item) => {
+      if (direction === "back") {
+        if (!item.previousVersion) return item;
+        const current = snapshotOutputVersion(item);
+        return {
+          ...item,
+          ...item.previousVersion,
+          draftSettings: item.previousVersion.settingsSnapshot || item.draftSettings,
+          previousVersion: null,
+          nextVersion: current,
+          updateError: null,
+          batch: item.batch
+            ? {
+                ...item.batch,
+                zip: null,
+                info: null,
+                error: null,
+                progress: { done: 0, total: 0 },
+              }
+            : item.batch,
+        };
+      }
+
+      if (!item.nextVersion) return item;
+      const current = snapshotOutputVersion(item);
+      return {
+        ...item,
+        ...item.nextVersion,
+        draftSettings: item.nextVersion.settingsSnapshot || item.draftSettings,
+        previousVersion: current,
+        nextVersion: null,
+        updateError: null,
+        batch: item.batch
+          ? {
+              ...item.batch,
+              zip: null,
+              info: null,
+              error: null,
+              progress: { done: 0, total: 0 },
+            }
+          : item.batch,
+      };
+    });
+  }
+
+  async function submitOutputUpdate(stamp: number) {
+    if (updatingOutputStamp !== null || busy) return;
+    const item = history.find((candidate) => candidate.stamp === stamp);
+    if (!item) return;
+    const targetSettings = item.draftSettings || item.settingsSnapshot || settings;
+    patchHistoryItem(stamp, (current) => ({ ...current, updateError: null }));
+    setUpdatingOutputStamp(stamp);
+    const submitted = await submitConvertWith(file, targetSettings, {
+      presetId: item.presetId,
+      parentStamp: item.parentStamp ?? item.stamp,
+      replaceStamp: item.stamp,
+      sourceLayerEdits: item.layers,
+    });
+    if (!submitted) {
+      setUpdatingOutputStamp(null);
+      patchHistoryItem(stamp, (current) => ({
+        ...current,
+        updateError:
+          "Choose a valid source image before updating this output preview.",
+      }));
+    }
+  }
+
+  function getOutputBatchPreview(item: HistoryItem) {
+    return {
+      presetId: item.presetId,
+      presetBackendIntensity: item.presetBackendIntensity,
+      settingsSnapshot: item.settingsSnapshot as Record<string, unknown> | undefined,
+    };
+  }
+
+  function getOutputBatchDynamicMax(item: HistoryItem) {
+    return getBatchMaxForPreview(getOutputBatchPreview(item));
+  }
+
+  function handleOutputBatchFilesPicked(
+    stamp: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const item = history.find((candidate) => candidate.stamp === stamp);
     const picked = Array.from(e.currentTarget.files || []);
     e.currentTarget.value = "";
-    setBatchZip(null);
-    setBatchInfo(null);
 
-    if (!activeHistoryItem?.settingsSnapshot) {
-      setBatchError("Convert one preview first, then batch from that selected output.");
+    if (!item?.settingsSnapshot) {
+      patchOutputBatchState(stamp, (batch) => ({
+        ...batch,
+        zip: null,
+        info: null,
+        error: "Convert this preview first, then batch from its applied settings.",
+      }));
       return;
     }
 
@@ -2758,30 +3082,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       accepted.push(candidate);
     }
 
-    const limited = accepted.slice(0, batchDynamicMax);
+    const dynamicMax = getOutputBatchDynamicMax(item);
+    const limited = accepted.slice(0, dynamicMax);
     const skippedByLimit = Math.max(0, accepted.length - limited.length);
-    setBatchFiles(limited);
-    setBatchError(
-      rejected > 0
-        ? `${rejected} file${rejected === 1 ? "" : "s"} skipped. Batch files must be ${ACCEPTED_IMAGE_LABEL} images under 30 MB each.`
-        : null,
-    );
-    setBatchInfo(
-      skippedByLimit > 0
-        ? `${skippedByLimit} extra file${skippedByLimit === 1 ? "" : "s"} skipped because this selected preview allows up to ${batchDynamicMax} batch conversions.`
-        : null,
-    );
+    patchOutputBatchState(stamp, (batch) => ({
+      ...batch,
+      files: limited,
+      zip: null,
+      progress: { done: 0, total: 0 },
+      error:
+        rejected > 0
+          ? `${rejected} file${rejected === 1 ? "" : "s"} skipped. Batch files must be ${ACCEPTED_IMAGE_LABEL} images under 30 MB each.`
+          : null,
+      info:
+        skippedByLimit > 0
+          ? `${skippedByLimit} extra file${skippedByLimit === 1 ? "" : "s"} skipped because this output allows up to ${dynamicMax} batch conversions.`
+          : null,
+    }));
   }
 
-  async function submitBatchConvert() {
-    if (batchRunning) return;
-    const sourceItem = activeHistoryItem;
+  async function submitOutputBatchConvert(stamp: number) {
+    const sourceItem = history.find((candidate) => candidate.stamp === stamp);
+    const batch = sourceItem?.batch || createOutputBatchState();
     if (!sourceItem?.settingsSnapshot) {
-      setBatchError("Convert one preview first, then batch from that selected output.");
+      patchOutputBatchState(stamp, (current) => ({
+        ...current,
+        error: "Convert this preview first, then batch from its applied settings.",
+      }));
       return;
     }
+    if (batch.running) return;
 
-    const effective = getEffectiveSubmitSettings(settings);
+    const effective = getEffectiveSubmitSettings(sourceItem.settingsSnapshot);
     const submittedPresetId = resolveSubmittedPresetId(
       sourceItem.presetId,
       effective,
@@ -2795,25 +3127,32 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
     const runSpeedTier = getBatchSpeedTierForPreview(runPreview);
     const runDynamicMax = getBatchMaxForPreview(runPreview);
-    const filesToConvert = batchFiles.slice(0, runDynamicMax);
+    const filesToConvert = batch.files.slice(0, runDynamicMax);
     if (filesToConvert.length === 0) {
-      setBatchError("Choose files for the batch first.");
+      patchOutputBatchState(stamp, (current) => ({
+        ...current,
+        error: "Choose files for this batch first.",
+      }));
       return;
     }
-    if (batchFiles.length > runDynamicMax) {
-      setBatchFiles(filesToConvert);
-      setBatchInfo(
-        `${batchFiles.length - runDynamicMax} extra file${
-          batchFiles.length - runDynamicMax === 1 ? "" : "s"
-        } skipped because the selected preview now allows up to ${runDynamicMax} batch conversions.`,
-      );
-    }
 
-    setBatchRunning(true);
-    setBatchError(null);
-    if (batchFiles.length <= runDynamicMax) setBatchInfo(null);
-    setBatchZip(null);
-    setBatchProgress({ done: 0, total: filesToConvert.length });
+    patchOutputBatchState(stamp, (current) => ({
+      ...current,
+      files:
+        current.files.length > runDynamicMax
+          ? current.files.slice(0, runDynamicMax)
+          : current.files,
+      running: true,
+      error: null,
+      info:
+        current.files.length > runDynamicMax
+          ? `${current.files.length - runDynamicMax} extra file${
+              current.files.length - runDynamicMax === 1 ? "" : "s"
+            } skipped because this output now allows up to ${runDynamicMax} batch conversions.`
+          : null,
+      zip: null,
+      progress: { done: 0, total: filesToConvert.length },
+    }));
 
     try {
       const { zipSync, strToU8 } = await import("fflate");
@@ -2861,13 +3200,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               selectedFileSize: batchFile.size,
               settingsSnapshot: effective,
             });
-            failures.push(
-              `${batchFile.name}: ${message}`,
-            );
+            failures.push(`${batchFile.name}: ${message}`);
           } else {
-            const svgForZip = sourceLayerEdits?.length
+            const svgWithLayerEdits = sourceLayerEdits?.length
               ? applyLayerEditsToSvg(data.svg, sourceLayerEdits)
               : data.svg;
+            const svgForZip = hasVisibleSizeOverride(sourceItem)
+              ? applySvgSizeAttributes(
+                  svgWithLayerEdits,
+                  sourceItem.width,
+                  sourceItem.height,
+                )
+              : svgWithLayerEdits;
             zipEntries[makeBatchZipEntryName(batchFile.name, index)] = strToU8(
               svgForZip,
             );
@@ -2885,16 +3229,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             `${batchFile.name}: The batch request did not complete. Try fewer files or smaller images.`,
           );
         } finally {
-          setBatchProgress({ done: index + 1, total: filesToConvert.length });
+          patchOutputBatchState(stamp, (current) => ({
+            ...current,
+            progress: { done: index + 1, total: filesToConvert.length },
+          }));
         }
       }
 
       const successCount = Object.keys(zipEntries).length;
       if (successCount === 0) {
-        setBatchError(
-          failures[0] ||
+        patchOutputBatchState(stamp, (current) => ({
+          ...current,
+          error:
+            failures[0] ||
             "No files converted. Try fewer files or a faster selected preview.",
-        );
+        }));
         return;
       }
 
@@ -2910,28 +3259,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         speedTier: runSpeedTier,
         dynamicMax: runDynamicMax,
       };
-      setBatchZip(result);
-      setBatchInfo(
-        failures.length
+      patchOutputBatchState(stamp, (current) => ({
+        ...current,
+        zip: result,
+        info: failures.length
           ? `${successCount} file${successCount === 1 ? "" : "s"} converted. ${failures.length} failed.`
           : `${successCount} file${successCount === 1 ? "" : "s"} converted. Download the ZIP when ready, or choose a new batch to run again.`,
-      );
+      }));
       maybeSendBatchProInterestSignal({
         batchCount: successCount,
         batchSpeedTier: runSpeedTier,
         batchDynamicMax: runDynamicMax,
       });
     } finally {
-      setBatchRunning(false);
+      patchOutputBatchState(stamp, (current) => ({
+        ...current,
+        running: false,
+      }));
     }
   }
 
-  function downloadBatchZip() {
-    if (!batchZip) return;
-    const url = URL.createObjectURL(batchZip.blob);
+  function downloadOutputBatchZip(item: HistoryItem) {
+    const zip = item.batch?.zip;
+    if (!zip) return;
+    const url = URL.createObjectURL(zip.blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = batchZip.filename;
+    a.download = zip.filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -3055,121 +3409,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   const [toast, setToast] = React.useState<string | null>(null);
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const activeHistoryItem =
-    history.find((item) => item.stamp === activeHistoryStamp) ||
-    history[0] ||
-    null;
-  const outputTargets = React.useMemo(
-    () =>
-      history.map((item) => ({
-        id: String(item.stamp),
-        label: item.name,
-        description: item.presetLabel,
-      })),
-    [history],
-  );
-  const selectedBatchSettings = activeHistoryItem?.settingsSnapshot
-    ? getEffectiveSubmitSettings(settings)
-    : null;
-  const selectedBatchPresetId =
-    selectedBatchSettings && activeHistoryItem
-      ? resolveSubmittedPresetId(activeHistoryItem.presetId, selectedBatchSettings)
-      : null;
-  const selectedBatchPreview = selectedBatchSettings
-    ? {
-        presetId: selectedBatchPresetId,
-        presetBackendIntensity: selectedBatchPresetId
-          ? getPresetBackendIntensityById(selectedBatchPresetId)
-          : undefined,
-        settingsSnapshot: selectedBatchSettings as Record<string, unknown>,
-      }
-    : null;
-  const batchSpeedTier = getBatchSpeedTierForPreview(selectedBatchPreview);
-  const batchDynamicMax = getBatchMaxForPreview(selectedBatchPreview);
-
-  React.useEffect(() => {
-    setBatchFiles((current) =>
-      current.length > batchDynamicMax
-        ? current.slice(0, batchDynamicMax)
-        : current,
-    );
-  }, [batchDynamicMax]);
-
-  React.useEffect(() => {
-    setBatchZip(null);
-    setBatchInfo(null);
-    setBatchError(null);
-  }, [activeHistoryStamp]);
-
-  function selectHistoryOutput(id: string | number) {
-    const stamp = Number(id);
-    const item = history.find((candidate) => candidate.stamp === stamp);
-    if (!item) return;
-    setActiveHistoryStamp((current) =>
-      current === item.stamp ? current : item.stamp,
-    );
-    const snapshot = item.settingsSnapshot;
-    if (snapshot) {
-      setSettings((current) =>
-        settingsEqual(current, snapshot) ? current : snapshot,
-      );
-    }
-    const presetId = item.presetId;
-    if (presetId) {
-      setActivePreset((current) => (current === presetId ? current : presetId));
-    }
-  }
-
-  const settingsCommitTimersRef = React.useRef<
-    Partial<Record<keyof Settings, ReturnType<typeof setTimeout>>>
-  >({});
-
-  React.useEffect(() => {
-    return () => {
-      Object.values(settingsCommitTimersRef.current).forEach((timer) => {
-        if (timer) clearTimeout(timer);
-      });
-    };
-  }, []);
-
-  function setSettingNow<K extends keyof Settings>(key: K, value: Settings[K]) {
-    const existing = settingsCommitTimersRef.current[key];
-    if (existing) {
-      clearTimeout(existing);
-      delete settingsCommitTimersRef.current[key];
-    }
-
-    setSettings((current) => {
-      if (Object.is(current[key], value)) return current;
-      return {
-        ...current,
-        [key]: value,
-      };
-    });
-  }
-
-  function setSettingThrottled<K extends keyof Settings>(
-    key: K,
-    value: Settings[K],
-    delay = 90,
-  ) {
-    const existing = settingsCommitTimersRef.current[key];
-    if (existing) clearTimeout(existing);
-
-    settingsCommitTimersRef.current[key] = setTimeout(() => {
-      delete settingsCommitTimersRef.current[key];
-      setSettings((current) => {
-        if (Object.is(current[key], value)) return current;
-        return {
-          ...current,
-          [key]: value,
-        };
-      });
-    }, delay);
-  }
-
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 1500);
@@ -3217,7 +3456,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         });
         if (!itemChanged) return item;
         changed = true;
-        return { ...item, layers };
+        return { ...item, layers, batch: clearOutputBatchResult(item.batch) };
       });
       return changed ? next : prev;
     });
@@ -3242,7 +3481,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         });
         if (!itemChanged) return item;
         changed = true;
-        return { ...item, layers };
+        return { ...item, layers, batch: clearOutputBatchResult(item.batch) };
       });
       return changed ? next : prev;
     });
@@ -3266,33 +3505,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         });
         if (!itemChanged) return item;
         changed = true;
-        return { ...item, layers };
+        return { ...item, layers, batch: clearOutputBatchResult(item.batch) };
       });
       return changed ? next : prev;
     });
   }
 
-  function setLatestHistoryLayer(
-    layerId: string,
-    patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>,
-  ) {
-    if (!activeHistoryItem) return;
-    setHistoryLayer(activeHistoryItem.stamp, layerId, patch);
-  }
-
-  function resetLatestHistoryLayer(layerId: string) {
-    if (!activeHistoryItem) return;
-    resetHistoryLayer(activeHistoryItem.stamp, layerId);
-  }
-
-  function resetAllLatestHistoryLayers() {
-    if (!activeHistoryItem) return;
-    resetAllHistoryLayers(activeHistoryItem.stamp);
-  }
-
-  function setLatestHistorySize(size: { width: number; height: number }) {
-    const stamp = activeHistoryItem?.stamp;
-    if (!stamp) return;
+  function setHistorySize(stamp: number, size: { width: number; height: number }) {
     setHistory((prev) => {
       let changed = false;
       const next = prev.map((item) => {
@@ -3314,6 +3533,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           height: size.height,
           originalWidth,
           originalHeight,
+          batch: clearOutputBatchResult(item.batch),
         };
       });
       return changed ? next : prev;
@@ -3444,118 +3664,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 )}
               </div>
 
-              {activeHistoryItem?.settingsSnapshot && (
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="m-0 text-[13px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                        Batch to ZIP
-                      </p>
-                      <p className="m-0 mt-1 text-sm font-bold text-slate-900">
-                        Use the selected preview settings
-                      </p>
-                      <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
-                        Batch conversion runs only when you click Convert batch.
-                        It uses the selected output's current settings and
-                        layer edits, then creates a ZIP without adding batch
-                        items to the live preview history.
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1 text-[12px] font-semibold text-sky-800">
-                      Max {batchDynamicMax}
-                    </span>
-                  </div>
-
-                  <p className="m-0 mt-2 text-[12px] leading-5 text-slate-600">
-                    {batchDynamicMax === 100
-                      ? "This selected preview allows up to 100 batch conversions because it uses the fastest conversion settings."
-                      : "This selected preview allows up to 20 batch conversions because these settings may take longer to process."}
-                  </p>
-
-                  <input
-                    ref={batchFileInputRef}
-                    type="file"
-                    multiple
-                    accept={Array.from(ALLOWED_EXTENSIONS)
-                      .map((ext) => `.${ext}`)
-                      .join(",")}
-                    className="sr-only"
-                    onChange={handleBatchFilesPicked}
-                  />
-
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => batchFileInputRef.current?.click()}
-                      className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    >
-                      Choose batch files
-                    </button>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
-                    <span>
-                      {batchFiles.length
-                        ? `${batchFiles.length} file${
-                            batchFiles.length === 1 ? "" : "s"
-                          } selected`
-                        : "No batch files selected"}
-                    </span>
-                    {batchRunning && (
-                      <span>
-                        Converting {batchProgress.done}/{batchProgress.total}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {batchZip ? (
-                      <button
-                        type="button"
-                        onClick={downloadBatchZip}
-                        className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-emerald-700 bg-emerald-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                      >
-                        Download ZIP
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void submitBatchConvert()}
-                        disabled={batchRunning || batchFiles.length === 0}
-                        className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-[#1d4ed8] bg-[#2563eb] px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {batchRunning
-                          ? "Converting batch..."
-                          : `Convert ${batchFiles.length} to ZIP`}
-                      </button>
-                    )}
-                  </div>
-
-                  {batchError && (
-                    <p className="m-0 mt-2 text-[13px] leading-5 text-red-700">
-                      {batchError}
-                    </p>
-                  )}
-                  {!batchError && batchInfo && (
-                    <p className="m-0 mt-2 text-[13px] leading-5 text-slate-600">
-                      {batchInfo}
-                    </p>
-                  )}
-                  {batchZip?.errors.length ? (
-                    <details className="mt-2 text-[12px] text-slate-600">
-                      <summary className="cursor-pointer font-semibold text-slate-700">
-                        Show failed files
-                      </summary>
-                      <ul className="mt-1 list-disc pl-5">
-                        {batchZip.errors.slice(0, 8).map((message) => (
-                          <li key={message}>{message}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                </div>
-              )}
-
             </div>
 
             {/* RESULTS */}
@@ -3563,24 +3671,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item, index) => {
-                    const isActiveOutput =
-                      activeHistoryItem?.stamp === item.stamp;
                     const previewData = getHistoryPreviewData(item);
+                    const outputSettings =
+                      item.draftSettings || item.settingsSnapshot || settings;
+                    const isUpdating = updatingOutputStamp === item.stamp;
+                    const batch = item.batch || createOutputBatchState();
+                    const batchDynamicMax = getOutputBatchDynamicMax(item);
                     return (
                     <div
                       key={item.stamp}
-                      onDoubleClick={() => selectHistoryOutput(item.stamp)}
-                      className={[
-                        "rounded-xl border bg-white p-2 transition-colors",
-                        isActiveOutput
-                          ? "border-sky-400 ring-2 ring-sky-100"
-                          : "border-slate-200",
-                      ].join(" ")}
+                      className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
                     >
                       <div className="flex gap-3 items-center flex-wrap justify-between">
                         <span className="text-[13px] font-semibold text-slate-700">
                           {item.name}
-                          {isActiveOutput ? " · editing" : ""}
                         </span>
                         <span className="text-[13px] text-slate-600">
                           {item.width > 0 && item.height > 0
@@ -3588,9 +3692,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             : "size unknown"}
                         </span>
                       </div>
-                      <p className="m-0 mt-1 text-[12px] text-slate-500">
-                        Double-click an output to edit it in Advanced settings.
-                      </p>
                       <div className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
@@ -3628,26 +3729,279 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           />
                           Copy SVG
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => stepOutputVersion(item.stamp, "back")}
+                          disabled={!item.previousVersion}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            stepOutputVersion(item.stamp, "forward")
+                          }
+                          disabled={!item.nextVersion}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Forward
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleOutputSettings(item.stamp)}
+                          aria-expanded={!!item.settingsOpen}
+                          aria-controls={`output-settings-${item.stamp}`}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                        >
+                          <SettingsGearIcon />
+                          <span className="ml-1">Settings</span>
+                        </button>
                       </div>
 
-                      {item.layers?.length ? (
-                        <LayerPaletteEditor
-                          item={item}
-                          onColorChange={(layerId, color) =>
-                            setHistoryLayer(item.stamp, layerId, { color })
-                          }
-                          onVisibilityChange={(layerId, visible) =>
-                            setHistoryLayer(item.stamp, layerId, { visible })
-                          }
-                          onOpacityChange={(layerId, opacity) =>
-                            setHistoryLayer(item.stamp, layerId, { opacity })
-                          }
-                          onResetLayer={(layerId) =>
-                            resetHistoryLayer(item.stamp, layerId)
-                          }
-                          onResetAll={() => resetAllHistoryLayers(item.stamp)}
-                        />
-                      ) : null}
+                      {item.updateError && (
+                        <p className="m-0 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] leading-5 text-red-700">
+                          {item.updateError}
+                        </p>
+                      )}
+
+                      {item.settingsOpen && (
+                        <div
+                          id={`output-settings-${item.stamp}`}
+                          className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
+                        >
+                          {item.layers?.length ? (
+                            <div className="mb-2 rounded-xl border border-slate-200 bg-white p-2">
+                              <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                Layer colors
+                              </p>
+                              <LayerPaletteEditor
+                                item={item}
+                                onColorChange={(layerId, color) =>
+                                  setHistoryLayer(item.stamp, layerId, {
+                                    color,
+                                  })
+                                }
+                                onVisibilityChange={(layerId, visible) =>
+                                  setHistoryLayer(item.stamp, layerId, {
+                                    visible,
+                                  })
+                                }
+                                onOpacityChange={(layerId, opacity) =>
+                                  setHistoryLayer(item.stamp, layerId, {
+                                    opacity,
+                                  })
+                                }
+                                onResetLayer={(layerId) =>
+                                  resetHistoryLayer(item.stamp, layerId)
+                                }
+                                onResetAll={() =>
+                                  resetAllHistoryLayers(item.stamp)
+                                }
+                              />
+                            </div>
+                          ) : null}
+
+                          <TraceAdvancedSettingsPanel
+                            id={`output-settings-panel-${item.stamp}`}
+                            open={true}
+                            settings={outputSettings}
+                            setSettings={(updater) =>
+                              updateOutputDraftSettings(item.stamp, updater)
+                            }
+                            capabilities={routeCapabilities}
+                            detectedColorItems={[item]}
+                            sourceFile={file}
+                            removeColorsEnabled={
+                              !(
+                                file &&
+                                (file.type === "image/svg+xml" ||
+                                  /\.svg$/i.test(file.name || ""))
+                              )
+                            }
+                            outputLayerItems={item.layers}
+                            outputSize={{
+                              width: item.width,
+                              height: item.height,
+                              originalWidth: item.originalWidth || item.width,
+                              originalHeight: item.originalHeight || item.height,
+                            }}
+                            onOutputLayerChange={(layerId, patch) =>
+                              setHistoryLayer(item.stamp, layerId, patch)
+                            }
+                            onResetOutputLayer={(layerId) =>
+                              resetHistoryLayer(item.stamp, layerId)
+                            }
+                            onResetAllOutputLayers={() =>
+                              resetAllHistoryLayers(item.stamp)
+                            }
+                            onOutputSizeChange={(size) =>
+                              setHistorySize(item.stamp, size)
+                            }
+                            helpHref="#advanced-settings-help"
+                            buttonDisabled={buttonDisabled || isUpdating}
+                            liveSectionTitle="Live preview edits"
+                            liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                            convertSectionTitle="Click to convert"
+                            convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
+                            hideLivePreviewHeader={true}
+                            hideOutputLayerStyling={true}
+                            updatePreviewLabel={
+                              isUpdating ? "Updating..." : "Update preview"
+                            }
+                            onUpdatePreview={() =>
+                              void submitOutputUpdate(item.stamp)
+                            }
+                          />
+
+                          <div className="mt-2 rounded-xl border border-slate-200 bg-white">
+                            <button
+                              type="button"
+                              onClick={() => toggleOutputBatch(item.stamp)}
+                              aria-expanded={!!item.batchOpen}
+                              aria-controls={`output-batch-${item.stamp}`}
+                              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                            >
+                              <span>Batch conversion</span>
+                              <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[12px] font-semibold text-sky-800">
+                                Max {batchDynamicMax}
+                              </span>
+                            </button>
+
+                            {item.batchOpen && (
+                              <div
+                                id={`output-batch-${item.stamp}`}
+                                className="border-t border-slate-100 px-3 py-3"
+                              >
+                                <p className="m-0 text-[13px] leading-5 text-slate-600">
+                                  Batch uses this output's current applied SVG
+                                  and trace settings. Changes in Click to
+                                  convert apply only after Update preview.
+                                </p>
+                                <p className="m-0 mt-2 text-[12px] leading-5 text-slate-600">
+                                  {batchDynamicMax === 100
+                                    ? "This output allows up to 100 batch conversions because it uses the fastest applied settings."
+                                    : "This output allows up to 20 batch conversions because these applied settings may take longer to process."}
+                                </p>
+
+                                <input
+                                  ref={(node) => {
+                                    if (node) {
+                                      batchFileInputRefs.current.set(
+                                        item.stamp,
+                                        node,
+                                      );
+                                    } else {
+                                      batchFileInputRefs.current.delete(
+                                        item.stamp,
+                                      );
+                                    }
+                                  }}
+                                  type="file"
+                                  multiple
+                                  accept={Array.from(ALLOWED_EXTENSIONS)
+                                    .map((ext) => `.${ext}`)
+                                    .join(",")}
+                                  className="sr-only"
+                                  onChange={(event) =>
+                                    handleOutputBatchFilesPicked(
+                                      item.stamp,
+                                      event,
+                                    )
+                                  }
+                                />
+
+                                <div className="mt-3">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      batchFileInputRefs.current
+                                        .get(item.stamp)
+                                        ?.click()
+                                    }
+                                    className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                  >
+                                    Choose batch files
+                                  </button>
+                                </div>
+
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+                                  <span>
+                                    {batch.files.length
+                                      ? `${batch.files.length} file${
+                                          batch.files.length === 1 ? "" : "s"
+                                        } selected`
+                                      : "No batch files selected"}
+                                  </span>
+                                  {batch.running && (
+                                    <span>
+                                      Converting {batch.progress.done}/
+                                      {batch.progress.total}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {batch.zip ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        downloadOutputBatchZip(item)
+                                      }
+                                      className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-emerald-700 bg-emerald-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                                    >
+                                      Download ZIP
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void submitOutputBatchConvert(
+                                          item.stamp,
+                                        )
+                                      }
+                                      disabled={
+                                        batch.running ||
+                                        batch.files.length === 0
+                                      }
+                                      className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-[#1d4ed8] bg-[#2563eb] px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                      {batch.running
+                                        ? "Converting batch..."
+                                        : `Convert ${batch.files.length} to ZIP`}
+                                    </button>
+                                  )}
+                                </div>
+
+                                {batch.error && (
+                                  <p className="m-0 mt-2 text-[13px] leading-5 text-red-700">
+                                    {batch.error}
+                                  </p>
+                                )}
+                                {!batch.error && batch.info && (
+                                  <p className="m-0 mt-2 text-[13px] leading-5 text-slate-600">
+                                    {batch.info}
+                                  </p>
+                                )}
+                                {batch.zip?.errors.length ? (
+                                  <details className="mt-2 text-[12px] text-slate-600">
+                                    <summary className="cursor-pointer font-semibold text-slate-700">
+                                      Show failed files
+                                    </summary>
+                                    <ul className="mt-1 list-disc pl-5">
+                                      {batch.zip.errors
+                                        .slice(0, 8)
+                                        .map((message) => (
+                                          <li key={message}>{message}</li>
+                                        ))}
+                                    </ul>
+                                  </details>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
                         <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
@@ -3683,96 +4037,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
 
-            <div className="order-3 min-w-0 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((v) => !v)}
-                className="w-full inline-flex items-center justify-between rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-sky-950 cursor-pointer transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
-                aria-expanded={showAdvanced}
-                aria-controls="advanced-settings"
-              >
-                <span className="inline-flex min-w-0 items-center gap-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sky-600 text-white shadow-sm">
-                    <SettingsGearIcon />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[15px] font-bold leading-5">
-                      Advanced settings
-                    </span>
-                    <span className="block truncate text-[12px] font-medium leading-4 text-sky-700">
-                      Trace detail, cleanup, layers, and export
-                    </span>
-                  </span>
-                </span>
-
-                <svg
-                  className={[
-                    "h-4 w-4 shrink-0 text-sky-700 transition-transform",
-                    showAdvanced ? "rotate-180" : "rotate-0",
-                  ].join(" ")}
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              {showAdvanced && (
-                <div className="mt-3">
-                  <TraceAdvancedSettingsPanel
-                    id="advanced-settings"
-                    open={showAdvanced}
-                    settings={settings}
-                    setSettings={setSettings}
-                    capabilities={routeCapabilities}
-                    detectedColorItems={history}
-                    sourceFile={file}
-                    removeColorsEnabled={
-                      !(
-                        file &&
-                        (file.type === "image/svg+xml" ||
-                          /\.svg$/i.test(file.name || ""))
-                      )
-                    }
-                    outputLayerItems={activeHistoryItem?.layers}
-                    outputSize={
-                      activeHistoryItem
-                        ? {
-                            width: activeHistoryItem.width,
-                            height: activeHistoryItem.height,
-                            originalWidth:
-                              activeHistoryItem.originalWidth ||
-                              activeHistoryItem.width,
-                            originalHeight:
-                              activeHistoryItem.originalHeight ||
-                              activeHistoryItem.height,
-                          }
-                        : null
-                    }
-                    onOutputLayerChange={setLatestHistoryLayer}
-                    onResetOutputLayer={resetLatestHistoryLayer}
-                    onResetAllOutputLayers={resetAllLatestHistoryLayers}
-                    onOutputSizeChange={setLatestHistorySize}
-                    outputTargets={outputTargets}
-                    activeOutputId={
-                      activeHistoryItem ? String(activeHistoryItem.stamp) : null
-                    }
-                    onActiveOutputChange={selectHistoryOutput}
-                    helpHref="#advanced-settings-help"
-                    buttonDisabled={buttonDisabled}
-                    onUpdatePreview={() => void submitConvert()}
-                  />
-                </div>
-              )}
-            </div>
-
-            {previewUrl && !showAdvanced && (
-              <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
+            {previewUrl && (
+              <div className="order-3 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2 md:flex">
                 <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
                   Original image
                 </p>

@@ -58,6 +58,13 @@ type Props<TSettings extends MixedTraceSettings> = {
   onActiveOutputChange?: (id: string) => void;
   helpHref?: string;
   buttonDisabled?: boolean;
+  liveSectionTitle?: string;
+  liveSectionDescription?: string;
+  convertSectionTitle?: string;
+  convertSectionDescription?: string;
+  hideLivePreviewHeader?: boolean;
+  hideOutputLayerStyling?: boolean;
+  updatePreviewLabel?: string;
   onUpdatePreview: () => void;
 };
 
@@ -106,6 +113,13 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   onActiveOutputChange?: (id: string) => void;
   helpHref?: string;
   buttonDisabled?: boolean;
+  liveSectionTitle?: string;
+  liveSectionDescription?: string;
+  convertSectionTitle?: string;
+  convertSectionDescription?: string;
+  hideLivePreviewHeader?: boolean;
+  hideOutputLayerStyling?: boolean;
+  updatePreviewLabel?: string;
   onUpdatePreview: () => void;
 };
 
@@ -184,6 +198,13 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   onActiveOutputChange,
   helpHref,
   buttonDisabled = false,
+  liveSectionTitle = "Advanced settings (Live Preview)",
+  liveSectionDescription = "These settings edit the current output preview directly when output data is available.",
+  convertSectionTitle = "Advanced settings (Click to convert)",
+  convertSectionDescription = "These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them.",
+  hideLivePreviewHeader = false,
+  hideOutputLayerStyling = false,
+  updatePreviewLabel = "Update preview",
   onUpdatePreview,
 }: Props<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
@@ -272,11 +293,12 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
-        title="Advanced settings (Live Preview)"
-        description="These settings edit the current output preview directly when output data is available."
+        title={liveSectionTitle}
+        description={liveSectionDescription}
         tone="live"
       >
-        {(capabilities.supportsLayerEditing ||
+        {!hideLivePreviewHeader &&
+          (capabilities.supportsLayerEditing ||
           (capabilities.supportsOutputGeometry &&
             !capabilities.supportsCutFriendlyOutput)) && (
           <LivePreviewSettingsHeader
@@ -298,17 +320,19 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 toggleAccordionSection(setOpenLiveSection, "output-colors")
               }
             />
-            <OutputLayerStylingSection
-              layers={outputLayers}
-              onOutputLayerChange={onOutputLayerChange}
-              onResetOutputLayer={onResetOutputLayer}
-              onResetAllOutputLayers={onResetAllOutputLayers}
-              sectionId={`${id}-live-layer-styling`}
-              open={openLiveSection === "layer-styling"}
-              onToggle={() =>
-                toggleAccordionSection(setOpenLiveSection, "layer-styling")
-              }
-            />
+            {!hideOutputLayerStyling && (
+              <OutputLayerStylingSection
+                layers={outputLayers}
+                onOutputLayerChange={onOutputLayerChange}
+                onResetOutputLayer={onResetOutputLayer}
+                onResetAllOutputLayers={onResetAllOutputLayers}
+                sectionId={`${id}-live-layer-styling`}
+                open={openLiveSection === "layer-styling"}
+                onToggle={() =>
+                  toggleAccordionSection(setOpenLiveSection, "layer-styling")
+                }
+              />
+            )}
           </>
         )}
 
@@ -333,8 +357,8 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       </AdvancedTopLevelSection>
 
       <AdvancedTopLevelSection
-        title="Advanced settings (Click to convert)"
-        description="These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them."
+        title={convertSectionTitle}
+        description={convertSectionDescription}
         tone="convert"
         action={
           <button
@@ -347,7 +371,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               "disabled:opacity-60 disabled:cursor-not-allowed",
             ].join(" ")}
           >
-            Update preview
+            {updatePreviewLabel}
           </button>
         }
       >
@@ -918,6 +942,13 @@ export function LayeredAdvancedSettingsPanel<
   onActiveOutputChange,
   helpHref,
   buttonDisabled = false,
+  liveSectionTitle = "Advanced settings (Live Preview)",
+  liveSectionDescription = "These settings edit the current layered SVG preview directly when output data is available.",
+  convertSectionTitle = "Advanced settings (Click to convert)",
+  convertSectionDescription = "These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them.",
+  hideLivePreviewHeader = false,
+  hideOutputLayerStyling = false,
+  updatePreviewLabel = "Update preview",
   onUpdatePreview,
 }: LayeredProps<TSettings>) {
   const [draftColor, setDraftColor] = React.useState("#ffffff");
@@ -1002,11 +1033,12 @@ export function LayeredAdvancedSettingsPanel<
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
-        title="Advanced settings (Live Preview)"
-        description="These settings edit the current layered SVG preview directly when output data is available."
+        title={liveSectionTitle}
+        description={liveSectionDescription}
         tone="live"
       >
-        {(capabilities.supportsLayerEditing ||
+        {!hideLivePreviewHeader &&
+          (capabilities.supportsLayerEditing ||
           capabilities.supportsOutputGeometry) && (
           <LivePreviewSettingsHeader
             outputTargets={outputTargets}
@@ -1027,17 +1059,19 @@ export function LayeredAdvancedSettingsPanel<
                 toggleAccordionSection(setOpenLiveSection, "output-colors")
               }
             />
-            <OutputLayerStylingSection
-              layers={outputLayers}
-              onOutputLayerChange={onOutputLayerChange}
-              onResetOutputLayer={onResetOutputLayer}
-              onResetAllOutputLayers={onResetAllOutputLayers}
-              sectionId={`${id}-live-layer-styling`}
-              open={openLiveSection === "layer-styling"}
-              onToggle={() =>
-                toggleAccordionSection(setOpenLiveSection, "layer-styling")
-              }
-            />
+            {!hideOutputLayerStyling && (
+              <OutputLayerStylingSection
+                layers={outputLayers}
+                onOutputLayerChange={onOutputLayerChange}
+                onResetOutputLayer={onResetOutputLayer}
+                onResetAllOutputLayers={onResetAllOutputLayers}
+                sectionId={`${id}-live-layer-styling`}
+                open={openLiveSection === "layer-styling"}
+                onToggle={() =>
+                  toggleAccordionSection(setOpenLiveSection, "layer-styling")
+                }
+              />
+            )}
           </>
         )}
 
@@ -1061,8 +1095,8 @@ export function LayeredAdvancedSettingsPanel<
       </AdvancedTopLevelSection>
 
       <AdvancedTopLevelSection
-        title="Advanced settings (Click to convert)"
-        description="These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them."
+        title={convertSectionTitle}
+        description={convertSectionDescription}
         tone="convert"
         action={
           <button
@@ -1075,7 +1109,7 @@ export function LayeredAdvancedSettingsPanel<
               "disabled:opacity-60 disabled:cursor-not-allowed",
             ].join(" ")}
           >
-            Update preview
+            {updatePreviewLabel}
           </button>
         }
       >
