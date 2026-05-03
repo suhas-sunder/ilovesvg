@@ -24,6 +24,8 @@ export type SvgLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  opacity?: number;
+  originalOpacity?: number;
   kind?: SvgLayerKind;
 };
 
@@ -352,6 +354,8 @@ export async function createLayeredColorSvg(
         color: layer.color,
         originalColor: layer.color,
         visible: true,
+        opacity: safeOptions.layerAlpha,
+        originalOpacity: safeOptions.layerAlpha,
         kind: "fill",
       })),
     };

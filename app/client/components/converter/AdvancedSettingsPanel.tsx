@@ -195,7 +195,21 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
     string | null
   >(null);
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
-  const detectedColors = sourceColors;
+  const layerColorItems = React.useMemo<DetectedColorItem[]>(() => {
+    const items = detectedColorItems ? [...detectedColorItems] : [];
+    if (outputLayerItems?.length) {
+      items.unshift({ layers: outputLayerItems });
+    }
+    return items;
+  }, [detectedColorItems, outputLayerItems]);
+  const layerColors = React.useMemo(
+    () => collectDetectedRemoveColors(layerColorItems),
+    [layerColorItems],
+  );
+  const detectedColors = React.useMemo(
+    () => mergeDetectedColors(sourceColors, layerColors),
+    [sourceColors, layerColors],
+  );
   const outputLayers = React.useMemo(
     () =>
       onOutputLayerChange
@@ -661,7 +675,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
       {showSelectedColors && (
         <SettingSection
-          title="Remove detected input colors"
+          title="Remove colors"
           sectionId={`${id}-convert-input-colors`}
           open={openConvertSection === "input-colors"}
           onToggle={() =>
@@ -669,13 +683,13 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
           }
         >
           <p className="text-[12px] leading-5 text-slate-600">
-            These are colors sampled from the uploaded image before tracing.
-            Use this to influence how the SVG is generated.
+            Choose colors from the image or current SVG output, or enter a
+            custom color. Increase tolerance to remove nearby shades.
           </p>
           {!removeColorsEnabled ? (
             <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-600">
-              Uploaded SVG colors are edited in the layer controls after
-              upload. Remove colors applies to raster image tracing.
+              Remove colors applies to raster image tracing. Uploaded SVG
+              colors can be edited or hidden in the Live Preview layer controls.
             </div>
           ) : (
             <>
@@ -683,10 +697,10 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 colors={detectedColors}
                 selectedColors={merged.removeColors || []}
                 onToggle={toggleRemoveColor}
-                title="Detected input colors"
-                emptyText="Detected input colors will appear here after you upload or trace a raster image."
+                title="Detected colors"
+                emptyText="Detected colors appear after upload analysis or after an SVG output is generated."
               />
-              <Field label="Custom color">
+              <Field label="Custom HEX or RGB">
                 <input
                   type="color"
                   value={draftColor}
@@ -730,7 +744,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               onRemove={removeRemoveColor}
             />
           )}
-          <Field label={`Color tolerance (${merged.removeColorTolerance})`}>
+          <Field label={`Nearby shade tolerance (${merged.removeColorTolerance})`}>
             <Range
               value={merged.removeColorTolerance}
               min={0}
@@ -741,6 +755,10 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               }
             />
           </Field>
+          <p className="text-[12px] leading-5 text-slate-500">
+            Low tolerance removes exact matches. Higher tolerance also catches
+            anti-aliased edges and similar shades.
+          </p>
           {capabilities.supportsSingleTrace && capabilities.supportsLayeredTrace && (
             <Field label="Apply color removal to">
               <Select
@@ -911,7 +929,21 @@ export function LayeredAdvancedSettingsPanel<
     string | null
   >(null);
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
-  const detectedColors = sourceColors;
+  const layerColorItems = React.useMemo<DetectedColorItem[]>(() => {
+    const items = detectedColorItems ? [...detectedColorItems] : [];
+    if (outputLayerItems?.length) {
+      items.unshift({ layers: outputLayerItems });
+    }
+    return items;
+  }, [detectedColorItems, outputLayerItems]);
+  const layerColors = React.useMemo(
+    () => collectDetectedRemoveColors(layerColorItems),
+    [layerColorItems],
+  );
+  const detectedColors = React.useMemo(
+    () => mergeDetectedColors(sourceColors, layerColors),
+    [sourceColors, layerColors],
+  );
   const outputLayers = React.useMemo(
     () =>
       onOutputLayerChange
@@ -923,6 +955,8 @@ export function LayeredAdvancedSettingsPanel<
   if (!open) return null;
 
   const merged = { ...DEFAULT_TRACE_ADVANCED_SETTINGS, ...settings };
+  const showAlpha =
+    capabilities.supportsAlpha && !capabilities.supportsCutFriendlyOutput;
 
   function patch(patchValue: Partial<TSettings>) {
     setSettings((current) => {
@@ -1179,7 +1213,7 @@ export function LayeredAdvancedSettingsPanel<
 
       {capabilities.supportsSelectedColorRemoval && (
         <SettingSection
-          title="Remove detected input colors"
+          title="Remove colors"
           sectionId={`${id}-convert-input-colors`}
           open={openConvertSection === "input-colors"}
           onToggle={() =>
@@ -1187,13 +1221,13 @@ export function LayeredAdvancedSettingsPanel<
           }
         >
           <p className="text-[12px] leading-5 text-slate-600">
-            These are colors sampled from the uploaded image before tracing.
-            Use this to influence how the SVG is generated.
+            Choose colors from the image or current SVG output, or enter a
+            custom color. Increase tolerance to remove nearby shades.
           </p>
           {!removeColorsEnabled ? (
             <div className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-600">
-              Uploaded SVG colors are edited in the layer controls after
-              upload. Remove colors applies to raster image tracing.
+              Remove colors applies to raster image tracing. Uploaded SVG
+              colors can be edited or hidden in the Live Preview layer controls.
             </div>
           ) : (
             <>
@@ -1201,10 +1235,10 @@ export function LayeredAdvancedSettingsPanel<
                 colors={detectedColors}
                 selectedColors={merged.removeColors || []}
                 onToggle={toggleRemoveColor}
-                title="Detected input colors"
-                emptyText="Detected input colors will appear here after you upload or trace a raster image."
+                title="Detected colors"
+                emptyText="Detected colors appear after upload analysis or after an SVG output is generated."
               />
-              <Field label="Custom color">
+              <Field label="Custom HEX or RGB">
                 <input
                   type="color"
                   value={draftColor}
@@ -1248,7 +1282,7 @@ export function LayeredAdvancedSettingsPanel<
               onRemove={removeRemoveColor}
             />
           )}
-          <Field label={`Color tolerance (${merged.removeColorTolerance})`}>
+          <Field label={`Nearby shade tolerance (${merged.removeColorTolerance})`}>
             <Range
               value={merged.removeColorTolerance}
               min={0}
@@ -1259,6 +1293,10 @@ export function LayeredAdvancedSettingsPanel<
               }
             />
           </Field>
+          <p className="text-[12px] leading-5 text-slate-500">
+            Low tolerance removes exact matches. Higher tolerance also catches
+            anti-aliased edges and similar shades.
+          </p>
         </SettingSection>
       )}
 
@@ -1346,18 +1384,20 @@ export function LayeredAdvancedSettingsPanel<
               Background color is ignored while transparent background is on.
             </p>
           ) : null}
-          <Field label={`Global layer opacity (${Math.round(merged.layerAlpha * 100)}%)`}>
-            <Range
-              value={Math.round(merged.layerAlpha * 100)}
-              min={10}
-              max={100}
-              step={1}
-              onCommit={(value) =>
-                patch({ layerAlpha: value / 100 } as Partial<TSettings>)
-              }
-            />
-          </Field>
-          {!settings.transparent && (
+          {showAlpha && (
+            <Field label={`Global layer opacity (${Math.round(merged.layerAlpha * 100)}%)`}>
+              <Range
+                value={Math.round(merged.layerAlpha * 100)}
+                min={10}
+                max={100}
+                step={1}
+                onCommit={(value) =>
+                  patch({ layerAlpha: value / 100 } as Partial<TSettings>)
+                }
+              />
+            </Field>
+          )}
+          {showAlpha && !settings.transparent && (
             <Field label={`Background opacity (${Math.round(merged.backgroundAlpha * 100)}%)`}>
               <Range
                 value={Math.round(merged.backgroundAlpha * 100)}

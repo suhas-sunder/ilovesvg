@@ -99,9 +99,31 @@ export function normalizeHexColor(value: string): string | null {
   return null;
 }
 
+const NAMED_COLOR_HEX: Record<string, string> = {
+  black: "#000000",
+  white: "#ffffff",
+  red: "#ff0000",
+  green: "#008000",
+  blue: "#0000ff",
+  cyan: "#00ffff",
+  aqua: "#00ffff",
+  magenta: "#ff00ff",
+  fuchsia: "#ff00ff",
+  yellow: "#ffff00",
+  gray: "#808080",
+  grey: "#808080",
+  orange: "#ffa500",
+  purple: "#800080",
+  pink: "#ffc0cb",
+  brown: "#a52a2a",
+};
+
 export function normalizeColorInput(value: string): string | null {
   const hex = normalizeHexColor(value);
   if (hex) return hex;
+
+  const named = NAMED_COLOR_HEX[value.trim().toLowerCase()];
+  if (named) return named;
 
   const match = value
     .trim()

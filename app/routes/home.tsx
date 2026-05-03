@@ -18,7 +18,10 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
-import { LayerPaletteEditor } from "~/client/components/svg/LayerPaletteEditor";
+import {
+  LayerPaletteEditor,
+  applyLayerEditsToSvg,
+} from "~/client/components/svg/LayerPaletteEditor";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import {
@@ -3178,76 +3181,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function escapeLayerRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function applyLayerEditsToSvg(svg: string, layers: EditableSvgLayer[]): string {
-  let out = svg;
-  for (const layer of layers) {
-    const id = escapeLayerRegExp(layer.id);
-
-    const groupPattern = new RegExp(
-      `(<g\\b(?=[^>]*data-layer-id=["']${id}["'])([^>]*)>)([\\s\\S]*?)(<\\/g>)`,
-      "i",
-    );
-
-    out = out.replace(groupPattern, (_match, _open, attrs, inner, close) => {
-      const groupPaintProp =
-        (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-      let nextAttrs = String(attrs)
-        .replace(
-          new RegExp(`\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
-          "",
-        )
-        .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
-      nextAttrs = rewriteStyleProperty(nextAttrs, groupPaintProp, layer.color);
-      nextAttrs = rewriteStyleProperty(
-        nextAttrs,
-        "display",
-        layer.visible ? null : "none",
-      );
-      nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
-      nextAttrs += ` ${groupPaintProp}="${layer.color}"`;
-      if (!layer.visible) nextAttrs += ` display="none"`;
-      return `<g${nextAttrs}>${inner}${close}`;
-    });
-
-    const attrName =
-      (layer.kind || "fill") === "stroke"
-        ? "data-stroke-layer-id"
-        : "data-fill-layer-id";
-    const paintProp = (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-    const elementPattern = new RegExp(
-      `(<(?!g\\b)([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\\/?>)`,
-      "gi",
-    );
-
-    out = out.replace(
-      elementPattern,
-      (_match, _start, tagName, attrs, endTag) => {
-        let nextAttrs = String(attrs)
-          .replace(
-            new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
-            "",
-          )
-          .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "");
-        nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
-        nextAttrs = rewriteStyleProperty(
-          nextAttrs,
-          "display",
-          layer.visible ? null : "none",
-        );
-        nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
-        nextAttrs += ` ${paintProp}="${layer.color}"`;
-        if (!layer.visible) nextAttrs += ` display="none"`;
-        return `<${tagName}${nextAttrs}${endTag}`;
-      },
-    );
-  }
-  return out;
-}
-
 function applySvgSizeAttributes(svg: string, width: number, height: number): string {
   const safeWidth = Math.round(Number(width));
   const safeHeight = Math.round(Number(height));
@@ -3282,55 +3215,7 @@ function settingsEqual(a: Settings, b: Settings): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function rewriteStyleProperty(
-  attrs: string,
-  property: string,
-  value: string | null,
-): string {
-  const styleMatch = String(attrs).match(/\bstyle\s*=\s*(["'])([^"']*)\1/i);
-  if (!styleMatch) {
-    if (value == null) return attrs;
-    return `${attrs} style="${property}:${value}"`;
-  }
-
-  const quote = styleMatch[1];
-  const styleBody = styleMatch[2];
-  const parts = styleBody
-    .split(";")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((part) => !new RegExp(`^${property}\s*:`, "i").test(part));
-
-  if (value != null) {
-    parts.push(`${property}:${value}`);
-  }
-
-  if (parts.length === 0) {
-    return attrs.replace(/\sstyle\s*=\s*(["'])[^"']*\1/i, "");
-  }
-
-  const nextStyle = parts.join("; ");
-  return attrs.replace(
-    /\bstyle\s*=\s*(["'])[^"']*\1/i,
-    `style=${quote}${nextStyle}${quote}`,
-  );
-}
 /* ===== Client-side helpers (dimension precheck + compression ≤25MB) ===== */
-function applyOpacityAttribute(attrs: string, opacity?: number): string {
-  if (!Number.isFinite(opacity)) return attrs;
-  const value = Math.max(0, Math.min(1, Number(opacity)));
-  let nextAttrs = String(attrs)
-    .replace(/\sopacity\s*=\s*["'][^"']*["']/gi, "")
-    .replace(/\sdata-editor-opacity\s*=\s*["'][^"']*["']/gi, "");
-  nextAttrs = rewriteStyleProperty(nextAttrs, "opacity", null);
-
-  if (value >= 0.999) return nextAttrs;
-  return `${nextAttrs} opacity="${value
-    .toFixed(3)
-    .replace(/0+$/, "")
-    .replace(/\.$/, "")}" data-editor-opacity="true"`;
-}
-
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
     const bmp = await createImageBitmap(file);
