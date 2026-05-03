@@ -14,6 +14,10 @@ import { PHProvider } from "./provider";
 import NavBar from "./client/components/navigation/NavBar";
 import { logAppError } from "./client/lib/errorLogging";
 
+function createAffiliateVariantSeed() {
+  return Math.floor(Math.random() * 1_000_000_000);
+}
+
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -38,9 +42,10 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const url = new URL(request.url);
   const p0 = url.pathname;
+  const affiliateVariantSeed = createAffiliateVariantSeed();
 
-  // Never touch the homepage
-  if (p0 === "/") return null;
+  // Homepage does not need normalization, but it still receives render data.
+  if (p0 === "/") return { affiliateVariantSeed };
 
   // Skip common static prefixes
   if (
@@ -69,7 +74,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     });
   }
 
-  return null;
+  return { affiliateVariantSeed };
 };
 
 export function Layout({ children }: { children: React.ReactNode }) {
