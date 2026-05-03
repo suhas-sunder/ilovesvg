@@ -785,6 +785,44 @@ function stickerMulePlacement(pathname: string): AffiliatePlacement {
   };
 }
 
+function printifyHeadingForPath(pathname: string) {
+  if (pathname.includes("logo")) {
+    return "Turn your logo into products people can buy";
+  }
+
+  if (pathname.includes("text-to-svg")) {
+    return "Turn custom text into products people can buy";
+  }
+
+  if (pathname.includes("sticker")) {
+    return "Turn sticker art into products people can buy";
+  }
+
+  if (pathname.includes("drawing") || pathname.includes("sketch")) {
+    return "Turn your artwork into products people can buy";
+  }
+
+  return "Turn your artwork into products people can buy";
+}
+
+function polishPrintifyPlacement(
+  pathname: string,
+  placement: AffiliatePlacement,
+): AffiliatePlacement {
+  return {
+    ...placement,
+    eyebrow: "Printify next step",
+    heading: printifyHeadingForPath(pathname),
+    headingAlternates: [
+      "Create polished mockups from your artwork",
+      "Test your artwork as a sellable product idea",
+    ],
+    body: PRINTIFY_MARKETING_BODY,
+    cta: "Create product mockups",
+    benefits: PRINTIFY_BENEFITS,
+  };
+}
+
 function printifyPlacement(pathname: string): AffiliatePlacement {
   const base = basePlacement("printify");
 
@@ -913,11 +951,11 @@ function explicitPrintifyPlacement(
   const message = PRINTIFY_ROUTE_MESSAGES[pathname];
   if (!message) return null;
 
-  return {
+  return polishPrintifyPlacement(pathname, {
     provider: "printify",
     ...basePlacement("printify"),
     ...message,
-  };
+  });
 }
 
 function namecheapPlacement(pathname: string): AffiliatePlacement {
@@ -996,7 +1034,7 @@ function getAffiliatePlacement(pathname: string): AffiliatePlacement | null {
   }
 
   if (matchesPrintify(pathname)) {
-    return printifyPlacement(pathname);
+    return polishPrintifyPlacement(pathname, printifyPlacement(pathname));
   }
 
   if (matchesNamecheap(pathname)) {
