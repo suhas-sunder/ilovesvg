@@ -76,10 +76,13 @@ const NAMECHEAP_IMAGE = {
 };
 
 const PRINTIFY_BENEFITS = [
-  "Create listing mockups",
-  "No inventory to hold",
-  "Order samples when ready",
+  "Product mockups",
+  "Listing-ready previews",
+  "No inventory needed",
 ];
+
+const PRINTIFY_MARKETING_BODY =
+  "Create polished mockups, test product ideas, and start selling online with Printify without handling inventory.";
 
 const CRICUT_BENEFITS = [
   "Works with Cricut projects",
@@ -102,7 +105,7 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
       "Turn finished artwork into a shop-ready mockup",
     ],
     body: "After exporting artwork from the converter, use Printify's Product Creator to place the design on products, build listing images, and decide whether to publish or order a sample.",
-    cta: "Open Product Creator",
+    cta: "Try for Free!",
     benefits: [
       "Shop listing images",
       "No inventory to hold",
@@ -398,7 +401,7 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
     eyebrow: "Clean artwork next step",
     heading: "Cleaned paths are ready for shop mockups",
     headingAlternates: [
-      "Turn polished SVG artwork into listing images",
+      "Turn polished your artwork into listing images",
       "Use cleaned artwork for product ideas",
     ],
     body: "After cleaning the SVG, use Printify to build product mockups and make sure the polished artwork still feels right before publishing or ordering samples.",
@@ -506,7 +509,7 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
       "Turn Cricut sticker art into shop mockups",
       "Make creator-shop images from this sticker design",
     ],
-    body: "Use Printify to create product mockups from sticker-style SVG artwork before publishing listings or ordering samples.",
+    body: "Use Printify to create product mockups from sticker-style your artwork before publishing listings or ordering samples.",
     cta: "Create sticker mockups",
     benefits: [
       "Sticker listing visuals",
@@ -633,7 +636,7 @@ function basePlacement(provider: AffiliateProvider) {
       headingClass: "text-sky-950",
       buttonClass: "bg-emerald-600 hover:bg-emerald-700",
       surfaceClass: "bg-gradient-to-br from-emerald-50 via-white to-sky-50",
-      maxWidthClass: "max-w-[920px]",
+      maxWidthClass: "max-w-[1120px]",
       benefits: PRINTIFY_BENEFITS,
       image: PRINTIFY_IMAGE,
     };
@@ -795,7 +798,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
         "Create product mockups without holding inventory",
       ],
       body: "Use Printify's Product Creator to turn finished artwork into listing mockups, then publish or order samples when the product idea is ready.",
-      cta: "Open Product Creator",
+      cta: "Try for Free!",
       ...base,
     };
   }
@@ -839,7 +842,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
         "Move vinyl-style artwork into shop mockups",
         "Use simple SVG art for product ideas",
       ],
-      body: "Use Printify to place simple SVG artwork into product mockups before listing or sampling.",
+      body: "Use Printify to place simple your artwork into product mockups before listing or sampling.",
       cta: "Create product mockups",
       ...base,
     };
@@ -1032,6 +1035,14 @@ function getAffiliateHeading(
   return headingOptions[headingIndex] ?? placement.heading;
 }
 
+function getAffiliateCta(placement: AffiliatePlacement) {
+  if (placement.provider === "printify") {
+    return "Try for Free!";
+  }
+
+  return placement.cta;
+}
+
 function CricutVisual() {
   return (
     <div className="border-t border-cyan-100 bg-cyan-50/70 px-4 py-3 sm:px-5 sm:py-4">
@@ -1101,6 +1112,7 @@ function ContextualAffiliateContent({
   variantSeed: number;
 }) {
   const displayHeading = getAffiliateHeading(pathname, placement, variantSeed);
+  const displayCta = getAffiliateCta(placement);
 
   return (
     <section
@@ -1111,8 +1123,8 @@ function ContextualAffiliateContent({
         className={`mx-auto ${placement.maxWidthClass} overflow-hidden rounded-2xl border ${placement.borderClass} ${placement.surfaceClass} shadow-sm`}
       >
         <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="min-w-0">
+          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
+            <div className="inline-flex min-w-0 w-full flex-col">
               <p
                 className={`text-[11px] font-bold uppercase tracking-wide sm:text-xs ${placement.eyebrowClass}`}
               >
@@ -1121,7 +1133,7 @@ function ContextualAffiliateContent({
 
               <h2
                 id="contextual-affiliate-heading"
-                className={`mt-1 max-w-[760px] text-xl font-extrabold leading-tight tracking-[-0.018em] ${placement.headingClass} sm:text-2xl lg:text-[1.75rem]`}
+                className={`mt-1 w-full text-xl font-extrabold leading-tight tracking-[-0.018em] ${placement.headingClass} sm:text-2xl lg:text-[1.75rem]`}
               >
                 {displayHeading}
               </h2>
@@ -1131,9 +1143,9 @@ function ContextualAffiliateContent({
               href={placement.href}
               target="_blank"
               rel="nofollow sponsored noopener noreferrer"
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition-colors ${placement.buttonClass} sm:w-auto lg:min-w-[220px]`}
+              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-5 py-3 text-center text-sm font-extrabold text-white shadow-sm transition-colors ${placement.buttonClass} lg:mt-4 lg:w-auto lg:min-w-[200px] lg:shrink-0 lg:whitespace-nowrap`}
             >
-              {placement.cta}
+              {displayCta}
             </a>
           </div>
 
