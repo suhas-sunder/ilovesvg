@@ -2029,6 +2029,7 @@ const PRESETS: Preset[] = [
 
 const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 
+const DEFAULT_PRESET_ID = "line-accurate";
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
@@ -2113,7 +2114,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>(PRESETS[0]?.id ?? "layered-color");
+    React.useState<string>(DEFAULT_PRESET_ID);
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2264,7 +2265,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset(PRESETS[0]?.id ?? "layered-color");
+    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -2307,7 +2308,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Re-enable live preview and submit the selected file directly so the first upload
     // never depends on stale React state.
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, DEFAULTS, DEFAULT_PRESET_ID);
   }
 
   const settingThrottleRef = React.useRef<ReturnType<typeof setTimeout> | null>(
@@ -2376,6 +2377,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
+    presetId: string = activePreset,
   ) {
     if (!targetFile) {
       setErr("Choose an image first.");
@@ -2433,7 +2435,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetId);
     fd.append("traceMode", effective.traceMode);
     fd.append("colorLayerCount", String(effective.colorLayerCount));
     fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
@@ -2487,7 +2489,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWith(file, nextSettings);
+      void submitConvertWith(file, nextSettings, preset.id);
     }
   }
 

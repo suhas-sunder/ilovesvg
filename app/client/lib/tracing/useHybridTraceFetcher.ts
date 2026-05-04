@@ -317,6 +317,7 @@ function normalizeTraceMode(
   presetId?: string | null,
 ): "single" | "layered" {
   if (value === "layered") return "layered";
+  if (value === "single") return "single";
   const routeHint = routeId || "";
   const presetHint = presetId || "";
   if (/\blayered\b|to-layered-svg|layered-svg/i.test(routeHint)) return "layered";

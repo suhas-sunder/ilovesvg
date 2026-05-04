@@ -1724,6 +1724,9 @@ export default function LogoToLayeredSvgForCricut({
                     return (
                       <div
                         key={item.stamp}
+                        data-engine-used={item.engineUsed || "vtracer"}
+                        data-source-kind={item.sourceKind || "raster"}
+                        data-engine-warnings={(item.warnings || []).join(" | ")}
                         className="rounded-xl border border-slate-200 bg-white p-2"
                       >
                         <div className="flex gap-3 items-center flex-wrap justify-between">

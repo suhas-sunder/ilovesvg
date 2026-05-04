@@ -1520,6 +1520,7 @@ const DISPLAY_PRESETS: Preset[] = [
     },
   },
 ];
+const DEFAULT_PRESET_ID = "bw-clean";
 const DEFAULTS: Settings = {
   threshold: 200,
   turdSize: 2,
@@ -1531,7 +1532,7 @@ const DEFAULTS: Settings = {
   bgColor: "#ffffff",
   binaryMode: true,
   binaryInvertInput: false,
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -1602,7 +1603,7 @@ export default function BlackAndWhiteImageToSvgConverter({
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color-svg");
+    React.useState<string>(DEFAULT_PRESET_ID);
 
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
@@ -1718,7 +1719,7 @@ export default function BlackAndWhiteImageToSvgConverter({
     setOriginalFileSize(f.size);
 
     setSettings(DEFAULTS);
-    setActivePreset("layered-color-svg");
+    setActivePreset(DEFAULT_PRESET_ID);
 
     let chosen = f;
 
@@ -1732,7 +1733,7 @@ export default function BlackAndWhiteImageToSvgConverter({
     measureAndSet(chosen);
 
     if (getAutoMode(chosen.size) !== "off") {
-      submitConvertWith(chosen, DEFAULTS);
+      submitConvertWith(chosen, DEFAULTS, DEFAULT_PRESET_ID);
     }
   }
 
@@ -1749,7 +1750,7 @@ export default function BlackAndWhiteImageToSvgConverter({
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file) {
-      submitConvertWith(file, nextSettings);
+      submitConvertWith(file, nextSettings, preset.id);
     }
   }
 
@@ -1764,6 +1765,7 @@ export default function BlackAndWhiteImageToSvgConverter({
   async function submitConvertWith(
     f: File,
     targetSettings: Settings = settings,
+    presetId: string = activePreset,
   ) {
     try {
       await validateBeforeSubmit(f);
@@ -1817,7 +1819,7 @@ export default function BlackAndWhiteImageToSvgConverter({
     fd.append("removeWhite", String(effective.removeWhite));
     fd.append("removeTransparent", String(effective.removeTransparent));
 
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetId);
 
     setErr(null);
 
@@ -2427,6 +2429,9 @@ export default function BlackAndWhiteImageToSvgConverter({
                   {history.map((item, index) => (
                     <div
                       key={item.stamp}
+                      data-engine-used={item.engineUsed || "potrace"}
+                      data-source-kind={item.sourceKind || "raster"}
+                      data-engine-warnings={(item.warnings || []).join(" | ")}
                       className="rounded-xl border border-slate-200 bg-white p-2"
                     >
                       <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">

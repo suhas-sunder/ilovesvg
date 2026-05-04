@@ -1924,6 +1924,7 @@ const PRESETS: Preset[] = [
 
 const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 
+const DEFAULT_PRESET_ID = "drawing-clean";
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
@@ -1937,7 +1938,7 @@ const DEFAULTS: Settings = {
   preprocess: "none",
   blurSigma: 0.8,
   edgeBoost: 1.0,
-  traceMode: "layered",
+  traceMode: "single",
   colorLayerCount: 5,
   layerMaxTraceSide: 1600,
   minRegionPercent: 0.35,
@@ -2021,7 +2022,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] = React.useState<string>(
-    PRESETS[0]?.id ?? "layered-color-svg",
+    DEFAULT_PRESET_ID,
   );
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2112,7 +2113,12 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     if (busy) return;
 
     pendingFirstConvertRef.current = null;
-    submitFileForConversion(pending.file, pending.settings, "first-upload");
+    submitFileForConversion(
+      pending.file,
+      pending.settings,
+      "first-upload",
+      DEFAULT_PRESET_ID,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, busy]);
 
@@ -2262,7 +2268,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
     setPreviewUrl(null);
     setSettings(DEFAULTS);
-    setActivePreset(PRESETS[0]?.id ?? "layered-color-svg");
+    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -2330,6 +2336,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     fileToConvert: File,
     settingsToUse: Settings,
     reason: "first-upload" | "manual" | "live-preview" | "retry",
+    presetId: string = activePreset,
   ) {
     if (!fileToConvert) {
       setErr("Choose a drawing first.");
@@ -2403,7 +2410,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetId);
 
     setErr(null);
     setInfo(reason === "first-upload" ? "Converting drawing..." : null);
@@ -2469,7 +2476,12 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
       debounceRef.current = setTimeout(
         () => {
-          submitFileForConversion(presetFile, nextSettings, "live-preview");
+          submitFileForConversion(
+            presetFile,
+            nextSettings,
+            "live-preview",
+            preset.id,
+          );
         },
         autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS,
       );

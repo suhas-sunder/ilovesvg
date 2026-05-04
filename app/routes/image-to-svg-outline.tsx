@@ -1546,6 +1546,10 @@ export default function ImageToSvgOutline({
         layers: (data.layers ?? []).map((layer) => ({ ...layer })),
         width: data.width ?? 0,
         height: data.height ?? 0,
+        engineUsed: data.engineUsed,
+        sourceKind: data.sourceKind,
+        warnings: data.warnings,
+        timings: data.timings,
         stamp: Date.now(),
         settingsSnapshot,
         draftSettings: settingsSnapshot,
@@ -1717,8 +1721,8 @@ export default function ImageToSvgOutline({
 
     if (nextAutoMode !== "off") {
       await submitConvertWith(chosen, DEFAULTS, {
-        presetId: "layered-color",
-        presetLabel: getPresetLabel("layered-color"),
+        presetId: "outline-clean",
+        presetLabel: getPresetLabel("outline-clean"),
         reason: "upload",
       });
     }

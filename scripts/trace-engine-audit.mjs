@@ -125,10 +125,55 @@ async function auditTracingArchitecture() {
     "Layered color tracing is routed to VTracer",
     "current line-art/cut-file parity",
     "\"line-\"",
+    "\"sketch\"",
+    "\"drawing\"",
+    "\"photo\"",
+    "\"edge\"",
+    "\"comics\"",
+    "\"diagram\"",
   ]) {
     if (!enginePolicy.includes(token)) {
       fatal.push(`Engine policy is missing expected routing/safety token: ${token}`);
     }
+  }
+  const vtracerTermsMatch = enginePolicy.match(
+    /const VTRACER_PRESET_TERMS = \[([\s\S]*?)\];/,
+  );
+  const vtracerTermsBody = vtracerTermsMatch?.[1] || "";
+  for (const forbidden of [
+    "sketch",
+    "drawing",
+    "pencil",
+    "photo",
+    "edge",
+    "comic",
+    "comics",
+    "ink",
+    "inks",
+    "diagram",
+    "technical",
+    "blueprint",
+    "cut",
+    "cricut",
+    "vinyl",
+    "scan",
+    "lineart",
+  ]) {
+    if (new RegExp(`["']${forbidden}["']`).test(vtracerTermsBody)) {
+      fatal.push(
+        `Engine policy must not treat single-trace parity family "${forbidden}" as VTracer-capable in auto mode.`,
+      );
+    }
+  }
+  if (/settings\.preprocess\s*===\s*["']edge["'][\s\S]{0,600}engine:\s*["']vtracer["']/.test(enginePolicy)) {
+    fatal.push(
+      "Engine policy regressed: edge/photo preprocessing alone must not route auto-mode single-trace work to VTracer.",
+    );
+  }
+  if (/presetBackendIntensity[\s\S]{0,900}engine:\s*["']vtracer["']/.test(enginePolicy)) {
+    fatal.push(
+      "Engine policy regressed: slow/high-detail backend intensity alone must not route auto-mode single-trace work to VTracer.",
+    );
   }
 
   const workerClient = await read("app/client/lib/tracing/vtracerWorkerClient.ts");

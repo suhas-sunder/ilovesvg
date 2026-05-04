@@ -1801,9 +1801,10 @@ const PRESETS: Preset[] = [
 
 const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 
+const DEFAULT_PRESET_ID = "bw-clean-cut";
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
-  traceMode: "layered",
+  traceMode: "single",
 
   threshold: 224,
   turdSize: 2,
@@ -1886,7 +1887,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("layered-color-svg");
+    React.useState<string>(DEFAULT_PRESET_ID);
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2050,7 +2051,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Reset settings/results for the new upload
     setSettings(DEFAULTS);
-    setActivePreset("layered-color-svg");
+    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -2087,7 +2088,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Re-enable live preview and submit the selected file directly so the first upload
     // never depends on stale React state or generated output state.
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, DEFAULTS, DEFAULT_PRESET_ID);
   }
 
   async function submitConvert() {
@@ -2097,6 +2098,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function submitConvertWith(
     sourceFile: File | null,
     sourceSettings: Settings,
+    presetId: string = activePreset,
   ) {
     if (!sourceFile) {
       setErr("Choose an image first.");
@@ -2149,7 +2151,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetId);
     fd.append("colorLayerCount", String(effective.colorLayerCount));
     fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
     fd.append("minRegionPercent", String(effective.minRegionPercent));
@@ -2194,7 +2196,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setActivePreset(preset.id);
     setSettings(nextSettings);
-    if (file) void submitConvertWith(file, nextSettings);
+    if (file) void submitConvertWith(file, nextSettings, preset.id);
   }
 
   const [toast, setToast] = React.useState<string | null>(null);
