@@ -172,7 +172,8 @@ async function auditTracingArchitecture() {
     fatal.push("vite.config.ts is missing explicit ES module worker configuration.");
   }
   for (const token of [
-    "serverFallback$/",
+    "tracingServerFallbackResolver",
+    "options.ssr",
     "serverFallback.server.ts",
     "serverFallback.client.ts",
   ]) {

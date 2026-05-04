@@ -9,19 +9,6 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ isSsrBuild }) => ({
-  resolve: {
-    alias: [
-      {
-        find: /^~\/shared\/tracing\/serverFallback$/,
-        replacement: path.resolve(
-          projectRoot,
-          isSsrBuild
-            ? "app/shared/tracing/serverFallback.server.ts"
-            : "app/shared/tracing/serverFallback.client.ts",
-        ),
-      },
-    ],
-  },
   build: {
     rollupOptions: isSsrBuild
       ? {
@@ -32,8 +19,32 @@ export default defineConfig(({ isSsrBuild }) => ({
   worker: {
     format: "es",
   },
-  plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  plugins: [
+    tracingServerFallbackResolver(),
+    tailwindcss(),
+    reactRouter(),
+    tsconfigPaths(),
+  ],
   ssr: {
     noExternal: ["posthog-js", "posthog-js/react"],
   },
 }));
+
+function tracingServerFallbackResolver() {
+  return {
+    name: "ilovesvg-tracing-server-fallback-resolver",
+    enforce: "pre" as const,
+    resolveId(source: string, _importer: string | undefined, options: { ssr?: boolean }) {
+      if (source !== "~/shared/tracing/serverFallback") {
+        return null;
+      }
+
+      return path.resolve(
+        projectRoot,
+        options.ssr
+          ? "app/shared/tracing/serverFallback.server.ts"
+          : "app/shared/tracing/serverFallback.client.ts",
+      );
+    },
+  };
+}
