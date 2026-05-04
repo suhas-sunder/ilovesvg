@@ -66,14 +66,9 @@ export function meta({}: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
-    {
-      name: "keywords",
-      content:
-        "png to svg for cricut vinyl, cricut vinyl svg converter, png to vinyl svg, vinyl decal svg converter, png to svg for vinyl cutter, cricut decal maker, jpg to svg for cricut vinyl, vinyl cut file maker",
-    },
     { name: "robots", content: "index,follow" },
 
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },

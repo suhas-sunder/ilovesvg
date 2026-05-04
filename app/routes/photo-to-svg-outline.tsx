@@ -67,7 +67,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "theme-color", content: "#0b2dff" },
 
     // Canonical
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     // OpenGraph
     { property: "og:title", content: title },

@@ -66,14 +66,9 @@ export function meta({}: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
-    {
-      name: "keywords",
-      content:
-        "png to svg for laser cutting, laser cut svg converter, png to laser svg, jpg to svg for laser cutting, laser cutter svg maker, image to svg laser cutter, svg cut file converter, laser engraving svg",
-    },
     { name: "robots", content: "index,follow" },
 
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },

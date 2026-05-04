@@ -57,19 +57,11 @@ export function meta({}: Route.MetaArgs) {
   return [
     { title },
     { name: "description", content: description },
-
-    // Keywords are optional and ignored by Google, kept only if you want them
-    {
-      name: "keywords",
-      content:
-        "jpeg to svg, jpg to svg, convert jpg to svg, jpeg vectorizer, vectorize photo to svg, scan to svg, whiteboard to svg, photo outline svg",
-    },
-
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
     // Canonical
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     // OpenGraph
     { property: "og:title", content: title },

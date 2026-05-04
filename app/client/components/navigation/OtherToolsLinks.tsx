@@ -53,6 +53,29 @@ type Props = {
 };
 
 const LONG_CONTENT_AD_SLOT = "2346286299";
+const SITE_ORIGIN = "https://www.ilovesvg.com";
+const ROUTES_WITH_LOCAL_BREADCRUMBS = new Set([
+  "/inline-svg-vs-img",
+  "/line-art-to-svg-converter",
+  "/sketch-to-svg-converter",
+  "/svg-background-editor",
+  "/svg-cleaner",
+  "/svg-dimensions-inspector",
+  "/svg-embed-code-generator",
+  "/svg-file-size-inspector",
+  "/svg-flip-and-rotate-editor",
+  "/svg-minifier",
+  "/svg-preview-viewer",
+  "/svg-recolor",
+  "/svg-resize-and-scale-editor",
+  "/svg-stroke-width-editor",
+  "/svg-to-base64",
+  "/svg-to-favicon-generator",
+  "/svg-to-jpg-converter",
+  "/svg-to-pdf-converter",
+  "/svg-to-png-converter",
+  "/svg-to-webp-converter",
+]);
 
 /**
  * Full site navigation for all public SVG tools.
@@ -72,6 +95,12 @@ export function OtherToolsLinks({
   const { pathname } = useLocation();
 
   const normalizedPathname = normalizePath(pathname);
+  const currentUtility = React.useMemo(
+    () =>
+      UTILITIES.find((item) => normalizePath(item.to) === normalizedPathname) ??
+      null,
+    [normalizedPathname],
+  );
 
   const sections = React.useMemo(() => {
     return UTILITY_SECTIONS.map((section) => {
@@ -92,6 +121,12 @@ export function OtherToolsLinks({
       className="mt-12 border-t border-slate-200 bg-white"
     >
       <div className="max-w-[1180px] mx-auto px-4 py-10">
+        {currentUtility &&
+        currentUtility.to !== "/" &&
+        !ROUTES_WITH_LOCAL_BREADCRUMBS.has(normalizedPathname) ? (
+          <BottomBreadcrumbs utility={currentUtility} />
+        ) : null}
+
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-sky-800">
             {title}
@@ -183,6 +218,67 @@ export function OtherToolsLinks({
         </div>
       </div>
     </section>
+  );
+}
+
+function BottomBreadcrumbs({ utility }: { utility: UtilityLink }) {
+  const crumbs = [
+    { name: "Home", to: "/" },
+    { name: "All SVG tools", to: "/sitemap" },
+    { name: utility.title, to: utility.to },
+  ];
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((crumb, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: crumb.name,
+      item: absoluteUrl(crumb.to),
+    })),
+  };
+
+  return (
+    <>
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-6 text-sm font-semibold text-slate-600"
+      >
+        <ol className="flex flex-wrap items-center gap-2">
+          {crumbs.map((crumb, index) => {
+            const isCurrent = index === crumbs.length - 1;
+
+            return (
+              <li key={crumb.to} className="flex items-center gap-2">
+                {index > 0 ? (
+                  <span aria-hidden className="text-slate-400">
+                    /
+                  </span>
+                ) : null}
+                {isCurrent ? (
+                  <span aria-current="page" className="text-slate-800">
+                    {crumb.name}
+                  </span>
+                ) : (
+                  <Link
+                    to={crumb.to}
+                    className="cursor-pointer rounded text-sky-700 transition hover:text-sky-900 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-2"
+                  >
+                    {crumb.name}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+    </>
   );
 }
 
@@ -299,6 +395,10 @@ function GuideList({ title, items }: { title: string; items: string[] }) {
 function normalizePath(path: string) {
   if (!path || path === "/") return "/";
   return path.endsWith("/") ? path.slice(0, -1) : path;
+}
+
+function absoluteUrl(path: string) {
+  return path === "/" ? SITE_ORIGIN : `${SITE_ORIGIN}${path}`;
 }
 
 function shortBadge(group: UtilityGroup) {

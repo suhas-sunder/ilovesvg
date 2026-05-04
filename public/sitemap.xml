@@ -271,20 +271,7 @@
     <lastmod>2026-05-01</lastmod>
   </url>
 
-  <!-- Legal / Info -->
-  <url>
-    <loc>https://www.ilovesvg.com/cookies</loc>
-    <lastmod>2026-05-01</lastmod>
-  </url>
-  <url>
-    <loc>https://www.ilovesvg.com/privacy-policy</loc>
-    <lastmod>2026-05-01</lastmod>
-  </url>
-  <url>
-    <loc>https://www.ilovesvg.com/terms-of-service</loc>
-    <lastmod>2026-05-01</lastmod>
-  </url>
-  
+  <!-- HTML sitemap -->
   <url>
     <loc>https://www.ilovesvg.com/sitemap</loc>
     <lastmod>2026-05-01</lastmod>

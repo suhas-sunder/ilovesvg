@@ -74,14 +74,8 @@ export function meta({}: Route.MetaArgs) {
     { name: "robots", content: "index,follow" },
 
     // Keywords are ignored by Google but harmless
-    {
-      name: "keywords",
-      content:
-        "line art to svg, ink drawing to svg, scan to svg, sketch to svg, vectorize line art, potrace lineart",
-    },
-
     // Canonical
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     // OpenGraph
     { property: "og:title", content: title },

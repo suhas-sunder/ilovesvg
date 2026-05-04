@@ -64,7 +64,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "robots", content: "index,follow" },
 
     // Canonical
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     // OpenGraph
     { property: "og:title", content: title },

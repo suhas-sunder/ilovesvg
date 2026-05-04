@@ -31,7 +31,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "theme-color", content: "#0b2dff" },
 
     // Canonical
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     // OpenGraph
     { property: "og:title", content: title },
@@ -1620,14 +1620,9 @@ function SeoSections() {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "WebSite",
-        name: "i🩵SVG",
-        url: "/",
-      },
-      {
         "@type": "WebPage",
         name: "Text to SVG Converter (Outline Paths)",
-        url: "/text-to-svg-converter",
+        url: "https://www.ilovesvg.com/text-to-svg-converter",
         description:
           "Convert text into true SVG outline paths (vector). Upload a font (TTF/OTF/WOFF) or use builtin fonts. Adjust size, line height, spacing, alignment, padding, canvas sizing, repeat-fill, stroke, and background.",
       },
@@ -1639,7 +1634,7 @@ function SeoSections() {
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         description:
           "Convert text into true SVG outline paths (vector). Upload a font file (TTF/OTF/WOFF) or use a builtin font. Control alignment, spacing, wrapping, canvas sizing, repeat-fill, stroke, and background.",
-        url: "/text-to-svg-converter",
+        url: "https://www.ilovesvg.com/text-to-svg-converter",
         featureList: [
           "True SVG outline paths (no external font dependency)",
           "Upload fonts: TTF, OTF, WOFF",
@@ -1988,7 +1983,9 @@ function SeoSections() {
 
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+            }}
           />
         </article>
       </div>

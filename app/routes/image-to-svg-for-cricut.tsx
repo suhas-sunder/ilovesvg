@@ -61,7 +61,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },

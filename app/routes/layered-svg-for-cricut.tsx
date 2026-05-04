@@ -46,14 +46,9 @@ export function meta({}: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
-    {
-      name: "keywords",
-      content:
-        "layered svg for cricut, image to layered svg, png to layered svg for cricut, jpg to layered svg, cricut layered svg converter, svg layers for cricut, color image to layered svg, vinyl layered svg converter",
-    },
     { name: "robots", content: "index,follow" },
 
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },

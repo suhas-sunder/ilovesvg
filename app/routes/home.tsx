@@ -70,7 +70,7 @@ export function meta({}: Route.MetaArgs) {
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#2563eb" },
 
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
@@ -3552,6 +3552,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
+      <HomeWebsiteSchema />
       <main className="bg-slate-50 text-[#0f2537]">
         <div className="max-w-[1180px] mx-auto px-4">
           <div className="hidden lg:block py-5">
@@ -4104,6 +4105,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <SocialLinks />
       <SiteFooter />
     </>
+  );
+}
+
+function HomeWebsiteSchema() {
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "iLoveSVG",
+    alternateName: "i\uD83E\uDE75SVG",
+    url: "https://www.ilovesvg.com",
+    inLanguage: "en-US",
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c"),
+      }}
+    />
   );
 }
 

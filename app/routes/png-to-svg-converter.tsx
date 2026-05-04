@@ -62,18 +62,11 @@ export function meta({}: Route.MetaArgs) {
   return [
     { title },
     { name: "description", content: description },
-
-    {
-      name: "keywords",
-      content:
-        "png to svg, convert png to svg, png vectorizer, vectorize png, transparent png to svg, logo png to svg, icon png to svg, potrace png to svg, outline svg, png outline to svg",
-    },
-
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
 
     // Canonical
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     // OpenGraph
     { property: "og:title", content: title },

@@ -65,14 +65,9 @@ export function meta({}: Route.MetaArgs) {
     { name: "description", content: description },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
     { name: "theme-color", content: "#0b2dff" },
-    {
-      name: "keywords",
-      content:
-        "png to svg for cricut, cricut svg converter, png to svg cricut, jpg to svg for cricut, cricut cut file maker, single color svg, svg for cricut design space, image to svg for cricut",
-    },
     { name: "robots", content: "index,follow" },
 
-    { rel: "canonical", href: canonical },
+    { tagName: "link", rel: "canonical", href: canonical },
 
     { property: "og:title", content: title },
     { property: "og:description", content: description },
