@@ -12,6 +12,9 @@ export default defineConfig(({ isSsrBuild }) => ({
         }
       : undefined,
   },
+  worker: {
+    format: "es",
+  },
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   ssr: {
     noExternal: ["posthog-js", "posthog-js/react"],

@@ -48,6 +48,7 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { tryTraceRasterInClient } from "~/client/lib/tracing/vtracerWorkerClient";
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 import { logAppError } from "~/client/lib/errorLogging";
 export { ChevronDownIcon, PresetPicker };
@@ -835,6 +836,7 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
+          engineUsed: "potrace",
           clientRunId,
           gate: {
             running: gate.running,
@@ -914,6 +916,7 @@ export async function action({ request }: ActionFunctionArgs) {
         layers: editableSingle.layers,
         width: adjustedSingle.width,
         height: adjustedSingle.height,
+        engineUsed: "potrace",
         clientRunId,
         gate: {
           running: gate.running,
@@ -2300,6 +2303,7 @@ type ServerResult = {
   retryAfterMs?: number;
   code?: string;
   clientRunId?: string;
+  engineUsed?: "vtracer" | "potrace";
   gate?: { running: number; queued: number };
 };
 
@@ -2473,7 +2477,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>(DEFAULT_PRESET_ID);
-  const busy = fetcher.state !== "idle";
+  const [clientTracing, setClientTracing] = React.useState(false);
+  const busy = fetcher.state !== "idle" || clientTracing;
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
@@ -2529,10 +2534,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // Auto-conversion tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
 
-  // When a new server SVG arrives, push to history
-  React.useEffect(() => {
-    if (fetcher.data?.svg) {
-      const clientRunId = fetcher.data.clientRunId || "";
+  function handleSuccessfulTraceData(data: ServerResult) {
+    if (!data.svg) {
+      return;
+    }
+
+      const clientRunId = data.clientRunId || "";
       if (
         clientRunId &&
         latestSubmittedRunIdRef.current &&
@@ -2543,10 +2550,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       const resultKey = [
         clientRunId || "legacy",
-        fetcher.data.svg.length,
-        fetcher.data.width ?? 0,
-        fetcher.data.height ?? 0,
-        fetcher.data.layers?.length ?? 0,
+        data.svg.length,
+        data.width ?? 0,
+        data.height ?? 0,
+        data.layers?.length ?? 0,
       ].join(":");
       if (lastProcessedResultKeyRef.current === resultKey) return;
       lastProcessedResultKeyRef.current = resultKey;
@@ -2561,12 +2568,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         submitted.presetId,
       );
       const resultLayers = mergeLayerEditsIntoResultLayers(
-        fetcher.data.layers,
+        data.layers,
         submitted.sourceLayerEdits,
       );
-      const resultSvg = fetcher.data.svg;
-      const resultWidth = fetcher.data.width ?? 0;
-      const resultHeight = fetcher.data.height ?? 0;
+      const resultSvg = data.svg;
+      const resultWidth = data.width ?? 0;
+      const resultHeight = data.height ?? 0;
 
       if (submitted.replaceStamp) {
         const replaceStamp = submitted.replaceStamp;
@@ -2634,6 +2641,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
+  }
+
+  // When a fallback/server SVG arrives, push it through the same output path as client tracing.
+  React.useEffect(() => {
+    if (fetcher.data?.svg) {
+      handleSuccessfulTraceData(fetcher.data);
     }
   }, [
     fetcher.data?.svg,
@@ -2922,6 +2935,43 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       sourceLayerEdits: cloneEditableLayers(meta?.sourceLayerEdits),
     };
 
+    setClientTracing(true);
+    try {
+      const clientTrace = await tryTraceRasterInClient({
+        file: targetFile,
+        settings: {
+          ...effective,
+          routeId: "home",
+          presetId: submittedPresetId,
+          presetBackendIntensity: getPresetBackendIntensityById(submittedPresetId),
+        },
+        presetId: submittedPresetId,
+        presetBackendIntensity: getPresetBackendIntensityById(submittedPresetId),
+        sourceWidth: dims?.w ?? null,
+        sourceHeight: dims?.h ?? null,
+        onProgress: (_progress, message) => {
+          if (message) {
+            setInfo(message);
+          }
+        },
+      });
+
+      if (clientTrace.ok) {
+        handleSuccessfulTraceData({
+          svg: clientTrace.result.svg,
+          width: clientTrace.result.width,
+          height: clientTrace.result.height,
+          layers: clientTrace.result.layers,
+          clientRunId,
+          engineUsed: clientTrace.result.engineUsed,
+        });
+        setInfo("Converted in your browser with VTracer.");
+        return true;
+      }
+    } finally {
+      setClientTracing(false);
+    }
+
     // Target this route's index action
     fetcher.submit(fd, {
       method: "POST",
@@ -3192,6 +3242,43 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         );
 
         try {
+          const clientBatchTrace = await tryTraceRasterInClient({
+            file: batchFile,
+            settings: {
+              ...effective,
+              routeId: "home",
+              presetId: submittedPresetId,
+              presetBackendIntensity: runPreview.presetBackendIntensity,
+            },
+            presetId: submittedPresetId,
+            presetBackendIntensity: runPreview.presetBackendIntensity,
+            onProgress: (_progress, message) => {
+              if (message) {
+                patchOutputBatchState(stamp, (current) => ({
+                  ...current,
+                  info: `${message} (${index + 1}/${filesToConvert.length})`,
+                }));
+              }
+            },
+          });
+
+          if (clientBatchTrace.ok) {
+            const svgWithLayerEdits = sourceLayerEdits?.length
+              ? applyLayerEditsToSvg(clientBatchTrace.result.svg, sourceLayerEdits)
+              : clientBatchTrace.result.svg;
+            const svgForZip = hasVisibleSizeOverride(sourceItem)
+              ? applySvgSizeAttributes(
+                  svgWithLayerEdits,
+                  sourceItem.width,
+                  sourceItem.height,
+                )
+              : svgWithLayerEdits;
+            zipEntries[makeBatchZipEntryName(batchFile.name, index)] = strToU8(
+              svgForZip,
+            );
+            continue;
+          }
+
           const response = await fetch("/api/batch-svg", {
             method: "POST",
             body: fd,
@@ -4485,8 +4572,8 @@ function SeoSections() {
                 SVG Converter: Precise, fast, and built for creators
               </h2>
               <p className="text-[15px] leading-6 text-slate-700">
-                Potrace-powered raster-to-vector conversion tuned for logos,
-                line art, scans, diagrams, and photo-style edge extraction.
+                VTracer-first raster-to-vector conversion with Potrace fallback
+                for legacy line art, scans, diagrams, and compatibility cases.
                 Clean, editable SVG output keeps layer metadata available for
                 recoloring, hiding, copying, and downloading.
               </p>
@@ -4494,7 +4581,8 @@ function SeoSections() {
               <p className="text-[15px] leading-6 text-slate-700">
                 Convert your PNG, JPEG, JPG, and WEBP images into crisp vector
                 graphics with route-aware presets, advanced trace controls,
-                local output edits, and in-memory backend processing.
+                local output edits, browser-side tracing where safe, and
+                protected server fallback when needed.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -4502,7 +4590,7 @@ function SeoSections() {
                   { k: "Clean SVG", v: "Editable paths, recolor anywhere" },
                   { k: "Preset workflow", v: "Line art, logo, scan, photo edge" },
                   { k: "Local edits", v: "Recolor, resize, hide layers" },
-                  { k: "Private by default", v: "Processed in memory" },
+                  { k: "Private by default", v: "Browser-first when supported" },
                 ].map((x) => (
                   <div
                     key={x.k}
