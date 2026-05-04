@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -396,7 +403,7 @@ export async function action({ request }: ActionFunctionArgs) {
         visible: true,
         kind: "fill",
       };
-      const editableSvg = annotateSingleTraceSvg(finalSVG, layer);
+      const editableSvg = routeAnnotateSingleTrace(finalSVG, layer);
 
       return json({
         svg: editableSvg,
@@ -432,10 +439,8 @@ async function normalizeForPotraceBW(
       (sharp as any).cache?.({ files: 0, memory: 32 });
     } catch {}
 
-    const { neutralizeTransparencyCheckerboard } = await import(
-      "../utils/imagePreprocess.server"
-    );
-    const sourceInput = await neutralizeTransparencyCheckerboard(input);
+    const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+    const sourceInput = await routeNeutralizeTransparency(input);
 
     let base = sharp(sourceInput).rotate();
 
@@ -469,8 +474,8 @@ async function normalizeForPotraceBW(
 }
 
 async function runPotrace(input: Buffer, opts: any): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
-  return await traceBitmapToSvgWithPotrace(input, opts);
+  const routePotraceTraceAdapter = runSharedPotraceSvgTraceShared;
+  return await routePotraceTraceAdapter(input, opts);
 }
 
 async function traceLayeredColorSvg(
@@ -497,10 +502,8 @@ async function traceLayeredColorSvg(
     (sharp as any).cache?.({ files: 0, memory: 32 });
   } catch {}
 
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+  const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+  const sourceInput = await routeNeutralizeTransparency(input);
 
   let img = sharp(sourceInput).rotate();
   img = img.resize({
@@ -764,7 +767,7 @@ function extractSvgInnerMarkup(svg: string) {
   return svg.slice(start, end);
 }
 
-function annotateSingleTraceSvg(svg: string, layer: EditableSvgLayer) {
+function routeAnnotateSingleTrace(svg: string, layer: EditableSvgLayer) {
   return svg.replace(/<path\b([^>]*?)(\/?)>/gi, (match, attrs, selfClose) => {
     if (/data-fill-layer-id\s*=/.test(attrs)) return match;
     const hasFill = /\sfill\s*=/.test(attrs);

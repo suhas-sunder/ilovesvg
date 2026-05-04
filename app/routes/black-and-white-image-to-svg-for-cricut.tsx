@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -554,10 +561,8 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       // Normalize for Potrace
-      const { normalizeRasterForTrace } = await import(
-        "../utils/imagePreprocess.server"
-      );
-      const prepped = await normalizeRasterForTrace(input, {
+      const routeRasterNormalize = runSharedRasterNormalizationShared;
+      const prepped = await routeRasterNormalize(input, {
         preprocess,
         blurSigma,
         edgeBoost,
@@ -645,8 +650,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 async function runPotrace(input: Buffer, opts: any): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
-  return await traceBitmapToSvgWithPotrace(input, opts);
+  const routePotraceTraceAdapter = runSharedPotraceSvgTraceShared;
+  return await routePotraceTraceAdapter(input, opts);
 }
 
 function clampNumber(v: number, min: number, max: number) {
@@ -741,10 +746,8 @@ async function traceLayeredRaster(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+  const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+  const sourceInput = await routeNeutralizeTransparency(input);
 
   const { data, info } = await sharp(sourceInput)
     .rotate()

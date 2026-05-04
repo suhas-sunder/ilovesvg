@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -321,10 +328,8 @@ async function buildStickerSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+  const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+  const sourceInput = await routeNeutralizeTransparency(input);
 
   const meta = await sharp(sourceInput).metadata();
   const originalW = meta.width ?? 0;
@@ -492,7 +497,7 @@ async function traceCutPaths(
   maskPng: Buffer,
   opts: StickerOptions,
 ): Promise<string> {
-  const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
+  const routePotraceTrace = runSharedPotraceSvgTraceShared;
   const traceOpts: any = {
     color: "#000000",
     threshold: 128,
@@ -503,7 +508,7 @@ async function traceCutPaths(
     blackOnWhite: true,
   };
 
-  const svgRaw: string = await traceBitmapToSvg(maskPng, traceOpts);
+  const svgRaw: string = await routePotraceTrace(maskPng, traceOpts);
 
   const paths: string[] = [];
   for (const match of svgRaw.matchAll(/<path\b[^>]*>/gi)) {

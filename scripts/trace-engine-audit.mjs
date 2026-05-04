@@ -7,6 +7,9 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const requiredFiles = [
   "app/shared/tracing/types.ts",
   "app/shared/tracing/enginePolicy.ts",
+  "app/shared/tracing/serverFallback.ts",
+  "app/shared/tracing/serverFallback.client.ts",
+  "app/shared/tracing/serverFallback.server.ts",
   "app/client/lib/tracing/vtracerWorkerClient.ts",
   "app/client/workers/vtracer.worker.ts",
   "app/types/wasm-vtracer.d.ts",
@@ -163,6 +166,31 @@ async function auditTracingArchitecture() {
   if (!viteConfig.includes("worker:") || !viteConfig.includes('format: "es"')) {
     fatal.push("vite.config.ts is missing explicit ES module worker configuration.");
   }
+  for (const token of [
+    "serverFallback$/",
+    "serverFallback.server.ts",
+    "serverFallback.client.ts",
+  ]) {
+    if (!viteConfig.includes(token)) {
+      fatal.push(`vite.config.ts is missing shared fallback alias token: ${token}`);
+    }
+  }
+
+  const serverFallback = await read("app/shared/tracing/serverFallback.server.ts");
+  for (const token of [
+    "runSharedRasterNormalization",
+    "runSharedPotraceSvgTrace",
+    "runSharedLayeredColorTrace",
+    "annotateSharedSingleTraceSvg",
+    "neutralizeTransparencyCheckerboard",
+    "normalizeRasterForTrace",
+    "traceBitmapToSvg",
+    "createLayeredColorSvg",
+  ]) {
+    if (!serverFallback.includes(token)) {
+      fatal.push(`Shared server fallback adapter is missing required token: ${token}`);
+    }
+  }
 
   const home = await read("app/routes/home.tsx");
   for (const token of [
@@ -193,28 +221,25 @@ async function auditRoutes() {
     );
   }
 
-  const clientVTracerRoutes = [];
-  const directServerTraceRoutes = [];
+  const routeLocalViolations = [];
   for (const file of routeFiles) {
     const text = await read(`app/routes/${file}`);
-    if (text.includes("tryTraceRasterInClient")) clientVTracerRoutes.push(file);
     if (
       text.includes("normalizeRasterForTrace") ||
       text.includes("createLayeredColorSvg") ||
-      text.includes("traceBitmapToSvg")
+      text.includes("traceBitmapToSvg") ||
+      text.includes("../utils/imagePreprocess.server") ||
+      text.includes("../utils/svgLayerTrace.server") ||
+      text.includes("~/utils/potraceCompat") ||
+      text.includes("~/shared/tracing/serverFallback.server")
     ) {
-      directServerTraceRoutes.push(file);
+      routeLocalViolations.push(file);
     }
   }
 
-  if (clientVTracerRoutes.length <= 1) {
-    warnings.push(
-      `Client VTracer is currently wired into ${clientVTracerRoutes.join(", ") || "no route files"}. Other route-local converters still rely on server fallback paths until they are migrated to the shared home flow.`,
-    );
-  }
-  if (directServerTraceRoutes.length > 0) {
-    warnings.push(
-      `${directServerTraceRoutes.length} route files still contain direct server/Potrace tracing imports: ${directServerTraceRoutes.join(", ")}`,
+  if (routeLocalViolations.length > 0) {
+    fatal.push(
+      `${routeLocalViolations.length} route files still contain route-local direct tracing imports/calls: ${routeLocalViolations.join(", ")}`,
     );
   }
 }

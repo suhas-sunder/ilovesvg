@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -318,10 +325,8 @@ export async function action({ request }: ActionFunctionArgs) {
       } = await import("../utils/converterSettings.server");
       const advancedTraceSettings = readAdvancedTraceFormSettings(form);
 
-      const { createLayeredColorSvg } = await import(
-        "../utils/svgLayerTrace.server"
-      );
-      const result = await createLayeredColorSvg(input, {
+      const routeLayeredTrace = runSharedLayeredColorTraceShared;
+      const result = await routeLayeredTrace(input, {
         layerCount,
         maxTraceSide,
         minRegionPercent,
@@ -601,7 +606,7 @@ async function traceMaskToPathTags(
     turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   },
 ): Promise<string> {
-  const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
+  const routePotraceTrace = runSharedPotraceSvgTraceShared;
   const opts: any = {
     color: "#000000",
     threshold: 128,
@@ -612,7 +617,7 @@ async function traceMaskToPathTags(
     blackOnWhite: true,
   };
 
-  const svgRaw: string = await traceBitmapToSvg(maskPng, opts);
+  const svgRaw: string = await routePotraceTrace(maskPng, opts);
 
   return extractPathTags(svgRaw);
 }

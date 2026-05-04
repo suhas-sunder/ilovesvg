@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -307,9 +314,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const advancedTraceSettings = readAdvancedTraceFormSettings(form);
 
       const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
-      const { createLayeredColorSvg, annotateSingleTraceSvg } = await import(
-        "../utils/svgLayerTrace.server"
-      );
+      const routeLayeredTrace = runSharedLayeredColorTraceShared;
+      const routeAnnotateSingleTrace = annotateSharedSingleTraceSvgShared;
       const colorLayerCount = Number(form.get("colorLayerCount") ?? 5);
       const layerMaxTraceSide = Number(form.get("layerMaxTraceSide") ?? 1600);
       const minRegionPercent = Number(form.get("minRegionPercent") ?? 0.35);
@@ -327,10 +333,8 @@ export async function action({ request }: ActionFunctionArgs) {
         "true";
 
       if (traceMode === "layered") {
-        const { createLayeredColorSvg: createServerLayeredColorSvg } = await import(
-          "../utils/svgLayerTrace.server"
-        );
-        const layered = await createServerLayeredColorSvg(input, {
+        const routeLayeredTraceAdapter = runSharedLayeredColorTraceShared;
+        const layered = await routeLayeredTraceAdapter(input, {
           layerCount: Math.round(colorLayerCount),
           maxTraceSide: Math.round(layerMaxTraceSide),
           minRegionPercent,
@@ -384,10 +388,8 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       // Normalize for Potrace
-      const { normalizeRasterForTrace } = await import(
-        "../utils/imagePreprocess.server"
-      );
-      const prepped = await normalizeRasterForTrace(input, {
+      const routeRasterNormalize = runSharedRasterNormalizationShared;
+      const prepped = await routeRasterNormalize(input, {
         preprocess,
         blurSigma,
         edgeBoost,
@@ -408,7 +410,7 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       // Potrace (CJS API)
-      const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
+      const routePotraceTrace = runSharedPotraceSvgTraceShared;
 
       // IMPORTANT: do NOT use potrace invert for white-on-dark output mode
       // We trace as black, then recolor paths.
@@ -422,7 +424,7 @@ export async function action({ request }: ActionFunctionArgs) {
         blackOnWhite: true,
       };
 
-      const svgRaw: string = await traceBitmapToSvg(prepped, opts);
+      const svgRaw: string = await routePotraceTrace(prepped, opts);
 
       // Post-process SVG safely (defensive)
       const safeSvg = coerceSvg(svgRaw);
@@ -442,7 +444,7 @@ export async function action({ request }: ActionFunctionArgs) {
             bgColor,
           );
 
-      const editable = annotateSingleTraceSvg(finalSVG, lineColor);
+      const editable = routeAnnotateSingleTrace(finalSVG, lineColor);
       const adjusted = applyTraceSvgOutputSettings(editable.svg, advancedTraceSettings, {
         width: ensured.width,
         height: ensured.height,

@@ -3,6 +3,7 @@ import sharp from "sharp";
 const baseUrl = (process.env.BASE_URL || "http://127.0.0.1:4175").replace(/\/$/, "");
 
 const png = await makePng();
+const jpg = await sharp(png).jpeg({ quality: 92 }).toBuffer();
 const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
 
 const results = [];
@@ -63,10 +64,106 @@ results.push(
 
 results.push(
   await expectSvgResponse({
+    route: "/jpg-to-svg-converter",
+    fileName: "smoke.jpg",
+    mimeType: "image/jpeg",
+    buffer: jpg,
+    fields: {
+      traceMode: "single",
+      preprocess: "none",
+      maxTraceSide: "512",
+      lineColor: "#000000",
+      transparent: "true",
+    },
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
     route: "/webp-to-svg-converter",
     fileName: "smoke.webp",
     mimeType: "image/webp",
     buffer: webp,
+    fields: {
+      traceMode: "single",
+      preprocess: "none",
+      maxTraceSide: "512",
+      lineColor: "#000000",
+      transparent: "true",
+    },
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/webp-to-svg-for-cricut",
+    fileName: "smoke.webp",
+    mimeType: "image/webp",
+    buffer: webp,
+    fields: {
+      traceMode: "single",
+      preprocess: "none",
+      maxTraceSide: "512",
+      lineColor: "#000000",
+      transparent: "true",
+    },
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/logo-to-svg-converter",
+    fileName: "smoke-logo.png",
+    mimeType: "image/png",
+    buffer: png,
+    fields: {
+      traceMode: "single",
+      preprocess: "none",
+      maxTraceSide: "512",
+      lineColor: "#000000",
+      transparent: "true",
+    },
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/scan-to-svg-converter",
+    fileName: "smoke-scan.png",
+    mimeType: "image/png",
+    buffer: png,
+    fields: {
+      traceMode: "single",
+      preprocess: "edge",
+      maxTraceSide: "512",
+      lineColor: "#000000",
+      transparent: "true",
+    },
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/png-to-layered-svg-for-cricut",
+    fileName: "smoke-layered.png",
+    mimeType: "image/png",
+    buffer: png,
+    fields: {
+      traceMode: "layered",
+      colorLayerCount: "4",
+      layerMaxTraceSide: "512",
+      transparent: "true",
+    },
+    expectLayers: true,
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/code-to-svg-for-cricut",
+    fileName: "smoke-code.png",
+    mimeType: "image/png",
+    buffer: png,
     fields: {
       traceMode: "single",
       preprocess: "none",

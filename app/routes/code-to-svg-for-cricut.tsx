@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -285,10 +292,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const edgeBoost = Number(form.get("edgeBoost") ?? 1.0);
 
       if (traceMode === "layered") {
-        const { createLayeredColorSvg: createServerLayeredColorSvg } = await import(
-          "../utils/svgLayerTrace.server"
-        );
-        const layered = await createServerLayeredColorSvg(input, {
+        const routeLayeredTraceAdapter = runSharedLayeredColorTraceShared;
+        const layered = await routeLayeredTraceAdapter(input, {
           layerCount: clampNumber(
             Number(
               form.get("colorLayerCount") ??
@@ -381,16 +386,14 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       }
 
-      const { normalizeRasterForTrace } = await import(
-        "../utils/imagePreprocess.server"
-      );
-      const prepped = await normalizeRasterForTrace(input, {
+      const routeRasterNormalize = runSharedRasterNormalizationShared;
+      const prepped = await routeRasterNormalize(input, {
         preprocess,
         blurSigma,
         edgeBoost,
       });
 
-      const svgRaw = await traceBitmapToSvg(prepped, {
+      const svgRaw = await routePotraceTrace(prepped, {
         color: "#000000",
         threshold,
         turdSize,
@@ -543,9 +546,9 @@ function sanitizeLayerId(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-async function traceBitmapToSvg(input: Buffer, opts: any): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
-  return await traceBitmapToSvgWithPotrace(input, opts);
+async function routePotraceTrace(input: Buffer, opts: any): Promise<string> {
+  const routePotraceTraceAdapter = runSharedPotraceSvgTraceShared;
+  return await routePotraceTraceAdapter(input, opts);
 }
 
 function extractPathTags(svg: string): string {
@@ -569,7 +572,7 @@ function escapeAttr(value: string): string {
     .replace(/>/g, "&gt;");
 }
 
-async function createLayeredColorSvg(
+async function routeLayeredTrace(
   input: Buffer,
   opts: LayeredColorSvgOptions,
 ): Promise<{
@@ -726,7 +729,7 @@ async function traceMaskToPathTags(
     turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   },
 ): Promise<string> {
-  const traced = await traceBitmapToSvg(maskPng, {
+  const traced = await routePotraceTrace(maskPng, {
     color: "#000000",
     threshold: 128,
     turdSize: options.turdSize,

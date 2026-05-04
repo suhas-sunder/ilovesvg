@@ -1,6 +1,13 @@
 import * as React from "react";
 import type { Route } from "./+types/base64-to-svg-for-cricut";
 import { json } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -789,7 +796,7 @@ async function rasterToSingleColorSvg(
   palette: string[];
 }> {
   const prepped = await normalizeForSingleTrace(input, options);
-  const traced = await traceBitmapToSvg(prepped, {
+  const traced = await routePotraceTrace(prepped, {
     threshold: options.threshold,
     turdSize: options.turdSize,
     optTolerance: options.optTolerance,
@@ -846,10 +853,8 @@ async function normalizeForSingleTrace(
       (sharp as any).cache?.({ files: 0, memory: 32 });
     } catch {}
 
-    const { neutralizeTransparencyCheckerboard } = await import(
-      "../utils/imagePreprocess.server"
-    );
-    const sourceInput = await neutralizeTransparencyCheckerboard(input);
+    const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+    const sourceInput = await routeNeutralizeTransparency(input);
 
     let base = sharp(sourceInput).rotate().resize({
       width: MAX_TRACE_SIDE_DEFAULT,
@@ -965,7 +970,7 @@ function isFlatTraceBuffer(buf: Buffer, sampleStep = 53): boolean {
   return varianceTotal / Math.max(count - 1, 1) < 8;
 }
 
-async function traceBitmapToSvg(
+async function routePotraceTrace(
   input: Buffer,
   options: {
     threshold: number;
@@ -974,7 +979,7 @@ async function traceBitmapToSvg(
     turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   },
 ): Promise<string> {
-  const { traceBitmapToSvg: traceBitmapToSvgWithPotrace } = await import("~/utils/potraceCompat");
+  const routePotraceTraceAdapter = runSharedPotraceSvgTraceShared;
   const opts: any = {
     color: "#000000",
     threshold: options.threshold,
@@ -985,7 +990,7 @@ async function traceBitmapToSvg(
     blackOnWhite: true,
   };
 
-  return await traceBitmapToSvgWithPotrace(input, opts);
+  return await routePotraceTraceAdapter(input, opts);
 }
 
 function coerceSvgString(svgRaw: string | null | undefined): string {
@@ -1099,10 +1104,8 @@ async function rasterToLayeredSvg(
     (sharp as any).cache?.({ files: 0, memory: 48 });
   } catch {}
 
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+  const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+  const sourceInput = await routeNeutralizeTransparency(input);
 
   const { data, info } = await sharp(sourceInput)
     .rotate()
@@ -1419,7 +1422,7 @@ async function traceMaskToPathTags(
     turnPolicy: "black" | "white" | "left" | "right" | "minority" | "majority";
   },
 ): Promise<string> {
-  const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
+  const routePotraceTrace = runSharedPotraceSvgTraceShared;
   const opts: any = {
     color: "#000000",
     threshold: 128,
@@ -1430,7 +1433,7 @@ async function traceMaskToPathTags(
     blackOnWhite: true,
   };
 
-  const svgRaw: string = await traceBitmapToSvg(maskPng, opts);
+  const svgRaw: string = await routePotraceTrace(maskPng, opts);
 
   return extractPathTags(svgRaw);
 }

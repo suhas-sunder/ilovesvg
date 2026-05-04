@@ -5,6 +5,13 @@ import {
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
   unstable_parseMultipartFormData as parseMultipartFormData,
 } from "@remix-run/node";
+import {
+  annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
+  neutralizeTransparencyCheckerboard as neutralizeTransparencyCheckerboardShared,
+  runSharedLayeredColorTrace as runSharedLayeredColorTraceShared,
+  runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
+  runSharedRasterNormalization as runSharedRasterNormalizationShared,
+} from "~/shared/tracing/serverFallback";
 import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -209,10 +216,8 @@ export async function action({ request }: ActionFunctionArgs) {
         (sharp as any).cache?.({ files: 0, memory: 48 });
       } catch {}
 
-      const { neutralizeTransparencyCheckerboard } = await import(
-        "../utils/imagePreprocess.server"
-      );
-      const sourceInput = await neutralizeTransparencyCheckerboard(input);
+      const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+      const sourceInput = await routeNeutralizeTransparency(input);
 
       const meta = await sharp(sourceInput).rotate().metadata();
       const width = meta.width ?? 0;
@@ -311,7 +316,7 @@ export async function action({ request }: ActionFunctionArgs) {
         speckCleanup,
       });
 
-      const { traceBitmapToSvg } = await import("~/utils/potraceCompat");
+      const routePotraceTrace = runSharedPotraceSvgTraceShared;
       const opts: any = {
         color: "#000000",
         threshold: 128,
@@ -322,7 +327,7 @@ export async function action({ request }: ActionFunctionArgs) {
         blackOnWhite: true,
       };
 
-      const tracedRaw: string = await traceBitmapToSvg(mask, opts);
+      const tracedRaw: string = await routePotraceTrace(mask, opts);
 
       const cutPathD = extractPathData(tracedRaw);
 
@@ -497,10 +502,8 @@ async function createEdgeMask(
   const { getSharp } = await import("~/utils/conversionModules.server");
       const sharp = await getSharp();
 
-  const { neutralizeTransparencyCheckerboard } = await import(
-    "../utils/imagePreprocess.server"
-  );
-  const sourceInput = await neutralizeTransparencyCheckerboard(input);
+  const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
+  const sourceInput = await routeNeutralizeTransparency(input);
 
   const { data, info } = await sharp(sourceInput)
     .rotate()
