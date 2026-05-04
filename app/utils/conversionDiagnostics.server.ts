@@ -98,39 +98,7 @@ export function finishConversionDiagnostics(
 export function maybeLogConversionDiagnostics(
   diagnostics: DiagnosticsContext | undefined,
 ) {
-  const safe = finishConversionDiagnostics(diagnostics);
-  if (!safe) return;
-  const payload = sanitizeDiagnostics(safe);
-  if (process.env.NODE_ENV !== "production") {
-    console.info("[ilovesvg:conversion]", JSON.stringify(payload));
-  }
-}
-
-function sanitizeDiagnostics(
-  diagnostics: ConversionDiagnostics,
-): ConversionDiagnostics {
-  return {
-    routeId: diagnostics.routeId?.slice(0, 80),
-    mode: diagnostics.mode?.slice(0, 40),
-    presetId: diagnostics.presetId?.slice(0, 80),
-    uploadBytes: finiteNumber(diagnostics.uploadBytes),
-    contentLength: finiteNumber(diagnostics.contentLength),
-    sourceMimeType: diagnostics.sourceMimeType?.slice(0, 80),
-    sourceWidth: finiteNumber(diagnostics.sourceWidth),
-    sourceHeight: finiteNumber(diagnostics.sourceHeight),
-    traceWidth: finiteNumber(diagnostics.traceWidth),
-    traceHeight: finiteNumber(diagnostics.traceHeight),
-    layerCount: finiteNumber(diagnostics.layerCount),
-    selectedColorRemovalCount: finiteNumber(diagnostics.selectedColorRemovalCount),
-    finalSvgBytes: finiteNumber(diagnostics.finalSvgBytes),
-    pathCount: finiteNumber(diagnostics.pathCount),
-    warnings: diagnostics.warnings?.slice(0, 12),
-    timings: Object.fromEntries(
-      Object.entries(diagnostics.timings || {})
-        .slice(0, 40)
-        .map(([key, value]) => [key.slice(0, 80), finiteNumber(value) ?? 0]),
-    ),
-  };
+  finishConversionDiagnostics(diagnostics);
 }
 
 function nowMs() {
@@ -142,9 +110,4 @@ function nowMs() {
 
 function roundMs(value: number) {
   return Math.max(0, Math.round(value * 100) / 100);
-}
-
-function finiteNumber(value: unknown): number | undefined {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
 }
