@@ -1226,6 +1226,8 @@ type ImageActionResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
@@ -1434,6 +1436,8 @@ async function handleImageTrace(
         layers: layered.layers,
         width: layered.width,
         height: layered.height,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         gate: { running: gate.running, queued: gate.queued },
       });
     }
@@ -1484,6 +1488,8 @@ async function handleImageTrace(
       layers: editable.layers,
       width: ensured.width,
       height: ensured.height,
+      engineUsed: "potrace",
+      sourceKind: "raster",
       gate: { running: gate.running, queued: gate.queued },
     });
   } finally {

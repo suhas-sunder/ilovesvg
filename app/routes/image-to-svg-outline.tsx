@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -43,6 +43,7 @@ import {
   type TraceOutputLayerPatch,
 } from "~/client/components/converter/TraceOutputPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
@@ -519,6 +520,8 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
+          engineUsed: "potrace",
+          sourceKind: "raster",
           gate: { running: gate.running, queued: gate.queued },
         });
       }
@@ -583,6 +586,8 @@ export async function action({ request }: ActionFunctionArgs) {
         layers: editable.layers,
         width: ensured.width,
         height: ensured.height,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         gate: { running: gate.running, queued: gate.queued },
       });
     } finally {
@@ -1393,6 +1398,10 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
@@ -1406,6 +1415,10 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   stamp: number;
 };
 
@@ -1444,7 +1457,7 @@ function createClientRequestId(): string {
 export default function ImageToSvgOutline({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "image-to-svg-outline" });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(

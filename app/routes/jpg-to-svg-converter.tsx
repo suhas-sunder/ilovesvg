@@ -38,7 +38,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -48,6 +48,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -630,6 +631,8 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
+          engineUsed: "potrace",
+          sourceKind: "raster",
           gate: {
             running: gate.running,
             queued: gate.queued,
@@ -706,6 +709,8 @@ export async function action({ request }: ActionFunctionArgs) {
         layers: editableSingle.layers,
         width: adjustedSingle.width,
         height: adjustedSingle.height,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -1864,9 +1869,12 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
-  code?: string;
-  sourceKind?: "svg";
+  code?: string;
   gate?: { running: number; queued: number };
 };
 
@@ -1875,6 +1883,10 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   stamp: number;
 };
 
@@ -1897,7 +1909,7 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function JpgToSvgConverter({}: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "jpg-to-svg-converter" });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1969,6 +1981,10 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         })),
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
+        engineUsed: fetcher.data.engineUsed,
+        sourceKind: fetcher.data.sourceKind,
+        warnings: fetcher.data.warnings,
+        timings: fetcher.data.timings,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
       
@@ -2200,6 +2216,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
+    fd.append("presetId", activePreset);
 
     setErr(null);
     fetcher.submit(fd, {

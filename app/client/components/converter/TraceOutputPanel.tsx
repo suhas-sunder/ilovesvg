@@ -26,6 +26,10 @@ type OutputVersion<TSettings extends MixedTraceSettings> = {
   originalWidth?: number;
   originalHeight?: number;
   settingsSnapshot?: TSettings;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
 };
 
 export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
@@ -40,6 +44,10 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   presetLabel?: string;
   settingsSnapshot?: TSettings;
   draftSettings?: TSettings;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   settingsOpen?: boolean;
   updateError?: string | null;
   previousVersion?: OutputVersion<TSettings> | null;
@@ -70,6 +78,10 @@ export function snapshotTraceOutputVersion<TSettings extends MixedTraceSettings>
     originalWidth: item.originalWidth,
     originalHeight: item.originalHeight,
     settingsSnapshot: item.settingsSnapshot,
+    engineUsed: item.engineUsed,
+    sourceKind: item.sourceKind,
+    warnings: item.warnings,
+    timings: item.timings,
   };
 }
 
@@ -86,6 +98,10 @@ export function applyTraceOutputVersion<TSettings extends MixedTraceSettings>(
     originalWidth: version.originalWidth,
     originalHeight: version.originalHeight,
     settingsSnapshot: version.settingsSnapshot,
+    engineUsed: version.engineUsed,
+    sourceKind: version.sourceKind,
+    warnings: version.warnings,
+    timings: version.timings,
     draftSettings: version.settingsSnapshot ?? item.draftSettings,
   };
 }
@@ -211,6 +227,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             return (
               <div
                 key={item.stamp}
+                data-engine-used={item.engineUsed || "unknown"}
+                data-source-kind={item.sourceKind || "unknown"}
+                data-engine-warnings={(item.warnings || []).join(" | ")}
                 className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">

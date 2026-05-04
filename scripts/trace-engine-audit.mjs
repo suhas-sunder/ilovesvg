@@ -10,6 +10,7 @@ const requiredFiles = [
   "app/shared/tracing/serverFallback.ts",
   "app/shared/tracing/serverFallback.client.ts",
   "app/shared/tracing/serverFallback.server.ts",
+  "app/client/lib/tracing/useHybridTraceFetcher.ts",
   "app/client/lib/tracing/vtracerWorkerClient.ts",
   "app/client/workers/vtracer.worker.ts",
   "app/types/wasm-vtracer.d.ts",
@@ -18,6 +19,7 @@ const requiredFiles = [
 const fatal = [];
 const warnings = [];
 let presetSummary = null;
+let routeEnginePathSummary = null;
 
 const textCache = new Map();
 
@@ -40,6 +42,7 @@ async function main() {
     fatal,
     warnings,
     presetSummary,
+    routeEnginePathSummary,
   };
 
   console.log(JSON.stringify(report, null, 2));
@@ -132,17 +135,34 @@ async function auditTracingArchitecture() {
   for (const token of [
     "getTraceEngineDecision",
     "new Worker",
-    "worker.terminate",
-    "worker.postMessage",
+    "terminate()",
+    "postMessage(",
     "engineUsed: \"vtracer\"",
     "45_000",
     "getUnusableTraceResultReason",
     "Browser tracing returned an empty SVG",
     "Browser tracing returned invalid SVG",
     "SVG with no drawable content",
+    "oversized SVG",
+    "too many paths",
+    "path-heavy SVG output",
   ]) {
     if (!workerClient.includes(token)) {
       fatal.push(`VTracer worker client is missing required token: ${token}`);
+    }
+  }
+
+  const hybridFetcher = await read("app/client/lib/tracing/useHybridTraceFetcher.ts");
+  for (const token of [
+    "useHybridTraceFetcher",
+    "tryTraceRasterInClient",
+    "formDataToTraceSettings",
+    "requestedEngine === \"vtracer\"",
+    "Browser VTracer was not used",
+    "engineUsed: data.engineUsed || \"potrace\"",
+  ]) {
+    if (!hybridFetcher.includes(token)) {
+      fatal.push(`Shared hybrid fetcher is missing expected runtime token: ${token}`);
     }
   }
 
@@ -248,6 +268,110 @@ async function auditRoutes() {
       `${routeLocalViolations.length} route files still contain route-local direct tracing imports/calls: ${routeLocalViolations.join(", ")}`,
     );
   }
+
+  await auditRouteEnginePaths(routeFiles, routeCapabilities);
+}
+
+async function auditRouteEnginePaths(routeFiles, routeCapabilitiesSource) {
+  const routeGroups = parseRouteGroups(routeCapabilitiesSource);
+  const rasterRouteIds = [...routeGroups.entries()]
+    .filter(([, group]) =>
+      group === "raster-to-svg" || group === "cricut" || group === "layered",
+    )
+    .map(([routeId]) => routeId)
+    .sort((a, b) => a.localeCompare(b));
+
+  const routeFileSet = new Set(routeFiles.map((file) => file.replace(/\.tsx$/, "")));
+  const incompleteServerFirst = [];
+  const rows = [];
+
+  for (const routeId of rasterRouteIds) {
+    if (!routeFileSet.has(routeId)) continue;
+    const file = `${routeId}.tsx`;
+    const text = await read(`app/routes/${file}`);
+    const group = routeGroups.get(routeId);
+    const usesSharedHybrid =
+      text.includes("useHybridTraceFetcher") ||
+      text.includes("tryTraceRasterInClient");
+    const usesPlainServerFetcher = /useFetcher<ServerResult>\(\)/.test(text);
+    const returnsEngineUsed =
+      text.includes("engineUsed") ||
+      text.includes("useHybridTraceFetcher") ||
+      text.includes("tryTraceRasterInClient");
+    const expectedPolicy = getExpectedRoutePolicy(routeId, group);
+    const status = usesSharedHybrid
+      ? expectedPolicy === "potrace-primary-by-policy"
+        ? "potrace-primary-by-policy"
+        : "client-vtracer-capable"
+      : "incomplete-server-first";
+
+    if (
+      !usesSharedHybrid ||
+      (usesPlainServerFetcher && routeId !== "home") ||
+      !returnsEngineUsed
+    ) {
+      incompleteServerFirst.push(
+        `${routeId} (${!usesSharedHybrid ? "missing shared hybrid path" : usesPlainServerFetcher ? "plain useFetcher path" : "missing engineUsed"})`,
+      );
+    }
+
+    rows.push({
+      routeId,
+      group,
+      acceptsRasterInput: true,
+      acceptsSvgInput: routeId === "home" || routeId.includes("image-to"),
+      supportsLayeredOutput: group === "layered" || text.includes("traceMode"),
+      supportsBatch: text.includes("batch") || routeId === "home",
+      normalConversionPath: usesSharedHybrid
+        ? routeId === "home"
+          ? "home client engine router"
+          : "shared useHybridTraceFetcher"
+        : "plain server action",
+      callsSharedClientEngineRouter: usesSharedHybrid,
+      submitsDirectlyToServerAsNormalPath:
+        !usesSharedHybrid || (usesPlainServerFetcher && routeId !== "home"),
+      returnsEngineUsed,
+      expectedPolicy,
+      status,
+    });
+  }
+
+  routeEnginePathSummary = {
+    totalRasterRoutes: rows.length,
+    clientVTracerCapable: rows.filter((row) => row.status === "client-vtracer-capable").length,
+    potracePrimaryByPolicy: rows.filter((row) => row.status === "potrace-primary-by-policy").length,
+    incompleteServerFirst: rows.filter((row) => row.status === "incomplete-server-first").length,
+    routes: rows,
+  };
+
+  if (incompleteServerFirst.length > 0) {
+    fatal.push(
+      `Raster routes still server-first instead of shared hybrid/client-engine routing: ${incompleteServerFirst.join(", ")}`,
+    );
+  }
+}
+
+function parseRouteGroups(source) {
+  const match = source.match(/const ROUTE_GROUPS:[\s\S]*?= \{([\s\S]*?)\};/);
+  const body = match?.[1] || "";
+  const groups = new Map();
+  for (const routeMatch of body.matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g)) {
+    groups.set(routeMatch[1], routeMatch[2]);
+  }
+  for (const routeMatch of body.matchAll(/\b([a-zA-Z][\w-]*)\s*:\s*"([^"]+)"/g)) {
+    groups.set(routeMatch[1], routeMatch[2]);
+  }
+  return groups;
+}
+
+function getExpectedRoutePolicy(routeId, group) {
+  if (group === "layered") return "client-vtracer-capable";
+  if (
+    /line-art|black-and-white|logo|scan|cricut|vinyl|laser|silhouette/.test(routeId)
+  ) {
+    return "potrace-primary-by-policy";
+  }
+  return "client-vtracer-capable";
 }
 
 async function auditServerRouteSafety() {

@@ -70,11 +70,15 @@ export async function tryTraceRasterInClient(input: {
       input.settings.presetBackendIntensity ??
       null,
   };
+  const probedSize =
+    input.sourceWidth && input.sourceHeight
+      ? { width: input.sourceWidth, height: input.sourceHeight }
+      : await readBrowserImageSize(input.file);
   const profile: TraceInputProfile = {
-    mimeType: input.file.type,
+    mimeType: input.file.type || inferRasterMimeType(input.file.name),
     fileSizeBytes: input.file.size,
-    width: input.sourceWidth,
-    height: input.sourceHeight,
+    width: probedSize?.width ?? input.sourceWidth,
+    height: probedSize?.height ?? input.sourceHeight,
     browserCanRunWorker,
   };
   const decision = getTraceEngineDecision(settings, profile);
@@ -84,13 +88,14 @@ export async function tryTraceRasterInClient(input: {
   }
 
   const id = `vtracer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const worker = new Worker(
-    new URL("../../workers/vtracer.worker.ts", import.meta.url),
-    { type: "module" },
-  );
+  let worker: Worker | null = null;
 
   try {
-    const buffer = await input.file.arrayBuffer();
+    const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
+    worker = new Worker(
+      new URL("../../workers/vtracer.worker.ts", import.meta.url),
+      { type: "module" },
+    );
     const result = await new Promise<TraceResult>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         reject(
@@ -100,7 +105,7 @@ export async function tryTraceRasterInClient(input: {
         );
       }, 45_000);
 
-      worker.onmessage = (event: MessageEvent<VTracerWorkerMessage>) => {
+      worker!.onmessage = (event: MessageEvent<VTracerWorkerMessage>) => {
         const message = event.data;
         if (!message || message.id !== id) return;
 
@@ -127,7 +132,7 @@ export async function tryTraceRasterInClient(input: {
         });
       };
 
-      worker.onerror = (event) => {
+      worker!.onerror = (event) => {
         window.clearTimeout(timeout);
         reject(
           new Error(
@@ -137,11 +142,11 @@ export async function tryTraceRasterInClient(input: {
         );
       };
 
-      worker.postMessage(
+      worker!.postMessage(
         {
           id,
           buffer,
-          mimeType: input.file.type,
+          mimeType: input.file.type || inferRasterMimeType(input.file.name),
           fileName: input.file.name,
           settings,
         },
@@ -149,7 +154,10 @@ export async function tryTraceRasterInClient(input: {
       );
     });
 
-    const unusableReason = getUnusableTraceResultReason(result);
+    const unusableReason = getUnusableTraceResultReason(result, {
+      inputBytes: input.file.size,
+      traceMode: settings.traceMode || "single",
+    });
     if (unusableReason) {
       return { ok: false, reason: unusableReason };
     }
@@ -164,11 +172,58 @@ export async function tryTraceRasterInClient(input: {
           : "Browser tracing failed.",
     };
   } finally {
-    worker.terminate();
+    worker?.terminate();
   }
 }
 
-function getUnusableTraceResultReason(result: TraceResult): string | null {
+async function readBrowserImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  if (typeof createImageBitmap !== "function") return null;
+  try {
+    const bitmap = await withTimeout(createImageBitmap(file), 4_000);
+    try {
+      return { width: bitmap.width, height: bitmap.height };
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return null;
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Browser image-size probe timed out."));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
+
+function inferRasterMimeType(fileName: string): string {
+  const lower = String(fileName || "").toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".avif")) return "image/avif";
+  if (lower.endsWith(".bmp")) return "image/bmp";
+  if (lower.endsWith(".tif") || lower.endsWith(".tiff")) return "image/tiff";
+  return "";
+}
+
+function getUnusableTraceResultReason(
+  result: TraceResult,
+  input: { inputBytes?: number; traceMode?: "single" | "layered" } = {},
+): string | null {
   const svg = typeof result.svg === "string" ? result.svg.trim() : "";
   if (!svg) {
     return "Browser tracing returned an empty SVG. Falling back to the server engine.";
@@ -195,6 +250,27 @@ function getUnusableTraceResultReason(result: TraceResult): string | null {
     )
   ) {
     return "Browser tracing returned SVG with no drawable content. Falling back to the server engine.";
+  }
+
+  const svgBytes = svg.length;
+  const pathCount = (svg.match(/<path\b/gi) || []).length;
+  const layered = input.traceMode === "layered";
+  const maxSvgBytes = layered ? 2_200_000 : 1_500_000;
+  const maxPaths = layered ? 2_400 : 1_200;
+  if (svgBytes > maxSvgBytes) {
+    return "Browser tracing returned an oversized SVG. Falling back to the server engine.";
+  }
+  if (pathCount > maxPaths) {
+    return "Browser tracing returned too many paths for a responsive preview. Falling back to the server engine.";
+  }
+
+  const inputBytes = Number(input.inputBytes || 0);
+  if (
+    inputBytes > 0 &&
+    svgBytes > Math.max(900_000, inputBytes * 24) &&
+    pathCount > (layered ? 700 : 450)
+  ) {
+    return "Browser tracing returned path-heavy SVG output. Falling back to the server engine.";
   }
 
   return null;

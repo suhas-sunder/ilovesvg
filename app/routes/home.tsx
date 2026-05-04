@@ -2307,6 +2307,9 @@ type ServerResult = {
   code?: string;
   clientRunId?: string;
   engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   gate?: { running: number; queued: number };
 };
 
@@ -2328,6 +2331,10 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   originalWidth?: number;
   originalHeight?: number;
   stamp: number;
@@ -2597,6 +2604,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   presetBackendIntensity,
                   settingsSnapshot: submitted.settings,
                   draftSettings: submitted.settings,
+                  engineUsed: data.engineUsed || "potrace",
+                  sourceKind: data.sourceKind || "raster",
+                  warnings: data.warnings,
+                  timings: data.timings,
                   updateError: null,
                   batch: item.batch
                     ? {
@@ -2640,6 +2651,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         presetBackendIntensity,
         settingsSnapshot: submitted.settings,
         draftSettings: submitted.settings,
+        engineUsed: data.engineUsed || "potrace",
+        sourceKind: data.sourceKind || "raster",
+        warnings: data.warnings,
+        timings: data.timings,
         batch: createOutputBatchState(),
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
@@ -2910,7 +2925,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Client-side precheck
     try {
-      await validateBeforeSubmit(targetFile);
+      await validateBeforeSubmit(targetFile, dims ? { w: dims.w, h: dims.h } : undefined);
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
       return false;
@@ -3781,6 +3796,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     return (
                     <div
                       key={item.stamp}
+                      data-engine-used={item.engineUsed || "unknown"}
+                      data-source-kind={item.sourceKind || "unknown"}
+                      data-engine-warnings={(item.warnings || []).join(" | ")}
                       className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
                     >
                       <div className="flex gap-3 items-center flex-wrap justify-between">
@@ -4329,7 +4347,7 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   }
 }
 
-async function validateBeforeSubmit(file: File) {
+async function validateBeforeSubmit(file: File, knownSize?: { w: number; h: number }) {
   if (!isAllowedImageFile(file)) {
     throw new Error(`Only ${ACCEPTED_IMAGE_LABEL} images are allowed.`);
   }
@@ -4340,7 +4358,7 @@ async function validateBeforeSubmit(file: File) {
     return;
   }
   try {
-    const { w, h } = await getImageSize(file);
+    const { w, h } = knownSize || (await getImageSize(file));
     if (!w || !h) return;
     if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
       throw new Error(

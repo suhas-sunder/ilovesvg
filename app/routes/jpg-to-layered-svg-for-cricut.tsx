@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { useFetcher, type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -31,6 +31,7 @@ import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewI
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
@@ -535,6 +536,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
       return json({
         ...result,
+        engineUsed: result.engineUsed || "potrace",
+        sourceKind: result.sourceKind || "raster",
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -1368,6 +1371,10 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
@@ -1389,6 +1396,10 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   stamp: number;
   layers: LayerState[];
 };
@@ -1419,7 +1430,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function JpgToLayeredSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "jpg-to-layered-svg-for-cricut" });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1465,6 +1476,10 @@ export default function JpgToLayeredSvgForCricut({
       svg: fetcher.data.svg,
       width: fetcher.data.width ?? 0,
       height: fetcher.data.height ?? 0,
+        engineUsed: fetcher.data.engineUsed,
+        sourceKind: fetcher.data.sourceKind,
+        warnings: fetcher.data.warnings,
+        timings: fetcher.data.timings,
       stamp: Date.now(),
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
@@ -1647,6 +1662,12 @@ export default function JpgToLayeredSvgForCricut({
 
     setErr(null);
     pendingReplaceStampRef.current = replaceStamp ?? null;
+
+    fd.append("presetId", activePreset);
+
+
+    
+
 
     fetcher.submit(fd, {
       method: "POST",

@@ -38,7 +38,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -48,6 +48,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 import {
   LayerPaletteEditor,
   type EditableSvgLayer,
@@ -374,6 +375,8 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
+          engineUsed: "potrace",
+          sourceKind: "raster",
           gate: { running: gate.running, queued: gate.queued },
         });
       }
@@ -454,6 +457,8 @@ export async function action({ request }: ActionFunctionArgs) {
         layers: editable.layers,
         width: adjusted.width,
         height: adjusted.height,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         gate: { running: gate.running, queued: gate.queued },
       });
     } finally {
@@ -1012,6 +1017,10 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
@@ -1022,6 +1031,10 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   stamp: number;
 };
 
@@ -1044,7 +1057,7 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function PngToSvgConverter({}: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -1112,6 +1125,10 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         })),
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
+        engineUsed: fetcher.data.engineUsed,
+        sourceKind: fetcher.data.sourceKind,
+        warnings: fetcher.data.warnings,
+        timings: fetcher.data.timings,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
       
@@ -1305,6 +1322,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   async function submitConvertForFile(
     targetFile: File,
     inputSettings: Settings,
+    presetIdForSubmit: string = activePreset,
   ) {
     try {
       await validateBeforeSubmit(targetFile);
@@ -1339,6 +1357,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
+    fd.append("presetId", presetIdForSubmit);
     setErr(null);
 
     fetcher.submit(fd, {
@@ -1395,7 +1414,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertForFile(file, nextSettings);
+      void submitConvertForFile(file, nextSettings, preset.id);
     }
   }
 

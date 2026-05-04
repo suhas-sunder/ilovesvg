@@ -44,7 +44,6 @@ const VTRACER_PRESET_TERMS = [
   "sticker",
   "sketch",
   "drawing",
-  "webp",
 ];
 
 export function getTraceEngineDecision(
@@ -93,6 +92,15 @@ export function getTraceEngineDecision(
     };
   }
 
+  const routeId = String(settings.routeId || "").toLowerCase();
+  if (LEGACY_POTRACE_PRESET_TERMS.some((term) => routeId.includes(term))) {
+    return {
+      engine: "potrace",
+      clientEligible: false,
+      reason: "This route keeps Potrace for current line-art/cut-file parity.",
+    };
+  }
+
   if (settings.preprocess === "edge") {
     return {
       engine: "vtracer",
@@ -102,19 +110,19 @@ export function getTraceEngineDecision(
   }
 
   const presetId = String(settings.presetId || "").toLowerCase();
-  if (VTRACER_PRESET_TERMS.some((term) => presetId.includes(term))) {
-    return {
-      engine: "vtracer",
-      clientEligible: true,
-      reason: "This preset family benefits from VTracer color/path tracing.",
-    };
-  }
-
   if (LEGACY_POTRACE_PRESET_TERMS.some((term) => presetId.includes(term))) {
     return {
       engine: "potrace",
       clientEligible: false,
       reason: "This preset keeps Potrace for current line-art/cut-file parity.",
+    };
+  }
+
+  if (VTRACER_PRESET_TERMS.some((term) => presetId.includes(term))) {
+    return {
+      engine: "vtracer",
+      clientEligible: true,
+      reason: "This preset family benefits from VTracer color/path tracing.",
     };
   }
 
@@ -160,7 +168,8 @@ export function canRunVTracerClient(
       : settings.maxTraceSide || 0,
   );
   if (Number.isFinite(maxTraceSide) && maxTraceSide > CLIENT_MAX_SIDE) {
-    return false;
+    const sourceMaxSide = Math.max(width, height);
+    if (!sourceMaxSide || sourceMaxSide > CLIENT_MAX_SIDE) return false;
   }
 
   return true;

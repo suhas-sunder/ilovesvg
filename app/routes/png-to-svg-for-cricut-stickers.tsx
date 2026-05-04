@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { useFetcher, type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -28,6 +28,7 @@ import {
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 
 const isServer = typeof document === "undefined";
 
@@ -282,6 +283,8 @@ export async function action({ request }: ActionFunctionArgs) {
         svg: result.svg,
         width: result.width,
         height: result.height,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         cutSource: opts.cutSource,
         gate: { running: gate.running, queued: gate.queued },
       });
@@ -965,6 +968,10 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
   code?: string;
   cutSource?: CutSource;
@@ -975,6 +982,10 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   stamp: number;
   cutSource: string;
   settingsSnapshot: Settings;
@@ -999,7 +1010,7 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-cricut-stickers" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -1040,6 +1051,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
         height: fetcher.data.height ?? 0,
+        engineUsed: fetcher.data.engineUsed,
+        sourceKind: fetcher.data.sourceKind,
+        warnings: fetcher.data.warnings,
+        timings: fetcher.data.timings,
         stamp: Date.now(),
         cutSource: fetcher.data.cutSource ?? settings.cutSource,
         settingsSnapshot: lastSubmittedSettingsRef.current,
@@ -1220,6 +1235,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setErr(null);
     lastSubmittedSettingsRef.current = targetSettings;
     pendingReplaceStampRef.current = replaceStamp ?? null;
+
+    fd.append("presetId", activePreset);
+
+
+    
+
 
     fetcher.submit(fd, {
       method: "POST",

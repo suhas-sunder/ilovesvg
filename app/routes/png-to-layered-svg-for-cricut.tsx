@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { useFetcher, type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -39,6 +39,7 @@ import {
 } from "~/client/lib/converter/settings";
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 import { logAppError } from "~/client/lib/errorLogging";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 
 const isServer = typeof document === "undefined";
 
@@ -362,6 +363,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
       return json({
         ...result,
+        engineUsed: result.engineUsed || "potrace",
+        sourceKind: result.sourceKind || "raster",
         clientRunId,
         gate: {
           running: gate.running,
@@ -1191,6 +1194,10 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
   code?: string;
   clientRunId?: string;
@@ -1215,6 +1222,10 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   originalWidth?: number;
   originalHeight?: number;
   stamp: number;
@@ -1252,7 +1263,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function PngToLayeredSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-layered-svg-for-cricut" });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1403,6 +1414,10 @@ export default function PngToLayeredSvgForCricut({
       presetId: submitted.presetId,
       presetLabel,
       settingsSnapshot: submitted.settings,
+      engineUsed: fetcher.data.engineUsed || "potrace",
+      sourceKind: fetcher.data.sourceKind || "raster",
+      warnings: fetcher.data.warnings,
+      timings: fetcher.data.timings,
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
         name: layer.name,
@@ -1690,6 +1705,12 @@ export default function PngToLayeredSvgForCricut({
       parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
       replaceStamp: meta?.replaceStamp ?? null,
     };
+
+    fd.append("presetId", activePreset);
+
+
+    
+
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1996,6 +2017,9 @@ export default function PngToLayeredSvgForCricut({
                     return (
                       <div
                         key={item.stamp}
+                        data-engine-used={item.engineUsed || "unknown"}
+                        data-source-kind={item.sourceKind || "unknown"}
+                        data-engine-warnings={(item.warnings || []).join(" | ")}
                         onDoubleClick={() => selectHistoryOutput(item.stamp)}
                         className={[
                           "rounded-xl border bg-white p-2 transition-colors",

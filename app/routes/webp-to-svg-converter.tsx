@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, useFetcher, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -44,6 +44,7 @@ import {
   type TraceOutputLayerPatch,
 } from "~/client/components/converter/TraceOutputPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
@@ -355,6 +356,8 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
+          engineUsed: "potrace",
+          sourceKind: "raster",
           gate: { running: gate.running, queued: gate.queued },
         });
       }
@@ -421,6 +424,8 @@ export async function action({ request }: ActionFunctionArgs) {
         layers: editable.layers,
         width: adjusted.width,
         height: adjusted.height,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         gate: { running: gate.running, queued: gate.queued },
       });
     } finally {
@@ -843,6 +848,10 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
@@ -853,6 +862,10 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   stamp: number;
 };
 
@@ -877,7 +890,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function WebpToSvgConverter({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useFetcher<ServerResult>();
+  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "webp-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -944,6 +957,10 @@ export default function WebpToSvgConverter({
         })),
         width: fetcher?.data?.width ?? 0,
         height: fetcher?.data?.height ?? 0,
+        engineUsed: fetcher.data.engineUsed,
+        sourceKind: fetcher.data.sourceKind,
+        warnings: fetcher.data.warnings,
+        timings: fetcher.data.timings,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         settingsSnapshot,
@@ -1109,12 +1126,13 @@ export default function WebpToSvgConverter({
   }
 
   async function submitConvert() {
-    await submitConvertWithSettings(settings);
+    await submitConvertWithSettings(settings, null, activePreset);
   }
 
   async function submitConvertWithSettings(
     sourceSettings: Settings,
     replaceStamp: number | null = null,
+    presetIdForSubmit: string = activePreset,
   ) {
     if (!file) {
       setErr("Choose a WebP image first.");
@@ -1122,7 +1140,10 @@ export default function WebpToSvgConverter({
     }
 
     try {
-      await validateBeforeSubmit(file);
+      await validateBeforeSubmit(
+        file,
+        dims ? { w: dims.w, h: dims.h } : null,
+      );
     } catch (e: any) {
       setErr(e?.message || "Image is too large.");
       return;
@@ -1155,6 +1176,12 @@ export default function WebpToSvgConverter({
     setErr(null);
     pendingReplaceStampRef.current = replaceStamp;
     pendingOutputSettingsRef.current = sourceSettings;
+
+    fd.append("presetId", presetIdForSubmit);
+
+
+    
+
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1200,7 +1227,7 @@ export default function WebpToSvgConverter({
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWithSettings(nextSettings);
+      void submitConvertWithSettings(nextSettings, null, preset.id);
     }
   }
 
@@ -1552,7 +1579,7 @@ export default function WebpToSvgConverter({
 /* ===== Client-side helpers (dimension precheck + compression ≤25MB) ===== */
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   if ("createImageBitmap" in window) {
-    const bmp = await createImageBitmap(file);
+    const bmp = await withTimeout(createImageBitmap(file), 4_000);
     try {
       return { w: bmp.width, h: bmp.height };
     } finally {
@@ -1563,19 +1590,40 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   try {
     const img = new Image();
     img.src = url;
-    await img.decode();
+    await withTimeout(img.decode(), 4_000);
     return { w: img.naturalWidth, h: img.naturalHeight };
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 
-async function validateBeforeSubmit(file: File) {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Image dimension check timed out."));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function validateBeforeSubmit(
+  file: File,
+  knownSize?: { w: number; h: number } | null,
+) {
   if (!ALLOWED_MIME.has(file.type))
     throw new Error("Only WebP images are allowed.");
   if (file.size > MAX_UPLOAD_BYTES)
     throw new Error("File too large. Max 30 MB.");
-  const { w, h } = await getImageSize(file);
+  const { w, h } = knownSize ?? (await getImageSize(file));
   if (!w || !h) throw new Error("Could not read image dimensions.");
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {

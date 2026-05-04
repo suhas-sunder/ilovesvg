@@ -8,6 +8,7 @@
     "start": "node server.js",
     "test": "npm run test:trace-engine && npm run test:trace-quality",
     "test:conversion-actions": "node scripts/conversion-action-smoke.mjs",
+    "test:hybrid-browser": "node scripts/hybrid-browser-smoke.mjs",
     "test:routes": "node scripts/route-http-smoke.mjs",
     "test:trace-engine": "node scripts/trace-engine-audit.mjs",
     "test:trace-quality": "node scripts/trace-quality-smoke.mjs",

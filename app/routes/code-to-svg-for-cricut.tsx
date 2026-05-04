@@ -363,6 +363,10 @@ export async function action({ request }: ActionFunctionArgs) {
           width: layered.width,
           height: layered.height,
           layers: layered.layers,
+          engineUsed: layered.engineUsed || "potrace",
+          sourceKind: layered.sourceKind || "raster",
+          warnings: layered.warnings,
+          timings: layered.timings,
           source: "layered-raster-trace",
           gate: {
             running: gate.running,
@@ -427,6 +431,8 @@ export async function action({ request }: ActionFunctionArgs) {
         width: ensured.width,
         height: ensured.height,
         layers: annotated.layers,
+        engineUsed: "potrace",
+        sourceKind: "raster",
         source: "raster-trace",
         gate: {
           running: gate.running,
@@ -1009,6 +1015,10 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   kind: CandidateKind | "raster-trace";
   stamp: number;
   layers?: EditableSvgLayer[];

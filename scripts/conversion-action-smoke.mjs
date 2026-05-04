@@ -32,6 +32,23 @@ results.push(
   }),
 );
 
+results.push(
+  await expectBatchSvgResponse({
+    fileName: "IMG_8487.PNG",
+    mimeType: "image/png",
+    buffer: regressionPng,
+    fields: lineartAccurateFields({
+      intent: "batch-file",
+      batchSessionId: `batch-smoke-${Date.now()}`,
+      batchIndex: "0",
+      maxTraceSide: "900",
+    }),
+    expectedWidth: regressionMeta.width,
+    expectedHeight: regressionMeta.height,
+    label: "exact-regression-batch-api-engine-metadata",
+  }),
+);
+
 for (const route of [
   "/png-to-svg-converter",
   "/image-to-svg-for-cricut",
@@ -198,7 +215,7 @@ async function expectSvgResponse({
   mimeType,
   buffer,
   fields,
-  expectEngineUsed = false,
+  expectEngineUsed = true,
   expectedEngine = null,
   expectLayers = false,
   expectedWidth = null,
@@ -283,6 +300,56 @@ async function expectInvalidUpload() {
     status: response.status,
     rejectedInvalidUpload: true,
     message: text.slice(0, 120),
+  };
+}
+
+async function expectBatchSvgResponse({
+  fileName,
+  mimeType,
+  buffer,
+  fields,
+  expectedWidth = null,
+  expectedHeight = null,
+  label,
+}) {
+  const form = new FormData();
+  form.append("file", new File([buffer], fileName, { type: mimeType }));
+  for (const [key, value] of Object.entries(fields)) {
+    form.append(key, value);
+  }
+
+  const routePath = "/api/batch-svg";
+  const response = await fetch(`${baseUrl}${routePath}`, {
+    method: "POST",
+    headers: sameOriginHeaders(routePath),
+    body: form,
+  });
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`${routePath} returned ${response.status}: ${text.slice(0, 240)}`);
+  }
+  if (!/<svg\b/i.test(text)) {
+    throw new Error(`${routePath} did not return SVG output.`);
+  }
+  if (expectedWidth && !text.includes(`viewBox=\\\"0 0 ${expectedWidth} ${expectedHeight}\\\"`)) {
+    throw new Error(`${routePath} did not preserve expected ${expectedWidth}x${expectedHeight} dimensions.`);
+  }
+  const engineUsed = extractEngineUsed(text);
+  if (!engineUsed) {
+    throw new Error(`${routePath} did not include engineUsed in the batch response.`);
+  }
+
+  return {
+    label,
+    route: "/api/batch-svg",
+    routePath,
+    status: response.status,
+    bytes: Buffer.byteLength(text),
+    paths: (text.match(/<path\b/gi) || []).length,
+    layersMentioned: /"layers"/.test(text),
+    engineUsed,
+    batch: true,
   };
 }
 

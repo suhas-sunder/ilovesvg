@@ -16,6 +16,10 @@ export type SharedLayeredTraceResult = {
   width: number;
   height: number;
   layers: SharedLayerMeta[];
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
 };
 
 export type SharedAnnotatedTraceResult = {

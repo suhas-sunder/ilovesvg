@@ -1678,6 +1678,10 @@ type HistoryItem = {
   displaySvg: string;
   width: number;
   height: number;
+  engineUsed?: "vtracer" | "potrace";
+  sourceKind?: "svg" | "raster";
+  warnings?: string[];
+  timings?: Record<string, number>;
   kind: InputKind;
   layers?: LayerState[];
   transparent: boolean;

@@ -51,7 +51,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
 };
 
 function ensureVTracerWasmReady() {
-  if (isVTracerReady()) {
+  if (safeIsVTracerReady()) {
     return Promise.resolve();
   }
 
@@ -76,6 +76,14 @@ function ensureVTracerWasmReady() {
   }
 
   return wasmReadyPromise;
+}
+
+function safeIsVTracerReady() {
+  try {
+    return isVTracerReady();
+  } catch {
+    return false;
+  }
 }
 
 async function runTrace(request: WorkerRequest) {
