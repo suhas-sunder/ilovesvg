@@ -45,6 +45,41 @@ h3[class] {
   text-wrap: balance;
 }
 
+@media (min-width: 1180px) {
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"]:has(> section[class*="grid"]) {
+    width: min(calc(100vw - 3rem), 1600px);
+    max-width: min(calc(100vw - 3rem), 1600px) !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
+    grid-template-columns: minmax(500px, 0.92fr) minmax(600px, 1.18fr) !important;
+    gap: 1.25rem !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"]:has(> section[class*="grid"]) {
+    width: min(calc(100vw - 4rem), 1680px);
+    max-width: min(calc(100vw - 4rem), 1680px) !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
+    grid-template-columns: minmax(560px, 0.9fr) minmax(720px, 1.2fr) !important;
+    gap: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1800px) {
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"]:has(> section[class*="grid"]) {
+    width: min(calc(100vw - 5rem), 1780px);
+    max-width: min(calc(100vw - 5rem), 1780px) !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
+    grid-template-columns: minmax(620px, 0.85fr) minmax(860px, 1.2fr) !important;
+  }
+}
+
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="bg-white"][class*="p-4"] {
   border: 1px solid #dbe3ef;
   border-radius: 1.25rem;

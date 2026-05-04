@@ -276,11 +276,12 @@ function postprocessSvg(
   }
 
   if (settings.layerAlpha != null && Number(settings.layerAlpha) < 0.999) {
-    svg = svg.replace(/<path\b([^>]*?)>/gi, (match, attrs = "") => {
-      if (isBackgroundFill(String(attrs), settings)) return match;
-      return `<path${stripAttr(String(attrs), "opacity")} opacity="${formatAlpha(
+    svg = svg.replace(/<path\b([^>]*)>/gi, (match, attrs = "") => {
+      const parsed = parseSelfClosingPathAttrs(String(attrs || ""));
+      if (isBackgroundFill(parsed.attrs, settings)) return match;
+      return `<path${stripAttr(parsed.attrs, "opacity")} opacity="${formatAlpha(
         Number(settings.layerAlpha),
-      )}">`;
+      )}"${parsed.close}`;
     });
   }
 
@@ -322,8 +323,9 @@ function extractEditableLayers(
 function annotateSvgLayerIds(svg: string, settings: NormalizedTraceSettings) {
   const colorIds = new Map<string, string>();
   let count = 0;
-  return svg.replace(/<path\b([^>]*?)>/gi, (match, attrs = "") => {
-    const currentAttrs = String(attrs || "");
+  return svg.replace(/<path\b([^>]*)>/gi, (match, attrs = "") => {
+    const parsed = parseSelfClosingPathAttrs(String(attrs || ""));
+    const currentAttrs = parsed.attrs;
     if (/\bdata-fill-layer-id\s*=/i.test(currentAttrs)) return match;
     const color = normalizeHexColor(
       currentAttrs.match(/\sfill\s*=\s*["']([^"']+)["']/i)?.[1] || "",
@@ -335,7 +337,7 @@ function annotateSvgLayerIds(svg: string, settings: NormalizedTraceSettings) {
       id = `vtracer-fill-${count}-${color.slice(1)}`;
       colorIds.set(color, id);
     }
-    return `<path data-fill-layer-id="${id}"${currentAttrs}>`;
+    return `<path data-fill-layer-id="${id}"${currentAttrs}${parsed.close}`;
   });
 }
 
@@ -375,10 +377,20 @@ function injectBackgroundRect(
 
 function recolorNonBackgroundPaths(svg: string, color: string) {
   const fill = normalizeHexColor(color) || "#000000";
-  return svg.replace(/<path\b([^>]*?)>/gi, (match, attrs = "") => {
-    if (isWhiteFill(String(attrs))) return match;
-    return `<path${stripAttr(String(attrs), "fill")} fill="${fill}">`;
+  return svg.replace(/<path\b([^>]*)>/gi, (match, attrs = "") => {
+    const parsed = parseSelfClosingPathAttrs(String(attrs || ""));
+    if (isWhiteFill(parsed.attrs)) return match;
+    return `<path${stripAttr(parsed.attrs, "fill")} fill="${fill}"${parsed.close}`;
   });
+}
+
+function parseSelfClosingPathAttrs(attrs: string): { attrs: string; close: string } {
+  const raw = String(attrs || "");
+  const selfClosing = /\/\s*$/.test(raw);
+  return {
+    attrs: selfClosing ? raw.replace(/\s*\/\s*$/, "") : raw,
+    close: selfClosing ? " />" : ">",
+  };
 }
 
 function applyBrightnessContrast(

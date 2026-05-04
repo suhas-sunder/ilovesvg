@@ -367,7 +367,9 @@ function parseRouteGroups(source) {
 function getExpectedRoutePolicy(routeId, group) {
   if (group === "layered") return "client-vtracer-capable";
   if (
-    /line-art|black-and-white|logo|scan|cricut|vinyl|laser|silhouette/.test(routeId)
+    /line-art|black-and-white|logo|scan|cricut|vinyl|laser|silhouette|sketch|drawing|photo|outline/.test(
+      routeId,
+    )
   ) {
     return "potrace-primary-by-policy";
   }

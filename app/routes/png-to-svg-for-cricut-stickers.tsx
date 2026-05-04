@@ -1798,11 +1798,10 @@ function SvgObjectPreview({ svg, title }: { svg: string; title: string }) {
   }
 
   return (
-    <object
-      data={url}
-      type="image/svg+xml"
-      aria-label={title}
-      className="max-w-full w-full h-auto min-h-[240px]"
+    <img
+      src={url}
+      alt={title}
+      className="max-w-full w-full h-auto min-h-[240px] object-contain"
     />
   );
 }

@@ -94,10 +94,11 @@ export function applyLayerEditsToSvg(
         "gi",
       );
       const normalizedInner = inner.replace(
-        /<path\b([^>]*?)(\/?)>/gi,
-        (pathMatch: string, pathAttrs: string, closeMark: string) => {
-          const nextPathAttrs = String(pathAttrs).replace(childPaintPattern, "");
-          return `<path${nextPathAttrs}${closeMark}>`;
+        /<path\b([^>]*)>/gi,
+        (_pathMatch: string, pathAttrs: string) => {
+          const parsedPath = parseSvgElementAttrs(String(pathAttrs || ""));
+          const nextPathAttrs = parsedPath.attrs.replace(childPaintPattern, "");
+          return `<path${nextPathAttrs}${parsedPath.close}`;
         },
       );
 
@@ -117,7 +118,8 @@ export function applyLayerEditsToSvg(
     out = out.replace(
       elementPattern,
       (_match, _start, tagName, attrs, endTag) => {
-        let nextAttrs = String(attrs)
+        const parsedElement = parseSvgElementAttrs(String(attrs || ""), String(endTag || ">"));
+        let nextAttrs = parsedElement.attrs
           .replace(
             new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
             "",
@@ -136,13 +138,26 @@ export function applyLayerEditsToSvg(
         nextAttrs += ` ${paintProp}="${layer.color}"`;
         if (!layer.visible)
           nextAttrs += ` display="none" data-layer-editor-hidden="true"`;
-        return `<${tagName}${nextAttrs}${endTag}`;
+        return `<${tagName}${nextAttrs}${parsedElement.close}`;
       },
     );
   }
 
   layerEditSvgCache.set(layers, { sourceSvg: svg, editedSvg: out });
   return out;
+}
+
+function parseSvgElementAttrs(
+  attrs: string,
+  endTag = ">",
+): { attrs: string; close: string } {
+  const rawAttrs = String(attrs || "");
+  const closeToken = String(endTag || ">");
+  const selfClosing = closeToken.startsWith("/") || /\/\s*$/.test(rawAttrs);
+  return {
+    attrs: selfClosing ? rawAttrs.replace(/\s*\/\s*$/, "") : rawAttrs,
+    close: selfClosing ? " />" : ">",
+  };
 }
 
 export function LayerPaletteEditor({

@@ -1,9 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const baseUrl = (process.env.BASE_URL || "http://127.0.0.1:4175").replace(/\/$/, "");
+const baseUrl = getSmokeBaseUrl();
 const timeoutMs = Number(process.env.ROUTE_SMOKE_TIMEOUT_MS || 10_000);
 
 const routeFiles = (await fs.readdir(path.join(rootDir, "app", "routes")))

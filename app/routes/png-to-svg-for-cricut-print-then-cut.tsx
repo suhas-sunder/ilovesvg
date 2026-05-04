@@ -308,7 +308,7 @@ export async function action({ request }: ActionFunctionArgs) {
         .png()
         .toBuffer();
 
-      const mask = await createCutMask(sourceInput, {
+      const mask = await createCutMask(input, {
         outlineSource,
         backgroundTolerance,
         darkThreshold,
@@ -330,7 +330,17 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const tracedRaw: string = await routePotraceTrace(mask, opts);
 
-      const cutPathD = extractPathData(tracedRaw);
+      let cutPathD = extractPathData(tracedRaw);
+      const warnings: string[] = [];
+      if (!cutPathD) {
+        const maskForegroundCoverage = await getMaskForegroundCoverage(mask);
+        if (maskForegroundCoverage >= 0.85) {
+          cutPathD = buildCanvasOutlinePath(width, height);
+          warnings.push(
+            "Used the image bounds as the cut outline because the traced mask filled the canvas.",
+          );
+        }
+      }
 
       if (!cutPathD) {
         return json(
@@ -364,6 +374,7 @@ export async function action({ request }: ActionFunctionArgs) {
         height,
         engineUsed: "potrace",
         sourceKind: "raster",
+        warnings,
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -400,8 +411,7 @@ async function createCutMask(
   const { getSharp } = await import("~/utils/conversionModules.server");
       const sharp = await getSharp();
 
-  const normalized = sharp(input).rotate().ensureAlpha();
-  const meta = await normalized.metadata();
+  const meta = await sharp(input).rotate().metadata();
 
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
@@ -416,16 +426,12 @@ async function createCutMask(
   }
 
   const hasAlpha = Boolean(meta.hasAlpha);
-  const source =
-    opts.outlineSource === "auto"
-      ? hasAlpha
-        ? "transparency"
-        : "light"
-      : opts.outlineSource;
+  const normalized = sharp(input).rotate().ensureAlpha();
+  const requestedSource = opts.outlineSource;
 
   let maskRaw: Buffer;
 
-  if (source === "edge") {
+  if (requestedSource === "edge") {
     maskRaw = await createEdgeMask(input, {
       edgeThreshold: opts.edgeThreshold,
     });
@@ -437,6 +443,12 @@ async function createCutMask(
     const rgba = data as Buffer;
     const W = info.width | 0;
     const H = info.height | 0;
+    const source =
+      requestedSource === "auto"
+        ? hasAlpha && hasTransparentPixels(rgba)
+          ? "transparency"
+          : "light"
+        : requestedSource;
 
     maskRaw = Buffer.alloc(W * H, 255);
 
@@ -496,6 +508,14 @@ async function createCutMask(
   return await pipeline.png().toBuffer();
 }
 
+function hasTransparentPixels(rgba: Buffer): boolean {
+  for (let i = 3; i < rgba.length; i += 4) {
+    if ((rgba[i] ?? 255) <= 12) return true;
+  }
+
+  return false;
+}
+
 async function createEdgeMask(
   input: Buffer,
   opts: {
@@ -548,6 +568,23 @@ async function createEdgeMask(
   return out;
 }
 
+async function getMaskForegroundCoverage(maskPng: Buffer): Promise<number> {
+  const { getSharp } = await import("~/utils/conversionModules.server");
+  const sharp = await getSharp();
+  const { data, info } = await sharp(maskPng)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = Math.max(1, info.channels | 0);
+  const totalPixels = Math.max(1, (info.width | 0) * (info.height | 0));
+  let foregroundPixels = 0;
+
+  for (let i = 0; i < data.length; i += channels) {
+    if ((data[i] ?? 255) < 128) foregroundPixels++;
+  }
+
+  return foregroundPixels / totalPixels;
+}
+
 function extractPathData(svg: string): string {
   const paths: string[] = [];
   const re = /<path\b[^>]*\sd\s*=\s*["']([^"']+)["'][^>]*>/gi;
@@ -559,6 +596,12 @@ function extractPathData(svg: string): string {
   }
 
   return paths.join(" ");
+}
+
+function buildCanvasOutlinePath(width: number, height: number): string {
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  return `M0 0H${w}V${h}H0Z`;
 }
 
 function buildPrintThenCutSvg(opts: {

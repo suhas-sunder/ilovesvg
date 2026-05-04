@@ -102,6 +102,16 @@ For non-trivial tasks:
 9. Run available checks.
 10. Report changed files, checks run, and anything not verified.
 
+## Local server and smoke-test source of truth
+
+Use `http://localhost:3000` as the canonical local development URL unless the current prompt explicitly asks for another port.
+
+Do not treat `http://127.0.0.1:4175`, `http://127.0.0.1:4186`, `http://127.0.0.1:4191`, or any other ad-hoc local port as equivalent to the user's active local app unless you started that server in the current task and set `BASE_URL` explicitly for every smoke command.
+
+Before relying on browser or smoke-test results, check for stale `node server.js` processes on multiple local ports. If multiple app servers are running, restart or target the canonical server deliberately and report the exact URL tested.
+
+The smoke scripts default to `http://localhost:3000`. Use `BASE_URL=...` only when intentionally testing a freshly started alternate build.
+
 For large tasks, do low-risk changes before high-risk pipeline changes.
 
 Do not start implementation by guessing from the prompt alone.

@@ -11,6 +11,7 @@ import {
 import type { ConverterRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
   EditedSvgPreviewImage,
+  ensureSvgRootNamespace,
   getEditedSvg,
 } from "~/client/components/svg/EditedSvgPreviewImage";
 import {
@@ -391,8 +392,8 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     />
                   </div>
                   <EditedSvgPreviewImage
-                    svg={item.svg}
-                    layers={item.layers}
+                    svg={previewSvg}
+                    layers={null}
                     alt={`${label} SVG result`}
                     className="h-auto max-w-full"
                   />
@@ -471,7 +472,9 @@ function applySvgSizeAttributes(svg: string, width: number, height: number): str
     const nextAttrs = String(attrs)
       .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
       .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "");
-    return `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`;
+    return ensureSvgRootNamespace(
+      `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`,
+    );
   });
 }
 

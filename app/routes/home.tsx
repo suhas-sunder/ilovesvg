@@ -29,6 +29,7 @@ import {
   LayerPaletteEditor,
   applyLayerEditsToSvg,
 } from "~/client/components/svg/LayerPaletteEditor";
+import { ensureSvgRootNamespace } from "~/client/components/svg/EditedSvgPreviewImage";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import {
@@ -2642,9 +2643,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         originalWidth: resultWidth,
         originalHeight: resultHeight,
         stamp,
-        name: parentStamp
-          ? `Output ${outputNumber} · Derived from Output`
-          : `Output ${outputNumber} · ${presetLabel}`,
+        name: `Output ${outputNumber} · ${presetLabel}`,
         parentStamp,
         presetId: submitted.presetId ?? undefined,
         presetLabel,
@@ -2867,7 +2866,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function submitConvert() {
     await submitConvertWith(file, settings, {
       presetId: activePreset,
-      parentStamp: activeHistoryStamp,
+      parentStamp: null,
     });
   }
 
@@ -2948,7 +2947,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     lastSubmittedRef.current = {
       settings: effective,
       presetId: submittedPresetId,
-      parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
+      parentStamp: meta?.parentStamp ?? null,
       replaceStamp: meta?.replaceStamp ?? null,
       sourceLayerEdits: cloneEditableLayers(meta?.sourceLayerEdits),
     };
@@ -3106,7 +3105,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setUpdatingOutputStamp(stamp);
     const submitted = await submitConvertWith(file, targetSettings, {
       presetId: item.presetId,
-      parentStamp: item.parentStamp ?? item.stamp,
+      parentStamp: null,
       replaceStamp: item.stamp,
       sourceLayerEdits: item.layers,
     });
@@ -3517,7 +3516,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (file && getAutoMode(file.size) !== "off") {
       void submitConvertWith(file, nextSettings, {
         presetId: preset.id,
-        parentStamp: activeHistoryStamp,
+        parentStamp: null,
       });
     }
   }
@@ -3793,6 +3792,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const isUpdating = updatingOutputStamp === item.stamp;
                     const batch = item.batch || createOutputBatchState();
                     const batchDynamicMax = getOutputBatchDynamicMax(item);
+                    const displayName = getHistoryDisplayName(item);
                     return (
                     <div
                       key={item.stamp}
@@ -3803,7 +3803,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     >
                       <div className="flex gap-3 items-center flex-wrap justify-between">
                         <span className="text-[13px] font-semibold text-slate-700">
-                          {item.name}
+                          {displayName}
                         </span>
                         <span className="text-[13px] text-slate-600">
                           {item.width > 0 && item.height > 0
@@ -4252,8 +4252,20 @@ function applySvgSizeAttributes(svg: string, width: number, height: number): str
     const nextAttrs = String(attrs)
       .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
       .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "");
-    return `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`;
+    return ensureSvgRootNamespace(
+      `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`,
+    );
   });
+}
+
+function getHistoryDisplayName(item: {
+  name?: string;
+  presetLabel?: string;
+}): string {
+  const name = item.name || "";
+  if (!/Derived from Output/i.test(name)) return name;
+  const prefix = name.match(/^Output\s+\d+/i)?.[0] || "Output";
+  return `${prefix} · ${item.presetLabel || "Updated preview"}`;
 }
 
 async function readBatchConversionResponse(response: Response): Promise<ServerResult> {

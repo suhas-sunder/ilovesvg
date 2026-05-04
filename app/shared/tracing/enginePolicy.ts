@@ -22,6 +22,31 @@ const LEGACY_POTRACE_PRESET_TERMS = [
   "lineart",
   "line-art",
   "line_art",
+  "sketch",
+  "drawing",
+  "pencil",
+  "photo",
+  "edge",
+  "comic",
+  "comics",
+  "ink",
+  "inks",
+  "diagram",
+  "technical",
+  "blueprint",
+  "whiteboard",
+  "stencil",
+  "stamp",
+  "invert",
+  "chalkboard",
+  "map-lines",
+  "thin-strokes",
+  "bold-strokes",
+  "transparent-clean",
+  "white-remove",
+  "color-blue-line",
+  "color-red-line",
+  "color-gray-line",
   "black",
   "white",
   "silhouette",
@@ -38,12 +63,8 @@ const VTRACER_PRESET_TERMS = [
   "layer",
   "layered",
   "color",
-  "photo",
-  "edge",
   "poster",
   "sticker",
-  "sketch",
-  "drawing",
 ];
 
 export function getTraceEngineDecision(
@@ -101,14 +122,6 @@ export function getTraceEngineDecision(
     };
   }
 
-  if (settings.preprocess === "edge") {
-    return {
-      engine: "vtracer",
-      clientEligible: true,
-      reason: "Edge/photo preprocessing is routed to VTracer when client-safe.",
-    };
-  }
-
   const presetId = String(settings.presetId || "").toLowerCase();
   if (LEGACY_POTRACE_PRESET_TERMS.some((term) => presetId.includes(term))) {
     return {
@@ -126,21 +139,11 @@ export function getTraceEngineDecision(
     };
   }
 
-  if (
-    settings.presetBackendIntensity === "low-speed" ||
-    settings.presetBackendIntensity === "slow-speed"
-  ) {
-    return {
-      engine: "vtracer",
-      clientEligible: true,
-      reason: "Heavier color/detail presets are routed to VTracer when client-safe.",
-    };
-  }
-
   return {
     engine: "potrace",
     clientEligible: false,
-    reason: "Auto mode keeps Potrace for ambiguous single-trace presets to preserve output parity.",
+    reason:
+      "Auto mode keeps Potrace for ambiguous or custom single-trace settings to preserve output parity.",
   };
 }
 

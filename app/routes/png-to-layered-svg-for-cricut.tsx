@@ -1407,9 +1407,7 @@ export default function PngToLayeredSvgForCricut({
       originalWidth: fetcher.data.width ?? 0,
       originalHeight: fetcher.data.height ?? 0,
       stamp,
-      name: submitted.parentStamp
-        ? `Output ${outputNumber} · Derived from Output`
-        : `Output ${outputNumber} · ${presetLabel}`,
+      name: `Output ${outputNumber} · ${presetLabel}`,
       parentStamp: submitted.parentStamp,
       presetId: submitted.presetId,
       presetLabel,
@@ -1702,7 +1700,7 @@ export default function PngToLayeredSvgForCricut({
     lastSubmittedRef.current = {
       settings: sourceSettings,
       presetId: meta?.presetId ?? activePreset,
-      parentStamp: meta?.parentStamp ?? activeHistoryStampRef.current,
+      parentStamp: meta?.parentStamp ?? null,
       replaceStamp: meta?.replaceStamp ?? null,
     };
 
@@ -1735,7 +1733,7 @@ export default function PngToLayeredSvgForCricut({
     if (file && autoMode !== "off") {
       void submitConvert(file, nextSettings, {
         presetId: preset.id,
-        parentStamp: activeHistoryStamp,
+        parentStamp: null,
       });
     }
   }
@@ -2207,7 +2205,7 @@ export default function PngToLayeredSvgForCricut({
                               onUpdatePreview={() =>
                                 void submitConvert(file, itemSettings, {
                                   presetId: item.presetId,
-                                  parentStamp: item.parentStamp,
+                                  parentStamp: null,
                                   replaceStamp: item.stamp,
                                 })
                               }

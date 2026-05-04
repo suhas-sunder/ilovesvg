@@ -1,7 +1,8 @@
 import { promises as fs } from "node:fs";
 import sharp from "sharp";
+import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 
-const baseUrl = (process.env.BASE_URL || "http://127.0.0.1:4175").replace(/\/$/, "");
+const baseUrl = getSmokeBaseUrl();
 const exactRegressionPath =
   process.env.REGRESSION_PNG_PATH ||
   "C:/Users/Suhas/Downloads/iCloud Photos (1)/iCloud Photos/IMG_8487.PNG";

@@ -28,8 +28,17 @@ export function getEditedSvg(
   svg: string,
   layers?: ReadonlyArray<EditablePreviewLayer> | null,
 ): string {
-  if (!layers?.length) return svg;
-  return applyLayerEditsToSvg(svg, layers as EditableSvgLayer[]);
+  const edited = layers?.length
+    ? applyLayerEditsToSvg(svg, layers as EditableSvgLayer[])
+    : svg;
+  return ensureSvgRootNamespace(edited);
+}
+
+export function ensureSvgRootNamespace(svg: string): string {
+  return String(svg).replace(/<svg\b([^>]*)>/i, (match, attrs) => {
+    if (/\sxmlns\s*=/i.test(String(attrs))) return match;
+    return `<svg xmlns="http://www.w3.org/2000/svg"${attrs}>`;
+  });
 }
 
 export function useEditedSvgPreview(

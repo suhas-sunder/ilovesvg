@@ -3,32 +3,67 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { unzipSync } from "fflate";
 import sharp from "sharp";
+import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 
-const baseUrl = (process.env.BASE_URL || "http://127.0.0.1:4186").replace(/\/$/, "");
+const baseUrl = getSmokeBaseUrl();
 const debugPort = Number(process.env.CDP_PORT || 9237);
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-hybrid-browser-smoke", String(debugPort));
 const profileDir = path.join(tmpDir, "profile");
 const fixturesDir = path.join(tmpDir, "fixtures");
+const downloadsDir = path.join(tmpDir, "downloads");
 
-const SMOKE_ROUTES = [
-  { path: "/", file: "png", mode: "default", expectedEngine: "potrace" },
-  { path: "/", file: "png", mode: "vtracer", expectedEngine: "vtracer" },
-  { path: "/png-to-svg-converter", file: "png", mode: "vtracer", expectedEngine: "vtracer" },
-  { path: "/jpg-to-svg-converter", file: "jpg", mode: "vtracer", expectedEngine: "vtracer" },
-  { path: "/webp-to-svg-converter", file: "webp", mode: "vtracer", expectedEngine: "vtracer" },
-  { path: "/png-to-layered-svg-for-cricut", file: "png", mode: "default", expectedEngine: "vtracer" },
-  { path: "/line-art-to-svg-converter", file: "png", mode: "default", expectedEngine: "potrace" },
-  { path: "/logo-to-svg-converter", file: "png", mode: "default", expectedEngine: "potrace" },
-  { path: "/scan-to-svg-converter", file: "png", mode: "default", expectedEngine: "potrace" },
-  { path: "/png-to-svg-for-cricut", file: "png", mode: "default", expectedEngine: "potrace" },
+const RASTER_ROUTES = [
+  { path: "/", id: "home", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true, defaultEngine: "potrace" },
+  { path: "/black-and-white-image-to-svg-converter", id: "black-and-white-image-to-svg-converter", file: "png", policy: "potrace" },
+  { path: "/black-and-white-image-to-svg-for-cricut", id: "black-and-white-image-to-svg-for-cricut", file: "png", policy: "potrace" },
+  { path: "/cricut-svg-converter", id: "cricut-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/drawing-to-svg-converter", id: "drawing-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/drawing-to-svg-for-cricut", id: "drawing-to-svg-for-cricut", file: "png", policy: "potrace" },
+  { path: "/icon-to-svg-converter", id: "icon-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false },
+  { path: "/image-to-layered-svg-for-cricut", id: "image-to-layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
+  { path: "/image-to-svg-for-cricut", id: "image-to-svg-for-cricut", file: "png", policy: "potrace" },
+  { path: "/image-to-svg-outline", id: "image-to-svg-outline", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/jpeg-to-svg-converter", id: "jpeg-to-svg-converter", file: "jpg", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/jpeg-to-svg-for-cricut", id: "jpeg-to-svg-for-cricut", file: "jpg", policy: "potrace" },
+  { path: "/jpg-to-layered-svg-for-cricut", id: "jpg-to-layered-svg-for-cricut", file: "jpg", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
+  { path: "/jpg-to-svg-converter", id: "jpg-to-svg-converter", file: "jpg", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/jpg-to-svg-for-cricut", id: "jpg-to-svg-for-cricut", file: "jpg", policy: "potrace" },
+  { path: "/layered-svg-for-cricut", id: "layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
+  { path: "/line-art-to-svg-converter", id: "line-art-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/line-art-to-svg-for-cricut", id: "line-art-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/logo-to-layered-svg-for-cricut", id: "logo-to-layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
+  { path: "/logo-to-svg-converter", id: "logo-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/logo-to-svg-for-cricut", id: "logo-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/photo-to-svg-for-cricut", id: "photo-to-svg-for-cricut", file: "jpg", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/photo-to-svg-outline", id: "photo-to-svg-outline", file: "jpg", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/png-to-layered-svg-for-cricut", id: "png-to-layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
+  { path: "/png-to-svg-converter", id: "png-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/png-to-svg-for-cricut", id: "png-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/png-to-svg-for-cricut-print-then-cut", id: "png-to-svg-for-cricut-print-then-cut", file: "png", policy: "potrace" },
+  { path: "/png-to-svg-for-cricut-stickers", id: "png-to-svg-for-cricut-stickers", file: "png", policy: "potrace" },
+  { path: "/png-to-svg-for-cricut-vinyl", id: "png-to-svg-for-cricut-vinyl", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/png-to-svg-for-etsy", id: "png-to-svg-for-etsy", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/png-to-svg-for-laser-cutting", id: "png-to-svg-for-laser-cutting", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/png-to-svg-for-silhouette", id: "png-to-svg-for-silhouette", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/scan-to-svg-converter", id: "scan-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/sketch-to-svg-converter", id: "sketch-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/sketch-to-svg-for-cricut", id: "sketch-to-svg-for-cricut", file: "png", policy: "potrace" },
+  { path: "/sticker-to-svg-converter", id: "sticker-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false },
+  { path: "/sticker-to-svg-for-cricut", id: "sticker-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/webp-to-svg-converter", id: "webp-to-svg-converter", file: "webp", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/webp-to-svg-for-cricut", id: "webp-to-svg-for-cricut", file: "webp", policy: "potrace", defaultEngine: "potrace" },
 ];
+
+const SMOKE_ROUTES = buildSmokeScenarios();
 
 async function main() {
   const browserPath = await findBrowserExecutable();
   await fs.rm(tmpDir, { recursive: true, force: true });
   await fs.mkdir(fixturesDir, { recursive: true });
+  await fs.mkdir(downloadsDir, { recursive: true });
   const fixtures = await createFixtures();
 
   const browser = spawn(browserPath, [
@@ -47,18 +82,29 @@ async function main() {
   });
 
   const results = [];
+  let batchZip = null;
   try {
     await waitForCdp();
     const routes = process.env.ROUTE_FILTER
-      ? SMOKE_ROUTES.filter((route) => route.path === process.env.ROUTE_FILTER)
+      ? SMOKE_ROUTES.filter(
+          (route) =>
+            route.path === process.env.ROUTE_FILTER &&
+            (!process.env.SCENARIO_FILTER || route.scenario === process.env.SCENARIO_FILTER),
+        )
       : SMOKE_ROUTES;
     for (const route of routes) {
-      console.error(`[hybrid-browser] ${route.path} (${route.mode})`);
+      console.error(`[hybrid-browser] ${route.path} (${route.scenario})`);
       const result = await runRouteSmoke(route, fixtures[route.file]);
       results.push(result);
       console.error(
-        `[hybrid-browser] ${route.path} -> ${result.engineUsed || "none"} ${result.ok ? "ok" : "failed"}`,
+        `[hybrid-browser] ${route.path} ${route.scenario} -> ${result.engineUsed || "none"} ${result.ok ? "ok" : "failed"}`,
       );
+    }
+
+    if (!process.env.ROUTE_FILTER || process.env.INCLUDE_BATCH === "1") {
+      console.error("[hybrid-browser] home batch ZIP");
+      batchZip = await runBatchZipSmoke(fixtures);
+      console.error(`[hybrid-browser] home batch ZIP -> ${batchZip.ok ? "ok" : "failed"}`);
     }
   } finally {
     browser.kill();
@@ -69,14 +115,48 @@ async function main() {
     checkedAt: new Date().toISOString(),
     browserPath,
     routes: results,
+    batchZip,
   };
 
   console.log(JSON.stringify(report, null, 2));
 
   const failures = results.filter((result) => !result.ok);
+  if (batchZip && !batchZip.ok) failures.push(batchZip);
   if (failures.length > 0) {
     process.exit(1);
   }
+}
+
+function buildSmokeScenarios() {
+  const scenarios = [];
+  for (const route of RASTER_ROUTES) {
+    scenarios.push({
+      ...route,
+      scenario: "default",
+      mode: "default",
+      expectedEngine: route.defaultEngine || null,
+      optional: false,
+    });
+    if (route.hasVTracerPreset) {
+      scenarios.push({
+        ...route,
+        scenario: "vtracer-preset",
+        mode: "vtracer",
+        expectedEngine: "vtracer",
+        optional: false,
+      });
+    }
+    if (route.hasPotracePreset) {
+      scenarios.push({
+        ...route,
+        scenario: "potrace-preset",
+        mode: "potrace",
+        expectedEngine: "potrace",
+        optional: true,
+      });
+    }
+  }
+  return scenarios;
 }
 
 async function runRouteSmoke(route, fixturePath) {
@@ -142,11 +222,31 @@ async function runRouteSmoke(route, fixturePath) {
       if (!selectedPreset) {
         throw new Error("Could not select a VTracer-eligible preset.");
       }
+    } else if (route.mode === "potrace") {
+      selectedPreset = await selectPotracePreset(client, route);
+      if (!selectedPreset) {
+        if (route.optional) {
+          return {
+            route: route.path,
+            scenario: route.scenario,
+            mode: route.mode,
+            expectedEngine: route.expectedEngine,
+            engineUsed: null,
+            selectedPreset: null,
+            skipped: true,
+            skipReason: "No Potrace-first preset found on this route.",
+            ok: true,
+          };
+        }
+        throw new Error("Could not select a Potrace-first preset.");
+      }
     }
 
-    if (route.mode === "vtracer") {
-      output = await waitForOutput(client, 60_000, route.expectedEngine).catch(() => null);
-    }
+    output = await waitForOutput(
+      client,
+      route.mode === "default" ? 4_000 : 60_000,
+      route.expectedEngine,
+    ).catch(() => null);
 
     if (!output) {
       convertButton = await clickConvertButton(client);
@@ -166,26 +266,38 @@ async function runRouteSmoke(route, fixturePath) {
         hasSettings: /Settings/i.test(text),
       };
     })()`);
+    const actions = await verifyOutputActions(client, route, output.engineUsed);
 
     const ok =
-      output.engineUsed === route.expectedEngine &&
+      (!route.expectedEngine || output.engineUsed === route.expectedEngine) &&
       !output.hasGenericFailure &&
       output.hasOutput &&
+      output.previewDecoded &&
+      !output.hasBrokenPreview &&
+      !output.hasDerivedLabel &&
       copyDownload.hasCopy &&
       copyDownload.hasDownload &&
+      actions.copyOk &&
+      actions.downloadOk &&
+      actions.updatePreviewOk &&
       errors.length === 0;
 
     return {
       route: route.path,
+      scenario: route.scenario,
       mode: route.mode,
       expectedEngine: route.expectedEngine,
       engineUsed: output.engineUsed,
       selectedPreset,
       convertButton,
       hasOutput: output.hasOutput,
+      previewDecoded: output.previewDecoded,
+      hasBrokenPreview: output.hasBrokenPreview,
+      hasDerivedLabel: output.hasDerivedLabel,
       hasCopy: copyDownload.hasCopy,
       hasDownload: copyDownload.hasDownload,
       hasSettings: copyDownload.hasSettings,
+      actions,
       warnings: output.warnings,
       capabilities: output.capabilities,
       traceDebug: await readTraceDebug(client),
@@ -194,7 +306,9 @@ async function runRouteSmoke(route, fixturePath) {
       ok,
       failure: ok
         ? null
-        : `Expected ${route.expectedEngine}, saw ${output.engineUsed || "none"}.`,
+        : route.expectedEngine
+          ? `Expected ${route.expectedEngine}, saw ${output.engineUsed || "none"}.`
+          : `Expected any engineUsed, saw ${output.engineUsed || "none"}.`,
     };
   } catch (error) {
     const debug = await getPageDebugState(client).catch((debugError) => ({
@@ -202,6 +316,7 @@ async function runRouteSmoke(route, fixturePath) {
     }));
     return {
       route: route.path,
+      scenario: route.scenario,
       mode: route.mode,
       expectedEngine: route.expectedEngine,
       engineUsed: null,
@@ -211,6 +326,7 @@ async function runRouteSmoke(route, fixturePath) {
       hasCopy: false,
       hasDownload: false,
       hasSettings: false,
+      actions: null,
       consoleErrors: errors,
       network,
       traceDebug: await readTraceDebug(client).catch(() => []),
@@ -223,8 +339,327 @@ async function runRouteSmoke(route, fixturePath) {
   }
 }
 
+async function runBatchZipSmoke(fixtures) {
+  const client = await openTab(`${baseUrl}/`);
+  const errors = [];
+  const batchResponseIds = [];
+  const network = [];
+  client.onEvent((message) => {
+    if (message.method === "Runtime.exceptionThrown") {
+      const details = message.params?.exceptionDetails;
+      const text =
+        details?.exception?.description ||
+        details?.exception?.value ||
+        details?.text ||
+        "Runtime exception";
+      if (!isIgnorableDevConsoleMessage(text)) errors.push(text);
+    }
+    if (message.method === "Log.entryAdded") {
+      const entry = message.params?.entry;
+      const text = entry?.text || "Browser log error";
+      if (entry?.level === "error" && !isIgnorableDevConsoleMessage(text)) {
+        errors.push(text);
+      }
+    }
+    if (message.method === "Network.requestWillBeSent") {
+      const request = message.params?.request;
+      if (request?.url?.startsWith(baseUrl)) {
+        network.push({ type: "request", method: request.method, url: request.url });
+      }
+    }
+    if (message.method === "Network.responseReceived") {
+      const response = message.params?.response;
+      if (response?.url?.includes("/api/batch-svg")) {
+        batchResponseIds.push(message.params.requestId);
+      }
+      if (response?.url?.startsWith(baseUrl)) {
+        network.push({ type: "response", status: response.status, url: response.url });
+      }
+    }
+  });
+
+  try {
+    await client.send("Runtime.enable");
+    await client.send("Log.enable");
+    await client.send("Page.enable");
+    await client.send("DOM.enable");
+    await client.send("Network.enable");
+    await waitForDocumentReady(client);
+    await evaluate(client, `(() => { window.__ILOVESVG_HYBRID_TRACE_DEBUG__ = []; return true; })()`);
+    await delay(1_000);
+
+    await setFileInput(client, fixtures.png);
+    await waitForValue(client, () => textIncludesExpression(path.basename(fixtures.png)), 8_000);
+    const selectedPreset = await selectVTracerPreset(client, { path: "/" });
+    if (!selectedPreset) throw new Error("Could not select VTracer preset for batch setup.");
+    const initialOutput = await waitForOutput(client, 60_000, "vtracer");
+    if (!initialOutput.hasOutput) throw new Error("Initial VTracer output did not render.");
+
+    await clickButtonMatching(client, "/Settings/i");
+    await clickButtonMatching(client, "/Batch conversion/i");
+    await setFileInputFilesFromBuffers(client, 'input[type="file"][multiple]', [
+      fixtures.png,
+      fixtures.jpg,
+      fixtures.webp,
+    ]);
+    await waitForValue(client, () => textIncludesExpression("3 files selected"), 8_000);
+
+    await evaluate(client, `(() => {
+      const NativeWorker = window.Worker;
+      if (!NativeWorker || window.__ILOVESVG_BATCH_WORKER_PATCHED__) return false;
+      window.__ILOVESVG_BATCH_WORKER_PATCHED__ = true;
+      window.__ILOVESVG_BATCH_WORKER_EVENTS__ = [];
+      let shouldFail = true;
+      window.Worker = function(url, options) {
+        const href = String(url);
+        const forcedFailure = shouldFail && /vtracer\\.worker/i.test(href);
+        window.__ILOVESVG_BATCH_WORKER_EVENTS__.push({ href, forcedFailure });
+        if (forcedFailure) {
+          shouldFail = false;
+          throw new Error("__batch_forced_vtracer_failure__");
+        }
+        return new NativeWorker(url, options);
+      };
+      window.Worker.prototype = NativeWorker.prototype;
+      return true;
+    })()`);
+
+    await clickButtonMatching(client, "/Convert 3 to ZIP/i");
+    const progressSeen = await waitForValue(
+      client,
+      () => `(() => /Converting \\d+\\/3/i.test(document.body.innerText || ""))()`,
+      5_000,
+    ).catch(() => false);
+    const doneState = await waitForValue(
+      client,
+      () => `(() => {
+        const text = document.body.innerText || "";
+        return {
+          hasZipButton: /Download ZIP/i.test(text),
+          text,
+          info: (text.match(/\\d+ files converted\\.[^\\n]*/i) || [null])[0],
+        };
+      })()`,
+      90_000,
+      (value) => value?.hasZipButton,
+    );
+
+    const batchResponses = [];
+    for (const requestId of batchResponseIds) {
+      try {
+        const body = await client.send("Network.getResponseBody", { requestId });
+        batchResponses.push(JSON.parse(body.body || "{}"));
+      } catch (error) {
+        batchResponses.push({ error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    const before = new Set(await listDownloads());
+    await configureDownloads(client).catch(() => {});
+    await clickButtonMatching(client, "/Download ZIP/i");
+    const zipFile = await waitForDownload(before, ".zip", 12_000);
+    const zipPath = path.join(downloadsDir, zipFile);
+    const zipBytes = await fs.readFile(zipPath);
+    const entries = unzipSync(new Uint8Array(zipBytes));
+    const entryNames = Object.keys(entries);
+    const svgEntries = entryNames.filter((entry) => entry.toLowerCase().endsWith(".svg"));
+    const invalidSvgEntries = svgEntries.filter(
+      (entry) => !/<svg[\s>]/i.test(Buffer.from(entries[entry]).toString("utf8")),
+    );
+    const workerEvents = await evaluate(client, `(() => window.__ILOVESVG_BATCH_WORKER_EVENTS__ || [])()`);
+    const fallbackEngineResults = batchResponses
+      .map((response) => response.engineUsed)
+      .filter(Boolean);
+    const expectedForcedWorkerFailure = workerEvents.some((event) => event.forcedFailure);
+    const unexpectedErrors = expectedForcedWorkerFailure
+      ? errors.filter((message) => !/ERR_FILE_NOT_FOUND/i.test(message))
+      : errors;
+    const ok =
+      unexpectedErrors.length === 0 &&
+      progressSeen &&
+      doneState.hasZipButton &&
+      svgEntries.length === 3 &&
+      invalidSvgEntries.length === 0 &&
+      expectedForcedWorkerFailure &&
+      fallbackEngineResults.includes("potrace");
+
+    return {
+      route: "/",
+      scenario: "batch-zip",
+      selectedPreset,
+      initialEngineUsed: initialOutput.engineUsed,
+      progressSeen,
+      info: doneState.info,
+      zipFile,
+      zipBytes: zipBytes.byteLength,
+      svgEntries,
+      invalidSvgEntries,
+      workerEvents,
+      fallbackEngineResults,
+      batchResponses: batchResponses.map((response) => ({
+        engineUsed: response.engineUsed,
+        width: response.width,
+        height: response.height,
+        error: response.error,
+      })),
+      consoleErrors: unexpectedErrors,
+      expectedConsoleErrors: errors.filter((message) => !unexpectedErrors.includes(message)),
+      network,
+      ok,
+      failure: ok
+        ? null
+        : "Batch ZIP flow did not show expected progress, fallback, or valid ZIP contents.",
+    };
+  } catch (error) {
+    return {
+      route: "/",
+      scenario: "batch-zip",
+      consoleErrors: errors,
+      network,
+      ok: false,
+      failure: error instanceof Error ? error.message : String(error),
+      debug: await getPageDebugState(client).catch((debugError) => ({
+        error: debugError instanceof Error ? debugError.message : String(debugError),
+      })),
+    };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
 async function readTraceDebug(client) {
   return evaluate(client, `(() => Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__) ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__ : [])()`);
+}
+
+async function verifyOutputActions(client, route, expectedEngine) {
+  const copy = await verifyCopySvg(client);
+  const download = await verifySvgDownload(client, `${safeName(route.id)}-${route.scenario}`);
+  const updatePreview = await verifyUpdatePreview(client, expectedEngine);
+  return {
+    copyOk: copy.ok,
+    copyLength: copy.length,
+    downloadOk: download.ok,
+    downloadFile: download.file,
+    downloadBytes: download.bytes,
+    updatePreviewOk: updatePreview.ok,
+    updatePreview: updatePreview.status,
+  };
+}
+
+async function verifyCopySvg(client) {
+  await client.send("Page.bringToFront").catch(() => {});
+  await client.send("Browser.grantPermissions", {
+    origin: baseUrl,
+    permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"],
+  }).catch(() => {});
+  await evaluate(client, `(() => { window.focus(); document.body?.focus?.(); return true; })()`).catch(() => {});
+  await clickButtonMatching(client, "/Copy SVG/i", { reject: "/ZIP|batch/i" });
+  const text = await waitForValue(
+    client,
+    () => `navigator.clipboard.readText().catch(() => "")`,
+    8_000,
+    (value) => typeof value === "string" && /<svg[\s>]/i.test(value),
+  ).catch(() => "");
+  return {
+    ok: /<svg[\s>]/i.test(text),
+    length: typeof text === "string" ? text.length : 0,
+  };
+}
+
+async function verifySvgDownload(client, label) {
+  await fs.rm(downloadsDir, { recursive: true, force: true });
+  await fs.mkdir(downloadsDir, { recursive: true });
+  const before = new Set(await listDownloads());
+  await configureDownloads(client).catch(() => {});
+  await clickButtonMatching(client, "/Download/i", { reject: "/ZIP|batch/i" });
+  const file = await waitForDownload(before, ".svg", 12_000);
+  const fullPath = path.join(downloadsDir, file);
+  const text = await fs.readFile(fullPath, "utf8");
+  return {
+    ok: /<svg[\s>]/i.test(text),
+    file: `${label}:${file}`,
+    bytes: Buffer.byteLength(text),
+  };
+}
+
+async function verifyUpdatePreview(client, expectedEngine) {
+  const opened = await clickButtonIfPresent(client, "/Settings/i", { reject: "/Advanced/i" });
+  if (!opened) {
+    return { ok: true, status: "not-available" };
+  }
+  const clicked = await clickButtonIfPresent(client, "/Update preview/i");
+  if (!clicked) {
+    return { ok: true, status: "settings-open-no-update-preview" };
+  }
+  const output = await waitForOutput(client, 60_000, expectedEngine).catch((error) => ({
+    error: error instanceof Error ? error.message : String(error),
+  }));
+  if (output?.error) {
+    return { ok: false, status: output.error };
+  }
+  return { ok: Boolean(output?.hasOutput && !output?.hasGenericFailure), status: "updated" };
+}
+
+async function configureDownloads(client) {
+  const params = { behavior: "allow", downloadPath: downloadsDir };
+  try {
+    await client.send("Browser.setDownloadBehavior", params);
+  } catch {
+    await client.send("Page.setDownloadBehavior", params);
+  }
+}
+
+async function waitForDownload(before, extension, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastFiles = [];
+  while (Date.now() < deadline) {
+    lastFiles = await listDownloads();
+    const candidate = lastFiles.find(
+      (file) =>
+        !before.has(file) &&
+        file.toLowerCase().endsWith(extension) &&
+        !file.endsWith(".crdownload"),
+    );
+    if (candidate) return candidate;
+    await delay(250);
+  }
+  throw new Error(`Timed out waiting for ${extension} download. Files: ${lastFiles.join(", ")}`);
+}
+
+async function listDownloads() {
+  await fs.mkdir(downloadsDir, { recursive: true });
+  return fs.readdir(downloadsDir).catch(() => []);
+}
+
+async function clickButtonMatching(client, patternSource, options = {}) {
+  const clicked = await clickButtonIfPresent(client, patternSource, options);
+  if (!clicked) throw new Error(`No enabled button matched ${patternSource}.`);
+  return clicked;
+}
+
+async function clickButtonIfPresent(client, patternSource, options = {}) {
+  return evaluate(client, `(() => {
+    const pattern = ${patternSource};
+    const reject = ${options.reject || "null"};
+    const buttons = Array.from(document.querySelectorAll("button, a, [role='button'], summary"));
+    const target = buttons.find((candidate) => {
+      const text = candidate.innerText || candidate.getAttribute("aria-label") || "";
+      const rect = candidate.getBoundingClientRect();
+      const visible =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        getComputedStyle(candidate).visibility !== "hidden" &&
+        getComputedStyle(candidate).display !== "none";
+      return visible && !candidate.disabled && pattern.test(text) && !(reject && reject.test(text));
+    });
+    if (!target) return null;
+    const label = target.innerText.trim() || target.getAttribute("aria-label") || "";
+    for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
+      target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    }
+    target.click();
+    return label;
+  })()`);
 }
 
 async function openTab(url) {
@@ -237,6 +672,8 @@ async function openTab(url) {
   const client = new CdpClient(ws);
   client.targetUrl = target.url || url;
   await client.send("Runtime.enable");
+  await client.send("Page.enable").catch(() => {});
+  await client.send("Page.bringToFront").catch(() => {});
   await ensureTabAtUrl(client, url);
   return client;
 }
@@ -306,26 +743,143 @@ class CdpClient {
 }
 
 async function setFileInput(client, filePath) {
+  await setFileInputFiles(client, 'input[type="file"]', [filePath]);
+}
+
+async function setFileInputFiles(client, selector, filePaths) {
+  const expectedFileNames = filePaths.map((filePath) => path.basename(filePath));
   const { root } = await client.send("DOM.getDocument", {
     depth: -1,
     pierce: true,
   });
   const { nodeId } = await client.send("DOM.querySelector", {
     nodeId: root.nodeId,
-    selector: 'input[type="file"]',
+    selector,
   });
   if (!nodeId) {
     const debug = await getPageDebugState(client);
-    throw new Error(`No file input found. Page state: ${JSON.stringify(debug)}`);
+    throw new Error(`No file input found for ${selector}. Page state: ${JSON.stringify(debug)}`);
   }
-  await client.send("DOM.setFileInputFiles", { nodeId, files: [filePath] });
+  await client.send("DOM.setFileInputFiles", { nodeId, files: filePaths });
+  const filesAfterNodeSet = await evaluate(client, `(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    return input ? Array.from(input.files || []).map((file) => file.name) : null;
+  })()`).catch(() => []);
+  if (Array.isArray(filesAfterNodeSet) && filesAfterNodeSet.length === 0) {
+    try {
+      const { node } = await client.send("DOM.describeNode", { nodeId });
+      await client.send("DOM.setFileInputFiles", {
+        backendNodeId: node.backendNodeId,
+        files: filePaths,
+      });
+    } catch (error) {
+      const alreadyVisible = await evaluate(client, `(() => {
+        const body = document.body?.innerText || "";
+        return ${JSON.stringify(expectedFileNames)}.every((name) => body.includes(name));
+      })()`).catch(() => false);
+      if (!alreadyVisible) throw error;
+    }
+  }
   await evaluate(client, `(() => {
-    const input = document.querySelector('input[type="file"]');
+    const input = document.querySelector(${JSON.stringify(selector)});
     if (!input) return false;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
+}
+
+async function setFileInputFilesViaChooser(client, buttonPatternSource, filePaths) {
+  await client.send("Page.enable").catch(() => {});
+  await client.send("DOM.enable").catch(() => {});
+  await client.send("Page.setInterceptFileChooserDialog", { enabled: true }).catch(() => {});
+  const chooserPromise = waitForEvent(client, "Page.fileChooserOpened", 5_000);
+  await trustedClickButtonMatching(client, buttonPatternSource);
+  const event = await chooserPromise;
+  const backendNodeId = event.params?.backendNodeId;
+  if (!backendNodeId) throw new Error("File chooser opened without a backend node id.");
+  await client.send("DOM.setFileInputFiles", { backendNodeId, files: filePaths });
+  await client.send("Page.setInterceptFileChooserDialog", { enabled: false }).catch(() => {});
+}
+
+async function setFileInputFilesFromBuffers(client, selector, filePaths) {
+  const files = await Promise.all(
+    filePaths.map(async (filePath) => ({
+      name: path.basename(filePath),
+      type: mimeTypeForPath(filePath),
+      base64: (await fs.readFile(filePath)).toString("base64"),
+    })),
+  );
+  const applied = await evaluate(client, `(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    if (!input) return { ok: false, reason: "missing input" };
+    const dt = new DataTransfer();
+    for (const item of ${JSON.stringify(files)}) {
+      const binary = atob(item.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      dt.items.add(new File([bytes], item.name, { type: item.type }));
+    }
+    input.files = dt.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return {
+      ok: true,
+      files: Array.from(input.files || []).map((file) => ({ name: file.name, type: file.type, size: file.size })),
+    };
+  })()`);
+  if (!applied?.ok) throw new Error(`Could not set files through browser DataTransfer: ${applied?.reason || "unknown"}`);
+}
+
+function mimeTypeForPath(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".svg") return "image/svg+xml";
+  return "application/octet-stream";
+}
+
+async function trustedClickButtonMatching(client, patternSource, options = {}) {
+  const point = await evaluate(client, `(() => {
+    const pattern = ${patternSource};
+    const reject = ${options.reject || "null"};
+    const controls = Array.from(document.querySelectorAll("button, a, [role='button'], summary"));
+    const target = controls.find((candidate) => {
+      const text = candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "";
+      const rect = candidate.getBoundingClientRect();
+      const visible =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        getComputedStyle(candidate).visibility !== "hidden" &&
+        getComputedStyle(candidate).display !== "none";
+      return visible && !candidate.disabled && pattern.test(text) && !(reject && reject.test(text));
+    });
+    if (!target) return null;
+    const rect = target.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  if (!point) throw new Error(`No visible button matched ${patternSource}.`);
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: point.x,
+    y: point.y,
+    button: "none",
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: point.x,
+    y: point.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: point.x,
+    y: point.y,
+    button: "left",
+    clickCount: 1,
+  });
 }
 
 async function createCdpTarget(url) {
@@ -386,9 +940,23 @@ async function getPageDebugState(client) {
       title: document.title,
       readyState: document.readyState,
       fileInputs: document.querySelectorAll('input[type="file"]').length,
+      fileInputDetails: Array.from(document.querySelectorAll('input[type="file"]')).map((input) => ({
+        multiple: Boolean(input.multiple),
+        accept: input.getAttribute("accept"),
+        files: Array.from(input.files || []).map((file) => ({ name: file.name, size: file.size, type: file.type })),
+      })),
       forms: document.querySelectorAll("form").length,
       buttons: Array.from(document.querySelectorAll("button")).slice(0, 12).map((button) => button.innerText.trim()),
-      bodyText: (document.body?.innerText || "").slice(0, 500),
+      controls: Array.from(document.querySelectorAll("button, a, [role='button'], summary")).map((control) => ({
+        text: (control.innerText || control.textContent || control.getAttribute("aria-label") || "").trim(),
+        tag: control.tagName,
+        visible: (() => {
+          const rect = control.getBoundingClientRect();
+          const style = getComputedStyle(control);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+        })(),
+      })).filter((control) => /Settings|Batch|Download|Copy|Convert|Choose/i.test(control.text)).slice(0, 80),
+      bodyText: (document.body?.innerText || "").slice(0, 2000),
     }))()`);
   } catch (error) {
     return {
@@ -413,11 +981,7 @@ async function selectVTracerPreset(client, route) {
     const preferredMatchers = ${JSON.stringify(routeSpecificMatchers)}.map((source) => new RegExp(source, "i")).concat([
       /^Layered color SVG\\b/i,
       /^Layered - /i,
-      /^WebP Edge - /i,
-      /^Photo Edge - (Normal|Contour|Strong|Soft|Poster|High Contrast|Minimal)/i,
       /^Sticker - /i,
-      /^Sketch - /i,
-      /^Drawing - /i,
     ]);
     let button = null;
     for (const matcher of preferredMatchers) {
@@ -434,14 +998,75 @@ async function selectVTracerPreset(client, route) {
   })()`);
 }
 
+async function selectPotracePreset(client, route) {
+  await evaluate(client, `(() => {
+    const button = Array.from(document.querySelectorAll("button"))
+      .find((candidate) => /^Show \\d+ more presets/i.test(candidate.innerText || ""));
+    if (button) button.click();
+    return Boolean(button);
+  })()`);
+  await delay(250);
+  const routeSpecificMatchers = getRoutePotracePresetMatchers(route);
+  return evaluate(client, `(() => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const reject = /Show|Clear|Convert|Download|Copy|Settings|Search presets|Filter presets|Layered color|Sticker/i;
+    const preferredMatchers = ${JSON.stringify(routeSpecificMatchers)}.map((source) => new RegExp(source, "i")).concat([
+      /^Lineart - Accurate\\b/i,
+      /^Lineart - Clean\\b/i,
+      /^Lineart - Bold\\b/i,
+      /^Black and White\\b/i,
+      /^Logo - Clean\\b/i,
+      /^Scan - Clean\\b/i,
+      /^Cricut - Clean\\b/i,
+    ]);
+    let button = null;
+    for (const matcher of preferredMatchers) {
+      button = buttons.find((candidate) => {
+        const text = candidate.innerText || "";
+        if (candidate.disabled || reject.test(text)) return false;
+        return matcher.test(text.trim());
+      });
+      if (button) break;
+    }
+    if (!button) return null;
+    button.click();
+    return button.innerText.trim();
+  })()`);
+}
+
 function getRoutePresetMatchers(route) {
+  if (process.env.VTRACER_PRESET_PATTERN) {
+    return [process.env.VTRACER_PRESET_PATTERN];
+  }
+  if (route.path === "/") {
+    return ["^Layered color SVG\\b", "^Sticker - "];
+  }
   if (route.path === "/webp-to-svg-converter") {
-    return ["^Layered color SVG\\b", "^WebP Edge - ", "^Photo Edge - (Minimal|Contour|High Contrast)"];
+    return ["^Layered color SVG\\b", "^Sticker - "];
   }
   if (route.path.includes("layered")) {
     return ["^Layered color SVG\\b", "^Layered - "];
   }
-  return ["^Layered color SVG\\b", "^Photo Edge - (Normal|Contour|Strong|Soft|Poster|High Contrast|Minimal)"];
+  return ["^Layered color SVG\\b", "^Sticker - "];
+}
+
+function getRoutePotracePresetMatchers(route) {
+  if (process.env.POTRACE_PRESET_PATTERN) {
+    return [process.env.POTRACE_PRESET_PATTERN];
+  }
+  if (route.path === "/") {
+    return ["^Sketch - Clean Lines", "^Drawing - Smooth Ink", "^Lineart - Accurate"];
+  }
+  if (route.path.includes("logo")) {
+    return ["^Logo - Clean", "^Logo - Sharp", "^Lineart - Accurate"];
+  }
+  if (route.path.includes("scan")) {
+    return ["^Scan - Clean", "^Scanned", "^Lineart - Accurate"];
+  }
+  if (route.path.includes("cricut")) {
+    return ["^Cricut - Clean", "^Lineart - Clean", "^Lineart - Accurate"];
+  }
+  return ["^Lineart - Accurate", "^Lineart - Clean", "^Lineart - Bold"];
 }
 
 async function clickConvertButton(client) {
@@ -459,7 +1084,7 @@ async function clickConvertButton(client) {
     });
     if (!button) return null;
     const label = button.innerText.trim();
-    for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
+    for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
       button.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
     }
     button.click();
@@ -478,10 +1103,48 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
           const engine = candidate.getAttribute("data-engine-used");
           return engine === "vtracer" || engine === "potrace";
         });
+      const debug = Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__)
+        ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__
+        : [];
+      const lastClientSuccess = [...debug].reverse().find((event) => event.stage === "client-attempt-success" && event.engineUsed);
+      const lastFallback = [...debug].reverse().find((event) => event.stage === "server-fallback-submit");
       const body = document.body.innerText || "";
+      const hasOutputControls = /Copy SVG/i.test(body) && /Download/i.test(body);
+      const inferredEngine = output
+        ? output.getAttribute("data-engine-used")
+        : lastClientSuccess?.engineUsed || (lastFallback && hasOutputControls ? "potrace" : null);
+      const previewImages = output ? Array.from(output.querySelectorAll("img")) : [];
+      const outputText = output?.innerText || "";
+      const previewDecoded = previewImages.some((image) =>
+        image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
+      );
+      const hasBrokenPreview = previewImages.some((image) =>
+        image.complete && image.naturalWidth === 0
+      );
+      let previewParseError = "";
+      let previewParseExcerpt = "";
+      const previewSrc = previewImages[0]?.getAttribute("src") || "";
+      if (previewSrc.startsWith("data:image/svg+xml")) {
+        const encoded = previewSrc.slice(previewSrc.indexOf(",") + 1);
+        const decoded = decodeURIComponent(encoded);
+        const parsed = new DOMParser().parseFromString(decoded, "image/svg+xml");
+        previewParseError = parsed.querySelector("parsererror")?.textContent?.slice(0, 400) || "";
+        if (previewParseError) {
+          const line = decoded.split(/\\r?\\n/)[3] || decoded;
+          previewParseExcerpt = line.slice(3800, 4100);
+        }
+      }
       return {
         hasOutput: Boolean(output),
-        engineUsed: output ? output.getAttribute("data-engine-used") : null,
+        engineUsed: inferredEngine,
+        previewDecoded,
+        hasBrokenPreview,
+        previewImageCount: previewImages.length,
+        previewSrcPrefix: previewSrc.slice(0, 600),
+        previewParseError,
+        previewParseExcerpt,
+        hasDerivedLabel: /Derived from Output/i.test(outputText),
+        outputTitle: outputText.split(/\\r?\\n/).find((line) => /Output \\d+/i.test(line)) || "",
         sourceKind: output ? output.getAttribute("data-source-kind") : null,
         warnings: output ? output.getAttribute("data-engine-warnings") : "",
         capabilities: {
@@ -497,8 +1160,8 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
     (value) =>
       value?.hasGenericFailure ||
       (expectedEngine
-        ? value?.hasOutput && value.engineUsed === expectedEngine
-        : value?.hasOutput),
+        ? value?.hasOutput && value.engineUsed === expectedEngine && value.previewDecoded && !value.hasBrokenPreview && !value.hasDerivedLabel
+        : value?.hasOutput && value.previewDecoded && !value.hasBrokenPreview && !value.hasDerivedLabel),
   );
 }
 
@@ -626,11 +1289,17 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function safeName(value) {
+  return String(value || "route").replace(/[^a-z0-9._-]+/gi, "-").slice(0, 80);
+}
+
 function isIgnorableDevConsoleMessage(message) {
   return (
     /ws:\/\/127\.0\.0\.1:24678/i.test(message) ||
     /WebSocket connection .*24678/i.test(message) ||
     /WebSocket closed without opened/i.test(message) ||
+    /Failed to load resource: net::ERR_FILE_NOT_FOUND/i.test(message) ||
+    /Framing 'https:\/\/www\.google\.com\/' violates .*report-only Content Security Policy/i.test(message) ||
     /server responded with a status of 404/i.test(message)
   );
 }
