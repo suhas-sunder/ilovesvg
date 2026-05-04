@@ -121,6 +121,7 @@ async function auditTracingArchitecture() {
     "CLIENT_MAX_SIDE",
     "Layered color tracing is routed to VTracer",
     "current line-art/cut-file parity",
+    "\"line-\"",
   ]) {
     if (!enginePolicy.includes(token)) {
       fatal.push(`Engine policy is missing expected routing/safety token: ${token}`);
@@ -135,6 +136,10 @@ async function auditTracingArchitecture() {
     "worker.postMessage",
     "engineUsed: \"vtracer\"",
     "45_000",
+    "getUnusableTraceResultReason",
+    "Browser tracing returned an empty SVG",
+    "Browser tracing returned invalid SVG",
+    "SVG with no drawable content",
   ]) {
     if (!workerClient.includes(token)) {
       fatal.push(`VTracer worker client is missing required token: ${token}`);

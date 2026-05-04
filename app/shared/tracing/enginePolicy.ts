@@ -17,6 +17,8 @@ const CLIENT_MAX_PIXELS = 8_000_000;
 const CLIENT_MAX_SIDE = 2600;
 
 const LEGACY_POTRACE_PRESET_TERMS = [
+  "line-",
+  "line_",
   "lineart",
   "line-art",
   "line_art",

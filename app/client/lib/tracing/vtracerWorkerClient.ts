@@ -148,6 +148,12 @@ export async function tryTraceRasterInClient(input: {
         [buffer],
       );
     });
+
+    const unusableReason = getUnusableTraceResultReason(result);
+    if (unusableReason) {
+      return { ok: false, reason: unusableReason };
+    }
+
     return { ok: true, result };
   } catch (error) {
     return {
@@ -160,4 +166,36 @@ export async function tryTraceRasterInClient(input: {
   } finally {
     worker.terminate();
   }
+}
+
+function getUnusableTraceResultReason(result: TraceResult): string | null {
+  const svg = typeof result.svg === "string" ? result.svg.trim() : "";
+  if (!svg) {
+    return "Browser tracing returned an empty SVG. Falling back to the server engine.";
+  }
+
+  if (!/^<svg\b/i.test(svg) || !/(<\/svg>|\/>\s*)$/i.test(svg)) {
+    return "Browser tracing returned invalid SVG. Falling back to the server engine.";
+  }
+
+  const width = Number(result.width);
+  const height = Number(result.height);
+  if (
+    !Number.isFinite(width) ||
+    width <= 0 ||
+    !Number.isFinite(height) ||
+    height <= 0
+  ) {
+    return "Browser tracing returned invalid SVG dimensions. Falling back to the server engine.";
+  }
+
+  if (
+    !/<(?:path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b/i.test(
+      svg,
+    )
+  ) {
+    return "Browser tracing returned SVG with no drawable content. Falling back to the server engine.";
+  }
+
+  return null;
 }
