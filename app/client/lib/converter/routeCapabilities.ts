@@ -130,6 +130,7 @@ const ROUTE_GROUPS: Record<string, ConverterRouteGroup> = {
   "svg-flip-and-rotate-editor": "svg-utility",
   "svg-dimensions-inspector": "svg-utility",
   "svg-file-size-inspector": "svg-utility",
+  "svg-embed-code-generator": "svg-utility",
   "svg-accessibility-and-contrast-checker": "svg-utility",
 
   "text-to-svg-converter": "text-svg",

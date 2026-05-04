@@ -6,6 +6,11 @@
     "build": "react-router build",
     "dev": "cross-env NODE_ENV=development node server.js",
     "start": "node server.js",
+    "test": "npm run test:trace-engine && npm run test:trace-quality",
+    "test:conversion-actions": "node scripts/conversion-action-smoke.mjs",
+    "test:routes": "node scripts/route-http-smoke.mjs",
+    "test:trace-engine": "node scripts/trace-engine-audit.mjs",
+    "test:trace-quality": "node scripts/trace-quality-smoke.mjs",
     "typecheck": "react-router typegen && tsc -b"
   },
   "dependencies": {

@@ -56,7 +56,11 @@ export async function tryTraceRasterInClient(input: {
   const browserCanRunWorker =
     typeof Worker !== "undefined" &&
     typeof Blob !== "undefined" &&
-    typeof ArrayBuffer !== "undefined";
+    typeof ArrayBuffer !== "undefined" &&
+    typeof WebAssembly !== "undefined" &&
+    typeof fetch !== "undefined" &&
+    typeof createImageBitmap !== "undefined" &&
+    typeof OffscreenCanvas !== "undefined";
 
   const settings: NormalizedTraceSettings = {
     ...input.settings,
