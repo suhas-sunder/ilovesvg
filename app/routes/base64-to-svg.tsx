@@ -327,6 +327,14 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    const { validateContentLength } = await import("~/utils/backendSecurity.server");
+    const contentLengthError = validateContentLength(
+      request,
+      MAX_RASTER_TRACE_BYTES * 2,
+      "Base64 image request too large. Try a smaller image.",
+    );
+    if (contentLengthError) return contentLengthError;
+
     const rateLimit = checkRateLimit(
       request,
       BACKEND_CONVERSION_RATE_LIMITS,

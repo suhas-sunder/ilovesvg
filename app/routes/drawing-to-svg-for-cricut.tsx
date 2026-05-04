@@ -363,7 +363,15 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (isSvgFile(webFile)) {
       const svgText = await webFile.text();
-      const editableSvg = buildEditableSvgFromUploadedSvg(svgText);
+      const { sanitizeSvgMarkup } = await import("~/utils/svgSanitize.server");
+      const sanitizedSvg = sanitizeSvgMarkup(svgText);
+      if (!sanitizedSvg.ok) {
+        return json(
+          { error: sanitizedSvg.message, code: sanitizedSvg.code },
+          { status: 415 },
+        );
+      }
+      const editableSvg = buildEditableSvgFromUploadedSvg(sanitizedSvg.svg);
 
       return json({
         svg: editableSvg.svg,

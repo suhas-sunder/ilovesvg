@@ -615,15 +615,19 @@ async function fetchTwemojiSvg(code: string): Promise<string | null> {
     });
     if (!res.ok) return null;
     const txt = await res.text();
+    const { sanitizeSvgMarkup } = await import("~/utils/svgSanitize.server");
+    const sanitized = sanitizeSvgMarkup(txt);
+    if (!sanitized.ok) return null;
+    const safeSvg = sanitized.svg;
 
     // Cache with simple FIFO eviction
-    cache.map.set(code, txt);
+    cache.map.set(code, safeSvg);
     cache.order.push(code);
     if (cache.order.length > cache.max) {
       const old = cache.order.shift();
       if (old) cache.map.delete(old);
     }
-    return txt;
+    return safeSvg;
   } catch {
     return null;
   }

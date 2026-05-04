@@ -163,10 +163,18 @@ export async function action({ request }: ActionFunctionArgs) {
       checkBackendConversionRateLimit,
       createRateLimitedResponse,
       validateSameOrigin,
+      validateContentLength,
+      validateMultipartFileCount,
     } = await import("~/utils/backendSecurity.server");
 
     const originError = validateSameOrigin(request);
     if (originError) return originError;
+    const contentLengthError = validateContentLength(
+      request,
+      MAX_FONT_BYTES + 2 * 1024 * 1024,
+      "Text/font request too large. Please use a smaller font file.",
+    );
+    if (contentLengthError) return contentLengthError;
 
     const rateLimit = checkBackendConversionRateLimit(
       request,
@@ -179,6 +187,8 @@ export async function action({ request }: ActionFunctionArgs) {
       maxPartSize: Math.max(MAX_FONT_BYTES, 2 * 1024 * 1024),
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const fileCountError = validateMultipartFileCount(form, 1);
+    if (fileCountError) return fileCountError;
 
     const textRaw = String(form.get("text") ?? "");
     if (!textRaw.trim())

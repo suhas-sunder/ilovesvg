@@ -37,6 +37,7 @@ export function AdSenseDelayed({
   const pushedSlotRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const retryRef = useRef<number | null>(null);
+  const fillCheckTimersRef = useRef<number[]>([]);
   const insRef = useRef<HTMLModElement | null>(null);
 
   const reserveHeight = maxHeight ?? minHeight;
@@ -80,6 +81,13 @@ export function AdSenseDelayed({
     }
   };
 
+  const clearFillCheckTimers = () => {
+    for (const timer of fillCheckTimersRef.current) {
+      window.clearTimeout(timer);
+    }
+    fillCheckTimersRef.current = [];
+  };
+
   const tryPush = () => {
     if (typeof window === "undefined" || !window.adsbygoogle) return false;
     if (pushedSlotRef.current === slot) return true;
@@ -91,10 +99,10 @@ export function AdSenseDelayed({
       (window.adsbygoogle = window.adsbygoogle || []).push({});
       pushedSlotRef.current = slot;
 
-      window.setTimeout(updateFilled, 250);
-      window.setTimeout(updateFilled, 900);
-      window.setTimeout(updateFilled, 2000);
-      window.setTimeout(updateFilled, 4000);
+      clearFillCheckTimers();
+      fillCheckTimersRef.current = [250, 900, 2000, 4000].map((ms) =>
+        window.setTimeout(updateFilled, ms),
+      );
 
       return true;
     } catch {
@@ -136,6 +144,7 @@ export function AdSenseDelayed({
 
     clearTimer();
     clearRetry();
+    clearFillCheckTimers();
 
     if (afterInteraction) {
       window.addEventListener("pointerdown", onFirstInteraction, {
@@ -151,6 +160,7 @@ export function AdSenseDelayed({
       removeInteractionListeners();
       clearTimer();
       clearRetry();
+      clearFillCheckTimers();
     };
   }, [slot, delayMs, afterInteraction]);
 
