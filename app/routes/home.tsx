@@ -50,7 +50,16 @@ import {
   type BatchSpeedTier,
 } from "~/client/lib/converter/batchLimits";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
+import { OutputAppearanceControls } from "~/client/components/converter/TraceOutputPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import {
+  DEFAULT_OUTPUT_APPEARANCE,
+  applyOutputAppearanceToSvg,
+  detectOutputAppearanceSupport,
+  hasOutputAppearanceChanges,
+  normalizeOutputAppearance,
+  type OutputAppearanceSettings,
+} from "~/client/lib/converter/outputAppearance";
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
@@ -2378,6 +2387,7 @@ type HistoryItem = {
   sourceFileName?: string;
   enginePathLabel?: string;
   canCancel?: boolean;
+  appearance?: OutputAppearanceSettings;
 };
 
 type HistoryPreviewData = {
@@ -2594,12 +2604,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     item.jobStatus === "queued" || item.jobStatus === "running",
   );
   const [jobNowMs, setJobNowMs] = React.useState(() => Date.now());
+  const [focusedOutputStamp, setFocusedOutputStamp] = React.useState<
+    number | null
+  >(null);
+  const [collapsedOutputStamps, setCollapsedOutputStamps] = React.useState<
+    ReadonlySet<number>
+  >(() => new Set());
+  const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<
+    number | null
+  >(null);
 
   React.useEffect(() => {
     if (!hasActiveHistoryJob) return;
     const interval = window.setInterval(() => setJobNowMs(Date.now()), 1_000);
     return () => window.clearInterval(interval);
   }, [hasActiveHistoryJob]);
+
+  React.useEffect(() => {
+    if (focusedOutputStamp == null) return;
+    if (history.some((item) => item.stamp === focusedOutputStamp)) return;
+    setFocusedOutputStamp(null);
+  }, [focusedOutputStamp, history]);
+
+  React.useEffect(() => {
+    if (focusedOutputStamp == null) return;
+    const stamp = focusedOutputStamp;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeFocusedEditor(stamp);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusedOutputStamp]);
 
   React.useEffect(() => {
     activeHistoryStampRef.current = activeHistoryStamp;
@@ -3742,7 +3779,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const edited = item.layers?.length
       ? applyLayerEditsToSvg(item.svg, item.layers)
       : item.svg;
-    return applySvgSizeAttributes(edited, item.width, item.height);
+    const sized = applySvgSizeAttributes(edited, item.width, item.height);
+    const appearance = normalizeOutputAppearance(item.appearance);
+    if (!hasOutputAppearanceChanges(appearance)) return sized;
+    return applyOutputAppearanceToSvg(
+      sized,
+      appearance,
+      detectOutputAppearanceSupport(sized, { precisionOutput: false }),
+    );
   }
 
   function getHistoryPreviewData(item: HistoryItem): HistoryPreviewData {
@@ -3766,6 +3810,65 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       svg,
       src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     };
+  }
+
+  function setOutputAppearance(
+    stamp: number,
+    patch: Partial<OutputAppearanceSettings>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              appearance: normalizeOutputAppearance({
+                ...(item.appearance ?? DEFAULT_OUTPUT_APPEARANCE),
+                ...patch,
+              }),
+              batch: clearOutputBatchResult(item.batch),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function resetOutputAppearance(stamp: number) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              appearance: DEFAULT_OUTPUT_APPEARANCE,
+              batch: clearOutputBatchResult(item.batch),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function toggleCollapsedOutput(stamp: number) {
+    setCollapsedOutputStamps((current) => {
+      const next = new Set(current);
+      if (next.has(stamp)) next.delete(stamp);
+      else next.add(stamp);
+      return next;
+    });
+  }
+
+  function closeFocusedEditor(stamp: number) {
+    setFocusedOutputStamp(null);
+    setHighlightedOutputStamp(stamp);
+    window.setTimeout(() => {
+      const card = document.querySelector<HTMLElement>(
+        `[data-output-stamp="${stamp}"]`,
+      );
+      card?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const action = card?.querySelector<HTMLElement>("[data-output-primary-action]");
+      (action || card)?.focus?.({ preventScroll: true });
+    }, 80);
+    window.setTimeout(() => {
+      setHighlightedOutputStamp((current) => (current === stamp ? null : current));
+    }, 1_500);
   }
 
   function getTraceJobElapsedMs(item: HistoryItem, nowMs: number) {
@@ -4022,7 +4125,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
 
             {/* RESULTS */}
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
+            <div
+              data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
+              className={[
+                "order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+                focusedOutputStamp != null
+                  ? "md:col-span-2 md:max-h-none md:self-start"
+                  : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
+              ].join(" ")}
+            >
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item, index) => {
@@ -4040,9 +4151,107 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const batch = item.batch || createOutputBatchState();
                     const batchDynamicMax = getOutputBatchDynamicMax(item);
                     const displayName = getHistoryDisplayName(item);
+                    const focused = focusedOutputStamp === item.stamp;
+                    if (focusedOutputStamp != null && !focused) return null;
+                    const collapsed =
+                      !focused && collapsedOutputStamps.has(item.stamp);
+                    const appearance = normalizeOutputAppearance(item.appearance);
+                    const appearanceSupport =
+                      (focused || item.settingsOpen) && item.svg
+                        ? detectOutputAppearanceSupport(
+                            applySvgSizeAttributes(
+                              item.layers?.length
+                                ? applyLayerEditsToSvg(item.svg, item.layers)
+                                : item.svg,
+                              item.width,
+                              item.height,
+                            ),
+                            { precisionOutput: false },
+                          )
+                        : null;
+                    const appearanceControls =
+                      appearanceSupport && !isActiveJob && !isFailedJob ? (
+                        <OutputAppearanceControls
+                          settings={appearance}
+                          support={appearanceSupport}
+                          onChange={(patch) =>
+                            setOutputAppearance(item.stamp, patch)
+                          }
+                          onReset={() => resetOutputAppearance(item.stamp)}
+                        />
+                      ) : null;
+                    if (collapsed) {
+                      return (
+                        <div
+                          key={item.stamp}
+                          tabIndex={-1}
+                          data-output-stamp={item.stamp}
+                          data-focused-editor="false"
+                          data-collapse-state="collapsed"
+                          data-job-status={item.jobStatus || "succeeded"}
+                          data-engine-used={item.engineUsed || "unknown"}
+                          className="rounded-xl border border-slate-200 bg-white p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="m-0 truncate text-[13px] font-bold text-slate-800">
+                                {displayName}
+                              </p>
+                              <p className="m-0 mt-0.5 text-[12px] text-slate-600">
+                                {isActiveJob
+                                  ? `${item.jobStatus === "queued" ? "Queued" : "Running"} - ${formatTraceJobElapsed(getTraceJobElapsedMs(item, jobNowMs))}`
+                                  : isFailedJob
+                                    ? item.jobStatus === "canceled"
+                                      ? "Canceled"
+                                      : "Failed"
+                                    : `${item.width} x ${item.height} px`}
+                                {item.engineUsed ? ` - ${item.engineUsed}` : ""}
+                                {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                                {hasOutputAppearanceChanges(appearance)
+                                  ? " - appearance adjusted"
+                                  : ""}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {isActiveJob && item.canCancel && item.jobId && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    cancelOutputJob(item.jobId!, item.stamp)
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              {isFailedJob && (
+                                <button
+                                  type="button"
+                                  onClick={() => retryOutputJob(item.stamp)}
+                                  className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                >
+                                  Retry
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => toggleCollapsedOutput(item.stamp)}
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
+                              >
+                                Restore
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                     <div
                       key={item.stamp}
+                      tabIndex={-1}
+                      data-output-stamp={item.stamp}
+                      data-focused-editor={focused ? "true" : "false"}
+                      data-collapse-state="expanded"
                       data-engine-used={item.engineUsed || "unknown"}
                       data-source-kind={item.sourceKind || "unknown"}
                       data-engine-warnings={(item.warnings || []).join(" | ")}
@@ -4052,8 +4261,37 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       data-output-detected-colors={item.outputDetectedColors ?? ""}
                       data-path-count={item.pathCount ?? ""}
                       data-svg-bytes={item.svgBytes ?? ""}
-                      className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
+                      className={[
+                        "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                        focused ? "shadow-xl" : "",
+                        highlightedOutputStamp === item.stamp
+                          ? "ring-2 ring-sky-300"
+                          : "",
+                      ].join(" ")}
                     >
+                      {focused && (
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="m-0 text-sm font-bold text-sky-950">
+                              Editing {displayName}
+                            </p>
+                            <p className="m-0 mt-0.5 text-[12px] text-slate-600">
+                              {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
+                              {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (item.settingsOpen) toggleOutputSettings(item.stamp);
+                              closeFocusedEditor(item.stamp);
+                            }}
+                            className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            Done editing
+                          </button>
+                        </div>
+                      )}
                       <div className="flex gap-3 items-center flex-wrap justify-between">
                         <span className="text-[13px] font-semibold text-slate-700">
                           {displayName}
@@ -4182,14 +4420,31 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => toggleOutputSettings(item.stamp)}
+                          onClick={() => toggleCollapsedOutput(item.stamp)}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                        >
+                          Minimize
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!item.settingsOpen) toggleOutputSettings(item.stamp);
+                            setFocusedOutputStamp(item.stamp);
+                            setCollapsedOutputStamps((current) => {
+                              if (!current.has(item.stamp)) return current;
+                              const next = new Set(current);
+                              next.delete(item.stamp);
+                              return next;
+                            });
+                          }}
                           disabled={!item.svg}
-                          aria-expanded={!!item.settingsOpen}
+                          data-output-primary-action="true"
+                          aria-expanded={focused || !!item.settingsOpen}
                           aria-controls={`output-settings-${item.stamp}`}
                           className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                         >
                           <SettingsGearIcon />
-                          <span className="ml-1">Settings</span>
+                          <span className="ml-1">Settings / Edit</span>
                         </button>
                       </div>
 
@@ -4199,10 +4454,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </p>
                       )}
 
-                      {item.settingsOpen && (
+                      {(focused || item.settingsOpen) && (
                         <div
                           id={`output-settings-${item.stamp}`}
-                          className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
+                          className={[
+                            "mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2",
+                            focused ? "lg:float-right lg:ml-3 lg:w-[380px] lg:max-w-[42%]" : "",
+                          ].join(" ")}
                         >
                           <TraceAdvancedSettingsPanel
                             id={`output-settings-panel-${item.stamp}`}
@@ -4245,35 +4503,40 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             liveSectionTitle="Live preview edits"
                             liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
                             livePreviewLead={
-                              item.layers?.length ? (
-                                <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                  <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                    Layer colors
-                                  </p>
-                                  <LayerPaletteEditor
-                                    item={item}
-                                    onColorChange={(layerId, color) =>
-                                      setHistoryLayer(item.stamp, layerId, {
-                                        color,
-                                      })
-                                    }
-                                    onVisibilityChange={(layerId, visible) =>
-                                      setHistoryLayer(item.stamp, layerId, {
-                                        visible,
-                                      })
-                                    }
-                                    onOpacityChange={(layerId, opacity) =>
-                                      setHistoryLayer(item.stamp, layerId, {
-                                        opacity,
-                                      })
-                                    }
-                                    onResetLayer={(layerId) =>
-                                      resetHistoryLayer(item.stamp, layerId)
-                                    }
-                                    onResetAll={() =>
-                                      resetAllHistoryLayers(item.stamp)
-                                    }
-                                  />
+                              appearanceControls || item.layers?.length ? (
+                                <div className="grid gap-2">
+                                  {appearanceControls}
+                                  {item.layers?.length ? (
+                                    <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                      <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                        Layer colors
+                                      </p>
+                                      <LayerPaletteEditor
+                                        item={item}
+                                        onColorChange={(layerId, color) =>
+                                          setHistoryLayer(item.stamp, layerId, {
+                                            color,
+                                          })
+                                        }
+                                        onVisibilityChange={(layerId, visible) =>
+                                          setHistoryLayer(item.stamp, layerId, {
+                                            visible,
+                                          })
+                                        }
+                                        onOpacityChange={(layerId, opacity) =>
+                                          setHistoryLayer(item.stamp, layerId, {
+                                            opacity,
+                                          })
+                                        }
+                                        onResetLayer={(layerId) =>
+                                          resetHistoryLayer(item.stamp, layerId)
+                                        }
+                                        onResetAll={() =>
+                                          resetAllHistoryLayers(item.stamp)
+                                        }
+                                      />
+                                    </div>
+                                  ) : null}
                                 </div>
                               ) : null
                             }
@@ -4437,7 +4700,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </div>
                       )}
 
-                      <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                      <div
+                        className={[
+                          "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",
+                          focused
+                            ? "min-h-[420px] lg:sticky lg:top-4"
+                            : "min-h-[240px]",
+                        ].join(" ")}
+                      >
                         <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
                           <PreviewHistoryArrowButton
                             direction="left"

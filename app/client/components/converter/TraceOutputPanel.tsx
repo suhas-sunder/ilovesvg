@@ -18,6 +18,14 @@ import {
   LayerPaletteEditor,
   type EditableSvgLayer,
 } from "~/client/components/svg/LayerPaletteEditor";
+import {
+  DEFAULT_OUTPUT_APPEARANCE,
+  applyOutputAppearanceToSvg,
+  detectOutputAppearanceSupport,
+  hasOutputAppearanceChanges,
+  normalizeOutputAppearance,
+  type OutputAppearanceSettings,
+} from "~/client/lib/converter/outputAppearance";
 
 type OutputVersion<TSettings extends MixedTraceSettings> = {
   svg: string;
@@ -73,6 +81,7 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   sourceFileName?: string;
   enginePathLabel?: string;
   canCancel?: boolean;
+  appearance?: OutputAppearanceSettings;
 };
 
 export type TraceOutputLayerPatch = {
@@ -81,7 +90,21 @@ export type TraceOutputLayerPatch = {
   opacity?: number;
 };
 
+const outputAppearanceStore = new Map<string, OutputAppearanceSettings>();
+
 export function getTraceOutputSvg<TSettings extends MixedTraceSettings>(
+  item: TraceOutputItem<TSettings>,
+): string {
+  const baseSvg = getTraceOutputBaseSvg(item);
+  const appearance = getStoredOutputAppearance(item);
+  if (!hasOutputAppearanceChanges(appearance)) return baseSvg;
+  const support = detectOutputAppearanceSupport(baseSvg, {
+    precisionOutput: isPrecisionOutputItem(item),
+  });
+  return applyOutputAppearanceToSvg(baseSvg, appearance, support);
+}
+
+export function getTraceOutputBaseSvg<TSettings extends MixedTraceSettings>(
   item: TraceOutputItem<TSettings>,
 ): string {
   const edited = getEditedSvg(item.svg, item.layers);
@@ -249,6 +272,16 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
 }: TraceOutputPanelProps<TSettings>) {
   const hasActiveJob = history.some((item) => isTraceJobActive(item.jobStatus));
   const [nowMs, setNowMs] = React.useState(() => Date.now());
+  const [focusedOutputStamp, setFocusedOutputStamp] = React.useState<
+    number | null
+  >(null);
+  const [collapsedOutputStamps, setCollapsedOutputStamps] = React.useState<
+    ReadonlySet<number>
+  >(() => new Set());
+  const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<
+    number | null
+  >(null);
+  const [appearanceVersion, setAppearanceVersion] = React.useState(0);
 
   React.useEffect(() => {
     if (!hasActiveJob) return;
@@ -256,8 +289,82 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     return () => window.clearInterval(interval);
   }, [hasActiveJob]);
 
+  React.useEffect(() => {
+    if (focusedOutputStamp == null) return;
+    if (history.some((item) => item.stamp === focusedOutputStamp)) return;
+    setFocusedOutputStamp(null);
+  }, [focusedOutputStamp, history]);
+
+  React.useEffect(() => {
+    if (focusedOutputStamp == null) return;
+    const stamp = focusedOutputStamp;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeFocusedEditor(stamp);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusedOutputStamp]);
+
+  function closeFocusedEditor(stamp: number) {
+    setFocusedOutputStamp(null);
+    setHighlightedOutputStamp(stamp);
+    window.setTimeout(() => {
+      const card = document.querySelector<HTMLElement>(
+        `[data-output-stamp="${stamp}"]`,
+      );
+      card?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const focusTarget = card?.querySelector<HTMLElement>(
+        "[data-output-primary-action]",
+      );
+      (focusTarget || card)?.focus?.({ preventScroll: true });
+    }, 80);
+    window.setTimeout(() => {
+      setHighlightedOutputStamp((current) => (current === stamp ? null : current));
+    }, 1_500);
+  }
+
+  function toggleCollapsedOutput(stamp: number) {
+    setCollapsedOutputStamps((current) => {
+      const next = new Set(current);
+      if (next.has(stamp)) next.delete(stamp);
+      else next.add(stamp);
+      return next;
+    });
+  }
+
+  function setOutputAppearance(
+    item: TraceOutputItem<TSettings>,
+    patch: Partial<OutputAppearanceSettings>,
+  ) {
+    const key = getOutputAppearanceKey(item);
+    const current = getStoredOutputAppearance(item);
+    const next = normalizeOutputAppearance({ ...current, ...patch });
+    outputAppearanceStore.set(key, next);
+    setAppearanceVersion((value) => value + 1);
+  }
+
+  function resetOutputAppearance(item: TraceOutputItem<TSettings>) {
+    outputAppearanceStore.set(getOutputAppearanceKey(item), DEFAULT_OUTPUT_APPEARANCE);
+    setAppearanceVersion((value) => value + 1);
+  }
+
+  const focusedMode = focusedOutputStamp != null;
+  void appearanceVersion;
+
   return (
-    <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
+    <div
+      data-focused-editor={focusedMode ? "true" : "false"}
+      className={[
+        "order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+        focusedMode
+          ? "md:col-span-2 md:max-h-none md:self-start"
+          : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
+      ].join(" ")}
+    >
       {busy && (
         <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
       )}
@@ -274,10 +381,55 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
               isActiveJob || isFailedJob || !item.svg ? "" : getTraceOutputSvg(item);
             const label = getOutputLabel(item, index);
             const elapsedMs = getTraceJobElapsedMs(item, nowMs);
+            const focused = focusedOutputStamp === item.stamp;
+            if (focusedOutputStamp != null && !focused) return null;
+            const collapsed =
+              !focused && collapsedOutputStamps.has(item.stamp);
+            const appearance = getStoredOutputAppearance(item);
+            const appearanceSupport =
+              (focused || item.settingsOpen) && item.svg
+                ? detectOutputAppearanceSupport(getTraceOutputBaseSvg(item), {
+                    precisionOutput:
+                      routeCapabilities.group === "cricut" ||
+                      isPrecisionOutputItem(item),
+                  })
+                : null;
+            const appearanceControls =
+              appearanceSupport && !isActiveJob && !isFailedJob ? (
+                <OutputAppearanceControls
+                  settings={appearance}
+                  support={appearanceSupport}
+                  onChange={(patch) => setOutputAppearance(item, patch)}
+                  onReset={() => resetOutputAppearance(item)}
+                />
+              ) : null;
+
+            if (collapsed) {
+              return (
+                <CollapsedTraceOutputCard
+                  key={item.stamp}
+                  item={item}
+                  label={label}
+                  jobStatus={jobStatus}
+                  elapsedMs={elapsedMs}
+                  previewSvg={previewSvg}
+                  hasAppearanceChanges={hasOutputAppearanceChanges(appearance)}
+                  onToggleCollapsed={() => toggleCollapsedOutput(item.stamp)}
+                  onCopySvg={onCopySvg}
+                  onDownloadSvg={() => downloadSvg(previewSvg, downloadFileName)}
+                  onCancelOutputJob={onCancelOutputJob}
+                  onRetryOutputJob={onRetryOutputJob}
+                />
+              );
+            }
 
             return (
               <div
                 key={item.stamp}
+                tabIndex={-1}
+                data-output-stamp={item.stamp}
+                data-focused-editor={focused ? "true" : "false"}
+                data-collapse-state="expanded"
                 data-job-id={item.jobId || ""}
                 data-job-status={jobStatus}
                 data-engine-used={item.engineUsed || "unknown"}
@@ -289,8 +441,37 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 data-output-detected-colors={item.outputDetectedColors ?? ""}
                 data-path-count={item.pathCount ?? ""}
                 data-svg-bytes={item.svgBytes ?? ""}
-                className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
+                className={[
+                  "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                  focused ? "shadow-xl" : "",
+                  highlightedOutputStamp === item.stamp
+                    ? "ring-2 ring-sky-300"
+                    : "",
+                ].join(" ")}
               >
+                {focused && (
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="m-0 text-sm font-bold text-sky-950">
+                        Editing {label}
+                      </p>
+                      <p className="m-0 mt-0.5 text-[12px] text-slate-600">
+                        {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
+                        {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (item.settingsOpen) onToggleSettings(item.stamp);
+                        closeFocusedEditor(item.stamp);
+                      }}
+                      className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      Done editing
+                    </button>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="text-[13px] font-semibold text-slate-700">
                     {label}
@@ -337,13 +518,30 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onToggleSettings(item.stamp)}
-                    aria-expanded={!!item.settingsOpen}
+                    onClick={() => toggleCollapsedOutput(item.stamp)}
+                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  >
+                    Minimize
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!item.settingsOpen) onToggleSettings(item.stamp);
+                      setFocusedOutputStamp(item.stamp);
+                      setCollapsedOutputStamps((current) => {
+                        if (!current.has(item.stamp)) return current;
+                        const next = new Set(current);
+                        next.delete(item.stamp);
+                        return next;
+                      });
+                    }}
+                    data-output-primary-action="true"
+                    aria-expanded={focused || !!item.settingsOpen}
                     aria-controls={`output-settings-${item.stamp}`}
                     className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                   >
                     <SettingsGearIcon />
-                    <span className="ml-1">Settings</span>
+                    <span className="ml-1">Settings / Edit</span>
                   </button>
                 </div>
 
@@ -353,10 +551,13 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   </p>
                 )}
 
-                {item.settingsOpen && (
+                {(focused || item.settingsOpen) && (
                   <div
                     id={`output-settings-${item.stamp}`}
-                    className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
+                    className={[
+                      "mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2",
+                      focused ? "lg:float-right lg:ml-3 lg:w-[380px] lg:max-w-[42%]" : "",
+                    ].join(" ")}
                   >
                     <TraceAdvancedSettingsPanel
                       id={`output-settings-panel-${item.stamp}`}
@@ -401,35 +602,40 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       liveSectionTitle="Live preview edits"
                       liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
                       livePreviewLead={
-                        item.layers?.length ? (
-                          <div className="rounded-xl border border-slate-200 bg-white p-2">
-                            <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                              Layer colors
-                            </p>
-                            <LayerPaletteEditor
-                              item={item}
-                              onColorChange={(layerId, color) =>
-                                onOutputLayerChange(item.stamp, layerId, {
-                                  color,
-                                })
-                              }
-                              onVisibilityChange={(layerId, visible) =>
-                                onOutputLayerChange(item.stamp, layerId, {
-                                  visible,
-                                })
-                              }
-                              onOpacityChange={(layerId, opacity) =>
-                                onOutputLayerChange(item.stamp, layerId, {
-                                  opacity,
-                                })
-                              }
-                              onResetLayer={(layerId) =>
-                                onResetOutputLayer(item.stamp, layerId)
-                              }
-                              onResetAll={() =>
-                                onResetAllOutputLayers(item.stamp)
-                              }
-                            />
+                        appearanceControls || item.layers?.length ? (
+                          <div className="grid gap-2">
+                            {appearanceControls}
+                            {item.layers?.length ? (
+                              <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                  Layer colors
+                                </p>
+                                <LayerPaletteEditor
+                                  item={item}
+                                  onColorChange={(layerId, color) =>
+                                    onOutputLayerChange(item.stamp, layerId, {
+                                      color,
+                                    })
+                                  }
+                                  onVisibilityChange={(layerId, visible) =>
+                                    onOutputLayerChange(item.stamp, layerId, {
+                                      visible,
+                                    })
+                                  }
+                                  onOpacityChange={(layerId, opacity) =>
+                                    onOutputLayerChange(item.stamp, layerId, {
+                                      opacity,
+                                    })
+                                  }
+                                  onResetLayer={(layerId) =>
+                                    onResetOutputLayer(item.stamp, layerId)
+                                  }
+                                  onResetAll={() =>
+                                    onResetAllOutputLayers(item.stamp)
+                                  }
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         ) : null
                       }
@@ -444,7 +650,14 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   </div>
                 )}
 
-                <div className="relative flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2 transparent-checkerboard">
+                <div
+                  className={[
+                    "relative flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2 transparent-checkerboard",
+                    focused
+                      ? "min-h-[420px] lg:sticky lg:top-4"
+                      : "min-h-[240px]",
+                  ].join(" ")}
+                >
                   <div className="absolute right-2 top-2 z-10 flex gap-2">
                     <PreviewHistoryArrowButton
                       direction="left"
@@ -574,6 +787,206 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
   );
 }
 
+function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
+  item,
+  label,
+  jobStatus,
+  elapsedMs,
+  previewSvg,
+  hasAppearanceChanges,
+  onToggleCollapsed,
+  onCopySvg,
+  onDownloadSvg,
+  onCancelOutputJob,
+  onRetryOutputJob,
+}: {
+  item: TraceOutputItem<TSettings>;
+  label: string;
+  jobStatus: TraceOutputItem<TSettings>["jobStatus"];
+  elapsedMs: number;
+  previewSvg: string;
+  hasAppearanceChanges: boolean;
+  onToggleCollapsed: () => void;
+  onCopySvg: (svg: string) => void | Promise<void>;
+  onDownloadSvg: () => void;
+  onCancelOutputJob?: (jobId: string, stamp: number) => void;
+  onRetryOutputJob?: (stamp: number) => void;
+}) {
+  const status = jobStatus ?? "succeeded";
+  const active = isTraceJobActive(status);
+  const failed = status === "failed" || status === "canceled";
+  return (
+    <div
+      key={item.stamp}
+      tabIndex={-1}
+      data-output-stamp={item.stamp}
+      data-focused-editor="false"
+      data-collapse-state="collapsed"
+      data-job-id={item.jobId || ""}
+      data-job-status={status}
+      data-engine-used={item.engineUsed || "unknown"}
+      className="rounded-xl border border-slate-200 bg-white p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="m-0 truncate text-[13px] font-bold text-slate-800">
+            {label}
+          </p>
+          <p className="m-0 mt-0.5 text-[12px] text-slate-600">
+            {active
+              ? `${getTraceJobStatusText(status)} - ${formatTraceJobElapsed(elapsedMs)}`
+              : failed
+                ? getTraceJobStatusText(status)
+                : item.width > 0 && item.height > 0
+                  ? `${item.width} x ${item.height} px`
+                  : "size unknown"}
+            {item.engineUsed ? ` - ${item.engineUsed}` : ""}
+            {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+            {hasAppearanceChanges ? " - appearance adjusted" : ""}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {!active && !failed && previewSvg && (
+            <>
+              <button
+                type="button"
+                onClick={onDownloadSvg}
+                className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={() => void onCopySvg(previewSvg)}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              >
+                Copy
+              </button>
+            </>
+          )}
+          {active && item.canCancel && item.jobId && onCancelOutputJob && (
+            <button
+              type="button"
+              onClick={() => onCancelOutputJob(item.jobId!, item.stamp)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              Cancel
+            </button>
+          )}
+          {failed && onRetryOutputJob && (
+            <button
+              type="button"
+              onClick={() => onRetryOutputJob(item.stamp)}
+              className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              Retry
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Restore
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function OutputAppearanceControls({
+  settings,
+  support,
+  onChange,
+  onReset,
+}: {
+  settings: OutputAppearanceSettings;
+  support: ReturnType<typeof detectOutputAppearanceSupport>;
+  onChange: (patch: Partial<OutputAppearanceSettings>) => void;
+  onReset: () => void;
+}) {
+  const lineSupported = support.supportsLineWeight;
+  const fillSupported = support.supportsFillSpread;
+  const hasChanges = hasOutputAppearanceChanges(settings);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="m-0 text-[13px] font-bold text-slate-900">
+          Stroke and fill
+        </p>
+        <button
+          type="button"
+          onClick={onReset}
+          disabled={!hasChanges}
+          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Reset
+        </button>
+      </div>
+
+      <label className="mt-3 block">
+        <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">
+          <span>Line weight</span>
+          <span>{settings.lineWeight.toFixed(2)}x</span>
+        </span>
+        <input
+          type="range"
+          min={0.25}
+          max={4}
+          step={0.05}
+          value={settings.lineWeight}
+          disabled={!lineSupported}
+          onChange={(event) => onChange({ lineWeight: Number(event.target.value) })}
+          className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+        />
+        <span className="text-[12px] text-slate-500">
+          {lineSupported
+            ? "Make stroked lines thinner or thicker."
+            : "No stroked lines were detected in this SVG."}
+        </span>
+      </label>
+
+      <label className="mt-3 flex items-center gap-2 text-[12px] text-slate-700">
+        <input
+          type="checkbox"
+          checked={settings.nonScalingStroke}
+          disabled={!lineSupported}
+          onChange={(event) =>
+            onChange({ nonScalingStroke: event.currentTarget.checked })
+          }
+          className="h-4 w-4 cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed"
+        />
+        Keep stroke width consistent when resized
+      </label>
+
+      <label className="mt-3 block">
+        <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">
+          <span>Fill spread</span>
+          <span>{settings.fillSpread.toFixed(1)}px</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={4}
+          step={0.1}
+          value={settings.fillSpread}
+          disabled={!fillSupported}
+          onChange={(event) => onChange({ fillSpread: Number(event.target.value) })}
+          className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+        />
+        <span className="text-[12px] text-slate-500">
+          {fillSupported
+            ? "Expand filled regions slightly with a same-color under-stroke."
+            : support.fillSpreadDisabledReason || "Fill spread is not safe for this output."}
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function buildOutputLabel<TSettings extends MixedTraceSettings>(
   item: TraceOutputItem<TSettings>,
   index: number,
@@ -627,6 +1040,38 @@ function getTraceJobStatusText(
   if (status === "failed") return "Failed";
   if (status === "canceled") return "Canceled";
   return "Running";
+}
+
+function getStoredOutputAppearance<TSettings extends MixedTraceSettings>(
+  item: TraceOutputItem<TSettings>,
+): OutputAppearanceSettings {
+  return normalizeOutputAppearance(
+    item.appearance ?? outputAppearanceStore.get(getOutputAppearanceKey(item)),
+  );
+}
+
+function getOutputAppearanceKey<TSettings extends MixedTraceSettings>(
+  item: TraceOutputItem<TSettings>,
+): string {
+  return item.jobId || String(item.stamp);
+}
+
+function isPrecisionOutputItem<TSettings extends MixedTraceSettings>(
+  item: TraceOutputItem<TSettings>,
+): boolean {
+  const text = `${item.name || ""} ${item.presetLabel || ""}`.toLowerCase();
+  return /\b(cut|cricut|vinyl|silhouette|laser)\b/.test(text);
+}
+
+function prettyBytes(bytes: number) {
+  const units = ["B", "KB", "MB", "GB"];
+  let value = Number(bytes) || 0;
+  let index = 0;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(1)} ${units[index]}`;
 }
 
 function downloadSvg(svg: string, filename: string) {

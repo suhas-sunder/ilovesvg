@@ -84,9 +84,14 @@ async function main() {
   const results = [];
   let batchZip = null;
   let queue = null;
+  let outputUx = null;
   try {
     await waitForCdp();
-    if (process.env.QUEUE_SMOKE === "1") {
+    if (process.env.OUTPUT_UX_SMOKE === "1") {
+      console.error("[hybrid-browser] output card UX");
+      outputUx = await runOutputUxSmoke(fixtures);
+      console.error(`[hybrid-browser] output card UX -> ${outputUx.ok ? "ok" : "failed"}`);
+    } else if (process.env.QUEUE_SMOKE === "1") {
       console.error("[hybrid-browser] conversion queue");
       queue = await runQueueSmoke(fixtures);
       console.error(`[hybrid-browser] conversion queue -> ${queue.ok ? "ok" : "failed"}`);
@@ -124,6 +129,7 @@ async function main() {
     routes: results,
     batchZip,
     queue,
+    outputUx,
   };
 
   console.log(JSON.stringify(report, null, 2));
@@ -131,6 +137,7 @@ async function main() {
   const failures = results.filter((result) => !result.ok);
   if (batchZip && !batchZip.ok) failures.push(batchZip);
   if (queue && !queue.ok) failures.push(queue);
+  if (outputUx && !outputUx.ok) failures.push(outputUx);
   if (failures.length > 0) {
     process.exit(1);
   }
@@ -757,6 +764,290 @@ async function clickCancelForSlowJob(client) {
   })()`);
 }
 
+async function runOutputUxSmoke(fixtures) {
+  const cases = [
+    { route: "/", fixture: fixtures.png, expectedEngine: null },
+    { route: "/png-to-svg-converter", fixture: fixtures.png, expectedEngine: null },
+    {
+      route: "/png-to-layered-svg-for-cricut",
+      fixture: fixtures.png,
+      expectedEngine: null,
+    },
+  ];
+  const results = [];
+  for (const testCase of cases) {
+    results.push(await runOutputUxRouteSmoke(testCase));
+  }
+  return {
+    route: "output-card-ux",
+    scenario: "focused-collapse-appearance",
+    results,
+    ok: results.every((result) => result.ok),
+    failure: results.every((result) => result.ok)
+      ? null
+      : "One or more output-card UX smoke cases failed.",
+  };
+}
+
+async function runOutputUxRouteSmoke(testCase) {
+  const client = await openTab(`${baseUrl}${testCase.route}`);
+  const errors = [];
+  client.onEvent((message) => {
+    if (message.method === "Runtime.exceptionThrown") {
+      const details = message.params?.exceptionDetails;
+      const text =
+        details?.exception?.description ||
+        details?.exception?.value ||
+        details?.text ||
+        "Runtime exception";
+      if (!isIgnorableDevConsoleMessage(text)) errors.push(text);
+    }
+    if (message.method === "Log.entryAdded") {
+      const entry = message.params?.entry;
+      const text = entry?.text || "Browser log error";
+      if (entry?.level === "error" && !isIgnorableDevConsoleMessage(text)) {
+        errors.push(text);
+      }
+    }
+  });
+
+  try {
+    await client.send("Runtime.enable");
+    await client.send("Log.enable");
+    await client.send("Page.enable");
+    await client.send("DOM.enable");
+    await waitForDocumentReady(client);
+    await delay(750);
+    await setFileInput(client, testCase.fixture);
+    let output = await waitForOutput(client, 8_000, testCase.expectedEngine).catch(() => null);
+    if (!output) {
+      await clickConvertButton(client);
+      output = await waitForOutput(client, 60_000, testCase.expectedEngine);
+    }
+
+    const opened = await clickButtonMatching(client, "/Settings/i", {
+      reject: "/Advanced/i",
+    });
+    const focused = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => value?.focused && value?.hasDone && value?.hasPreview,
+    );
+    const controls = await evaluate(client, `(() => {
+      const text = document.body.innerText || "";
+      const labels = Array.from(document.querySelectorAll("label"));
+      const findLabeledRange = (pattern) => {
+        const label = labels.find((candidate) => pattern.test(candidate.textContent || ""));
+        if (!label) return null;
+        return label.querySelector('input[type="range"]') || label.parentElement?.querySelector('input[type="range"]') || null;
+      };
+      const lineInput = findLabeledRange(/Line weight/i);
+      const fillInput = findLabeledRange(/Fill spread/i);
+      return {
+        hasLineWeight: /Line weight/i.test(text),
+        hasFillSpread: /Fill spread/i.test(text),
+        lineWeightDisabled: Boolean(lineInput?.disabled),
+        fillSpreadDisabled: Boolean(fillInput?.disabled),
+      };
+    })()`);
+
+    const appearance = await applyFillSpreadIfAvailable(client);
+    if (appearance.applied) {
+      await delay(150);
+    }
+
+    const copy = await verifyCopySvg(client);
+    const download = await verifySvgDownload(client, `${safeName(testCase.route)}-output-ux`);
+
+    await clickButtonMatching(client, "/Done editing/i");
+    const restored = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => !value?.focused && value?.expandedCards >= 1,
+    );
+
+    await clickButtonMatching(client, "/Minimize/i");
+    const collapsed = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => value?.collapsedCards >= 1,
+    );
+    await clickButtonMatching(client, "/Restore/i");
+    const expanded = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => value?.collapsedCards === 0 && value?.expandedCards >= 1,
+    );
+    const responsive = await runOutputUxResponsiveChecks(client);
+
+    const ok =
+      errors.length === 0 &&
+      Boolean(opened) &&
+      focused.focused &&
+      focused.hasDone &&
+      controls.hasLineWeight &&
+      controls.hasFillSpread &&
+      (!appearance.applied || (copy.hasFillSpread && download.hasFillSpread)) &&
+      copy.ok &&
+      download.ok &&
+      !restored.focused &&
+      collapsed.collapsedCards >= 1 &&
+      expanded.expandedCards >= 1 &&
+      responsive.every((item) => item.ok) &&
+      output.previewDecoded;
+
+    return {
+      route: testCase.route,
+      opened,
+      focused,
+      controls,
+      appearance,
+      copy,
+      download,
+      restored,
+      collapsed,
+      expanded,
+      responsive,
+      consoleErrors: errors,
+      ok,
+      failure: ok ? null : "Focused editor, collapse, or appearance controls did not behave as expected.",
+    };
+  } catch (error) {
+    return {
+      route: testCase.route,
+      consoleErrors: errors,
+      ok: false,
+      failure: error instanceof Error ? error.message : String(error),
+      debug: await getPageDebugState(client).catch((debugError) => ({
+        error: debugError instanceof Error ? debugError.message : String(debugError),
+      })),
+    };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+async function runOutputUxResponsiveChecks(client) {
+  const widths = [390, 768, 1024, 1280, 1440, 1920];
+  const checks = [];
+  for (const width of widths) {
+    await client.send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: width < 768 ? 900 : 960,
+      deviceScaleFactor: 1,
+      mobile: width < 768,
+    });
+    await delay(80);
+    const normal = await outputUxLayoutSnapshot(client);
+    await clickButtonMatching(client, "/Settings \\/ Edit/i");
+    const focused = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => value?.focused && value?.hasDone && value?.hasPreview,
+    );
+    const focusedLayout = await outputUxLayoutSnapshot(client);
+    await clickButtonMatching(client, "/Done editing/i");
+    await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => !value?.focused && value?.expandedCards >= 1,
+    );
+    await clickButtonMatching(client, "/Minimize/i");
+    const collapsed = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => value?.collapsedCards >= 1,
+    );
+    const collapsedLayout = await outputUxLayoutSnapshot(client);
+    await clickButtonMatching(client, "/Restore/i");
+    await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => value?.collapsedCards === 0 && value?.expandedCards >= 1,
+    );
+    const ok =
+      !normal.hasHorizontalOverflow &&
+      focused.focused &&
+      !focusedLayout.hasHorizontalOverflow &&
+      collapsed.collapsedCards >= 1 &&
+      !collapsedLayout.hasHorizontalOverflow;
+    checks.push({
+      width,
+      ok,
+      normal,
+      focused: focusedLayout,
+      collapsed: collapsedLayout,
+    });
+  }
+  await client.send("Emulation.clearDeviceMetricsOverride").catch(() => {});
+  return checks;
+}
+
+async function outputUxLayoutSnapshot(client) {
+  return evaluate(client, `(() => {
+    const doc = document.documentElement;
+    const cards = Array.from(document.querySelectorAll("[data-collapse-state]"));
+    const expanded = cards.filter((card) => card.getAttribute("data-collapse-state") === "expanded");
+    const collapsed = cards.filter((card) => card.getAttribute("data-collapse-state") === "collapsed");
+    const focused = cards.filter((card) => card.getAttribute("data-focused-editor") === "true");
+    const preview = document.querySelector('[data-collapse-state="expanded"] img');
+    return {
+      viewportWidth: window.innerWidth,
+      scrollWidth: doc.scrollWidth,
+      hasHorizontalOverflow: doc.scrollWidth > window.innerWidth + 2,
+      expandedCards: expanded.length,
+      collapsedCards: collapsed.length,
+      focusedCards: focused.length,
+      hasPreview: Boolean(preview && preview.complete && preview.naturalWidth > 0 && preview.naturalHeight > 0),
+      hasDone: /Done editing/i.test(document.body.innerText || ""),
+    };
+  })()`);
+}
+
+async function applyFillSpreadIfAvailable(client) {
+  return await evaluate(client, `(() => {
+    const labels = Array.from(document.querySelectorAll("label"));
+    const label = labels.find((candidate) => /Fill spread/i.test(candidate.textContent || ""));
+    if (!label) return { available: false, applied: false, reason: "missing" };
+    const input = label.querySelector('input[type="range"]') || label.parentElement?.querySelector('input[type="range"]');
+    if (!input) return { available: true, applied: false, reason: "missing-input" };
+    if (input.disabled) return { available: true, applied: false, disabled: true };
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, "2");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return { available: true, applied: true, value: input.value };
+  })()`);
+}
+
+function outputUxSnapshotExpression() {
+  return `(() => {
+    const cards = Array.from(document.querySelectorAll("[data-collapse-state]"));
+    const focusedContainers = Array.from(document.querySelectorAll('[data-focused-editor="true"]'));
+    const text = document.body.innerText || "";
+    const focusedCards = cards.filter((card) => card.getAttribute("data-focused-editor") === "true");
+    const expandedCards = cards.filter((card) => card.getAttribute("data-collapse-state") === "expanded");
+    const collapsedCards = cards.filter((card) => card.getAttribute("data-collapse-state") === "collapsed");
+    const previews = Array.from(document.querySelectorAll('[data-collapse-state="expanded"] img'));
+    return {
+      focused: focusedContainers.length > 0 || focusedCards.length > 0,
+      focusedCards: focusedCards.length,
+      expandedCards: expandedCards.length,
+      collapsedCards: collapsedCards.length,
+      hasDone: /Done editing/i.test(text),
+      hasPreview: previews.some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0),
+    };
+  })()`;
+}
+
 async function readTraceDebug(client) {
   return evaluate(client, `(() => Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__) ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__ : [])()`);
 }
@@ -793,6 +1084,8 @@ async function verifyCopySvg(client) {
   return {
     ok: /<svg[\s>]/i.test(text),
     length: typeof text === "string" ? text.length : 0,
+    hasFillSpread: typeof text === "string" ? /data-fill-spread=|paint-order=["']stroke fill markers/i.test(text) : false,
+    hasStrokeWidth: typeof text === "string" ? /stroke-width=/i.test(text) : false,
   };
 }
 
@@ -809,6 +1102,8 @@ async function verifySvgDownload(client, label) {
     ok: /<svg[\s>]/i.test(text),
     file: `${label}:${file}`,
     bytes: Buffer.byteLength(text),
+    hasFillSpread: /data-fill-spread=|paint-order=["']stroke fill markers/i.test(text),
+    hasStrokeWidth: /stroke-width=/i.test(text),
   };
 }
 

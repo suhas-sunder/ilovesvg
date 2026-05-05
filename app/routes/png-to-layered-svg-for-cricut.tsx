@@ -27,6 +27,7 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import { OutputAppearanceControls } from "~/client/components/converter/TraceOutputPanel";
 import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
@@ -40,6 +41,14 @@ import {
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 import { logAppError } from "~/client/lib/errorLogging";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import {
+  DEFAULT_OUTPUT_APPEARANCE,
+  applyOutputAppearanceToSvg,
+  detectOutputAppearanceSupport,
+  hasOutputAppearanceChanges,
+  normalizeOutputAppearance,
+  type OutputAppearanceSettings,
+} from "~/client/lib/converter/outputAppearance";
 
 const isServer = typeof document === "undefined";
 
@@ -1255,6 +1264,7 @@ type HistoryItem = {
   sourceFileName?: string;
   enginePathLabel?: string;
   canCancel?: boolean;
+  appearance?: OutputAppearanceSettings;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1382,12 +1392,39 @@ export default function PngToLayeredSvgForCricut({
     item.jobStatus === "queued" || item.jobStatus === "running",
   );
   const [jobNowMs, setJobNowMs] = React.useState(() => Date.now());
+  const [focusedOutputStamp, setFocusedOutputStamp] = React.useState<
+    number | null
+  >(null);
+  const [collapsedOutputStamps, setCollapsedOutputStamps] = React.useState<
+    ReadonlySet<number>
+  >(() => new Set());
+  const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<
+    number | null
+  >(null);
 
   React.useEffect(() => {
     if (!hasActiveHistoryJob) return;
     const interval = window.setInterval(() => setJobNowMs(Date.now()), 1_000);
     return () => window.clearInterval(interval);
   }, [hasActiveHistoryJob]);
+
+  React.useEffect(() => {
+    if (focusedOutputStamp == null) return;
+    if (history.some((item) => item.stamp === focusedOutputStamp)) return;
+    setFocusedOutputStamp(null);
+  }, [focusedOutputStamp, history]);
+
+  React.useEffect(() => {
+    if (focusedOutputStamp == null) return;
+    const stamp = focusedOutputStamp;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeFocusedEditor(stamp);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusedOutputStamp]);
 
   const busy = fetcher.state !== "idle";
 
@@ -1939,6 +1976,60 @@ export default function PngToLayeredSvgForCricut({
     });
   }
 
+  function setOutputAppearance(
+    stamp: number,
+    patch: Partial<OutputAppearanceSettings>,
+  ) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              appearance: normalizeOutputAppearance({
+                ...(item.appearance ?? DEFAULT_OUTPUT_APPEARANCE),
+                ...patch,
+              }),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function resetOutputAppearance(stamp: number) {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? { ...item, appearance: DEFAULT_OUTPUT_APPEARANCE }
+          : item,
+      ),
+    );
+  }
+
+  function toggleCollapsedOutput(stamp: number) {
+    setCollapsedOutputStamps((current) => {
+      const next = new Set(current);
+      if (next.has(stamp)) next.delete(stamp);
+      else next.add(stamp);
+      return next;
+    });
+  }
+
+  function closeFocusedEditor(stamp: number) {
+    setFocusedOutputStamp(null);
+    setHighlightedOutputStamp(stamp);
+    window.setTimeout(() => {
+      const card = document.querySelector<HTMLElement>(
+        `[data-output-stamp="${stamp}"]`,
+      );
+      card?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const action = card?.querySelector<HTMLElement>("[data-output-primary-action]");
+      (action || card)?.focus?.({ preventScroll: true });
+    }, 80);
+    window.setTimeout(() => {
+      setHighlightedOutputStamp((current) => (current === stamp ? null : current));
+    }, 1_500);
+  }
+
   function updateHistoryItemLayers(
     stamp: number,
     updater: (layers: LayerState[]) => LayerState[],
@@ -2177,7 +2268,15 @@ export default function PngToLayeredSvgForCricut({
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
+            <div
+              data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
+              className={[
+                "order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+                focusedOutputStamp != null
+                  ? "md:col-span-2 md:max-h-none md:self-start"
+                  : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
+              ].join(" ")}
+            >
               {busy && (
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
               )}
@@ -2208,10 +2307,93 @@ export default function PngToLayeredSvgForCricut({
                             backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
                             layerAlpha: itemSettings.layerAlpha ?? 1,
                           });
+                    const appearance = normalizeOutputAppearance(item.appearance);
+                    const displaySvg =
+                      !isActiveJob &&
+                      !isFailedJob &&
+                      hasOutputAppearanceChanges(appearance)
+                        ? applyOutputAppearanceToSvg(
+                            editedSvg,
+                            appearance,
+                            detectOutputAppearanceSupport(editedSvg, {
+                              precisionOutput: false,
+                            }),
+                          )
+                        : editedSvg;
+                    const focused = focusedOutputStamp === item.stamp;
+                    if (focusedOutputStamp != null && !focused) return null;
+                    const collapsed =
+                      !focused && collapsedOutputStamps.has(item.stamp);
+                    const appearanceSupport =
+                      (focused || openSettingsStamp === item.stamp) &&
+                      !isActiveJob &&
+                      !isFailedJob
+                        ? detectOutputAppearanceSupport(editedSvg, {
+                            precisionOutput: false,
+                          })
+                        : null;
+                    const appearanceControls = appearanceSupport ? (
+                      <OutputAppearanceControls
+                        settings={appearance}
+                        support={appearanceSupport}
+                        onChange={(patch) =>
+                          setOutputAppearance(item.stamp, patch)
+                        }
+                        onReset={() => resetOutputAppearance(item.stamp)}
+                      />
+                    ) : null;
+
+                    if (collapsed) {
+                      return (
+                        <div
+                          key={item.stamp}
+                          tabIndex={-1}
+                          data-output-stamp={item.stamp}
+                          data-focused-editor="false"
+                          data-collapse-state="collapsed"
+                          data-job-status={item.jobStatus || "succeeded"}
+                          data-engine-used={item.engineUsed || "unknown"}
+                          className="rounded-xl border border-slate-200 bg-white p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="m-0 truncate text-[13px] font-bold text-slate-800">
+                                {item.name || `Output ${index + 1}`}
+                              </p>
+                              <p className="m-0 mt-0.5 text-[12px] text-slate-600">
+                                {isActiveJob
+                                  ? `${item.jobStatus === "queued" ? "Queued" : "Running"} - ${formatTraceJobElapsed(getTraceJobElapsedMs(item, jobNowMs))}`
+                                  : isFailedJob
+                                    ? item.jobStatus === "canceled"
+                                      ? "Canceled"
+                                      : "Failed"
+                                    : `${item.width} x ${item.height} px`}
+                                {item.engineUsed ? ` - ${item.engineUsed}` : ""}
+                                {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                                {hasOutputAppearanceChanges(appearance)
+                                  ? " - appearance adjusted"
+                                  : ""}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => toggleCollapsedOutput(item.stamp)}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
+                            >
+                              Restore
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <div
                         key={item.stamp}
+                        tabIndex={-1}
+                        data-output-stamp={item.stamp}
+                        data-focused-editor={focused ? "true" : "false"}
+                        data-collapse-state="expanded"
                         data-engine-used={item.engineUsed || "unknown"}
                         data-source-kind={item.sourceKind || "unknown"}
                         data-engine-warnings={(item.warnings || []).join(" | ")}
@@ -2221,8 +2403,37 @@ export default function PngToLayeredSvgForCricut({
                           isActiveOutput
                             ? "border-sky-400 ring-2 ring-sky-100"
                             : "border-slate-200",
+                          focused ? "shadow-xl" : "",
+                          highlightedOutputStamp === item.stamp
+                            ? "ring-2 ring-sky-300"
+                            : "",
                         ].join(" ")}
                       >
+                        {focused && (
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="m-0 text-sm font-bold text-sky-950">
+                                Editing {item.name || `Output ${index + 1}`}
+                              </p>
+                              <p className="m-0 mt-0.5 text-[12px] text-slate-600">
+                                {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
+                                {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (openSettingsStamp === item.stamp) {
+                                  setOpenSettingsStamp(null);
+                                }
+                                closeFocusedEditor(item.stamp);
+                              }}
+                              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                            >
+                              Done editing
+                            </button>
+                          </div>
+                        )}
                         <div className="flex gap-3 items-center flex-wrap justify-between">
                           <span className="text-[13px] font-semibold text-slate-700">
                             {item.name}
@@ -2317,7 +2528,7 @@ export default function PngToLayeredSvgForCricut({
                             type="button"
                             onClick={() => {
                               if (!item.svg) return;
-                              const b = new Blob([editedSvg], {
+                              const b = new Blob([displaySvg], {
                                 type: "image/svg+xml;charset=utf-8",
                               });
                               const u = URL.createObjectURL(b);
@@ -2344,7 +2555,7 @@ export default function PngToLayeredSvgForCricut({
                             type="button"
                             onClick={() => {
                               if (!item.svg) return;
-                              handleCopySvg(editedSvg);
+                              handleCopySvg(displaySvg);
                             }}
                             disabled={!item.svg}
                             className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
@@ -2359,15 +2570,29 @@ export default function PngToLayeredSvgForCricut({
 
                           <button
                             type="button"
+                            onClick={() => toggleCollapsedOutput(item.stamp)}
+                            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            Minimize
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => {
                               if (!item.svg) return;
                               selectHistoryOutput(item.stamp);
-                              setOpenSettingsStamp((current) =>
-                                current === item.stamp ? null : item.stamp,
-                              );
+                              setOpenSettingsStamp(item.stamp);
+                              setFocusedOutputStamp(item.stamp);
+                              setCollapsedOutputStamps((current) => {
+                                if (!current.has(item.stamp)) return current;
+                                const next = new Set(current);
+                                next.delete(item.stamp);
+                                return next;
+                              });
                             }}
                             disabled={!item.svg}
-                            aria-expanded={openSettingsStamp === item.stamp}
+                            data-output-primary-action="true"
+                            aria-expanded={focused || openSettingsStamp === item.stamp}
                             aria-controls={`output-settings-${item.stamp}`}
                             className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
@@ -2376,14 +2601,17 @@ export default function PngToLayeredSvgForCricut({
                               size={16}
                               className="mr-1 inline-block"
                             />
-                            Settings
+                            Settings / Edit
                           </button>
                         </div>
 
-                        {openSettingsStamp === item.stamp && (
+                        {(focused || openSettingsStamp === item.stamp) && (
                           <div
                             id={`output-settings-${item.stamp}`}
-                            className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
+                            className={[
+                              "mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2",
+                              focused ? "lg:float-right lg:ml-3 lg:w-[380px] lg:max-w-[42%]" : "",
+                            ].join(" ")}
                           >
                             <LayeredAdvancedSettingsPanel
                               id={`output-settings-panel-${item.stamp}`}
@@ -2444,38 +2672,41 @@ export default function PngToLayeredSvgForCricut({
                               buttonDisabled={buttonDisabled}
                               liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
                               livePreviewLead={
-                                <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                  <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                    Layer colors
-                                  </p>
-                                  <LayerControls
-                                    layers={item.layers}
-                                    onChange={(nextLayers) =>
-                                      updateHistoryItemLayers(
-                                        item.stamp,
-                                        () => nextLayers,
-                                      )
-                                    }
-                                    onLayerChange={(layerId, patch) =>
-                                      updateHistoryItemLayers(item.stamp, (layers) =>
-                                        layers.map((layer) =>
-                                          layer.id === layerId
-                                            ? { ...layer, ...patch }
-                                            : layer,
-                                        ),
-                                      )
-                                    }
-                                    onReset={() =>
-                                      updateHistoryItemLayers(item.stamp, (layers) =>
-                                        layers.map((layer) => ({
-                                          ...layer,
-                                          color: layer.originalColor,
-                                          visible: true,
-                                          opacity: layer.originalOpacity ?? 1,
-                                        })),
-                                      )
-                                    }
-                                  />
+                                <div className="grid gap-2">
+                                  {appearanceControls}
+                                  <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                    <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                      Layer colors
+                                    </p>
+                                    <LayerControls
+                                      layers={item.layers}
+                                      onChange={(nextLayers) =>
+                                        updateHistoryItemLayers(
+                                          item.stamp,
+                                          () => nextLayers,
+                                        )
+                                      }
+                                      onLayerChange={(layerId, patch) =>
+                                        updateHistoryItemLayers(item.stamp, (layers) =>
+                                          layers.map((layer) =>
+                                            layer.id === layerId
+                                              ? { ...layer, ...patch }
+                                              : layer,
+                                          ),
+                                        )
+                                      }
+                                      onReset={() =>
+                                        updateHistoryItemLayers(item.stamp, (layers) =>
+                                          layers.map((layer) => ({
+                                            ...layer,
+                                            color: layer.originalColor,
+                                            visible: true,
+                                            opacity: layer.originalOpacity ?? 1,
+                                          })),
+                                        )
+                                      }
+                                    />
+                                  </div>
                                 </div>
                               }
                               convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
@@ -2491,10 +2722,17 @@ export default function PngToLayeredSvgForCricut({
                           </div>
                         )}
 
-                        <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
+                        <div
+                          className={[
+                            "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",
+                            focused
+                              ? "min-h-[420px] lg:sticky lg:top-4"
+                              : "min-h-[240px]",
+                          ].join(" ")}
+                        >
                           <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
                           <EditedSvgPreviewImage
-                            svg={editedSvg}
+                            svg={displaySvg}
                             alt="Layered SVG result from PNG"
                             className="max-w-full h-auto"
                           />
@@ -2525,14 +2763,41 @@ export default function PngToLayeredSvgForCricut({
           items={history}
           activeIndex={fullscreenPreviewIndex}
           setActiveIndex={setFullscreenPreviewIndex}
-          getPreviewImage={(item, index) => ({
-            id: String(item.stamp),
-            label: `Output ${index + 1}`,
-            svg: buildClientLayeredSvg({ width: item.width, height: item.height, viewBoxWidth: item.originalWidth || item.width, viewBoxHeight: item.originalHeight || item.height, layers: item.layers, transparent: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).transparent, bgColor: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).bgColor, backgroundAlpha: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).backgroundAlpha ?? 1, layerAlpha: (activeHistoryItem?.stamp === item.stamp ? settings : item.settingsSnapshot || settings).layerAlpha ?? 1 }),
-            width: item.width,
-            height: item.height,
-            kind: "SVG",
-          })}
+          getPreviewImage={(item, index) => {
+            const itemSettings =
+              activeHistoryItem?.stamp === item.stamp
+                ? settings
+                : item.settingsSnapshot || settings;
+            const baseSvg = buildClientLayeredSvg({
+              width: item.width,
+              height: item.height,
+              viewBoxWidth: item.originalWidth || item.width,
+              viewBoxHeight: item.originalHeight || item.height,
+              layers: item.layers,
+              transparent: itemSettings.transparent,
+              bgColor: itemSettings.bgColor,
+              backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
+              layerAlpha: itemSettings.layerAlpha ?? 1,
+            });
+            const appearance = normalizeOutputAppearance(item.appearance);
+            const svg = hasOutputAppearanceChanges(appearance)
+              ? applyOutputAppearanceToSvg(
+                  baseSvg,
+                  appearance,
+                  detectOutputAppearanceSupport(baseSvg, {
+                    precisionOutput: false,
+                  }),
+                )
+              : baseSvg;
+            return {
+              id: String(item.stamp),
+              label: `Output ${index + 1}`,
+              svg,
+              width: item.width,
+              height: item.height,
+              kind: "SVG",
+            };
+          }}
         />
 
         {toast && (
