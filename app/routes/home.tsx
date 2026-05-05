@@ -50,7 +50,11 @@ import {
   type BatchSpeedTier,
 } from "~/client/lib/converter/batchLimits";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
-import { OutputAppearanceControls } from "~/client/components/converter/TraceOutputPanel";
+import {
+  FocusedEditorPreviewComparison,
+  getSvgByteSize,
+  OutputAppearanceControls,
+} from "~/client/components/converter/TraceOutputPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
   DEFAULT_OUTPUT_APPEARANCE,
@@ -2414,6 +2418,19 @@ type OutputBatchState = {
   zip: BatchZipResult | null;
 };
 
+const OUTPUT_HISTORY_LIMIT = 10;
+
+function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
+  return items.slice(0, OUTPUT_HISTORY_LIMIT);
+}
+
+function outputMatchesActiveSource(
+  item: Pick<HistoryItem, "sourceFileName">,
+  currentFile: File | null,
+): boolean {
+  return !item.sourceFileName || currentFile?.name === item.sourceFileName;
+}
+
 // ---- tiering helpers (client) ----
 type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
@@ -2613,6 +2630,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<
     number | null
   >(null);
+  const [focusedSettingsSections, setFocusedSettingsSections] = React.useState<
+    Map<number, string | null>
+  >(() => new Map());
 
   React.useEffect(() => {
     if (!hasActiveHistoryJob) return;
@@ -2785,7 +2805,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             candidate.stamp === stamp ? item : candidate,
           );
         }
-        return [item, ...prev].slice(0, 10);
+        return trimOutputHistory([item, ...prev]);
       });
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
   }
@@ -2951,10 +2971,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Pause auto conversion while we swap state
     suppressLiveRef.current = true;
     busyRetryCountRef.current = 0;
-    latestSubmittedRunIdRef.current = "";
-    submittedByRunIdRef.current.clear();
-    clientAbortControllersRef.current.forEach((controller) => controller.abort());
-    clientAbortControllersRef.current.clear();
     lastProcessedResultKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
     fileMeasureRunIdRef.current = measureRunId;
@@ -2965,13 +2981,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
+    // Reset active-input settings for the new upload. Output history is
+    // independent from the active input and remains bounded separately.
     setSettings(DEFAULTS);
     setActivePreset(DEFAULT_PRESET_ID);
-    setHistory([]); // optional, remove if you want to keep old results
-    setActiveHistoryStamp(null);
     setUpdatingOutputStamp(null);
-    outputCounterRef.current = 0;
 
     setErr(null);
     setInfo(null);
@@ -3148,7 +3162,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             : "Hybrid trace",
         canCancel: effective.traceMode === "layered",
       };
-      setHistory((prev) => [pendingItem, ...prev].slice(0, 10));
+      setHistory((prev) => trimOutputHistory([pendingItem, ...prev]));
       setActiveHistoryStamp((current) =>
         current === pendingStamp ? current : pendingStamp,
       );
@@ -3318,6 +3332,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (updatingOutputStamp !== null || busy) return;
     const item = history.find((candidate) => candidate.stamp === stamp);
     if (!item) return;
+    if (!file || !outputMatchesActiveSource(item, file)) {
+      patchHistoryItem(stamp, (current) => ({
+        ...current,
+        updateError:
+          current.sourceFileName && !file
+            ? `Update preview needs the original source file (${current.sourceFileName}). Copy and download still use the saved SVG.`
+            : current.sourceFileName
+              ? `Update preview needs ${current.sourceFileName}; the active input is ${file?.name || "missing"}. Copy and download still use the saved SVG.`
+              : "Choose a valid source image before updating this output preview.",
+      }));
+      setUpdatingOutputStamp(null);
+      return;
+    }
     const targetSettings = item.draftSettings || item.settingsSnapshot || settings;
     patchHistoryItem(stamp, (current) => ({ ...current, updateError: null }));
     setUpdatingOutputStamp(stamp);
@@ -3352,7 +3379,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   function retryOutputJob(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp);
-    if (!item || !file) return;
+    if (!item) return;
+    if (!file || !outputMatchesActiveSource(item, file)) {
+      patchHistoryItem(stamp, (current) => ({
+        ...current,
+        jobError:
+          current.sourceFileName && !file
+            ? `Retry needs the original source file (${current.sourceFileName}).`
+            : current.sourceFileName
+              ? `Retry needs ${current.sourceFileName}; the active input is ${file?.name || "missing"}.`
+              : "Choose a valid source image before retrying this output.",
+      }));
+      return;
+    }
     setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
     void submitConvertWith(file, item.settingsSnapshot || item.draftSettings || settings, {
       presetId: item.presetId || activePreset,
@@ -3855,6 +3894,48 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
+  function setFocusedSettingsSection(stamp: number, sectionId: string | null) {
+    setFocusedSettingsSections((current) => {
+      const next = new Map(current);
+      if (sectionId) {
+        next.set(stamp, sectionId);
+      } else {
+        next.delete(stamp);
+      }
+      return next;
+    });
+  }
+
+  function openFocusedEditor(stamp: number, sectionId = "output-appearance") {
+    setFocusedSettingsSection(stamp, sectionId);
+    setFocusedOutputStamp(stamp);
+    setCollapsedOutputStamps((current) => {
+      if (!current.has(stamp)) return current;
+      const next = new Set(current);
+      next.delete(stamp);
+      return next;
+    });
+  }
+
+  function openOutputBatchSettings(stamp: number) {
+    patchHistoryItem(stamp, (item) => ({
+      ...item,
+      settingsOpen: true,
+      batchOpen: true,
+      batch: item.batch || createOutputBatchState(),
+      updateError: null,
+    }));
+    openFocusedEditor(stamp, "batch");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const section = document.getElementById(`output-batch-${stamp}`);
+        const toggle = document.getElementById(`output-batch-toggle-${stamp}`);
+        section?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        toggle?.focus?.({ preventScroll: true });
+      });
+    });
+  }
+
   function closeFocusedEditor(stamp: number) {
     setFocusedOutputStamp(null);
     setHighlightedOutputStamp(stamp);
@@ -4127,10 +4208,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* RESULTS */}
             <div
               data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
+              data-output-panel-focused={focusedOutputStamp != null ? "true" : "false"}
               className={[
-                "order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+                "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-200 ease-out",
                 focusedOutputStamp != null
-                  ? "md:col-span-2 md:max-h-none md:self-start"
+                  ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
                   : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
               ].join(" ")}
             >
@@ -4145,6 +4227,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       isActiveJob || isFailedJob
                         ? getTraceJobPreviewData(item)
                         : getHistoryPreviewData(item);
+                    const displaySvgBytes = previewData.svg
+                      ? getSvgByteSize(previewData.svg)
+                      : item.svgBytes;
                     const outputSettings =
                       item.draftSettings || item.settingsSnapshot || settings;
                     const isUpdating = updatingOutputStamp === item.stamp;
@@ -4152,6 +4237,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const batchDynamicMax = getOutputBatchDynamicMax(item);
                     const displayName = getHistoryDisplayName(item);
                     const focused = focusedOutputStamp === item.stamp;
+                    const sourceAvailableForOutput =
+                      outputMatchesActiveSource(item, file);
+                    const focusedSettingsSection =
+                      focusedSettingsSections.get(item.stamp) ??
+                      "output-appearance";
+                    const batchSectionOpen = focused
+                      ? focusedSettingsSection === "batch"
+                      : !!item.batchOpen;
                     if (focusedOutputStamp != null && !focused) return null;
                     const collapsed =
                       !focused && collapsedOutputStamps.has(item.stamp);
@@ -4180,6 +4273,310 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onReset={() => resetOutputAppearance(item.stamp)}
                         />
                       ) : null;
+                    const settingsPanel = (
+                      <div
+                        id={`output-settings-${item.stamp}`}
+                        data-editor-settings-panel={focused ? "true" : undefined}
+                        className={[
+                          "rounded-xl border border-sky-200 bg-sky-50/70 p-2",
+                          focused
+                            ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
+                            : "mb-2",
+                        ].join(" ")}
+                      >
+                        <TraceAdvancedSettingsPanel
+                          id={`output-settings-panel-${item.stamp}`}
+                          open={true}
+                          settings={outputSettings}
+                          setSettings={(updater) =>
+                            updateOutputDraftSettings(item.stamp, updater)
+                          }
+                          capabilities={routeCapabilities}
+                          detectedColorItems={[item]}
+                          sourceFile={sourceAvailableForOutput ? file : null}
+                          removeColorsEnabled={
+                            !(
+                              sourceAvailableForOutput &&
+                              file &&
+                              (file.type === "image/svg+xml" ||
+                                /\.svg$/i.test(file.name || ""))
+                            )
+                          }
+                          outputLayerItems={item.layers}
+                          outputSize={{
+                            width: item.width,
+                            height: item.height,
+                            originalWidth: item.originalWidth || item.width,
+                            originalHeight: item.originalHeight || item.height,
+                          }}
+                          onOutputLayerChange={(layerId, patch) =>
+                            setHistoryLayer(item.stamp, layerId, patch)
+                          }
+                          onResetOutputLayer={(layerId) =>
+                            resetHistoryLayer(item.stamp, layerId)
+                          }
+                          onResetAllOutputLayers={() =>
+                            resetAllHistoryLayers(item.stamp)
+                          }
+                          onOutputSizeChange={(size) =>
+                            setHistorySize(item.stamp, size)
+                          }
+                          helpHref="#advanced-settings-help"
+                          buttonDisabled={
+                            buttonDisabled || isUpdating || !sourceAvailableForOutput
+                          }
+                          liveSectionTitle="Live preview edits"
+                          liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                          livePreviewLead={
+                            appearanceControls || item.layers?.length ? (
+                              <div className="grid gap-2">
+                                {appearanceControls}
+                                {item.layers?.length ? (
+                                  <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                    <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                      Layer colors
+                                    </p>
+                                    <LayerPaletteEditor
+                                      item={item}
+                                      onColorChange={(layerId, color) =>
+                                        setHistoryLayer(item.stamp, layerId, {
+                                          color,
+                                        })
+                                      }
+                                      onVisibilityChange={(layerId, visible) =>
+                                        setHistoryLayer(item.stamp, layerId, {
+                                          visible,
+                                        })
+                                      }
+                                      onOpacityChange={(layerId, opacity) =>
+                                        setHistoryLayer(item.stamp, layerId, {
+                                          opacity,
+                                        })
+                                      }
+                                      onResetLayer={(layerId) =>
+                                        resetHistoryLayer(item.stamp, layerId)
+                                      }
+                                      onResetAll={() =>
+                                        resetAllHistoryLayers(item.stamp)
+                                      }
+                                    />
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null
+                          }
+                          convertSectionTitle="Click to convert"
+                          convertSectionDescription={
+                            sourceAvailableForOutput
+                              ? "These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
+                              : item.sourceFileName
+                                ? `Update preview needs the original source file (${item.sourceFileName}). Copy, download, and batch still use the saved SVG.`
+                                : "Choose the original source image to retrace this output. Copy, download, and batch still use the saved SVG."
+                          }
+                          hideOutputLayerStyling={true}
+                          focusedEditorMode={focused}
+                          defaultOpenSection="output-appearance"
+                          openSection={focused ? focusedSettingsSection : undefined}
+                          onOpenSectionChange={
+                            focused
+                              ? (sectionId) =>
+                                  setFocusedSettingsSection(
+                                    item.stamp,
+                                    sectionId,
+                                  )
+                              : undefined
+                          }
+                          updatePreviewLabel={
+                            isUpdating ? "Updating..." : "Update preview"
+                          }
+                          onUpdatePreview={() =>
+                            void submitOutputUpdate(item.stamp)
+                          }
+                        />
+
+                        <div
+                          data-settings-section={`output-batch-${item.stamp}`}
+                          data-settings-section-open={
+                            batchSectionOpen ? "true" : "false"
+                          }
+                          className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white"
+                        >
+                          <button
+                            id={`output-batch-toggle-${item.stamp}`}
+                            type="button"
+                            onClick={() => {
+                              if (focused) {
+                                setFocusedSettingsSection(
+                                  item.stamp,
+                                  batchSectionOpen ? null : "batch",
+                                );
+                                patchHistoryItem(item.stamp, (current) => ({
+                                  ...current,
+                                  batchOpen: true,
+                                  batch:
+                                    current.batch || createOutputBatchState(),
+                                }));
+                                return;
+                              }
+                              toggleOutputBatch(item.stamp);
+                            }}
+                            aria-expanded={batchSectionOpen}
+                            aria-controls={`output-batch-${item.stamp}`}
+                            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            <span>Batch conversion</span>
+                            <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[12px] font-semibold text-sky-800">
+                              Max {batchDynamicMax}
+                            </span>
+                          </button>
+
+                          <div
+                            className={[
+                              "grid transition-[grid-template-rows] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                              batchSectionOpen
+                                ? "grid-rows-[1fr]"
+                                : "grid-rows-[0fr]",
+                            ].join(" ")}
+                          >
+                            <div
+                              id={`output-batch-${item.stamp}`}
+                              aria-hidden={!batchSectionOpen}
+                              className={[
+                                "overflow-hidden transition-opacity duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                                batchSectionOpen ? "opacity-100" : "opacity-0",
+                              ].join(" ")}
+                            >
+                              <div className="border-t border-slate-100 px-3 py-3">
+                                <p className="m-0 text-[13px] leading-5 text-slate-600">
+                                  Batch uses this output's current applied SVG
+                                  and trace settings. Changes in Click to
+                                  convert apply only after Update preview.
+                                </p>
+                                <p className="m-0 mt-2 text-[12px] leading-5 text-slate-600">
+                                  {batchDynamicMax === 100
+                                    ? "This output allows up to 100 batch conversions because it uses the fastest applied settings."
+                                    : "This output allows up to 20 batch conversions because these applied settings may take longer to process."}
+                                </p>
+
+                              <input
+                                ref={(node) => {
+                                  if (node) {
+                                    batchFileInputRefs.current.set(
+                                      item.stamp,
+                                      node,
+                                    );
+                                  } else {
+                                    batchFileInputRefs.current.delete(
+                                      item.stamp,
+                                    );
+                                  }
+                                }}
+                                type="file"
+                                multiple
+                                accept={Array.from(ALLOWED_EXTENSIONS)
+                                  .map((ext) => `.${ext}`)
+                                  .join(",")}
+                                className="sr-only"
+                                onChange={(event) =>
+                                  handleOutputBatchFilesPicked(
+                                    item.stamp,
+                                    event,
+                                  )
+                                }
+                              />
+
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    batchFileInputRefs.current
+                                      .get(item.stamp)
+                                      ?.click()
+                                  }
+                                  className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                >
+                                  Choose batch files
+                                </button>
+                              </div>
+
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+                                <span>
+                                  {batch.files.length
+                                    ? `${batch.files.length} file${
+                                        batch.files.length === 1 ? "" : "s"
+                                      } selected`
+                                    : "No batch files selected"}
+                                </span>
+                                {batch.running && (
+                                  <span>
+                                    Converting {batch.progress.done}/
+                                    {batch.progress.total}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {batch.zip ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      downloadOutputBatchZip(item)
+                                    }
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-emerald-700 bg-emerald-600 px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                                  >
+                                    Download ZIP
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void submitOutputBatchConvert(
+                                        item.stamp,
+                                      )
+                                    }
+                                    disabled={
+                                      batch.running ||
+                                      batch.files.length === 0
+                                    }
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-[#1d4ed8] bg-[#2563eb] px-3 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                                  >
+                                    {batch.running
+                                      ? "Converting batch..."
+                                      : `Convert ${batch.files.length} to ZIP`}
+                                  </button>
+                                )}
+                              </div>
+
+                              {batch.error && (
+                                <p className="m-0 mt-2 text-[13px] leading-5 text-red-700">
+                                  {batch.error}
+                                </p>
+                              )}
+                              {!batch.error && batch.info && (
+                                <p className="m-0 mt-2 text-[13px] leading-5 text-slate-600">
+                                  {batch.info}
+                                </p>
+                              )}
+                                {batch.zip?.errors.length ? (
+                                <details className="mt-2 text-[12px] text-slate-600">
+                                  <summary className="cursor-pointer font-semibold text-slate-700">
+                                    Show failed files
+                                  </summary>
+                                  <ul className="mt-1 list-disc pl-5">
+                                    {batch.zip.errors
+                                      .slice(0, 8)
+                                      .map((message) => (
+                                        <li key={message}>{message}</li>
+                                      ))}
+                                  </ul>
+                                </details>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
                     if (collapsed) {
                       return (
                         <div
@@ -4206,10 +4603,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                       : "Failed"
                                     : `${item.width} x ${item.height} px`}
                                 {item.engineUsed ? ` - ${item.engineUsed}` : ""}
-                                {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                                {displaySvgBytes ? ` - ${prettyBytes(displaySvgBytes)}` : ""}
                                 {hasOutputAppearanceChanges(appearance)
                                   ? " - appearance adjusted"
                                   : ""}
+                                {item.sourceFileName ? (
+                                  <>
+                                    {" - "}
+                                    <span
+                                      data-output-source-file={item.sourceFileName}
+                                      title={`Source: ${item.sourceFileName}`}
+                                    >
+                                      Source: {item.sourceFileName}
+                                    </span>
+                                  </>
+                                ) : null}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -4219,7 +4627,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                   onClick={() =>
                                     cancelOutputJob(item.jobId!, item.stamp)
                                   }
-                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+                                  className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
                                 >
                                   Cancel
                                 </button>
@@ -4228,7 +4636,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                 <button
                                   type="button"
                                   onClick={() => retryOutputJob(item.stamp)}
-                                  className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
                                 >
                                   Retry
                                 </button>
@@ -4236,7 +4644,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => toggleCollapsedOutput(item.stamp)}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
+                                className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
                               >
                                 Restore
                               </button>
@@ -4260,7 +4668,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       data-actual-palette-count={item.actualPaletteCount ?? ""}
                       data-output-detected-colors={item.outputDetectedColors ?? ""}
                       data-path-count={item.pathCount ?? ""}
-                      data-svg-bytes={item.svgBytes ?? ""}
+                      data-svg-bytes={displaySvgBytes ?? ""}
                       className={[
                         "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                         focused ? "shadow-xl" : "",
@@ -4277,31 +4685,114 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             </p>
                             <p className="m-0 mt-0.5 text-[12px] text-slate-600">
                               {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
-                              {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                              {item.width > 0 && item.height > 0
+                                ? ` - ${item.width} x ${item.height} px`
+                                : ""}
+                              {displaySvgBytes ? (
+                                <>
+                                  {" - "}
+                                  <span data-output-file-size="true">
+                                    {prettyBytes(displaySvgBytes)}
+                                  </span>
+                                </>
+                              ) : null}
+                              {item.sourceFileName ? (
+                                <>
+                                  {" - "}
+                                  <span
+                                    data-output-source-file={item.sourceFileName}
+                                    title={`Source: ${item.sourceFileName}`}
+                                  >
+                                    Source: {item.sourceFileName}
+                                  </span>
+                                </>
+                              ) : null}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!item.svg) return;
+                                const b = new Blob([previewData.svg], {
+                                  type: "image/svg+xml;charset=utf-8",
+                                });
+                                const u = URL.createObjectURL(b);
+                                const a = document.createElement("a");
+                                a.href = u;
+                                a.download = "converted.svg";
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                URL.revokeObjectURL(u);
+                              }}
+                              disabled={!item.svg}
+                              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              Download SVG
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!item.svg) return;
+                                handleCopySvg(previewData.svg);
+                              }}
+                              disabled={!item.svg}
+                              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              Copy SVG
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (item.settingsOpen) toggleOutputSettings(item.stamp);
+                                closeFocusedEditor(item.stamp);
+                              }}
+                              className="cursor-pointer rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                            >
+                              Done editing
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {!focused ? (
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="text-[13px] font-semibold text-slate-700">
+                              {displayName}
+                            </span>
+                            <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-600">
+                              <span>
+                                {item.width > 0 && item.height > 0
+                                  ? `${item.width} x ${item.height} px`
+                                  : "size unknown"}
+                              </span>
+                              {!isActiveJob && !isFailedJob && displaySvgBytes ? (
+                                <span data-output-file-size="true">
+                                  {prettyBytes(displaySvgBytes)}
+                                </span>
+                              ) : null}
+                              {item.sourceFileName ? (
+                                <span
+                                  data-output-source-file={item.sourceFileName}
+                                  title={`Source: ${item.sourceFileName}`}
+                                  className="min-w-0 truncate"
+                                >
+                                  Source: {item.sourceFileName}
+                                </span>
+                              ) : null}
                             </p>
                           </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (item.settingsOpen) toggleOutputSettings(item.stamp);
-                              closeFocusedEditor(item.stamp);
-                            }}
-                            className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                            onClick={() => toggleCollapsedOutput(item.stamp)}
+                            data-output-minimize-control="true"
+                            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
-                            Done editing
+                            Minimize
                           </button>
                         </div>
-                      )}
-                      <div className="flex gap-3 items-center flex-wrap justify-between">
-                        <span className="text-[13px] font-semibold text-slate-700">
-                          {displayName}
-                        </span>
-                        <span className="text-[13px] text-slate-600">
-                          {item.width > 0 && item.height > 0
-                            ? `${item.width} × ${item.height} px`
-                            : "size unknown"}
-                        </span>
-                      </div>
+                      ) : null}
                       {(isActiveJob || isFailedJob) && (
                         <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -4358,7 +4849,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => cancelOutputJob(item.jobId!, item.stamp)}
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+                                className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
                               >
                                 Cancel
                               </button>
@@ -4367,7 +4858,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => retryOutputJob(item.stamp)}
-                                className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
                               >
                                 Retry
                               </button>
@@ -4375,7 +4866,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           </div>
                         </div>
                       )}
-                      <div className="flex gap-2 flex-wrap my-2">
+                      {!focused && (
+                      <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -4420,22 +4912,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => toggleCollapsedOutput(item.stamp)}
-                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          onClick={() => openOutputBatchSettings(item.stamp)}
+                          disabled={!item.svg}
+                          data-output-batch-shortcut="true"
+                          aria-controls={`output-batch-${item.stamp}`}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                          Minimize
+                          Batch
                         </button>
                         <button
                           type="button"
                           onClick={() => {
-                            if (!item.settingsOpen) toggleOutputSettings(item.stamp);
-                            setFocusedOutputStamp(item.stamp);
-                            setCollapsedOutputStamps((current) => {
-                              if (!current.has(item.stamp)) return current;
-                              const next = new Set(current);
-                              next.delete(item.stamp);
-                              return next;
-                            });
+                            openFocusedEditor(item.stamp);
                           }}
                           disabled={!item.svg}
                           data-output-primary-action="true"
@@ -4447,6 +4935,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           <span className="ml-1">Settings / Edit</span>
                         </button>
                       </div>
+                      )}
 
                       {item.updateError && (
                         <p className="m-0 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] leading-5 text-red-700">
@@ -4454,7 +4943,45 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </p>
                       )}
 
-                      {(focused || item.settingsOpen) && (
+                      {focused && (
+                        <div
+                          data-focused-editor-workspace="true"
+                          className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:items-start"
+                        >
+                          <FocusedEditorPreviewComparison
+                            outputSvg={previewData.svg}
+                            outputAlt="SVG result"
+                            originalPreviewUrl={
+                              sourceAvailableForOutput ? previewUrl : null
+                            }
+                            toolbar={
+                              <>
+                                <PreviewHistoryArrowButton
+                                  direction="left"
+                                  disabled={!item.previousVersion}
+                                  onClick={() =>
+                                    stepOutputVersion(item.stamp, "back")
+                                  }
+                                />
+                                <PreviewHistoryArrowButton
+                                  direction="right"
+                                  disabled={!item.nextVersion}
+                                  onClick={() =>
+                                    stepOutputVersion(item.stamp, "forward")
+                                  }
+                                />
+                                <FullscreenPreviewButton
+                                  onOpen={() => setFullscreenPreviewIndex(index)}
+                                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                />
+                              </>
+                            }
+                          />
+                          {settingsPanel}
+                        </div>
+                      )}
+
+                      {!focused && item.settingsOpen && (
                         <div
                           id={`output-settings-${item.stamp}`}
                           className={[
@@ -4471,9 +4998,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             }
                             capabilities={routeCapabilities}
                             detectedColorItems={[item]}
-                            sourceFile={file}
+                            sourceFile={sourceAvailableForOutput ? file : null}
                             removeColorsEnabled={
                               !(
+                                sourceAvailableForOutput &&
                                 file &&
                                 (file.type === "image/svg+xml" ||
                                   /\.svg$/i.test(file.name || ""))
@@ -4499,7 +5027,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               setHistorySize(item.stamp, size)
                             }
                             helpHref="#advanced-settings-help"
-                            buttonDisabled={buttonDisabled || isUpdating}
+                            buttonDisabled={
+                              buttonDisabled || isUpdating || !sourceAvailableForOutput
+                            }
                             liveSectionTitle="Live preview edits"
                             liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
                             livePreviewLead={
@@ -4541,7 +5071,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               ) : null
                             }
                             convertSectionTitle="Click to convert"
-                            convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
+                            convertSectionDescription={
+                              sourceAvailableForOutput
+                                ? "These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
+                                : item.sourceFileName
+                                  ? `Update preview needs the original source file (${item.sourceFileName}). Copy, download, and batch still use the saved SVG.`
+                                  : "Choose the original source image to retrace this output. Copy, download, and batch still use the saved SVG."
+                            }
                             hideOutputLayerStyling={true}
                             updatePreviewLabel={
                               isUpdating ? "Updating..." : "Update preview"
@@ -4700,6 +5236,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </div>
                       )}
 
+                      {!focused && (
                       <div
                         className={[
                           "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",
@@ -4732,6 +5269,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           className="max-w-full h-auto"
                         />
                       </div>
+                      )}
                     </div>
                     );
                   })}

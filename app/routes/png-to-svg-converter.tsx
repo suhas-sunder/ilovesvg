@@ -1059,7 +1059,21 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  sourceFileName?: string;
 };
+
+const OUTPUT_HISTORY_LIMIT = 10;
+
+function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
+  return items.slice(0, OUTPUT_HISTORY_LIMIT);
+}
+
+function outputMatchesActiveSource(
+  item: Pick<HistoryItem, "sourceFileName">,
+  currentFile: File | null,
+): boolean {
+  return !item.sourceFileName || currentFile?.name === item.sourceFileName;
+}
 
 type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
@@ -1211,7 +1225,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
           );
         }
 
-        return [item, ...prev].slice(0, 10);
+        return trimOutputHistory([item, ...prev]);
       });
 
       if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
@@ -1311,8 +1325,6 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
     setSettings(DEFAULTS);
     setActivePreset("line-accurate");
-    setHistory([]);
-    submittedByRunIdRef.current.clear();
 
     setErr(null);
     setInfo(null);
@@ -1477,7 +1489,9 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
             : "Server Potrace",
         canCancel: effective.traceMode === "layered",
       };
-      setHistory((prev) => [pendingItem as HistoryItem, ...prev].slice(0, 10));
+      setHistory((prev) =>
+        trimOutputHistory([pendingItem as HistoryItem, ...prev]),
+      );
     }
 
     fetcher.submit(fd, {
@@ -1598,13 +1612,28 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       | (HistoryItem & TraceOutputItem<Settings>)
       | undefined;
     if (!item) return;
+    if (!outputMatchesActiveSource(item, file) || !file) {
+      setHistory((prev) =>
+        prev.map((candidate) =>
+          candidate.stamp === stamp
+            ? {
+                ...candidate,
+                updateError: item.sourceFileName
+                  ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                  : "Choose the original source image to update this output. Copy and download still use the saved SVG.",
+              }
+            : candidate,
+        ),
+      );
+      setUpdatingOutputStamp(null);
+      return;
+    }
 
     const nextSettings =
       item.draftSettings ?? item.settingsSnapshot ?? settings;
     pendingReplaceStampRef.current = stamp;
     pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    if (!file) return;
     void submitConvertForFile(file, nextSettings);
   }
 
@@ -1630,7 +1659,22 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     const item = history.find((candidate) => candidate.stamp === stamp) as
       | (HistoryItem & TraceOutputItem<Settings>)
       | undefined;
-    if (!item || !file) return;
+    if (!item) return;
+    if (!outputMatchesActiveSource(item, file) || !file) {
+      setHistory((prev) =>
+        prev.map((candidate) =>
+          candidate.stamp === stamp
+            ? {
+                ...candidate,
+                jobError: item.sourceFileName
+                  ? `Retry needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                  : "Choose the original source image to retry this output. Copy and download still use the saved SVG.",
+              }
+            : candidate,
+        ),
+      );
+      return;
+    }
     const retrySettings = item.settingsSnapshot ?? item.draftSettings ?? settings;
     const retryPresetId =
       DISPLAY_PRESETS.find((preset) => preset.label === item.presetLabel)?.id ??

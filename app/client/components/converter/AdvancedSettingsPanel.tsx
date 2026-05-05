@@ -61,6 +61,10 @@ type Props<TSettings extends MixedTraceSettings> = {
   convertSectionTitle?: string;
   convertSectionDescription?: string;
   hideOutputLayerStyling?: boolean;
+  focusedEditorMode?: boolean;
+  defaultOpenSection?: string | null;
+  openSection?: string | null;
+  onOpenSectionChange?: (sectionId: string | null) => void;
   updatePreviewLabel?: string;
   onUpdatePreview: () => void;
 };
@@ -113,6 +117,10 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   convertSectionTitle?: string;
   convertSectionDescription?: string;
   hideOutputLayerStyling?: boolean;
+  focusedEditorMode?: boolean;
+  defaultOpenSection?: string | null;
+  openSection?: string | null;
+  onOpenSectionChange?: (sectionId: string | null) => void;
   updatePreviewLabel?: string;
   onUpdatePreview: () => void;
 };
@@ -189,6 +197,10 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   convertSectionTitle = "Click to convert",
   convertSectionDescription = "These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them.",
   hideOutputLayerStyling = false,
+  focusedEditorMode = false,
+  defaultOpenSection = null,
+  openSection,
+  onOpenSectionChange,
   updatePreviewLabel = "Update preview",
   onUpdatePreview,
 }: Props<TSettings>) {
@@ -200,6 +212,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   const [openConvertSection, setOpenConvertSection] = React.useState<
     string | null
   >(null);
+  const [localFocusedSection, setLocalFocusedSection] = React.useState<
+    string | null
+  >(defaultOpenSection);
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
   const layerColorItems = React.useMemo<DetectedColorItem[]>(() => {
     const items = detectedColorItems ? [...detectedColorItems] : [];
@@ -223,6 +238,13 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         : [],
     [outputLayerItems, detectedColorItems, onOutputLayerChange],
   );
+  const focusedOpenSection =
+    openSection !== undefined ? openSection : localFocusedSection;
+
+  React.useEffect(() => {
+    if (!focusedEditorMode || !open || openSection !== undefined) return;
+    setLocalFocusedSection((current) => current ?? defaultOpenSection);
+  }, [defaultOpenSection, focusedEditorMode, open, openSection]);
 
   if (!open) return null;
 
@@ -275,6 +297,35 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
     } as Partial<TSettings>);
   }
 
+  function toggleFocusedSection(sectionId: string) {
+    const next = focusedOpenSection === sectionId ? null : sectionId;
+    if (onOpenSectionChange) {
+      onOpenSectionChange(next);
+    } else {
+      setLocalFocusedSection(next);
+    }
+  }
+
+  function sectionOpen(
+    groupOpenSection: string | null,
+    sectionId: string,
+  ): boolean {
+    return focusedEditorMode
+      ? focusedOpenSection === sectionId
+      : groupOpenSection === sectionId;
+  }
+
+  function toggleSection(
+    groupSetter: React.Dispatch<React.SetStateAction<string | null>>,
+    sectionId: string,
+  ) {
+    if (focusedEditorMode) {
+      toggleFocusedSection(sectionId);
+      return;
+    }
+    toggleAccordionSection(groupSetter, sectionId);
+  }
+
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
@@ -282,7 +333,22 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         description={liveSectionDescription}
         tone="live"
       >
-        {livePreviewLead}
+        {livePreviewLead ? (
+          focusedEditorMode ? (
+            <SettingSection
+              title="Output appearance"
+              sectionId={`${id}-live-output-appearance`}
+              open={sectionOpen(openLiveSection, "output-appearance")}
+              onToggle={() =>
+                toggleSection(setOpenLiveSection, "output-appearance")
+              }
+            >
+              {livePreviewLead}
+            </SettingSection>
+          ) : (
+            livePreviewLead
+          )
+        ) : null}
 
         {capabilities.supportsLayerEditing && (
           <>
@@ -291,9 +357,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               onOutputLayerChange={onOutputLayerChange}
               onResetOutputLayer={onResetOutputLayer}
               sectionId={`${id}-live-output-colors`}
-              open={openLiveSection === "output-colors"}
+              open={sectionOpen(openLiveSection, "output-colors")}
               onToggle={() =>
-                toggleAccordionSection(setOpenLiveSection, "output-colors")
+                toggleSection(setOpenLiveSection, "output-colors")
               }
             />
             {!hideOutputLayerStyling && (
@@ -303,9 +369,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 onResetOutputLayer={onResetOutputLayer}
                 onResetAllOutputLayers={onResetAllOutputLayers}
                 sectionId={`${id}-live-layer-styling`}
-                open={openLiveSection === "layer-styling"}
+                open={sectionOpen(openLiveSection, "layer-styling")}
                 onToggle={() =>
-                  toggleAccordionSection(setOpenLiveSection, "layer-styling")
+                  toggleSection(setOpenLiveSection, "layer-styling")
                 }
               />
             )}
@@ -317,9 +383,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
             <SettingSection
               title="Size and export"
               sectionId={`${id}-live-size-export`}
-              open={openLiveSection === "size-export"}
+              open={sectionOpen(openLiveSection, "size-export")}
               onToggle={() =>
-                toggleAccordionSection(setOpenLiveSection, "size-export")
+                toggleSection(setOpenLiveSection, "size-export")
               }
             >
               <OutputSizeControls
@@ -363,9 +429,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       <SettingSection
         title="Line tracing"
         sectionId={`${id}-convert-line-tracing`}
-        open={openConvertSection === "line-tracing"}
+        open={sectionOpen(openConvertSection, "line-tracing")}
         onToggle={() =>
-          toggleAccordionSection(setOpenConvertSection, "line-tracing")
+          toggleSection(setOpenConvertSection, "line-tracing")
         }
       >
         {capabilities.supportsLayeredTrace && capabilities.supportsSingleTrace && (
@@ -441,9 +507,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         <SettingSection
           title="Color and layers"
           sectionId={`${id}-convert-color-layers`}
-          open={openConvertSection === "color-layers"}
+          open={sectionOpen(openConvertSection, "color-layers")}
           onToggle={() =>
-            toggleAccordionSection(setOpenConvertSection, "color-layers")
+            toggleSection(setOpenConvertSection, "color-layers")
           }
         >
           <Field label={`Color layers (${settings.colorLayerCount ?? 5})`}>
@@ -677,9 +743,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         <SettingSection
           title="Remove colors"
           sectionId={`${id}-convert-input-colors`}
-          open={openConvertSection === "input-colors"}
+          open={sectionOpen(openConvertSection, "input-colors")}
           onToggle={() =>
-            toggleAccordionSection(setOpenConvertSection, "input-colors")
+            toggleSection(setOpenConvertSection, "input-colors")
           }
         >
           <p className="text-[12px] leading-5 text-slate-600">
@@ -921,6 +987,10 @@ export function LayeredAdvancedSettingsPanel<
   convertSectionTitle = "Click to convert",
   convertSectionDescription = "These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them.",
   hideOutputLayerStyling = false,
+  focusedEditorMode = false,
+  defaultOpenSection = null,
+  openSection,
+  onOpenSectionChange,
   updatePreviewLabel = "Update preview",
   onUpdatePreview,
 }: LayeredProps<TSettings>) {
@@ -932,6 +1002,9 @@ export function LayeredAdvancedSettingsPanel<
   const [openConvertSection, setOpenConvertSection] = React.useState<
     string | null
   >(null);
+  const [localFocusedSection, setLocalFocusedSection] = React.useState<
+    string | null
+  >(defaultOpenSection);
   const sourceColors = useSourcePaletteColors(sourceFile, removeColorsEnabled);
   const layerColorItems = React.useMemo<DetectedColorItem[]>(() => {
     const items = detectedColorItems ? [...detectedColorItems] : [];
@@ -955,6 +1028,13 @@ export function LayeredAdvancedSettingsPanel<
         : [],
     [outputLayerItems, detectedColorItems, onOutputLayerChange],
   );
+  const focusedOpenSection =
+    openSection !== undefined ? openSection : localFocusedSection;
+
+  React.useEffect(() => {
+    if (!focusedEditorMode || !open || openSection !== undefined) return;
+    setLocalFocusedSection((current) => current ?? defaultOpenSection);
+  }, [defaultOpenSection, focusedEditorMode, open, openSection]);
 
   if (!open) return null;
 
@@ -1003,6 +1083,35 @@ export function LayeredAdvancedSettingsPanel<
     } as Partial<TSettings>);
   }
 
+  function toggleFocusedSection(sectionId: string) {
+    const next = focusedOpenSection === sectionId ? null : sectionId;
+    if (onOpenSectionChange) {
+      onOpenSectionChange(next);
+    } else {
+      setLocalFocusedSection(next);
+    }
+  }
+
+  function sectionOpen(
+    groupOpenSection: string | null,
+    sectionId: string,
+  ): boolean {
+    return focusedEditorMode
+      ? focusedOpenSection === sectionId
+      : groupOpenSection === sectionId;
+  }
+
+  function toggleSection(
+    groupSetter: React.Dispatch<React.SetStateAction<string | null>>,
+    sectionId: string,
+  ) {
+    if (focusedEditorMode) {
+      toggleFocusedSection(sectionId);
+      return;
+    }
+    toggleAccordionSection(groupSetter, sectionId);
+  }
+
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
@@ -1010,7 +1119,22 @@ export function LayeredAdvancedSettingsPanel<
         description={liveSectionDescription}
         tone="live"
       >
-        {livePreviewLead}
+        {livePreviewLead ? (
+          focusedEditorMode ? (
+            <SettingSection
+              title="Output appearance"
+              sectionId={`${id}-live-output-appearance`}
+              open={sectionOpen(openLiveSection, "output-appearance")}
+              onToggle={() =>
+                toggleSection(setOpenLiveSection, "output-appearance")
+              }
+            >
+              {livePreviewLead}
+            </SettingSection>
+          ) : (
+            livePreviewLead
+          )
+        ) : null}
 
         {capabilities.supportsLayerEditing && (
           <>
@@ -1019,9 +1143,9 @@ export function LayeredAdvancedSettingsPanel<
               onOutputLayerChange={onOutputLayerChange}
               onResetOutputLayer={onResetOutputLayer}
               sectionId={`${id}-live-output-colors`}
-              open={openLiveSection === "output-colors"}
+              open={sectionOpen(openLiveSection, "output-colors")}
               onToggle={() =>
-                toggleAccordionSection(setOpenLiveSection, "output-colors")
+                toggleSection(setOpenLiveSection, "output-colors")
               }
             />
             {!hideOutputLayerStyling && (
@@ -1031,9 +1155,9 @@ export function LayeredAdvancedSettingsPanel<
                 onResetOutputLayer={onResetOutputLayer}
                 onResetAllOutputLayers={onResetAllOutputLayers}
                 sectionId={`${id}-live-layer-styling`}
-                open={openLiveSection === "layer-styling"}
+                open={sectionOpen(openLiveSection, "layer-styling")}
                 onToggle={() =>
-                  toggleAccordionSection(setOpenLiveSection, "layer-styling")
+                  toggleSection(setOpenLiveSection, "layer-styling")
                 }
               />
             )}
@@ -1044,9 +1168,9 @@ export function LayeredAdvancedSettingsPanel<
           <SettingSection
             title="Size and export"
             sectionId={`${id}-live-size-export`}
-            open={openLiveSection === "size-export"}
+            open={sectionOpen(openLiveSection, "size-export")}
             onToggle={() =>
-              toggleAccordionSection(setOpenLiveSection, "size-export")
+              toggleSection(setOpenLiveSection, "size-export")
             }
           >
             <OutputSizeControls
@@ -1090,9 +1214,9 @@ export function LayeredAdvancedSettingsPanel<
       <SettingSection
         title="Color and layers"
         sectionId={`${id}-convert-color-layers`}
-        open={openConvertSection === "color-layers"}
+        open={sectionOpen(openConvertSection, "color-layers")}
         onToggle={() =>
-          toggleAccordionSection(setOpenConvertSection, "color-layers")
+          toggleSection(setOpenConvertSection, "color-layers")
         }
       >
         <Field label={`Layer count (${settings.layerCount})`}>
@@ -1214,9 +1338,9 @@ export function LayeredAdvancedSettingsPanel<
         <SettingSection
           title="Remove colors"
           sectionId={`${id}-convert-input-colors`}
-          open={openConvertSection === "input-colors"}
+          open={sectionOpen(openConvertSection, "input-colors")}
           onToggle={() =>
-            toggleAccordionSection(setOpenConvertSection, "input-colors")
+            toggleSection(setOpenConvertSection, "input-colors")
           }
         >
           <p className="text-[12px] leading-5 text-slate-600">
@@ -1302,9 +1426,9 @@ export function LayeredAdvancedSettingsPanel<
       <SettingSection
         title="Edges and cleanup"
         sectionId={`${id}-convert-edges-cleanup`}
-        open={openConvertSection === "edges-cleanup"}
+        open={sectionOpen(openConvertSection, "edges-cleanup")}
         onToggle={() =>
-          toggleAccordionSection(setOpenConvertSection, "edges-cleanup")
+          toggleSection(setOpenConvertSection, "edges-cleanup")
         }
       >
         <Field label={`Brightness (${merged.brightness})`}>
@@ -1351,9 +1475,9 @@ export function LayeredAdvancedSettingsPanel<
         <SettingSection
           title="Appearance"
           sectionId={`${id}-convert-appearance`}
-          open={openConvertSection === "appearance"}
+          open={sectionOpen(openConvertSection, "appearance")}
           onToggle={() =>
-            toggleAccordionSection(setOpenConvertSection, "appearance")
+            toggleSection(setOpenConvertSection, "appearance")
           }
         >
           <Field label="Transparent background">
@@ -1833,7 +1957,7 @@ function OutputLayerStylingSection({
               Reset all
             </button>
           </div>
-          <div className="grid gap-2">
+          <div className="grid max-h-[24rem] min-w-0 max-w-full gap-2 overflow-y-auto overflow-x-hidden pr-1">
             {layers.map((layer) => (
               <OutputLayerStyleRow
                 key={layer.id}
@@ -1977,8 +2101,8 @@ function OutputLayerStyleRow({
   const original = normalizeColorInput(layer.originalColor || layer.color || "") || normalizedColor;
 
   return (
-    <div className="rounded-md border border-slate-100 bg-slate-50 p-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="min-w-0 max-w-full overflow-x-hidden rounded-md border border-slate-100 bg-slate-50 p-2">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
         <input
           type="checkbox"
           checked={layer.visible !== false}
@@ -2016,13 +2140,13 @@ function OutputLayerStyleRow({
           onBlur={() => commitColorNow(colorText)}
           aria-label={`${label} hex color`}
           aria-invalid={!normalizeColorInput(colorText)}
-          className="w-[104px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          className="w-[104px] max-w-full rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
-        <details className="relative">
+        <details className="relative max-w-full">
           <summary className="list-none rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
             RGB
           </summary>
-          <div className="absolute left-0 z-20 mt-1 flex gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
+          <div className="absolute right-0 z-20 mt-1 flex max-w-[min(18rem,calc(100vw-3rem))] gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg sm:left-0 sm:right-auto">
             {(["r", "g", "b"] as const).map((channel) => (
               <input
                 key={channel}
@@ -2040,7 +2164,7 @@ function OutputLayerStyleRow({
             ))}
           </div>
         </details>
-        <div className="min-w-[120px] flex-1">
+        <div className="min-w-[120px] max-w-full flex-1">
           <div className="truncate text-[12px] font-semibold text-slate-700">
             {label}
           </div>
@@ -2061,7 +2185,7 @@ function OutputLayerStyleRow({
           </button>
         ) : null}
       </div>
-      <label className="mt-2 flex items-center gap-2 text-[12px] text-slate-600">
+      <label className="mt-2 grid min-w-0 max-w-full gap-1 text-[12px] text-slate-600 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
         <span className="shrink-0">Per-layer opacity {localOpacity}%</span>
         <input
           type="range"
@@ -2420,25 +2544,36 @@ function SettingSection({
 }) {
   if (sectionId && onToggle && typeof open === "boolean") {
     return (
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <section
+        data-settings-section={sectionId}
+        data-settings-section-open={open ? "true" : "false"}
+        className="min-w-0 max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white"
+      >
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
           aria-controls={sectionId}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-bold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-inset"
+          className="flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-bold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-inset"
         >
-          <span>{title}</span>
+          <span className="min-w-0 truncate">{title}</span>
           <ChevronDownIcon open={open} />
         </button>
         <div
           className={[
-            "grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none",
+            "grid min-w-0 max-w-full transition-[grid-template-rows] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
             open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           ].join(" ")}
         >
-          <div id={sectionId} hidden={!open} className="overflow-hidden">
-            <div className="flex flex-col gap-2 border-t border-slate-100 p-3">
+          <div
+            id={sectionId}
+            aria-hidden={!open}
+            className={[
+              "min-w-0 max-w-full overflow-hidden transition-opacity duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+              open ? "opacity-100" : "opacity-0",
+            ].join(" ")}
+          >
+            <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden border-t border-slate-100 p-3">
               {children}
             </div>
           </div>
@@ -2448,9 +2583,11 @@ function SettingSection({
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-3">
+    <section className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white p-3">
       <h3 className="m-0 mb-2 text-[13px] font-bold text-sky-950">{title}</h3>
-      <div className="flex flex-col gap-2">{children}</div>
+      <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden">
+        {children}
+      </div>
     </section>
   );
 }

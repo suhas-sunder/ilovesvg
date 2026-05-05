@@ -27,7 +27,11 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
-import { OutputAppearanceControls } from "~/client/components/converter/TraceOutputPanel";
+import {
+  FocusedEditorPreviewComparison,
+  getSvgByteSize,
+  OutputAppearanceControls,
+} from "~/client/components/converter/TraceOutputPanel";
 import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
@@ -1267,6 +1271,19 @@ type HistoryItem = {
   appearance?: OutputAppearanceSettings;
 };
 
+const OUTPUT_HISTORY_LIMIT = 10;
+
+function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
+  return items.slice(0, OUTPUT_HISTORY_LIMIT);
+}
+
+function outputMatchesActiveSource(
+  item: Pick<HistoryItem, "sourceFileName">,
+  currentFile: File | null,
+): boolean {
+  return !item.sourceFileName || currentFile?.name === item.sourceFileName;
+}
+
 type AutoMode = "fast" | "medium" | "off";
 
 function getAutoMode(bytes?: number | null): AutoMode {
@@ -1368,6 +1385,7 @@ export default function PngToLayeredSvgForCricut({
     stamp?: number | null;
     startedAt?: number;
     fileName?: string;
+    sourceFile?: File;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -1385,6 +1403,7 @@ export default function PngToLayeredSvgForCricut({
         stamp: number | null;
         startedAt: number;
         fileName: string;
+        sourceFile: File;
       }
     >(),
   );
@@ -1395,6 +1414,9 @@ export default function PngToLayeredSvgForCricut({
   const [focusedOutputStamp, setFocusedOutputStamp] = React.useState<
     number | null
   >(null);
+  const [focusedSettingsSections, setFocusedSettingsSections] = React.useState<
+    Map<number, string | null>
+  >(() => new Map());
   const [collapsedOutputStamps, setCollapsedOutputStamps] = React.useState<
     ReadonlySet<number>
   >(() => new Set());
@@ -1535,7 +1557,7 @@ export default function PngToLayeredSvgForCricut({
             parentStamp: candidate.parentStamp,
           };
         });
-        return replaced ? next : [item, ...prev].slice(0, 10);
+        return replaced ? next : trimOutputHistory([item, ...prev]);
       });
       setActiveHistoryStamp(submitted.replaceStamp);
       setOpenSettingsStamp(submitted.replaceStamp);
@@ -1546,7 +1568,7 @@ export default function PngToLayeredSvgForCricut({
             candidate.stamp === stamp ? item : candidate,
           );
         }
-        return [item, ...prev].slice(0, 10);
+        return trimOutputHistory([item, ...prev]);
       });
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
     }
@@ -1578,7 +1600,7 @@ export default function PngToLayeredSvgForCricut({
       lastSubmittedRef.current;
     if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
 
-    if (fetcher.data.code === "BUSY" && file) {
+    if (fetcher.data.code === "BUSY" && submitted.sourceFile) {
       const busyKey = [
         clientRunId || "legacy",
         fetcher.data.retryAfterMs ?? "",
@@ -1596,8 +1618,8 @@ export default function PngToLayeredSvgForCricut({
           flowStep: "png_layered_busy_retry_limit",
           flowKind: "conversion",
           action: "BUSY",
-          selectedFileType: file.type,
-          selectedFileSize: file.size,
+          selectedFileType: submitted.sourceFile.type,
+          selectedFileSize: submitted.sourceFile.size,
           imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
           settingsSnapshot: submitted.settings,
         });
@@ -1610,7 +1632,7 @@ export default function PngToLayeredSvgForCricut({
       if (retryRef.current) clearTimeout(retryRef.current);
 
       retryRef.current = setTimeout(() => {
-        submitConvert(file, submitted.settings, {
+        submitConvert(submitted.sourceFile, submitted.settings, {
           presetId: submitted.presetId,
           parentStamp: submitted.parentStamp,
           replaceStamp: submitted.replaceStamp,
@@ -1725,8 +1747,6 @@ export default function PngToLayeredSvgForCricut({
 
     suppressLiveRef.current = true;
     busyRetryCountRef.current = 0;
-    latestSubmittedRunIdRef.current = "";
-    submittedByRunIdRef.current.clear();
     lastProcessedResultKeyRef.current = "";
     lastHandledBusyKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
@@ -1742,10 +1762,7 @@ export default function PngToLayeredSvgForCricut({
     setPreviewUrl(null);
     setSettings(DEFAULTS);
     setActivePreset(DEFAULT_PRESET_ID);
-    setHistory([]);
-    setActiveHistoryStamp(null);
     setOpenSettingsStamp(null);
-    outputCounterRef.current = 0;
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1838,6 +1855,7 @@ export default function PngToLayeredSvgForCricut({
       stamp: pendingStamp,
       startedAt,
       fileName: sourceFile.name,
+      sourceFile,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);
@@ -1867,7 +1885,7 @@ export default function PngToLayeredSvgForCricut({
         enginePathLabel: "Hybrid layered trace",
         canCancel: true,
       };
-      setHistory((prev) => [pendingItem, ...prev].slice(0, 10));
+      setHistory((prev) => trimOutputHistory([pendingItem, ...prev]));
       setActiveHistoryStamp((current) =>
         current === pendingStamp ? current : pendingStamp,
       );
@@ -1930,7 +1948,15 @@ export default function PngToLayeredSvgForCricut({
 
   function retryOutputJob(stamp: number) {
     const item = history.find((candidate) => candidate.stamp === stamp);
-    if (!item || !file) return;
+    if (!item) return;
+    if (!outputMatchesActiveSource(item, file) || !file) {
+      showToast(
+        item.sourceFileName
+          ? `Retry needs ${item.sourceFileName}.`
+          : "Choose the original source image to retry this output.",
+      );
+      return;
+    }
     setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
     void submitConvert(file, item.settingsSnapshot || settings, {
       presetId: item.presetId || activePreset,
@@ -2010,6 +2036,28 @@ export default function PngToLayeredSvgForCricut({
       const next = new Set(current);
       if (next.has(stamp)) next.delete(stamp);
       else next.add(stamp);
+      return next;
+    });
+  }
+
+  function setFocusedSettingsSection(stamp: number, sectionId: string | null) {
+    setFocusedSettingsSections((current) => {
+      const next = new Map(current);
+      if (sectionId) next.set(stamp, sectionId);
+      else next.delete(stamp);
+      return next;
+    });
+  }
+
+  function openFocusedEditor(stamp: number, sectionId = "output-appearance") {
+    selectHistoryOutput(stamp);
+    setOpenSettingsStamp(stamp);
+    setFocusedSettingsSection(stamp, sectionId);
+    setFocusedOutputStamp(stamp);
+    setCollapsedOutputStamps((current) => {
+      if (!current.has(stamp)) return current;
+      const next = new Set(current);
+      next.delete(stamp);
       return next;
     });
   }
@@ -2197,10 +2245,7 @@ export default function PngToLayeredSvgForCricut({
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
-                        setHistory([]);
-                        setActiveHistoryStamp(null);
                         setOpenSettingsStamp(null);
-                        outputCounterRef.current = 0;
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
@@ -2270,10 +2315,11 @@ export default function PngToLayeredSvgForCricut({
 
             <div
               data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
+              data-output-panel-focused={focusedOutputStamp != null ? "true" : "false"}
               className={[
-                "order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+                "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-200 ease-out",
                 focusedOutputStamp != null
-                  ? "md:col-span-2 md:max-h-none md:self-start"
+                  ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
                   : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
               ].join(" ")}
             >
@@ -2320,8 +2366,16 @@ export default function PngToLayeredSvgForCricut({
                             }),
                           )
                         : editedSvg;
+                    const displaySvgBytes = displaySvg
+                      ? getSvgByteSize(displaySvg)
+                      : item.svgBytes;
                     const focused = focusedOutputStamp === item.stamp;
+                    const sourceAvailableForOutput =
+                      outputMatchesActiveSource(item, file);
                     if (focusedOutputStamp != null && !focused) return null;
+                    const focusedSettingsSection =
+                      focusedSettingsSections.get(item.stamp) ??
+                      "output-appearance";
                     const collapsed =
                       !focused && collapsedOutputStamps.has(item.stamp);
                     const appearanceSupport =
@@ -2342,6 +2396,158 @@ export default function PngToLayeredSvgForCricut({
                         onReset={() => resetOutputAppearance(item.stamp)}
                       />
                     ) : null;
+                    const settingsPanel = (
+                      <div
+                        id={`output-settings-${item.stamp}`}
+                        data-editor-settings-panel={focused ? "true" : undefined}
+                        className={[
+                          "rounded-xl border border-sky-200 bg-sky-50/70 p-2",
+                          focused
+                            ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
+                            : "mb-2",
+                        ].join(" ")}
+                      >
+                        <LayeredAdvancedSettingsPanel
+                          id={`output-settings-panel-${item.stamp}`}
+                          open={true}
+                          settings={itemSettings}
+                          setSettings={setSettings}
+                          capabilities={routeCapabilities}
+                          detectedColorItems={[item]}
+                          sourceFile={sourceAvailableForOutput ? file : null}
+                          removeColorsEnabled={
+                            !(
+                              sourceAvailableForOutput &&
+                              file &&
+                              (file.type === "image/svg+xml" ||
+                                /\.svg$/i.test(file.name || ""))
+                            )
+                          }
+                          outputLayerItems={item.layers}
+                          outputSize={{
+                            width: item.width,
+                            height: item.height,
+                            originalWidth: item.originalWidth || item.width,
+                            originalHeight: item.originalHeight || item.height,
+                          }}
+                          onOutputLayerChange={(layerId, patch) =>
+                            updateHistoryItemLayers(item.stamp, (layers) =>
+                              layers.map((layer) =>
+                                layer.id === layerId
+                                  ? { ...layer, ...patch }
+                                  : layer,
+                              ),
+                            )
+                          }
+                          onResetOutputLayer={(layerId) =>
+                            updateHistoryItemLayers(item.stamp, (layers) =>
+                              layers.map((layer) =>
+                                layer.id === layerId
+                                  ? {
+                                      ...layer,
+                                      color: layer.originalColor,
+                                      visible: true,
+                                      opacity: layer.originalOpacity ?? 1,
+                                    }
+                                  : layer,
+                              ),
+                            )
+                          }
+                          onResetAllOutputLayers={() =>
+                            updateHistoryItemLayers(item.stamp, (layers) =>
+                              layers.map((layer) => ({
+                                ...layer,
+                                color: layer.originalColor,
+                                visible: true,
+                                opacity: layer.originalOpacity ?? 1,
+                              })),
+                            )
+                          }
+                          onOutputSizeChange={(size) => {
+                            selectHistoryOutput(item.stamp);
+                            updateLatestOutputSize(size);
+                          }}
+                          helpHref="#advanced-settings-help"
+                          buttonDisabled={
+                            buttonDisabled || !sourceAvailableForOutput
+                          }
+                          liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                          livePreviewLead={
+                            <div className="grid gap-2">
+                              {appearanceControls}
+                              <div className="rounded-xl border border-slate-200 bg-white p-2">
+                                <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                  Layer colors
+                                </p>
+                                <LayerControls
+                                  layers={item.layers}
+                                  onChange={(nextLayers) =>
+                                    updateHistoryItemLayers(
+                                      item.stamp,
+                                      () => nextLayers,
+                                    )
+                                  }
+                                  onLayerChange={(layerId, patch) =>
+                                    updateHistoryItemLayers(item.stamp, (layers) =>
+                                      layers.map((layer) =>
+                                        layer.id === layerId
+                                          ? { ...layer, ...patch }
+                                          : layer,
+                                      ),
+                                    )
+                                  }
+                                  onReset={() =>
+                                    updateHistoryItemLayers(item.stamp, (layers) =>
+                                      layers.map((layer) => ({
+                                        ...layer,
+                                        color: layer.originalColor,
+                                        visible: true,
+                                        opacity: layer.originalOpacity ?? 1,
+                                      })),
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+                          }
+                          convertSectionDescription={
+                            sourceAvailableForOutput
+                              ? "These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                              : item.sourceFileName
+                                ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                                : "Choose the original source image to retrace this output. Copy and download still use the saved SVG."
+                          }
+                          hideOutputLayerStyling={true}
+                          focusedEditorMode={focused}
+                          defaultOpenSection="output-appearance"
+                          openSection={focused ? focusedSettingsSection : undefined}
+                          onOpenSectionChange={
+                            focused
+                              ? (sectionId) =>
+                                  setFocusedSettingsSection(
+                                    item.stamp,
+                                    sectionId,
+                                  )
+                              : undefined
+                          }
+                          onUpdatePreview={() => {
+                            if (!sourceAvailableForOutput || !file) {
+                              setToast(
+                                item.sourceFileName
+                                  ? `Update preview needs ${item.sourceFileName}.`
+                                  : "Choose the original source image to update this output.",
+                              );
+                              return;
+                            }
+                            void submitConvert(file, itemSettings, {
+                              presetId: item.presetId,
+                              parentStamp: null,
+                              replaceStamp: item.stamp,
+                            });
+                          }}
+                        />
+                      </div>
+                    );
 
                     if (collapsed) {
                       return (
@@ -2369,7 +2575,18 @@ export default function PngToLayeredSvgForCricut({
                                       : "Failed"
                                     : `${item.width} x ${item.height} px`}
                                 {item.engineUsed ? ` - ${item.engineUsed}` : ""}
-                                {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                                {displaySvgBytes ? ` - ${prettyBytes(displaySvgBytes)}` : ""}
+                                {item.sourceFileName ? (
+                                  <>
+                                    {" - "}
+                                    <span
+                                      data-output-source-file={item.sourceFileName}
+                                      title={`Source: ${item.sourceFileName}`}
+                                    >
+                                      Source: {item.sourceFileName}
+                                    </span>
+                                  </>
+                                ) : null}
                                 {hasOutputAppearanceChanges(appearance)
                                   ? " - appearance adjusted"
                                   : ""}
@@ -2378,7 +2595,7 @@ export default function PngToLayeredSvgForCricut({
                             <button
                               type="button"
                               onClick={() => toggleCollapsedOutput(item.stamp)}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
+                              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
                             >
                               Restore
                             </button>
@@ -2397,6 +2614,7 @@ export default function PngToLayeredSvgForCricut({
                         data-engine-used={item.engineUsed || "unknown"}
                         data-source-kind={item.sourceKind || "unknown"}
                         data-engine-warnings={(item.warnings || []).join(" | ")}
+                        data-svg-bytes={displaySvgBytes ?? ""}
                         onDoubleClick={() => selectHistoryOutput(item.stamp)}
                         className={[
                           "rounded-xl border bg-white p-2 transition-colors",
@@ -2417,35 +2635,119 @@ export default function PngToLayeredSvgForCricut({
                               </p>
                               <p className="m-0 mt-0.5 text-[12px] text-slate-600">
                                 {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
-                                {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                                {item.width > 0 && item.height > 0
+                                  ? ` - ${item.width} x ${item.height} px`
+                                  : ""}
+                                {displaySvgBytes ? (
+                                  <>
+                                    {" - "}
+                                    <span data-output-file-size="true">
+                                      {prettyBytes(displaySvgBytes)}
+                                    </span>
+                                  </>
+                                ) : null}
+                                {item.sourceFileName ? (
+                                  <>
+                                    {" - "}
+                                    <span
+                                      data-output-source-file={item.sourceFileName}
+                                      title={`Source: ${item.sourceFileName}`}
+                                    >
+                                      Source: {item.sourceFileName}
+                                    </span>
+                                  </>
+                                ) : null}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!item.svg) return;
+                                  const b = new Blob([displaySvg], {
+                                    type: "image/svg+xml;charset=utf-8",
+                                  });
+                                  const u = URL.createObjectURL(b);
+                                  const a = document.createElement("a");
+                                  a.href = u;
+                                  a.download =
+                                    "png-to-layered-svg-for-cricut.svg";
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                  URL.revokeObjectURL(u);
+                                }}
+                                disabled={!item.svg}
+                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                Download SVG
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!item.svg) return;
+                                  handleCopySvg(displaySvg);
+                                }}
+                                disabled={!item.svg}
+                                className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                Copy SVG
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (openSettingsStamp === item.stamp) {
+                                    setOpenSettingsStamp(null);
+                                  }
+                                  closeFocusedEditor(item.stamp);
+                                }}
+                                className="cursor-pointer rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                              >
+                                Done editing
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {!focused ? (
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <span className="text-[13px] font-semibold text-slate-700">
+                                {item.name}
+                                {isActiveOutput ? " - editing" : ""}
+                              </span>
+                              <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-600">
+                                <span>
+                                  {item.width > 0 && item.height > 0
+                                    ? `${item.width} x ${item.height} px`
+                                    : "size unknown"}
+                                </span>
+                                <span>{item.layers.length} layers</span>
+                                {!isActiveJob && !isFailedJob && displaySvgBytes ? (
+                                  <span data-output-file-size="true">
+                                    {prettyBytes(displaySvgBytes)}
+                                  </span>
+                                ) : null}
+                                {item.sourceFileName ? (
+                                  <span
+                                    data-output-source-file={item.sourceFileName}
+                                    title={`Source: ${item.sourceFileName}`}
+                                    className="min-w-0 truncate"
+                                  >
+                                    Source: {item.sourceFileName}
+                                  </span>
+                                ) : null}
                               </p>
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (openSettingsStamp === item.stamp) {
-                                  setOpenSettingsStamp(null);
-                                }
-                                closeFocusedEditor(item.stamp);
-                              }}
-                              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                              onClick={() => toggleCollapsedOutput(item.stamp)}
+                              data-output-minimize-control="true"
+                              className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                             >
-                              Done editing
+                              Minimize
                             </button>
                           </div>
-                        )}
-                        <div className="flex gap-3 items-center flex-wrap justify-between">
-                          <span className="text-[13px] font-semibold text-slate-700">
-                            {item.name}
-                            {isActiveOutput ? " · editing" : ""}
-                          </span>
-                          <span className="text-[13px] text-slate-600">
-                            {item.width > 0 && item.height > 0
-                              ? `${item.width} × ${item.height} px`
-                              : "size unknown"}{" "}
-                            • {item.layers.length} layers
-                          </span>
-                        </div>
+                        ) : null}
                         {(isActiveJob || isFailedJob) && (
                           <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2502,7 +2804,7 @@ export default function PngToLayeredSvgForCricut({
                                 <button
                                   type="button"
                                   onClick={() => cancelOutputJob(item.jobId!, item.stamp)}
-                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+                                  className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
                                 >
                                   Cancel
                                 </button>
@@ -2511,7 +2813,7 @@ export default function PngToLayeredSvgForCricut({
                                 <button
                                   type="button"
                                   onClick={() => retryOutputJob(item.stamp)}
-                                  className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
                                 >
                                   Retry
                                 </button>
@@ -2519,11 +2821,14 @@ export default function PngToLayeredSvgForCricut({
                             </div>
                           </div>
                         )}
-                        <p className="m-0 mt-1 text-[12px] text-slate-500">
-                          Open Settings on an output to edit that preview.
-                        </p>
+                        {!focused ? (
+                          <p className="m-0 mt-1 text-[12px] text-slate-500">
+                            Open Settings on an output to edit that preview.
+                          </p>
+                        ) : null}
 
-                        <div className="flex gap-2 flex-wrap my-2">
+                        {!focused && (
+                        <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -2570,25 +2875,9 @@ export default function PngToLayeredSvgForCricut({
 
                           <button
                             type="button"
-                            onClick={() => toggleCollapsedOutput(item.stamp)}
-                            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                          >
-                            Minimize
-                          </button>
-
-                          <button
-                            type="button"
                             onClick={() => {
                               if (!item.svg) return;
-                              selectHistoryOutput(item.stamp);
-                              setOpenSettingsStamp(item.stamp);
-                              setFocusedOutputStamp(item.stamp);
-                              setCollapsedOutputStamps((current) => {
-                                if (!current.has(item.stamp)) return current;
-                                const next = new Set(current);
-                                next.delete(item.stamp);
-                                return next;
-                              });
+                              openFocusedEditor(item.stamp);
                             }}
                             disabled={!item.svg}
                             data-output-primary-action="true"
@@ -2604,8 +2893,31 @@ export default function PngToLayeredSvgForCricut({
                             Settings / Edit
                           </button>
                         </div>
+                        )}
 
-                        {(focused || openSettingsStamp === item.stamp) && (
+                        {focused && (
+                          <div
+                            data-focused-editor-workspace="true"
+                            className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:items-start"
+                          >
+                            <FocusedEditorPreviewComparison
+                              outputSvg={displaySvg}
+                              outputAlt="Layered SVG result from PNG"
+                              originalPreviewUrl={
+                                sourceAvailableForOutput ? previewUrl : null
+                              }
+                              toolbar={
+                                <FullscreenPreviewButton
+                                  onOpen={() => setFullscreenPreviewIndex(index)}
+                                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                />
+                              }
+                            />
+                            {settingsPanel}
+                          </div>
+                        )}
+
+                        {!focused && openSettingsStamp === item.stamp && (
                           <div
                             id={`output-settings-${item.stamp}`}
                             className={[
@@ -2620,9 +2932,14 @@ export default function PngToLayeredSvgForCricut({
                               setSettings={setSettings}
                               capabilities={routeCapabilities}
                               detectedColorItems={[item]}
-                              sourceFile={file}
+                              sourceFile={sourceAvailableForOutput ? file : null}
                               removeColorsEnabled={
-                                !(file && (file.type === "image/svg+xml" || /\.svg$/i.test(file.name || "")))
+                                !(
+                                  sourceAvailableForOutput &&
+                                  file &&
+                                  (file.type === "image/svg+xml" ||
+                                    /\.svg$/i.test(file.name || ""))
+                                )
                               }
                               outputLayerItems={item.layers}
                               outputSize={{
@@ -2669,7 +2986,9 @@ export default function PngToLayeredSvgForCricut({
                                 updateLatestOutputSize(size);
                               }}
                               helpHref="#advanced-settings-help"
-                              buttonDisabled={buttonDisabled}
+                              buttonDisabled={
+                                buttonDisabled || !sourceAvailableForOutput
+                              }
                               liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
                               livePreviewLead={
                                 <div className="grid gap-2">
@@ -2709,19 +3028,34 @@ export default function PngToLayeredSvgForCricut({
                                   </div>
                                 </div>
                               }
-                              convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                              convertSectionDescription={
+                                sourceAvailableForOutput
+                                  ? "These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                                  : item.sourceFileName
+                                    ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                                    : "Choose the original source image to retrace this output. Copy and download still use the saved SVG."
+                              }
                               hideOutputLayerStyling={true}
-                              onUpdatePreview={() =>
+                              onUpdatePreview={() => {
+                                if (!sourceAvailableForOutput || !file) {
+                                  setToast(
+                                    item.sourceFileName
+                                      ? `Update preview needs ${item.sourceFileName}.`
+                                      : "Choose the original source image to update this output.",
+                                  );
+                                  return;
+                                }
                                 void submitConvert(file, itemSettings, {
                                   presetId: item.presetId,
                                   parentStamp: null,
                                   replaceStamp: item.stamp,
-                                })
-                              }
+                                });
+                              }}
                             />
                           </div>
                         )}
 
+                        {!focused && (
                         <div
                           className={[
                             "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",
@@ -2737,6 +3071,7 @@ export default function PngToLayeredSvgForCricut({
                             className="max-w-full h-auto"
                           />
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -3175,7 +3510,7 @@ function LayerControls({
         </button>
       </div>
 
-      <div className="mt-3 grid gap-2">
+      <div className="mt-3 grid max-h-[24rem] gap-2 overflow-y-auto pr-1">
         {layers.map((layer, index) => (
           <LayerControlRow
             key={layer.id}
@@ -3263,7 +3598,7 @@ function LayerControlRow({
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-2">
-      <div className="flex items-center gap-2">
+      <div className="grid gap-2 sm:grid-cols-[auto_auto_104px_minmax(0,1fr)_auto] sm:items-center">
         <input
           type="checkbox"
           checked={layer.visible}
@@ -3334,7 +3669,7 @@ function LayerControlRow({
           Reset
         </button>
       </div>
-      <label className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+      <label className="mt-2 grid gap-1 text-xs text-slate-600 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
         <span className="shrink-0">
           Opacity {Math.round(normalizeClientOpacity(layer.opacity) * 100)}%
         </span>

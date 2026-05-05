@@ -25,6 +25,16 @@ main[class*="bg-slate-50"] {
   color: #0f2537;
 }
 
+button:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 main[class*="bg-slate-50"] h1[class] {
   margin-top: 0;
   margin-bottom: 0.75rem;
@@ -77,6 +87,112 @@ h3[class] {
 
   main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
     grid-template-columns: minmax(620px, 0.85fr) minmax(860px, 1.2fr) !important;
+  }
+}
+
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+  transition:
+    grid-template-columns 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    gap 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [data-output-panel-focused="true"] {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  transform: translateY(0);
+}
+
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-1"],
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-3"] {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  max-height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-width: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.5rem);
+  transition:
+    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-focused-editor-workspace="true"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  animation: focused-editor-enter 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-editor-settings-panel="true"],
+[data-editor-comparison-panel="true"] {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  transition:
+    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-output-panel-focused="true"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+}
+
+[data-editor-settings-panel="true"] {
+  scrollbar-gutter: stable;
+  contain: layout paint;
+}
+
+[data-editor-settings-panel="true"] *,
+[data-settings-section],
+[data-settings-section] * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-settings-section] {
+  overflow-x: clip;
+}
+
+[data-layer-palette-editor="true"],
+[data-layer-palette-editor="true"] * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@keyframes focused-editor-enter {
+  from {
+    opacity: 0.86;
+    transform: translateY(0.35rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]),
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-1"],
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-3"],
+  [data-focused-editor-workspace="true"],
+  [data-editor-comparison-panel="true"],
+  [data-editor-settings-panel="true"] {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
   }
 }
 

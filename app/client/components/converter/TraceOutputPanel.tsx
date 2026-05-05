@@ -243,6 +243,73 @@ type TraceOutputPanelProps<TSettings extends MixedTraceSettings> = {
   onRetryOutputJob?: (stamp: number) => void;
 };
 
+export function FocusedEditorPreviewComparison({
+  outputSvg,
+  outputAlt,
+  originalPreviewUrl,
+  originalAlt = "Original image",
+  toolbar,
+}: {
+  outputSvg: string;
+  outputAlt: string;
+  originalPreviewUrl?: string | null;
+  originalAlt?: string;
+  toolbar?: React.ReactNode;
+}) {
+  return (
+    <div
+      data-editor-comparison-panel="true"
+      className="grid min-w-0 gap-3 lg:sticky lg:top-4 lg:self-start"
+    >
+      <div
+        data-editor-output-preview="true"
+        className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+          <p className="m-0 text-[13px] font-bold text-slate-800">Output</p>
+          {toolbar ? <div className="flex shrink-0 gap-1.5">{toolbar}</div> : null}
+        </div>
+        <div className="flex min-h-[360px] items-center justify-center p-3 transparent-checkerboard md:min-h-[460px] xl:min-h-[520px]">
+          {outputSvg ? (
+            <EditedSvgPreviewImage
+              svg={outputSvg}
+              layers={null}
+              alt={outputAlt}
+              className="h-auto max-h-[68vh] max-w-full"
+            />
+          ) : (
+            <p className="m-0 text-sm font-semibold text-slate-500">
+              Output preview unavailable.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div
+        data-editor-original-preview="true"
+        className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      >
+        <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-bold text-slate-800">
+          Original
+        </p>
+        <div className="flex max-h-[260px] min-h-[150px] items-center justify-center overflow-auto p-3 transparent-checkerboard">
+          {originalPreviewUrl ? (
+            <img
+              src={originalPreviewUrl}
+              alt={originalAlt}
+              className="h-auto max-h-[240px] max-w-full"
+            />
+          ) : (
+            <p className="m-0 text-center text-[13px] font-medium text-slate-500">
+              Original image preview unavailable for this route.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   history,
   busy,
@@ -281,7 +348,13 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<
     number | null
   >(null);
+  const [focusedSettingsSections, setFocusedSettingsSections] = React.useState<
+    Map<number, string | null>
+  >(() => new Map());
   const [appearanceVersion, setAppearanceVersion] = React.useState(0);
+  const [sourcePreviewUrl, setSourcePreviewUrl] = React.useState<string | null>(
+    null,
+  );
 
   React.useEffect(() => {
     if (!hasActiveJob) return;
@@ -309,6 +382,17 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusedOutputStamp]);
 
+  React.useEffect(() => {
+    if (focusedOutputStamp == null || !file) {
+      setSourcePreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setSourcePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file, focusedOutputStamp]);
+
   function closeFocusedEditor(stamp: number) {
     setFocusedOutputStamp(null);
     setHighlightedOutputStamp(stamp);
@@ -325,6 +409,29 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     window.setTimeout(() => {
       setHighlightedOutputStamp((current) => (current === stamp ? null : current));
     }, 1_500);
+  }
+
+  function setFocusedSettingsSection(stamp: number, sectionId: string | null) {
+    setFocusedSettingsSections((current) => {
+      const next = new Map(current);
+      if (sectionId) {
+        next.set(stamp, sectionId);
+      } else {
+        next.delete(stamp);
+      }
+      return next;
+    });
+  }
+
+  function openFocusedEditor(stamp: number, sectionId = "output-appearance") {
+    setFocusedSettingsSection(stamp, sectionId);
+    setFocusedOutputStamp(stamp);
+    setCollapsedOutputStamps((current) => {
+      if (!current.has(stamp)) return current;
+      const next = new Set(current);
+      next.delete(stamp);
+      return next;
+    });
   }
 
   function toggleCollapsedOutput(stamp: number) {
@@ -358,10 +465,11 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   return (
     <div
       data-focused-editor={focusedMode ? "true" : "false"}
+      data-output-panel-focused={focusedMode ? "true" : "false"}
       className={[
-        "order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]",
+        "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-200 ease-out",
         focusedMode
-          ? "md:col-span-2 md:max-h-none md:self-start"
+          ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
           : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
       ].join(" ")}
     >
@@ -379,9 +487,16 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             const isFailedJob = jobStatus === "failed" || jobStatus === "canceled";
             const previewSvg =
               isActiveJob || isFailedJob || !item.svg ? "" : getTraceOutputSvg(item);
+            const displaySvgBytes = previewSvg
+              ? getSvgByteSize(previewSvg)
+              : item.svgBytes;
             const label = getOutputLabel(item, index);
             const elapsedMs = getTraceJobElapsedMs(item, nowMs);
             const focused = focusedOutputStamp === item.stamp;
+            const sourceAvailableForOutput =
+              !item.sourceFileName || file?.name === item.sourceFileName;
+            const focusedSettingsSection =
+              focusedSettingsSections.get(item.stamp) ?? "output-appearance";
             if (focusedOutputStamp != null && !focused) return null;
             const collapsed =
               !focused && collapsedOutputStamps.has(item.stamp);
@@ -403,6 +518,126 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   onReset={() => resetOutputAppearance(item)}
                 />
               ) : null;
+            const settingsPanel =
+              focused || item.settingsOpen ? (
+                <div
+                  id={`output-settings-${item.stamp}`}
+                  data-editor-settings-panel={focused ? "true" : undefined}
+                  className={[
+                    "rounded-xl border border-sky-200 bg-sky-50/70 p-2",
+                    focused
+                      ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
+                      : "mb-2",
+                  ].join(" ")}
+                >
+                  <TraceAdvancedSettingsPanel
+                    id={`output-settings-panel-${item.stamp}`}
+                    open={true}
+                    settings={outputSettings}
+                    setSettings={(updater) =>
+                      onDraftSettingsChange(item.stamp, updater)
+                    }
+                    capabilities={routeCapabilities}
+                    detectedColorItems={[item]}
+                    sourceFile={sourceAvailableForOutput ? file : null}
+                    removeColorsEnabled={
+                      !(
+                        sourceAvailableForOutput &&
+                        file &&
+                        (file.type === "image/svg+xml" ||
+                          /\.svg$/i.test(file.name || ""))
+                      )
+                    }
+                    outputLayerItems={item.layers}
+                    outputSize={{
+                      width: item.width,
+                      height: item.height,
+                      originalWidth: item.originalWidth || item.width,
+                      originalHeight: item.originalHeight || item.height,
+                    }}
+                    onOutputLayerChange={(layerId, patch) =>
+                      onOutputLayerChange(item.stamp, layerId, patch)
+                    }
+                    onResetOutputLayer={(layerId) =>
+                      onResetOutputLayer(item.stamp, layerId)
+                    }
+                    onResetAllOutputLayers={() =>
+                      onResetAllOutputLayers(item.stamp)
+                    }
+                    onOutputSizeChange={
+                      onOutputSizeChange
+                        ? (size) => onOutputSizeChange(item.stamp, size)
+                        : undefined
+                    }
+                    helpHref={helpHref}
+                    buttonDisabled={
+                      buttonDisabled || isUpdating || !sourceAvailableForOutput
+                    }
+                    liveSectionTitle="Live preview edits"
+                    liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                    livePreviewLead={
+                      appearanceControls || item.layers?.length ? (
+                        <div className="grid gap-2">
+                          {appearanceControls}
+                          {item.layers?.length ? (
+                            <div className="rounded-xl border border-slate-200 bg-white p-2">
+                              <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
+                                Layer colors
+                              </p>
+                              <LayerPaletteEditor
+                                item={item}
+                                onColorChange={(layerId, color) =>
+                                  onOutputLayerChange(item.stamp, layerId, {
+                                    color,
+                                  })
+                                }
+                                onVisibilityChange={(layerId, visible) =>
+                                  onOutputLayerChange(item.stamp, layerId, {
+                                    visible,
+                                  })
+                                }
+                                onOpacityChange={(layerId, opacity) =>
+                                  onOutputLayerChange(item.stamp, layerId, {
+                                    opacity,
+                                  })
+                                }
+                                onResetLayer={(layerId) =>
+                                  onResetOutputLayer(item.stamp, layerId)
+                                }
+                                onResetAll={() =>
+                                  onResetAllOutputLayers(item.stamp)
+                                }
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null
+                    }
+                    convertSectionTitle="Click to convert"
+                    convertSectionDescription={
+                      sourceAvailableForOutput
+                        ? "These settings retrace the source image for this output only."
+                        : item.sourceFileName
+                          ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                          : "Choose the original source image to retrace this output. Copy and download still use the saved SVG."
+                    }
+                    hideOutputLayerStyling={true}
+                    focusedEditorMode={focused}
+                    defaultOpenSection="output-appearance"
+                    openSection={focused ? focusedSettingsSection : undefined}
+                    onOpenSectionChange={
+                      focused
+                        ? (sectionId) =>
+                            setFocusedSettingsSection(item.stamp, sectionId)
+                        : undefined
+                    }
+                    updatePreviewLabel={
+                      isUpdating ? "Updating..." : "Update preview"
+                    }
+                    onUpdatePreview={() => onUpdatePreview(item.stamp)}
+                  />
+                </div>
+              ) : null;
 
             if (collapsed) {
               return (
@@ -413,6 +648,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   jobStatus={jobStatus}
                   elapsedMs={elapsedMs}
                   previewSvg={previewSvg}
+                  displaySvgBytes={displaySvgBytes}
                   hasAppearanceChanges={hasOutputAppearanceChanges(appearance)}
                   onToggleCollapsed={() => toggleCollapsedOutput(item.stamp)}
                   onCopySvg={onCopySvg}
@@ -440,7 +676,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 data-actual-palette-count={item.actualPaletteCount ?? ""}
                 data-output-detected-colors={item.outputDetectedColors ?? ""}
                 data-path-count={item.pathCount ?? ""}
-                data-svg-bytes={item.svgBytes ?? ""}
+                data-svg-bytes={displaySvgBytes ?? ""}
                 className={[
                   "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                   focused ? "shadow-xl" : "",
@@ -457,33 +693,98 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       </p>
                       <p className="m-0 mt-0.5 text-[12px] text-slate-600">
                         {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
-                        {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+                        {item.width > 0 && item.height > 0
+                          ? ` - ${item.width} x ${item.height} px`
+                          : ""}
+                        {displaySvgBytes ? (
+                          <>
+                            {" - "}
+                            <span data-output-file-size="true">
+                              {prettyBytes(displaySvgBytes)}
+                            </span>
+                          </>
+                        ) : null}
+                        {item.sourceFileName ? (
+                          <>
+                            {" - "}
+                            <span
+                              data-output-source-file={item.sourceFileName}
+                              title={`Source: ${item.sourceFileName}`}
+                            >
+                              Source: {item.sourceFileName}
+                            </span>
+                          </>
+                        ) : null}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => downloadSvg(previewSvg, downloadFileName)}
+                        className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        Download SVG
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onCopySvg(previewSvg)}
+                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        Copy SVG
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.settingsOpen) onToggleSettings(item.stamp);
+                          closeFocusedEditor(item.stamp);
+                        }}
+                        className="cursor-pointer rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        Done editing
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!focused ? (
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-[13px] font-semibold text-slate-700">
+                        {label}
+                      </span>
+                      <p className="m-0 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-slate-600">
+                        <span>
+                          {isActiveJob
+                            ? formatTraceJobElapsed(elapsedMs)
+                            : item.width > 0 && item.height > 0
+                            ? `${item.width} x ${item.height} px`
+                            : "size unknown"}
+                        </span>
+                        {!isActiveJob && !isFailedJob && displaySvgBytes ? (
+                          <span data-output-file-size="true">
+                            {prettyBytes(displaySvgBytes)}
+                          </span>
+                        ) : null}
+                        {item.sourceFileName ? (
+                          <span
+                            data-output-source-file={item.sourceFileName}
+                            title={`Source: ${item.sourceFileName}`}
+                            className="min-w-0 truncate"
+                          >
+                            Source: {item.sourceFileName}
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (item.settingsOpen) onToggleSettings(item.stamp);
-                        closeFocusedEditor(item.stamp);
-                      }}
-                      className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      onClick={() => toggleCollapsedOutput(item.stamp)}
+                      data-output-minimize-control="true"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
-                      Done editing
+                      Minimize
                     </button>
                   </div>
-                )}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="text-[13px] font-semibold text-slate-700">
-                    {label}
-                  </span>
-                  <span className="text-[13px] text-slate-600">
-                    {isActiveJob
-                      ? formatTraceJobElapsed(elapsedMs)
-                      : item.width > 0 && item.height > 0
-                      ? `${item.width} x ${item.height} px`
-                      : "size unknown"}
-                  </span>
-                </div>
+                ) : null}
 
                 {isActiveJob || isFailedJob ? (
                   <TraceJobStateCard
@@ -495,7 +796,8 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   />
                 ) : (
                   <>
-                <div className="my-2 flex flex-wrap gap-2">
+                {!focused && (
+                <div data-output-action-row="true" className="my-2 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => downloadSvg(previewSvg, downloadFileName)}
@@ -518,22 +820,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   </button>
                   <button
                     type="button"
-                    onClick={() => toggleCollapsedOutput(item.stamp)}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  >
-                    Minimize
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => {
                       if (!item.settingsOpen) onToggleSettings(item.stamp);
-                      setFocusedOutputStamp(item.stamp);
-                      setCollapsedOutputStamps((current) => {
-                        if (!current.has(item.stamp)) return current;
-                        const next = new Set(current);
-                        next.delete(item.stamp);
-                        return next;
-                      });
+                      openFocusedEditor(item.stamp);
                     }}
                     data-output-primary-action="true"
                     aria-expanded={focused || !!item.settingsOpen}
@@ -544,6 +833,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     <span className="ml-1">Settings / Edit</span>
                   </button>
                 </div>
+                )}
 
                 {item.updateError && (
                   <p className="m-0 mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] leading-5 text-red-700">
@@ -551,136 +841,67 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   </p>
                 )}
 
-                {(focused || item.settingsOpen) && (
+                {focused ? (
                   <div
-                    id={`output-settings-${item.stamp}`}
-                    className={[
-                      "mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2",
-                      focused ? "lg:float-right lg:ml-3 lg:w-[380px] lg:max-w-[42%]" : "",
-                    ].join(" ")}
+                    data-focused-editor-workspace="true"
+                    className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:items-start"
                   >
-                    <TraceAdvancedSettingsPanel
-                      id={`output-settings-panel-${item.stamp}`}
-                      open={true}
-                      settings={outputSettings}
-                      setSettings={(updater) =>
-                        onDraftSettingsChange(item.stamp, updater)
+                    <FocusedEditorPreviewComparison
+                      outputSvg={previewSvg}
+                      outputAlt={`${label} SVG result`}
+                      originalPreviewUrl={
+                        sourceAvailableForOutput ? sourcePreviewUrl : null
                       }
-                      capabilities={routeCapabilities}
-                      detectedColorItems={[item]}
-                      sourceFile={file}
-                      removeColorsEnabled={
-                        !(
-                          file &&
-                          (file.type === "image/svg+xml" ||
-                            /\.svg$/i.test(file.name || ""))
-                        )
+                      toolbar={
+                        <>
+                          <PreviewHistoryArrowButton
+                            direction="left"
+                            disabled={!item.previousVersion}
+                            onClick={() => onStepVersion(item.stamp, "previous")}
+                          />
+                          <PreviewHistoryArrowButton
+                            direction="right"
+                            disabled={!item.nextVersion}
+                            onClick={() => onStepVersion(item.stamp, "next")}
+                          />
+                          <FullscreenPreviewButton
+                            onOpen={() => setFullscreenPreviewIndex(index)}
+                            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          />
+                        </>
                       }
-                      outputLayerItems={item.layers}
-                      outputSize={{
-                        width: item.width,
-                        height: item.height,
-                        originalWidth: item.originalWidth || item.width,
-                        originalHeight: item.originalHeight || item.height,
-                      }}
-                      onOutputLayerChange={(layerId, patch) =>
-                        onOutputLayerChange(item.stamp, layerId, patch)
-                      }
-                      onResetOutputLayer={(layerId) =>
-                        onResetOutputLayer(item.stamp, layerId)
-                      }
-                      onResetAllOutputLayers={() =>
-                        onResetAllOutputLayers(item.stamp)
-                      }
-                      onOutputSizeChange={
-                        onOutputSizeChange
-                          ? (size) => onOutputSizeChange(item.stamp, size)
-                          : undefined
-                      }
-                      helpHref={helpHref}
-                      buttonDisabled={buttonDisabled || isUpdating}
-                      liveSectionTitle="Live preview edits"
-                      liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
-                      livePreviewLead={
-                        appearanceControls || item.layers?.length ? (
-                          <div className="grid gap-2">
-                            {appearanceControls}
-                            {item.layers?.length ? (
-                              <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                  Layer colors
-                                </p>
-                                <LayerPaletteEditor
-                                  item={item}
-                                  onColorChange={(layerId, color) =>
-                                    onOutputLayerChange(item.stamp, layerId, {
-                                      color,
-                                    })
-                                  }
-                                  onVisibilityChange={(layerId, visible) =>
-                                    onOutputLayerChange(item.stamp, layerId, {
-                                      visible,
-                                    })
-                                  }
-                                  onOpacityChange={(layerId, opacity) =>
-                                    onOutputLayerChange(item.stamp, layerId, {
-                                      opacity,
-                                    })
-                                  }
-                                  onResetLayer={(layerId) =>
-                                    onResetOutputLayer(item.stamp, layerId)
-                                  }
-                                  onResetAll={() =>
-                                    onResetAllOutputLayers(item.stamp)
-                                  }
-                                />
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null
-                      }
-                      convertSectionTitle="Click to convert"
-                      convertSectionDescription="These settings retrace the source image for this output only."
-                      hideOutputLayerStyling={true}
-                      updatePreviewLabel={
-                        isUpdating ? "Updating..." : "Update preview"
-                      }
-                      onUpdatePreview={() => onUpdatePreview(item.stamp)}
                     />
+                    {settingsPanel}
                   </div>
+                ) : (
+                  <>
+                    {settingsPanel}
+                    <div className="relative flex min-h-[240px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2 transparent-checkerboard">
+                      <div className="absolute right-2 top-2 z-10 flex gap-2">
+                        <PreviewHistoryArrowButton
+                          direction="left"
+                          disabled={!item.previousVersion}
+                          onClick={() => onStepVersion(item.stamp, "previous")}
+                        />
+                        <PreviewHistoryArrowButton
+                          direction="right"
+                          disabled={!item.nextVersion}
+                          onClick={() => onStepVersion(item.stamp, "next")}
+                        />
+                        <FullscreenPreviewButton
+                          onOpen={() => setFullscreenPreviewIndex(index)}
+                          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                        />
+                      </div>
+                      <EditedSvgPreviewImage
+                        svg={previewSvg}
+                        layers={null}
+                        alt={`${label} SVG result`}
+                        className="h-auto max-w-full"
+                      />
+                    </div>
+                  </>
                 )}
-
-                <div
-                  className={[
-                    "relative flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2 transparent-checkerboard",
-                    focused
-                      ? "min-h-[420px] lg:sticky lg:top-4"
-                      : "min-h-[240px]",
-                  ].join(" ")}
-                >
-                  <div className="absolute right-2 top-2 z-10 flex gap-2">
-                    <PreviewHistoryArrowButton
-                      direction="left"
-                      disabled={!item.previousVersion}
-                      onClick={() => onStepVersion(item.stamp, "previous")}
-                    />
-                    <PreviewHistoryArrowButton
-                      direction="right"
-                      disabled={!item.nextVersion}
-                      onClick={() => onStepVersion(item.stamp, "next")}
-                    />
-                    <FullscreenPreviewButton
-                      onOpen={() => setFullscreenPreviewIndex(index)}
-                      className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    />
-                  </div>
-                  <EditedSvgPreviewImage
-                    svg={previewSvg}
-                    layers={null}
-                    alt={`${label} SVG result`}
-                    className="h-auto max-w-full"
-                  />
-                </div>
                   </>
                 )}
               </div>
@@ -768,7 +989,7 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
           <button
             type="button"
             onClick={() => onCancelOutputJob(item.jobId!, item.stamp)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+            className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
           >
             Cancel
           </button>
@@ -777,7 +998,7 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
           <button
             type="button"
             onClick={() => onRetryOutputJob(item.stamp)}
-            className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
           >
             Retry
           </button>
@@ -793,6 +1014,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
   jobStatus,
   elapsedMs,
   previewSvg,
+  displaySvgBytes,
   hasAppearanceChanges,
   onToggleCollapsed,
   onCopySvg,
@@ -805,6 +1027,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
   jobStatus: TraceOutputItem<TSettings>["jobStatus"];
   elapsedMs: number;
   previewSvg: string;
+  displaySvgBytes?: number;
   hasAppearanceChanges: boolean;
   onToggleCollapsed: () => void;
   onCopySvg: (svg: string) => void | Promise<void>;
@@ -841,7 +1064,25 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
                   ? `${item.width} x ${item.height} px`
                   : "size unknown"}
             {item.engineUsed ? ` - ${item.engineUsed}` : ""}
-            {item.svgBytes ? ` - ${prettyBytes(item.svgBytes)}` : ""}
+            {displaySvgBytes ? (
+              <>
+                {" - "}
+                <span data-output-file-size="true">
+                  {prettyBytes(displaySvgBytes)}
+                </span>
+              </>
+            ) : null}
+            {item.sourceFileName ? (
+              <>
+                {" - "}
+                <span
+                  data-output-source-file={item.sourceFileName}
+                  title={`Source: ${item.sourceFileName}`}
+                >
+                  Source: {item.sourceFileName}
+                </span>
+              </>
+            ) : null}
             {hasAppearanceChanges ? " - appearance adjusted" : ""}
           </p>
         </div>
@@ -852,14 +1093,14 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
               <button
                 type="button"
                 onClick={onDownloadSvg}
-                className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
               >
                 Download
               </button>
               <button
                 type="button"
                 onClick={() => void onCopySvg(previewSvg)}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
               >
                 Copy
               </button>
@@ -869,7 +1110,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
             <button
               type="button"
               onClick={() => onCancelOutputJob(item.jobId!, item.stamp)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               Cancel
             </button>
@@ -878,7 +1119,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
             <button
               type="button"
               onClick={() => onRetryOutputJob(item.stamp)}
-              className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               Retry
             </button>
@@ -886,7 +1127,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             Restore
           </button>
@@ -921,7 +1162,7 @@ export function OutputAppearanceControls({
           type="button"
           onClick={onReset}
           disabled={!hasChanges}
-          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-pointer rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reset
         </button>
@@ -1063,7 +1304,24 @@ function isPrecisionOutputItem<TSettings extends MixedTraceSettings>(
   return /\b(cut|cricut|vinyl|silhouette|laser)\b/.test(text);
 }
 
-function prettyBytes(bytes: number) {
+const svgByteSizeCache = new Map<string, number>();
+
+export function getSvgByteSize(svg: string): number {
+  const cached = svgByteSizeCache.get(svg);
+  if (cached != null) return cached;
+  const size =
+    typeof TextEncoder !== "undefined"
+      ? new TextEncoder().encode(svg).length
+      : new Blob([svg], { type: "image/svg+xml;charset=utf-8" }).size;
+  svgByteSizeCache.set(svg, size);
+  if (svgByteSizeCache.size > 80) {
+    const firstKey = svgByteSizeCache.keys().next().value;
+    if (firstKey) svgByteSizeCache.delete(firstKey);
+  }
+  return size;
+}
+
+export function prettyBytes(bytes: number) {
   const units = ["B", "KB", "MB", "GB"];
   let value = Number(bytes) || 0;
   let index = 0;

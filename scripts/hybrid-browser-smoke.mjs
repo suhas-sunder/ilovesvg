@@ -548,6 +548,24 @@ async function runQueueSmoke(fixtures) {
   const client = await openTab(`${baseUrl}/png-to-svg-converter`);
   const errors = [];
   const queueFixture = await createQueueFixture(fixtures.png);
+  const replacementFixture = fixtures.jpg || fixtures.png;
+  const replacementName = path.basename(replacementFixture);
+  const queueSourceName = path.basename(queueFixture);
+  const oldSlowIsActive = (value) =>
+    value?.cards?.some(
+      (card) =>
+        card.isSlow &&
+        card.sourceFileName === queueSourceName &&
+        (card.status === "queued" || card.status === "running"),
+    );
+  const oldSlowIsComplete = (value) =>
+    value?.cards?.some(
+      (card) =>
+        card.isSlow &&
+        card.sourceFileName === queueSourceName &&
+        card.engine === "vtracer" &&
+        card.previewDecoded,
+    );
   client.onEvent((message) => {
     if (message.method === "Runtime.exceptionThrown") {
       const details = message.params?.exceptionDetails;
@@ -588,20 +606,51 @@ async function runQueueSmoke(fixtures) {
       (value) => value?.slowActive && value?.slowCards >= 1,
     );
 
+    const replacementControls = await evaluate(client, `(() => {
+      const hasFileInput = Boolean(document.querySelector('input[type="file"]'));
+      const hasRemoveButton = Array.from(document.querySelectorAll('button')).some((button) => {
+        const text = button.innerText || button.getAttribute('aria-label') || "";
+        return /Remove selected file|^x$|^×$/i.test(text);
+      });
+      return { hasFileInput, hasRemoveButton };
+    })()`);
+    let replacementWhileSlow = {
+      supported: false,
+      reason: "The route does not expose file replacement controls while a conversion is actively running.",
+      slowActive: slowPending.slowActive,
+      sourceFileNames: slowPending.sourceFileNames || [],
+    };
+    if (replacementControls?.hasFileInput || replacementControls?.hasRemoveButton) {
+      if (!replacementControls.hasFileInput) {
+        await clickButtonIfPresent(client, "/Remove selected file|^x$|^×$/i");
+      }
+      await setFileInput(client, replacementFixture);
+      replacementWhileSlow = await waitForValue(
+        client,
+      queueSnapshotExpression,
+      20_000,
+      (value) =>
+          oldSlowIsActive(value) &&
+          value?.sourceFileNames?.some((name) => name === queueSourceName) &&
+          value?.sourceFileNames?.some((name) => name === replacementName),
+      );
+      replacementWhileSlow.supported = true;
+    }
+
     await showAllPresetButtons(client);
     const fastSelected = await clickButtonMatching(client, "/^Lineart - Clean\\b/i");
     const fastWhileSlow = await waitForValue(
       client,
       queueSnapshotExpression,
       40_000,
-      (value) => value?.fastComplete && value?.slowActive,
+      (value) => value?.fastComplete && oldSlowIsActive(value),
     );
 
     const slowComplete = await waitForValue(
       client,
       queueSnapshotExpression,
-      80_000,
-      (value) => value?.slowComplete,
+      100_000,
+      oldSlowIsComplete,
     );
 
     await showAllPresetButtons(client);
@@ -634,10 +683,14 @@ async function runQueueSmoke(fixtures) {
       Boolean(cancelClicked) &&
       slowPending.slowActive &&
       !slowPending.slowPotraceComplete &&
+      oldSlowIsActive(replacementWhileSlow) &&
+      (!replacementWhileSlow.supported ||
+        (replacementWhileSlow.sourceFileNames.includes(queueSourceName) &&
+          replacementWhileSlow.sourceFileNames.includes(replacementName))) &&
       fastWhileSlow.fastComplete &&
-      fastWhileSlow.slowActive &&
+      oldSlowIsActive(fastWhileSlow) &&
       !fastWhileSlow.slowPotraceComplete &&
-      slowComplete.slowComplete &&
+      oldSlowIsComplete(slowComplete) &&
       !slowComplete.slowPotraceComplete &&
       canceled.slowCanceled &&
       !canceledFallback &&
@@ -647,10 +700,12 @@ async function runQueueSmoke(fixtures) {
     return {
       route: "/png-to-svg-converter",
       fixture: path.basename(queueFixture),
+      replacementFixture: replacementName,
       slowSelected,
       fastSelected,
       cancelSelected,
       slowPending,
+      replacementWhileSlow,
       fastWhileSlow,
       slowComplete,
       cancelPending,
@@ -712,6 +767,7 @@ function queueSnapshotExpression() {
       const text = card.innerText || "";
       const engine = card.getAttribute("data-engine-used") || "";
       const status = card.getAttribute("data-job-status") || "";
+      const sourceFileName = card.querySelector("[data-output-source-file]")?.getAttribute("data-output-source-file") || "";
       const images = Array.from(card.querySelectorAll("img"));
       const previewDecoded = images.some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
       const isSlow = /Filled Layers - Separate Colors/i.test(text);
@@ -722,10 +778,12 @@ function queueSnapshotExpression() {
         status,
         isSlow,
         isFast,
+        sourceFileName,
         previewDecoded,
         text: text.slice(0, 500),
       };
     });
+    const sourceFileNames = cards.map((card) => card.sourceFileName).filter(Boolean);
     const isActive = (card) => card.status === "queued" || card.status === "running";
     const slowActive = cards.some((card) => card.isSlow && isActive(card));
     const slowComplete = cards.some((card) => card.isSlow && card.engine === "vtracer" && card.previewDecoded);
@@ -740,6 +798,7 @@ function queueSnapshotExpression() {
       slowPotraceComplete,
       slowCanceled,
       fastComplete,
+      sourceFileNames,
       vtracerPreviewDecoded: cards.some((card) => card.engine === "vtracer" && card.previewDecoded),
       potracePreviewDecoded: cards.some((card) => card.engine === "potrace" && card.previewDecoded),
       cards,
@@ -766,11 +825,12 @@ async function clickCancelForSlowJob(client) {
 
 async function runOutputUxSmoke(fixtures) {
   const cases = [
-    { route: "/", fixture: fixtures.png, expectedEngine: null },
-    { route: "/png-to-svg-converter", fixture: fixtures.png, expectedEngine: null },
+    { route: "/", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
+    { route: "/png-to-svg-converter", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
     {
       route: "/png-to-layered-svg-for-cricut",
       fixture: fixtures.png,
+      replacementFixture: fixtures.jpg,
       expectedEngine: null,
     },
   ];
@@ -824,6 +884,11 @@ async function runOutputUxRouteSmoke(testCase) {
       await clickConvertButton(client);
       output = await waitForOutput(client, 60_000, testCase.expectedEngine);
     }
+    const historyReplacement = await verifyOutputHistoryPersistsAcrossInputReplacement(
+      client,
+      testCase.fixture,
+      testCase.replacementFixture || testCase.fixture,
+    );
 
     const opened = await clickButtonMatching(client, "/Settings/i", {
       reject: "/Advanced/i",
@@ -832,8 +897,23 @@ async function runOutputUxRouteSmoke(testCase) {
       client,
       outputUxSnapshotExpression,
       8_000,
-      (value) => value?.focused && value?.hasDone && value?.hasPreview,
+      (value) =>
+        value?.focused &&
+        value?.hasDone &&
+        value?.hasPreview &&
+        value?.hasOutputComparison &&
+        value?.hasOriginalComparison &&
+        value?.hasSettingsPanel &&
+        value?.hasFileSize &&
+        !value?.hasFocusedRedundantActions &&
+        value?.openSettingsSectionCount === 1 &&
+        !value?.minimizeInActionRow &&
+        value?.leftPaneCollapsed &&
+        value?.editorNearTop &&
+        value?.layoutShift?.ok &&
+        value?.cursorViolations?.length === 0,
     );
+    const accordionShift = await verifyFocusedAccordionHasNoHorizontalShift(client);
     const controls = await evaluate(client, `(() => {
       const text = document.body.innerText || "";
       const labels = Array.from(document.querySelectorAll("label"));
@@ -865,7 +945,12 @@ async function runOutputUxRouteSmoke(testCase) {
       client,
       outputUxSnapshotExpression,
       8_000,
-      (value) => !value?.focused && value?.expandedCards >= 1,
+      (value) =>
+        !value?.focused &&
+        value?.expandedCards >= 1 &&
+        value?.hasHeaderMinimize &&
+        value?.hasFileSize &&
+        !value?.minimizeInActionRow,
     );
 
     await clickButtonMatching(client, "/Minimize/i");
@@ -882,6 +967,29 @@ async function runOutputUxRouteSmoke(testCase) {
       8_000,
       (value) => value?.collapsedCards === 0 && value?.expandedCards >= 1,
     );
+    let batchShortcut = { tested: false, ok: true, status: "not-applicable" };
+    if (testCase.route === "/") {
+      const clickedBatch = await clickButtonMatching(client, "/Batch/i", {
+        reject: "/ZIP|Convert/i",
+      });
+      const batchFocused = await waitForValue(
+        client,
+        outputUxSnapshotExpression,
+        8_000,
+        (value) =>
+          value?.focused &&
+          value?.batchSectionOpen &&
+          value?.openSettingsSectionCount === 1 &&
+          !value?.hasFocusedRedundantActions,
+      );
+      await clickButtonMatching(client, "/Done editing/i");
+      batchShortcut = {
+        tested: true,
+        ok: Boolean(clickedBatch && batchFocused.batchSectionOpen),
+        clicked: clickedBatch,
+        snapshot: batchFocused,
+      };
+    }
     const responsive = await runOutputUxResponsiveChecks(client);
 
     const ok =
@@ -889,21 +997,40 @@ async function runOutputUxRouteSmoke(testCase) {
       Boolean(opened) &&
       focused.focused &&
       focused.hasDone &&
+      focused.hasOutputComparison &&
+      focused.hasOriginalComparison &&
+      focused.hasSettingsPanel &&
+      focused.hasFileSize &&
+      !focused.hasFocusedRedundantActions &&
+      focused.openSettingsSectionCount === 1 &&
+      !focused.minimizeInActionRow &&
+      focused.leftPaneCollapsed &&
+      focused.editorNearTop &&
+      focused.layoutShift.ok &&
+      accordionShift.ok &&
+      focused.cursorViolations.length === 0 &&
       controls.hasLineWeight &&
       controls.hasFillSpread &&
       (!appearance.applied || (copy.hasFillSpread && download.hasFillSpread)) &&
       copy.ok &&
       download.ok &&
       !restored.focused &&
+      restored.hasHeaderMinimize &&
+      restored.hasFileSize &&
+      !restored.minimizeInActionRow &&
       collapsed.collapsedCards >= 1 &&
       expanded.expandedCards >= 1 &&
+      historyReplacement.ok &&
+      batchShortcut.ok &&
       responsive.every((item) => item.ok) &&
       output.previewDecoded;
 
     return {
       route: testCase.route,
       opened,
+      historyReplacement,
       focused,
+      accordionShift,
       controls,
       appearance,
       copy,
@@ -911,10 +1038,11 @@ async function runOutputUxRouteSmoke(testCase) {
       restored,
       collapsed,
       expanded,
+      batchShortcut,
       responsive,
       consoleErrors: errors,
       ok,
-      failure: ok ? null : "Focused editor, collapse, or appearance controls did not behave as expected.",
+      failure: ok ? null : "Focused editor, history preservation, collapse, or appearance controls did not behave as expected.",
     };
   } catch (error) {
     return {
@@ -929,6 +1057,101 @@ async function runOutputUxRouteSmoke(testCase) {
   } finally {
     await client.close().catch(() => {});
   }
+}
+
+async function verifyOutputHistoryPersistsAcrossInputReplacement(
+  client,
+  firstFixture,
+  replacementFixture,
+) {
+  const firstName = path.basename(firstFixture);
+  const replacementName = path.basename(replacementFixture);
+  const before = await waitForValue(
+    client,
+    outputUxSnapshotExpression,
+    8_000,
+    (value) =>
+      value?.expandedCards >= 1 &&
+      value?.sourceFileNames?.some((name) => name === firstName),
+  );
+  const removed = await clickButtonIfPresent(client, "/Remove selected file|^x$|^×$/i");
+  await delay(100);
+  await setFileInput(client, replacementFixture);
+  let after = await waitForValue(
+    client,
+    outputUxSnapshotExpression,
+    10_000,
+    (value) =>
+      value?.expandedCards >= Math.min(10, before.expandedCards + 1) &&
+      value?.sourceFileNames?.some((name) => name === firstName) &&
+      value?.sourceFileNames?.some((name) => name === replacementName),
+  ).catch(() => null);
+  if (!after) {
+    await clickConvertButton(client).catch(() => {});
+    after = await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      60_000,
+      (value) =>
+        value?.expandedCards >= Math.min(10, before.expandedCards + 1) &&
+        value?.sourceFileNames?.some((name) => name === firstName) &&
+        value?.sourceFileNames?.some((name) => name === replacementName),
+    ).catch(() => null);
+  }
+  return {
+    ok: Boolean(after),
+    removed,
+    firstName,
+    replacementName,
+    before,
+    after,
+  };
+}
+
+async function verifyFocusedAccordionHasNoHorizontalShift(client) {
+  const before = await outputUxLayoutSnapshot(client);
+  const clicked = await evaluate(client, `(() => {
+    const panel = document.querySelector('[data-editor-settings-panel="true"]');
+    if (!panel) return false;
+    const buttons = Array.from(panel.querySelectorAll('button[aria-controls]'));
+    const target =
+      buttons.find((button) => button.getAttribute("aria-expanded") === "false") ||
+      buttons.find((button) => button.getAttribute("aria-expanded") === "true") ||
+      buttons[0];
+    if (!target) return false;
+    target.click();
+    return true;
+  })()`);
+  await delay(260);
+  const after = await outputUxLayoutSnapshot(client);
+  const panelLeftDelta = Math.abs(
+    (after.settingsPanelRect?.left ?? 0) - (before.settingsPanelRect?.left ?? 0),
+  );
+  const panelWidthDelta = Math.abs(
+    (after.settingsPanelRect?.width ?? 0) - (before.settingsPanelRect?.width ?? 0),
+  );
+  const workspaceLeftDelta = Math.abs(
+    (after.workspaceRect?.left ?? 0) - (before.workspaceRect?.left ?? 0),
+  );
+  const workspaceWidthDelta = Math.abs(
+    (after.workspaceRect?.width ?? 0) - (before.workspaceRect?.width ?? 0),
+  );
+  return {
+    ok:
+      Boolean(clicked) &&
+      !after.hasHorizontalOverflow &&
+      panelLeftDelta <= 2 &&
+      panelWidthDelta <= 2 &&
+      workspaceLeftDelta <= 2 &&
+      workspaceWidthDelta <= 2,
+    clicked,
+    panelLeftDelta,
+    panelWidthDelta,
+    workspaceLeftDelta,
+    workspaceWidthDelta,
+    before,
+    after,
+  };
 }
 
 async function runOutputUxResponsiveChecks(client) {
@@ -951,6 +1174,7 @@ async function runOutputUxResponsiveChecks(client) {
       (value) => value?.focused && value?.hasDone && value?.hasPreview,
     );
     const focusedLayout = await outputUxLayoutSnapshot(client);
+    const accordionShift = await verifyFocusedAccordionHasNoHorizontalShift(client);
     await clickButtonMatching(client, "/Done editing/i");
     await waitForValue(
       client,
@@ -976,7 +1200,24 @@ async function runOutputUxResponsiveChecks(client) {
     const ok =
       !normal.hasHorizontalOverflow &&
       focused.focused &&
+      focused.hasOutputComparison &&
+      focused.hasOriginalComparison &&
+      focused.hasSettingsPanel &&
+      focused.hasFileSize &&
+      !focused.hasFocusedRedundantActions &&
+      focused.openSettingsSectionCount === 1 &&
+      !focused.minimizeInActionRow &&
+      focused.leftPaneCollapsed &&
+      focused.editorNearTop &&
+      focused.cursorViolations.length === 0 &&
+      focused.layoutShift.ok &&
       !focusedLayout.hasHorizontalOverflow &&
+      focusedLayout.hasOutputComparison &&
+      focusedLayout.hasOriginalComparison &&
+      focusedLayout.hasSettingsPanel &&
+      focusedLayout.leftPaneCollapsed &&
+      focusedLayout.editorNearTop &&
+      accordionShift.ok &&
       collapsed.collapsedCards >= 1 &&
       !collapsedLayout.hasHorizontalOverflow;
     checks.push({
@@ -984,6 +1225,7 @@ async function runOutputUxResponsiveChecks(client) {
       ok,
       normal,
       focused: focusedLayout,
+      accordionShift,
       collapsed: collapsedLayout,
     });
   }
@@ -998,7 +1240,31 @@ async function outputUxLayoutSnapshot(client) {
     const expanded = cards.filter((card) => card.getAttribute("data-collapse-state") === "expanded");
     const collapsed = cards.filter((card) => card.getAttribute("data-collapse-state") === "collapsed");
     const focused = cards.filter((card) => card.getAttribute("data-focused-editor") === "true");
-    const preview = document.querySelector('[data-collapse-state="expanded"] img');
+    const preview = document.querySelector('[data-editor-output-preview="true"] img, [data-collapse-state="expanded"] img');
+    const outputComparison = document.querySelector('[data-editor-output-preview="true"]');
+    const originalComparison = document.querySelector('[data-editor-original-preview="true"]');
+    const settingsPanel = document.querySelector('[data-editor-settings-panel="true"]');
+    const workspace = document.querySelector('[data-focused-editor-workspace="true"]');
+    const outputPanel = document.querySelector('[data-output-panel-focused="true"]');
+    const grid = outputPanel?.parentElement || null;
+    const leftPane = grid
+      ? Array.from(grid.children).find((child) => child !== outputPanel && child.className && String(child.className).includes("order-1"))
+      : null;
+    const leftPaneRect = leftPane?.getBoundingClientRect?.();
+    const outputPanelRect = outputPanel?.getBoundingClientRect?.();
+    const gridRect = grid?.getBoundingClientRect?.();
+    const leftPaneStyle = leftPane ? getComputedStyle(leftPane) : null;
+    const leftPaneCollapsed = !outputPanel || !leftPane || !leftPaneRect || !leftPaneStyle
+      ? true
+      : Number.parseFloat(leftPaneStyle.opacity || "1") < 0.15 ||
+        leftPaneStyle.pointerEvents === "none" ||
+        leftPaneRect.height < 24 ||
+        leftPaneRect.width < 24;
+    const editorNearTop = !outputPanel || !outputPanelRect || !gridRect
+      ? true
+      : outputPanelRect.top <= gridRect.top + 56;
+    const settingsPanelRect = settingsPanel?.getBoundingClientRect?.();
+    const workspaceRect = workspace?.getBoundingClientRect?.();
     return {
       viewportWidth: window.innerWidth,
       scrollWidth: doc.scrollWidth,
@@ -1008,6 +1274,23 @@ async function outputUxLayoutSnapshot(client) {
       focusedCards: focused.length,
       hasPreview: Boolean(preview && preview.complete && preview.naturalWidth > 0 && preview.naturalHeight > 0),
       hasDone: /Done editing/i.test(document.body.innerText || ""),
+      hasOutputComparison: Boolean(outputComparison),
+      hasOriginalComparison: Boolean(originalComparison),
+      hasSettingsPanel: Boolean(settingsPanel),
+      leftPaneCollapsed,
+      editorNearTop,
+      settingsPanelRect: settingsPanelRect
+        ? {
+            left: settingsPanelRect.left,
+            width: settingsPanelRect.width,
+          }
+        : null,
+      workspaceRect: workspaceRect
+        ? {
+            left: workspaceRect.left,
+            width: workspaceRect.width,
+          }
+        : null,
     };
   })()`);
 }
@@ -1036,7 +1319,56 @@ function outputUxSnapshotExpression() {
     const focusedCards = cards.filter((card) => card.getAttribute("data-focused-editor") === "true");
     const expandedCards = cards.filter((card) => card.getAttribute("data-collapse-state") === "expanded");
     const collapsedCards = cards.filter((card) => card.getAttribute("data-collapse-state") === "collapsed");
-    const previews = Array.from(document.querySelectorAll('[data-collapse-state="expanded"] img'));
+    const focusedCard = focusedCards[0] || null;
+    const previews = Array.from(document.querySelectorAll('[data-editor-output-preview="true"] img, [data-collapse-state="expanded"] img'));
+    const outputComparison = document.querySelector('[data-editor-output-preview="true"]');
+    const originalComparison = document.querySelector('[data-editor-original-preview="true"]');
+    const settingsPanel = document.querySelector('[data-editor-settings-panel="true"]');
+    const doc = document.documentElement;
+    const openSettingsSections = settingsPanel
+      ? Array.from(settingsPanel.querySelectorAll('[data-settings-section-open="true"]'))
+      : [];
+    const focusedButtons = focusedCard
+      ? Array.from(focusedCard.querySelectorAll("button")).map((button) =>
+          (button.innerText || button.getAttribute("aria-label") || "").trim().replace(/\\s+/g, " ")
+        )
+      : [];
+    const hasFocusedRedundantActions = focusedButtons.some((label) =>
+      /Minimize/i.test(label) || /Settings\\s*\\/\\s*Edit/i.test(label)
+    );
+    const outputPanel = document.querySelector('[data-output-panel-focused="true"]');
+    const grid = outputPanel?.parentElement || null;
+    const leftPane = grid
+      ? Array.from(grid.children).find((child) => child !== outputPanel && child.className && String(child.className).includes("order-1"))
+      : null;
+    const leftPaneRect = leftPane?.getBoundingClientRect?.();
+    const outputPanelRect = outputPanel?.getBoundingClientRect?.();
+    const gridRect = grid?.getBoundingClientRect?.();
+    const leftPaneStyle = leftPane ? getComputedStyle(leftPane) : null;
+    const leftPaneCollapsed = !outputPanel || !leftPane || !leftPaneRect || !leftPaneStyle
+      ? true
+      : Number.parseFloat(leftPaneStyle.opacity || "1") < 0.15 ||
+        leftPaneStyle.pointerEvents === "none" ||
+        leftPaneRect.height < 24 ||
+        leftPaneRect.width < 24;
+    const editorNearTop = !outputPanel || !outputPanelRect || !gridRect
+      ? true
+      : outputPanelRect.top <= gridRect.top + 56;
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    };
+    const cursorViolations = Array.from((outputPanel || document).querySelectorAll("button, summary"))
+      .filter((element) => visible(element) && !element.disabled && element.getAttribute("aria-disabled") !== "true")
+      .map((element) => ({
+        text: (element.textContent || element.getAttribute("aria-label") || element.title || element.tagName).trim().replace(/\\s+/g, " ").slice(0, 80),
+        cursor: getComputedStyle(element).cursor,
+      }))
+      .filter((entry) => entry.cursor !== "pointer");
+    const sourceFileNames = Array.from(document.querySelectorAll('[data-output-source-file]'))
+      .map((element) => element.getAttribute("data-output-source-file") || "")
+      .filter(Boolean);
     return {
       focused: focusedContainers.length > 0 || focusedCards.length > 0,
       focusedCards: focusedCards.length,
@@ -1044,6 +1376,25 @@ function outputUxSnapshotExpression() {
       collapsedCards: collapsedCards.length,
       hasDone: /Done editing/i.test(text),
       hasPreview: previews.some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0),
+      hasOutputComparison: Boolean(outputComparison),
+      hasOriginalComparison: Boolean(originalComparison),
+      hasSettingsPanel: Boolean(settingsPanel),
+      hasFileSize: Boolean(document.querySelector('[data-output-file-size="true"]')),
+      hasHeaderMinimize: Boolean(document.querySelector('[data-output-minimize-control="true"]')),
+      minimizeInActionRow: Boolean(document.querySelector('[data-output-action-row="true"] [data-output-minimize-control="true"]')),
+      hasFocusedRedundantActions,
+      openSettingsSectionCount: openSettingsSections.length,
+      batchShortcut: Boolean(document.querySelector('[data-output-batch-shortcut="true"]')),
+      batchSectionOpen: Boolean(document.querySelector('[data-settings-section^="output-batch-"][data-settings-section-open="true"]')),
+      leftPaneCollapsed,
+      editorNearTop,
+      cursorViolations,
+      sourceFileNames,
+      layoutShift: {
+        ok: doc.scrollWidth <= window.innerWidth + 2,
+        scrollWidth: doc.scrollWidth,
+        viewportWidth: window.innerWidth,
+      },
     };
   })()`;
 }
