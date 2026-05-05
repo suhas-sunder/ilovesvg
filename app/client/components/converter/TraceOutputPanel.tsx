@@ -31,6 +31,12 @@ type OutputVersion<TSettings extends MixedTraceSettings> = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
 };
 
 export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
@@ -49,6 +55,12 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   settingsOpen?: boolean;
   updateError?: string | null;
   previousVersion?: OutputVersion<TSettings> | null;
@@ -83,6 +95,12 @@ export function snapshotTraceOutputVersion<TSettings extends MixedTraceSettings>
     sourceKind: item.sourceKind,
     warnings: item.warnings,
     timings: item.timings,
+    layerBuildMode: item.layerBuildMode,
+    requestedPaletteCount: item.requestedPaletteCount,
+    actualPaletteCount: item.actualPaletteCount,
+    outputDetectedColors: item.outputDetectedColors,
+    pathCount: item.pathCount,
+    svgBytes: item.svgBytes,
   };
 }
 
@@ -103,6 +121,12 @@ export function applyTraceOutputVersion<TSettings extends MixedTraceSettings>(
     sourceKind: version.sourceKind,
     warnings: version.warnings,
     timings: version.timings,
+    layerBuildMode: version.layerBuildMode,
+    requestedPaletteCount: version.requestedPaletteCount,
+    actualPaletteCount: version.actualPaletteCount,
+    outputDetectedColors: version.outputDetectedColors,
+    pathCount: version.pathCount,
+    svgBytes: version.svgBytes,
     draftSettings: version.settingsSnapshot ?? item.draftSettings,
   };
 }
@@ -231,6 +255,12 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 data-engine-used={item.engineUsed || "unknown"}
                 data-source-kind={item.sourceKind || "unknown"}
                 data-engine-warnings={(item.warnings || []).join(" | ")}
+                data-layer-build-mode={item.layerBuildMode || ""}
+                data-requested-palette-count={item.requestedPaletteCount ?? ""}
+                data-actual-palette-count={item.actualPaletteCount ?? ""}
+                data-output-detected-colors={item.outputDetectedColors ?? ""}
+                data-path-count={item.pathCount ?? ""}
+                data-svg-bytes={item.svgBytes ?? ""}
                 className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">

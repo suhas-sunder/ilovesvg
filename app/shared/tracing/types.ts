@@ -5,6 +5,11 @@ export type TraceEngineUsed = "vtracer" | "potrace";
 export type TraceMode = "single" | "layered";
 
 export type TraceLayerKind = "fill" | "stroke";
+export type LayerBuildMode = "raw-vtracer" | "per-color-cutout" | "stacked-overlap";
+export type LayerGroupBy = "none" | "color" | "layer";
+export type LayerGapFill = "none" | "close-small-gaps" | "overlap";
+export type PaletteAlgorithm = "image-q-wuquant" | "image-q-rgbquant" | "simple-posterize";
+export type PaletteDistance = "ciede2000" | "bt709" | "rgb";
 
 export type NormalizedTraceSettings = {
   traceMode?: TraceMode;
@@ -53,6 +58,14 @@ export type NormalizedTraceSettings = {
   sortLayersBy?: string;
   layerAlpha?: number;
   backgroundAlpha?: number;
+  layerBuildMode?: LayerBuildMode;
+  layerOverlapPx?: number;
+  groupBy?: LayerGroupBy;
+  gapFill?: LayerGapFill;
+  paletteAlgorithm?: PaletteAlgorithm;
+  paletteDistance?: PaletteDistance;
+  requestedPaletteCount?: number;
+  traceDiagnosticsMode?: "off" | "summary";
 
   outputWidth?: number;
   outputHeight?: number;
@@ -79,6 +92,13 @@ export type TraceResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: Record<string, unknown>;
+  layerBuildMode?: LayerBuildMode;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
 };
 
 export type TraceEngineDecision = {

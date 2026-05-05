@@ -745,7 +745,7 @@ export async function action({ request }: ActionFunctionArgs) {
             BASE_LAYERED_COLOR_DEFAULTS.maxTraceSide,
         ),
         600,
-        2400,
+        2600,
       );
       const minRegionPercent = clampNumber(
         Number(
@@ -2311,6 +2311,12 @@ type ServerResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   gate?: { running: number; queued: number };
 };
 
@@ -2325,6 +2331,12 @@ type OutputVersion = {
   presetLabel?: string;
   presetBackendIntensity?: PresetBackendIntensity;
   settingsSnapshot?: Settings;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
 };
 
 type HistoryItem = {
@@ -2336,6 +2348,12 @@ type HistoryItem = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   originalWidth?: number;
   originalHeight?: number;
   stamp: number;
@@ -2425,6 +2443,12 @@ function snapshotOutputVersion(item: HistoryItem): OutputVersion {
     presetLabel: item.presetLabel,
     presetBackendIntensity: item.presetBackendIntensity,
     settingsSnapshot: item.settingsSnapshot,
+    layerBuildMode: item.layerBuildMode,
+    requestedPaletteCount: item.requestedPaletteCount,
+    actualPaletteCount: item.actualPaletteCount,
+    outputDetectedColors: item.outputDetectedColors,
+    pathCount: item.pathCount,
+    svgBytes: item.svgBytes,
   };
 }
 
@@ -2609,6 +2633,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   sourceKind: data.sourceKind || "raster",
                   warnings: data.warnings,
                   timings: data.timings,
+                  layerBuildMode: data.layerBuildMode,
+                  requestedPaletteCount: data.requestedPaletteCount,
+                  actualPaletteCount: data.actualPaletteCount,
+                  outputDetectedColors: data.outputDetectedColors,
+                  pathCount: data.pathCount,
+                  svgBytes: data.svgBytes,
                   updateError: null,
                   batch: item.batch
                     ? {
@@ -2654,6 +2684,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         sourceKind: data.sourceKind || "raster",
         warnings: data.warnings,
         timings: data.timings,
+        layerBuildMode: data.layerBuildMode,
+        requestedPaletteCount: data.requestedPaletteCount,
+        actualPaletteCount: data.actualPaletteCount,
+        outputDetectedColors: data.outputDetectedColors,
+        pathCount: data.pathCount,
+        svgBytes: data.svgBytes,
         batch: createOutputBatchState(),
       };
       setHistory((prev) => [item, ...prev].slice(0, 10));
@@ -2981,6 +3017,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           layers: clientTrace.result.layers,
           clientRunId,
           engineUsed: clientTrace.result.engineUsed,
+          sourceKind: clientTrace.result.sourceKind,
+          warnings: clientTrace.result.warnings,
+          timings: clientTrace.result.timings,
+          layerBuildMode: clientTrace.result.layerBuildMode,
+          requestedPaletteCount: clientTrace.result.requestedPaletteCount,
+          actualPaletteCount: clientTrace.result.actualPaletteCount,
+          outputDetectedColors: clientTrace.result.outputDetectedColors,
+          pathCount: clientTrace.result.pathCount,
+          svgBytes: clientTrace.result.svgBytes,
         });
         setInfo("Converted in your browser with VTracer.");
         return true;
@@ -3799,6 +3844,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       data-engine-used={item.engineUsed || "unknown"}
                       data-source-kind={item.sourceKind || "unknown"}
                       data-engine-warnings={(item.warnings || []).join(" | ")}
+                      data-layer-build-mode={item.layerBuildMode || ""}
+                      data-requested-palette-count={item.requestedPaletteCount ?? ""}
+                      data-actual-palette-count={item.actualPaletteCount ?? ""}
+                      data-output-detected-colors={item.outputDetectedColors ?? ""}
+                      data-path-count={item.pathCount ?? ""}
+                      data-svg-bytes={item.svgBytes ?? ""}
                       className="rounded-xl border border-slate-200 bg-white p-2 transition-colors"
                     >
                       <div className="flex gap-3 items-center flex-wrap justify-between">

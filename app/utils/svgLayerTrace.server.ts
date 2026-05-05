@@ -95,7 +95,7 @@ type NormalizedLayeredColorSvgOptions = Omit<
 };
 
 export const MIN_LAYER_COUNT = 2;
-export const MAX_LAYER_COUNT = 12;
+export const MAX_LAYER_COUNT = 40;
 export const MAX_TRACE_SIDE_DEFAULT = 1600;
 export const MAX_TRACE_SIDE = 3000;
 const MIN_TRACE_DIMENSION = 2;

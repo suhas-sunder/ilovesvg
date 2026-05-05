@@ -44,6 +44,9 @@ const LEGACY_POTRACE_PRESET_TERMS = [
   "bold-strokes",
   "transparent-clean",
   "white-remove",
+  "sticker-clean",
+  "sticker-thick",
+  "sticker-smooth",
   "color-blue-line",
   "color-red-line",
   "color-gray-line",
@@ -64,7 +67,6 @@ const VTRACER_PRESET_TERMS = [
   "layered",
   "color",
   "poster",
-  "sticker",
 ];
 
 export function getTraceEngineDecision(

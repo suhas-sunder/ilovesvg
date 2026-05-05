@@ -1842,6 +1842,12 @@ type ServerResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   layers?: EditableSvgLayer[];
   retryAfterMs?: number;
   code?: string;
@@ -1856,6 +1862,12 @@ type HistoryItem = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   stamp: number;
   layers?: EditableSvgLayer[];
 };
@@ -1935,6 +1947,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         sourceKind: fetcher.data.sourceKind,
         warnings: fetcher.data.warnings,
         timings: fetcher.data.timings,
+        layerBuildMode: fetcher.data.layerBuildMode,
+        requestedPaletteCount: fetcher.data.requestedPaletteCount,
+        actualPaletteCount: fetcher.data.actualPaletteCount,
+        outputDetectedColors: fetcher.data.outputDetectedColors,
+        pathCount: fetcher.data.pathCount,
+        svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: fetcher.data.layers?.map((layer) => ({

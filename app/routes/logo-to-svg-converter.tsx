@@ -813,6 +813,12 @@ type ServerResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
@@ -827,6 +833,12 @@ type HistoryItem = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   stamp: number;
 };
 
@@ -918,6 +930,12 @@ export default function LogoToSvgConverter({
         sourceKind: fetcher.data.sourceKind,
         warnings: fetcher.data.warnings,
         timings: fetcher.data.timings,
+        layerBuildMode: fetcher.data.layerBuildMode,
+        requestedPaletteCount: fetcher.data.requestedPaletteCount,
+        actualPaletteCount: fetcher.data.actualPaletteCount,
+        outputDetectedColors: fetcher.data.outputDetectedColors,
+        pathCount: fetcher.data.pathCount,
+        svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),

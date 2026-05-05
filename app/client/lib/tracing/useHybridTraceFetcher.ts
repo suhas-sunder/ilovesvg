@@ -19,6 +19,13 @@ type HybridTracePayload = {
   sourceKind?: TraceResult["sourceKind"];
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: Record<string, unknown>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
 };
 
 type FetcherReturn<TData> = ReturnType<typeof useFetcher<TData>>;
@@ -183,6 +190,13 @@ function traceResultToFetcherData<TData extends HybridTracePayload>(
     sourceKind: result.sourceKind || "raster",
     warnings: result.warnings || [],
     timings: result.timings || {},
+    diagnostics: result.diagnostics || {},
+    layerBuildMode: result.layerBuildMode,
+    requestedPaletteCount: result.requestedPaletteCount,
+    actualPaletteCount: result.actualPaletteCount,
+    outputDetectedColors: result.outputDetectedColors,
+    pathCount: result.pathCount,
+    svgBytes: result.svgBytes,
   } as TData;
 }
 
@@ -261,6 +275,15 @@ function formDataToTraceSettings(
     sortLayersBy: readString(formData, "sortLayersBy") ?? undefined,
     layerAlpha: readNumber(formData, "layerAlpha"),
     backgroundAlpha: readNumber(formData, "backgroundAlpha"),
+    layerBuildMode: normalizeLayerBuildMode(readString(formData, "layerBuildMode")),
+    layerOverlapPx: readNumber(formData, "layerOverlapPx"),
+    groupBy: normalizeGroupBy(readString(formData, "groupBy")),
+    gapFill: normalizeGapFill(readString(formData, "gapFill")),
+    paletteAlgorithm: normalizePaletteAlgorithm(readString(formData, "paletteAlgorithm")),
+    paletteDistance: normalizePaletteDistance(readString(formData, "paletteDistance")),
+    requestedPaletteCount: readNumber(formData, "requestedPaletteCount"),
+    traceDiagnosticsMode:
+      readString(formData, "traceDiagnosticsMode") === "summary" ? "summary" : "off",
 
     outputWidth: readNumber(formData, "outputWidth"),
     outputHeight: readNumber(formData, "outputHeight"),
@@ -330,4 +353,43 @@ function isUploadedSvg(file: File): boolean {
     file.type === "image/svg+xml" ||
     /\.svgz?$/i.test(file.name || "")
   );
+}
+
+function normalizeLayerBuildMode(value: string | null) {
+  if (
+    value === "raw-vtracer" ||
+    value === "per-color-cutout" ||
+    value === "stacked-overlap"
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function normalizeGroupBy(value: string | null) {
+  if (value === "none" || value === "color" || value === "layer") return value;
+  return undefined;
+}
+
+function normalizeGapFill(value: string | null) {
+  if (value === "none" || value === "close-small-gaps" || value === "overlap") {
+    return value;
+  }
+  return undefined;
+}
+
+function normalizePaletteAlgorithm(value: string | null) {
+  if (
+    value === "image-q-wuquant" ||
+    value === "image-q-rgbquant" ||
+    value === "simple-posterize"
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function normalizePaletteDistance(value: string | null) {
+  if (value === "ciede2000" || value === "bt709" || value === "rgb") return value;
+  return undefined;
 }

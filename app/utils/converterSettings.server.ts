@@ -1,5 +1,10 @@
 export type RemoveColorApplyTo = "single" | "layered" | "both";
 export type SortLayersBy = "luminance" | "area" | "original";
+export type LayerBuildMode = "raw-vtracer" | "per-color-cutout" | "stacked-overlap";
+export type LayerGroupBy = "none" | "color" | "layer";
+export type LayerGapFill = "none" | "close-small-gaps" | "overlap";
+export type PaletteAlgorithm = "image-q-wuquant" | "image-q-rgbquant" | "simple-posterize";
+export type PaletteDistance = "ciede2000" | "bt709" | "rgb";
 
 export type AdvancedTraceServerSettings = {
   removeColors: string[];
@@ -23,6 +28,14 @@ export type AdvancedTraceServerSettings = {
   colorMergeTolerance: number;
   posterizeStrength: number;
   sortLayersBy: SortLayersBy;
+  layerBuildMode: LayerBuildMode;
+  layerOverlapPx: number;
+  groupBy: LayerGroupBy;
+  gapFill: LayerGapFill;
+  paletteAlgorithm: PaletteAlgorithm;
+  paletteDistance: PaletteDistance;
+  requestedPaletteCount: number;
+  traceDiagnosticsMode: "off" | "summary";
 };
 
 export const DEFAULT_ADVANCED_TRACE_SERVER_SETTINGS: AdvancedTraceServerSettings = {
@@ -47,6 +60,14 @@ export const DEFAULT_ADVANCED_TRACE_SERVER_SETTINGS: AdvancedTraceServerSettings
   colorMergeTolerance: 0,
   posterizeStrength: 8,
   sortLayersBy: "luminance",
+  layerBuildMode: "raw-vtracer",
+  layerOverlapPx: 0,
+  groupBy: "color",
+  gapFill: "none",
+  paletteAlgorithm: "simple-posterize",
+  paletteDistance: "bt709",
+  requestedPaletteCount: 0,
+  traceDiagnosticsMode: "off",
 };
 
 export function readAdvancedTraceFormSettings(
@@ -76,6 +97,17 @@ export function readAdvancedTraceFormSettings(
     ),
     posterizeStrength: Math.round(readNumber(form, "posterizeStrength", 8, 2, 8)),
     sortLayersBy: readSortLayersBy(form.get("sortLayersBy")),
+    layerBuildMode: readLayerBuildMode(form.get("layerBuildMode")),
+    layerOverlapPx: readNumber(form, "layerOverlapPx", 0, 0, 4),
+    groupBy: readGroupBy(form.get("groupBy")),
+    gapFill: readGapFill(form.get("gapFill")),
+    paletteAlgorithm: readPaletteAlgorithm(form.get("paletteAlgorithm")),
+    paletteDistance: readPaletteDistance(form.get("paletteDistance")),
+    requestedPaletteCount: Math.round(
+      readNumber(form, "requestedPaletteCount", 0, 0, 40),
+    ),
+    traceDiagnosticsMode:
+      form.get("traceDiagnosticsMode") === "summary" ? "summary" : "off",
   };
 }
 
@@ -201,6 +233,45 @@ function readSortLayersBy(value: FormDataEntryValue | null): SortLayersBy {
     return value;
   }
   return "luminance";
+}
+
+function readLayerBuildMode(value: FormDataEntryValue | null): LayerBuildMode {
+  if (
+    value === "raw-vtracer" ||
+    value === "per-color-cutout" ||
+    value === "stacked-overlap"
+  ) {
+    return value;
+  }
+  return "raw-vtracer";
+}
+
+function readGroupBy(value: FormDataEntryValue | null): LayerGroupBy {
+  if (value === "none" || value === "color" || value === "layer") return value;
+  return "color";
+}
+
+function readGapFill(value: FormDataEntryValue | null): LayerGapFill {
+  if (value === "none" || value === "close-small-gaps" || value === "overlap") {
+    return value;
+  }
+  return "none";
+}
+
+function readPaletteAlgorithm(value: FormDataEntryValue | null): PaletteAlgorithm {
+  if (
+    value === "image-q-wuquant" ||
+    value === "image-q-rgbquant" ||
+    value === "simple-posterize"
+  ) {
+    return value;
+  }
+  return "simple-posterize";
+}
+
+function readPaletteDistance(value: FormDataEntryValue | null): PaletteDistance {
+  if (value === "ciede2000" || value === "bt709" || value === "rgb") return value;
+  return "bt709";
 }
 
 function readColorList(value: FormDataEntryValue | null): string[] {

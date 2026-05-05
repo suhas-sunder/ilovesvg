@@ -10,7 +10,19 @@ import {
 } from "wasm_vtracer/wasm_vtracer_bg.js";
 import * as vtracerRuntime from "wasm_vtracer/wasm_vtracer_bg.js";
 import vtracerWasmUrl from "wasm_vtracer/wasm_vtracer_bg.wasm?url";
-import type { NormalizedTraceSettings, TraceLayerMeta } from "~/shared/tracing/types";
+import {
+  applyPaletteSync,
+  buildPaletteSync,
+  utils as imageQUtils,
+} from "image-q";
+import { differenceCiede2000 } from "culori";
+import type {
+  LayerBuildMode,
+  NormalizedTraceSettings,
+  PaletteAlgorithm,
+  PaletteDistance,
+  TraceLayerMeta,
+} from "~/shared/tracing/types";
 
 type WorkerRequest = {
   id: string;
@@ -36,6 +48,13 @@ type WorkerResult = {
   height: number;
   warnings: string[];
   timings: Record<string, number>;
+  diagnostics: Record<string, unknown>;
+  layerBuildMode?: LayerBuildMode;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
 };
 
 type WorkerError = {
@@ -43,6 +62,20 @@ type WorkerError = {
   id: string;
   message: string;
 };
+
+type RGB = { r: number; g: number; b: number };
+type LayerItem = { color: RGB; index: number; count: number };
+type Mask = Uint8Array<ArrayBufferLike>;
+
+type PreparedImage = {
+  data: Uint8ClampedArray;
+  diagnostics: Record<string, unknown>;
+  palette: RGB[];
+  layerBuildMode: LayerBuildMode;
+  requestedPaletteCount: number;
+};
+
+const ciede2000Difference = differenceCiede2000();
 
 let wasmReadyPromise: Promise<void> | null = null;
 
@@ -111,7 +144,7 @@ async function runTrace(request: WorkerRequest) {
     const config = buildVTracerConfig(request.settings);
     const rawSvg = timedSync(timings, "vtracer", () =>
       convertImageToSvg(
-        new Uint8Array(prepared.buffer, prepared.byteOffset, prepared.byteLength),
+        new Uint8Array(prepared.data.buffer, prepared.data.byteOffset, prepared.data.byteLength),
         decoded.width,
         decoded.height,
         config,
@@ -124,6 +157,9 @@ async function runTrace(request: WorkerRequest) {
       postprocessSvg(rawSvg, request.settings, decoded.width, decoded.height),
     );
     const layers = extractEditableLayers(svg, request.settings);
+    const pathCount = countSvgPaths(svg);
+    const svgBytes = byteLength(svg);
+    const actualPaletteCount = prepared.palette.length || countUniqueSvgFills(svg, request.settings);
     timings.total = performance.now() - started;
 
     postMessage({
@@ -135,6 +171,21 @@ async function runTrace(request: WorkerRequest) {
       height: getOutputHeight(request.settings, decoded.width, decoded.height),
       warnings,
       timings,
+      diagnostics: buildTraceDiagnostics({
+        settings: request.settings,
+        prepared,
+        decodedWidth: decoded.width,
+        decodedHeight: decoded.height,
+        pathCount,
+        svgBytes,
+        layerCount: layers.length,
+      }),
+      layerBuildMode: prepared.layerBuildMode,
+      requestedPaletteCount: prepared.requestedPaletteCount || undefined,
+      actualPaletteCount: actualPaletteCount || undefined,
+      outputDetectedColors: actualPaletteCount || undefined,
+      pathCount,
+      svgBytes,
     } satisfies WorkerResult);
   } catch (error) {
     postMessage({
@@ -190,13 +241,51 @@ async function decodeToImageData(
 function preprocessImageData(
   imageData: ImageData,
   settings: NormalizedTraceSettings,
-): Uint8ClampedArray {
+): PreparedImage {
   const data = new Uint8ClampedArray(imageData.data);
+  const diagnostics: Record<string, unknown> = {
+    sourcePixels: imageData.width * imageData.height,
+  };
   applyBrightnessContrast(data, settings);
   removeSelectedColors(data, settings);
 
   if (settings.preprocess === "edge") {
-    return buildEdgeImageData(data, imageData.width, imageData.height, settings);
+    return {
+      data: buildEdgeImageData(data, imageData.width, imageData.height, settings),
+      diagnostics: {
+        ...diagnostics,
+        preprocessing: "edge",
+        paletteAlgorithm: "not-applied",
+      },
+      palette: [],
+      layerBuildMode: "raw-vtracer",
+      requestedPaletteCount: 0,
+    };
+  }
+
+  const layerBuildMode = getLayerBuildMode(settings);
+  const requestedPaletteCount = getRequestedPaletteCount(settings);
+  const shouldUsePaletteQuantizer =
+    settings.traceMode === "layered" &&
+    layerBuildMode !== "raw-vtracer" &&
+    requestedPaletteCount > 0;
+
+  if (shouldUsePaletteQuantizer) {
+    const quantized = quantizeLayeredPixels(data, imageData.width, imageData.height, settings, {
+      layerBuildMode,
+      requestedPaletteCount,
+    });
+    normalizeTransparentPixels(quantized.data, settings);
+    return {
+      data: quantized.data,
+      diagnostics: {
+        ...diagnostics,
+        ...quantized.diagnostics,
+      },
+      palette: quantized.palette,
+      layerBuildMode,
+      requestedPaletteCount,
+    };
   }
 
   if (settings.traceMode === "layered" || settings.posterize) {
@@ -204,14 +293,26 @@ function preprocessImageData(
   }
 
   normalizeTransparentPixels(data, settings);
-  return data;
+  return {
+    data,
+    diagnostics: {
+      ...diagnostics,
+      preprocessing: settings.posterize ? "posterize" : "raw-vtracer",
+      paletteAlgorithm: "simple-posterize",
+    },
+    palette: [],
+    layerBuildMode,
+    requestedPaletteCount,
+  };
 }
 
 function buildVTracerConfig(settings: NormalizedTraceSettings): TracerConfig {
+  const requestedPaletteCount = getRequestedPaletteCount(settings);
+  const layered = settings.traceMode === "layered";
   const config = new TracerConfig();
   config.setColorMode(ColorMode.Color);
   config.setHierarchical(
-    settings.traceMode === "layered" ? Hierarchical.Stacked : Hierarchical.Cutout,
+    layered ? Hierarchical.Stacked : Hierarchical.Cutout,
   );
   config.setPathSimplifyMode(
     Number(settings.optTolerance ?? settings.layerOptTolerance ?? 0.4) <= 0.18
@@ -221,7 +322,7 @@ function buildVTracerConfig(settings: NormalizedTraceSettings): TracerConfig {
   config.setFilterSpeckle(
     clampInt(
       Number(
-        settings.traceMode === "layered"
+        layered
           ? settings.layerTurdSize ?? settings.turdSize ?? 4
           : settings.turdSize ?? 2,
       ),
@@ -230,10 +331,21 @@ function buildVTracerConfig(settings: NormalizedTraceSettings): TracerConfig {
     ),
   );
   config.setColorPrecision(
-    clampInt(Number(settings.posterizeStrength ?? 6), 2, 8),
+    requestedPaletteCount >= 28
+      ? 8
+      : requestedPaletteCount >= 16
+        ? 7
+        : clampInt(Number(settings.posterizeStrength ?? 6), 2, 8),
   );
   config.setLayerDifference(
-    clampInt(Number(settings.colorMergeTolerance ?? 16), 0, 255),
+    clampInt(
+      Number(
+        settings.colorMergeTolerance ??
+          (requestedPaletteCount >= 28 ? 6 : requestedPaletteCount >= 16 ? 10 : 16),
+      ),
+      0,
+      255,
+    ),
   );
   config.setCornerThreshold(60);
   config.setLengthThreshold(
@@ -241,7 +353,7 @@ function buildVTracerConfig(settings: NormalizedTraceSettings): TracerConfig {
   );
   config.setMaxIterations(10);
   config.setSpliceThreshold(45);
-  config.setPathPrecision(2);
+  config.setPathPrecision(requestedPaletteCount >= 28 ? 3 : 2);
   return config;
 }
 
@@ -317,7 +429,15 @@ function extractEditableLayers(
     });
   }
 
-  return Array.from(seen.values()).slice(0, 24);
+  const cap =
+    settings.traceMode === "layered"
+      ? clampInt(
+          Number(settings.requestedPaletteCount || settings.colorLayerCount || 24),
+          2,
+          40,
+        )
+      : 24;
+  return Array.from(seen.values()).slice(0, cap);
 }
 
 function annotateSvgLayerIds(svg: string, settings: NormalizedTraceSettings) {
@@ -456,6 +576,490 @@ function posterizePixels(
     data[i + 1] = clampByte(Math.round(data[i + 1] / step) * step);
     data[i + 2] = clampByte(Math.round(data[i + 2] / step) * step);
   }
+}
+
+function quantizeLayeredPixels(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+  options: { layerBuildMode: LayerBuildMode; requestedPaletteCount: number },
+): { data: Uint8ClampedArray; palette: RGB[]; diagnostics: Record<string, unknown> } {
+  const algorithm = getPaletteAlgorithm(settings);
+  const distance = getPaletteDistance(settings);
+  const requested = clampInt(options.requestedPaletteCount, 2, 40);
+  const source = new Uint8ClampedArray(data);
+  const pointContainer = imageQUtils.PointContainer.fromUint8Array(source, width, height);
+  const palette = buildPaletteSync([pointContainer], {
+    colors: requested,
+    colorDistanceFormula:
+      distance === "ciede2000"
+        ? "ciede2000"
+        : distance === "rgb"
+          ? "euclidean"
+          : "euclidean-bt709",
+    paletteQuantization:
+      algorithm === "image-q-rgbquant" ? "rgbquant" : "wuquant",
+  });
+  const quantized = applyPaletteSync(pointContainer, palette, {
+    colorDistanceFormula:
+      distance === "ciede2000"
+        ? "ciede2000"
+        : distance === "rgb"
+          ? "euclidean"
+          : "euclidean-bt709",
+    imageQuantization: "nearest",
+  }).toUint8Array();
+  const out = new Uint8ClampedArray(quantized);
+  const initialPalette = collectPaletteFromData(out, settings);
+  const mergedPalette = mergePerceptualPalette(
+    initialPalette,
+    Number(settings.colorMergeTolerance ?? 0),
+    distance,
+  );
+
+  if (mergedPalette.length > 0) {
+    snapPixelsToPalette(out, mergedPalette, distance, settings);
+  }
+
+  const morphed = applyLayerMaskProcessing(out, width, height, settings, {
+    layerBuildMode: options.layerBuildMode,
+    palette: mergedPalette.length ? mergedPalette : initialPalette,
+  });
+  const finalPalette = collectPaletteFromData(morphed.data, settings);
+
+  return {
+    data: morphed.data,
+    palette: finalPalette,
+    diagnostics: {
+      preprocessing: "palette-quantized",
+      layerBuildMode: options.layerBuildMode,
+      requestedPaletteCount: requested,
+      paletteAlgorithm: algorithm,
+      paletteDistance: distance,
+      paletteBeforeMerge: initialPalette.length,
+      paletteAfterMerge: mergedPalette.length || initialPalette.length,
+      actualPaletteCount: finalPalette.length,
+      layerOverlapPx: Number(settings.layerOverlapPx ?? 0),
+      gapFill: settings.gapFill || "none",
+      maskCleanup: morphed.diagnostics,
+    },
+  };
+}
+
+function applyLayerMaskProcessing(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+  options: { layerBuildMode: LayerBuildMode; palette: RGB[] },
+): { data: Uint8ClampedArray; diagnostics: Record<string, unknown> } {
+  const palette = options.palette.length ? options.palette : collectPaletteFromData(data, settings);
+  if (!palette.length) return { data, diagnostics: { layerCountBeforeCleanup: 0 } };
+
+  const total = width * height;
+  const indices = new Int16Array(total);
+  indices.fill(-1);
+  const counts = new Array(palette.length).fill(0);
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const off = pixel * 4;
+    if (data[off + 3] < 18) continue;
+    const index = nearestPerceptualPaletteIndex(
+      { r: data[off], g: data[off + 1], b: data[off + 2] },
+      palette,
+      getPaletteDistance(settings),
+    );
+    indices[pixel] = index;
+    counts[index] += 1;
+  }
+
+  let layerItems: LayerItem[] = palette.map((color, index) => ({
+    color,
+    index,
+    count: counts[index] || 0,
+  }));
+  layerItems = layerItems.filter((item) => item.count > 0);
+  layerItems.sort((a, b) => sortLayerItemsForWorker(a, b, settings.sortLayersBy));
+
+  const minIslandPx = clampInt(Number(settings.minIslandPx ?? 0), 0, 240);
+  const holeFillPx = clampInt(Number(settings.holeFillPx ?? 0), 0, 240);
+  const gapCloseStrength = clampInt(Number(settings.gapCloseStrength ?? 0), 0, 3);
+  const overlapRadius =
+    options.layerBuildMode === "stacked-overlap" || settings.gapFill === "overlap"
+      ? clampInt(Math.ceil(Number(settings.layerOverlapPx ?? 0)), 0, 4)
+      : 0;
+  const closeRadius =
+    settings.gapFill === "close-small-gaps" ? Math.max(1, gapCloseStrength) : gapCloseStrength;
+
+  const masks = new Map<number, Mask>();
+  let droppedPixels = 0;
+  let holesFilled = 0;
+  for (const item of layerItems) {
+    let mask: Mask = new Uint8Array(total);
+    for (let i = 0; i < total; i += 1) {
+      if (indices[i] === item.index) mask[i] = 1;
+    }
+    if (minIslandPx > 0) {
+      const cleaned = removeTinyComponents(mask, width, height, minIslandPx);
+      mask = cleaned.mask;
+      droppedPixels += cleaned.droppedPixels;
+    }
+    if (holeFillPx > 0 || closeRadius > 0) {
+      const before = countMaskPixels(mask);
+      if (closeRadius > 0) {
+        mask = erodeMask(dilateMask(mask, width, height, closeRadius), width, height, closeRadius);
+      }
+      if (holeFillPx > 0) {
+        mask = fillTinyHoles(mask, width, height, holeFillPx);
+      }
+      holesFilled += Math.max(0, countMaskPixels(mask) - before);
+    }
+    if (overlapRadius > 0) {
+      mask = dilateMask(mask, width, height, overlapRadius);
+    }
+    masks.set(item.index, mask);
+  }
+
+  const out = new Uint8ClampedArray(data.length);
+  if (settings.removeTransparent !== false || settings.transparent !== false) {
+    for (let i = 0; i < total; i += 1) {
+      const off = i * 4;
+      out[off] = 255;
+      out[off + 1] = 255;
+      out[off + 2] = 255;
+      out[off + 3] = 0;
+    }
+  } else {
+    for (let i = 0; i < total; i += 1) {
+      const off = i * 4;
+      out[off] = 255;
+      out[off + 1] = 255;
+      out[off + 2] = 255;
+      out[off + 3] = 255;
+    }
+  }
+
+  for (const item of layerItems) {
+    const mask = masks.get(item.index);
+    if (!mask) continue;
+    for (let i = 0; i < total; i += 1) {
+      if (!mask[i]) continue;
+      const off = i * 4;
+      out[off] = item.color.r;
+      out[off + 1] = item.color.g;
+      out[off + 2] = item.color.b;
+      out[off + 3] = 255;
+    }
+  }
+
+  return {
+    data: out,
+    diagnostics: {
+      layerCountBeforeCleanup: palette.length,
+      layerCountAfterCleanup: collectPaletteFromData(out, settings).length,
+      droppedPixels,
+      holesFilled,
+      overlapApplied: overlapRadius > 0,
+      overlapRadius,
+      closeRadius,
+    },
+  };
+}
+
+function removeTinyComponents(
+  mask: Mask,
+  width: number,
+  height: number,
+  minSize: number,
+): { mask: Mask; droppedPixels: number } {
+  const out = new Uint8Array(mask);
+  const visited = new Uint8Array(mask.length);
+  const stack: number[] = [];
+  const component: number[] = [];
+  let droppedPixels = 0;
+  for (let i = 0; i < mask.length; i += 1) {
+    if (!out[i] || visited[i]) continue;
+    stack.length = 0;
+    component.length = 0;
+    stack.push(i);
+    visited[i] = 1;
+    while (stack.length) {
+      const current = stack.pop()!;
+      component.push(current);
+      const x = current % width;
+      const y = Math.floor(current / width);
+      for (const next of [
+        x > 0 ? current - 1 : -1,
+        x < width - 1 ? current + 1 : -1,
+        y > 0 ? current - width : -1,
+        y < height - 1 ? current + width : -1,
+      ]) {
+        if (next < 0 || visited[next] || !out[next]) continue;
+        visited[next] = 1;
+        stack.push(next);
+      }
+    }
+    if (component.length < minSize) {
+      droppedPixels += component.length;
+      for (const pixel of component) out[pixel] = 0;
+    }
+  }
+  return { mask: out, droppedPixels };
+}
+
+function fillTinyHoles(mask: Mask, width: number, height: number, maxHoleSize: number): Mask {
+  const inverse = new Uint8Array(mask.length);
+  for (let i = 0; i < mask.length; i += 1) inverse[i] = mask[i] ? 0 : 1;
+  const cleaned = removeTinyComponents(inverse, width, height, maxHoleSize);
+  const out = new Uint8Array(mask.length);
+  for (let i = 0; i < mask.length; i += 1) out[i] = cleaned.mask[i] ? 0 : 1;
+  return out;
+}
+
+function dilateMask(mask: Mask, width: number, height: number, radius: number): Mask {
+  if (radius <= 0) return mask;
+  const out = new Uint8Array(mask);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      for (let yy = Math.max(0, y - radius); yy <= Math.min(height - 1, y + radius); yy += 1) {
+        for (let xx = Math.max(0, x - radius); xx <= Math.min(width - 1, x + radius); xx += 1) {
+          out[yy * width + xx] = 1;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function erodeMask(mask: Mask, width: number, height: number, radius: number): Mask {
+  if (radius <= 0) return mask;
+  const out = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let keep = true;
+      for (let yy = Math.max(0, y - radius); yy <= Math.min(height - 1, y + radius) && keep; yy += 1) {
+        for (let xx = Math.max(0, x - radius); xx <= Math.min(width - 1, x + radius); xx += 1) {
+          if (!mask[yy * width + xx]) {
+            keep = false;
+            break;
+          }
+        }
+      }
+      if (keep) out[y * width + x] = 1;
+    }
+  }
+  return out;
+}
+
+function countMaskPixels(mask: Mask): number {
+  let count = 0;
+  for (let i = 0; i < mask.length; i += 1) count += mask[i] ? 1 : 0;
+  return count;
+}
+
+function countSvgPaths(svg: string): number {
+  return (String(svg || "").match(/<path\b/gi) || []).length;
+}
+
+function byteLength(value: string): number {
+  return new TextEncoder().encode(String(value || "")).byteLength;
+}
+
+function countUniqueSvgFills(svg: string, settings: NormalizedTraceSettings): number {
+  const fills = new Set<string>();
+  const pathPattern = /<path\b([^>]*)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pathPattern.exec(svg))) {
+    const fill = normalizeHexColor(
+      match[1].match(/\sfill\s*=\s*["']([^"']+)["']/i)?.[1] || "",
+    );
+    if (!fill || isBackgroundColor(fill, settings)) continue;
+    fills.add(fill);
+  }
+  return fills.size;
+}
+
+function buildTraceDiagnostics(input: {
+  settings: NormalizedTraceSettings;
+  prepared: PreparedImage;
+  decodedWidth: number;
+  decodedHeight: number;
+  pathCount: number;
+  svgBytes: number;
+  layerCount: number;
+}): Record<string, unknown> {
+  if (input.settings.traceDiagnosticsMode !== "summary") return {};
+  return {
+    engine: "vtracer",
+    traceMode: input.settings.traceMode || "single",
+    layerBuildMode: input.prepared.layerBuildMode,
+    requestedPaletteCount: input.prepared.requestedPaletteCount || undefined,
+    decodedWidth: input.decodedWidth,
+    decodedHeight: input.decodedHeight,
+    pathCount: input.pathCount,
+    svgBytes: input.svgBytes,
+    layerCount: input.layerCount,
+    ...input.prepared.diagnostics,
+  };
+}
+
+function getLayerBuildMode(settings: NormalizedTraceSettings): LayerBuildMode {
+  if (
+    settings.layerBuildMode === "per-color-cutout" ||
+    settings.layerBuildMode === "stacked-overlap" ||
+    settings.layerBuildMode === "raw-vtracer"
+  ) {
+    return settings.layerBuildMode;
+  }
+  return "raw-vtracer";
+}
+
+function getRequestedPaletteCount(settings: NormalizedTraceSettings): number {
+  const requested = Number(settings.requestedPaletteCount || settings.colorLayerCount || 0);
+  if (!Number.isFinite(requested) || requested <= 0) return 0;
+  return clampInt(requested, 2, 40);
+}
+
+function getPaletteAlgorithm(settings: NormalizedTraceSettings): PaletteAlgorithm {
+  if (settings.paletteAlgorithm === "image-q-rgbquant") return "image-q-rgbquant";
+  if (settings.paletteAlgorithm === "image-q-wuquant") return "image-q-wuquant";
+  if (settings.paletteAlgorithm === "simple-posterize") {
+    return getLayerBuildMode(settings) === "raw-vtracer"
+      ? "simple-posterize"
+      : "image-q-wuquant";
+  }
+  return "image-q-wuquant";
+}
+
+function getPaletteDistance(settings: NormalizedTraceSettings): PaletteDistance {
+  if (
+    settings.paletteDistance === "ciede2000" ||
+    settings.paletteDistance === "bt709" ||
+    settings.paletteDistance === "rgb"
+  ) {
+    return settings.paletteDistance;
+  }
+  return getPaletteAlgorithm(settings) === "simple-posterize" ? "bt709" : "ciede2000";
+}
+
+function collectPaletteFromData(
+  data: Uint8ClampedArray,
+  settings: NormalizedTraceSettings,
+): RGB[] {
+  const counts = new Map<string, { color: RGB; count: number }>();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 18) continue;
+    const color = { r: data[i], g: data[i + 1], b: data[i + 2] };
+    const hex = rgbToHex(color);
+    if (isBackgroundColor(hex, settings)) continue;
+    const current = counts.get(hex);
+    if (current) current.count += 1;
+    else counts.set(hex, { color, count: 1 });
+  }
+  return Array.from(counts.values())
+    .sort((a, b) => b.count - a.count)
+    .map((entry) => entry.color)
+    .slice(0, 64);
+}
+
+function mergePerceptualPalette(
+  palette: RGB[],
+  tolerance: number,
+  distance: PaletteDistance,
+): RGB[] {
+  const mergeTolerance = clampNumber(Number(tolerance || 0), 0, 80);
+  if (mergeTolerance <= 0 || palette.length <= 1) return palette;
+  const merged: RGB[] = [];
+  for (const color of palette) {
+    let mergedIntoExisting = false;
+    for (let i = 0; i < merged.length; i += 1) {
+      if (perceptualDistance(color, merged[i], distance) > mergeTolerance) continue;
+      merged[i] = {
+        r: clampByte((merged[i].r + color.r) / 2),
+        g: clampByte((merged[i].g + color.g) / 2),
+        b: clampByte((merged[i].b + color.b) / 2),
+      };
+      mergedIntoExisting = true;
+      break;
+    }
+    if (!mergedIntoExisting) merged.push(color);
+  }
+  return merged;
+}
+
+function snapPixelsToPalette(
+  data: Uint8ClampedArray,
+  palette: RGB[],
+  distance: PaletteDistance,
+  settings: NormalizedTraceSettings,
+) {
+  if (!palette.length) return;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 18) continue;
+    const color = { r: data[i], g: data[i + 1], b: data[i + 2] };
+    if (isBackgroundColor(rgbToHex(color), settings)) continue;
+    const nearest = palette[nearestPerceptualPaletteIndex(color, palette, distance)];
+    data[i] = nearest.r;
+    data[i + 1] = nearest.g;
+    data[i + 2] = nearest.b;
+  }
+}
+
+function nearestPerceptualPaletteIndex(
+  color: RGB,
+  palette: RGB[],
+  distance: PaletteDistance,
+): number {
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < palette.length; i += 1) {
+    const currentDistance = perceptualDistance(color, palette[i], distance);
+    if (currentDistance >= bestDistance) continue;
+    bestDistance = currentDistance;
+    bestIndex = i;
+  }
+  return bestIndex;
+}
+
+function sortLayerItemsForWorker(
+  a: LayerItem,
+  b: LayerItem,
+  sortBy: NormalizedTraceSettings["sortLayersBy"],
+): number {
+  if (sortBy === "original") return a.index - b.index;
+  if (sortBy === "luminance") {
+    const luminanceDiff = luminance(a.color) - luminance(b.color);
+    if (Math.abs(luminanceDiff) > 0.01) return luminanceDiff;
+  }
+  return b.count - a.count;
+}
+
+function perceptualDistance(a: RGB, b: RGB, distance: PaletteDistance): number {
+  if (distance === "rgb") return colorDistance(a, b);
+  if (distance === "bt709") {
+    const dr = a.r - b.r;
+    const dg = a.g - b.g;
+    const db = a.b - b.b;
+    return Math.sqrt(dr * dr * 0.2126 + dg * dg * 0.7152 + db * db * 0.0722);
+  }
+  return ciede2000Difference(
+    { mode: "rgb", r: a.r / 255, g: a.g / 255, b: a.b / 255 },
+    { mode: "rgb", r: b.r / 255, g: b.g / 255, b: b.b / 255 },
+  );
+}
+
+function luminance(color: RGB): number {
+  return (color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722) / 255;
+}
+
+function rgbToHex(color: RGB): string {
+  return `#${toHexPair(color.r)}${toHexPair(color.g)}${toHexPair(color.b)}`;
+}
+
+function toHexPair(value: number): string {
+  return clampByte(value).toString(16).padStart(2, "0");
 }
 
 function buildEdgeImageData(

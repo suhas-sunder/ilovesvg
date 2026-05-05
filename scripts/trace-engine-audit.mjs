@@ -13,6 +13,7 @@ const requiredFiles = [
   "app/client/lib/tracing/useHybridTraceFetcher.ts",
   "app/client/lib/tracing/vtracerWorkerClient.ts",
   "app/client/workers/vtracer.worker.ts",
+  "app/types/culori.d.ts",
   "app/types/wasm-vtracer.d.ts",
 ];
 
@@ -62,11 +63,13 @@ async function auditPresets() {
   const categories = new Map();
   const intensities = new Map();
   const missingIntensity = [];
+  const blockById = new Map();
 
   for (const block of blocks) {
     const id = block.match(/id:\s*"([^"]+)"/)?.[1];
     if (!id) continue;
     ids.push(id);
+    blockById.set(id, block);
 
     const category = block.match(/category:\s*"([^"]+)"/)?.[1] || "unknown";
     categories.set(category, (categories.get(category) || 0) + 1);
@@ -89,10 +92,74 @@ async function auditPresets() {
     );
   }
 
+  const tunedExistingPresets = {
+    "layered-detail": [
+      "requestedPaletteCount: 32",
+      'layerBuildMode: "stacked-overlap"',
+      'paletteAlgorithm: "image-q-wuquant"',
+      "layerOverlapPx: 1",
+    ],
+    "layered-flat-color": [
+      "requestedPaletteCount: 16",
+      'layerBuildMode: "per-color-cutout"',
+      'gapFill: "close-small-gaps"',
+    ],
+    "layered-soft-poster": [
+      "requestedPaletteCount: 12",
+      'layerBuildMode: "stacked-overlap"',
+      "layerOverlapPx: 0.8",
+    ],
+  };
+  const newWorkflowPresets = {
+    "ui-mockup-app-screen": [
+      "requestedPaletteCount: 32",
+      'layerBuildMode: "stacked-overlap"',
+      'paletteDistance: "ciede2000"',
+    ],
+    "photo-many-colors": [
+      "requestedPaletteCount: 36",
+      'layerBuildMode: "stacked-overlap"',
+      'paletteAlgorithm: "image-q-wuquant"',
+    ],
+    "filled-layers-smooth": [
+      "requestedPaletteCount: 24",
+      'gapFill: "overlap"',
+      "layerOverlapPx: 1",
+    ],
+    "filled-layers-separate-colors": [
+      "requestedPaletteCount: 24",
+      'layerBuildMode: "per-color-cutout"',
+      'gapFill: "none"',
+    ],
+    "clean-color-sticker": [
+      "requestedPaletteCount: 24",
+      'layerBuildMode: "stacked-overlap"',
+      'removeWhite: false',
+    ],
+  };
+
+  for (const [id, tokens] of Object.entries({
+    ...tunedExistingPresets,
+    ...newWorkflowPresets,
+  })) {
+    const block = blockById.get(id) || "";
+    if (!block) {
+      fatal.push(`Layered/color quality preset is missing: ${id}`);
+      continue;
+    }
+    for (const token of tokens) {
+      if (!block.includes(token)) {
+        fatal.push(`Preset ${id} is missing required layered-quality setting token: ${token}`);
+      }
+    }
+  }
+
   presetSummary = {
     total: ids.length,
     categories: Object.fromEntries([...categories.entries()].sort()),
     intensities: Object.fromEntries([...intensities.entries()].sort()),
+    tunedExistingLayeredPresets: Object.keys(tunedExistingPresets),
+    newWorkflowLayeredPresets: Object.keys(newWorkflowPresets),
   };
 }
 
@@ -100,6 +167,11 @@ async function auditTracingArchitecture() {
   const packageJson = JSON.parse(await read("package.json"));
   if (!packageJson.dependencies?.wasm_vtracer) {
     fatal.push("package.json does not include wasm_vtracer.");
+  }
+  for (const dependency of ["image-q", "culori"]) {
+    if (!packageJson.dependencies?.[dependency]) {
+      fatal.push(`package.json does not include ${dependency}.`);
+    }
   }
 
   const types = await read("app/shared/tracing/types.ts");
@@ -109,6 +181,10 @@ async function auditTracingArchitecture() {
     "export type TraceResult",
     "engineUsed",
     "sourceKind",
+    "LayerBuildMode",
+    "requestedPaletteCount",
+    "actualPaletteCount",
+    "outputDetectedColors",
   ]) {
     if (!types.includes(token)) {
       fatal.push(`Trace types are missing required token: ${token}`);
@@ -131,6 +207,9 @@ async function auditTracingArchitecture() {
     "\"edge\"",
     "\"comics\"",
     "\"diagram\"",
+    "\"sticker-clean\"",
+    "\"sticker-thick\"",
+    "\"sticker-smooth\"",
   ]) {
     if (!enginePolicy.includes(token)) {
       fatal.push(`Engine policy is missing expected routing/safety token: ${token}`);
@@ -158,6 +237,7 @@ async function auditTracingArchitecture() {
     "vinyl",
     "scan",
     "lineart",
+    "sticker",
   ]) {
     if (new RegExp(`["']${forbidden}["']`).test(vtracerTermsBody)) {
       fatal.push(
@@ -221,6 +301,18 @@ async function auditTracingArchitecture() {
     "postProgress",
     "removeSelectedColors",
     "extractEditableLayers",
+    "buildPaletteSync",
+    "applyPaletteSync",
+    "differenceCiede2000",
+    "quantizeLayeredPixels",
+    "applyLayerMaskProcessing",
+    "removeTinyComponents",
+    "fillTinyHoles",
+    "dilateMask",
+    "layerBuildMode",
+    "requestedPaletteCount",
+    "actualPaletteCount",
+    "outputDetectedColors",
   ]) {
     if (!worker.includes(token)) {
       fatal.push(`VTracer worker is missing required token: ${token}`);
@@ -261,6 +353,11 @@ async function auditTracingArchitecture() {
     if (!serverFallback.includes(token)) {
       fatal.push(`Shared server fallback adapter is missing required token: ${token}`);
     }
+  }
+
+  const layeredServer = await read("app/utils/svgLayerTrace.server.ts");
+  if (!layeredServer.includes("export const MAX_LAYER_COUNT = 40")) {
+    fatal.push("Server layered fallback must allow detailed layered presets above the old 12-layer cap.");
   }
 
   const home = await read("app/routes/home.tsx");

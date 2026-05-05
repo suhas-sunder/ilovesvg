@@ -1198,6 +1198,12 @@ type ServerResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   retryAfterMs?: number;
   code?: string;
   clientRunId?: string;
@@ -1226,6 +1232,12 @@ type HistoryItem = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   originalWidth?: number;
   originalHeight?: number;
   stamp: number;
@@ -1416,6 +1428,12 @@ export default function PngToLayeredSvgForCricut({
       sourceKind: fetcher.data.sourceKind || "raster",
       warnings: fetcher.data.warnings,
       timings: fetcher.data.timings,
+      layerBuildMode: fetcher.data.layerBuildMode,
+      requestedPaletteCount: fetcher.data.requestedPaletteCount,
+      actualPaletteCount: fetcher.data.actualPaletteCount,
+      outputDetectedColors: fetcher.data.outputDetectedColors,
+      pathCount: fetcher.data.pathCount,
+      svgBytes: fetcher.data.svgBytes,
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
         name: layer.name,

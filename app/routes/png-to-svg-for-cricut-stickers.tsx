@@ -972,6 +972,12 @@ type ServerResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   retryAfterMs?: number;
   code?: string;
   cutSource?: CutSource;
@@ -986,6 +992,12 @@ type HistoryItem = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  layerBuildMode?: string;
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
   stamp: number;
   cutSource: string;
   settingsSnapshot: Settings;
@@ -1055,6 +1067,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         sourceKind: fetcher.data.sourceKind,
         warnings: fetcher.data.warnings,
         timings: fetcher.data.timings,
+        layerBuildMode: fetcher.data.layerBuildMode,
+        requestedPaletteCount: fetcher.data.requestedPaletteCount,
+        actualPaletteCount: fetcher.data.actualPaletteCount,
+        outputDetectedColors: fetcher.data.outputDetectedColors,
+        pathCount: fetcher.data.pathCount,
+        svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         cutSource: fetcher.data.cutSource ?? settings.cutSource,
         settingsSnapshot: lastSubmittedSettingsRef.current,

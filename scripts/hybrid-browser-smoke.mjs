@@ -51,7 +51,7 @@ const RASTER_ROUTES = [
   { path: "/scan-to-svg-converter", id: "scan-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/sketch-to-svg-converter", id: "sketch-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/sketch-to-svg-for-cricut", id: "sketch-to-svg-for-cricut", file: "png", policy: "potrace" },
-  { path: "/sticker-to-svg-converter", id: "sticker-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false },
+  { path: "/sticker-to-svg-converter", id: "sticker-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
   { path: "/sticker-to-svg-for-cricut", id: "sticker-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/webp-to-svg-converter", id: "webp-to-svg-converter", file: "webp", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
   { path: "/webp-to-svg-for-cricut", id: "webp-to-svg-for-cricut", file: "webp", policy: "potrace", defaultEngine: "potrace" },
@@ -299,6 +299,7 @@ async function runRouteSmoke(route, fixturePath) {
       hasSettings: copyDownload.hasSettings,
       actions,
       warnings: output.warnings,
+      metrics: output.metrics,
       capabilities: output.capabilities,
       traceDebug: await readTraceDebug(client),
       consoleErrors: errors,
@@ -780,6 +781,55 @@ async function setFileInputFiles(client, selector, filePaths) {
       if (!alreadyVisible) throw error;
     }
   }
+  const filesAfterBackendSet = await evaluate(client, `(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    return input ? Array.from(input.files || []).map((file) => file.name) : null;
+  })()`).catch(() => []);
+  let bodyHasExpectedFiles = await evaluate(client, `(() => {
+    const body = document.body?.innerText || "";
+    return ${JSON.stringify(expectedFileNames)}.every((name) => body.includes(name));
+  })()`).catch(() => false);
+  let expectedAttached = Array.isArray(filesAfterBackendSet)
+    && expectedFileNames.every((name) => filesAfterBackendSet.includes(name));
+  if (!expectedAttached && !bodyHasExpectedFiles) {
+    const settled = await waitForValue(
+      client,
+      () => `(() => {
+        const input = document.querySelector(${JSON.stringify(selector)});
+        const files = input ? Array.from(input.files || []).map((file) => file.name) : [];
+        const body = document.body?.innerText || "";
+        const expected = ${JSON.stringify(expectedFileNames)};
+        return {
+          inputAttached: expected.every((name) => files.includes(name)),
+          bodyHasExpected: expected.every((name) => body.includes(name)),
+        };
+      })()`,
+      2_000,
+      (state) => Boolean(state?.inputAttached || state?.bodyHasExpected),
+    ).catch(() => null);
+    expectedAttached = Boolean(settled?.inputAttached);
+    bodyHasExpectedFiles = Boolean(settled?.bodyHasExpected);
+  }
+  if (!expectedAttached) {
+    if (!bodyHasExpectedFiles) {
+      await setFileInputFilesFromBuffers(client, selector, filePaths);
+    }
+  }
+  const finalFiles = await evaluate(client, `(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    return input ? Array.from(input.files || []).map((file) => file.name) : null;
+  })()`).catch(() => []);
+  const finalBodyHasExpectedFiles = await evaluate(client, `(() => {
+    const body = document.body?.innerText || "";
+    return ${JSON.stringify(expectedFileNames)}.every((name) => body.includes(name));
+  })()`).catch(() => false);
+  const finalAttached = Array.isArray(finalFiles)
+    && expectedFileNames.every((name) => finalFiles.includes(name));
+  if (!finalAttached) {
+    if (!finalBodyHasExpectedFiles) {
+      throw new Error(`Could not attach files to ${selector}. Expected ${expectedFileNames.join(", ")}, got ${JSON.stringify(finalFiles)}`);
+    }
+  }
   await evaluate(client, `(() => {
     const input = document.querySelector(${JSON.stringify(selector)});
     if (!input) return false;
@@ -981,7 +1031,6 @@ async function selectVTracerPreset(client, route) {
     const preferredMatchers = ${JSON.stringify(routeSpecificMatchers)}.map((source) => new RegExp(source, "i")).concat([
       /^Layered color SVG\\b/i,
       /^Layered - /i,
-      /^Sticker - /i,
     ]);
     let button = null;
     for (const matcher of preferredMatchers) {
@@ -1009,7 +1058,7 @@ async function selectPotracePreset(client, route) {
   const routeSpecificMatchers = getRoutePotracePresetMatchers(route);
   return evaluate(client, `(() => {
     const buttons = Array.from(document.querySelectorAll("button"));
-    const reject = /Show|Clear|Convert|Download|Copy|Settings|Search presets|Filter presets|Layered color|Sticker/i;
+    const reject = /Show|Clear|Convert|Download|Copy|Settings|Search presets|Filter presets|Layered color/i;
     const preferredMatchers = ${JSON.stringify(routeSpecificMatchers)}.map((source) => new RegExp(source, "i")).concat([
       /^Lineart - Accurate\\b/i,
       /^Lineart - Clean\\b/i,
@@ -1039,15 +1088,15 @@ function getRoutePresetMatchers(route) {
     return [process.env.VTRACER_PRESET_PATTERN];
   }
   if (route.path === "/") {
-    return ["^Layered color SVG\\b", "^Sticker - "];
+    return ["^Layered color SVG\\b", "^Layered - "];
   }
   if (route.path === "/webp-to-svg-converter") {
-    return ["^Layered color SVG\\b", "^Sticker - "];
+    return ["^Layered color SVG\\b", "^Layered - "];
   }
   if (route.path.includes("layered")) {
     return ["^Layered color SVG\\b", "^Layered - "];
   }
-  return ["^Layered color SVG\\b", "^Sticker - "];
+  return ["^Layered color SVG\\b", "^Layered - "];
 }
 
 function getRoutePotracePresetMatchers(route) {
@@ -1115,6 +1164,12 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
         : lastClientSuccess?.engineUsed || (lastFallback && hasOutputControls ? "potrace" : null);
       const previewImages = output ? Array.from(output.querySelectorAll("img")) : [];
       const outputText = output?.innerText || "";
+      const numericAttr = (name) => {
+        const raw = output?.getAttribute(name);
+        if (raw == null || raw === "") return null;
+        const value = Number(raw);
+        return Number.isFinite(value) ? value : null;
+      };
       const previewDecoded = previewImages.some((image) =>
         image.complete && image.naturalWidth > 0 && image.naturalHeight > 0
       );
@@ -1147,6 +1202,16 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
         outputTitle: outputText.split(/\\r?\\n/).find((line) => /Output \\d+/i.test(line)) || "",
         sourceKind: output ? output.getAttribute("data-source-kind") : null,
         warnings: output ? output.getAttribute("data-engine-warnings") : "",
+        metrics: output
+          ? {
+              layerBuildMode: output.getAttribute("data-layer-build-mode") || null,
+              requestedPaletteCount: numericAttr("data-requested-palette-count"),
+              actualPaletteCount: numericAttr("data-actual-palette-count"),
+              outputDetectedColors: numericAttr("data-output-detected-colors"),
+              pathCount: numericAttr("data-path-count"),
+              svgBytes: numericAttr("data-svg-bytes"),
+            }
+          : null,
         capabilities: {
           worker: typeof Worker !== "undefined",
           wasm: typeof WebAssembly !== "undefined",
@@ -1240,6 +1305,39 @@ async function cdpJson(pathname, options = {}) {
 }
 
 async function createFixtures() {
+  if (process.env.FIXTURE_PNG) {
+    const sourcePng = path.resolve(process.env.FIXTURE_PNG);
+    const source = sharp(sourcePng, { limitInputPixels: false }).rotate();
+    const metadata = await source.metadata();
+    const sourcePixels = (metadata.width || 0) * (metadata.height || 0);
+    const maxSide = Number(process.env.FIXTURE_MAX_SIDE || 1600);
+    const maxPixels = Number(process.env.FIXTURE_MAX_PIXELS || 4_000_000);
+    const shouldResize =
+      sourcePixels > maxPixels ||
+      (metadata.width || 0) > maxSide ||
+      (metadata.height || 0) > maxSide;
+    const normalized = shouldResize
+      ? source.resize({
+          width: maxSide,
+          height: maxSide,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+      : source;
+    const png = await normalized.png().toBuffer();
+    const jpg = await sharp(png).jpeg({ quality: 92 }).toBuffer();
+    const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
+    const files = {
+      png: path.join(fixturesDir, path.basename(sourcePng)),
+      jpg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.jpg`),
+      webp: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.webp`),
+    };
+    await fs.writeFile(files.png, png);
+    await fs.writeFile(files.jpg, jpg);
+    await fs.writeFile(files.webp, webp);
+    return files;
+  }
+
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">
       <rect width="240" height="160" fill="#ffffff"/>

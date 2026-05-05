@@ -1,5 +1,10 @@
 export type RemoveColorApplyTo = "single" | "layered" | "both";
 export type SortLayersBy = "luminance" | "area" | "original";
+export type LayerBuildMode = "raw-vtracer" | "per-color-cutout" | "stacked-overlap";
+export type LayerGroupBy = "none" | "color" | "layer";
+export type LayerGapFill = "none" | "close-small-gaps" | "overlap";
+export type PaletteAlgorithm = "image-q-wuquant" | "image-q-rgbquant" | "simple-posterize";
+export type PaletteDistance = "ciede2000" | "bt709" | "rgb";
 
 export type TraceAdvancedSettings = {
   removeColors?: string[];
@@ -23,6 +28,14 @@ export type TraceAdvancedSettings = {
   colorMergeTolerance?: number;
   posterizeStrength?: number;
   sortLayersBy?: SortLayersBy;
+  layerBuildMode?: LayerBuildMode;
+  layerOverlapPx?: number;
+  groupBy?: LayerGroupBy;
+  gapFill?: LayerGapFill;
+  paletteAlgorithm?: PaletteAlgorithm;
+  paletteDistance?: PaletteDistance;
+  requestedPaletteCount?: number;
+  traceDiagnosticsMode?: "off" | "summary";
 };
 
 export const DEFAULT_TRACE_ADVANCED_SETTINGS = {
@@ -47,6 +60,14 @@ export const DEFAULT_TRACE_ADVANCED_SETTINGS = {
   colorMergeTolerance: 0,
   posterizeStrength: 8,
   sortLayersBy: "luminance" as SortLayersBy,
+  layerBuildMode: "raw-vtracer" as LayerBuildMode,
+  layerOverlapPx: 0,
+  groupBy: "color" as LayerGroupBy,
+  gapFill: "none" as LayerGapFill,
+  paletteAlgorithm: "simple-posterize" as PaletteAlgorithm,
+  paletteDistance: "bt709" as PaletteDistance,
+  requestedPaletteCount: 0,
+  traceDiagnosticsMode: "off" as const,
 };
 
 export function appendAdvancedTraceSettings(
@@ -75,6 +96,14 @@ export function appendAdvancedTraceSettings(
   formData.append("colorMergeTolerance", String(merged.colorMergeTolerance));
   formData.append("posterizeStrength", String(merged.posterizeStrength));
   formData.append("sortLayersBy", String(merged.sortLayersBy));
+  formData.append("layerBuildMode", String(merged.layerBuildMode));
+  formData.append("layerOverlapPx", String(merged.layerOverlapPx));
+  formData.append("groupBy", String(merged.groupBy));
+  formData.append("gapFill", String(merged.gapFill));
+  formData.append("paletteAlgorithm", String(merged.paletteAlgorithm));
+  formData.append("paletteDistance", String(merged.paletteDistance));
+  formData.append("requestedPaletteCount", String(merged.requestedPaletteCount));
+  formData.append("traceDiagnosticsMode", String(merged.traceDiagnosticsMode));
 }
 
 export function normalizeColorList(colors: unknown): string[] {

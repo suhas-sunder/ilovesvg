@@ -23,6 +23,13 @@ type VTracerWorkerResult = {
   height: number;
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: Record<string, unknown>;
+  layerBuildMode?: TraceResult["layerBuildMode"];
+  requestedPaletteCount?: number;
+  actualPaletteCount?: number;
+  outputDetectedColors?: number;
+  pathCount?: number;
+  svgBytes?: number;
 };
 
 type VTracerWorkerError = {
@@ -129,6 +136,13 @@ export async function tryTraceRasterInClient(input: {
           sourceKind: "raster",
           warnings: message.warnings || [],
           timings: message.timings || {},
+          diagnostics: message.diagnostics || {},
+          layerBuildMode: message.layerBuildMode,
+          requestedPaletteCount: message.requestedPaletteCount,
+          actualPaletteCount: message.actualPaletteCount,
+          outputDetectedColors: message.outputDetectedColors,
+          pathCount: message.pathCount,
+          svgBytes: message.svgBytes,
         });
       };
 
@@ -157,6 +171,7 @@ export async function tryTraceRasterInClient(input: {
     const unusableReason = getUnusableTraceResultReason(result, {
       inputBytes: input.file.size,
       traceMode: settings.traceMode || "single",
+      settings,
     });
     if (unusableReason) {
       return { ok: false, reason: unusableReason };
@@ -222,7 +237,11 @@ function inferRasterMimeType(fileName: string): string {
 
 function getUnusableTraceResultReason(
   result: TraceResult,
-  input: { inputBytes?: number; traceMode?: "single" | "layered" } = {},
+  input: {
+    inputBytes?: number;
+    traceMode?: "single" | "layered";
+    settings?: NormalizedTraceSettings;
+  } = {},
 ): string | null {
   const svg = typeof result.svg === "string" ? result.svg.trim() : "";
   if (!svg) {
@@ -253,15 +272,32 @@ function getUnusableTraceResultReason(
   }
 
   const svgBytes = svg.length;
-  const pathCount = (svg.match(/<path\b/gi) || []).length;
+  const pathCount = result.pathCount ?? (svg.match(/<path\b/gi) || []).length;
   const layered = input.traceMode === "layered";
-  const maxSvgBytes = layered ? 2_200_000 : 1_500_000;
-  const maxPaths = layered ? 2_400 : 1_200;
+  const requestedPaletteCount = Number(
+    input.settings?.requestedPaletteCount ||
+      input.settings?.colorLayerCount ||
+      0,
+  );
+  const richLayered = layered && requestedPaletteCount >= 28;
+  const maxSvgBytes = layered
+    ? richLayered
+      ? 3_200_000
+      : 2_200_000
+    : 1_500_000;
+  const maxPaths = layered ? (richLayered ? 6500 : 4500) : 1_200;
   if (svgBytes > maxSvgBytes) {
     return "Browser tracing returned an oversized SVG. Falling back to the server engine.";
   }
   if (pathCount > maxPaths) {
     return "Browser tracing returned too many paths for a responsive preview. Falling back to the server engine.";
+  }
+
+  if (
+    layered &&
+    (!Array.isArray(result.layers) || result.layers.length === 0)
+  ) {
+    return "Browser tracing returned no editable color layers. Falling back to the server engine.";
   }
 
   const inputBytes = Number(input.inputBytes || 0);
