@@ -1353,6 +1353,17 @@ export default function PngToLayeredSvgForCricut({
     parentStamp: null,
     replaceStamp: null,
   });
+  const submittedByRunIdRef = React.useRef(
+    new Map<
+      string,
+      {
+        settings: Settings;
+        presetId: string;
+        parentStamp: number | null;
+        replaceStamp: number | null;
+      }
+    >(),
+  );
 
   const busy = fetcher.state !== "idle";
 
@@ -1385,13 +1396,9 @@ export default function PngToLayeredSvgForCricut({
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
     const clientRunId = fetcher.data.clientRunId || "";
-    if (
-      clientRunId &&
-      latestSubmittedRunIdRef.current &&
-      clientRunId !== latestSubmittedRunIdRef.current
-    ) {
-      return;
-    }
+    const submitted =
+      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
+      lastSubmittedRef.current;
 
     const resultKey = [
       clientRunId || "legacy",
@@ -1404,10 +1411,10 @@ export default function PngToLayeredSvgForCricut({
     lastProcessedResultKeyRef.current = resultKey;
     busyRetryCountRef.current = 0;
     lastHandledBusyKeyRef.current = "";
+    if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
 
     const outputNumber = outputCounterRef.current + 1;
     outputCounterRef.current = outputNumber;
-    const submitted = lastSubmittedRef.current;
     const presetLabel =
       DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
       "Custom settings";
@@ -1491,13 +1498,10 @@ export default function PngToLayeredSvgForCricut({
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
     const clientRunId = fetcher.data.clientRunId || "";
-    if (
-      clientRunId &&
-      latestSubmittedRunIdRef.current &&
-      clientRunId !== latestSubmittedRunIdRef.current
-    ) {
-      return;
-    }
+    const submitted =
+      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
+      lastSubmittedRef.current;
+    if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
 
     if (fetcher.data.code === "BUSY" && file) {
       const busyKey = [
@@ -1520,7 +1524,7 @@ export default function PngToLayeredSvgForCricut({
           selectedFileType: file.type,
           selectedFileSize: file.size,
           imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
-          settingsSnapshot: settings,
+          settingsSnapshot: submitted.settings,
         });
         return;
       }
@@ -1531,7 +1535,11 @@ export default function PngToLayeredSvgForCricut({
       if (retryRef.current) clearTimeout(retryRef.current);
 
       retryRef.current = setTimeout(() => {
-        submitConvert(file, settings);
+        submitConvert(file, submitted.settings, {
+          presetId: submitted.presetId,
+          parentStamp: submitted.parentStamp,
+          replaceStamp: submitted.replaceStamp,
+        });
       }, retryAfterMs);
 
       return;
@@ -1547,7 +1555,7 @@ export default function PngToLayeredSvgForCricut({
       selectedFileType: file?.type,
       selectedFileSize: file?.size,
       imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
-      settingsSnapshot: settings,
+      settingsSnapshot: submitted.settings,
     });
   }, [
     fetcher.data?.error,
@@ -1616,6 +1624,7 @@ export default function PngToLayeredSvgForCricut({
     suppressLiveRef.current = true;
     busyRetryCountRef.current = 0;
     latestSubmittedRunIdRef.current = "";
+    submittedByRunIdRef.current.clear();
     lastProcessedResultKeyRef.current = "";
     lastHandledBusyKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
@@ -1713,16 +1722,19 @@ export default function PngToLayeredSvgForCricut({
     const clientRunId = `png-layered-${Date.now()}-${++clientRunIdCounterRef.current}`;
     latestSubmittedRunIdRef.current = clientRunId;
     fd.append("clientRunId", clientRunId);
+    const submittedPresetId = meta?.presetId ?? activePreset;
 
     setErr(null);
-    lastSubmittedRef.current = {
+    const submittedMeta = {
       settings: sourceSettings,
-      presetId: meta?.presetId ?? activePreset,
+      presetId: submittedPresetId,
       parentStamp: meta?.parentStamp ?? null,
       replaceStamp: meta?.replaceStamp ?? null,
     };
+    lastSubmittedRef.current = submittedMeta;
+    submittedByRunIdRef.current.set(clientRunId, submittedMeta);
 
-    fd.append("presetId", activePreset);
+    fd.append("presetId", submittedPresetId);
 
 
     

@@ -94,7 +94,7 @@ async function auditPresets() {
 
   const tunedExistingPresets = {
     "layered-detail": [
-      "requestedPaletteCount: 32",
+      "requestedPaletteCount: 28",
       'layerBuildMode: "stacked-overlap"',
       'paletteAlgorithm: "image-q-wuquant"',
       "layerOverlapPx: 1",
@@ -112,27 +112,27 @@ async function auditPresets() {
   };
   const newWorkflowPresets = {
     "ui-mockup-app-screen": [
-      "requestedPaletteCount: 32",
+      "requestedPaletteCount: 28",
       'layerBuildMode: "stacked-overlap"',
       'paletteDistance: "ciede2000"',
     ],
     "photo-many-colors": [
-      "requestedPaletteCount: 36",
-      'layerBuildMode: "stacked-overlap"',
+      "requestedPaletteCount: 32",
+      'layerBuildMode: "raw-vtracer"',
       'paletteAlgorithm: "image-q-wuquant"',
     ],
     "filled-layers-smooth": [
-      "requestedPaletteCount: 24",
+      "requestedPaletteCount: 20",
       'gapFill: "overlap"',
       "layerOverlapPx: 1",
     ],
     "filled-layers-separate-colors": [
-      "requestedPaletteCount: 24",
+      "requestedPaletteCount: 16",
       'layerBuildMode: "per-color-cutout"',
       'gapFill: "none"',
     ],
     "clean-color-sticker": [
-      "requestedPaletteCount: 24",
+      "requestedPaletteCount: 20",
       'layerBuildMode: "stacked-overlap"',
       'removeWhite: false',
     ],

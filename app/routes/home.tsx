@@ -2561,6 +2561,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     parentStamp: null,
     replaceStamp: null,
   });
+  const submittedByRunIdRef = React.useRef(
+    new Map<
+      string,
+      {
+        settings: Settings;
+        presetId: string | null;
+        parentStamp: number | null;
+        replaceStamp?: number | null;
+        sourceLayerEdits?: EditableSvgLayer[];
+      }
+    >(),
+  );
 
   React.useEffect(() => {
     activeHistoryStampRef.current = activeHistoryStamp;
@@ -2575,13 +2587,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
 
       const clientRunId = data.clientRunId || "";
-      if (
-        clientRunId &&
-        latestSubmittedRunIdRef.current &&
-        clientRunId !== latestSubmittedRunIdRef.current
-      ) {
-        return;
-      }
+      const submitted =
+        (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
+        lastSubmittedRef.current;
 
       const resultKey = [
         clientRunId || "legacy",
@@ -2593,8 +2601,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (lastProcessedResultKeyRef.current === resultKey) return;
       lastProcessedResultKeyRef.current = resultKey;
       busyRetryCountRef.current = 0;
+      if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
 
-      const submitted = lastSubmittedRef.current;
       const parentStamp = submitted.parentStamp;
       const presetLabel =
         DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
@@ -2723,14 +2731,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   React.useEffect(() => {
     if (fetcher.data?.error) {
       const clientRunId = fetcher.data.clientRunId || "";
-      if (
-        clientRunId &&
-        latestSubmittedRunIdRef.current &&
-        clientRunId !== latestSubmittedRunIdRef.current
-      ) {
-        return;
-      }
-      const submitted = lastSubmittedRef.current;
+      const submitted =
+        (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
+        lastSubmittedRef.current;
+      if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
       if (submitted.replaceStamp) {
         const message = fetcher.data.error || "Update preview failed.";
         setHistory((prev) =>
@@ -2834,6 +2838,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     suppressLiveRef.current = true;
     busyRetryCountRef.current = 0;
     latestSubmittedRunIdRef.current = "";
+    submittedByRunIdRef.current.clear();
     lastProcessedResultKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
     fileMeasureRunIdRef.current = measureRunId;
@@ -2980,13 +2985,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       meta?.presetId ?? activePreset,
       effective,
     );
-    lastSubmittedRef.current = {
+    const submittedMeta = {
       settings: effective,
       presetId: submittedPresetId,
       parentStamp: meta?.parentStamp ?? null,
       replaceStamp: meta?.replaceStamp ?? null,
       sourceLayerEdits: cloneEditableLayers(meta?.sourceLayerEdits),
     };
+    lastSubmittedRef.current = submittedMeta;
+    submittedByRunIdRef.current.set(clientRunId, submittedMeta);
 
     setClientTracing(true);
     try {

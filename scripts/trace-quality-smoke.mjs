@@ -198,14 +198,14 @@ async function auditLayeredPresetRecipes() {
     "utf8",
   );
   const required = {
-    "layered-detail": ["requestedPaletteCount: 32", 'layerBuildMode: "stacked-overlap"'],
+    "layered-detail": ["requestedPaletteCount: 28", 'layerBuildMode: "stacked-overlap"'],
     "layered-flat-color": ["requestedPaletteCount: 16", 'layerBuildMode: "per-color-cutout"'],
     "layered-soft-poster": ["requestedPaletteCount: 12", 'gapFill: "overlap"'],
-    "ui-mockup-app-screen": ["requestedPaletteCount: 32", 'paletteDistance: "ciede2000"'],
-    "photo-many-colors": ["requestedPaletteCount: 36", 'paletteAlgorithm: "image-q-wuquant"'],
-    "filled-layers-smooth": ["requestedPaletteCount: 24", 'gapFill: "overlap"'],
-    "filled-layers-separate-colors": ["requestedPaletteCount: 24", 'gapFill: "none"'],
-    "clean-color-sticker": ["requestedPaletteCount: 24", 'removeWhite: false'],
+    "ui-mockup-app-screen": ["requestedPaletteCount: 28", 'paletteDistance: "ciede2000"'],
+    "photo-many-colors": ["requestedPaletteCount: 32", 'layerBuildMode: "raw-vtracer"'],
+    "filled-layers-smooth": ["requestedPaletteCount: 20", 'gapFill: "overlap"'],
+    "filled-layers-separate-colors": ["requestedPaletteCount: 16", 'gapFill: "none"'],
+    "clean-color-sticker": ["requestedPaletteCount: 20", 'removeWhite: false'],
   };
   const rows = [];
   for (const [id, tokens] of Object.entries(required)) {

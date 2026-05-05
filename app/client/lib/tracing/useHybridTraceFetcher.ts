@@ -26,6 +26,8 @@ type HybridTracePayload = {
   outputDetectedColors?: number;
   pathCount?: number;
   svgBytes?: number;
+  clientRunId?: string;
+  traceJobId?: string;
 };
 
 type FetcherReturn<TData> = ReturnType<typeof useFetcher<TData>>;
@@ -41,7 +43,7 @@ export function useHybridTraceFetcher<
 }): FetcherReturn<TData> {
   const fetcher = useFetcher<TData>();
   const [clientData, setClientData] = React.useState<TData | undefined>();
-  const [clientTracing, setClientTracing] = React.useState(false);
+  const [activeClientJobs, setActiveClientJobs] = React.useState(0);
   const runIdRef = React.useRef(0);
   const fallbackWarningRef = React.useRef<string | null>(null);
 
@@ -69,11 +71,16 @@ export function useHybridTraceFetcher<
 
       const settings = formDataToTraceSettings(target, options.routeId);
       const requestedEngine = settings.engine || "auto";
+      const clientRunId =
+        readString(target, "clientRunId") ??
+        `${options.routeId}-${Date.now()}-${runId}`;
 
-      setClientTracing(true);
+      setActiveClientJobs((count) => count + 1);
       recordHybridTraceDebug({
         routeId: options.routeId,
         stage: "client-attempt-start",
+        clientRunId,
+        traceJobId: String(runId),
         presetId: settings.presetId,
         traceMode: settings.traceMode,
         requestedEngine,
@@ -87,29 +94,50 @@ export function useHybridTraceFetcher<
           onProgress: options.onProgress,
         });
 
-        if (runIdRef.current !== runId) return;
-
         if (clientAttempt.ok) {
           recordHybridTraceDebug({
             routeId: options.routeId,
             stage: "client-attempt-success",
+            clientRunId,
+            traceJobId: String(runId),
+            latest: runIdRef.current === runId,
             engineUsed: clientAttempt.result.engineUsed,
             warnings: clientAttempt.result.warnings,
           });
           fallbackWarningRef.current = null;
-          setClientData(traceResultToFetcherData<TData>(clientAttempt.result));
+          setClientData(
+            traceResultToFetcherData<TData>(clientAttempt.result, {
+              clientRunId,
+              traceJobId: String(runId),
+            }),
+          );
           return;
         }
 
+        const isLatest = runIdRef.current === runId;
         recordHybridTraceDebug({
           routeId: options.routeId,
           stage: "client-attempt-failed",
+          clientRunId,
+          traceJobId: String(runId),
+          latest: isLatest,
           reason: clientAttempt.reason,
           requestedEngine,
         });
         if (requestedEngine === "vtracer") {
           setClientData({
             error: `VTracer could not convert this image in your browser. ${clientAttempt.reason}`,
+            clientRunId,
+            traceJobId: String(runId),
+          } as TData);
+          return;
+        }
+
+        if (!isLatest) {
+          setClientData({
+            error: `An earlier browser trace did not finish. ${clientAttempt.reason}`,
+            clientRunId,
+            traceJobId: String(runId),
           } as TData);
           return;
         }
@@ -118,12 +146,14 @@ export function useHybridTraceFetcher<
         recordHybridTraceDebug({
           routeId: options.routeId,
           stage: "server-fallback-submit",
+          clientRunId,
+          traceJobId: String(runId),
           reason: clientAttempt.reason,
         });
         fetcher.submit(target, submitOptions);
       })()
         .catch((error) => {
-          if (runIdRef.current !== runId) return;
+          const isLatest = runIdRef.current === runId;
           const message =
             error instanceof Error && error.message
               ? error.message
@@ -131,6 +161,16 @@ export function useHybridTraceFetcher<
           if (requestedEngine === "vtracer") {
             setClientData({
               error: `VTracer could not convert this image in your browser. ${message}`,
+              clientRunId,
+              traceJobId: String(runId),
+            } as TData);
+            return;
+          }
+          if (!isLatest) {
+            setClientData({
+              error: `An earlier browser trace did not finish. ${message}`,
+              clientRunId,
+              traceJobId: String(runId),
             } as TData);
             return;
           }
@@ -138,14 +178,14 @@ export function useHybridTraceFetcher<
           recordHybridTraceDebug({
             routeId: options.routeId,
             stage: "server-fallback-submit",
+            clientRunId,
+            traceJobId: String(runId),
             reason: message,
           });
           fetcher.submit(target, submitOptions);
         })
         .finally(() => {
-          if (runIdRef.current === runId) {
-            setClientTracing(false);
-          }
+          setActiveClientJobs((count) => Math.max(0, count - 1));
         });
     },
     [fetcher, options.enabled, options.onProgress, options.routeId],
@@ -161,10 +201,10 @@ export function useHybridTraceFetcher<
       ({
         ...fetcher,
         data,
-        state: clientTracing ? "submitting" : fetcher.state,
+        state: activeClientJobs > 0 ? "submitting" : fetcher.state,
         submit,
       }) as FetcherReturn<TData>,
-    [clientTracing, data, fetcher, submit],
+    [activeClientJobs, data, fetcher, submit],
   );
 }
 
@@ -180,6 +220,7 @@ function recordHybridTraceDebug(event: Record<string, unknown>) {
 
 function traceResultToFetcherData<TData extends HybridTracePayload>(
   result: TraceResult,
+  metadata?: { clientRunId?: string; traceJobId?: string },
 ): TData {
   return {
     svg: result.svg,
@@ -197,6 +238,8 @@ function traceResultToFetcherData<TData extends HybridTracePayload>(
     outputDetectedColors: result.outputDetectedColors,
     pathCount: result.pathCount,
     svgBytes: result.svgBytes,
+    clientRunId: metadata?.clientRunId,
+    traceJobId: metadata?.traceJobId,
   } as TData;
 }
 

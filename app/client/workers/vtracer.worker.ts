@@ -73,6 +73,7 @@ type PreparedImage = {
   palette: RGB[];
   layerBuildMode: LayerBuildMode;
   requestedPaletteCount: number;
+  effectivePaletteCount?: number;
 };
 
 const ciede2000Difference = differenceCiede2000();
@@ -260,6 +261,7 @@ function preprocessImageData(
       palette: [],
       layerBuildMode: "raw-vtracer",
       requestedPaletteCount: 0,
+      effectivePaletteCount: 0,
     };
   }
 
@@ -285,6 +287,7 @@ function preprocessImageData(
       palette: quantized.palette,
       layerBuildMode,
       requestedPaletteCount,
+      effectivePaletteCount: quantized.effectivePaletteCount,
     };
   }
 
@@ -303,6 +306,7 @@ function preprocessImageData(
     palette: [],
     layerBuildMode,
     requestedPaletteCount,
+    effectivePaletteCount: requestedPaletteCount,
   };
 }
 
@@ -584,14 +588,25 @@ function quantizeLayeredPixels(
   height: number,
   settings: NormalizedTraceSettings,
   options: { layerBuildMode: LayerBuildMode; requestedPaletteCount: number },
-): { data: Uint8ClampedArray; palette: RGB[]; diagnostics: Record<string, unknown> } {
+): {
+  data: Uint8ClampedArray;
+  palette: RGB[];
+  effectivePaletteCount: number;
+  diagnostics: Record<string, unknown>;
+} {
   const algorithm = getPaletteAlgorithm(settings);
   const distance = getPaletteDistance(settings);
   const requested = clampInt(options.requestedPaletteCount, 2, 40);
+  const effectiveRequested = getSafeLayeredPaletteCount(
+    requested,
+    width,
+    height,
+    options.layerBuildMode,
+  );
   const source = new Uint8ClampedArray(data);
   const pointContainer = imageQUtils.PointContainer.fromUint8Array(source, width, height);
   const palette = buildPaletteSync([pointContainer], {
-    colors: requested,
+    colors: effectiveRequested,
     colorDistanceFormula:
       distance === "ciede2000"
         ? "ciede2000"
@@ -631,10 +646,13 @@ function quantizeLayeredPixels(
   return {
     data: morphed.data,
     palette: finalPalette,
+    effectivePaletteCount: effectiveRequested,
     diagnostics: {
       preprocessing: "palette-quantized",
       layerBuildMode: options.layerBuildMode,
       requestedPaletteCount: requested,
+      effectivePaletteCount: effectiveRequested,
+      paletteAutoCapped: effectiveRequested < requested,
       paletteAlgorithm: algorithm,
       paletteDistance: distance,
       paletteBeforeMerge: initialPalette.length,
@@ -692,13 +710,17 @@ function applyLayerMaskProcessing(
     settings.gapFill === "close-small-gaps" ? Math.max(1, gapCloseStrength) : gapCloseStrength;
 
   const masks = new Map<number, Mask>();
+  for (const item of layerItems) masks.set(item.index, new Uint8Array(total));
+  for (let i = 0; i < total; i += 1) {
+    const mask = masks.get(indices[i]);
+    if (mask) mask[i] = 1;
+  }
+
   let droppedPixels = 0;
   let holesFilled = 0;
   for (const item of layerItems) {
-    let mask: Mask = new Uint8Array(total);
-    for (let i = 0; i < total; i += 1) {
-      if (indices[i] === item.index) mask[i] = 1;
-    }
+    let mask = masks.get(item.index);
+    if (!mask) continue;
     if (minIslandPx > 0) {
       const cleaned = removeTinyComponents(mask, width, height, minIslandPx);
       mask = cleaned.mask;
@@ -762,8 +784,25 @@ function applyLayerMaskProcessing(
       overlapApplied: overlapRadius > 0,
       overlapRadius,
       closeRadius,
+      maskBuildMode: "single-pass",
     },
   };
+}
+
+function getSafeLayeredPaletteCount(
+  requested: number,
+  width: number,
+  height: number,
+  layerBuildMode: LayerBuildMode,
+): number {
+  const pixels = width * height;
+  if (layerBuildMode === "raw-vtracer") return requested;
+
+  let max = layerBuildMode === "per-color-cutout" ? 18 : 28;
+  if (pixels > 1_200_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 16 : 24);
+  if (pixels > 2_000_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 14 : 22);
+  if (pixels > 3_000_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 12 : 20);
+  return clampInt(Math.min(requested, max), 2, requested);
 }
 
 function removeTinyComponents(
@@ -901,6 +940,7 @@ function buildTraceDiagnostics(input: {
     pathCount: input.pathCount,
     svgBytes: input.svgBytes,
     layerCount: input.layerCount,
+    effectivePaletteCount: input.prepared.effectivePaletteCount,
     ...input.prepared.diagnostics,
   };
 }
