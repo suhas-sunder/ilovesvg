@@ -93,6 +93,13 @@ export function loader({ context }: Route.LoaderArgs) {
   return { message: context.VALUE_FROM_EXPRESS };
 }
 
+function sanitizeClientRunId(value: FormDataEntryValue | null): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.replace(/[^a-z0-9:._-]/gi, "").slice(0, 160) || undefined;
+}
+
 /* ========================
    Limits & types (mirrored client/server)
 ======================== */
@@ -185,6 +192,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const fileCountError = validateMultipartFileCount(form);
     if (fileCountError) return fileCountError;
 
+    const clientRunId = sanitizeClientRunId(form.get("clientRunId"));
     const file = form.get("file");
     if (!file || typeof file === "string") {
       return json({ error: "No file uploaded." }, { status: 400 });
@@ -377,6 +385,7 @@ export async function action({ request }: ActionFunctionArgs) {
           height: layered.height,
           engineUsed: "potrace",
           sourceKind: "raster",
+          clientRunId,
           gate: { running: gate.running, queued: gate.queued },
         });
       }
@@ -459,6 +468,7 @@ export async function action({ request }: ActionFunctionArgs) {
         height: adjusted.height,
         engineUsed: "potrace",
         sourceKind: "raster",
+        clientRunId,
         gate: { running: gate.running, queued: gate.queued },
       });
     } finally {
@@ -1030,6 +1040,7 @@ type ServerResult = {
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
+  clientRunId?: string;
 };
 
 type HistoryItem = {
@@ -1098,6 +1109,20 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
+  const clientRunIdCounterRef = React.useRef(0);
+  const submittedByRunIdRef = React.useRef(
+    new Map<
+      string,
+      {
+        settings: Settings;
+        presetId: string;
+        stamp: number | null;
+        replaceStamp: number | null;
+        startedAt: number;
+        fileName: string;
+      }
+    >(),
+  );
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
@@ -1122,12 +1147,21 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
   React.useEffect(() => {
     if (fetcher.data?.svg) {
-      const resultKey = `${fetcher.data.svg}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
+      const clientRunId = fetcher.data.clientRunId || "";
+      const submitted =
+        (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+      const resultKey = `${clientRunId || "legacy"}:${fetcher.data.svg.length}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
       if (lastHandledResultKeyRef.current === resultKey) return;
       lastHandledResultKeyRef.current = resultKey;
 
-      const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
-      const replaceStamp = pendingReplaceStampRef.current;
+      const settingsSnapshot =
+        submitted?.settings ?? pendingOutputSettingsRef.current ?? settings;
+      const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
+      const targetStamp = replaceStamp ?? submitted?.stamp ?? Date.now();
+      const presetLabel = getPresetLabelById(
+        DISPLAY_PRESETS,
+        submitted?.presetId ?? activePreset,
+      );
       const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         layers: fetcher.data.layers?.map((layer) => ({
@@ -1147,11 +1181,17 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         outputDetectedColors: fetcher.data.outputDetectedColors,
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
-        stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        stamp: targetStamp,
+        name: `Output - ${presetLabel}`,
+        presetLabel,
       
         settingsSnapshot,
         draftSettings: settingsSnapshot,
+        jobId: clientRunId || undefined,
+        jobStatus: "succeeded",
+        jobStartedAt: submitted?.startedAt,
+        jobCompletedAt: Date.now(),
+        sourceFileName: submitted?.fileName,
       };
       setHistory((prev) => {
         if (replaceStamp) {
@@ -1165,9 +1205,16 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
           );
         }
 
+        if (prev.some((existing) => existing.stamp === targetStamp)) {
+          return prev.map((existing) =>
+            existing.stamp === targetStamp ? (item as HistoryItem) : existing,
+          );
+        }
+
         return [item, ...prev].slice(0, 10);
       });
 
+      if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
       setUpdatingOutputStamp(null);
@@ -1177,28 +1224,45 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     fetcher.data?.layers,
     fetcher.data?.width,
     fetcher.data?.height,
+    fetcher.data?.clientRunId,
   ]);
 
   React.useEffect(() => {
-    if (!fetcher.data?.error || !pendingReplaceStampRef.current) return;
+    if (!fetcher.data?.error) return;
 
-    const replaceStamp = pendingReplaceStampRef.current;
+    const clientRunId = fetcher.data.clientRunId || "";
+    const submitted =
+      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
+    const pendingStamp = submitted?.stamp ?? null;
+    if (!replaceStamp && !pendingStamp) return;
+    const message =
+      fetcher.data.error ||
+      "Could not finish this conversion. The current preview was preserved.";
     setHistory((prev) =>
       prev.map((item) =>
-        item.stamp === replaceStamp
+        replaceStamp && item.stamp === replaceStamp
           ? {
               ...item,
-              updateError:
-                fetcher.data?.error ||
-                "Could not update this output. The current preview was preserved.",
+              updateError: message,
             }
+          : pendingStamp && item.stamp === pendingStamp
+            ? {
+                ...item,
+                jobStatus: "failed",
+                jobError: message,
+                jobCompletedAt: Date.now(),
+                canCancel: false,
+                updateError: null,
+              }
           : item,
       ),
     );
+    if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
     setUpdatingOutputStamp(null);
-  }, [fetcher.data?.error]);
+  }, [fetcher.data?.error, fetcher.data?.clientRunId]);
 
   React.useEffect(() => {
     return () => {
@@ -1248,6 +1312,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     setSettings(DEFAULTS);
     setActivePreset("line-accurate");
     setHistory([]);
+    submittedByRunIdRef.current.clear();
 
     setErr(null);
     setInfo(null);
@@ -1376,7 +1441,44 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
     fd.append("presetId", presetIdForSubmit);
+    const clientRunId = `png-to-svg-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    fd.append("clientRunId", clientRunId);
     setErr(null);
+    const replaceStamp = pendingReplaceStampRef.current;
+    const startedAt = Date.now();
+    const presetLabel = getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit);
+    const pendingStamp = replaceStamp ?? startedAt;
+    submittedByRunIdRef.current.set(clientRunId, {
+      settings: effective,
+      presetId: presetIdForSubmit,
+      stamp: replaceStamp ? null : pendingStamp,
+      replaceStamp,
+      startedAt,
+      fileName: targetFile.name,
+    });
+    if (!replaceStamp) {
+      const pendingItem: HistoryItem & TraceOutputItem<Settings> = {
+        svg: "",
+        layers: [],
+        width: 0,
+        height: 0,
+        stamp: pendingStamp,
+        name: `Output - ${presetLabel}`,
+        presetLabel,
+        settingsSnapshot: effective,
+        draftSettings: effective,
+        jobId: clientRunId,
+        jobStatus: "running",
+        jobStartedAt: startedAt,
+        sourceFileName: targetFile.name,
+        enginePathLabel:
+          effective.traceMode === "layered"
+            ? "Hybrid layered trace"
+            : "Server Potrace",
+        canCancel: effective.traceMode === "layered",
+      };
+      setHistory((prev) => [pendingItem as HistoryItem, ...prev].slice(0, 10));
+    }
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1415,7 +1517,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, autoMode]);
 
-  const buttonDisabled = isServer || !hydrated || busy || !file;
+  const buttonDisabled = isServer || !hydrated || !file;
 
   function buildPresetSettings(preset: Preset): Settings {
     return {
@@ -1504,6 +1606,37 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     setUpdatingOutputStamp(stamp);
     if (!file) return;
     void submitConvertForFile(file, nextSettings);
+  }
+
+  function cancelOutputJob(jobId: string, stamp: number) {
+    fetcher.cancelClientJob(jobId);
+    submittedByRunIdRef.current.delete(jobId);
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobError: "Conversion canceled.",
+              jobCompletedAt: Date.now(),
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function retryOutputJob(stamp: number) {
+    const item = history.find((candidate) => candidate.stamp === stamp) as
+      | (HistoryItem & TraceOutputItem<Settings>)
+      | undefined;
+    if (!item || !file) return;
+    const retrySettings = item.settingsSnapshot ?? item.draftSettings ?? settings;
+    const retryPresetId =
+      DISPLAY_PRESETS.find((preset) => preset.label === item.presetLabel)?.id ??
+      activePreset;
+    setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
+    void submitConvertForFile(file, retrySettings, retryPresetId);
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {
@@ -1741,6 +1874,8 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
               onResetOutputLayer={resetHistoryLayer}
               onResetAllOutputLayers={resetAllHistoryLayers}
               onOutputSizeChange={setHistorySize}
+              onCancelOutputJob={cancelOutputJob}
+              onRetryOutputJob={retryOutputJob}
             />
           </section>
         </div>

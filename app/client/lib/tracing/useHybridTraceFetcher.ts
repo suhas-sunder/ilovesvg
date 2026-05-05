@@ -31,6 +31,10 @@ type HybridTracePayload = {
 };
 
 type FetcherReturn<TData> = ReturnType<typeof useFetcher<TData>>;
+type HybridTraceFetcherReturn<TData> = FetcherReturn<TData> & {
+  cancelClientJob: (clientRunId: string) => void;
+  activeClientJobs: number;
+};
 type FetcherSubmitTarget = Parameters<FetcherReturn<unknown>["submit"]>[0];
 type FetcherSubmitOptions = Parameters<FetcherReturn<unknown>["submit"]>[1];
 
@@ -40,17 +44,20 @@ export function useHybridTraceFetcher<
   routeId: string;
   enabled?: boolean;
   onProgress?: (progress: number, message: string) => void;
-}): FetcherReturn<TData> {
+}): HybridTraceFetcherReturn<TData> {
   const fetcher = useFetcher<TData>();
   const [clientData, setClientData] = React.useState<TData | undefined>();
   const [activeClientJobs, setActiveClientJobs] = React.useState(0);
   const runIdRef = React.useRef(0);
   const fallbackWarningRef = React.useRef<string | null>(null);
+  const abortControllersRef = React.useRef(new Map<string, AbortController>());
+  const suppressedServerDataRef = React.useRef<unknown>(undefined);
 
   const submit = React.useCallback(
     (target: FetcherSubmitTarget, submitOptions?: FetcherSubmitOptions) => {
       const runId = runIdRef.current + 1;
       runIdRef.current = runId;
+      suppressedServerDataRef.current = fetcher.data;
       setClientData(undefined);
       fallbackWarningRef.current = null;
 
@@ -76,6 +83,8 @@ export function useHybridTraceFetcher<
         `${options.routeId}-${Date.now()}-${runId}`;
 
       setActiveClientJobs((count) => count + 1);
+      const abortController = new AbortController();
+      abortControllersRef.current.set(clientRunId, abortController);
       recordHybridTraceDebug({
         routeId: options.routeId,
         stage: "client-attempt-start",
@@ -92,6 +101,7 @@ export function useHybridTraceFetcher<
           presetId: settings.presetId,
           presetBackendIntensity: settings.presetBackendIntensity,
           onProgress: options.onProgress,
+          signal: abortController.signal,
         });
 
         if (clientAttempt.ok) {
@@ -124,6 +134,15 @@ export function useHybridTraceFetcher<
           reason: clientAttempt.reason,
           requestedEngine,
         });
+        if (abortController.signal.aborted || clientAttempt.reason === "Conversion was canceled.") {
+          recordHybridTraceDebug({
+            routeId: options.routeId,
+            stage: "client-attempt-canceled",
+            clientRunId,
+            traceJobId: String(runId),
+          });
+          return;
+        }
         if (requestedEngine === "vtracer") {
           setClientData({
             error: `VTracer could not convert this image in your browser. ${clientAttempt.reason}`,
@@ -158,6 +177,15 @@ export function useHybridTraceFetcher<
             error instanceof Error && error.message
               ? error.message
               : "Browser tracing failed.";
+          if (abortController.signal.aborted || /canceled/i.test(message)) {
+            recordHybridTraceDebug({
+              routeId: options.routeId,
+              stage: "client-attempt-canceled",
+              clientRunId,
+              traceJobId: String(runId),
+            });
+            return;
+          }
           if (requestedEngine === "vtracer") {
             setClientData({
               error: `VTracer could not convert this image in your browser. ${message}`,
@@ -185,14 +213,23 @@ export function useHybridTraceFetcher<
           fetcher.submit(target, submitOptions);
         })
         .finally(() => {
+          abortControllersRef.current.delete(clientRunId);
           setActiveClientJobs((count) => Math.max(0, count - 1));
         });
     },
     [fetcher, options.enabled, options.onProgress, options.routeId],
   );
 
+  const cancelClientJob = React.useCallback((clientRunId: string) => {
+    const controller = abortControllersRef.current.get(clientRunId);
+    controller?.abort();
+  }, []);
+
   const data = React.useMemo(() => {
     if (clientData) return clientData;
+    if (fetcher.data && fetcher.data === suppressedServerDataRef.current) {
+      return undefined;
+    }
     return withServerFallbackMetadata(fetcher.data, fallbackWarningRef.current);
   }, [clientData, fetcher.data]);
 
@@ -200,11 +237,13 @@ export function useHybridTraceFetcher<
     () =>
       ({
         ...fetcher,
+        activeClientJobs,
+        cancelClientJob,
         data,
         state: activeClientJobs > 0 ? "submitting" : fetcher.state,
         submit,
-      }) as FetcherReturn<TData>,
-    [activeClientJobs, data, fetcher, submit],
+      }) as HybridTraceFetcherReturn<TData>,
+    [activeClientJobs, cancelClientJob, data, fetcher, submit],
   );
 }
 

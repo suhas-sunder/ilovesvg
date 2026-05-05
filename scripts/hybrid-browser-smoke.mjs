@@ -83,28 +83,35 @@ async function main() {
 
   const results = [];
   let batchZip = null;
+  let queue = null;
   try {
     await waitForCdp();
-    const routes = process.env.ROUTE_FILTER
-      ? SMOKE_ROUTES.filter(
-          (route) =>
-            route.path === process.env.ROUTE_FILTER &&
-            (!process.env.SCENARIO_FILTER || route.scenario === process.env.SCENARIO_FILTER),
-        )
-      : SMOKE_ROUTES;
-    for (const route of routes) {
-      console.error(`[hybrid-browser] ${route.path} (${route.scenario})`);
-      const result = await runRouteSmoke(route, fixtures[route.file]);
-      results.push(result);
-      console.error(
-        `[hybrid-browser] ${route.path} ${route.scenario} -> ${result.engineUsed || "none"} ${result.ok ? "ok" : "failed"}`,
-      );
-    }
+    if (process.env.QUEUE_SMOKE === "1") {
+      console.error("[hybrid-browser] conversion queue");
+      queue = await runQueueSmoke(fixtures);
+      console.error(`[hybrid-browser] conversion queue -> ${queue.ok ? "ok" : "failed"}`);
+    } else {
+      const routes = process.env.ROUTE_FILTER
+        ? SMOKE_ROUTES.filter(
+            (route) =>
+              route.path === process.env.ROUTE_FILTER &&
+              (!process.env.SCENARIO_FILTER || route.scenario === process.env.SCENARIO_FILTER),
+          )
+        : SMOKE_ROUTES;
+      for (const route of routes) {
+        console.error(`[hybrid-browser] ${route.path} (${route.scenario})`);
+        const result = await runRouteSmoke(route, fixtures[route.file]);
+        results.push(result);
+        console.error(
+          `[hybrid-browser] ${route.path} ${route.scenario} -> ${result.engineUsed || "none"} ${result.ok ? "ok" : "failed"}`,
+        );
+      }
 
-    if (!process.env.ROUTE_FILTER || process.env.INCLUDE_BATCH === "1") {
-      console.error("[hybrid-browser] home batch ZIP");
-      batchZip = await runBatchZipSmoke(fixtures);
-      console.error(`[hybrid-browser] home batch ZIP -> ${batchZip.ok ? "ok" : "failed"}`);
+      if (!process.env.ROUTE_FILTER || process.env.INCLUDE_BATCH === "1") {
+        console.error("[hybrid-browser] home batch ZIP");
+        batchZip = await runBatchZipSmoke(fixtures);
+        console.error(`[hybrid-browser] home batch ZIP -> ${batchZip.ok ? "ok" : "failed"}`);
+      }
     }
   } finally {
     browser.kill();
@@ -116,12 +123,14 @@ async function main() {
     browserPath,
     routes: results,
     batchZip,
+    queue,
   };
 
   console.log(JSON.stringify(report, null, 2));
 
   const failures = results.filter((result) => !result.ok);
   if (batchZip && !batchZip.ok) failures.push(batchZip);
+  if (queue && !queue.ok) failures.push(queue);
   if (failures.length > 0) {
     process.exit(1);
   }
@@ -526,6 +535,226 @@ async function runBatchZipSmoke(fixtures) {
   } finally {
     await client.close().catch(() => {});
   }
+}
+
+async function runQueueSmoke(fixtures) {
+  const client = await openTab(`${baseUrl}/png-to-svg-converter`);
+  const errors = [];
+  const queueFixture = await createQueueFixture(fixtures.png);
+  client.onEvent((message) => {
+    if (message.method === "Runtime.exceptionThrown") {
+      const details = message.params?.exceptionDetails;
+      const text =
+        details?.exception?.description ||
+        details?.exception?.value ||
+        details?.text ||
+        "Runtime exception";
+      if (!isIgnorableDevConsoleMessage(text)) errors.push(text);
+    }
+    if (message.method === "Log.entryAdded") {
+      const entry = message.params?.entry;
+      const text = entry?.text || "Browser log error";
+      if (entry?.level === "error" && !isIgnorableDevConsoleMessage(text)) {
+        errors.push(text);
+      }
+    }
+  });
+
+  try {
+    await client.send("Runtime.enable");
+    await client.send("Log.enable");
+    await client.send("Page.enable");
+    await client.send("DOM.enable");
+    await waitForDocumentReady(client);
+    await evaluate(client, `(() => { window.__ILOVESVG_HYBRID_TRACE_DEBUG__ = []; return true; })()`);
+    await delay(1_000);
+
+    await setFileInput(client, queueFixture);
+    await waitForValue(client, () => textIncludesExpression(path.basename(queueFixture)), 8_000);
+    await showAllPresetButtons(client);
+
+    const slowSelected = await clickButtonMatching(client, "/^Filled Layers - Separate Colors\\b/i");
+    const slowPending = await waitForValue(
+      client,
+      queueSnapshotExpression,
+      8_000,
+      (value) => value?.slowActive && value?.slowCards >= 1,
+    );
+
+    await showAllPresetButtons(client);
+    const fastSelected = await clickButtonMatching(client, "/^Lineart - Clean\\b/i");
+    const fastWhileSlow = await waitForValue(
+      client,
+      queueSnapshotExpression,
+      40_000,
+      (value) => value?.fastComplete && value?.slowActive,
+    );
+
+    const slowComplete = await waitForValue(
+      client,
+      queueSnapshotExpression,
+      80_000,
+      (value) => value?.slowComplete,
+    );
+
+    await showAllPresetButtons(client);
+    const cancelSelected = await clickButtonMatching(client, "/^Filled Layers - Separate Colors\\b/i");
+    const cancelPending = await waitForValue(
+      client,
+      queueSnapshotExpression,
+      8_000,
+      (value) => value?.slowActive,
+    );
+    const cancelClicked = await clickCancelForSlowJob(client);
+    const canceled = await waitForValue(
+      client,
+      queueSnapshotExpression,
+      8_000,
+      (value) => value?.slowCanceled,
+    );
+    const traceDebug = await readTraceDebug(client);
+    const canceledFallback = traceDebug.some(
+      (event) =>
+        event?.stage === "server-fallback-submit" &&
+        /canceled/i.test(String(event?.reason || "")),
+    );
+
+    const ok =
+      errors.length === 0 &&
+      Boolean(slowSelected) &&
+      Boolean(fastSelected) &&
+      Boolean(cancelSelected) &&
+      Boolean(cancelClicked) &&
+      slowPending.slowActive &&
+      !slowPending.slowPotraceComplete &&
+      fastWhileSlow.fastComplete &&
+      fastWhileSlow.slowActive &&
+      !fastWhileSlow.slowPotraceComplete &&
+      slowComplete.slowComplete &&
+      !slowComplete.slowPotraceComplete &&
+      canceled.slowCanceled &&
+      !canceledFallback &&
+      slowComplete.vtracerPreviewDecoded &&
+      fastWhileSlow.potracePreviewDecoded;
+
+    return {
+      route: "/png-to-svg-converter",
+      fixture: path.basename(queueFixture),
+      slowSelected,
+      fastSelected,
+      cancelSelected,
+      slowPending,
+      fastWhileSlow,
+      slowComplete,
+      cancelPending,
+      canceled,
+      cancelClicked,
+      canceledFallback,
+      traceDebug,
+      consoleErrors: errors,
+      ok,
+      failure: ok
+        ? null
+        : "Queue smoke did not observe independent slow/fast completion and cancellation.",
+    };
+  } catch (error) {
+    return {
+      route: "/png-to-svg-converter",
+      fixture: path.basename(queueFixture),
+      traceDebug: await readTraceDebug(client).catch(() => []),
+      consoleErrors: errors,
+      ok: false,
+      failure: error instanceof Error ? error.message : String(error),
+      debug: await getPageDebugState(client).catch((debugError) => ({
+        error: debugError instanceof Error ? debugError.message : String(debugError),
+      })),
+    };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+async function createQueueFixture(fallbackPng) {
+  const source = path.join(rootDir, "tests/fixtures/IMG_8487.PNG");
+  const target = path.join(fixturesDir, "queue-IMG_8487-upscaled.png");
+  try {
+    await fs.access(source);
+    await sharp(source, { limitInputPixels: false })
+      .resize({ width: 2200, fit: "inside", withoutEnlargement: false })
+      .png()
+      .toFile(target);
+    return target;
+  } catch {
+    return fallbackPng;
+  }
+}
+
+async function showAllPresetButtons(client) {
+  await evaluate(client, `(() => {
+    const button = Array.from(document.querySelectorAll("button"))
+      .find((candidate) => /^Show \\d+ more presets/i.test(candidate.innerText || ""));
+    if (button) button.click();
+    return Boolean(button);
+  })()`).catch(() => false);
+  await delay(250);
+}
+
+function queueSnapshotExpression() {
+  return `(() => {
+    const cards = Array.from(document.querySelectorAll("[data-engine-used]")).map((card, index) => {
+      const text = card.innerText || "";
+      const engine = card.getAttribute("data-engine-used") || "";
+      const status = card.getAttribute("data-job-status") || "";
+      const images = Array.from(card.querySelectorAll("img"));
+      const previewDecoded = images.some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+      const isSlow = /Filled Layers - Separate Colors/i.test(text);
+      const isFast = /Lineart - Clean/i.test(text);
+      return {
+        index,
+        engine,
+        status,
+        isSlow,
+        isFast,
+        previewDecoded,
+        text: text.slice(0, 500),
+      };
+    });
+    const isActive = (card) => card.status === "queued" || card.status === "running";
+    const slowActive = cards.some((card) => card.isSlow && isActive(card));
+    const slowComplete = cards.some((card) => card.isSlow && card.engine === "vtracer" && card.previewDecoded);
+    const slowPotraceComplete = cards.some((card) => card.isSlow && card.engine === "potrace" && card.previewDecoded);
+    const slowCanceled = cards.some((card) => card.isSlow && card.status === "canceled");
+    const fastComplete = cards.some((card) => card.isFast && card.engine === "potrace" && card.previewDecoded);
+    return {
+      outputCount: cards.length,
+      slowCards: cards.filter((card) => card.isSlow).length,
+      slowActive,
+      slowComplete,
+      slowPotraceComplete,
+      slowCanceled,
+      fastComplete,
+      vtracerPreviewDecoded: cards.some((card) => card.engine === "vtracer" && card.previewDecoded),
+      potracePreviewDecoded: cards.some((card) => card.engine === "potrace" && card.previewDecoded),
+      cards,
+    };
+  })()`;
+}
+
+async function clickCancelForSlowJob(client) {
+  return evaluate(client, `(() => {
+    const cards = Array.from(document.querySelectorAll("[data-engine-used]"));
+    const card = cards.find((candidate) => {
+      const text = candidate.innerText || "";
+      const status = candidate.getAttribute("data-job-status") || "";
+      return /Filled Layers - Separate Colors/i.test(text) && (status === "queued" || status === "running");
+    });
+    if (!card) return false;
+    const button = Array.from(card.querySelectorAll("button"))
+      .find((candidate) => /Cancel/i.test(candidate.innerText || "") && !candidate.disabled);
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
 }
 
 async function readTraceDebug(client) {
@@ -1147,11 +1376,14 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
   return waitForValue(
     client,
     () => `(() => {
-      const output = Array.from(document.querySelectorAll("[data-engine-used]"))
-        .find((candidate) => {
+      const outputs = Array.from(document.querySelectorAll("[data-engine-used]"))
+        .filter((candidate) => {
           const engine = candidate.getAttribute("data-engine-used");
           return engine === "vtracer" || engine === "potrace";
         });
+      const output = ${JSON.stringify(expectedEngine)}
+        ? outputs.find((candidate) => candidate.getAttribute("data-engine-used") === ${JSON.stringify(expectedEngine)})
+        : outputs[0];
       const debug = Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__)
         ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__
         : [];
@@ -1191,6 +1423,7 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
       }
       return {
         hasOutput: Boolean(output),
+        outputCount: outputs.length,
         engineUsed: inferredEngine,
         previewDecoded,
         hasBrokenPreview,

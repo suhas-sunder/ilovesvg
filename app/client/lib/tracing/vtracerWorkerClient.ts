@@ -55,9 +55,14 @@ export async function tryTraceRasterInClient(input: {
   sourceWidth?: number | null;
   sourceHeight?: number | null;
   onProgress?: (progress: number, message: string) => void;
+  signal?: AbortSignal;
 }): Promise<ClientTraceAttempt> {
   if (typeof window === "undefined") {
     return { ok: false, reason: "Client tracing is not available during SSR." };
+  }
+
+  if (input.signal?.aborted) {
+    return { ok: false, reason: "Conversion was canceled." };
   }
 
   const browserCanRunWorker =
@@ -96,21 +101,50 @@ export async function tryTraceRasterInClient(input: {
 
   const id = `vtracer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   let worker: Worker | null = null;
+  let releaseSlot: (() => void) | null = null;
 
   try {
+    input.onProgress?.(0.02, "Queued for browser tracing.");
+    releaseSlot = await acquireClientTraceSlot(input.signal);
+    if (input.signal?.aborted) {
+      return { ok: false, reason: "Conversion was canceled." };
+    }
+    input.onProgress?.(0.05, "Tracing in your browser.");
     const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
     worker = new Worker(
       new URL("../../workers/vtracer.worker.ts", import.meta.url),
       { type: "module" },
     );
     const result = await new Promise<TraceResult>((resolve, reject) => {
+      let settled = false;
       const timeout = window.setTimeout(() => {
-        reject(
+        fail(
           new Error(
             "Browser tracing took too long. Falling back to the server engine.",
           ),
         );
       }, 45_000);
+      const abortHandler = () => {
+        worker?.terminate();
+        fail(new Error("Conversion was canceled."));
+      };
+      const cleanup = () => {
+        input.signal?.removeEventListener("abort", abortHandler);
+        window.clearTimeout(timeout);
+      };
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+      const succeed = (traceResult: TraceResult) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(traceResult);
+      };
+      input.signal?.addEventListener("abort", abortHandler, { once: true });
 
       worker!.onmessage = (event: MessageEvent<VTracerWorkerMessage>) => {
         const message = event.data;
@@ -121,13 +155,12 @@ export async function tryTraceRasterInClient(input: {
           return;
         }
 
-        window.clearTimeout(timeout);
         if (message.type === "error") {
-          reject(new Error(message.message));
+          fail(new Error(message.message));
           return;
         }
 
-        resolve({
+        succeed({
           svg: message.svg,
           layers: message.layers || [],
           width: message.width,
@@ -147,8 +180,7 @@ export async function tryTraceRasterInClient(input: {
       };
 
       worker!.onerror = (event) => {
-        window.clearTimeout(timeout);
-        reject(
+        fail(
           new Error(
             event.message ||
               "Browser tracing failed. Falling back to the server engine.",
@@ -188,7 +220,45 @@ export async function tryTraceRasterInClient(input: {
     };
   } finally {
     worker?.terminate();
+    releaseSlot?.();
   }
+}
+
+const MAX_ACTIVE_CLIENT_TRACES = 2;
+let activeClientTraceSlots = 0;
+const queuedClientTraceResolvers: Array<() => void> = [];
+
+function acquireClientTraceSlot(signal?: AbortSignal): Promise<() => void> {
+  if (typeof window === "undefined") return Promise.resolve(() => {});
+  if (signal?.aborted) {
+    return Promise.reject(new Error("Conversion was canceled."));
+  }
+
+  if (activeClientTraceSlots < MAX_ACTIVE_CLIENT_TRACES) {
+    activeClientTraceSlots += 1;
+    return Promise.resolve(releaseClientTraceSlot);
+  }
+
+  return new Promise((resolve, reject) => {
+    const run = () => {
+      signal?.removeEventListener("abort", abortHandler);
+      activeClientTraceSlots += 1;
+      resolve(releaseClientTraceSlot);
+    };
+    const abortHandler = () => {
+      const index = queuedClientTraceResolvers.indexOf(run);
+      if (index >= 0) queuedClientTraceResolvers.splice(index, 1);
+      reject(new Error("Conversion was canceled."));
+    };
+    signal?.addEventListener("abort", abortHandler, { once: true });
+    queuedClientTraceResolvers.push(run);
+  });
+}
+
+function releaseClientTraceSlot() {
+  activeClientTraceSlots = Math.max(0, activeClientTraceSlots - 1);
+  const next = queuedClientTraceResolvers.shift();
+  if (next) next();
 }
 
 async function readBrowserImageSize(file: File): Promise<{ width: number; height: number } | null> {

@@ -65,6 +65,14 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   updateError?: string | null;
   previousVersion?: OutputVersion<TSettings> | null;
   nextVersion?: OutputVersion<TSettings> | null;
+  jobId?: string;
+  jobStatus?: "queued" | "running" | "succeeded" | "failed" | "canceled";
+  jobStartedAt?: number;
+  jobCompletedAt?: number;
+  jobError?: string | null;
+  sourceFileName?: string;
+  enginePathLabel?: string;
+  canCancel?: boolean;
 };
 
 export type TraceOutputLayerPatch = {
@@ -208,6 +216,8 @@ type TraceOutputPanelProps<TSettings extends MixedTraceSettings> = {
     stamp: number,
     size: { width: number; height: number },
   ) => void;
+  onCancelOutputJob?: (jobId: string, stamp: number) => void;
+  onRetryOutputJob?: (stamp: number) => void;
 };
 
 export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
@@ -234,7 +244,18 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
+  onCancelOutputJob,
+  onRetryOutputJob,
 }: TraceOutputPanelProps<TSettings>) {
+  const hasActiveJob = history.some((item) => isTraceJobActive(item.jobStatus));
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    if (!hasActiveJob) return;
+    const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [hasActiveJob]);
+
   return (
     <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
       {busy && (
@@ -246,12 +267,19 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             const outputSettings =
               item.draftSettings ?? item.settingsSnapshot ?? fallbackSettings;
             const isUpdating = updatingStamp === item.stamp;
-            const previewSvg = getTraceOutputSvg(item);
+            const jobStatus = item.jobStatus ?? "succeeded";
+            const isActiveJob = isTraceJobActive(jobStatus);
+            const isFailedJob = jobStatus === "failed" || jobStatus === "canceled";
+            const previewSvg =
+              isActiveJob || isFailedJob || !item.svg ? "" : getTraceOutputSvg(item);
             const label = getOutputLabel(item, index);
+            const elapsedMs = getTraceJobElapsedMs(item, nowMs);
 
             return (
               <div
                 key={item.stamp}
+                data-job-id={item.jobId || ""}
+                data-job-status={jobStatus}
                 data-engine-used={item.engineUsed || "unknown"}
                 data-source-kind={item.sourceKind || "unknown"}
                 data-engine-warnings={(item.warnings || []).join(" | ")}
@@ -268,12 +296,24 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     {label}
                   </span>
                   <span className="text-[13px] text-slate-600">
-                    {item.width > 0 && item.height > 0
+                    {isActiveJob
+                      ? formatTraceJobElapsed(elapsedMs)
+                      : item.width > 0 && item.height > 0
                       ? `${item.width} x ${item.height} px`
                       : "size unknown"}
                   </span>
                 </div>
 
+                {isActiveJob || isFailedJob ? (
+                  <TraceJobStateCard
+                    item={item}
+                    label={label}
+                    elapsedMs={elapsedMs}
+                    onCancelOutputJob={onCancelOutputJob}
+                    onRetryOutputJob={onRetryOutputJob}
+                  />
+                ) : (
+                  <>
                 <div className="my-2 flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -428,6 +468,8 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     className="h-auto max-w-full"
                   />
                 </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -447,6 +489,87 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function TraceJobStateCard<TSettings extends MixedTraceSettings>({
+  item,
+  label,
+  elapsedMs,
+  onCancelOutputJob,
+  onRetryOutputJob,
+}: {
+  item: TraceOutputItem<TSettings>;
+  label: string;
+  elapsedMs: number;
+  onCancelOutputJob?: (jobId: string, stamp: number) => void;
+  onRetryOutputJob?: (stamp: number) => void;
+}) {
+  const status = item.jobStatus ?? "running";
+  const failed = status === "failed" || status === "canceled";
+  const title = failed ? "Conversion did not finish" : "Converting...";
+  const statusText = getTraceJobStatusText(status);
+  return (
+    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="m-0 text-sm font-bold text-slate-900">{title}</p>
+          <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
+            {label}
+            {item.sourceFileName ? ` from ${item.sourceFileName}` : ""}
+          </p>
+        </div>
+        {!failed && (
+          <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[12px] font-bold text-sky-800">
+            <span className="mr-1.5 inline-block h-3 w-3 rounded-full border-2 border-sky-300 border-t-sky-700 animate-spin" />
+            {statusText}
+          </span>
+        )}
+        {failed && (
+          <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[12px] font-bold text-red-700">
+            {statusText}
+          </span>
+        )}
+      </div>
+
+      <dl className="mt-3 grid gap-2 text-[13px] text-slate-700 sm:grid-cols-2">
+        <div>
+          <dt className="font-semibold text-slate-900">Elapsed</dt>
+          <dd className="m-0">{formatTraceJobElapsed(elapsedMs)}</dd>
+        </div>
+        <div>
+          <dt className="font-semibold text-slate-900">Engine path</dt>
+          <dd className="m-0">{item.enginePathLabel || "Hybrid trace"}</dd>
+        </div>
+      </dl>
+
+      {item.jobError && (
+        <p className="m-0 mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-[13px] leading-5 text-red-700">
+          {item.jobError}
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!failed && item.canCancel && item.jobId && onCancelOutputJob && (
+          <button
+            type="button"
+            onClick={() => onCancelOutputJob(item.jobId!, item.stamp)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+        )}
+        {failed && onRetryOutputJob && (
+          <button
+            type="button"
+            onClick={() => onRetryOutputJob(item.stamp)}
+            className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+          >
+            Retry
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -472,6 +595,38 @@ function getOutputLabel<TSettings extends MixedTraceSettings>(
     return `${explicitName} - ${item.presetLabel}`;
   }
   return explicitName;
+}
+
+function isTraceJobActive(status?: TraceOutputItem<MixedTraceSettings>["jobStatus"]) {
+  return status === "queued" || status === "running";
+}
+
+function getTraceJobElapsedMs<TSettings extends MixedTraceSettings>(
+  item: TraceOutputItem<TSettings>,
+  nowMs: number,
+): number {
+  const started = Number(item.jobStartedAt || 0);
+  if (!Number.isFinite(started) || started <= 0) return 0;
+  const ended = Number(item.jobCompletedAt || 0);
+  const end = Number.isFinite(ended) && ended > 0 ? ended : nowMs;
+  return Math.max(0, end - started);
+}
+
+function formatTraceJobElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function getTraceJobStatusText(
+  status: TraceOutputItem<MixedTraceSettings>["jobStatus"],
+): string {
+  if (status === "queued") return "Queued";
+  if (status === "failed") return "Failed";
+  if (status === "canceled") return "Canceled";
+  return "Running";
 }
 
 function downloadSvg(svg: string, filename: string) {

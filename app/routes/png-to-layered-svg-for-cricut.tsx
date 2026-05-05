@@ -1247,6 +1247,14 @@ type HistoryItem = {
   presetLabel?: string;
   settingsSnapshot?: Settings;
   layers: LayerState[];
+  jobId?: string;
+  jobStatus?: "queued" | "running" | "succeeded" | "failed" | "canceled";
+  jobStartedAt?: number;
+  jobCompletedAt?: number;
+  jobError?: string | null;
+  sourceFileName?: string;
+  enginePathLabel?: string;
+  canCancel?: boolean;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1347,6 +1355,9 @@ export default function PngToLayeredSvgForCricut({
     presetId: string;
     parentStamp: number | null;
     replaceStamp: number | null;
+    stamp?: number | null;
+    startedAt?: number;
+    fileName?: string;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -1361,9 +1372,22 @@ export default function PngToLayeredSvgForCricut({
         presetId: string;
         parentStamp: number | null;
         replaceStamp: number | null;
+        stamp: number | null;
+        startedAt: number;
+        fileName: string;
       }
     >(),
   );
+  const hasActiveHistoryJob = history.some((item) =>
+    item.jobStatus === "queued" || item.jobStatus === "running",
+  );
+  const [jobNowMs, setJobNowMs] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    if (!hasActiveHistoryJob) return;
+    const interval = window.setInterval(() => setJobNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [hasActiveHistoryJob]);
 
   const busy = fetcher.state !== "idle";
 
@@ -1418,7 +1442,7 @@ export default function PngToLayeredSvgForCricut({
     const presetLabel =
       DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
       "Custom settings";
-    const stamp = Date.now();
+    const stamp = submitted.stamp ?? Date.now();
     const item: HistoryItem = {
       svg: fetcher.data.svg,
       width: fetcher.data.width ?? 0,
@@ -1441,6 +1465,13 @@ export default function PngToLayeredSvgForCricut({
       outputDetectedColors: fetcher.data.outputDetectedColors,
       pathCount: fetcher.data.pathCount,
       svgBytes: fetcher.data.svgBytes,
+      jobId: clientRunId || undefined,
+      jobStatus: "succeeded",
+      jobStartedAt: submitted.startedAt,
+      jobCompletedAt: Date.now(),
+      jobError: null,
+      sourceFileName: submitted.fileName,
+      canCancel: false,
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
         name: layer.name,
@@ -1472,7 +1503,14 @@ export default function PngToLayeredSvgForCricut({
       setActiveHistoryStamp(submitted.replaceStamp);
       setOpenSettingsStamp(submitted.replaceStamp);
     } else {
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setHistory((prev) => {
+        if (prev.some((candidate) => candidate.stamp === stamp)) {
+          return prev.map((candidate) =>
+            candidate.stamp === stamp ? item : candidate,
+          );
+        }
+        return [item, ...prev].slice(0, 10);
+      });
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
     }
     setInfo(null);
@@ -1542,6 +1580,33 @@ export default function PngToLayeredSvgForCricut({
         });
       }, retryAfterMs);
 
+      return;
+    }
+
+    if (submitted.stamp) {
+      const message = fetcher.data.error || "Layered conversion failed.";
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.stamp === submitted.stamp
+            ? {
+                ...item,
+                jobStatus: "failed",
+                jobError: message,
+                jobCompletedAt: Date.now(),
+                canCancel: false,
+              }
+            : item,
+        ),
+      );
+      logAppError(new Error(message), {
+        flowStep: "png_layered_conversion_job_response",
+        flowKind: "conversion",
+        action: fetcher.data.code || "server_response",
+        selectedFileType: file?.type,
+        selectedFileSize: file?.size,
+        imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
+        settingsSnapshot: submitted.settings,
+      });
       return;
     }
 
@@ -1725,16 +1790,51 @@ export default function PngToLayeredSvgForCricut({
     const submittedPresetId = meta?.presetId ?? activePreset;
 
     setErr(null);
+    const startedAt = Date.now();
+    const replaceStamp = meta?.replaceStamp ?? null;
+    const pendingStamp = replaceStamp ? null : startedAt;
     const submittedMeta = {
       settings: sourceSettings,
       presetId: submittedPresetId,
       parentStamp: meta?.parentStamp ?? null,
-      replaceStamp: meta?.replaceStamp ?? null,
+      replaceStamp,
+      stamp: pendingStamp,
+      startedAt,
+      fileName: sourceFile.name,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);
 
     fd.append("presetId", submittedPresetId);
+    if (pendingStamp) {
+      const presetLabel =
+        DISPLAY_PRESETS.find((preset) => preset.id === submittedPresetId)?.label ||
+        "Custom settings";
+      const pendingItem: HistoryItem = {
+        svg: "",
+        width: 0,
+        height: 0,
+        originalWidth: 0,
+        originalHeight: 0,
+        stamp: pendingStamp,
+        name: `Output - ${presetLabel}`,
+        parentStamp: submittedMeta.parentStamp,
+        presetId: submittedPresetId,
+        presetLabel,
+        settingsSnapshot: sourceSettings,
+        layers: [],
+        jobId: clientRunId,
+        jobStatus: "running",
+        jobStartedAt: startedAt,
+        sourceFileName: sourceFile.name,
+        enginePathLabel: "Hybrid layered trace",
+        canCancel: true,
+      };
+      setHistory((prev) => [pendingItem, ...prev].slice(0, 10));
+      setActiveHistoryStamp((current) =>
+        current === pendingStamp ? current : pendingStamp,
+      );
+    }
 
 
     
@@ -1771,6 +1871,66 @@ export default function PngToLayeredSvgForCricut({
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 1500);
+  }
+
+  function cancelOutputJob(jobId: string, stamp: number) {
+    fetcher.cancelClientJob(jobId);
+    submittedByRunIdRef.current.delete(jobId);
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobError: "Conversion canceled.",
+              jobCompletedAt: Date.now(),
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function retryOutputJob(stamp: number) {
+    const item = history.find((candidate) => candidate.stamp === stamp);
+    if (!item || !file) return;
+    setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
+    void submitConvert(file, item.settingsSnapshot || settings, {
+      presetId: item.presetId || activePreset,
+      parentStamp: item.parentStamp ?? null,
+    });
+  }
+
+  function buildLayeredJobPlaceholderSvg(item: HistoryItem) {
+    const title =
+      item.jobStatus === "failed" || item.jobStatus === "canceled"
+        ? "Conversion did not finish"
+        : "Converting...";
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" rx="18" fill="#f8fafc"/><text x="320" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#0f172a">${escapeSvgText(title)}</text><text x="320" y="204" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#475569">${escapeSvgText(item.presetLabel || "Custom settings")}</text></svg>`;
+  }
+
+  function getTraceJobElapsedMs(item: HistoryItem, nowMs: number) {
+    const started = Number(item.jobStartedAt || 0);
+    if (!Number.isFinite(started) || started <= 0) return 0;
+    const completed = Number(item.jobCompletedAt || 0);
+    const end = Number.isFinite(completed) && completed > 0 ? completed : nowMs;
+    return Math.max(0, end - started);
+  }
+
+  function formatTraceJobElapsed(elapsedMs: number) {
+    const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  function escapeSvgText(value: string) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function handleCopySvg(svg: string) {
@@ -1868,7 +2028,7 @@ export default function PngToLayeredSvgForCricut({
     });
   }
 
-  const buttonDisabled = isServer || !hydrated || busy || !file;
+  const buttonDisabled = isServer || !hydrated || !file;
 
   return (
     <>
@@ -2027,20 +2187,27 @@ export default function PngToLayeredSvgForCricut({
                   {history.map((item, index) => {
                     const isActiveOutput =
                       activeHistoryItem?.stamp === item.stamp;
+                    const isActiveJob =
+                      item.jobStatus === "queued" || item.jobStatus === "running";
+                    const isFailedJob =
+                      item.jobStatus === "failed" || item.jobStatus === "canceled";
                     const itemSettings = isActiveOutput
                       ? settings
                       : item.settingsSnapshot || settings;
-                    const editedSvg = buildClientLayeredSvg({
-                      width: item.width,
-                      height: item.height,
-                      viewBoxWidth: item.originalWidth || item.width,
-                      viewBoxHeight: item.originalHeight || item.height,
-                      layers: item.layers,
-                      transparent: itemSettings.transparent,
-                      bgColor: itemSettings.bgColor,
-                      backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
-                      layerAlpha: itemSettings.layerAlpha ?? 1,
-                    });
+                    const editedSvg =
+                      isActiveJob || isFailedJob
+                        ? buildLayeredJobPlaceholderSvg(item)
+                        : buildClientLayeredSvg({
+                            width: item.width,
+                            height: item.height,
+                            viewBoxWidth: item.originalWidth || item.width,
+                            viewBoxHeight: item.originalHeight || item.height,
+                            layers: item.layers,
+                            transparent: itemSettings.transparent,
+                            bgColor: itemSettings.bgColor,
+                            backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
+                            layerAlpha: itemSettings.layerAlpha ?? 1,
+                          });
 
                     return (
                       <div
@@ -2068,6 +2235,79 @@ export default function PngToLayeredSvgForCricut({
                             • {item.layers.length} layers
                           </span>
                         </div>
+                        {(isActiveJob || isFailedJob) && (
+                          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="m-0 text-sm font-bold text-slate-900">
+                                  {isFailedJob ? "Conversion did not finish" : "Converting..."}
+                                </p>
+                                <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
+                                  {item.presetLabel || "Custom settings"}
+                                  {item.sourceFileName ? ` from ${item.sourceFileName}` : ""}
+                                </p>
+                              </div>
+                              <span
+                                className={[
+                                  "inline-flex items-center rounded-full border px-2.5 py-1 text-[12px] font-bold",
+                                  isFailedJob
+                                    ? "border-red-200 bg-red-50 text-red-700"
+                                    : "border-sky-200 bg-sky-50 text-sky-800",
+                                ].join(" ")}
+                              >
+                                {!isFailedJob && (
+                                  <span className="mr-1.5 inline-block h-3 w-3 rounded-full border-2 border-sky-300 border-t-sky-700 animate-spin" />
+                                )}
+                                {item.jobStatus === "failed"
+                                  ? "Failed"
+                                  : item.jobStatus === "canceled"
+                                    ? "Canceled"
+                                    : item.jobStatus === "queued"
+                                      ? "Queued"
+                                      : "Running"}
+                              </span>
+                            </div>
+                            <div className="mt-3 grid gap-2 text-[13px] text-slate-700 sm:grid-cols-2">
+                              <div>
+                                <span className="font-semibold text-slate-900">Elapsed</span>
+                                <div>
+                                  {formatTraceJobElapsed(
+                                    getTraceJobElapsedMs(item, jobNowMs),
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-semibold text-slate-900">Engine path</span>
+                                <div>{item.enginePathLabel || "Hybrid layered trace"}</div>
+                              </div>
+                            </div>
+                            {item.jobError && (
+                              <p className="m-0 mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-[13px] leading-5 text-red-700">
+                                {item.jobError}
+                              </p>
+                            )}
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {isActiveJob && item.canCancel && item.jobId && (
+                                <button
+                                  type="button"
+                                  onClick={() => cancelOutputJob(item.jobId!, item.stamp)}
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              {isFailedJob && (
+                                <button
+                                  type="button"
+                                  onClick={() => retryOutputJob(item.stamp)}
+                                  className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                >
+                                  Retry
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <p className="m-0 mt-1 text-[12px] text-slate-500">
                           Open Settings on an output to edit that preview.
                         </p>
@@ -2076,6 +2316,7 @@ export default function PngToLayeredSvgForCricut({
                           <button
                             type="button"
                             onClick={() => {
+                              if (!item.svg) return;
                               const b = new Blob([editedSvg], {
                                 type: "image/svg+xml;charset=utf-8",
                               });
@@ -2088,6 +2329,7 @@ export default function PngToLayeredSvgForCricut({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
+                            disabled={!item.svg}
                             className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
                             <Icons
@@ -2100,7 +2342,11 @@ export default function PngToLayeredSvgForCricut({
 
                           <button
                             type="button"
-                            onClick={() => handleCopySvg(editedSvg)}
+                            onClick={() => {
+                              if (!item.svg) return;
+                              handleCopySvg(editedSvg);
+                            }}
+                            disabled={!item.svg}
                             className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons
@@ -2114,11 +2360,13 @@ export default function PngToLayeredSvgForCricut({
                           <button
                             type="button"
                             onClick={() => {
+                              if (!item.svg) return;
                               selectHistoryOutput(item.stamp);
                               setOpenSettingsStamp((current) =>
                                 current === item.stamp ? null : item.stamp,
                               );
                             }}
+                            disabled={!item.svg}
                             aria-expanded={openSettingsStamp === item.stamp}
                             aria-controls={`output-settings-${item.stamp}`}
                             className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"

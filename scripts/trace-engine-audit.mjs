@@ -364,7 +364,7 @@ async function auditTracingArchitecture() {
   for (const token of [
     "tryTraceRasterInClient",
     "handleSuccessfulTraceData",
-    "clientTracing",
+    "activeClientTraceCount",
     "engineUsed: \"potrace\"",
     "/api/batch-svg",
   ]) {

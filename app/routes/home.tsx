@@ -2370,6 +2370,14 @@ type HistoryItem = {
   updateError?: string | null;
   previousVersion?: OutputVersion | null;
   nextVersion?: OutputVersion | null;
+  jobId?: string;
+  jobStatus?: "queued" | "running" | "succeeded" | "failed" | "canceled";
+  jobStartedAt?: number;
+  jobCompletedAt?: number;
+  jobError?: string | null;
+  sourceFileName?: string;
+  enginePathLabel?: string;
+  canCancel?: boolean;
 };
 
 type HistoryPreviewData = {
@@ -2512,8 +2520,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>(DEFAULT_PRESET_ID);
-  const [clientTracing, setClientTracing] = React.useState(false);
-  const busy = fetcher.state !== "idle" || clientTracing;
+  const [activeClientTraceCount, setActiveClientTraceCount] = React.useState(0);
+  const busy = fetcher.state !== "idle" || activeClientTraceCount > 0;
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
@@ -2546,6 +2554,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const activeHistoryStampRef = React.useRef<number | null>(null);
   const latestSubmittedRunIdRef = React.useRef("");
   const clientRunIdCounterRef = React.useRef(0);
+  const clientAbortControllersRef = React.useRef(new Map<string, AbortController>());
   const lastProcessedResultKeyRef = React.useRef("");
   const fileMeasureRunIdRef = React.useRef(0);
   const busyRetryCountRef = React.useRef(0);
@@ -2555,6 +2564,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     parentStamp: number | null;
     replaceStamp?: number | null;
     sourceLayerEdits?: EditableSvgLayer[];
+    stamp?: number | null;
+    name?: string;
+    startedAt?: number;
+    fileName?: string;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -2570,9 +2583,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         parentStamp: number | null;
         replaceStamp?: number | null;
         sourceLayerEdits?: EditableSvgLayer[];
+        stamp?: number | null;
+        name?: string;
+        startedAt?: number;
+        fileName?: string;
       }
     >(),
   );
+  const hasActiveHistoryJob = history.some((item) =>
+    item.jobStatus === "queued" || item.jobStatus === "running",
+  );
+  const [jobNowMs, setJobNowMs] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    if (!hasActiveHistoryJob) return;
+    const interval = window.setInterval(() => setJobNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [hasActiveHistoryJob]);
 
   React.useEffect(() => {
     activeHistoryStampRef.current = activeHistoryStamp;
@@ -2602,6 +2629,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       lastProcessedResultKeyRef.current = resultKey;
       busyRetryCountRef.current = 0;
       if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
+      if (clientRunId) clientAbortControllersRef.current.delete(clientRunId);
 
       const parentStamp = submitted.parentStamp;
       const presetLabel =
@@ -2648,6 +2676,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   pathCount: data.pathCount,
                   svgBytes: data.svgBytes,
                   updateError: null,
+                  jobId: clientRunId || item.jobId,
+                  jobStatus: "succeeded",
+                  jobStartedAt: submitted.startedAt ?? item.jobStartedAt,
+                  jobCompletedAt: Date.now(),
+                  jobError: null,
+                  sourceFileName: submitted.fileName ?? item.sourceFileName,
+                  canCancel: false,
                   batch: item.batch
                     ? {
                         ...item.batch,
@@ -2672,7 +2707,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       const outputNumber = outputCounterRef.current + 1;
       outputCounterRef.current = outputNumber;
-      const stamp = Date.now();
+      const stamp = submitted.stamp ?? Date.now();
       const item: HistoryItem = {
         svg: resultSvg,
         layers: resultLayers,
@@ -2699,8 +2734,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         pathCount: data.pathCount,
         svgBytes: data.svgBytes,
         batch: createOutputBatchState(),
+        jobId: clientRunId || undefined,
+        jobStatus: "succeeded",
+        jobStartedAt: submitted.startedAt,
+        jobCompletedAt: Date.now(),
+        jobError: null,
+        sourceFileName: submitted.fileName,
+        canCancel: false,
       };
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setHistory((prev) => {
+        if (prev.some((candidate) => candidate.stamp === stamp)) {
+          return prev.map((candidate) =>
+            candidate.stamp === stamp ? item : candidate,
+          );
+        }
+        return [item, ...prev].slice(0, 10);
+      });
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
   }
 
@@ -2735,6 +2784,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
         lastSubmittedRef.current;
       if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
+      clientAbortControllersRef.current.delete(clientRunId);
       if (submitted.replaceStamp) {
         const message = fetcher.data.error || "Update preview failed.";
         setHistory((prev) =>
@@ -2747,6 +2797,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         setUpdatingOutputStamp(null);
         logAppError(new Error(message), {
           flowStep: "home_output_update_response",
+          flowKind: "conversion",
+          action: fetcher.data.code || "server_response",
+          selectedFileType: file?.type,
+          selectedFileSize: file?.size,
+          imageDimensions: dims ? { width: dims.w, height: dims.h } : null,
+          settingsSnapshot: submitted.settings,
+        });
+        return;
+      }
+      if (submitted.stamp) {
+        const message = fetcher.data.error || "Conversion failed.";
+        setHistory((prev) =>
+          prev.map((item) =>
+            item.stamp === submitted.stamp
+              ? {
+                  ...item,
+                  jobStatus: "failed",
+                  jobError: message,
+                  jobCompletedAt: Date.now(),
+                  canCancel: false,
+                  updateError: null,
+                }
+              : item,
+          ),
+        );
+        logAppError(new Error(message), {
+          flowStep: "home_conversion_job_response",
           flowKind: "conversion",
           action: fetcher.data.code || "server_response",
           selectedFileType: file?.type,
@@ -2839,6 +2916,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     busyRetryCountRef.current = 0;
     latestSubmittedRunIdRef.current = "";
     submittedByRunIdRef.current.clear();
+    clientAbortControllersRef.current.forEach((controller) => controller.abort());
+    clientAbortControllersRef.current.clear();
     lastProcessedResultKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
     fileMeasureRunIdRef.current = measureRunId;
@@ -2985,17 +3064,60 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       meta?.presetId ?? activePreset,
       effective,
     );
+    const startedAt = Date.now();
+    const replaceStamp = meta?.replaceStamp ?? null;
+    const presetLabel =
+      DISPLAY_PRESETS.find((preset) => preset.id === submittedPresetId)?.label ||
+      "Custom settings";
+    const pendingStamp = replaceStamp ? null : startedAt;
     const submittedMeta = {
       settings: effective,
       presetId: submittedPresetId,
       parentStamp: meta?.parentStamp ?? null,
-      replaceStamp: meta?.replaceStamp ?? null,
+      replaceStamp,
       sourceLayerEdits: cloneEditableLayers(meta?.sourceLayerEdits),
+      stamp: pendingStamp,
+      name: pendingStamp ? `Output - ${presetLabel}` : undefined,
+      startedAt,
+      fileName: targetFile.name,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);
+    const abortController = new AbortController();
+    clientAbortControllersRef.current.set(clientRunId, abortController);
 
-    setClientTracing(true);
+    if (pendingStamp) {
+      const pendingItem: HistoryItem = {
+        svg: "",
+        layers: [],
+        width: 0,
+        height: 0,
+        stamp: pendingStamp,
+        name: submittedMeta.name || `Output - ${presetLabel}`,
+        parentStamp: submittedMeta.parentStamp,
+        presetId: submittedPresetId ?? undefined,
+        presetLabel,
+        presetBackendIntensity: getPresetBackendIntensityById(submittedPresetId),
+        settingsSnapshot: effective,
+        draftSettings: effective,
+        batch: createOutputBatchState(),
+        jobId: clientRunId,
+        jobStatus: "running",
+        jobStartedAt: startedAt,
+        sourceFileName: targetFile.name,
+        enginePathLabel:
+          effective.traceMode === "layered"
+            ? "Hybrid layered trace"
+            : "Hybrid trace",
+        canCancel: effective.traceMode === "layered",
+      };
+      setHistory((prev) => [pendingItem, ...prev].slice(0, 10));
+      setActiveHistoryStamp((current) =>
+        current === pendingStamp ? current : pendingStamp,
+      );
+    }
+
+    setActiveClientTraceCount((count) => count + 1);
     try {
       const clientTrace = await tryTraceRasterInClient({
         file: targetFile,
@@ -3014,6 +3136,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             setInfo(message);
           }
         },
+        signal: abortController.signal,
       });
 
       if (clientTrace.ok) {
@@ -3037,8 +3160,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         setInfo("Converted in your browser with VTracer.");
         return true;
       }
+      if (
+        abortController.signal.aborted ||
+        clientTrace.reason.toLowerCase().includes("canceled")
+      ) {
+        return false;
+      }
     } finally {
-      setClientTracing(false);
+      setActiveClientTraceCount((count) => Math.max(0, count - 1));
     }
 
     // Target this route's index action
@@ -3169,6 +3298,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           "Choose a valid source image before updating this output preview.",
       }));
     }
+  }
+
+  function cancelOutputJob(jobId: string, stamp: number) {
+    clientAbortControllersRef.current.get(jobId)?.abort();
+    clientAbortControllersRef.current.delete(jobId);
+    submittedByRunIdRef.current.delete(jobId);
+    patchHistoryItem(stamp, (item) => ({
+      ...item,
+      jobStatus: "canceled",
+      jobError: "Conversion canceled.",
+      jobCompletedAt: Date.now(),
+      canCancel: false,
+    }));
+  }
+
+  function retryOutputJob(stamp: number) {
+    const item = history.find((candidate) => candidate.stamp === stamp);
+    if (!item || !file) return;
+    setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
+    void submitConvertWith(file, item.settingsSnapshot || item.draftSettings || settings, {
+      presetId: item.presetId || activePreset,
+      parentStamp: item.parentStamp ?? null,
+    });
   }
 
   function getOutputBatchPreview(item: HistoryItem) {
@@ -3538,7 +3690,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }, [file, autoMode]);
 
   // Disable logic identical on SSR and first client render
-  const buttonDisabled = isServer || !hydrated || busy || !file;
+  const buttonDisabled = isServer || !hydrated || !file;
 
   function buildPresetSettings(
     currentSettings: Settings,
@@ -3602,6 +3754,42 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const data = { svg, src };
     historyPreviewDataCacheRef.current.set(item, data);
     return data;
+  }
+
+  function getTraceJobPreviewData(item: HistoryItem): HistoryPreviewData {
+    const title =
+      item.jobStatus === "failed" || item.jobStatus === "canceled"
+        ? "Conversion did not finish"
+        : "Converting...";
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" rx="18" fill="#f8fafc"/><text x="320" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#0f172a">${escapeSvgText(title)}</text><text x="320" y="204" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#475569">${escapeSvgText(item.presetLabel || "Custom settings")}</text></svg>`;
+    return {
+      svg,
+      src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    };
+  }
+
+  function getTraceJobElapsedMs(item: HistoryItem, nowMs: number) {
+    const started = Number(item.jobStartedAt || 0);
+    if (!Number.isFinite(started) || started <= 0) return 0;
+    const completed = Number(item.jobCompletedAt || 0);
+    const end = Number.isFinite(completed) && completed > 0 ? completed : nowMs;
+    return Math.max(0, end - started);
+  }
+
+  function formatTraceJobElapsed(elapsedMs: number) {
+    const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  function escapeSvgText(value: string) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   function setHistoryLayer(
@@ -3838,7 +4026,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               {history.length > 0 ? (
                 <div className="grid gap-3">
                   {history.map((item, index) => {
-                    const previewData = getHistoryPreviewData(item);
+                    const isActiveJob =
+                      item.jobStatus === "queued" || item.jobStatus === "running";
+                    const isFailedJob =
+                      item.jobStatus === "failed" || item.jobStatus === "canceled";
+                    const previewData =
+                      isActiveJob || isFailedJob
+                        ? getTraceJobPreviewData(item)
+                        : getHistoryPreviewData(item);
                     const outputSettings =
                       item.draftSettings || item.settingsSnapshot || settings;
                     const isUpdating = updatingOutputStamp === item.stamp;
@@ -3869,10 +4064,84 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             : "size unknown"}
                         </span>
                       </div>
+                      {(isActiveJob || isFailedJob) && (
+                        <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="m-0 text-sm font-bold text-slate-900">
+                                {isFailedJob ? "Conversion did not finish" : "Converting..."}
+                              </p>
+                              <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
+                                {item.presetLabel || "Custom settings"}
+                                {item.sourceFileName ? ` from ${item.sourceFileName}` : ""}
+                              </p>
+                            </div>
+                            <span
+                              className={[
+                                "inline-flex items-center rounded-full border px-2.5 py-1 text-[12px] font-bold",
+                                isFailedJob
+                                  ? "border-red-200 bg-red-50 text-red-700"
+                                  : "border-sky-200 bg-sky-50 text-sky-800",
+                              ].join(" ")}
+                            >
+                              {!isFailedJob && (
+                                <span className="mr-1.5 inline-block h-3 w-3 rounded-full border-2 border-sky-300 border-t-sky-700 animate-spin" />
+                              )}
+                              {item.jobStatus === "failed"
+                                ? "Failed"
+                                : item.jobStatus === "canceled"
+                                  ? "Canceled"
+                                  : item.jobStatus === "queued"
+                                    ? "Queued"
+                                    : "Running"}
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-[13px] text-slate-700 sm:grid-cols-2">
+                            <div>
+                              <span className="font-semibold text-slate-900">Elapsed</span>
+                              <div>
+                                {formatTraceJobElapsed(
+                                  getTraceJobElapsedMs(item, jobNowMs),
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-slate-900">Engine path</span>
+                              <div>{item.enginePathLabel || "Hybrid trace"}</div>
+                            </div>
+                          </div>
+                          {item.jobError && (
+                            <p className="m-0 mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-[13px] leading-5 text-red-700">
+                              {item.jobError}
+                            </p>
+                          )}
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {isActiveJob && item.canCancel && item.jobId && (
+                              <button
+                                type="button"
+                                onClick={() => cancelOutputJob(item.jobId!, item.stamp)}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            {isFailedJob && (
+                              <button
+                                type="button"
+                                onClick={() => retryOutputJob(item.stamp)}
+                                className="rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                              >
+                                Retry
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
                           onClick={() => {
+                            if (!item.svg) return;
                             const b = new Blob([previewData.svg], {
                               type: "image/svg+xml;charset=utf-8",
                             });
@@ -3885,6 +4154,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             a.remove();
                             URL.revokeObjectURL(u);
                           }}
+                          disabled={!item.svg}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                         >
                           <Icons
@@ -3896,7 +4166,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleCopySvg(previewData.svg)}
+                          onClick={() => {
+                            if (!item.svg) return;
+                            handleCopySvg(previewData.svg);
+                          }}
+                          disabled={!item.svg}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         >
                           <Icons
@@ -3909,6 +4183,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <button
                           type="button"
                           onClick={() => toggleOutputSettings(item.stamp)}
+                          disabled={!item.svg}
                           aria-expanded={!!item.settingsOpen}
                           aria-controls={`output-settings-${item.stamp}`}
                           className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
