@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import type { Route } from "./+types/black-and-white-image-to-svg-converter";
 import {
   json,
@@ -38,6 +38,7 @@ import {
 } from "~/client/lib/converter/sourceSnapshots";
 import { trimOutputHistory } from "~/client/lib/converter/outputHistory";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
+import { STROKE_TRACE_PRESET_ADDITIONS } from "~/client/lib/converter/presetAdditions";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 
 const isServer = typeof document === "undefined";
@@ -301,7 +302,7 @@ export async function action({ request }: ActionFunctionArgs) {
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
             {
-              error: `Image too large: ${w}Ã—${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+              error: `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
             { status: 413 },
           );
@@ -1203,6 +1204,11 @@ type Settings = {
   binaryMode: boolean;
   binaryInvertInput: boolean;
   traceMode: TraceMode;
+  strokeOutputMode?: "filled" | "centerline";
+  centerlineMaxTraceSide?: number;
+  centerlineStrokeWidth?: number;
+  centerlineSimplifyTolerance?: number;
+  centerlineMinPathLength?: number;
   colorLayerCount: number;
   layerMaxTraceSide: number;
   minRegionPercent: number;
@@ -1361,6 +1367,7 @@ const PRESETS: Preset[] = [
       bgColor: DARK_BG_DEFAULT,
     },
   },
+  ...(STROKE_TRACE_PRESET_ADDITIONS.slice(0, 6) as unknown as Preset[]),
 ];
 
 const DISPLAY_PRESETS: Preset[] = [
@@ -1558,7 +1565,7 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1577,7 +1584,7 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1878,6 +1885,14 @@ export default function BlackAndWhiteImageToSvgConverter({
     fd.append("binaryMode", String(effective.binaryMode));
     fd.append("binaryInvertInput", String(effective.binaryInvertInput));
     fd.append("traceMode", effective.traceMode);
+    fd.append("strokeOutputMode", String(effective.strokeOutputMode || "filled"));
+    fd.append("centerlineMaxTraceSide", String(effective.centerlineMaxTraceSide || 1100));
+    fd.append("centerlineStrokeWidth", String(effective.centerlineStrokeWidth || 2));
+    fd.append(
+      "centerlineSimplifyTolerance",
+      String(effective.centerlineSimplifyTolerance || 1.1),
+    );
+    fd.append("centerlineMinPathLength", String(effective.centerlineMinPathLength || 5));
     fd.append("colorLayerCount", String(effective.colorLayerCount));
     fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
     fd.append("minRegionPercent", String(effective.minRegionPercent));
@@ -2033,7 +2048,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                     ].join(" ")}
                     aria-hidden="true"
                   >
-                    â–¾
+                    ▾
                   </span>
                 </button>
 
@@ -2417,7 +2432,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
+                        {file?.name} • {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -2437,14 +2452,14 @@ export default function BlackAndWhiteImageToSvgConverter({
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      Ã—
+                      ×
                     </button>
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}Ã—{dims.h}
+                        {dims.w}×{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -2464,7 +2479,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
-                  {busy ? "Convertingâ€¦" : "Convert"}
+                  {busy ? "Converting…" : "Convert"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -2612,7 +2627,7 @@ async function validateBeforeSubmit(file: File) {
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}Ã—${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 }
@@ -3095,7 +3110,7 @@ function SeoSections() {
                 {[
                   { k: "Binary mode", v: "True 2-color thresholding" },
                   { k: "Speckle cleanup", v: "Turd size removes tiny noise" },
-                  { k: "Fast preview", v: "â‰¤10 MB live updates" },
+                  { k: "Fast preview", v: "≤10 MB live updates" },
                   { k: "Private by default", v: "Processed in memory" },
                 ].map((x) => (
                   <div

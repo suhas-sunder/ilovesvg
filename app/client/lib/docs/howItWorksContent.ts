@@ -1,4 +1,4 @@
-import { TRACE_PRESET_ADDITIONS } from "~/client/lib/converter/presetAdditions";
+import { ALL_PRESET_ADDITIONS } from "~/client/lib/converter/presetAdditions";
 import {
   getPresetIntensityLabel,
   inferPresetBackendIntensity,
@@ -110,6 +110,7 @@ export type PresetFamily =
   | "scan"
   | "logo"
   | "diagram"
+  | "stroke"
   | "layered";
 
 export type PresetGuideItem = {
@@ -450,7 +451,7 @@ const CORE_PRESETS: Array<{
 
 export const PRESET_GUIDE_ITEMS: PresetGuideItem[] = [
   ...CORE_PRESETS,
-  ...TRACE_PRESET_ADDITIONS,
+  ...ALL_PRESET_ADDITIONS,
 ].map((preset) => {
   const settings = preset.settings as Record<string, unknown>;
   const family = (preset.category ?? inferFamily(preset.id, settings)) as PresetFamily;
@@ -511,6 +512,13 @@ export const PRESET_FAMILIES: Array<{
     routeLinks: familyRoutes("logo"),
   },
   {
+    id: "stroke",
+    label: "Stroke / Centerline",
+    summary:
+      "Best for simple line drawings, handwriting, sketches, diagrams, and plotter-style output that should contain real SVG strokes.",
+    routeLinks: familyRoutes("stroke"),
+  },
+  {
     id: "diagram",
     label: "Diagram, cutting, sticker, and style",
     summary:
@@ -535,7 +543,7 @@ export const SETTING_GROUPS = [
       {
         name: "Output appearance",
         details:
-          "Line weight and fill spread update the visible SVG, copy, download, fullscreen preview, and file size. Line weight only affects SVG elements that already contain real strokes; many image-to-SVG results are filled paths.",
+          "Line weight and fill spread update the visible SVG, copy, download, fullscreen preview, and file size. Stroke output mode is different: it retraces the original source as filled shapes or centerline strokes when compatible.",
       },
       {
         name: "Layer colors",
@@ -700,7 +708,7 @@ export const TROUBLESHOOTING_ITEMS = [
   },
   {
     problem: "Line weight is disabled",
-    fix: "The current SVG likely has filled paths instead of stroke attributes. That is normal for raster tracing. Use fill spread cautiously when supported.",
+    fix: "The current SVG likely has filled paths instead of stroke attributes. That is normal for raster tracing. Use a Stroke Trace or Centerline preset when you need real strokes, or use fill spread cautiously when supported.",
   },
   {
     problem: "A slow preset is still running",
@@ -737,6 +745,8 @@ function familyBestUse(family: PresetFamily, label: string) {
       return "scanned art, handwriting, stamps, documents, and speckle cleanup";
     case "logo":
       return "logos, icons, simple marks, badges, and transparent artwork";
+    case "stroke":
+      return "simple line drawings, sketches, handwriting, diagrams, and plotter-style stroked SVGs";
     case "diagram":
       return "diagrams, craft cuts, stencils, comic ink, and practical style output";
     case "layered":
@@ -751,6 +761,7 @@ function familyPreserves(family: PresetFamily, settings: Record<string, unknown>
   if (family === "photo-edge") return "major contrast edges and contour structure";
   if (family === "scan") return "clear dark marks while removing light noise";
   if (family === "logo") return "large clean shapes and usable logo silhouettes";
+  if (family === "stroke") return "the center paths of visible lines as real SVG strokes";
   return "main shapes, outlines, and high-contrast filled paths";
 }
 
@@ -760,6 +771,7 @@ function familySimplifies(family: PresetFamily, settings: Record<string, unknown
   }
   if (family === "photo-edge") return "photo color, subtle texture, and low-contrast soft regions";
   if (family === "scan") return "dust, speckles, glare, and faint paper texture";
+  if (family === "stroke") return "line thickness, filled regions, color, gradients, and texture";
   return "pixels, gradients, anti-aliasing, and detail below the cleanup threshold";
 }
 
@@ -773,6 +785,8 @@ function familyImages(family: PresetFamily) {
       return "scans, stamps, handwriting, documents, and high-contrast paper artwork";
     case "logo":
       return "logos, icons, badges, marks, and transparent artwork";
+    case "stroke":
+      return "simple black-and-white line art, sketches, handwriting, diagrams, and technical drawings";
     case "diagram":
       return "diagrams, stickers, decals, stencils, comics, and cut-file art";
     case "layered":
@@ -789,6 +803,9 @@ function settingsToTry(family: PresetFamily, settings: Record<string, unknown>) 
   }
   if (family === "scan") {
     return "threshold, turd size, gap close strength, min island px, hole fill px, and invert";
+  }
+  if (family === "stroke") {
+    return "stroke output mode, centerline stroke width, centerline simplification, threshold, line weight, and transparent background";
   }
   return "threshold, turd size, curve tolerance, turn policy, transparent background, and output size";
 }
@@ -818,6 +835,12 @@ function familyRoutes(family: PresetFamily) {
         { label: "Logo to SVG", path: "/logo-to-svg-converter" },
         { label: "Icon to SVG", path: "/icon-to-svg-converter" },
         { label: "Logo to SVG for Cricut", path: "/logo-to-svg-for-cricut" },
+      ];
+    case "stroke":
+      return [
+        { label: "Line Art to SVG", path: "/line-art-to-svg-converter" },
+        { label: "Sketch to SVG", path: "/sketch-to-svg-converter" },
+        { label: "PNG to SVG", path: "/png-to-svg-converter" },
       ];
     case "diagram":
       return [

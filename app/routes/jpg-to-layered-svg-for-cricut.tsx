@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import type { Route } from "./+types/jpg-to-layered-svg-for-cricut";
 import {
   json,
@@ -447,7 +447,7 @@ export async function action({ request }: ActionFunctionArgs) {
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
             {
-              error: `JPG too large: ${w}Ã—${h} (~${mp.toFixed(
+              error: `JPG too large: ${w}×${h} (~${mp.toFixed(
                 1,
               )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
@@ -1382,7 +1382,7 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1413,7 +1413,7 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1871,7 +1871,7 @@ export default function JpgToLayeredSvgForCricut({
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
+                        {file?.name} • {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -1897,7 +1897,7 @@ export default function JpgToLayeredSvgForCricut({
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      Ã—
+                      ×
                     </button>
                   </div>
 
@@ -1905,7 +1905,7 @@ export default function JpgToLayeredSvgForCricut({
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}Ã—{dims.h}
+                        {dims.w}×{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -1932,7 +1932,7 @@ export default function JpgToLayeredSvgForCricut({
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Building JPG layersâ€¦" : "Convert JPG to Layered SVG"}
+                  {busy ? "Building JPG layers…" : "Convert JPG to Layered SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -2139,7 +2139,7 @@ async function validateBeforeSubmit(file: File) {
 
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `JPG too large: ${w}Ã—${h} (~${mp.toFixed(
+      `JPG too large: ${w}×${h} (~${mp.toFixed(
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
@@ -2493,7 +2493,7 @@ const LayerControlRow = React.memo(function LayerControlRow({
             Layer {index + 1}
           </div>
           <div className="text-xs text-slate-500">
-            {localColor.toUpperCase()} â€¢ {layer.pixelPercent}% of traced pixels
+            {localColor.toUpperCase()} • {layer.pixelPercent}% of traced pixels
           </div>
         </div>
 
@@ -2700,7 +2700,7 @@ function SeoSections() {
                 How to convert JPG to layered SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Upload JPG â†’ choose preset â†’ edit layers â†’ download SVG
+                Upload JPG → choose preset → edit layers → download SVG
               </span>
             </div>
 

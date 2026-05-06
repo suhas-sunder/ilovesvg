@@ -13,9 +13,15 @@ import {
 
 type TurnPolicy = "black" | "white" | "left" | "right" | "minority" | "majority";
 type TraceMode = "single" | "layered";
+type StrokeOutputMode = "filled" | "centerline";
 
 export type MixedTraceSettings = TraceAdvancedSettings & {
   traceMode: TraceMode;
+  strokeOutputMode?: StrokeOutputMode;
+  centerlineMaxTraceSide?: number;
+  centerlineStrokeWidth?: number;
+  centerlineSimplifyTolerance?: number;
+  centerlineMinPathLength?: number;
   threshold: number;
   turdSize: number;
   optTolerance: number;

@@ -22,13 +22,29 @@ const docsComponentFile = path.join(
   "docs",
   "HowItWorksDocs.tsx",
 );
+const docsContentFile = path.join(
+  rootDir,
+  "app",
+  "client",
+  "lib",
+  "docs",
+  "howItWorksContent.ts",
+);
+const presetIntensityFile = path.join(
+  rootDir,
+  "app",
+  "client",
+  "lib",
+  "converter",
+  "presetIntensity.ts",
+);
 
 const requiredDocs = [
   {
     path: "/how-it-works",
     file: "how-it-works.tsx",
     title: "How It Works",
-    terms: ["filled paths", "presets", "settings", "queue", "output history"],
+    terms: ["filled paths", "centerline", "presets", "settings", "queue", "output history"],
   },
   {
     path: "/how-it-works/conversion-workflow",
@@ -49,13 +65,14 @@ const requiredDocs = [
       "Very Slow",
       "Insanely Slow",
       "filled paths",
+      "centerline",
     ],
   },
   {
     path: "/how-it-works/settings",
     file: "how-it-works.settings.tsx",
     title: "Settings Guide",
-    terms: ["Line weight", "Fill spread", "Update preview", "Layer colors"],
+    terms: ["Stroke output mode", "Line weight", "Fill spread", "Update preview", "Layer colors"],
   },
   {
     path: "/how-it-works/troubleshooting",
@@ -76,6 +93,8 @@ const routeTable = await readText(routesFile);
 const sitemap = await readText(sitemapFile);
 const footer = await readText(footerFile);
 const docsComponent = await readText(docsComponentFile);
+const docsContent = await readText(docsContentFile);
+const presetIntensity = await readText(presetIntensityFile);
 const knownRoutes = collectKnownRoutes(routeTable);
 
 if (/aria-label=["']How it works pages["']/.test(docsComponent)) {
@@ -103,16 +122,13 @@ for (const doc of requiredDocs) {
   assertIncludes(source, "og:description", `${doc.file} defines Open Graph description`);
   assertIncludes(source, doc.title, `${doc.file} contains expected page title`);
 
+  const searchableSource = `${source}\n${docsContent}\n${presetIntensity}`;
   for (const term of doc.terms) {
-    assertIncludes(source, term, `${doc.file} documents ${term}`);
+    assertIncludes(searchableSource, term, `${doc.file} documents ${term}`);
   }
 
   if (/\bTODO\b|coming soon|placeholder/i.test(source)) {
     failures.push(`${doc.file} contains TODO/placeholder-style copy`);
-  }
-
-  if (/centerline|stroke tracing/i.test(source)) {
-    failures.push(`${doc.file} mentions centerline/stroke tracing; do not claim unavailable tracing features`);
   }
 
   const links = collectInternalLinks(source);

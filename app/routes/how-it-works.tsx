@@ -13,7 +13,7 @@ import { DOCS_PAGES, SITE_URL } from "~/client/lib/docs/howItWorksContent";
 
 const title = "How the Image to SVG Converter Works | iLoveSVG";
 const description =
-  "Learn the iLoveSVG workflow for image-to-SVG conversion, presets, settings, filled paths, queueing, output history, source previews, copy, download, and limits.";
+  "Learn the iLoveSVG workflow for image-to-SVG conversion, presets, settings, filled paths, optional centerline strokes, queueing, output history, source previews, copy, download, and limits.";
 const canonical = `${SITE_URL}/how-it-works`;
 
 export function meta() {
@@ -37,7 +37,7 @@ export default function HowItWorksHub() {
       <DocsHero
         eyebrow="How It Works"
         title="Understand the converter before you tweak it"
-        description="This hub explains how iLoveSVG turns raster images into SVG files, how presets and speed labels work, why most outputs are filled paths, and how output history, queueing, copy, download, fullscreen preview, batch conversion, and source previews behave."
+        description="This hub explains how iLoveSVG turns raster images into SVG files, how presets and speed labels work, why most outputs are filled paths, when opt-in centerline stroke presets help, and how output history, queueing, copy, download, fullscreen preview, batch conversion, and source previews behave."
         highlights={[
           "Current converter behavior, not planned features.",
           "Preset and speed guidance tied to real app data.",
@@ -70,6 +70,10 @@ export default function HowItWorksHub() {
               body="Raster-to-SVG conversion usually traces visible regions into filled paths. Filled paths are normal for logos, silhouettes, scans, stickers, cut files, and many editable SVG workflows."
             />
             <SimpleCard
+              title="Adds optional centerline strokes"
+              body="New stroke/centerline presets retrace simple line drawings, sketches, handwriting, and diagrams into real SVG strokes. They are opt-in and do not replace the existing filled-path presets."
+            />
+            <SimpleCard
               title="Lets slow work keep running"
               body="Queued conversions can stay pending or running while you start another preset. A later fast output can finish first, and the slow card should update when its own job finishes."
             />
@@ -84,7 +88,7 @@ export default function HowItWorksHub() {
           <div className="grid gap-3 md:grid-cols-2">
             {[
               "It cannot promise perfect background removal from every image. Transparency depends on the source and selected preset.",
-              "It does not turn every black line into editable SVG strokes. Many outputs are filled paths, and line weight only affects actual strokes.",
+              "It does not turn every black line into strokes by default. Existing presets remain filled-path based; use opt-in centerline stroke presets when real SVG strokes are the goal.",
               "It cannot guarantee Cricut, cutter, material, or design-app behavior after download.",
               "It cannot make very noisy photos lightweight without simplifying detail or reducing colors.",
             ].map((item) => (

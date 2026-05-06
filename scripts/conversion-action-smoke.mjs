@@ -414,8 +414,8 @@ function dataRoute(route) {
 
 function extractEngineUsed(text) {
   return (
-    text.match(/"engineUsed","(vtracer|potrace)"/)?.[1] ||
-    text.match(/"engineUsed":"(vtracer|potrace)"/)?.[1] ||
+    text.match(/"engineUsed","(vtracer|potrace|centerline)"/)?.[1] ||
+    text.match(/"engineUsed":"(vtracer|potrace|centerline)"/)?.[1] ||
     null
   );
 }

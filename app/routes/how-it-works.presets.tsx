@@ -19,7 +19,7 @@ import {
 
 const title = "SVG Converter Preset Guide | iLoveSVG";
 const description =
-  "Compare actual iLoveSVG presets by family, speed label, output style, best use case, recommended image types, and settings to adjust. Includes Lightning Fast, Extreme Speed, High Speed, Low Speed, Slow Speed, Very Slow, and Insanely Slow labels.";
+  "Compare actual iLoveSVG presets by family, speed label, output style, best use case, recommended image types, and settings to adjust, including optional stroke/centerline presets.";
 const canonical = `${SITE_URL}/how-it-works/presets`;
 
 export function meta() {
@@ -42,7 +42,7 @@ export default function PresetGuideDocs() {
       <DocsHero
         eyebrow="Preset Guide"
         title="Choose a preset by goal, not by guesswork"
-        description="The guide below is based on the current preset inventory in the app. Presets are grouped by family and speed label so you can choose between lineart, sketch, scan, logo, photo-edge, diagram, Cricut/cut, sticker, UI mockup, poster, and layered color output without pretending every image converts the same way."
+        description="The guide below is based on the current preset inventory in the app. Presets are grouped by family and speed label so you can choose between lineart, sketch, scan, logo, optional stroke/centerline, photo-edge, diagram, Cricut/cut, sticker, UI mockup, poster, and layered color output without pretending every image converts the same way."
         highlights={[
           "Speed colors match the converter preset picker.",
           "Families explain what the output tries to preserve.",
@@ -74,7 +74,7 @@ export default function PresetGuideDocs() {
 
         <SectionBlock
           title="Most outputs are filled paths"
-          intro="Image-to-SVG conversion normally traces visible regions into filled paths. That is useful for logos, silhouettes, scans, stickers, Cricut/cut files, and layered color regions. Line weight controls only affect SVG elements that already contain real strokes."
+          intro="Image-to-SVG conversion normally traces visible regions into filled paths. That is useful for logos, silhouettes, scans, stickers, Cricut/cut files, and layered color regions. The new stroke/centerline family is opt-in for simple drawings that should become real SVG strokes."
         >
           <CardGrid>
             {PRESET_FAMILIES.map((family) => (

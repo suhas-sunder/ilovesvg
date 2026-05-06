@@ -1025,7 +1025,7 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;

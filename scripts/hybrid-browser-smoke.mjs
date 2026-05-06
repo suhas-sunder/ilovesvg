@@ -16,7 +16,7 @@ const fixturesDir = path.join(tmpDir, "fixtures");
 const downloadsDir = path.join(tmpDir, "downloads");
 
 const RASTER_ROUTES = [
-  { path: "/", id: "home", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true, defaultEngine: "potrace" },
+  { path: "/", id: "home", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true, hasCenterlinePreset: true, defaultEngine: "potrace" },
   { path: "/black-and-white-image-to-svg-converter", id: "black-and-white-image-to-svg-converter", file: "png", policy: "potrace" },
   { path: "/black-and-white-image-to-svg-for-cricut", id: "black-and-white-image-to-svg-for-cricut", file: "png", policy: "potrace" },
   { path: "/cricut-svg-converter", id: "cricut-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
@@ -32,7 +32,7 @@ const RASTER_ROUTES = [
   { path: "/jpg-to-svg-converter", id: "jpg-to-svg-converter", file: "jpg", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
   { path: "/jpg-to-svg-for-cricut", id: "jpg-to-svg-for-cricut", file: "jpg", policy: "potrace" },
   { path: "/layered-svg-for-cricut", id: "layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
-  { path: "/line-art-to-svg-converter", id: "line-art-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
+  { path: "/line-art-to-svg-converter", id: "line-art-to-svg-converter", file: "png", policy: "potrace", hasCenterlinePreset: true, defaultEngine: "potrace" },
   { path: "/line-art-to-svg-for-cricut", id: "line-art-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/logo-to-layered-svg-for-cricut", id: "logo-to-layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
   { path: "/logo-to-svg-converter", id: "logo-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
@@ -40,7 +40,7 @@ const RASTER_ROUTES = [
   { path: "/photo-to-svg-for-cricut", id: "photo-to-svg-for-cricut", file: "jpg", policy: "potrace", defaultEngine: "potrace" },
   { path: "/photo-to-svg-outline", id: "photo-to-svg-outline", file: "jpg", policy: "potrace", defaultEngine: "potrace" },
   { path: "/png-to-layered-svg-for-cricut", id: "png-to-layered-svg-for-cricut", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: false, defaultEngine: "vtracer" },
-  { path: "/png-to-svg-converter", id: "png-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/png-to-svg-converter", id: "png-to-svg-converter", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true, hasCenterlinePreset: true },
   { path: "/png-to-svg-for-cricut", id: "png-to-svg-for-cricut", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/png-to-svg-for-cricut-print-then-cut", id: "png-to-svg-for-cricut-print-then-cut", file: "png", policy: "potrace" },
   { path: "/png-to-svg-for-cricut-stickers", id: "png-to-svg-for-cricut-stickers", file: "png", policy: "potrace" },
@@ -171,6 +171,15 @@ function buildSmokeScenarios() {
         optional: true,
       });
     }
+    if (route.hasCenterlinePreset) {
+      scenarios.push({
+        ...route,
+        scenario: "centerline-preset",
+        mode: "centerline",
+        expectedEngine: "centerline",
+        optional: false,
+      });
+    }
   }
   return scenarios;
 }
@@ -238,6 +247,11 @@ async function runRouteSmoke(route, fixturePath) {
       if (!selectedPreset) {
         throw new Error("Could not select a VTracer-eligible preset.");
       }
+    } else if (route.mode === "centerline") {
+      selectedPreset = await selectCenterlinePreset(client, route);
+      if (!selectedPreset) {
+        throw new Error("Could not select a Centerline stroke preset.");
+      }
     } else if (route.mode === "potrace") {
       selectedPreset = await selectPotracePreset(client, route);
       if (!selectedPreset) {
@@ -269,7 +283,7 @@ async function runRouteSmoke(route, fixturePath) {
       output = await waitForOutput(
         client,
         60_000,
-        route.mode === "vtracer" ? route.expectedEngine : null,
+        route.mode === "vtracer" || route.mode === "centerline" ? route.expectedEngine : null,
       );
     } else {
       convertButton = "preset-triggered conversion";
@@ -291,10 +305,12 @@ async function runRouteSmoke(route, fixturePath) {
       output.previewDecoded &&
       !output.hasBrokenPreview &&
       !output.hasDerivedLabel &&
+      (route.mode !== "centerline" || output.hasCenterlineStrokes) &&
       copyDownload.hasCopy &&
       copyDownload.hasDownload &&
       actions.copyOk &&
       actions.downloadOk &&
+      (route.mode !== "centerline" || (actions.copyHasStrokeWidth && actions.downloadHasStrokeWidth)) &&
       actions.updatePreviewOk &&
       errors.length === 0;
 
@@ -309,6 +325,7 @@ async function runRouteSmoke(route, fixturePath) {
       hasOutput: output.hasOutput,
       previewDecoded: output.previewDecoded,
       hasBrokenPreview: output.hasBrokenPreview,
+      hasCenterlineStrokes: output.hasCenterlineStrokes,
       hasDerivedLabel: output.hasDerivedLabel,
       hasCopy: copyDownload.hasCopy,
       hasDownload: copyDownload.hasDownload,
@@ -619,6 +636,13 @@ async function runQueueSmoke(fixtures) {
 
     await setFileInput(client, queueFixture);
     await waitForValue(client, () => textIncludesExpression(path.basename(queueFixture)), 8_000);
+    await waitForValue(
+      client,
+      queueSnapshotExpression,
+      70_000,
+      (value) =>
+        !value?.cards?.some((card) => card.status === "queued" || card.status === "running"),
+    ).catch(() => null);
     await showAllPresetButtons(client);
 
     const slowSelected = await clickButtonMatching(client, "/^Filled Layers - Separate Colors\\b/i");
@@ -1739,9 +1763,11 @@ async function verifyOutputActions(client, route, expectedEngine) {
   return {
     copyOk: copy.ok,
     copyLength: copy.length,
+    copyHasStrokeWidth: copy.hasStrokeWidth,
     downloadOk: download.ok,
     downloadFile: download.file,
     downloadBytes: download.bytes,
+    downloadHasStrokeWidth: download.hasStrokeWidth,
     updatePreviewOk: updatePreview.ok,
     updatePreview: updatePreview.status,
   };
@@ -2287,6 +2313,45 @@ async function selectPotracePreset(client, route) {
   })()`);
 }
 
+async function selectCenterlinePreset(client, route) {
+  await evaluate(client, `(() => {
+    const button = Array.from(document.querySelectorAll("button"))
+      .find((candidate) => /^Show \\d+ more presets/i.test(candidate.innerText || ""));
+    if (button) button.click();
+    return Boolean(button);
+  })()`);
+  await delay(250);
+  const matchers = getRouteCenterlinePresetMatchers(route);
+  return evaluate(client, `(() => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const reject = /Show|Clear|Convert|Download|Copy|Settings|Search presets|Filter presets/i;
+    const preferredMatchers = ${JSON.stringify(matchers)}.map((source) => new RegExp(source, "i"));
+    let button = null;
+    for (const matcher of preferredMatchers) {
+      button = buttons.find((candidate) => {
+        const text = candidate.innerText || "";
+        if (candidate.disabled || reject.test(text)) return false;
+        return matcher.test(text.trim());
+      });
+      if (button) break;
+    }
+    if (!button) return null;
+    button.click();
+    return button.innerText.trim();
+  })()`);
+}
+
+function getRouteCenterlinePresetMatchers(_route) {
+  if (process.env.CENTERLINE_PRESET_PATTERN) {
+    return [process.env.CENTERLINE_PRESET_PATTERN];
+  }
+  return [
+    "^Stroke Trace - Clean Lines\\b",
+    "^Centerline Sketch\\b",
+    "^Technical Outline Stroke\\b",
+  ];
+}
+
 function getRoutePresetMatchers(route) {
   if (process.env.VTRACER_PRESET_PATTERN) {
     return [process.env.VTRACER_PRESET_PATTERN];
@@ -2354,7 +2419,7 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
       const outputs = Array.from(document.querySelectorAll("[data-engine-used]"))
         .filter((candidate) => {
           const engine = candidate.getAttribute("data-engine-used");
-          return engine === "vtracer" || engine === "potrace";
+          return engine === "vtracer" || engine === "potrace" || engine === "centerline";
         });
       const output = ${JSON.stringify(expectedEngine)}
         ? outputs.find((candidate) => candidate.getAttribute("data-engine-used") === ${JSON.stringify(expectedEngine)})
@@ -2385,14 +2450,15 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
       );
       let previewParseError = "";
       let previewParseExcerpt = "";
+      let decodedPreviewSvg = "";
       const previewSrc = previewImages[0]?.getAttribute("src") || "";
       if (previewSrc.startsWith("data:image/svg+xml")) {
         const encoded = previewSrc.slice(previewSrc.indexOf(",") + 1);
-        const decoded = decodeURIComponent(encoded);
-        const parsed = new DOMParser().parseFromString(decoded, "image/svg+xml");
+        decodedPreviewSvg = decodeURIComponent(encoded);
+        const parsed = new DOMParser().parseFromString(decodedPreviewSvg, "image/svg+xml");
         previewParseError = parsed.querySelector("parsererror")?.textContent?.slice(0, 400) || "";
         if (previewParseError) {
-          const line = decoded.split(/\\r?\\n/)[3] || decoded;
+          const line = decodedPreviewSvg.split(/\\r?\\n/)[3] || decodedPreviewSvg;
           previewParseExcerpt = line.slice(3800, 4100);
         }
       }
@@ -2406,6 +2472,7 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
         previewSrcPrefix: previewSrc.slice(0, 600),
         previewParseError,
         previewParseExcerpt,
+        hasCenterlineStrokes: /fill=["']none["']/i.test(decodedPreviewSvg) && /stroke-width=["']?\\d/i.test(decodedPreviewSvg),
         hasDerivedLabel: /Derived from Output/i.test(outputText),
         outputTitle: outputText.split(/\\r?\\n/).find((line) => /Output \\d+/i.test(line)) || "",
         sourceKind: output ? output.getAttribute("data-source-kind") : null,

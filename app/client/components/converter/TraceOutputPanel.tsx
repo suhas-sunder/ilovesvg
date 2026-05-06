@@ -9,6 +9,7 @@ import {
   type MixedTraceSettings,
 } from "~/client/components/converter/AdvancedSettingsPanel";
 import type { ConverterRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import type { TraceResult } from "~/shared/tracing/types";
 import {
   EditedSvgPreviewImage,
   ensureSvgRootNamespace,
@@ -35,7 +36,7 @@ type OutputVersion<TSettings extends MixedTraceSettings> = {
   originalWidth?: number;
   originalHeight?: number;
   settingsSnapshot?: TSettings;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: TraceResult["engineUsed"];
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -59,7 +60,7 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   presetLabel?: string;
   settingsSnapshot?: TSettings;
   draftSettings?: TSettings;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: TraceResult["engineUsed"];
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -524,6 +525,35 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 <OutputAppearanceControls
                   settings={appearance}
                   support={appearanceSupport}
+                  controlId={`output-${item.stamp}`}
+                  strokeOutputMode={outputSettings.strokeOutputMode || "filled"}
+                  strokeOutputModeAvailable={routeCapabilities.supportsStrokeTrace}
+                  strokeOutputModeDisabledReason={
+                    !routeCapabilities.supportsStrokeTrace
+                      ? "Centerline stroke retracing is not available on this route."
+                      : outputSettings.traceMode === "layered" || item.layers?.length
+                        ? "Centerline strokes are for single line-art outputs, not layered color results."
+                        : routeCapabilities.group === "cricut" || isPrecisionOutputItem(item)
+                          ? "Centerline mode is hidden for precision cut-file outputs."
+                          : !sourceAvailableForOutput
+                            ? item.sourceFileName
+                              ? `Choose the original source image (${item.sourceFileName}) to retrace this output.`
+                              : "Choose the original source image to retrace this output."
+                            : null
+                  }
+                  onStrokeOutputModeChange={
+                    routeCapabilities.supportsStrokeTrace
+                      ? (mode) => {
+                          const nextSettings = {
+                            ...outputSettings,
+                            traceMode: "single" as const,
+                            strokeOutputMode: mode,
+                          };
+                          onDraftSettingsChange(item.stamp, nextSettings);
+                          window.setTimeout(() => onUpdatePreview(item.stamp), 0);
+                        }
+                      : undefined
+                  }
                   onChange={(patch) => setOutputAppearance(item, patch)}
                   onReset={() => resetOutputAppearance(item)}
                 />
@@ -1151,17 +1181,28 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
 export function OutputAppearanceControls({
   settings,
   support,
+  controlId = "output-appearance",
+  strokeOutputMode = "filled",
+  strokeOutputModeAvailable = false,
+  strokeOutputModeDisabledReason = null,
+  onStrokeOutputModeChange,
   onChange,
   onReset,
 }: {
   settings: OutputAppearanceSettings;
   support: ReturnType<typeof detectOutputAppearanceSupport>;
+  controlId?: string;
+  strokeOutputMode?: "filled" | "centerline";
+  strokeOutputModeAvailable?: boolean;
+  strokeOutputModeDisabledReason?: string | null;
+  onStrokeOutputModeChange?: (mode: "filled" | "centerline") => void;
   onChange: (patch: Partial<OutputAppearanceSettings>) => void;
   onReset: () => void;
 }) {
   const lineSupported = support.supportsLineWeight;
   const fillSupported = support.supportsFillSpread;
   const hasChanges = hasOutputAppearanceChanges(settings);
+  const strokeModeDisabled = Boolean(strokeOutputModeDisabledReason);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -1178,6 +1219,43 @@ export function OutputAppearanceControls({
           Reset
         </button>
       </div>
+
+      {strokeOutputModeAvailable ? (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <span className="block text-[12px] font-semibold text-slate-700">
+            Stroke output mode
+          </span>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {(["filled", "centerline"] as const).map((mode) => (
+              <label
+                key={mode}
+                className={[
+                  "flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-2 text-[12px] font-semibold transition-colors",
+                  strokeOutputMode === mode
+                    ? "border-sky-300 bg-sky-100 text-sky-950"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
+                  strokeModeDisabled ? "cursor-not-allowed opacity-60" : "",
+                ].join(" ")}
+              >
+                <input
+                  type="radio"
+                  name={`${controlId}-stroke-output-mode`}
+                  value={mode}
+                  checked={strokeOutputMode === mode}
+                  disabled={strokeModeDisabled}
+                  onChange={() => onStrokeOutputModeChange?.(mode)}
+                  className="h-4 w-4 cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed"
+                />
+                {mode === "filled" ? "Filled shapes" : "Centerline strokes"}
+              </label>
+            ))}
+          </div>
+          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
+            {strokeOutputModeDisabledReason ||
+              "Filled shapes are best for logos, cut files, and most SVG conversions. Centerline strokes are best for simple line drawings, sketches, handwriting, and diagrams. Changing this retraces the original image."}
+          </p>
+        </div>
+      ) : null}
 
       <label className="mt-3 block">
         <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">

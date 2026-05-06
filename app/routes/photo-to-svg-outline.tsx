@@ -805,7 +805,7 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -825,7 +825,7 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;

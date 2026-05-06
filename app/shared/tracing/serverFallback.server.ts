@@ -22,7 +22,7 @@ export type SharedLayeredTraceResult = {
   width: number;
   height: number;
   layers: SvgLayerMeta[];
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;

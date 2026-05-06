@@ -151,6 +151,14 @@ export function useHybridTraceFetcher<
           } as TData);
           return;
         }
+        if (settings.strokeOutputMode === "centerline") {
+          setClientData({
+            error: `Centerline stroke tracing could not convert this image in your browser. ${clientAttempt.reason}`,
+            clientRunId,
+            traceJobId: String(runId),
+          } as TData);
+          return;
+        }
 
         if (!isLatest) {
           setClientData({
@@ -189,6 +197,14 @@ export function useHybridTraceFetcher<
           if (requestedEngine === "vtracer") {
             setClientData({
               error: `VTracer could not convert this image in your browser. ${message}`,
+              clientRunId,
+              traceJobId: String(runId),
+            } as TData);
+            return;
+          }
+          if (settings.strokeOutputMode === "centerline") {
+            setClientData({
+              error: `Centerline stroke tracing could not convert this image in your browser. ${message}`,
               clientRunId,
               traceJobId: String(runId),
             } as TData);
@@ -314,6 +330,7 @@ function formDataToTraceSettings(
       readString(formData, "presetBackendIntensity") ?? null,
     engine: normalizeEngine(readString(formData, "engine")),
     traceMode: normalizeTraceMode(readString(formData, "traceMode"), routeId, presetId),
+    strokeOutputMode: normalizeStrokeOutputMode(readString(formData, "strokeOutputMode")),
 
     lineColor: readString(formData, "lineColor") ?? undefined,
     transparent: readBoolean(formData, "transparent"),
@@ -329,6 +346,10 @@ function formDataToTraceSettings(
     blurSigma: readNumber(formData, "blurSigma"),
     edgeBoost: readNumber(formData, "edgeBoost"),
     maxTraceSide: readNumber(formData, "maxTraceSide"),
+    centerlineMaxTraceSide: readNumber(formData, "centerlineMaxTraceSide"),
+    centerlineStrokeWidth: readNumber(formData, "centerlineStrokeWidth"),
+    centerlineSimplifyTolerance: readNumber(formData, "centerlineSimplifyTolerance"),
+    centerlineMinPathLength: readNumber(formData, "centerlineMinPathLength"),
 
     colorLayerCount:
       readNumber(formData, "colorLayerCount") ??
@@ -428,6 +449,10 @@ function normalizeTraceMode(
   if (/\blayered\b|to-layered-svg|layered-svg/i.test(routeHint)) return "layered";
   if (/\blayered\b|\blayer\b/i.test(presetHint)) return "layered";
   return "single";
+}
+
+function normalizeStrokeOutputMode(value: string | null) {
+  return value === "centerline" ? "centerline" : "filled";
 }
 
 function isUploadedSvg(file: File): boolean {

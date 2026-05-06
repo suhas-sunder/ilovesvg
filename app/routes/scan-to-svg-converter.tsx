@@ -755,7 +755,7 @@ const PRESETS: Preset[] = [
   },
 ];
 
-const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS, { includeStrokePresets: true });
 
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
@@ -793,7 +793,7 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -813,7 +813,7 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;

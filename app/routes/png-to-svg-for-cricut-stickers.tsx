@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import type { Route } from "./+types/png-to-svg-for-cricut-stickers";
 import {
   json,
@@ -361,7 +361,7 @@ async function buildStickerSvg(
   const mp = (originalW * originalH) / 1_000_000;
   if (originalW > MAX_SIDE || originalH > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${originalW}Ã—${originalH} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${originalW}×${originalH} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 
@@ -980,7 +980,7 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1000,7 +1000,7 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1242,7 +1242,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         );
         chosen = await compressToTarget25MB(chosen);
         setInfo(
-          `Compressed for preview: ${prettyBytes(f.size)} â†’ ${prettyBytes(chosen.size)}.`,
+          `Compressed for preview: ${prettyBytes(f.size)} → ${prettyBytes(chosen.size)}.`,
         );
       } catch (e: any) {
         suppressLiveRef.current = false;
@@ -1406,7 +1406,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
+                        {file?.name} • {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -1426,14 +1426,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      Ã—
+                      ×
                     </button>
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}Ã—{dims.h}
+                        {dims.w}×{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -1459,7 +1459,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Creating sticker SVGâ€¦" : "Create sticker SVG"}
+                  {busy ? "Creating sticker SVG…" : "Create sticker SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1784,7 +1784,7 @@ function SvgObjectPreview({ svg, title }: { svg: string; title: string }) {
   }, [svg]);
 
   if (!url) {
-    return <span className="text-sm text-slate-500">Preparing previewâ€¦</span>;
+    return <span className="text-sm text-slate-500">Preparing preview…</span>;
   }
 
   return (
@@ -1836,7 +1836,7 @@ async function validateBeforeSubmit(file: File) {
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}Ã—${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 }
@@ -2073,7 +2073,7 @@ function SeoSections() {
                 How to convert PNG to SVG for Cricut stickers
               </h3>
               <span className="text-xs text-slate-500">
-                Upload â†’ choose sticker preset â†’ adjust border â†’ download SVG
+                Upload → choose sticker preset → adjust border → download SVG
               </span>
             </div>
 

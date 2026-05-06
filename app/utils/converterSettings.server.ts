@@ -5,6 +5,7 @@ export type LayerGroupBy = "none" | "color" | "layer";
 export type LayerGapFill = "none" | "close-small-gaps" | "overlap";
 export type PaletteAlgorithm = "image-q-wuquant" | "image-q-rgbquant" | "simple-posterize";
 export type PaletteDistance = "ciede2000" | "bt709" | "rgb";
+export type StrokeOutputMode = "filled" | "centerline";
 
 export type AdvancedTraceServerSettings = {
   removeColors: string[];
@@ -36,6 +37,11 @@ export type AdvancedTraceServerSettings = {
   paletteDistance: PaletteDistance;
   requestedPaletteCount: number;
   traceDiagnosticsMode: "off" | "summary";
+  strokeOutputMode: StrokeOutputMode;
+  centerlineMaxTraceSide: number;
+  centerlineStrokeWidth: number;
+  centerlineSimplifyTolerance: number;
+  centerlineMinPathLength: number;
 };
 
 export const DEFAULT_ADVANCED_TRACE_SERVER_SETTINGS: AdvancedTraceServerSettings = {
@@ -68,6 +74,11 @@ export const DEFAULT_ADVANCED_TRACE_SERVER_SETTINGS: AdvancedTraceServerSettings
   paletteDistance: "bt709",
   requestedPaletteCount: 0,
   traceDiagnosticsMode: "off",
+  strokeOutputMode: "filled",
+  centerlineMaxTraceSide: 1100,
+  centerlineStrokeWidth: 2,
+  centerlineSimplifyTolerance: 1.1,
+  centerlineMinPathLength: 5,
 };
 
 export function readAdvancedTraceFormSettings(
@@ -108,6 +119,22 @@ export function readAdvancedTraceFormSettings(
     ),
     traceDiagnosticsMode:
       form.get("traceDiagnosticsMode") === "summary" ? "summary" : "off",
+    strokeOutputMode:
+      form.get("strokeOutputMode") === "centerline" ? "centerline" : "filled",
+    centerlineMaxTraceSide: Math.round(
+      readNumber(form, "centerlineMaxTraceSide", 1100, 64, 1400),
+    ),
+    centerlineStrokeWidth: readNumber(form, "centerlineStrokeWidth", 2, 0.1, 30),
+    centerlineSimplifyTolerance: readNumber(
+      form,
+      "centerlineSimplifyTolerance",
+      1.1,
+      0,
+      8,
+    ),
+    centerlineMinPathLength: Math.round(
+      readNumber(form, "centerlineMinPathLength", 5, 2, 80),
+    ),
   };
 }
 

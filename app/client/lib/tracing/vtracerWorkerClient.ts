@@ -43,6 +43,17 @@ type VTracerWorkerMessage =
   | VTracerWorkerResult
   | VTracerWorkerError;
 
+type CenterlineWorkerResult = {
+  type: "result";
+  id: string;
+  result: TraceResult;
+};
+
+type CenterlineWorkerMessage =
+  | VTracerWorkerProgress
+  | CenterlineWorkerResult
+  | VTracerWorkerError;
+
 export type ClientTraceAttempt =
   | { ok: true; result: TraceResult }
   | { ok: false; reason: string };
@@ -82,6 +93,14 @@ export async function tryTraceRasterInClient(input: {
       input.settings.presetBackendIntensity ??
       null,
   };
+  if (settings.strokeOutputMode === "centerline") {
+    return tryTraceCenterlineInClient({
+      file: input.file,
+      settings,
+      onProgress: input.onProgress,
+      signal: input.signal,
+    });
+  }
   const probedSize =
     input.sourceWidth && input.sourceHeight
       ? { width: input.sourceWidth, height: input.sourceHeight }
@@ -224,6 +243,129 @@ export async function tryTraceRasterInClient(input: {
   }
 }
 
+async function tryTraceCenterlineInClient(input: {
+  file: File;
+  settings: NormalizedTraceSettings;
+  onProgress?: (progress: number, message: string) => void;
+  signal?: AbortSignal;
+}): Promise<ClientTraceAttempt> {
+  const browserCanRunWorker =
+    typeof Worker !== "undefined" &&
+    typeof Blob !== "undefined" &&
+    typeof ArrayBuffer !== "undefined" &&
+    typeof fetch !== "undefined" &&
+    typeof createImageBitmap !== "undefined" &&
+    typeof OffscreenCanvas !== "undefined";
+  if (!browserCanRunWorker) {
+    return {
+      ok: false,
+      reason: "This browser does not support the centerline tracing worker.",
+    };
+  }
+  if (input.file.size > 8 * 1024 * 1024) {
+    return {
+      ok: false,
+      reason: "Centerline tracing is limited to smaller source files.",
+    };
+  }
+
+  const id = `centerline-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let worker: Worker | null = null;
+  let releaseSlot: (() => void) | null = null;
+
+  try {
+    input.onProgress?.(0.02, "Queued for centerline tracing.");
+    releaseSlot = await acquireClientTraceSlot(input.signal);
+    if (input.signal?.aborted) {
+      return { ok: false, reason: "Conversion was canceled." };
+    }
+    const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
+    worker = new Worker(
+      new URL("../../workers/centerline.worker.ts", import.meta.url),
+      { type: "module" },
+    );
+
+    const result = await new Promise<TraceResult>((resolve, reject) => {
+      let settled = false;
+      const timeout = window.setTimeout(() => {
+        fail(new Error("Centerline tracing took too long. Try a smaller or cleaner image."));
+      }, 45_000);
+      const abortHandler = () => {
+        worker?.terminate();
+        fail(new Error("Conversion was canceled."));
+      };
+      const cleanup = () => {
+        input.signal?.removeEventListener("abort", abortHandler);
+        window.clearTimeout(timeout);
+      };
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+      const succeed = (traceResult: TraceResult) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(traceResult);
+      };
+      input.signal?.addEventListener("abort", abortHandler, { once: true });
+
+      worker!.onmessage = (event: MessageEvent<CenterlineWorkerMessage>) => {
+        const message = event.data;
+        if (!message || message.id !== id) return;
+        if (message.type === "progress") {
+          input.onProgress?.(message.progress, message.message);
+          return;
+        }
+        if (message.type === "error") {
+          fail(new Error(message.message));
+          return;
+        }
+        succeed(message.result);
+      };
+
+      worker!.onerror = (event) => {
+        fail(
+          new Error(
+            event.message || "Centerline tracing failed in the browser worker.",
+          ),
+        );
+      };
+
+      worker!.postMessage(
+        {
+          id,
+          buffer,
+          mimeType: input.file.type || inferRasterMimeType(input.file.name),
+          settings: input.settings,
+        },
+        [buffer],
+      );
+    });
+
+    const unusableReason = getUnusableTraceResultReason(result, {
+      inputBytes: input.file.size,
+      traceMode: input.settings.traceMode || "single",
+      settings: input.settings,
+    });
+    if (unusableReason) return { ok: false, reason: unusableReason };
+    return { ok: true, result };
+  } catch (error) {
+    return {
+      ok: false,
+      reason:
+        error instanceof Error && error.message
+          ? error.message
+          : "Centerline tracing failed.",
+    };
+  } finally {
+    worker?.terminate();
+    releaseSlot?.();
+  }
+}
+
 const MAX_ACTIVE_CLIENT_TRACES = 2;
 let activeClientTraceSlots = 0;
 const queuedClientTraceResolvers: Array<() => void> = [];
@@ -314,12 +456,17 @@ function getUnusableTraceResultReason(
   } = {},
 ): string | null {
   const svg = typeof result.svg === "string" ? result.svg.trim() : "";
+  const centerline = input.settings?.strokeOutputMode === "centerline";
   if (!svg) {
-    return "Browser tracing returned an empty SVG. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned an empty SVG. Try a cleaner line-art image or a filled-shape preset."
+      : "Browser tracing returned an empty SVG. Falling back to the server engine.";
   }
 
   if (!/^<svg\b/i.test(svg) || !/(<\/svg>|\/>\s*)$/i.test(svg)) {
-    return "Browser tracing returned invalid SVG. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned invalid SVG. Try a cleaner line-art image or a filled-shape preset."
+      : "Browser tracing returned invalid SVG. Falling back to the server engine.";
   }
 
   const width = Number(result.width);
@@ -330,7 +477,9 @@ function getUnusableTraceResultReason(
     !Number.isFinite(height) ||
     height <= 0
   ) {
-    return "Browser tracing returned invalid SVG dimensions. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned invalid SVG dimensions. Try a cleaner line-art image or a filled-shape preset."
+      : "Browser tracing returned invalid SVG dimensions. Falling back to the server engine.";
   }
 
   if (
@@ -338,7 +487,9 @@ function getUnusableTraceResultReason(
       svg,
     )
   ) {
-    return "Browser tracing returned SVG with no drawable content. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned no drawable strokes. Try a cleaner line-art image or a filled-shape preset."
+      : "Browser tracing returned SVG with no drawable content. Falling back to the server engine.";
   }
 
   const svgBytes = svg.length;
@@ -357,10 +508,14 @@ function getUnusableTraceResultReason(
     : 1_500_000;
   const maxPaths = layered ? (richLayered ? 6500 : 4500) : 1_200;
   if (svgBytes > maxSvgBytes) {
-    return "Browser tracing returned an oversized SVG. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned an oversized SVG. Try a smaller image or a simpler stroke preset."
+      : "Browser tracing returned an oversized SVG. Falling back to the server engine.";
   }
   if (pathCount > maxPaths) {
-    return "Browser tracing returned too many paths for a responsive preview. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned too many strokes for a responsive preview. Try a simpler stroke preset or a smaller image."
+      : "Browser tracing returned too many paths for a responsive preview. Falling back to the server engine.";
   }
 
   if (
@@ -376,7 +531,9 @@ function getUnusableTraceResultReason(
     svgBytes > Math.max(900_000, inputBytes * 24) &&
     pathCount > (layered ? 700 : 450)
   ) {
-    return "Browser tracing returned path-heavy SVG output. Falling back to the server engine.";
+    return centerline
+      ? "Centerline tracing returned path-heavy SVG output. Try a simpler stroke preset or a smaller image."
+      : "Browser tracing returned path-heavy SVG output. Falling back to the server engine.";
   }
 
   return null;

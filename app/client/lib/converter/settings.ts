@@ -5,6 +5,7 @@ export type LayerGroupBy = "none" | "color" | "layer";
 export type LayerGapFill = "none" | "close-small-gaps" | "overlap";
 export type PaletteAlgorithm = "image-q-wuquant" | "image-q-rgbquant" | "simple-posterize";
 export type PaletteDistance = "ciede2000" | "bt709" | "rgb";
+export type StrokeOutputMode = "filled" | "centerline";
 
 export type TraceAdvancedSettings = {
   removeColors?: string[];
@@ -36,6 +37,11 @@ export type TraceAdvancedSettings = {
   paletteDistance?: PaletteDistance;
   requestedPaletteCount?: number;
   traceDiagnosticsMode?: "off" | "summary";
+  strokeOutputMode?: StrokeOutputMode;
+  centerlineMaxTraceSide?: number;
+  centerlineStrokeWidth?: number;
+  centerlineSimplifyTolerance?: number;
+  centerlineMinPathLength?: number;
 };
 
 export const DEFAULT_TRACE_ADVANCED_SETTINGS = {
@@ -68,6 +74,11 @@ export const DEFAULT_TRACE_ADVANCED_SETTINGS = {
   paletteDistance: "bt709" as PaletteDistance,
   requestedPaletteCount: 0,
   traceDiagnosticsMode: "off" as const,
+  strokeOutputMode: "filled" as StrokeOutputMode,
+  centerlineMaxTraceSide: 1100,
+  centerlineStrokeWidth: 2,
+  centerlineSimplifyTolerance: 1.1,
+  centerlineMinPathLength: 5,
 };
 
 export function appendAdvancedTraceSettings(
@@ -104,6 +115,14 @@ export function appendAdvancedTraceSettings(
   formData.append("paletteDistance", String(merged.paletteDistance));
   formData.append("requestedPaletteCount", String(merged.requestedPaletteCount));
   formData.append("traceDiagnosticsMode", String(merged.traceDiagnosticsMode));
+  formData.append("strokeOutputMode", String(merged.strokeOutputMode));
+  formData.append("centerlineMaxTraceSide", String(merged.centerlineMaxTraceSide));
+  formData.append("centerlineStrokeWidth", String(merged.centerlineStrokeWidth));
+  formData.append(
+    "centerlineSimplifyTolerance",
+    String(merged.centerlineSimplifyTolerance),
+  );
+  formData.append("centerlineMinPathLength", String(merged.centerlineMinPathLength));
 }
 
 export function normalizeColorList(colors: unknown): string[] {

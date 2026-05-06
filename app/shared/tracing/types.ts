@@ -1,8 +1,9 @@
-export type TraceEngine = "auto" | "vtracer" | "potrace";
+export type TraceEngine = "auto" | "vtracer" | "potrace" | "centerline";
 
-export type TraceEngineUsed = "vtracer" | "potrace";
+export type TraceEngineUsed = "vtracer" | "potrace" | "centerline";
 
 export type TraceMode = "single" | "layered";
+export type StrokeOutputMode = "filled" | "centerline";
 
 export type TraceLayerKind = "fill" | "stroke";
 export type LayerBuildMode = "raw-vtracer" | "per-color-cutout" | "stacked-overlap";
@@ -17,6 +18,7 @@ export type NormalizedTraceSettings = {
   presetId?: string | null;
   presetBackendIntensity?: string | null;
   routeId?: string;
+  strokeOutputMode?: StrokeOutputMode;
 
   lineColor?: string;
   transparent?: boolean;
@@ -32,6 +34,10 @@ export type NormalizedTraceSettings = {
   blurSigma?: number;
   edgeBoost?: number;
   maxTraceSide?: number;
+  centerlineMaxTraceSide?: number;
+  centerlineStrokeWidth?: number;
+  centerlineSimplifyTolerance?: number;
+  centerlineMinPathLength?: number;
 
   colorLayerCount?: number;
   layerMaxTraceSide?: number;

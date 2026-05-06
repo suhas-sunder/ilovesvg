@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import type { Route } from "./+types/png-to-svg-for-cricut-print-then-cut";
 import {
   json,
@@ -252,7 +252,7 @@ export async function action({ request }: ActionFunctionArgs) {
       if (width > MAX_SIDE || height > MAX_SIDE || mp > MAX_MP) {
         return json(
           {
-            error: `Image too large: ${width}Ã—${height} (~${mp.toFixed(
+            error: `Image too large: ${width}×${height} (~${mp.toFixed(
               1,
             )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
           },
@@ -1004,7 +1004,7 @@ type ServerResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1023,7 +1023,7 @@ type HistoryItem = {
   svg: string;
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -1474,7 +1474,7 @@ export default function PngToSvgForCricutPrintThenCut({
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
+                        {file?.name} • {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -1495,7 +1495,7 @@ export default function PngToSvgForCricutPrintThenCut({
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      Ã—
+                      ×
                     </button>
                   </div>
 
@@ -1503,7 +1503,7 @@ export default function PngToSvgForCricutPrintThenCut({
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}Ã—{dims.h}
+                        {dims.w}×{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -1529,7 +1529,7 @@ export default function PngToSvgForCricutPrintThenCut({
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Creating SVGâ€¦" : "Create Print Then Cut SVG"}
+                  {busy ? "Creating SVG…" : "Create Print Then Cut SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1703,7 +1703,7 @@ async function validateBeforeSubmit(file: File) {
 
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}Ã—${h} (~${mp.toFixed(
+      `Image too large: ${w}×${h} (~${mp.toFixed(
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
@@ -1956,7 +1956,7 @@ function SeoSections() {
                 How to make a Print Then Cut SVG
               </h3>
               <span className="text-xs text-slate-500">
-                Upload â†’ choose outline source â†’ set offset â†’ export SVG
+                Upload → choose outline source → set offset → export SVG
               </span>
             </div>
 

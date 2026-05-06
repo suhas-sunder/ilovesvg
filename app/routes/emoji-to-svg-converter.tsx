@@ -1226,7 +1226,7 @@ type ImageActionResult = {
   error?: string;
   width?: number;
   height?: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   retryAfterMs?: number;
   code?: string;

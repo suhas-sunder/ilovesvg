@@ -18,6 +18,7 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import type { TraceResult } from "~/shared/tracing/types";
 
 export type BespokeTraceOutputItem = {
   svg: string;
@@ -26,7 +27,7 @@ export type BespokeTraceOutputItem = {
   stamp: number;
   name?: string;
   presetLabel?: string;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: TraceResult["engineUsed"];
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   svgBytes?: number;

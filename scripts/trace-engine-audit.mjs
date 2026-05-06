@@ -12,6 +12,8 @@ const requiredFiles = [
   "app/shared/tracing/serverFallback.server.ts",
   "app/client/lib/tracing/useHybridTraceFetcher.ts",
   "app/client/lib/tracing/vtracerWorkerClient.ts",
+  "app/shared/tracing/centerlineTrace.ts",
+  "app/client/workers/centerline.worker.ts",
   "app/client/workers/vtracer.worker.ts",
   "app/types/culori.d.ts",
   "app/types/wasm-vtracer.d.ts",
@@ -137,10 +139,30 @@ async function auditPresets() {
       'removeWhite: false',
     ],
   };
+  const centerlinePresets = {
+    "stroke-trace-clean-lines": [
+      'strokeOutputMode: "centerline"',
+      "centerlineStrokeWidth",
+      "centerlineSimplifyTolerance",
+    ],
+    "stroke-trace-bold-lines": [
+      'strokeOutputMode: "centerline"',
+      "centerlineStrokeWidth: 4",
+    ],
+    "centerline-sketch": [
+      'strokeOutputMode: "centerline"',
+      "centerlineMaxTraceSide: 1050",
+    ],
+    "single-line-drawing": [
+      'strokeOutputMode: "centerline"',
+      "centerlineSimplifyTolerance: 2.5",
+    ],
+  };
 
   for (const [id, tokens] of Object.entries({
     ...tunedExistingPresets,
     ...newWorkflowPresets,
+    ...centerlinePresets,
   })) {
     const block = blockById.get(id) || "";
     if (!block) {
@@ -160,6 +182,7 @@ async function auditPresets() {
     intensities: Object.fromEntries([...intensities.entries()].sort()),
     tunedExistingLayeredPresets: Object.keys(tunedExistingPresets),
     newWorkflowLayeredPresets: Object.keys(newWorkflowPresets),
+    centerlinePresets: Object.keys(centerlinePresets),
   };
 }
 
@@ -185,6 +208,8 @@ async function auditTracingArchitecture() {
     "requestedPaletteCount",
     "actualPaletteCount",
     "outputDetectedColors",
+    "strokeOutputMode",
+    "centerlineStrokeWidth",
   ]) {
     if (!types.includes(token)) {
       fatal.push(`Trace types are missing required token: ${token}`);
@@ -259,6 +284,8 @@ async function auditTracingArchitecture() {
   const workerClient = await read("app/client/lib/tracing/vtracerWorkerClient.ts");
   for (const token of [
     "getTraceEngineDecision",
+    "tryTraceCenterlineInClient",
+    "centerline.worker.ts",
     "new Worker",
     "terminate()",
     "postMessage(",
@@ -274,6 +301,35 @@ async function auditTracingArchitecture() {
   ]) {
     if (!workerClient.includes(token)) {
       fatal.push(`VTracer worker client is missing required token: ${token}`);
+    }
+  }
+
+  const centerlineTrace = await read("app/shared/tracing/centerlineTrace.ts");
+  for (const token of [
+    "traceCenterlineRasterToSvg",
+    "buildBinaryLineMask",
+    "skeletonizeZhangSuen",
+    "fill=\"none\"",
+    "stroke-linecap=\"round\"",
+    "engineUsed: \"centerline\"",
+    "MAX_CENTERLINE_PIXELS",
+    "MAX_SKELETON_PIXELS",
+  ]) {
+    if (!centerlineTrace.includes(token)) {
+      fatal.push(`Centerline trace module is missing required token: ${token}`);
+    }
+  }
+
+  const centerlineWorker = await read("app/client/workers/centerline.worker.ts");
+  for (const token of [
+    "traceCenterlineRasterToSvg",
+    "createImageBitmap",
+    "OffscreenCanvas",
+    "CENTERLINE_MAX_TRACE_SIDE",
+    "postProgress",
+  ]) {
+    if (!centerlineWorker.includes(token)) {
+      fatal.push(`Centerline worker is missing required token: ${token}`);
     }
   }
 

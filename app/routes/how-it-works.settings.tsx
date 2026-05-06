@@ -12,7 +12,7 @@ import { SETTING_GROUPS, SITE_URL } from "~/client/lib/docs/howItWorksContent";
 
 const title = "SVG Converter Settings Guide | iLoveSVG";
 const description =
-  "Understand live preview edits, output appearance, Line weight, Fill spread, Layer colors, Remove colors, Size and export, Line tracing, Edges and cleanup, Appearance, Batch conversion, and Update preview behavior.";
+  "Understand live preview edits, output appearance, Stroke output mode, Line weight, Fill spread, Layer colors, Remove colors, Size and export, Line tracing, Edges and cleanup, Appearance, Batch conversion, and Update preview behavior.";
 const canonical = `${SITE_URL}/how-it-works/settings`;
 
 export function meta() {
@@ -39,7 +39,7 @@ export default function SettingsGuideDocs() {
         highlights={[
           "Live preview edits stay card-specific.",
           "Click-to-convert settings retrace from the original source.",
-          "Line weight and fill spread are documented with limits.",
+          "Stroke output mode, line weight, and fill spread are documented with limits.",
         ]}
         actions={
           <>
@@ -72,6 +72,10 @@ export default function SettingsGuideDocs() {
         <SectionBlock title="Stroke and fill / output appearance">
           <CardGrid>
             <SimpleCard
+              title="Stroke output mode"
+              body="Compatible line-art outputs can retrace the original source as Filled shapes or Centerline strokes. Centerline strokes are best for simple sketches, handwriting, and diagrams; filled shapes remain best for logos, cut files, and most conversions."
+            />
+            <SimpleCard
               title="Line weight"
               body="Line weight changes stroke width only when the SVG contains actual stroke attributes. Many image-to-SVG conversions produce filled paths instead, so the control can be hidden or disabled for those outputs."
             />
@@ -99,6 +103,10 @@ export default function SettingsGuideDocs() {
             <SimpleCard
               title="Noisy images"
               body="Try scan or cleanup presets, increase turd size or min island px, use noise reduction, and consider resizing the source before converting."
+            />
+            <SimpleCard
+              title="Centerline stroke drawings"
+              body="Use Stroke Trace or Centerline presets on clean line art. Increase centerline stroke width for heavier lines, or simplify more when a plotter-style SVG should have fewer segments."
             />
           </CardGrid>
         </SectionBlock>

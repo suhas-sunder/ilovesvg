@@ -96,6 +96,7 @@ export function inferPresetBackendIntensity(
       : {};
 
   const traceMode = String(values.traceMode || "");
+  const strokeOutputMode = String(values.strokeOutputMode || "");
   const preprocess = String(values.preprocess || "");
   const layerCount = numberValue(values.colorLayerCount ?? values.layerCount, 0);
   const layerMaxTraceSide = numberValue(
@@ -112,6 +113,14 @@ export function inferPresetBackendIntensity(
   const colorMergeTolerance = numberValue(values.colorMergeTolerance, 0);
   const requestedPaletteCount = numberValue(values.requestedPaletteCount, 0);
   const layerBuildMode = String(values.layerBuildMode || "");
+  const centerlineTraceSide = numberValue(
+    values.centerlineMaxTraceSide ?? values.maxTraceSide,
+    0,
+  );
+  if (strokeOutputMode === "centerline") {
+    if (centerlineTraceSide >= 1250 || optTolerance <= 0.24) return "slow-speed";
+    return "low-speed";
+  }
 
   const isLayered = traceMode === "layered" || layerCount > 0;
   if (isLayered) {

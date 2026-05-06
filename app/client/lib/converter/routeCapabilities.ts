@@ -25,6 +25,7 @@ export type ConverterRouteCapabilities = {
   supportsClientOnlyEdit: boolean;
   supportsSingleTrace: boolean;
   supportsLayeredTrace: boolean;
+  supportsStrokeTrace: boolean;
   supportsEdgePreprocess: boolean;
   supportsMaskCleanup: boolean;
   supportsSelectedColorRemoval: boolean;
@@ -158,6 +159,21 @@ const ROUTE_GROUPS: Record<string, ConverterRouteGroup> = {
   sitemap: "static",
 };
 
+const STROKE_TRACE_ROUTE_IDS = new Set([
+  "home",
+  "png-to-svg-converter",
+  "jpg-to-svg-converter",
+  "jpeg-to-svg-converter",
+  "webp-to-svg-converter",
+  "logo-to-svg-converter",
+  "icon-to-svg-converter",
+  "line-art-to-svg-converter",
+  "drawing-to-svg-converter",
+  "scan-to-svg-converter",
+  "sketch-to-svg-converter",
+  "black-and-white-image-to-svg-converter",
+]);
+
 export function getRouteCapabilities(routeId: string): ConverterRouteCapabilities {
   const group = ROUTE_GROUPS[routeId] ?? "static";
   const routePath = routeId === "home" ? "/" : `/${routeId}`;
@@ -166,6 +182,7 @@ export function getRouteCapabilities(routeId: string): ConverterRouteCapabilitie
   const isLayered = group === "layered";
   const isSvgExport = group === "svg-export";
   const isSvgUtility = group === "svg-utility";
+  const supportsStrokeTrace = STROKE_TRACE_ROUTE_IDS.has(routeId);
 
   return {
     routeId,
@@ -175,6 +192,7 @@ export function getRouteCapabilities(routeId: string): ConverterRouteCapabilitie
     supportsClientOnlyEdit: isSvgExport || isSvgUtility || group === "text-svg" || group === "base64",
     supportsSingleTrace: isRasterTrace || isCut,
     supportsLayeredTrace: isRasterTrace || isCut || isLayered,
+    supportsStrokeTrace,
     supportsEdgePreprocess: isRasterTrace || isCut,
     supportsMaskCleanup: isRasterTrace || isCut,
     supportsSelectedColorRemoval: isRasterTrace || isCut || isLayered,

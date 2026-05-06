@@ -2232,7 +2232,9 @@ const PRESET_DEFINITIONS: Preset[] = [
 ];
 
 const PRESETS: Preset[] = preparePresetList(PRESET_DEFINITIONS);
-const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
+const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS, {
+  includeStrokePresets: true,
+});
 const DEFAULT_PRESET_ID = PRESETS[0]?.id ?? "line-accurate";
 
 function getPresetBackendIntensityById(
@@ -2325,7 +2327,7 @@ type ServerResult = {
   retryAfterMs?: number;
   code?: string;
   clientRunId?: string;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -2362,7 +2364,7 @@ type HistoryItem = {
   layers?: EditableSvgLayer[];
   width: number;
   height: number;
-  engineUsed?: "vtracer" | "potrace";
+  engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
@@ -3225,10 +3227,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         sourceFileSize: sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
         enginePathLabel:
-          effective.traceMode === "layered"
+          effective.strokeOutputMode === "centerline"
+            ? "Centerline stroke trace"
+            : effective.traceMode === "layered"
             ? "Hybrid layered trace"
             : "Hybrid trace",
-        canCancel: effective.traceMode === "layered",
+        canCancel:
+          effective.traceMode === "layered" ||
+          effective.strokeOutputMode === "centerline",
       };
       setHistory((prev) =>
         trimOutputHistoryWithSourceCleanup([pendingItem, ...prev], prev),
@@ -3278,13 +3284,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           pathCount: clientTrace.result.pathCount,
           svgBytes: clientTrace.result.svgBytes,
         });
-        setInfo("Converted in your browser with VTracer.");
+        setInfo(
+          clientTrace.result.engineUsed === "centerline"
+            ? "Converted in your browser with centerline stroke tracing."
+            : "Converted in your browser with VTracer.",
+        );
         return true;
       }
       if (
         abortController.signal.aborted ||
         clientTrace.reason.toLowerCase().includes("canceled")
       ) {
+        return false;
+      }
+      if (effective.strokeOutputMode === "centerline") {
+        setHistory((prev) =>
+          prev.map((item) =>
+            item.jobId === clientRunId
+              ? {
+                  ...item,
+                  jobStatus: "failed",
+                  jobError: `Centerline stroke tracing failed. ${clientTrace.reason}`,
+                  jobCompletedAt: Date.now(),
+                  canCancel: false,
+                }
+              : item,
+          ),
+        );
         return false;
       }
     } finally {
@@ -4341,6 +4367,27 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <OutputAppearanceControls
                           settings={appearance}
                           support={appearanceSupport}
+                          controlId={`home-output-${item.stamp}`}
+                          strokeOutputMode={outputSettings.strokeOutputMode || "filled"}
+                          strokeOutputModeAvailable={routeCapabilities.supportsStrokeTrace}
+                          strokeOutputModeDisabledReason={
+                            outputSettings.traceMode === "layered" || item.layers?.length
+                              ? "Centerline strokes are for single line-art outputs, not layered color results."
+                              : !sourceAvailableForOutput
+                                ? item.sourceFileName
+                                  ? `Choose the original source image (${item.sourceFileName}) to retrace this output.`
+                                  : "Choose the original source image to retrace this output."
+                                : null
+                          }
+                          onStrokeOutputModeChange={(mode) => {
+                            const nextSettings = {
+                              ...outputSettings,
+                              traceMode: "single" as const,
+                              strokeOutputMode: mode,
+                            };
+                            updateOutputDraftSettings(item.stamp, nextSettings);
+                            window.setTimeout(() => submitOutputUpdate(item.stamp), 0);
+                          }}
                           onChange={(patch) =>
                             setOutputAppearance(item.stamp, patch)
                           }

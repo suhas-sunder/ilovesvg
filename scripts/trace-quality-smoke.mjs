@@ -9,6 +9,8 @@ import {
   utils as imageQUtils,
 } from "image-q";
 import { differenceCiede2000 } from "culori";
+import { traceCenterlineRasterToSvg } from "../app/shared/tracing/centerlineTrace.ts";
+import { STROKE_TRACE_PRESET_ADDITIONS } from "../app/client/lib/converter/presetAdditions.ts";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -84,6 +86,7 @@ for (const fixture of cases) {
 
 metrics.push(...(await auditLayeredPresetRecipes()));
 metrics.push(testImageQPaletteFixture());
+metrics.push(...auditCenterlineStrokeRecipes());
 
 const potracePixels = makeRgba(96, 96, (x, y) => {
   const on = x > 20 && x < 76 && y > 24 && y < 72;
@@ -312,6 +315,331 @@ function testImageQPaletteFixture() {
     engine: "image-q",
     perceptualSampleDelta: Number(perceptualSampleDelta.toFixed(2)),
   };
+}
+
+function auditCenterlineStrokeRecipes() {
+  const rows = [];
+  const cleanLinePixels = makeRgba(160, 120, (x, y) => {
+    const outline =
+      Math.abs(Math.hypot((x - 80) / 48, (y - 58) / 34) - 1) < 0.045;
+    const diagonal = Math.abs(y - (0.45 * x + 22)) <= 1.4 && x > 26 && x < 126;
+    return outline || diagonal ? [0, 0, 0, 255] : [250, 246, 238, 255];
+  });
+  const cleanLineResult = traceCenterlineRasterToSvg(
+    { data: cleanLinePixels, width: 160, height: 120 },
+    {
+      threshold: 218,
+      transparent: true,
+      lineColor: "#000000",
+      centerlineStrokeWidth: 2,
+      centerlineSimplifyTolerance: 1,
+      centerlineMinPathLength: 5,
+      traceDiagnosticsMode: "summary",
+    },
+  );
+  validateCenterlineSvg("centerline-clean-line-art", cleanLineResult.svg);
+  if (cleanLineResult.pathCount < 2 || cleanLineResult.pathCount > 120) {
+    throw new Error(
+      `centerline-clean-line-art returned an implausible path count: ${cleanLineResult.pathCount}`,
+    );
+  }
+  rows.push({
+    name: "centerline-clean-line-art",
+    engine: cleanLineResult.engineUsed,
+    paths: cleanLineResult.pathCount,
+    bytes: cleanLineResult.svgBytes,
+  });
+
+  for (const preset of STROKE_TRACE_PRESET_ADDITIONS) {
+    const result = traceCenterlineRasterToSvg(
+      { data: cleanLinePixels, width: 160, height: 120 },
+      {
+        ...preset.settings,
+        traceDiagnosticsMode: "summary",
+      },
+    );
+    validateCenterlineSvg(`centerline-preset:${preset.id}`, result.svg);
+    if (result.pathCount < 1 || result.pathCount > 180) {
+      throw new Error(
+        `centerline-preset:${preset.id} returned an implausible path count: ${result.pathCount}`,
+      );
+    }
+    rows.push({
+      name: `centerline-preset:${preset.id}`,
+      engine: result.engineUsed,
+      paths: result.pathCount,
+      bytes: result.svgBytes,
+    });
+  }
+
+  const cartoonOutlinePixels = makeCartoonOutlineFixture(512, 512);
+  const outlinePresets = [
+    "technical-outline-stroke",
+    "fine-pen-centerline",
+    "rounded-outline-stroke",
+  ];
+  for (const presetId of outlinePresets) {
+    const preset = STROKE_TRACE_PRESET_ADDITIONS.find((candidate) => candidate.id === presetId);
+    if (!preset) throw new Error(`Missing centerline quality preset ${presetId}`);
+    const result = traceCenterlineRasterToSvg(
+      { data: cartoonOutlinePixels, width: 512, height: 512 },
+      {
+        ...preset.settings,
+        traceDiagnosticsMode: "summary",
+      },
+    );
+    validateCenterlineSvg(`centerline-cartoon-outline:${preset.id}`, result.svg);
+    const coverage = measureSvgCoordinateCoverage(result.svg);
+    const outlineRecall = measureCartoonOutlineRecall(result.svg);
+    if (
+      result.pathCount < 8 ||
+      result.pathCount > 260 ||
+      coverage.width < 280 ||
+      coverage.height < 280 ||
+      outlineRecall < 0.55
+    ) {
+      throw new Error(
+        `centerline-cartoon-outline:${preset.id} did not preserve the drawing outline enough: paths=${result.pathCount}, coverage=${coverage.width}x${coverage.height}, recall=${outlineRecall.toFixed(2)}`,
+      );
+    }
+    rows.push({
+      name: `centerline-cartoon-outline:${preset.id}`,
+      engine: result.engineUsed,
+      paths: result.pathCount,
+      bytes: result.svgBytes,
+      coverage,
+      outlineRecall,
+    });
+  }
+
+  const internalDetailPixels = makeLayerInternalLineFixture(420, 360);
+  for (const presetId of ["inked-linework-stroke", "fine-pen-centerline"]) {
+    const preset = STROKE_TRACE_PRESET_ADDITIONS.find((candidate) => candidate.id === presetId);
+    if (!preset) throw new Error(`Missing centerline internal-detail preset ${presetId}`);
+    const result = traceCenterlineRasterToSvg(
+      { data: internalDetailPixels, width: 420, height: 360 },
+      {
+        ...preset.settings,
+        traceDiagnosticsMode: "summary",
+      },
+    );
+    validateCenterlineSvg(`centerline-internal-lines:${preset.id}`, result.svg);
+    const internalLineRecall = measureInternalLayerLineRecall(result.svg);
+    if (internalLineRecall < 0.65) {
+      throw new Error(
+        `centerline-internal-lines:${preset.id} missed low-contrast lines inside a filled layer: recall=${internalLineRecall.toFixed(2)}, paths=${result.pathCount}`,
+      );
+    }
+    rows.push({
+      name: `centerline-internal-lines:${preset.id}`,
+      engine: result.engineUsed,
+      paths: result.pathCount,
+      bytes: result.svgBytes,
+      internalLineRecall,
+    });
+  }
+
+  const fragmentedPixels = makeRgba(512, 512, (x, y) => {
+    const mainDiagonal = Math.abs(x - y) <= 1 && x > 48 && x < 464;
+    const mainHorizontal = Math.abs(y - 260) <= 1 && x > 80 && x < 430;
+    if (mainDiagonal || mainHorizontal) return [0, 0, 0, 255];
+    const cellX = Math.floor(x / 8);
+    const cellY = Math.floor(y / 8);
+    const localX = x % 8;
+    const localY = y % 8;
+    const active =
+      (cellX * 17 + cellY * 31) % 5 !== 0 &&
+      localX === 3 &&
+      localY >= 2 &&
+      localY <= 5;
+    return active ? [0, 0, 0, 255] : [255, 255, 255, 0];
+  });
+  const fragmentedResult = traceCenterlineRasterToSvg(
+    { data: fragmentedPixels, width: 512, height: 512 },
+    {
+      threshold: 200,
+      transparent: true,
+      lineColor: "#000000",
+      centerlineStrokeWidth: 1,
+      centerlineSimplifyTolerance: 0.5,
+      centerlineMinPathLength: 2,
+      traceDiagnosticsMode: "summary",
+    },
+  );
+  validateCenterlineSvg("centerline-fragment-guard", fragmentedResult.svg);
+  if (fragmentedResult.pathCount > 1_000) {
+    throw new Error(
+      `centerline-fragment-guard returned ${fragmentedResult.pathCount} paths; capped centerline output must stay below client preview guards.`,
+    );
+  }
+  rows.push({
+    name: "centerline-fragment-guard",
+    engine: fragmentedResult.engineUsed,
+    paths: fragmentedResult.pathCount,
+    bytes: fragmentedResult.svgBytes,
+    warnings: fragmentedResult.warnings || [],
+  });
+
+  return rows;
+}
+
+function makeCartoonOutlineFixture(width, height) {
+  return makeRgba(width, height, (x, y) => {
+    const bg = [247, 240, 225, 255];
+    const head =
+      Math.abs(Math.hypot((x - 190) / 75, (y - 220) / 60) - 1) < 0.04;
+    const body =
+      Math.abs(Math.hypot((x - 290) / 92, (y - 306) / 55) - 1) < 0.04;
+    const wingA =
+      Math.abs(Math.hypot((x - 320) / 46, (y - 165) / 90) - 1) < 0.035 &&
+      y < 255;
+    const wingB =
+      Math.abs(Math.hypot((x - 372) / 64, (y - 215) / 78) - 1) < 0.035 &&
+      y < 310;
+    const antennaA = distToSegment(x, y, 160, 166, 137, 112) < 2.2;
+    const antennaB = distToSegment(x, y, 215, 166, 212, 106) < 2.2;
+    const keyBase = distToSegment(x, y, 118, 405, 260, 410) < 3;
+    const leg = distToSegment(x, y, 145, 345, 108, 390) < 3;
+    const outline =
+      head || body || wingA || wingB || antennaA || antennaB || keyBase || leg;
+    if (outline) return [5, 22, 48, 255];
+    const wingVein =
+      distToSegment(x, y, 308, 190, 356, 128) < 1.4 ||
+      distToSegment(x, y, 322, 230, 408, 200) < 1.4 ||
+      distToSegment(x, y, 342, 250, 417, 252) < 1.4;
+    if (wingVein) return [120, 178, 235, 210];
+    const blueMarks =
+      distToSegment(x, y, 34, 322, 85, 322) < 3 ||
+      distToSegment(x, y, 396, 92, 436, 92) < 3 ||
+      distToSegment(x, y, 375, 430, 430, 430) < 3;
+    if (blueMarks) return [77, 148, 221, 255];
+    const darkFill =
+      Math.hypot((x - 300) / 74, (y - 312) / 44) < 0.88 && x > 240;
+    if (darkFill) return [20, 48, 84, 255];
+    return bg;
+  });
+}
+
+function makeLayerInternalLineFixture(width, height) {
+  return makeRgba(width, height, (x, y) => {
+    const bg = [248, 241, 229, 255];
+    const body = Math.hypot((x - 240) / 92, (y - 220) / 58) < 1;
+    if (body) {
+      const stripeA = distToSegment(x, y, 205, 168, 282, 273) < 2.4;
+      const stripeB = distToSegment(x, y, 238, 162, 315, 263) < 2.4;
+      if (stripeA || stripeB) return [5, 24, 50, 255];
+      return [28, 58, 94, 255];
+    }
+    const outline = Math.abs(Math.hypot((x - 240) / 92, (y - 220) / 58) - 1) < 0.035;
+    return outline ? [5, 24, 50, 255] : bg;
+  });
+}
+
+function distToSegment(x, y, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+}
+
+function measureSvgCoordinateCoverage(svg) {
+  const values = [...svg.matchAll(/[ML](-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)]
+    .map((match) => [Number(match[1]), Number(match[2])])
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+  if (!values.length) return { width: 0, height: 0 };
+  const xs = values.map(([x]) => x);
+  const ys = values.map(([, y]) => y);
+  return {
+    width: Math.round(Math.max(...xs) - Math.min(...xs)),
+    height: Math.round(Math.max(...ys) - Math.min(...ys)),
+  };
+}
+
+function measureCartoonOutlineRecall(svg) {
+  const outputPoints = [...svg.matchAll(/[ML](-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)]
+    .map((match) => [Number(match[1]), Number(match[2])])
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+  if (!outputPoints.length) return 0;
+
+  const anchors = [
+    ...sampleEllipse(190, 220, 75, 60, 0, Math.PI * 2, 80),
+    ...sampleEllipse(290, 306, 92, 55, 0, Math.PI * 2, 80),
+    ...sampleEllipse(320, 165, 46, 90, -Math.PI * 0.82, Math.PI * 0.82, 58),
+    ...sampleEllipse(372, 215, 64, 78, -Math.PI * 0.82, Math.PI * 0.82, 58),
+    ...sampleLine(160, 166, 137, 112, 20),
+    ...sampleLine(215, 166, 212, 106, 20),
+    ...sampleLine(118, 405, 260, 410, 30),
+    ...sampleLine(145, 345, 108, 390, 18),
+  ];
+  let hits = 0;
+  for (const [anchorX, anchorY] of anchors) {
+    const close = outputPoints.some(
+      ([x, y]) => Math.hypot(x - anchorX, y - anchorY) <= 12,
+    );
+    if (close) hits += 1;
+  }
+  return hits / anchors.length;
+}
+
+function measureInternalLayerLineRecall(svg) {
+  const anchors = [
+    ...sampleLine(205, 168, 282, 273, 24),
+    ...sampleLine(238, 162, 315, 263, 24),
+  ];
+  return measureSvgAnchorRecall(svg, anchors, 8);
+}
+
+function measureSvgAnchorRecall(svg, anchors, radius) {
+  const outputPolylines = extractSvgPolylines(svg);
+  if (!outputPolylines.length || !anchors.length) return 0;
+  let hits = 0;
+  for (const [anchorX, anchorY] of anchors) {
+    const close = outputPolylines.some((line) =>
+      line.some(([x, y], index) => {
+        if (Math.hypot(x - anchorX, y - anchorY) <= radius) return true;
+        if (index === 0) return false;
+        const [prevX, prevY] = line[index - 1];
+        return distToSegment(anchorX, anchorY, prevX, prevY, x, y) <= radius;
+      }),
+    );
+    if (close) hits += 1;
+  }
+  return hits / anchors.length;
+}
+
+function extractSvgPolylines(svg) {
+  return [...svg.matchAll(/\sd="([^"]+)"/g)]
+    .map((match) =>
+      [...match[1].matchAll(/[ML](-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)]
+        .map((pointMatch) => [Number(pointMatch[1]), Number(pointMatch[2])])
+        .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)),
+    )
+    .filter((line) => line.length > 0);
+}
+
+function sampleEllipse(cx, cy, rx, ry, start, end, count) {
+  const points = [];
+  for (let i = 0; i < count; i += 1) {
+    const t = start + ((end - start) * i) / Math.max(1, count - 1);
+    points.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry]);
+  }
+  return points;
+}
+
+function sampleLine(x1, y1, x2, y2, count) {
+  const points = [];
+  for (let i = 0; i < count; i += 1) {
+    const t = i / Math.max(1, count - 1);
+    points.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+  }
+  return points;
+}
+
+function validateCenterlineSvg(name, svg) {
+  validateSvg(name, svg);
+  if (!/\bfill="none"/i.test(svg) || !/\bstroke-width="/i.test(svg)) {
+    throw new Error(`${name} did not return a real stroked SVG.`);
+  }
 }
 
 function countUniqueColors(data) {
