@@ -54,7 +54,9 @@ export function traceCenterlineRasterToSvg(
   let mask =
     settings.preprocess === "edge"
       ? buildContrastLineMask(input.data, width, height, settings)
-      : buildBinaryLineMask(input.data, width, height, settings);
+      : settings.preprocess === "ink-stroke"
+        ? buildInkStrokeLineMask(input.data, width, height, settings)
+        : buildBinaryLineMask(input.data, width, height, settings);
   mask = closeBinaryMask(mask, width, height, readCloseRadius(settings));
   mask = removeTinyComponents(mask, width, height, readComponentMinSize(settings));
   timings.binaryMask = now() - t0;
@@ -214,6 +216,70 @@ export function buildContrastLineMask(
     }
   }
   return out;
+}
+
+export function buildInkStrokeLineMask(
+  data: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: CenterlineTraceOptions = {},
+): Uint8Array {
+  const baseMask = buildBinaryLineMask(data, width, height, settings);
+  const distance = distanceToInactivePixel(baseMask, width, height);
+  const out = new Uint8Array(baseMask.length);
+  const edgeThreshold = clampNumber(Number(settings.edgeThreshold ?? 18), 4, 120);
+  const maxStrokeRadius = readInkStrokeRadius(settings);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!hasVisibleAlpha(data, index)) continue;
+      if (baseMask[index] && distance[index] <= maxStrokeRadius) {
+        out[index] = 1;
+        continue;
+      }
+      if (localColorEdgeStrength(data, width, height, x, y) >= edgeThreshold) {
+        out[index] = 1;
+      }
+    }
+  }
+  return out;
+}
+
+function distanceToInactivePixel(mask: Uint8Array, width: number, height: number) {
+  const maxDistance = width + height;
+  const dist = new Float32Array(mask.length);
+  for (let i = 0; i < mask.length; i += 1) {
+    dist[i] = mask[i] ? maxDistance : 0;
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      let value = dist[index];
+      if (x > 0) value = Math.min(value, dist[index - 1] + 1);
+      if (y > 0) value = Math.min(value, dist[index - width] + 1);
+      if (x > 0 && y > 0) value = Math.min(value, dist[index - width - 1] + 1.4142);
+      if (x < width - 1 && y > 0) value = Math.min(value, dist[index - width + 1] + 1.4142);
+      dist[index] = value;
+    }
+  }
+
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = width - 1; x >= 0; x -= 1) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      let value = dist[index];
+      if (x < width - 1) value = Math.min(value, dist[index + 1] + 1);
+      if (y < height - 1) value = Math.min(value, dist[index + width] + 1);
+      if (x < width - 1 && y < height - 1) value = Math.min(value, dist[index + width + 1] + 1.4142);
+      if (x > 0 && y < height - 1) value = Math.min(value, dist[index + width - 1] + 1.4142);
+      dist[index] = value;
+    }
+  }
+
+  return dist;
 }
 
 function hasVisibleAlpha(data: Uint8Array | Uint8ClampedArray, index: number) {
@@ -828,9 +894,20 @@ function readPolylineMinLength(settings: CenterlineTraceOptions) {
 function readCloseRadius(settings: CenterlineTraceOptions) {
   const strokeWidth = Number(settings.centerlineStrokeWidth ?? DEFAULT_STROKE_WIDTH);
   const minPathLength = readMinPathLength(settings);
+  if (settings.preprocess === "ink-stroke") return 0;
   if (settings.preprocess === "edge" && strokeWidth <= 3 && minPathLength <= 12) return 0;
   if (strokeWidth >= 3 || minPathLength >= 8) return 1;
   return 1;
+}
+
+function readInkStrokeRadius(settings: CenterlineTraceOptions) {
+  const strokeWidth = Number(settings.centerlineStrokeWidth ?? DEFAULT_STROKE_WIDTH);
+  const edgeThickness = Number(settings.edgeThickness ?? 2);
+  return clampNumber(
+    Math.max(8, readTurdSize(settings) * 1.9, strokeWidth * 3.6, edgeThickness * 4.5),
+    5,
+    18,
+  );
 }
 
 function readSimplifyTolerance(settings: CenterlineTraceOptions) {

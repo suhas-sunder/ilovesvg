@@ -31,6 +31,8 @@ export type TraceAdvancedSettings = {
   sortLayersBy?: SortLayersBy;
   layerBuildMode?: LayerBuildMode;
   layerOverlapPx?: number;
+  fillStrokeWidth?: number;
+  fillStrokeColor?: string;
   groupBy?: LayerGroupBy;
   gapFill?: LayerGapFill;
   paletteAlgorithm?: PaletteAlgorithm;
@@ -68,6 +70,8 @@ export const DEFAULT_TRACE_ADVANCED_SETTINGS = {
   sortLayersBy: "luminance" as SortLayersBy,
   layerBuildMode: "raw-vtracer" as LayerBuildMode,
   layerOverlapPx: 0,
+  fillStrokeWidth: 0,
+  fillStrokeColor: "#020617",
   groupBy: "color" as LayerGroupBy,
   gapFill: "none" as LayerGapFill,
   paletteAlgorithm: "simple-posterize" as PaletteAlgorithm,
@@ -109,6 +113,8 @@ export function appendAdvancedTraceSettings(
   formData.append("sortLayersBy", String(merged.sortLayersBy));
   formData.append("layerBuildMode", String(merged.layerBuildMode));
   formData.append("layerOverlapPx", String(merged.layerOverlapPx));
+  formData.append("fillStrokeWidth", String(merged.fillStrokeWidth));
+  formData.append("fillStrokeColor", String(merged.fillStrokeColor));
   formData.append("groupBy", String(merged.groupBy));
   formData.append("gapFill", String(merged.gapFill));
   formData.append("paletteAlgorithm", String(merged.paletteAlgorithm));

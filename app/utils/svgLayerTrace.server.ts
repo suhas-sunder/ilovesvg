@@ -60,6 +60,8 @@ export type LayeredColorSvgOptions = {
   sortLayersBy?: SortLayersBy;
   brightness?: number;
   contrast?: number;
+  fillStrokeWidth?: number;
+  fillStrokeColor?: string;
   outputWidth?: number;
   outputHeight?: number;
   preserveAspectRatio?: boolean;
@@ -76,6 +78,8 @@ type NormalizedLayeredColorSvgOptions = Omit<
   | "sortLayersBy"
   | "brightness"
   | "contrast"
+  | "fillStrokeWidth"
+  | "fillStrokeColor"
   | "outputWidth"
   | "outputHeight"
   | "preserveAspectRatio"
@@ -89,6 +93,8 @@ type NormalizedLayeredColorSvgOptions = Omit<
   sortLayersBy: SortLayersBy;
   brightness: number;
   contrast: number;
+  fillStrokeWidth: number;
+  fillStrokeColor: string;
   outputWidth: number;
   outputHeight: number;
   preserveAspectRatio: boolean;
@@ -330,6 +336,8 @@ export async function createLayeredColorSvg(
         bgColor: safeOptions.bgColor,
         backgroundAlpha: safeOptions.backgroundAlpha,
         layerAlpha: safeOptions.layerAlpha,
+        fillStrokeWidth: safeOptions.fillStrokeWidth,
+        fillStrokeColor: safeOptions.fillStrokeColor,
         outputWidth: safeOptions.outputWidth,
         outputHeight: safeOptions.outputHeight,
         preserveAspectRatio: safeOptions.preserveAspectRatio,
@@ -348,16 +356,32 @@ export async function createLayeredColorSvg(
       svg,
       width: outputDimensions.width,
       height: outputDimensions.height,
-      layers: builtLayers.map((layer) => ({
-        id: layer.id,
-        label: layer.label,
-        color: layer.color,
-        originalColor: layer.color,
-        visible: true,
-        opacity: safeOptions.layerAlpha,
-        originalOpacity: safeOptions.layerAlpha,
-        kind: "fill",
-      })),
+      layers: [
+        ...builtLayers.map((layer) => ({
+          id: layer.id,
+          label: layer.label,
+          color: layer.color,
+          originalColor: layer.color,
+          visible: true,
+          opacity: safeOptions.layerAlpha,
+          originalOpacity: safeOptions.layerAlpha,
+          kind: "fill" as const,
+        })),
+        ...(safeOptions.fillStrokeWidth > 0
+          ? [
+              {
+                id: "fill-stroke-outline",
+                label: "Stroke outline",
+                color: safeOptions.fillStrokeColor,
+                originalColor: safeOptions.fillStrokeColor,
+                visible: true,
+                opacity: safeOptions.layerAlpha,
+                originalOpacity: safeOptions.layerAlpha,
+                kind: "stroke" as const,
+              },
+            ]
+          : []),
+      ],
     };
   } finally {
     maybeLogConversionDiagnostics(diagnostics);
@@ -406,6 +430,8 @@ function normalizeLayeredColorOptions(
     sortLayersBy: readSortLayersBy(String(options.sortLayersBy ?? "luminance")),
     brightness: clampLayerNumber(Number(options.brightness ?? 0), -50, 50),
     contrast: clampLayerNumber(Number(options.contrast ?? 0), -50, 75),
+    fillStrokeWidth: clampLayerNumber(Number(options.fillStrokeWidth ?? 0), 0, 30),
+    fillStrokeColor: sanitizeLayerHexColor(options.fillStrokeColor || "#020617", "#020617"),
     outputWidth: Math.round(
       clampLayerNumber(Number(options.outputWidth ?? 0), 0, 6000),
     ),
@@ -828,6 +854,8 @@ function buildLayeredSvgString({
   bgColor,
   backgroundAlpha,
   layerAlpha,
+  fillStrokeWidth,
+  fillStrokeColor,
   outputWidth,
   outputHeight,
   preserveAspectRatio,
@@ -839,6 +867,8 @@ function buildLayeredSvgString({
   bgColor: string;
   backgroundAlpha?: number;
   layerAlpha?: number;
+  fillStrokeWidth?: number;
+  fillStrokeColor?: string;
   outputWidth?: number;
   outputHeight?: number;
   preserveAspectRatio?: boolean;
@@ -860,6 +890,11 @@ function buildLayeredSvgString({
     layerAlpha != null && layerAlpha < 0.999
       ? ` opacity="${formatAlpha(layerAlpha)}"`
       : "";
+  const safeFillStrokeWidth = clampLayerNumber(Number(fillStrokeWidth ?? 0), 0, 30);
+  const safeFillStrokeColor = sanitizeLayerHexColor(
+    fillStrokeColor || "#020617",
+    "#020617",
+  );
   const background = transparent
     ? ""
     : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeLayerHexColor(bgColor, "#ffffff")}"${backgroundOpacity} />`;
@@ -871,7 +906,15 @@ function buildLayeredSvgString({
       return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}"${groupOpacity}>${layer.pathTags}</g>`;
     })
     .join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${outputDimensions.width}" height="${outputDimensions.height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}</svg>`;
+  const strokeBody =
+    safeFillStrokeWidth > 0
+      ? `<g id="fill-stroke-outline" data-layer-id="fill-stroke-outline" data-layer-label="Stroke outline" data-layer-color="${safeFillStrokeColor}" fill="none" stroke="${safeFillStrokeColor}" stroke-width="${formatNumber(
+          safeFillStrokeWidth,
+        )}" stroke-linecap="round" stroke-linejoin="round">${layers
+          .map((layer) => extractPathTags(layer.pathTags))
+          .join("")}</g>`
+      : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${outputDimensions.width}" height="${outputDimensions.height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${strokeBody}${body}</svg>`;
 }
 
 function pathTagsHaveDrawablePath(pathTags: string): boolean {
@@ -1180,6 +1223,10 @@ function formatAlpha(value: number): string {
   return String(Math.max(0, Math.min(1, value)).toFixed(3))
     .replace(/0+$/, "")
     .replace(/\.$/, "");
+}
+
+function formatNumber(value: number): string {
+  return String(Number(value.toFixed(3))).replace(/\.0+$/, "");
 }
 
 function clampInt(value: number, min: number, max: number): number {

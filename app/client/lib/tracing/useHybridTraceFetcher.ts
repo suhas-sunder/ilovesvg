@@ -378,6 +378,8 @@ function formDataToTraceSettings(
     sortLayersBy: readString(formData, "sortLayersBy") ?? undefined,
     layerAlpha: readNumber(formData, "layerAlpha"),
     backgroundAlpha: readNumber(formData, "backgroundAlpha"),
+    fillStrokeWidth: readNumber(formData, "fillStrokeWidth"),
+    fillStrokeColor: readString(formData, "fillStrokeColor") ?? undefined,
     layerBuildMode: normalizeLayerBuildMode(readString(formData, "layerBuildMode")),
     layerOverlapPx: readNumber(formData, "layerOverlapPx"),
     groupBy: normalizeGroupBy(readString(formData, "groupBy")),

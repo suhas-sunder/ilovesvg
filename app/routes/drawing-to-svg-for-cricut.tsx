@@ -586,6 +586,8 @@ export async function action({ request }: ActionFunctionArgs) {
           outputWidth: advancedTraceSettings.outputWidth,
           outputHeight: advancedTraceSettings.outputHeight,
           preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+          fillStrokeWidth: advancedTraceSettings.fillStrokeWidth,
+          fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
         return json({
@@ -1969,7 +1971,7 @@ type ServerResult = {
   pathCount?: number;
   svgBytes?: number;
   retryAfterMs?: number;
-  code?: string;
+  code?: string;
   gate?: { running: number; queued: number };
 };
 
@@ -2180,7 +2182,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
         presetLabel: activePresetObject.label,
         settings,
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
-      
+
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };

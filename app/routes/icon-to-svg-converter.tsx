@@ -627,6 +627,8 @@ export async function action({ request }: ActionFunctionArgs) {
           outputWidth: advancedTraceSettings.outputWidth,
           outputHeight: advancedTraceSettings.outputHeight,
           preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+          fillStrokeWidth: advancedTraceSettings.fillStrokeWidth,
+          fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
         return json({
@@ -2026,7 +2028,7 @@ export default function IconToSvgConverter({
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: fetcher.data.layers,
-      
+
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };

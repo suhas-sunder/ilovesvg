@@ -624,6 +624,8 @@ export async function action({ request }: ActionFunctionArgs) {
           outputWidth: advancedTraceSettings.outputWidth,
           outputHeight: advancedTraceSettings.outputHeight,
           preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+          fillStrokeWidth: advancedTraceSettings.fillStrokeWidth,
+          fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
         return json({
@@ -1880,7 +1882,7 @@ type ServerResult = {
   pathCount?: number;
   svgBytes?: number;
   retryAfterMs?: number;
-  code?: string;
+  code?: string;
   gate?: { running: number; queued: number };
 };
 
@@ -2005,7 +2007,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
-      
+
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };

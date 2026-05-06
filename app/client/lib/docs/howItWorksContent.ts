@@ -464,7 +464,9 @@ export const PRESET_GUIDE_ITEMS: PresetGuideItem[] = [
     family,
     speed,
     outputStyle: layered
-      ? "layered/color filled regions"
+      ? Number(settings.fillStrokeWidth || 0) > 0
+        ? "layered/color fills with an editable stroke outline"
+        : "layered/color filled regions"
       : settings.preprocess === "edge"
         ? "filled edge contours"
         : "simple filled paths",
@@ -529,7 +531,7 @@ export const PRESET_FAMILIES: Array<{
     id: "layered",
     label: "Layered color",
     summary:
-      "Best when you want multiple filled color regions. These presets can create larger SVGs and may take longer.",
+      "Best when you want multiple filled color regions. Some variants add a separate editable stroke outline layer for cartoon or sticker-style artwork.",
     routeLinks: familyRoutes("layered"),
   },
 ];
@@ -796,7 +798,9 @@ function familyImages(family: PresetFamily) {
 
 function settingsToTry(family: PresetFamily, settings: Record<string, unknown>) {
   if (settings.traceMode === "layered") {
-    return "color layer count, requested palette count, min region percent, min island px, hole fill px, layer max trace side, and remove transparent";
+    return Number(settings.fillStrokeWidth || 0) > 0
+      ? "color layer count, requested palette count, fill/stroke layer colors, line weight, min region percent, layer max trace side, and remove transparent"
+      : "color layer count, requested palette count, min region percent, min island px, hole fill px, layer max trace side, and remove transparent";
   }
   if (family === "photo-edge") {
     return "blur, edge boost, edge threshold, edge thickness, threshold, turd size, and curve tolerance";

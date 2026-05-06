@@ -1,3 +1,9 @@
+import {
+  injectFillStrokeOutlineGroup,
+  normalizeFillStrokeColor,
+  normalizeFillStrokeWidth,
+} from "~/shared/tracing/fillStrokeSvg";
+
 export type RemoveColorApplyTo = "single" | "layered" | "both";
 export type SortLayersBy = "luminance" | "area" | "original";
 export type LayerBuildMode = "raw-vtracer" | "per-color-cutout" | "stacked-overlap";
@@ -31,6 +37,8 @@ export type AdvancedTraceServerSettings = {
   sortLayersBy: SortLayersBy;
   layerBuildMode: LayerBuildMode;
   layerOverlapPx: number;
+  fillStrokeWidth: number;
+  fillStrokeColor: string;
   groupBy: LayerGroupBy;
   gapFill: LayerGapFill;
   paletteAlgorithm: PaletteAlgorithm;
@@ -68,6 +76,8 @@ export const DEFAULT_ADVANCED_TRACE_SERVER_SETTINGS: AdvancedTraceServerSettings
   sortLayersBy: "luminance",
   layerBuildMode: "raw-vtracer",
   layerOverlapPx: 0,
+  fillStrokeWidth: 0,
+  fillStrokeColor: "#020617",
   groupBy: "color",
   gapFill: "none",
   paletteAlgorithm: "simple-posterize",
@@ -110,6 +120,8 @@ export function readAdvancedTraceFormSettings(
     sortLayersBy: readSortLayersBy(form.get("sortLayersBy")),
     layerBuildMode: readLayerBuildMode(form.get("layerBuildMode")),
     layerOverlapPx: readNumber(form, "layerOverlapPx", 0, 0, 4),
+    fillStrokeWidth: normalizeFillStrokeWidth(form.get("fillStrokeWidth")),
+    fillStrokeColor: normalizeFillStrokeColor(form.get("fillStrokeColor")),
     groupBy: readGroupBy(form.get("groupBy")),
     gapFill: readGapFill(form.get("gapFill")),
     paletteAlgorithm: readPaletteAlgorithm(form.get("paletteAlgorithm")),
@@ -182,6 +194,11 @@ export function applyTraceSvgOutputSettings(
       },
     );
   }
+
+  outputSvg = injectFillStrokeOutlineGroup(outputSvg, {
+    fillStrokeWidth: settings.fillStrokeWidth,
+    fillStrokeColor: settings.fillStrokeColor,
+  });
 
   if (target.width !== width || target.height !== height) {
     outputSvg = setSvgSizeAttributes(outputSvg, target.width, target.height);

@@ -372,6 +372,8 @@ export async function action({ request }: ActionFunctionArgs) {
           outputWidth: advancedTraceSettings.outputWidth,
           outputHeight: advancedTraceSettings.outputHeight,
           preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+          fillStrokeWidth: advancedTraceSettings.fillStrokeWidth,
+          fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
         return json({
@@ -1104,7 +1106,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
-      
+
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };

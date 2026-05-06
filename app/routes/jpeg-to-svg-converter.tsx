@@ -641,6 +641,8 @@ export async function action({ request }: ActionFunctionArgs) {
           outputWidth: advancedTraceSettings.outputWidth,
           outputHeight: advancedTraceSettings.outputHeight,
           preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+          fillStrokeWidth: advancedTraceSettings.fillStrokeWidth,
+          fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
         return json({
@@ -2037,7 +2039,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
-      
+
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };

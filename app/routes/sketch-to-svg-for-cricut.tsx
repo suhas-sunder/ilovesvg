@@ -542,6 +542,8 @@ export async function action({ request }: ActionFunctionArgs) {
         outputWidth: advancedTraceSettings.outputWidth,
         outputHeight: advancedTraceSettings.outputHeight,
         preserveAspectRatio: advancedTraceSettings.preserveAspectRatio,
+          fillStrokeWidth: advancedTraceSettings.fillStrokeWidth,
+          fillStrokeColor: advancedTraceSettings.fillStrokeColor,
       })
 
       return json({
@@ -1749,7 +1751,7 @@ export default function SketchToSvgForCricut({
     fd.append("presetId", activePreset);
 
 
-    
+
 
 
     fetcher.submit(fd, {

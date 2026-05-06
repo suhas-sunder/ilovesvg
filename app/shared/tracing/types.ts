@@ -64,6 +64,8 @@ export type NormalizedTraceSettings = {
   sortLayersBy?: string;
   layerAlpha?: number;
   backgroundAlpha?: number;
+  fillStrokeWidth?: number;
+  fillStrokeColor?: string;
   layerBuildMode?: LayerBuildMode;
   layerOverlapPx?: number;
   groupBy?: LayerGroupBy;

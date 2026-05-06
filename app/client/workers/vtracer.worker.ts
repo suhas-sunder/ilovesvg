@@ -23,6 +23,7 @@ import type {
   PaletteDistance,
   TraceLayerMeta,
 } from "~/shared/tracing/types";
+import { injectFillStrokeOutlineGroup } from "../../shared/tracing/fillStrokeSvg";
 
 type WorkerRequest = {
   id: string;
@@ -401,6 +402,11 @@ function postprocessSvg(
     });
   }
 
+  svg = injectFillStrokeOutlineGroup(svg, {
+    fillStrokeWidth: settings.fillStrokeWidth,
+    fillStrokeColor: settings.fillStrokeColor,
+  });
+
   return annotateSvgLayerIds(svg, settings);
 }
 
@@ -410,6 +416,29 @@ function extractEditableLayers(
 ): TraceLayerMeta[] {
   const seen = new Map<string, TraceLayerMeta>();
   let count = 0;
+  const groupPattern = /<g\b([^>]*)>/gi;
+  let groupMatch: RegExpExecArray | null;
+  while ((groupMatch = groupPattern.exec(svg))) {
+    const attrs = groupMatch[1] || "";
+    const id = attrs.match(/\sdata-layer-id\s*=\s*["']([^"']+)["']/i)?.[1]?.trim();
+    const stroke = normalizeHexColor(
+      attrs.match(/\sstroke\s*=\s*["']([^"']+)["']/i)?.[1] || "",
+    );
+    if (!id || !stroke) continue;
+    const key = `stroke:${id}`;
+    if (seen.has(key)) continue;
+    seen.set(key, {
+      id,
+      label: attrs.match(/\sdata-layer-label\s*=\s*["']([^"']+)["']/i)?.[1] || "Stroke outline",
+      color: stroke,
+      originalColor: stroke,
+      visible: true,
+      opacity: Number(settings.layerAlpha ?? 1),
+      originalOpacity: Number(settings.layerAlpha ?? 1),
+      kind: "stroke",
+    });
+  }
+
   const pathPattern = /<path\b([^>]*)>/gi;
   let match: RegExpExecArray | null;
   while ((match = pathPattern.exec(svg))) {
@@ -418,10 +447,11 @@ function extractEditableLayers(
     );
     if (!color) continue;
     if (isBackgroundColor(color, settings)) continue;
-    if (seen.has(color)) continue;
+    const key = `fill:${color}`;
+    if (seen.has(key)) continue;
     count += 1;
     const id = `vtracer-fill-${count}-${color.slice(1)}`;
-    seen.set(color, {
+    seen.set(key, {
       id,
       label: count === 1 && settings.traceMode !== "layered" ? "Trace color" : `Layer ${count}`,
       color,

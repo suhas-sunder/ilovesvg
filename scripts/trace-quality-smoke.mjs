@@ -10,6 +10,7 @@ import {
 } from "image-q";
 import { differenceCiede2000 } from "culori";
 import { traceCenterlineRasterToSvg } from "../app/shared/tracing/centerlineTrace.ts";
+import { injectFillStrokeOutlineGroup } from "../app/shared/tracing/fillStrokeSvg.ts";
 import { STROKE_TRACE_PRESET_ADDITIONS } from "../app/client/lib/converter/presetAdditions.ts";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -85,6 +86,7 @@ for (const fixture of cases) {
 }
 
 metrics.push(...(await auditLayeredPresetRecipes()));
+metrics.push(testFillStrokeOutlineInjection());
 metrics.push(testImageQPaletteFixture());
 metrics.push(...auditCenterlineStrokeRecipes());
 
@@ -209,6 +211,21 @@ async function auditLayeredPresetRecipes() {
     "filled-layers-smooth": ["requestedPaletteCount: 20", 'gapFill: "overlap"'],
     "filled-layers-separate-colors": ["requestedPaletteCount: 16", 'gapFill: "none"'],
     "clean-color-sticker": ["requestedPaletteCount: 20", 'removeWhite: false'],
+    "layered-color-ink-outline": [
+      'traceMode: "layered"',
+      "fillStrokeWidth:",
+      'fillStrokeColor: "#020617"',
+    ],
+    "cartoon-fill-stroke": [
+      'traceMode: "layered"',
+      "fillStrokeWidth:",
+      'fillStrokeColor: "#020617"',
+    ],
+    "sticker-fill-stroke-detail": [
+      'traceMode: "layered"',
+      "fillStrokeWidth:",
+      'fillStrokeColor: "#020617"',
+    ],
   };
   const rows = [];
   for (const [id, tokens] of Object.entries(required)) {
@@ -226,6 +243,40 @@ async function auditLayeredPresetRecipes() {
     });
   }
   return rows;
+}
+
+function testFillStrokeOutlineInjection() {
+  const sourceSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="#f97316" d="M2 2h8v8H2z"/><path fill="none" d="M12 2h6v6h-6z"/><path style="fill: #22c55e; stroke: #111827" d="M4 12h8v6H4z"></path></svg>';
+  const svg = injectFillStrokeOutlineGroup(sourceSvg, {
+    fillStrokeWidth: 2,
+    fillStrokeColor: "#020617",
+  });
+  const group = svg.match(
+    /<g\b(?=[^>]*data-layer-id=["']fill-stroke-outline["'])([\s\S]*?)<\/g>/i,
+  )?.[0];
+  if (!group) throw new Error("Fill+stroke injection did not create a stroke layer group");
+  if (!/\bstroke=["']#020617["']/i.test(group)) {
+    throw new Error("Fill+stroke layer did not keep the requested stroke color");
+  }
+  if (!/\bstroke-width=["']2["']/i.test(group)) {
+    throw new Error("Fill+stroke layer did not keep the requested stroke width");
+  }
+  if (!/\bfill=["']none["']/i.test(group)) {
+    throw new Error("Fill+stroke layer should not fill copied paths");
+  }
+  const copiedPathCount = (group.match(/<path\b/gi) || []).length;
+  if (copiedPathCount !== 2) {
+    throw new Error(`Fill+stroke layer copied ${copiedPathCount} paths instead of the two filled paths`);
+  }
+  if (!svg.includes('<path fill="#f97316"')) {
+    throw new Error("Fill+stroke injection should preserve original filled paths");
+  }
+  return {
+    name: "layered-fill-stroke-outline:svg",
+    strokeLayerPaths: copiedPathCount,
+    hasEditableStrokeLayer: true,
+  };
 }
 
 function getPresetBlock(source, id) {
@@ -375,6 +426,7 @@ function auditCenterlineStrokeRecipes() {
   const cartoonOutlinePixels = makeCartoonOutlineFixture(512, 512);
   const outlinePresets = [
     "technical-outline-stroke",
+    "crisp-cartoon-stroke",
     "fine-pen-centerline",
     "rounded-outline-stroke",
   ];
@@ -438,6 +490,68 @@ function auditCenterlineStrokeRecipes() {
       paths: result.pathCount,
       bytes: result.svgBytes,
       internalLineRecall,
+    });
+  }
+
+  const thickStrokePixels = makeThickStrokeAndFillFixture(260, 200);
+  const thickStrokeResult = traceCenterlineRasterToSvg(
+    { data: thickStrokePixels, width: 260, height: 200 },
+    {
+      threshold: 132,
+      transparent: true,
+      lineColor: "#020617",
+      preprocess: "ink-stroke",
+      edgeThreshold: 18,
+      edgeThickness: 2,
+      turdSize: 3,
+      centerlineStrokeWidth: 2.4,
+      centerlineSimplifyTolerance: 0.9,
+      centerlineMinPathLength: 6,
+      traceDiagnosticsMode: "summary",
+    },
+  );
+  validateCenterlineSvg("centerline-thick-stroke-mask", thickStrokeResult.svg);
+  const thickStrokeRecall = measureThickStrokeCenterRecall(thickStrokeResult.svg);
+  const filledBlobLeak = measureFilledBlobCenterLeak(thickStrokeResult.svg);
+  if (thickStrokeRecall < 0.72 || filledBlobLeak > 0.28) {
+    throw new Error(
+      `centerline-thick-stroke-mask did not center thick ink without tracing filled blob interiors: recall=${thickStrokeRecall.toFixed(2)}, filledBlobLeak=${filledBlobLeak.toFixed(2)}, paths=${thickStrokeResult.pathCount}`,
+    );
+  }
+  rows.push({
+    name: "centerline-thick-stroke-mask",
+    engine: thickStrokeResult.engineUsed,
+    paths: thickStrokeResult.pathCount,
+    bytes: thickStrokeResult.svgBytes,
+    thickStrokeRecall,
+    filledBlobLeak,
+  });
+
+  for (const presetId of ["clean-ink-centerline"]) {
+    const preset = STROKE_TRACE_PRESET_ADDITIONS.find((candidate) => candidate.id === presetId);
+    if (!preset) throw new Error(`Missing thick-ink centerline preset ${presetId}`);
+    const result = traceCenterlineRasterToSvg(
+      { data: thickStrokePixels, width: 260, height: 200 },
+      {
+        ...preset.settings,
+        traceDiagnosticsMode: "summary",
+      },
+    );
+    validateCenterlineSvg(`centerline-thick-stroke-preset:${preset.id}`, result.svg);
+    const presetRecall = measureThickStrokeCenterRecall(result.svg);
+    const presetLeak = measureFilledBlobCenterLeak(result.svg);
+    if (presetRecall < 0.72 || presetLeak > 0.28) {
+      throw new Error(
+        `centerline-thick-stroke-preset:${preset.id} did not preserve thick ink centers cleanly: recall=${presetRecall.toFixed(2)}, filledBlobLeak=${presetLeak.toFixed(2)}, paths=${result.pathCount}`,
+      );
+    }
+    rows.push({
+      name: `centerline-thick-stroke-preset:${preset.id}`,
+      engine: result.engineUsed,
+      paths: result.pathCount,
+      bytes: result.svgBytes,
+      thickStrokeRecall: presetRecall,
+      filledBlobLeak: presetLeak,
     });
   }
 
@@ -537,6 +651,17 @@ function makeLayerInternalLineFixture(width, height) {
   });
 }
 
+function makeThickStrokeAndFillFixture(width, height) {
+  return makeRgba(width, height, (x, y) => {
+    const thickStroke =
+      distToSegment(x, y, 34, 42, 92, 148) < 8.5 ||
+      distToSegment(x, y, 92, 148, 152, 52) < 8.5;
+    const filledBlob = Math.hypot((x - 208) / 34, (y - 106) / 28) < 1;
+    if (thickStroke || filledBlob) return [4, 18, 40, 255];
+    return [248, 244, 236, 255];
+  });
+}
+
 function distToSegment(x, y, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -575,6 +700,25 @@ function measureInternalLayerLineRecall(svg) {
     ...sampleLine(238, 162, 315, 263, 24),
   ];
   return measureSvgAnchorRecall(svg, anchors, 8);
+}
+
+function measureThickStrokeCenterRecall(svg) {
+  const anchors = [
+    ...sampleLine(34, 42, 92, 148, 30),
+    ...sampleLine(92, 148, 152, 52, 30),
+  ];
+  return measureSvgAnchorRecall(svg, anchors, 8);
+}
+
+function measureFilledBlobCenterLeak(svg) {
+  const anchors = [
+    [208, 106],
+    [198, 106],
+    [218, 106],
+    [208, 96],
+    [208, 116],
+  ];
+  return measureSvgAnchorRecall(svg, anchors, 7);
 }
 
 function measureSvgAnchorRecall(svg, anchors, radius) {
