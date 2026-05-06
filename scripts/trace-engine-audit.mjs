@@ -66,12 +66,27 @@ async function auditPresets() {
   const intensities = new Map();
   const missingIntensity = [];
   const blockById = new Map();
+  const idsByLabel = new Map();
+  const idsBySettings = new Map();
 
   for (const block of blocks) {
     const id = block.match(/id:\s*"([^"]+)"/)?.[1];
     if (!id) continue;
     ids.push(id);
     blockById.set(id, block);
+    const label = block.match(/label:\s*"([^"]+)"/)?.[1] || "";
+    if (label) {
+      idsByLabel.set(label, [...(idsByLabel.get(label) || []), id]);
+    }
+
+    const settingsBody = block.match(/settings:\s*\{([\s\S]*?)\n\s*\},?\s*\n\s*\}/)?.[1] || "";
+    const settingsSignature = settingsBody.replace(/\s+/g, " ").trim();
+    if (settingsSignature) {
+      idsBySettings.set(settingsSignature, [
+        ...(idsBySettings.get(settingsSignature) || []),
+        id,
+      ]);
+    }
 
     const category = block.match(/category:\s*"([^"]+)"/)?.[1] || "unknown";
     categories.set(category, (categories.get(category) || 0) + 1);
@@ -87,6 +102,22 @@ async function auditPresets() {
   const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicateIds.length > 0) {
     fatal.push(`Duplicate trace preset ids: ${[...new Set(duplicateIds)].join(", ")}`);
+  }
+  const duplicateLabels = [...idsByLabel.entries()].filter(([, ids]) => ids.length > 1);
+  if (duplicateLabels.length > 0) {
+    fatal.push(
+      `Duplicate trace preset labels: ${duplicateLabels
+        .map(([label, ids]) => `${label} (${ids.join(", ")})`)
+        .join("; ")}`,
+    );
+  }
+  const duplicateSettings = [...idsBySettings.values()].filter((ids) => ids.length > 1);
+  if (duplicateSettings.length > 0) {
+    fatal.push(
+      `Trace presets with duplicate settings: ${duplicateSettings
+        .map((ids) => ids.join(", "))
+        .join("; ")}`,
+    );
   }
   if (missingIntensity.length > 0) {
     fatal.push(
@@ -158,11 +189,123 @@ async function auditPresets() {
       "centerlineSimplifyTolerance: 2.5",
     ],
   };
+  const curatedPresetExpansion = {
+    "sticker-soft-fill-outline": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 16",
+      'layerBuildMode: "stacked-overlap"',
+      "fillStrokeWidth: 2.6",
+      "removeTransparent: true",
+    ],
+    "sticker-bold-ink-fill": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 14",
+      'gapFill: "overlap"',
+      "fillStrokeWidth: 3.25",
+    ],
+    "transparent-sticker-clean-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 12",
+      "removeWhite: false",
+      "removeTransparent: true",
+    ],
+    "mascot-fill-outline": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 20",
+      'paletteDistance: "ciede2000"',
+      "fillStrokeWidth: 2.1",
+    ],
+    "cute-character-fill-ink": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 18",
+      "fillStrokeWidth: 1.7",
+      "holeFillPx: 8",
+    ],
+    "icon-fill-stroke": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 8",
+      "fillStrokeWidth: 1.4",
+      "colorMergeTolerance: 18",
+    ],
+    "logo-color-ink-outline": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 10",
+      "fillStrokeWidth: 1.5",
+      "removeWhite: true",
+    ],
+    "transparent-logo-smooth-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 6",
+      "removeWhite: true",
+      "removeTransparent: true",
+    ],
+    "app-icon-smooth-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 8",
+      'layerBuildMode: "stacked-overlap"',
+      "posterize: true",
+    ],
+    "web-icon-flat-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 6",
+      'layerBuildMode: "per-color-cutout"',
+      "colorMergeTolerance: 22",
+    ],
+    "poster-soft-8-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 8",
+      "posterizeStrength: 4",
+      'gapFill: "overlap"',
+    ],
+    "poster-smooth-12-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 12",
+      'paletteAlgorithm: "image-q-wuquant"',
+      "layerOverlapPx: 1",
+    ],
+    "comic-poster-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 10",
+      "fillStrokeWidth: 1.8",
+      "edgeThickness: 2",
+    ],
+    "ui-screenshot-clean-regions": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 18",
+      'paletteDistance: "ciede2000"',
+      "minIslandPx: 6",
+    ],
+    "dashboard-screenshot-simplified": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 12",
+      "colorMergeTolerance: 16",
+      "layerTurdSize: 4",
+    ],
+    "product-mockup-flat-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 10",
+      'layerBuildMode: "stacked-overlap"',
+      "posterizeStrength: 5",
+    ],
+    "alpha-safe-layered-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 10",
+      "removeWhite: false",
+      "removeTransparent: true",
+    ],
+    "remove-white-smooth-color": [
+      'traceMode: "layered"',
+      "requestedPaletteCount: 8",
+      "removeWhite: true",
+      "transparent: true",
+    ],
+  };
 
   for (const [id, tokens] of Object.entries({
     ...tunedExistingPresets,
     ...newWorkflowPresets,
     ...centerlinePresets,
+    ...curatedPresetExpansion,
   })) {
     const block = blockById.get(id) || "";
     if (!block) {
@@ -183,6 +326,7 @@ async function auditPresets() {
     tunedExistingLayeredPresets: Object.keys(tunedExistingPresets),
     newWorkflowLayeredPresets: Object.keys(newWorkflowPresets),
     centerlinePresets: Object.keys(centerlinePresets),
+    curatedPresetExpansion: Object.keys(curatedPresetExpansion),
   };
 }
 

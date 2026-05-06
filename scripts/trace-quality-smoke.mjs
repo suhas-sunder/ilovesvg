@@ -11,7 +11,10 @@ import {
 import { differenceCiede2000 } from "culori";
 import { traceCenterlineRasterToSvg } from "../app/shared/tracing/centerlineTrace.ts";
 import { injectFillStrokeOutlineGroup } from "../app/shared/tracing/fillStrokeSvg.ts";
-import { STROKE_TRACE_PRESET_ADDITIONS } from "../app/client/lib/converter/presetAdditions.ts";
+import {
+  STROKE_TRACE_PRESET_ADDITIONS,
+  TRACE_PRESET_ADDITIONS,
+} from "../app/client/lib/converter/presetAdditions.ts";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -75,6 +78,27 @@ const cases = [
   },
 ];
 
+const CURATED_LAYERED_EXPANSION_IDS = [
+  "sticker-soft-fill-outline",
+  "sticker-bold-ink-fill",
+  "transparent-sticker-clean-color",
+  "mascot-fill-outline",
+  "cute-character-fill-ink",
+  "icon-fill-stroke",
+  "logo-color-ink-outline",
+  "transparent-logo-smooth-color",
+  "app-icon-smooth-color",
+  "web-icon-flat-color",
+  "poster-soft-8-color",
+  "poster-smooth-12-color",
+  "comic-poster-color",
+  "ui-screenshot-clean-regions",
+  "dashboard-screenshot-simplified",
+  "product-mockup-flat-color",
+  "alpha-safe-layered-color",
+  "remove-white-smooth-color",
+];
+
 const metrics = [];
 
 for (const fixture of cases) {
@@ -86,6 +110,7 @@ for (const fixture of cases) {
 }
 
 metrics.push(...(await auditLayeredPresetRecipes()));
+metrics.push(...testCuratedLayeredPresetRenderability());
 metrics.push(testFillStrokeOutlineInjection());
 metrics.push(testImageQPaletteFixture());
 metrics.push(...auditCenterlineStrokeRecipes());
@@ -129,14 +154,28 @@ function traceWithVTracer(pixels, width, height, options) {
   const config = new vtracerRuntime.TracerConfig();
   config.setColorMode(vtracerRuntime.ColorMode.Color);
   config.setHierarchical(
-    options.layered
+    options.layerBuildMode === "per-color-cutout"
+      ? vtracerRuntime.Hierarchical.Cutout
+      : options.layered
       ? vtracerRuntime.Hierarchical.Stacked
       : vtracerRuntime.Hierarchical.Cutout,
   );
   config.setPathSimplifyMode(vtracerRuntime.PathSimplifyMode.Spline);
-  config.setFilterSpeckle(options.layered ? 4 : 2);
+  config.setFilterSpeckle(
+    Number.isFinite(options.filterSpeckle)
+      ? clampNumber(options.filterSpeckle, 0, 24)
+      : options.layered
+        ? 4
+        : 2,
+  );
   config.setColorPrecision(options.layered ? 6 : 7);
-  config.setLayerDifference(options.layered ? 12 : 16);
+  config.setLayerDifference(
+    Number.isFinite(options.layerDifference)
+      ? clampNumber(options.layerDifference, 4, 48)
+      : options.layered
+        ? 12
+        : 16,
+  );
   config.setCornerThreshold(60);
   config.setLengthThreshold(4);
   config.setMaxIterations(10);
@@ -226,6 +265,96 @@ async function auditLayeredPresetRecipes() {
       "fillStrokeWidth:",
       'fillStrokeColor: "#020617"',
     ],
+    "sticker-soft-fill-outline": [
+      "requestedPaletteCount: 16",
+      'layerBuildMode: "stacked-overlap"',
+      "fillStrokeWidth: 2.6",
+    ],
+    "sticker-bold-ink-fill": [
+      "requestedPaletteCount: 14",
+      'gapFill: "overlap"',
+      "fillStrokeWidth: 3.25",
+    ],
+    "transparent-sticker-clean-color": [
+      "requestedPaletteCount: 12",
+      "removeTransparent: true",
+      "fillStrokeWidth: 1.8",
+    ],
+    "mascot-fill-outline": [
+      "requestedPaletteCount: 20",
+      'paletteDistance: "ciede2000"',
+      "fillStrokeWidth: 2.1",
+    ],
+    "cute-character-fill-ink": [
+      "requestedPaletteCount: 18",
+      "fillStrokeWidth: 1.7",
+      "holeFillPx: 8",
+    ],
+    "icon-fill-stroke": [
+      "requestedPaletteCount: 8",
+      "fillStrokeWidth: 1.4",
+      "colorMergeTolerance: 18",
+    ],
+    "logo-color-ink-outline": [
+      "requestedPaletteCount: 10",
+      "fillStrokeWidth: 1.5",
+      "removeWhite: true",
+    ],
+    "transparent-logo-smooth-color": [
+      "requestedPaletteCount: 6",
+      "removeWhite: true",
+      "removeTransparent: true",
+    ],
+    "app-icon-smooth-color": [
+      "requestedPaletteCount: 8",
+      'layerBuildMode: "stacked-overlap"',
+      "posterize: true",
+    ],
+    "web-icon-flat-color": [
+      "requestedPaletteCount: 6",
+      'layerBuildMode: "per-color-cutout"',
+      "colorMergeTolerance: 22",
+    ],
+    "poster-soft-8-color": [
+      "requestedPaletteCount: 8",
+      "posterizeStrength: 4",
+      'gapFill: "overlap"',
+    ],
+    "poster-smooth-12-color": [
+      "requestedPaletteCount: 12",
+      'paletteAlgorithm: "image-q-wuquant"',
+      "layerOverlapPx: 1",
+    ],
+    "comic-poster-color": [
+      "requestedPaletteCount: 10",
+      "fillStrokeWidth: 1.8",
+      "edgeThickness: 2",
+    ],
+    "ui-screenshot-clean-regions": [
+      "requestedPaletteCount: 18",
+      'paletteDistance: "ciede2000"',
+      "minIslandPx: 6",
+    ],
+    "dashboard-screenshot-simplified": [
+      "requestedPaletteCount: 12",
+      "colorMergeTolerance: 16",
+      "layerTurdSize: 4",
+    ],
+    "product-mockup-flat-color": [
+      "requestedPaletteCount: 10",
+      'layerBuildMode: "stacked-overlap"',
+      "posterizeStrength: 5",
+    ],
+    "alpha-safe-layered-color": [
+      "requestedPaletteCount: 10",
+      "removeWhite: false",
+      "removeTransparent: true",
+    ],
+    "remove-white-smooth-color": [
+      "requestedPaletteCount: 8",
+      "removeWhite: true",
+      "transparent: true",
+    ],
   };
   const rows = [];
   for (const [id, tokens] of Object.entries(required)) {
@@ -243,6 +372,63 @@ async function auditLayeredPresetRecipes() {
     });
   }
   return rows;
+}
+
+function testCuratedLayeredPresetRenderability() {
+  const width = 180;
+  const height = 140;
+  const pixels = makeRgba(width, height, (x, y) => {
+    const transparentCorner = x < 10 && y < 10;
+    if (transparentCorner) return [255, 255, 255, 0];
+    const body = ellipse(x, y, 78, 70, 44, 30);
+    const wing = ellipse(x, y, 124, 56, 34, 22);
+    const shadow = ellipse(x, y, 110, 96, 38, 24);
+    const detail = Math.abs(y - (0.55 * x + 10)) < 2 && x > 90 && x < 148;
+    const dot = ellipse(x, y, 36, 36, 7, 7) || ellipse(x, y, 150, 102, 6, 6);
+    if (detail) return [96, 165, 250, 255];
+    if (dot) return [37, 99, 235, 255];
+    if (wing) return [219, 234, 254, 230];
+    if (shadow) return [30, 41, 59, 255];
+    if (body) return [250, 204, 21, 255];
+    return [255, 251, 235, 0];
+  });
+
+  return CURATED_LAYERED_EXPANSION_IDS.map((id) => {
+    const preset = TRACE_PRESET_ADDITIONS.find((candidate) => candidate.id === id);
+    if (!preset) throw new Error(`Missing curated layered preset ${id}`);
+    if (preset.settings.traceMode !== "layered") {
+      throw new Error(`Curated preset ${id} must remain a layered trace preset`);
+    }
+    const settings = preset.settings;
+    let svg = traceWithVTracer(pixels, width, height, {
+      layered: true,
+      layerBuildMode: settings.layerBuildMode,
+      filterSpeckle: settings.layerTurdSize,
+      layerDifference: settings.colorMergeTolerance,
+    });
+    if (typeof settings.fillStrokeWidth === "number" && settings.fillStrokeWidth > 0) {
+      svg = injectFillStrokeOutlineGroup(svg, {
+        fillStrokeWidth: settings.fillStrokeWidth,
+        fillStrokeColor:
+          typeof settings.fillStrokeColor === "string"
+            ? settings.fillStrokeColor
+            : "#020617",
+      });
+      if (!/data-layer-id=["']fill-stroke-outline["']/i.test(svg)) {
+        throw new Error(`Curated fill+stroke preset ${id} did not inject an outline layer`);
+      }
+    }
+    const result = validateSvg(`${id}:render`, svg);
+    if (result.paths < 1) {
+      throw new Error(`Curated layered preset ${id} produced no paths`);
+    }
+    return {
+      ...result,
+      requestedPaletteCount: settings.requestedPaletteCount,
+      layerBuildMode: settings.layerBuildMode,
+      hasFillStroke: Boolean(settings.fillStrokeWidth),
+    };
+  });
 }
 
 function testFillStrokeOutlineInjection() {
@@ -833,6 +1019,16 @@ function countUniqueColors(data) {
 
 function clampByte(value) {
   return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value)));
+}
+
+function ellipse(x, y, cx, cy, rx, ry) {
+  const dx = (x - cx) / rx;
+  const dy = (y - cy) / ry;
+  return dx * dx + dy * dy <= 1;
 }
 
 function escapeRegExp(value) {

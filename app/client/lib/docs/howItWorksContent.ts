@@ -531,7 +531,7 @@ export const PRESET_FAMILIES: Array<{
     id: "layered",
     label: "Layered color",
     summary:
-      "Best when you want multiple filled color regions. Some variants add a separate editable stroke outline layer for cartoon or sticker-style artwork.",
+      "Best when you want multiple filled color regions. Newer variants cover transparent logos, app icons, posters, screenshots, mockups, and separate editable stroke outline layers for cartoon or sticker-style artwork.",
     routeLinks: familyRoutes("layered"),
   },
 ];
@@ -736,6 +736,20 @@ function normalizePresetLabel(label: string) {
 function familyBestUse(family: PresetFamily, label: string) {
   const normalized = label.toLowerCase();
   if (normalized.includes("sticker")) return "sticker art, decals, and print-then-cut style output";
+  if (normalized.includes("mascot") || normalized.includes("cute character")) {
+    return "cartoon characters, mascot art, and illustrations that need color plus editable ink";
+  }
+  if (normalized.includes("app icon") || normalized.includes("web icon")) {
+    return "small icons, app artwork, and transparent interface marks";
+  }
+  if (normalized.includes("dashboard") || normalized.includes("ui screenshot")) {
+    return "dashboards, app screenshots, and flat interface artwork";
+  }
+  if (normalized.includes("product mockup")) return "product mockups and flat commercial artwork";
+  if (normalized.includes("poster")) return "posterized color artwork and simplified photo-like graphics";
+  if (normalized.includes("transparent logo")) {
+    return "transparent logos and marks where background cleanup matters";
+  }
   if (normalized.includes("ui mockup")) return "screenshots, app mockups, and colorful interface artwork";
   if (normalized.includes("photo many colors")) return "photo-like color preservation when a large SVG is acceptable";
   switch (family) {
