@@ -29,6 +29,7 @@ const pngCricut = await read("app/routes/png-to-svg-for-cricut.tsx");
 const browserSmoke = await read("scripts/hybrid-browser-smoke.mjs");
 const appCss = await read("app/app.css");
 const packageJson = await read("package.json");
+const sourceSnapshots = await read("app/client/lib/converter/sourceSnapshots.ts");
 
 let appearance = "";
 try {
@@ -48,6 +49,7 @@ checks.push(
   assertIncludes(outputPanel, "data-editor-settings-panel", "shared focused editor labels settings panel"),
   assertIncludes(outputPanel, "data-output-file-size", "shared output cards expose displayed SVG file size"),
   assertIncludes(outputPanel, "data-output-source-file", "shared output cards preserve source-file metadata"),
+  assertIncludes(outputPanel, "sourcePreviewUrl", "shared output cards can render per-output source snapshots"),
   assertIncludes(outputPanel, "data-output-minimize-control", "shared output cards place minimize as a header control"),
   assertIncludes(outputPanel, "sourceAvailableForOutput", "shared focused editor guards old-source update actions"),
   assertIncludes(outputPanel, "focusedEditorMode", "shared settings switch to focused-editor accordion mode"),
@@ -64,12 +66,16 @@ checks.push(
   assertIncludes(home, "data-output-batch-shortcut", "home output cards expose a batch settings shortcut"),
   assertIncludes(home, "data-output-file-size", "home output cards expose displayed SVG file size"),
   assertIncludes(home, "data-output-source-file", "home output cards preserve source-file metadata"),
+  assertIncludes(home, "createOutputSourceSnapshot", "home captures per-output source preview snapshots"),
+  assertIncludes(home, "cleanupUnusedSourceSnapshots", "home cleans source snapshots with history lifetime"),
   assertIncludes(home, "outputMatchesActiveSource", "home keeps old-source output update actions guarded"),
   assertIncludes(home, "trimOutputHistory", "home trims output history instead of clearing it"),
   assertIncludes(home, "data-collapse-state", "home bespoke card exposes collapse state"),
   assertIncludes(pngToSvg, "trimOutputHistory", "PNG route trims output history instead of clearing it"),
   assertIncludes(pngToSvg, "outputMatchesActiveSource", "PNG route guards old-source output update actions"),
   assertIncludes(pngToSvg, "sourceFileName", "PNG route stamps outputs with source-file metadata"),
+  assertIncludes(pngToSvg, "createOutputSourceSnapshot", "PNG route captures per-output source preview snapshots"),
+  assertIncludes(pngToSvg, "cleanupUnusedSourceSnapshots", "PNG route cleans source snapshots with history lifetime"),
   assertIncludes(sketchToSvg, "sourceFileName", "sketch route stamps outputs with source-file metadata"),
   assertNotIncludes(sketchToSvg, "setHistory([])", "sketch route preserves output history on file replacement/removal"),
   assertIncludes(photoOutline, "sourceFileName", "photo outline route stamps outputs with source-file metadata"),
@@ -83,17 +89,22 @@ checks.push(
   assertIncludes(pngLayered, "FocusedEditorPreviewComparison", "PNG layered focused editor shows original comparison"),
   assertIncludes(pngLayered, "data-output-file-size", "PNG layered output cards expose displayed SVG file size"),
   assertIncludes(pngLayered, "data-output-source-file", "PNG layered output cards preserve source-file metadata"),
+  assertIncludes(pngLayered, "createOutputSourceSnapshot", "PNG layered captures per-output source preview snapshots"),
+  assertIncludes(pngLayered, "cleanupUnusedSourceSnapshots", "PNG layered cleans source snapshots with history lifetime"),
   assertIncludes(pngLayered, "outputMatchesActiveSource", "PNG layered keeps old-source output update actions guarded"),
   assertIncludes(pngLayered, "trimOutputHistory", "PNG layered trims output history instead of clearing it"),
   assertIncludes(browserSmoke, "OUTPUT_UX_SMOKE", "browser smoke has focused-editor/collapse/appearance mode"),
   assertIncludes(browserSmoke, "verifyOutputHistoryPersistsAcrossInputReplacement", "browser smoke verifies output history survives input replacement"),
+  assertIncludes(browserSmoke, "verifyFocusedOriginalPreviewForSource", "browser smoke verifies old outputs keep original preview snapshots"),
   assertIncludes(browserSmoke, "verifyFocusedAccordionHasNoHorizontalShift", "browser smoke verifies accordion x-axis stability"),
+  assertIncludes(browserSmoke, "previewPaneLeftDelta", "browser smoke measures preview pane x-axis stability"),
+  assertIncludes(browserSmoke, "settingsRailLeftDelta", "browser smoke measures settings rail x-axis stability"),
   assertIncludes(browserSmoke, "/sketch-to-svg-converter", "browser smoke covers sketch route history replacement"),
   assertIncludes(browserSmoke, "/photo-to-svg-outline", "browser smoke covers photo outline route history replacement"),
   assertIncludes(browserSmoke, "/png-to-svg-for-cricut", "browser smoke covers PNG Cricut route history replacement"),
   assertIncludes(browserSmoke, "appearanceRanges", "browser smoke verifies useful stroke/fill ranges"),
-  assertIncludes(browserSmoke, "lineWeightMax >= 20", "browser smoke requires wider line-weight control"),
-  assertIncludes(browserSmoke, "fillSpreadMax >= 8", "browser smoke requires wider fill-spread control"),
+  assertIncludes(browserSmoke, "lineWeightMax >= 30", "browser smoke requires wider line-weight control"),
+  assertIncludes(browserSmoke, "fillSpreadMax >= 30", "browser smoke requires wider fill-spread control"),
   assertIncludes(browserSmoke, "sourceFileNames", "browser smoke reads output source-file metadata"),
   assertIncludes(browserSmoke, "leftPaneCollapsed", "browser smoke verifies focused editor hides the upload pane"),
   assertIncludes(browserSmoke, "hasOriginalComparison", "browser smoke verifies original comparison is visible"),
@@ -106,6 +117,8 @@ checks.push(
   assertIncludes(appCss, "focused-editor-enter", "CSS contains smoother focused editor transition"),
   assertIncludes(appCss, "prefers-reduced-motion", "CSS respects reduced motion for editor transitions"),
   assertIncludes(packageJson, "test:output-ux", "package exposes output UX audit"),
+  assertIncludes(sourceSnapshots, "createOutputSourceSnapshot", "source snapshot helper captures preview URL per job"),
+  assertIncludes(sourceSnapshots, "cleanupUnusedSourceSnapshots", "source snapshot helper revokes URLs only after history removal"),
 );
 
 if (appearance) {
@@ -114,8 +127,8 @@ if (appearance) {
     assertIncludes(appearance, "applyOutputAppearanceToSvg", "appearance helper finalizes SVG adjustments"),
     assertIncludes(appearance, "lineWeight", "appearance helper supports line weight"),
     assertIncludes(appearance, "fillSpread", "appearance helper supports fill spread"),
-    assertIncludes(appearance, "LINE_WEIGHT_MAX = 20", "appearance helper allows practical manual line weight"),
-    assertIncludes(appearance, "FILL_SPREAD_MAX = 12", "appearance helper allows wider guarded fill spread"),
+    assertIncludes(appearance, "LINE_WEIGHT_MAX = 30", "appearance helper allows practical manual line weight"),
+    assertIncludes(appearance, "FILL_SPREAD_MAX = 30", "appearance helper allows wider guarded fill spread"),
   );
 }
 

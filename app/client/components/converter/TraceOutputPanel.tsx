@@ -79,6 +79,9 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   jobCompletedAt?: number;
   jobError?: string | null;
   sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
   enginePathLabel?: string;
   canCancel?: boolean;
   appearance?: OutputAppearanceSettings;
@@ -352,10 +355,17 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     Map<number, string | null>
   >(() => new Map());
   const [appearanceVersion, setAppearanceVersion] = React.useState(0);
-  const [sourcePreviewUrl, setSourcePreviewUrl] = React.useState<string | null>(
-    null,
+  const focusedOutputHasSourcePreview = React.useMemo(
+    () =>
+      focusedOutputStamp != null &&
+      history.some(
+        (item) => item.stamp === focusedOutputStamp && item.sourcePreviewUrl,
+      ),
+    [focusedOutputStamp, history],
   );
-
+  const [activeSourcePreviewUrl, setActiveSourcePreviewUrl] = React.useState<
+    string | null
+  >(null);
   React.useEffect(() => {
     if (!hasActiveJob) return;
     const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
@@ -383,15 +393,15 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   }, [focusedOutputStamp]);
 
   React.useEffect(() => {
-    if (focusedOutputStamp == null || !file) {
-      setSourcePreviewUrl(null);
+    if (focusedOutputStamp == null || !file || focusedOutputHasSourcePreview) {
+      setActiveSourcePreviewUrl(null);
       return;
     }
 
     const url = URL.createObjectURL(file);
-    setSourcePreviewUrl(url);
+    setActiveSourcePreviewUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [file, focusedOutputStamp]);
+  }, [file, focusedOutputHasSourcePreview, focusedOutputStamp]);
 
   function closeFocusedEditor(stamp: number) {
     setFocusedOutputStamp(null);
@@ -850,7 +860,8 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       outputSvg={previewSvg}
                       outputAlt={`${label} SVG result`}
                       originalPreviewUrl={
-                        sourceAvailableForOutput ? sourcePreviewUrl : null
+                        item.sourcePreviewUrl ||
+                        (sourceAvailableForOutput ? activeSourcePreviewUrl : null)
                       }
                       toolbar={
                         <>
@@ -1176,7 +1187,7 @@ export function OutputAppearanceControls({
         <input
           type="range"
           min={0.25}
-          max={20}
+          max={30}
           step={0.05}
           value={settings.lineWeight}
           disabled={!lineSupported}
@@ -1185,8 +1196,8 @@ export function OutputAppearanceControls({
         />
         <span className="text-[12px] text-slate-500">
           {lineSupported
-            ? settings.lineWeight > 8
-              ? "High line weights are manual polish settings and can visually overpower delicate paths."
+            ? settings.lineWeight > 12
+              ? "Very high line weights are manual visual boosts and can overpower delicate paths or increase file size."
               : "Make stroked lines thinner or thicker."
             : "No stroked lines were detected in this SVG."}
         </span>
@@ -1213,7 +1224,7 @@ export function OutputAppearanceControls({
         <input
           type="range"
           min={0}
-          max={12}
+          max={30}
           step={0.1}
           value={settings.fillSpread}
           disabled={!fillSupported}
@@ -1222,8 +1233,8 @@ export function OutputAppearanceControls({
         />
         <span className="text-[12px] text-slate-500">
           {fillSupported
-            ? settings.fillSpread > 8
-              ? "Large fill spread values are manual visual boosts and may make shapes heavier."
+            ? settings.fillSpread > 12
+              ? "High fill spread values are manual visual boosts and may make tight details heavier or increase file size."
               : "Expand filled regions with a same-color under-stroke."
             : support.fillSpreadDisabledReason || "Fill spread is not safe for this output."}
         </span>

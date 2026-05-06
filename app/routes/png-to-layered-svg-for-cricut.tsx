@@ -53,6 +53,11 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import {
+  cleanupUnusedSourceSnapshots,
+  createOutputSourceSnapshot,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
 
 const isServer = typeof document === "undefined";
 
@@ -1266,6 +1271,9 @@ type HistoryItem = {
   jobCompletedAt?: number;
   jobError?: string | null;
   sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
   enginePathLabel?: string;
   canCancel?: boolean;
   appearance?: OutputAppearanceSettings;
@@ -1275,6 +1283,29 @@ const OUTPUT_HISTORY_LIMIT = 10;
 
 function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
   return items.slice(0, OUTPUT_HISTORY_LIMIT);
+}
+
+function trimOutputHistoryWithSourceCleanup(
+  candidates: HistoryItem[],
+  previous: HistoryItem[],
+): HistoryItem[] {
+  const next = trimOutputHistory(candidates);
+  cleanupUnusedSourceSnapshots([...previous, ...candidates], next);
+  return next;
+}
+
+function mergeOutputSourceSnapshot(
+  item: HistoryItem,
+  existing?: HistoryItem | null,
+): HistoryItem {
+  if (!existing) return item;
+  return {
+    ...item,
+    sourceFileName: item.sourceFileName ?? existing.sourceFileName,
+    sourceMimeType: item.sourceMimeType ?? existing.sourceMimeType,
+    sourceFileSize: item.sourceFileSize ?? existing.sourceFileSize,
+    sourcePreviewUrl: existing.sourcePreviewUrl ?? item.sourcePreviewUrl,
+  };
 }
 
 function outputMatchesActiveSource(
@@ -1386,6 +1417,7 @@ export default function PngToLayeredSvgForCricut({
     startedAt?: number;
     fileName?: string;
     sourceFile?: File;
+    sourceSnapshot?: OutputSourceSnapshot;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -1404,9 +1436,11 @@ export default function PngToLayeredSvgForCricut({
         startedAt: number;
         fileName: string;
         sourceFile: File;
+        sourceSnapshot: OutputSourceSnapshot;
       }
     >(),
   );
+  const historyRef = React.useRef<HistoryItem[]>([]);
   const hasActiveHistoryJob = history.some((item) =>
     item.jobStatus === "queued" || item.jobStatus === "running",
   );
@@ -1423,6 +1457,10 @@ export default function PngToLayeredSvgForCricut({
   const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<
     number | null
   >(null);
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   React.useEffect(() => {
     if (!hasActiveHistoryJob) return;
@@ -1530,6 +1568,9 @@ export default function PngToLayeredSvgForCricut({
       jobCompletedAt: Date.now(),
       jobError: null,
       sourceFileName: submitted.fileName,
+      sourceMimeType: submitted.sourceSnapshot?.sourceMimeType,
+      sourceFileSize: submitted.sourceSnapshot?.sourceFileSize,
+      sourcePreviewUrl: submitted.sourceSnapshot?.sourcePreviewUrl,
       canCancel: false,
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
@@ -1550,25 +1591,33 @@ export default function PngToLayeredSvgForCricut({
         const next = prev.map((candidate) => {
           if (candidate.stamp !== submitted.replaceStamp) return candidate;
           replaced = true;
-          return {
+          return mergeOutputSourceSnapshot({
             ...item,
             stamp: candidate.stamp,
             name: candidate.name,
             parentStamp: candidate.parentStamp,
-          };
+          }, candidate);
         });
-        return replaced ? next : trimOutputHistory([item, ...prev]);
+        const limited = replaced
+          ? next
+          : trimOutputHistoryWithSourceCleanup([item, ...prev], prev);
+        cleanupUnusedSourceSnapshots([...prev, item], limited);
+        return limited;
       });
       setActiveHistoryStamp(submitted.replaceStamp);
       setOpenSettingsStamp(submitted.replaceStamp);
     } else {
       setHistory((prev) => {
         if (prev.some((candidate) => candidate.stamp === stamp)) {
-          return prev.map((candidate) =>
-            candidate.stamp === stamp ? item : candidate,
+          const next = prev.map((candidate) =>
+            candidate.stamp === stamp
+              ? mergeOutputSourceSnapshot(item, candidate)
+              : candidate,
           );
+          cleanupUnusedSourceSnapshots([...prev, item], next);
+          return next;
         }
-        return trimOutputHistory([item, ...prev]);
+        return trimOutputHistoryWithSourceCleanup([item, ...prev], prev);
       });
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
     }
@@ -1610,6 +1659,12 @@ export default function PngToLayeredSvgForCricut({
       lastHandledBusyKeyRef.current = busyKey;
 
       if (busyRetryCountRef.current >= 3) {
+        if (submitted.sourceSnapshot) {
+          cleanupUnusedSourceSnapshots(
+            [submitted.sourceSnapshot],
+            historyRef.current,
+          );
+        }
         setInfo(null);
         setErr(
           "Server is still busy converting other images. Please try again in a moment.",
@@ -1640,6 +1695,10 @@ export default function PngToLayeredSvgForCricut({
       }, retryAfterMs);
 
       return;
+    }
+
+    if (submitted.sourceSnapshot) {
+      cleanupUnusedSourceSnapshots([submitted.sourceSnapshot], historyRef.current);
     }
 
     if (submitted.stamp) {
@@ -1698,6 +1757,10 @@ export default function PngToLayeredSvgForCricut({
       if (retryRef.current) clearTimeout(retryRef.current);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
 
   async function measureAndSet(f: File, runId = fileMeasureRunIdRef.current) {
     try {
@@ -1847,6 +1910,7 @@ export default function PngToLayeredSvgForCricut({
     const startedAt = Date.now();
     const replaceStamp = meta?.replaceStamp ?? null;
     const pendingStamp = replaceStamp ? null : startedAt;
+    const sourceSnapshot = createOutputSourceSnapshot(sourceFile);
     const submittedMeta = {
       settings: sourceSettings,
       presetId: submittedPresetId,
@@ -1856,6 +1920,7 @@ export default function PngToLayeredSvgForCricut({
       startedAt,
       fileName: sourceFile.name,
       sourceFile,
+      sourceSnapshot,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);
@@ -1882,10 +1947,15 @@ export default function PngToLayeredSvgForCricut({
         jobStatus: "running",
         jobStartedAt: startedAt,
         sourceFileName: sourceFile.name,
+        sourceMimeType: sourceSnapshot.sourceMimeType,
+        sourceFileSize: sourceSnapshot.sourceFileSize,
+        sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
         enginePathLabel: "Hybrid layered trace",
         canCancel: true,
       };
-      setHistory((prev) => trimOutputHistory([pendingItem, ...prev]));
+      setHistory((prev) =>
+        trimOutputHistoryWithSourceCleanup([pendingItem, ...prev], prev),
+      );
       setActiveHistoryStamp((current) =>
         current === pendingStamp ? current : pendingStamp,
       );
@@ -1957,7 +2027,11 @@ export default function PngToLayeredSvgForCricut({
       );
       return;
     }
-    setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
+    setHistory((prev) => {
+      const next = prev.filter((candidate) => candidate.stamp !== stamp);
+      cleanupUnusedSourceSnapshots(prev, next);
+      return next;
+    });
     void submitConvert(file, item.settingsSnapshot || settings, {
       presetId: item.presetId || activePreset,
       parentStamp: item.parentStamp ?? null,
@@ -2904,7 +2978,8 @@ export default function PngToLayeredSvgForCricut({
                               outputSvg={displaySvg}
                               outputAlt="Layered SVG result from PNG"
                               originalPreviewUrl={
-                                sourceAvailableForOutput ? previewUrl : null
+                                item.sourcePreviewUrl ||
+                                (sourceAvailableForOutput ? previewUrl : null)
                               }
                               toolbar={
                                 <FullscreenPreviewButton

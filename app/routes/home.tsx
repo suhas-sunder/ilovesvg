@@ -69,6 +69,11 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  cleanupUnusedSourceSnapshots,
+  createOutputSourceSnapshot,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
 import { tryTraceRasterInClient } from "~/client/lib/tracing/vtracerWorkerClient";
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 import { logAppError } from "~/client/lib/errorLogging";
@@ -2389,6 +2394,9 @@ type HistoryItem = {
   jobCompletedAt?: number;
   jobError?: string | null;
   sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
   enginePathLabel?: string;
   canCancel?: boolean;
   appearance?: OutputAppearanceSettings;
@@ -2422,6 +2430,29 @@ const OUTPUT_HISTORY_LIMIT = 10;
 
 function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
   return items.slice(0, OUTPUT_HISTORY_LIMIT);
+}
+
+function trimOutputHistoryWithSourceCleanup(
+  candidates: HistoryItem[],
+  previous: HistoryItem[],
+): HistoryItem[] {
+  const next = trimOutputHistory(candidates);
+  cleanupUnusedSourceSnapshots([...previous, ...candidates], next);
+  return next;
+}
+
+function mergeOutputSourceSnapshot(
+  item: HistoryItem,
+  existing?: HistoryItem | null,
+): HistoryItem {
+  if (!existing) return item;
+  return {
+    ...item,
+    sourceFileName: item.sourceFileName ?? existing.sourceFileName,
+    sourceMimeType: item.sourceMimeType ?? existing.sourceMimeType,
+    sourceFileSize: item.sourceFileSize ?? existing.sourceFileSize,
+    sourcePreviewUrl: existing.sourcePreviewUrl ?? item.sourcePreviewUrl,
+  };
 }
 
 function outputMatchesActiveSource(
@@ -2595,6 +2626,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     name?: string;
     startedAt?: number;
     fileName?: string;
+    sourceSnapshot?: OutputSourceSnapshot;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -2614,9 +2646,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         name?: string;
         startedAt?: number;
         fileName?: string;
+        sourceSnapshot?: OutputSourceSnapshot;
       }
     >(),
   );
+  const historyRef = React.useRef<HistoryItem[]>([]);
   const hasActiveHistoryJob = history.some((item) =>
     item.jobStatus === "queued" || item.jobStatus === "running",
   );
@@ -2633,6 +2667,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [focusedSettingsSections, setFocusedSettingsSections] = React.useState<
     Map<number, string | null>
   >(() => new Map());
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   React.useEffect(() => {
     if (!hasActiveHistoryJob) return;
@@ -2705,56 +2743,67 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       if (submitted.replaceStamp) {
         const replaceStamp = submitted.replaceStamp;
-        setHistory((prev) =>
-          prev.map((item) =>
-            item.stamp === replaceStamp
-              ? {
-                  ...item,
-                  svg: resultSvg,
-                  layers: resultLayers,
-                  width: resultWidth,
-                  height: resultHeight,
-                  originalWidth: resultWidth,
-                  originalHeight: resultHeight,
-                  parentStamp,
-                  presetId: submitted.presetId ?? undefined,
-                  presetLabel,
-                  presetBackendIntensity,
-                  settingsSnapshot: submitted.settings,
-                  draftSettings: submitted.settings,
-                  engineUsed: data.engineUsed || "potrace",
-                  sourceKind: data.sourceKind || "raster",
-                  warnings: data.warnings,
-                  timings: data.timings,
-                  layerBuildMode: data.layerBuildMode,
-                  requestedPaletteCount: data.requestedPaletteCount,
-                  actualPaletteCount: data.actualPaletteCount,
-                  outputDetectedColors: data.outputDetectedColors,
-                  pathCount: data.pathCount,
-                  svgBytes: data.svgBytes,
-                  updateError: null,
-                  jobId: clientRunId || item.jobId,
-                  jobStatus: "succeeded",
-                  jobStartedAt: submitted.startedAt ?? item.jobStartedAt,
-                  jobCompletedAt: Date.now(),
-                  jobError: null,
-                  sourceFileName: submitted.fileName ?? item.sourceFileName,
-                  canCancel: false,
-                  batch: item.batch
-                    ? {
-                        ...item.batch,
-                        zip: null,
-                        info: null,
-                        error: null,
-                        progress: { done: 0, total: 0 },
-                      }
-                    : item.batch,
-                  previousVersion: snapshotOutputVersion(item),
-                  nextVersion: null,
-                }
-              : item,
-          ),
-        );
+        setHistory((prev) => {
+          const next = prev.map((item): HistoryItem => {
+            if (item.stamp !== replaceStamp) return item;
+            return {
+              ...item,
+              svg: resultSvg,
+              layers: resultLayers,
+              width: resultWidth,
+              height: resultHeight,
+              originalWidth: resultWidth,
+              originalHeight: resultHeight,
+              parentStamp,
+              presetId: submitted.presetId ?? undefined,
+              presetLabel,
+              presetBackendIntensity,
+              settingsSnapshot: submitted.settings,
+              draftSettings: submitted.settings,
+              engineUsed: data.engineUsed || "potrace",
+              sourceKind: data.sourceKind || "raster",
+              warnings: data.warnings,
+              timings: data.timings,
+              layerBuildMode: data.layerBuildMode,
+              requestedPaletteCount: data.requestedPaletteCount,
+              actualPaletteCount: data.actualPaletteCount,
+              outputDetectedColors: data.outputDetectedColors,
+              pathCount: data.pathCount,
+              svgBytes: data.svgBytes,
+              updateError: null,
+              jobId: clientRunId || item.jobId,
+              jobStatus: "succeeded",
+              jobStartedAt: submitted.startedAt ?? item.jobStartedAt,
+              jobCompletedAt: Date.now(),
+              jobError: null,
+              sourceFileName: submitted.fileName ?? item.sourceFileName,
+              sourceMimeType:
+                submitted.sourceSnapshot?.sourceMimeType ?? item.sourceMimeType,
+              sourceFileSize:
+                submitted.sourceSnapshot?.sourceFileSize ?? item.sourceFileSize,
+              sourcePreviewUrl:
+                item.sourcePreviewUrl ??
+                submitted.sourceSnapshot?.sourcePreviewUrl,
+              canCancel: false,
+              batch: item.batch
+                ? {
+                    ...item.batch,
+                    zip: null,
+                    info: null,
+                    error: null,
+                    progress: { done: 0, total: 0 },
+                  }
+                : item.batch,
+              previousVersion: snapshotOutputVersion(item),
+              nextVersion: null,
+            };
+          });
+          cleanupUnusedSourceSnapshots(
+            submitted.sourceSnapshot ? [submitted.sourceSnapshot] : [],
+            next,
+          );
+          return next;
+        });
         setActiveHistoryStamp((current) =>
           current === replaceStamp ? current : replaceStamp,
         );
@@ -2797,15 +2846,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         jobCompletedAt: Date.now(),
         jobError: null,
         sourceFileName: submitted.fileName,
+        sourceMimeType: submitted.sourceSnapshot?.sourceMimeType,
+        sourceFileSize: submitted.sourceSnapshot?.sourceFileSize,
+        sourcePreviewUrl: submitted.sourceSnapshot?.sourcePreviewUrl,
         canCancel: false,
       };
       setHistory((prev) => {
         if (prev.some((candidate) => candidate.stamp === stamp)) {
-          return prev.map((candidate) =>
-            candidate.stamp === stamp ? item : candidate,
+          const next = prev.map((candidate) =>
+            candidate.stamp === stamp
+              ? mergeOutputSourceSnapshot(item, candidate)
+              : candidate,
           );
+          cleanupUnusedSourceSnapshots([...prev, item], next);
+          return next;
         }
-        return trimOutputHistory([item, ...prev]);
+        return trimOutputHistoryWithSourceCleanup([item, ...prev], prev);
       });
       setActiveHistoryStamp((current) => (current === stamp ? current : stamp));
   }
@@ -2840,6 +2896,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       const submitted =
         (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
         lastSubmittedRef.current;
+      if (submitted.sourceSnapshot) {
+        cleanupUnusedSourceSnapshots([submitted.sourceSnapshot], historyRef.current);
+      }
       if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
       clientAbortControllersRef.current.delete(clientRunId);
       if (submitted.replaceStamp) {
@@ -2917,6 +2976,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
 
   async function measureAndSet(f: File, runId = fileMeasureRunIdRef.current) {
     if (isSvgFile(f)) {
@@ -3121,6 +3184,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       DISPLAY_PRESETS.find((preset) => preset.id === submittedPresetId)?.label ||
       "Custom settings";
     const pendingStamp = replaceStamp ? null : startedAt;
+    const sourceSnapshot = createOutputSourceSnapshot(targetFile);
     const submittedMeta = {
       settings: effective,
       presetId: submittedPresetId,
@@ -3131,6 +3195,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       name: pendingStamp ? `Output - ${presetLabel}` : undefined,
       startedAt,
       fileName: targetFile.name,
+      sourceSnapshot,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);
@@ -3156,13 +3221,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         jobStatus: "running",
         jobStartedAt: startedAt,
         sourceFileName: targetFile.name,
+        sourceMimeType: sourceSnapshot.sourceMimeType,
+        sourceFileSize: sourceSnapshot.sourceFileSize,
+        sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
         enginePathLabel:
           effective.traceMode === "layered"
             ? "Hybrid layered trace"
             : "Hybrid trace",
         canCancel: effective.traceMode === "layered",
       };
-      setHistory((prev) => trimOutputHistory([pendingItem, ...prev]));
+      setHistory((prev) =>
+        trimOutputHistoryWithSourceCleanup([pendingItem, ...prev], prev),
+      );
       setActiveHistoryStamp((current) =>
         current === pendingStamp ? current : pendingStamp,
       );
@@ -3392,7 +3462,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       }));
       return;
     }
-    setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
+    setHistory((prev) => {
+      const next = prev.filter((candidate) => candidate.stamp !== stamp);
+      cleanupUnusedSourceSnapshots(prev, next);
+      return next;
+    });
     void submitConvertWith(file, item.settingsSnapshot || item.draftSettings || settings, {
       presetId: item.presetId || activePreset,
       parentStamp: item.parentStamp ?? null,
@@ -4432,7 +4506,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
                           <div
                             className={[
-                              "grid transition-[grid-template-rows] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                              "grid transition-[grid-template-rows] duration-[210ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
                               batchSectionOpen
                                 ? "grid-rows-[1fr]"
                                 : "grid-rows-[0fr]",
@@ -4442,7 +4516,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               id={`output-batch-${item.stamp}`}
                               aria-hidden={!batchSectionOpen}
                               className={[
-                                "overflow-hidden transition-opacity duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                                "overflow-hidden transition-opacity duration-[210ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
                                 batchSectionOpen ? "opacity-100" : "opacity-0",
                               ].join(" ")}
                             >
@@ -4952,7 +5026,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             outputSvg={previewData.svg}
                             outputAlt="SVG result"
                             originalPreviewUrl={
-                              sourceAvailableForOutput ? previewUrl : null
+                              item.sourcePreviewUrl ||
+                              (sourceAvailableForOutput ? previewUrl : null)
                             }
                             toolbar={
                               <>

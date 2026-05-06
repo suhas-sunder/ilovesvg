@@ -23,6 +23,11 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  cleanupUnusedSourceSnapshots,
+  createOutputSourceSnapshot,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
 // app/routes/png-to-svg-converter.tsx
 import * as React from "react";
 import type { Route } from "./+types/png-to-svg-converter";
@@ -1060,12 +1065,38 @@ type HistoryItem = {
   svgBytes?: number;
   stamp: number;
   sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
 };
 
 const OUTPUT_HISTORY_LIMIT = 10;
 
 function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
   return items.slice(0, OUTPUT_HISTORY_LIMIT);
+}
+
+function trimOutputHistoryWithSourceCleanup(
+  candidates: HistoryItem[],
+  previous: HistoryItem[],
+): HistoryItem[] {
+  const next = trimOutputHistory(candidates);
+  cleanupUnusedSourceSnapshots([...previous, ...candidates], next);
+  return next;
+}
+
+function mergeOutputSourceSnapshot(
+  item: HistoryItem & TraceOutputItem<Settings>,
+  existing?: HistoryItem | null,
+): HistoryItem & TraceOutputItem<Settings> {
+  if (!existing) return item;
+  return {
+    ...item,
+    sourceFileName: item.sourceFileName ?? existing.sourceFileName,
+    sourceMimeType: item.sourceMimeType ?? existing.sourceMimeType,
+    sourceFileSize: item.sourceFileSize ?? existing.sourceFileSize,
+    sourcePreviewUrl: existing.sourcePreviewUrl ?? item.sourcePreviewUrl,
+  };
 }
 
 function outputMatchesActiveSource(
@@ -1134,13 +1165,19 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         replaceStamp: number | null;
         startedAt: number;
         fileName: string;
+        sourceSnapshot: OutputSourceSnapshot;
       }
     >(),
   );
+  const historyRef = React.useRef<HistoryItem[]>([]);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   React.useEffect(() => {
     if (fetcher.data?.error) setErr(fetcher.data.error);
@@ -1206,26 +1243,35 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         jobStartedAt: submitted?.startedAt,
         jobCompletedAt: Date.now(),
         sourceFileName: submitted?.fileName,
+        sourceMimeType: submitted?.sourceSnapshot.sourceMimeType,
+        sourceFileSize: submitted?.sourceSnapshot.sourceFileSize,
+        sourcePreviewUrl: submitted?.sourceSnapshot.sourcePreviewUrl,
       };
       setHistory((prev) => {
         if (replaceStamp) {
-          return prev.map((existing) =>
+          const next = prev.map((existing) =>
             existing.stamp === replaceStamp
               ? (replaceTraceOutputCurrent(
                   existing as HistoryItem & TraceOutputItem<Settings>,
-                  item,
+                  mergeOutputSourceSnapshot(item, existing),
                 ) as HistoryItem)
               : existing,
           );
+          cleanupUnusedSourceSnapshots([...prev, item], next);
+          return next;
         }
 
         if (prev.some((existing) => existing.stamp === targetStamp)) {
-          return prev.map((existing) =>
-            existing.stamp === targetStamp ? (item as HistoryItem) : existing,
+          const next = prev.map((existing) =>
+            existing.stamp === targetStamp
+              ? (mergeOutputSourceSnapshot(item, existing) as HistoryItem)
+              : existing,
           );
+          cleanupUnusedSourceSnapshots([...prev, item], next);
+          return next;
         }
 
-        return trimOutputHistory([item, ...prev]);
+        return trimOutputHistoryWithSourceCleanup([item, ...prev], prev);
       });
 
       if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
@@ -1247,6 +1293,9 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     const clientRunId = fetcher.data.clientRunId || "";
     const submitted =
       (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    if (submitted) {
+      cleanupUnusedSourceSnapshots([submitted.sourceSnapshot], historyRef.current);
+    }
     const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
     const pendingStamp = submitted?.stamp ?? null;
     if (!replaceStamp && !pendingStamp) return;
@@ -1283,6 +1332,10 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
 
   async function measureAndSet(f: File) {
     try {
@@ -1460,6 +1513,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     const startedAt = Date.now();
     const presetLabel = getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit);
     const pendingStamp = replaceStamp ?? startedAt;
+    const sourceSnapshot = createOutputSourceSnapshot(targetFile);
     submittedByRunIdRef.current.set(clientRunId, {
       settings: effective,
       presetId: presetIdForSubmit,
@@ -1467,6 +1521,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       replaceStamp,
       startedAt,
       fileName: targetFile.name,
+      sourceSnapshot,
     });
     if (!replaceStamp) {
       const pendingItem: HistoryItem & TraceOutputItem<Settings> = {
@@ -1483,6 +1538,9 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         jobStatus: "running",
         jobStartedAt: startedAt,
         sourceFileName: targetFile.name,
+        sourceMimeType: sourceSnapshot.sourceMimeType,
+        sourceFileSize: sourceSnapshot.sourceFileSize,
+        sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
         enginePathLabel:
           effective.traceMode === "layered"
             ? "Hybrid layered trace"
@@ -1490,7 +1548,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         canCancel: effective.traceMode === "layered",
       };
       setHistory((prev) =>
-        trimOutputHistory([pendingItem as HistoryItem, ...prev]),
+        trimOutputHistoryWithSourceCleanup([pendingItem as HistoryItem, ...prev], prev),
       );
     }
 
@@ -1679,7 +1737,11 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     const retryPresetId =
       DISPLAY_PRESETS.find((preset) => preset.label === item.presetLabel)?.id ??
       activePreset;
-    setHistory((prev) => prev.filter((candidate) => candidate.stamp !== stamp));
+    setHistory((prev) => {
+      const next = prev.filter((candidate) => candidate.stamp !== stamp);
+      cleanupUnusedSourceSnapshots(prev, next);
+      return next;
+    });
     void submitConvertForFile(file, retrySettings, retryPresetId);
   }
 

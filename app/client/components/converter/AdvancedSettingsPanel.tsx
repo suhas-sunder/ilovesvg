@@ -2561,7 +2561,7 @@ function SettingSection({
         </button>
         <div
           className={[
-            "grid min-w-0 max-w-full transition-[grid-template-rows] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            "grid min-w-0 max-w-full transition-[grid-template-rows] duration-[210ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
             open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           ].join(" ")}
         >
@@ -2569,7 +2569,7 @@ function SettingSection({
             id={sectionId}
             aria-hidden={!open}
             className={[
-              "min-w-0 max-w-full overflow-hidden transition-opacity duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+              "min-w-0 max-w-full overflow-hidden transition-opacity duration-[210ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
               open ? "opacity-100" : "opacity-0",
             ].join(" ")}
           >

@@ -891,6 +891,7 @@ async function runOutputUxRouteSmoke(testCase) {
       client,
       testCase.fixture,
       testCase.replacementFixture || testCase.fixture,
+      testCase.route,
     );
 
     const opened = await clickButtonMatching(client, "/Settings/i", {
@@ -1006,8 +1007,8 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
       focused.openSettingsSectionCount === 1 &&
-      focused.appearanceRanges.lineWeightMax >= 20 &&
-      focused.appearanceRanges.fillSpreadMax >= 8 &&
+      focused.appearanceRanges.lineWeightMax >= 30 &&
+      focused.appearanceRanges.fillSpreadMax >= 30 &&
       Math.max(
         focused.transitionSample.outputPanelMs,
         focused.transitionSample.workspaceMs,
@@ -1022,7 +1023,7 @@ async function runOutputUxRouteSmoke(testCase) {
       controls.hasLineWeight &&
       controls.hasFillSpread &&
       (!appearance.applied ||
-        (Number(appearance.value) >= 8 && copy.hasFillSpread && download.hasFillSpread)) &&
+        (Number(appearance.value) >= 20 && copy.hasFillSpread && download.hasFillSpread)) &&
       copy.ok &&
       download.ok &&
       !restored.focused &&
@@ -1074,9 +1075,15 @@ async function verifyOutputHistoryPersistsAcrossInputReplacement(
   client,
   firstFixture,
   replacementFixture,
+  route,
 ) {
   const firstName = path.basename(firstFixture);
   const replacementName = path.basename(replacementFixture);
+  const shouldVerifySourcePreview = new Set([
+    "/",
+    "/png-to-svg-converter",
+    "/png-to-layered-svg-for-cricut",
+  ]).has(route);
   const before = await waitForValue(
     client,
     outputUxSnapshotExpression,
@@ -1085,6 +1092,10 @@ async function verifyOutputHistoryPersistsAcrossInputReplacement(
       value?.expandedCards >= 1 &&
       value?.sourceFileNames?.some((name) => name === firstName),
   );
+  const firstPreviewBefore = shouldVerifySourcePreview
+    ? await verifyFocusedOriginalPreviewForSource(client, firstName)
+    : null;
+  if (firstPreviewBefore) await closeFocusedEditorIfOpen(client);
   const removed = await clickButtonIfPresent(client, "/Remove selected file|^x$|^×$/i");
   const afterRemove = await waitForValue(
     client,
@@ -1094,6 +1105,16 @@ async function verifyOutputHistoryPersistsAcrossInputReplacement(
       value?.expandedCards >= before.expandedCards &&
       value?.sourceFileNames?.some((name) => name === firstName),
   ).catch(() => null);
+  const firstPreviewAfterRemove =
+    shouldVerifySourcePreview && afterRemove
+      ? await verifyFocusedOriginalPreviewForSource(client, firstName).catch(
+          (error) => ({
+            ok: false,
+            failure: error instanceof Error ? error.message : String(error),
+          }),
+        )
+      : null;
+  if (firstPreviewAfterRemove) await closeFocusedEditorIfOpen(client);
   await setFileInput(client, replacementFixture);
   let after = await waitForValue(
     client,
@@ -1116,15 +1137,140 @@ async function verifyOutputHistoryPersistsAcrossInputReplacement(
         value?.sourceFileNames?.some((name) => name === replacementName),
     ).catch(() => null);
   }
+  const firstPreviewAfterReplacement =
+    shouldVerifySourcePreview && after
+      ? await verifyFocusedOriginalPreviewForSource(client, firstName).catch(
+          (error) => ({
+            ok: false,
+            failure: error instanceof Error ? error.message : String(error),
+          }),
+        )
+      : null;
+  if (firstPreviewAfterReplacement) await closeFocusedEditorIfOpen(client);
+  const replacementPreview =
+    shouldVerifySourcePreview && after
+      ? await verifyFocusedOriginalPreviewForSource(client, replacementName).catch(
+          (error) => ({
+            ok: false,
+            failure: error instanceof Error ? error.message : String(error),
+          }),
+        )
+      : null;
+  if (replacementPreview) await closeFocusedEditorIfOpen(client);
+  const sourcePreviewOk =
+    !shouldVerifySourcePreview ||
+    (firstPreviewBefore?.ok &&
+      firstPreviewAfterRemove?.ok &&
+      firstPreviewAfterReplacement?.ok &&
+      replacementPreview?.ok &&
+      firstPreviewAfterReplacement.src &&
+      replacementPreview.src &&
+      firstPreviewAfterReplacement.src !== replacementPreview.src);
   return {
-    ok: Boolean(afterRemove && after),
+    ok: Boolean(afterRemove && after && sourcePreviewOk),
     removed,
     firstName,
     replacementName,
     before,
     afterRemove,
     after,
+    firstPreviewBefore,
+    firstPreviewAfterRemove,
+    firstPreviewAfterReplacement,
+    replacementPreview,
+    sourcePreviewOk,
   };
+}
+
+async function verifyFocusedOriginalPreviewForSource(client, sourceFileName) {
+  const opened = await openOutputEditorForSource(client, sourceFileName);
+  if (!opened) {
+    throw new Error(`Could not open focused editor for ${sourceFileName}.`);
+  }
+  const snapshot = await waitForValue(
+    client,
+    focusedOriginalPreviewSnapshotExpression,
+    8_000,
+    (value) =>
+      value?.focused &&
+      value?.hasOriginalContainer &&
+      value?.hasImage &&
+      value?.decoded &&
+      !value?.showsUnavailable,
+  );
+  return { ...snapshot, ok: true, sourceFileName };
+}
+
+async function openOutputEditorForSource(client, sourceFileName) {
+  const result = await waitForValue(
+    client,
+    () => `(() => {
+      const sourceName = ${JSON.stringify(sourceFileName)};
+      const cards = Array.from(document.querySelectorAll('[data-collapse-state]'));
+      const focusedCard = cards.find((candidate) =>
+        candidate.getAttribute('data-focused-editor') === 'true' &&
+        Array.from(candidate.querySelectorAll('[data-output-source-file]')).some(
+          (element) => element.getAttribute('data-output-source-file') === sourceName,
+        )
+      );
+      if (focusedCard) return { clicked: true, alreadyFocused: true };
+      const card = cards.find((candidate) =>
+        Array.from(candidate.querySelectorAll('[data-output-source-file]')).some(
+          (element) => element.getAttribute('data-output-source-file') === sourceName,
+        )
+      );
+      if (!card) return { clicked: false, reason: 'missing-card' };
+      if (card.getAttribute('data-collapse-state') === 'collapsed') {
+        const restore = Array.from(card.querySelectorAll('button')).find((button) =>
+          /Restore|Expand/i.test(button.innerText || button.getAttribute('aria-label') || ''),
+        );
+        restore?.click();
+        return { clicked: false, reason: 'restoring' };
+      }
+      const button = Array.from(card.querySelectorAll('button')).find((candidate) =>
+        /Settings\\s*\\/\\s*Edit/i.test(candidate.innerText || candidate.getAttribute('aria-label') || ''),
+      );
+      if (!button || button.disabled) return { clicked: false, reason: 'not-ready' };
+      button.click();
+      return { clicked: true };
+    })()`,
+    30_000,
+    (value) => value?.clicked === true,
+  ).catch(() => null);
+  return Boolean(result?.clicked);
+}
+
+async function closeFocusedEditorIfOpen(client) {
+  const clicked = await clickButtonIfPresent(client, "/Done editing/i");
+  if (clicked) {
+    await waitForValue(
+      client,
+      outputUxSnapshotExpression,
+      8_000,
+      (value) => !value?.focused && value?.expandedCards >= 1,
+    ).catch(() => null);
+  }
+  return clicked;
+}
+
+function focusedOriginalPreviewSnapshotExpression() {
+  return `(() => {
+    const focusedCard = document.querySelector('[data-collapse-state="expanded"][data-focused-editor="true"]');
+    const original = document.querySelector('[data-editor-original-preview="true"]');
+    const image = original?.querySelector('img') || null;
+    const text = original?.innerText || "";
+    return {
+      focused: Boolean(focusedCard),
+      hasOriginalContainer: Boolean(original),
+      hasImage: Boolean(image),
+      decoded: Boolean(image && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0),
+      src: image?.currentSrc || image?.src || "",
+      naturalWidth: image?.naturalWidth || 0,
+      naturalHeight: image?.naturalHeight || 0,
+      showsUnavailable: /unavailable/i.test(text),
+      text: text.slice(0, 240),
+    };
+  })()`;
 }
 
 async function verifyFocusedAccordionHasNoHorizontalShift(client) {
@@ -1134,74 +1280,107 @@ async function verifyFocusedAccordionHasNoHorizontalShift(client) {
     if (!panel) return { clicked: false, samples: [] };
     const buttons = Array.from(panel.querySelectorAll('button[aria-controls]'));
     const read = () => {
-      const currentPanel = document.querySelector('[data-editor-settings-panel="true"]');
+      const rect = (element) => {
+        const r = element?.getBoundingClientRect?.();
+        return r
+          ? { left: r.left, right: r.right, width: r.width }
+          : { left: 0, right: 0, width: 0 };
+      };
+      const root = document.querySelector('main') || document.body;
+      const outputPanel = document.querySelector('[data-output-panel-focused="true"]');
+      const grid = outputPanel?.parentElement || null;
       const workspace = document.querySelector('[data-focused-editor-workspace="true"]');
-      const p = currentPanel?.getBoundingClientRect?.();
-      const w = workspace?.getBoundingClientRect?.();
+      const previewPane =
+        document.querySelector('[data-editor-comparison-panel="true"]') ||
+        document.querySelector('[data-editor-output-preview="true"]');
+      const settingsRail = document.querySelector('[data-editor-settings-panel="true"]');
+      const accordion =
+        settingsRail?.querySelector('[data-settings-section]') || settingsRail;
       return {
-        panelLeft: p?.left ?? 0,
-        panelWidth: p?.width ?? 0,
-        workspaceLeft: w?.left ?? 0,
-        workspaceWidth: w?.width ?? 0,
+        root: rect(root),
+        grid: rect(grid),
+        outputPanel: rect(outputPanel),
+        workspace: rect(workspace),
+        previewPane: rect(previewPane),
+        settingsRail: rect(settingsRail),
+        accordion: rect(accordion),
         scrollWidth: document.documentElement.scrollWidth,
         viewportWidth: window.innerWidth,
       };
     };
+    const settledBefore = read();
     const samples = [];
     for (const button of buttons) {
       button.click();
-      await new Promise((resolve) => setTimeout(resolve, 240));
+      await new Promise((resolve) => setTimeout(resolve, 280));
       samples.push(read());
     }
-    return { clicked: buttons.length > 0, samples };
+    return { clicked: buttons.length > 0, settledBefore, samples };
   })()`);
   const after = await outputUxLayoutSnapshot(client);
-  const deltas = (result.samples || []).map((sample) => ({
-    panelLeftDelta: Math.abs(
-      sample.panelLeft - (before.settingsPanelRect?.left ?? 0),
-    ),
-    panelWidthDelta: Math.abs(
-      sample.panelWidth - (before.settingsPanelRect?.width ?? 0),
-    ),
-    workspaceLeftDelta: Math.abs(
-      sample.workspaceLeft - (before.workspaceRect?.left ?? 0),
-    ),
-    workspaceWidthDelta: Math.abs(
-      sample.workspaceWidth - (before.workspaceRect?.width ?? 0),
-    ),
-    hasHorizontalOverflow: sample.scrollWidth > sample.viewportWidth + 2,
-  }));
+  const base = result.settledBefore || {};
+  const trackedKeys = [
+    "root",
+    "grid",
+    "outputPanel",
+    "workspace",
+    "previewPane",
+    "settingsRail",
+    "accordion",
+  ];
+  const deltas = (result.samples || []).map((sample) => {
+    const entry = {
+      hasHorizontalOverflow: sample.scrollWidth > sample.viewportWidth + 2,
+    };
+    for (const key of trackedKeys) {
+      const current = sample[key] || {};
+      const baseline = base[key] || {};
+      entry[`${key}LeftDelta`] = Math.abs((current.left || 0) - (baseline.left || 0));
+      entry[`${key}RightDelta`] = Math.abs((current.right || 0) - (baseline.right || 0));
+      entry[`${key}WidthDelta`] = Math.abs((current.width || 0) - (baseline.width || 0));
+    }
+    return entry;
+  });
   const maxDelta = deltas.reduce(
-    (acc, sample) => ({
-      panelLeftDelta: Math.max(acc.panelLeftDelta, sample.panelLeftDelta),
-      panelWidthDelta: Math.max(acc.panelWidthDelta, sample.panelWidthDelta),
-      workspaceLeftDelta: Math.max(acc.workspaceLeftDelta, sample.workspaceLeftDelta),
-      workspaceWidthDelta: Math.max(acc.workspaceWidthDelta, sample.workspaceWidthDelta),
-      hasHorizontalOverflow: acc.hasHorizontalOverflow || sample.hasHorizontalOverflow,
-    }),
-    {
-      panelLeftDelta: 0,
-      panelWidthDelta: 0,
-      workspaceLeftDelta: 0,
-      workspaceWidthDelta: 0,
-      hasHorizontalOverflow: false,
+    (acc, sample) => {
+      const next = { ...acc };
+      for (const [key, value] of Object.entries(sample)) {
+        if (key === "hasHorizontalOverflow") {
+          next.hasHorizontalOverflow = next.hasHorizontalOverflow || Boolean(value);
+        } else {
+          next[key] = Math.max(next[key] || 0, Number(value) || 0);
+        }
+      }
+      return next;
     },
+    { hasHorizontalOverflow: false },
+  );
+  const stableKeys = [
+    "previewPaneLeftDelta",
+    "previewPaneRightDelta",
+    "previewPaneWidthDelta",
+    "settingsRailLeftDelta",
+    "settingsRailRightDelta",
+    "settingsRailWidthDelta",
+    "workspaceLeftDelta",
+    "workspaceRightDelta",
+    "outputPanelLeftDelta",
+    "outputPanelRightDelta",
+  ];
+  const maxStableDelta = stableKeys.reduce(
+    (max, key) => Math.max(max, Number(maxDelta[key]) || 0),
+    0,
   );
   return {
     ok:
       Boolean(result.clicked) &&
       !after.hasHorizontalOverflow &&
       !maxDelta.hasHorizontalOverflow &&
-      maxDelta.panelLeftDelta <= 2 &&
-      maxDelta.panelWidthDelta <= 2 &&
-      maxDelta.workspaceLeftDelta <= 2 &&
-      maxDelta.workspaceWidthDelta <= 2,
+      maxStableDelta <= 2,
     clicked: result.clicked,
     sampleCount: result.samples?.length || 0,
-    panelLeftDelta: maxDelta.panelLeftDelta,
-    panelWidthDelta: maxDelta.panelWidthDelta,
-    workspaceLeftDelta: maxDelta.workspaceLeftDelta,
-    workspaceWidthDelta: maxDelta.workspaceWidthDelta,
+    maxStableDelta,
+    trackedDeltas: maxDelta,
     samples: result.samples || [],
     before,
     after,
@@ -1260,8 +1439,8 @@ async function runOutputUxResponsiveChecks(client) {
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
       focused.openSettingsSectionCount === 1 &&
-      focused.appearanceRanges.lineWeightMax >= 20 &&
-      focused.appearanceRanges.fillSpreadMax >= 8 &&
+      focused.appearanceRanges.lineWeightMax >= 30 &&
+      focused.appearanceRanges.fillSpreadMax >= 30 &&
       !focused.minimizeInActionRow &&
       focused.leftPaneCollapsed &&
       focused.editorNearTop &&
@@ -1321,6 +1500,10 @@ async function outputUxLayoutSnapshot(client) {
       : outputPanelRect.top <= gridRect.top + 56;
     const settingsPanelRect = settingsPanel?.getBoundingClientRect?.();
     const workspaceRect = workspace?.getBoundingClientRect?.();
+    const previewPane =
+      document.querySelector('[data-editor-comparison-panel="true"]') ||
+      document.querySelector('[data-editor-output-preview="true"]');
+    const previewPaneRect = previewPane?.getBoundingClientRect?.();
     return {
       viewportWidth: window.innerWidth,
       scrollWidth: doc.scrollWidth,
@@ -1338,13 +1521,36 @@ async function outputUxLayoutSnapshot(client) {
       settingsPanelRect: settingsPanelRect
         ? {
             left: settingsPanelRect.left,
+            right: settingsPanelRect.right,
             width: settingsPanelRect.width,
           }
         : null,
       workspaceRect: workspaceRect
         ? {
             left: workspaceRect.left,
+            right: workspaceRect.right,
             width: workspaceRect.width,
+          }
+        : null,
+      outputPanelRect: outputPanelRect
+        ? {
+            left: outputPanelRect.left,
+            right: outputPanelRect.right,
+            width: outputPanelRect.width,
+          }
+        : null,
+      gridRect: gridRect
+        ? {
+            left: gridRect.left,
+            right: gridRect.right,
+            width: gridRect.width,
+          }
+        : null,
+      previewPaneRect: previewPaneRect
+        ? {
+            left: previewPaneRect.left,
+            right: previewPaneRect.right,
+            width: previewPaneRect.width,
           }
         : null,
     };
@@ -1360,7 +1566,7 @@ async function applyFillSpreadIfAvailable(client) {
     if (!input) return { available: true, applied: false, reason: "missing-input" };
     if (input.disabled) return { available: true, applied: false, disabled: true };
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    setter?.call(input, "8");
+    setter?.call(input, "20");
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
     return { available: true, applied: true, value: input.value, max: input.max };

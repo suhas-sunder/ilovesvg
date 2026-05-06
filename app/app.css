@@ -90,17 +90,24 @@ h3[class] {
   }
 }
 
+html {
+  --svg-editor-motion-duration: 340ms;
+  --svg-editor-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --svg-accordion-motion-duration: 210ms;
+  --svg-accordion-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) {
   grid-template-columns: minmax(0, 1fr) !important;
   transition:
-    grid-template-columns 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    gap 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    grid-template-columns var(--svg-editor-motion-duration) var(--svg-editor-motion-ease),
+    gap var(--svg-editor-motion-duration) var(--svg-editor-motion-ease);
 }
 
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
   transition:
-    grid-template-columns 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    gap 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    grid-template-columns var(--svg-editor-motion-duration) var(--svg-editor-motion-ease),
+    gap var(--svg-editor-motion-duration) var(--svg-editor-motion-ease);
 }
 
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [data-output-panel-focused="true"] {
@@ -122,12 +129,13 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   border-width: 0 !important;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-0.5rem);
+  transform: translate3d(-0.75rem, -0.35rem, 0) scale(0.992);
+  transform-origin: top left;
   transition:
-    opacity 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    padding 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    opacity calc(var(--svg-editor-motion-duration) - 40ms) var(--svg-editor-motion-ease),
+    transform var(--svg-editor-motion-duration) var(--svg-editor-motion-ease),
+    max-height var(--svg-editor-motion-duration) var(--svg-editor-motion-ease),
+    padding var(--svg-editor-motion-duration) var(--svg-editor-motion-ease);
 }
 
 [data-focused-editor-workspace="true"] {
@@ -135,7 +143,8 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   max-width: 100%;
   min-width: 0;
   overflow-x: clip;
-  animation: focused-editor-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: focused-editor-enter var(--svg-editor-motion-duration) var(--svg-editor-motion-ease) both;
+  transform-origin: top center;
 }
 
 [data-editor-settings-panel="true"],
@@ -144,8 +153,8 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   min-width: 0;
   overflow-x: clip;
   transition:
-    opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    opacity calc(var(--svg-editor-motion-duration) - 80ms) var(--svg-editor-motion-ease),
+    transform var(--svg-editor-motion-duration) var(--svg-editor-motion-ease);
 }
 
 [data-output-panel-focused="true"] {
@@ -159,6 +168,14 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
 [data-editor-settings-panel="true"] {
   scrollbar-gutter: stable;
   contain: layout paint;
+  inline-size: 100%;
+  justify-self: stretch;
+}
+
+@media (min-width: 1024px) {
+  [data-editor-settings-panel="true"] {
+    inline-size: clamp(340px, 28vw, 430px);
+  }
 }
 
 [data-editor-settings-panel="true"] *,
@@ -180,12 +197,15 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
 
 @keyframes focused-editor-enter {
   from {
-    opacity: 0.86;
-    transform: translateY(0.35rem);
+    opacity: 0;
+    transform: translate3d(0, 0.7rem, 0) scale(0.992);
+  }
+  55% {
+    opacity: 1;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
