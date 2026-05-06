@@ -247,7 +247,7 @@ async function auditLayeredPresetRecipes() {
 
 function testFillStrokeOutlineInjection() {
   const sourceSvg =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="#f97316" d="M2 2h8v8H2z"/><path fill="none" d="M12 2h6v6h-6z"/><path style="fill: #22c55e; stroke: #111827" d="M4 12h8v6H4z"></path></svg>';
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="#ffffff" d="M0 0H20V20H0Z"/><path fill="#f97316" d="M2 2h8v8H2z"/><path fill="none" d="M12 2h6v6h-6z"/><path style="fill: #22c55e; stroke: #111827" d="M4 12h8v6H4z"></path></svg>';
   const svg = injectFillStrokeOutlineGroup(sourceSvg, {
     fillStrokeWidth: 2,
     fillStrokeColor: "#020617",
@@ -267,7 +267,13 @@ function testFillStrokeOutlineInjection() {
   }
   const copiedPathCount = (group.match(/<path\b/gi) || []).length;
   if (copiedPathCount !== 2) {
-    throw new Error(`Fill+stroke layer copied ${copiedPathCount} paths instead of the two filled paths`);
+    throw new Error(`Fill+stroke layer copied ${copiedPathCount} paths instead of the two foreground filled paths`);
+  }
+  if (/M0 0H20V20H0Z/i.test(group)) {
+    throw new Error("Fill+stroke layer copied the full-canvas background path");
+  }
+  if (svg.indexOf(group) < svg.indexOf('<path fill="#f97316"')) {
+    throw new Error("Fill+stroke layer should render above the original filled paths");
   }
   if (!svg.includes('<path fill="#f97316"')) {
     throw new Error("Fill+stroke injection should preserve original filled paths");

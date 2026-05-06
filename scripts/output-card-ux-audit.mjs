@@ -76,6 +76,8 @@ checks.push(
   assertIncludes(outputPanel, "OutputAppearanceControls", "shared output panel renders line/fill controls"),
   assertIncludes(outputPanel, "Line weight", "line weight control is visible in output settings"),
   assertIncludes(outputPanel, "Fill spread", "fill spread control is visible where supported"),
+  assertIncludes(outputPanel, "showStrokeOutputMode", "shared output panel hides non-actionable stroke output mode radios"),
+  assertIncludes(outputPanel, "strokeOutputModeAvailable && !strokeModeDisabled", "stroke output mode radios render only when actionable"),
   assertIncludes(outputPanel, "getTraceOutputSvg(item)", "shared finalized SVG helper remains the copy/download source"),
   assertIncludes(home, "focusedOutputStamp", "home bespoke card tracks focused editor target"),
   assertIncludes(home, "collapsedOutputStamps", "home bespoke card tracks collapsed cards"),

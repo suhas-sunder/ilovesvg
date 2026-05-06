@@ -1203,6 +1203,8 @@ export function OutputAppearanceControls({
   const fillSupported = support.supportsFillSpread;
   const hasChanges = hasOutputAppearanceChanges(settings);
   const strokeModeDisabled = Boolean(strokeOutputModeDisabledReason);
+  const showStrokeOutputMode =
+    strokeOutputModeAvailable && !strokeModeDisabled && Boolean(onStrokeOutputModeChange);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -1220,7 +1222,7 @@ export function OutputAppearanceControls({
         </button>
       </div>
 
-      {strokeOutputModeAvailable ? (
+      {showStrokeOutputMode ? (
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
           <span className="block text-[12px] font-semibold text-slate-700">
             Stroke output mode

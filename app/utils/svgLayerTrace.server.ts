@@ -14,6 +14,7 @@ import {
   resolveOutputDimensions,
   type SortLayersBy,
 } from "./converterSettings.server";
+import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
 
 export type TraceMode = "single" | "layered";
 export type SvgLayerKind = "fill" | "stroke";
@@ -911,10 +912,12 @@ function buildLayeredSvgString({
       ? `<g id="fill-stroke-outline" data-layer-id="fill-stroke-outline" data-layer-label="Stroke outline" data-layer-color="${safeFillStrokeColor}" fill="none" stroke="${safeFillStrokeColor}" stroke-width="${formatNumber(
           safeFillStrokeWidth,
         )}" stroke-linecap="round" stroke-linejoin="round">${layers
-          .map((layer) => extractPathTags(layer.pathTags))
+          .map((layer) =>
+            filterFillStrokePathTags(extractPathTags(layer.pathTags), { width, height }),
+          )
           .join("")}</g>`
       : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${outputDimensions.width}" height="${outputDimensions.height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${strokeBody}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${outputDimensions.width}" height="${outputDimensions.height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}${strokeBody}</svg>`;
 }
 
 function pathTagsHaveDrawablePath(pathTags: string): boolean {

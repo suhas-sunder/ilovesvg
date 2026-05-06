@@ -3,11 +3,17 @@ export type FillStrokeSvgOptions = {
   fillStrokeColor?: string | null;
   layerId?: string;
   layerLabel?: string;
+  includeCanvasStroke?: boolean | null;
 };
 
 const DEFAULT_STROKE_COLOR = "#020617";
 const DEFAULT_LAYER_ID = "fill-stroke-outline";
 const DEFAULT_LAYER_LABEL = "Stroke outline";
+
+export type FillStrokeViewport = {
+  width: number;
+  height: number;
+};
 
 export function normalizeFillStrokeWidth(value: unknown): number {
   const parsed = Number(value);
@@ -35,6 +41,7 @@ export function injectFillStrokeOutlineGroup(
   const strokeColor = normalizeFillStrokeColor(options.fillStrokeColor);
   const layerId = sanitizeLayerId(options.layerId || DEFAULT_LAYER_ID);
   const layerLabel = escapeXmlAttr(options.layerLabel || DEFAULT_LAYER_LABEL);
+  const viewport = parseSvgViewport(source);
   const strokePaths: string[] = [];
 
   source.replace(/<path\b([^>]*?)(\s*\/?)>/gi, (match, attrs = "", close = "") => {
@@ -42,6 +49,7 @@ export function injectFillStrokeOutlineGroup(
     const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
     if (!fill || !isEnabledFill(fill)) return match;
     if (!/\sd\s*=\s*(["'])(?!\s*\1)[\s\S]*?\1/i.test(rawAttrs)) return match;
+    if (!options.includeCanvasStroke && isCanvasBackgroundPath(rawAttrs, viewport)) return match;
 
     const nextAttrs = buildStrokePathAttrs(rawAttrs);
     const closeToken = String(close || "").includes("/") ? " />" : ">";
@@ -55,7 +63,26 @@ export function injectFillStrokeOutlineGroup(
     width,
   )}" stroke-linecap="round" stroke-linejoin="round">${strokePaths.join("")}</g>`;
 
+  if (/<\/svg>\s*$/i.test(source)) {
+    return source.replace(/<\/svg>\s*$/i, `${strokeGroup}</svg>`);
+  }
+
   return source.replace(/<svg\b[^>]*>/i, (open) => `${open}${strokeGroup}`);
+}
+
+export function filterFillStrokePathTags(
+  pathTags: string,
+  viewport: FillStrokeViewport | null | undefined,
+  options: { includeCanvasStroke?: boolean | null } = {},
+): string {
+  const safeViewport = normalizeViewport(viewport);
+  return String(pathTags || "").replace(
+    /<path\b([^>]*?)(\s*\/?)>/gi,
+    (match, attrs = "") =>
+      !options.includeCanvasStroke && isCanvasBackgroundPath(String(attrs || ""), safeViewport)
+        ? ""
+        : match,
+  );
 }
 
 function buildStrokePathAttrs(attrs: string): string {
@@ -145,6 +172,88 @@ function isEnabledFill(value: string): boolean {
     normalized !== "inherit" &&
     !normalized.startsWith("url(")
   );
+}
+
+function parseSvgViewport(svg: string): FillStrokeViewport | null {
+  const open = String(svg || "").match(/<svg\b([^>]*)>/i)?.[1] || "";
+  const viewBox = open.match(/\bviewBox\s*=\s*(["'])([^"']+)\1/i)?.[2];
+  if (viewBox) {
+    const values = viewBox
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter(Number.isFinite);
+    if (values.length >= 4 && values[2] > 0 && values[3] > 0) {
+      return { width: values[2], height: values[3] };
+    }
+  }
+
+  const width = parseSvgLength(open.match(/\bwidth\s*=\s*(["'])([^"']+)\1/i)?.[2]);
+  const height = parseSvgLength(open.match(/\bheight\s*=\s*(["'])([^"']+)\1/i)?.[2]);
+  return normalizeViewport({ width, height });
+}
+
+function parseSvgLength(value: string | undefined): number {
+  const match = String(value || "").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function normalizeViewport(
+  viewport: FillStrokeViewport | null | undefined,
+): FillStrokeViewport | null {
+  const width = Number(viewport?.width);
+  const height = Number(viewport?.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return { width, height };
+}
+
+function isCanvasBackgroundPath(
+  attrs: string,
+  viewport: FillStrokeViewport | null,
+): boolean {
+  if (!viewport) return false;
+  const d = String(attrs || "").match(/\sd\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
+  if (!d) return false;
+  const bounds = measurePathBounds(d);
+  if (!bounds) return false;
+
+  const tolerance = Math.max(1, Math.max(viewport.width, viewport.height) * 0.01);
+  const touchesCanvas =
+    bounds.minX <= tolerance &&
+    bounds.minY <= tolerance &&
+    bounds.maxX >= viewport.width - tolerance &&
+    bounds.maxY >= viewport.height - tolerance;
+  if (!touchesCanvas) return false;
+
+  const area = Math.max(0, bounds.maxX - bounds.minX) * Math.max(0, bounds.maxY - bounds.minY);
+  const canvasArea = viewport.width * viewport.height || 1;
+  return area / canvasArea >= 0.88;
+}
+
+function measurePathBounds(pathData: string):
+  | { minX: number; minY: number; maxX: number; maxY: number }
+  | null {
+  const values = (String(pathData || "").match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi) || [])
+    .map(Number)
+    .filter(Number.isFinite);
+  if (values.length < 4) return null;
+
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let index = 0; index < values.length - 1; index += 2) {
+    xs.push(values[index]);
+    ys.push(values[index + 1]);
+  }
+  if (!xs.length || !ys.length) return null;
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
 }
 
 function formatNumber(value: number): string {
