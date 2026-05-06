@@ -241,7 +241,9 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
     if (serializeAppearance(current) === serializeAppearance(next)) return;
     appearanceStore.set(key, next);
     appearanceSvgCache.delete(key);
-    setAppearanceVersion((value) => value + 1);
+    React.startTransition(() => {
+      setAppearanceVersion((value) => value + 1);
+    });
   }
 
   function resetOutputAppearance(item: TItem) {
@@ -255,7 +257,9 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
     }
     appearanceStore.set(key, DEFAULT_OUTPUT_APPEARANCE);
     appearanceSvgCache.delete(key);
-    setAppearanceVersion((value) => value + 1);
+    React.startTransition(() => {
+      setAppearanceVersion((value) => value + 1);
+    });
   }
 
   const focusedMode = focusedOutputStamp != null;

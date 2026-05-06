@@ -20,6 +20,9 @@ function assertNotIncludes(source, needle, label) {
 
 const checks = [];
 const outputPanel = await read("app/client/components/converter/TraceOutputPanel.tsx");
+const advancedSettingsPanel = await read("app/client/components/converter/AdvancedSettingsPanel.tsx");
+const svgRecolor = await read("app/routes/svg-recolor.tsx");
+const svgBackgroundEditor = await read("app/routes/svg-background-editor.tsx");
 const home = await read("app/routes/home.tsx");
 const pngToSvg = await read("app/routes/png-to-svg-converter.tsx");
 const pngLayered = await read("app/routes/png-to-layered-svg-for-cricut.tsx");
@@ -90,6 +93,16 @@ checks.push(
     assertIncludes(outputPanel, "outputAppearanceSvgCache", "shared output panel caches finalized post-processed SVGs"),
     assertIncludes(outputPanel, "pruneOutputAppearanceState", "shared output panel prunes removed output appearance state"),
     assertIncludes(outputPanel, "livePreviewLeadTitle=\"Post-processing\"", "shared focused editor labels live SVG edits as post-processing"),
+    assertIncludes(outputPanel, "useThrottledCommit", "shared output appearance controls throttle high-frequency SVG edits"),
+    assertIncludes(outputPanel, "ThrottledRangeInput", "shared output appearance range controls keep draft values before committing"),
+    assertNotIncludes(outputPanel, "onChange={(event) => onChange({ lineWeight", "line weight avoids direct per-event SVG rewrites"),
+    assertNotIncludes(outputPanel, "onChange={(event) => onChange({ fillSpread", "fill spread avoids direct per-event SVG rewrites"),
+    assertIncludes(advancedSettingsPanel, "useThrottledCommit", "shared advanced settings color/range controls use the draft/commit helper"),
+    assertIncludes(svgRecolor, "deferredSettings", "SVG recolor defers expensive preview recoloring while color controls update"),
+    assertIncludes(svgRecolor, "deferredPairs", "SVG recolor defers expensive replacement-rule preview updates"),
+    assertIncludes(svgRecolor, "recolorSvg(inSvg, settings, pairs)", "SVG recolor copy/download regenerate from committed current state"),
+    assertIncludes(svgBackgroundEditor, "deferredSettings", "SVG background editor defers expensive preview rebuilds while sliders update"),
+    assertIncludes(svgBackgroundEditor, "applyBackgroundEdits(inputSvgValid, settings)", "SVG background editor copy/download regenerate from committed current state"),
   assertIncludes(outputPanel, "Line weight", "line weight control is visible in output settings"),
   assertIncludes(outputPanel, "Fill spread", "fill spread control is visible where supported"),
   assertIncludes(outputPanel, "showStrokeOutputMode", "shared output panel hides non-actionable stroke output mode radios"),

@@ -27,6 +27,7 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import { useThrottledCommit } from "~/client/hooks/useThrottledCommit";
 
 type OutputVersion<TSettings extends MixedTraceSettings> = {
   svg: string;
@@ -496,7 +497,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     if (serializeOutputAppearance(current) === serializeOutputAppearance(next)) return;
     outputAppearanceStore.set(key, next);
     outputAppearanceSvgCache.delete(key);
-    setAppearanceVersion((value) => value + 1);
+    React.startTransition(() => {
+      setAppearanceVersion((value) => value + 1);
+    });
   }
 
   function resetOutputAppearance(item: TraceOutputItem<TSettings>) {
@@ -511,7 +514,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     }
     outputAppearanceStore.set(key, DEFAULT_OUTPUT_APPEARANCE);
     outputAppearanceSvgCache.delete(key);
-    setAppearanceVersion((value) => value + 1);
+    React.startTransition(() => {
+      setAppearanceVersion((value) => value + 1);
+    });
   }
 
   const focusedMode = focusedOutputStamp != null;
@@ -1457,15 +1462,13 @@ export function OutputAppearanceControls({
           <span>Line weight</span>
           <span>{settings.lineWeight.toFixed(2)}x</span>
         </span>
-        <input
-          type="range"
+        <ThrottledRangeInput
           min={0.25}
           max={30}
           step={0.05}
           value={settings.lineWeight}
           disabled={!lineSupported}
-          onChange={(event) => onChange({ lineWeight: Number(event.target.value) })}
-          className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+          onChange={(value) => onChange({ lineWeight: value })}
         />
         <span className="text-[12px] text-slate-500">
           {lineSupported
@@ -1494,15 +1497,13 @@ export function OutputAppearanceControls({
           <span>Fill spread</span>
           <span>{settings.fillSpread.toFixed(1)}px</span>
         </span>
-        <input
-          type="range"
+        <ThrottledRangeInput
           min={0}
           max={30}
           step={0.1}
           value={settings.fillSpread}
           disabled={!fillSupported}
-          onChange={(event) => onChange({ fillSpread: Number(event.target.value) })}
-          className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+          onChange={(value) => onChange({ fillSpread: value })}
         />
         <span className="text-[12px] text-slate-500">
           {fillSupported
@@ -1785,17 +1786,83 @@ function RangeInput({
           {suffix}
         </span>
       </span>
-      <input
-        type="range"
+      <ThrottledRangeInput
         min={min}
         max={max}
         step={step}
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+        onChange={onChange}
       />
     </label>
+  );
+}
+
+function ThrottledRangeInput({
+  value,
+  min,
+  max,
+  step,
+  disabled = false,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  const normalize = React.useCallback(
+    (nextValue: number) => {
+      const numberValue = Number(nextValue);
+      if (!Number.isFinite(numberValue)) return null;
+      return clampNumberToStep(numberValue, min, max, step);
+    },
+    [max, min, step],
+  );
+  const controller = useThrottledCommit({
+    value: normalize(value) ?? min,
+    onCommit: onChange,
+    delayMs: 120,
+    normalize,
+    isEqual: areNumbersEqual,
+  });
+
+  const scheduleEventValue = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
+      controller.schedule(Number(event.currentTarget.value));
+    },
+    [controller],
+  );
+  const flushEventValue = React.useCallback(
+    (event?: React.SyntheticEvent<HTMLInputElement>) => {
+      controller.flush(
+        event?.currentTarget
+          ? Number(event.currentTarget.value)
+          : undefined,
+      );
+    },
+    [controller],
+  );
+
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={controller.draft}
+      disabled={disabled}
+      onInput={scheduleEventValue}
+      onChange={scheduleEventValue}
+      onPointerUp={flushEventValue}
+      onMouseUp={flushEventValue}
+      onTouchEnd={flushEventValue}
+      onKeyUp={flushEventValue}
+      onBlur={flushEventValue}
+      className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+    />
   );
 }
 
@@ -1808,6 +1875,49 @@ function ColorInput({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const normalizedValue = normalizeHexColor(value) || "#000000";
+  const normalize = React.useCallback(
+    (nextValue: string) => normalizeHexColor(nextValue),
+    [],
+  );
+  const controller = useThrottledCommit({
+    value: normalizedValue,
+    onCommit: onChange,
+    delayMs: 120,
+    normalize,
+  });
+  const [textValue, setTextValue] = React.useState(normalizedValue);
+
+  React.useEffect(() => {
+    setTextValue((current) =>
+      normalizeHexColor(current) === normalizedValue ? current : normalizedValue,
+    );
+  }, [normalizedValue]);
+
+  const scheduleColor = React.useCallback(
+    (nextValue: string) => {
+      const normalized = normalizeHexColor(nextValue);
+      setTextValue(nextValue);
+      if (normalized) {
+        controller.schedule(normalized);
+      }
+    },
+    [controller],
+  );
+  const flushColor = React.useCallback(
+    (nextValue?: string) => {
+      const normalized =
+        normalizeHexColor(nextValue || textValue) ||
+        normalizeHexColor(controller.draft) ||
+        normalizedValue;
+      setTextValue(normalized);
+      controller.flush(normalized);
+    },
+    [controller, normalizedValue, textValue],
+  );
+  const colorValue =
+    normalizeHexColor(controller.draft) || normalizedValue;
+
   return (
     <label className="block min-w-0">
       <span className="block text-[12px] font-semibold text-slate-700">
@@ -1816,20 +1926,62 @@ function ColorInput({
       <span className="mt-1 flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5">
         <input
           type="color"
-          value={value}
-          onInput={(event) => onChange(event.currentTarget.value)}
-          onChange={(event) => onChange(event.currentTarget.value)}
+          value={colorValue}
+          onInput={(event) => scheduleColor(event.currentTarget.value)}
+          onChange={(event) => flushColor(event.currentTarget.value)}
+          onPointerUp={() => flushColor()}
+          onMouseUp={() => flushColor()}
+          onTouchEnd={() => flushColor()}
+          onBlur={() => flushColor()}
           className="h-7 w-8 shrink-0 cursor-pointer rounded border border-slate-200 bg-transparent p-0"
         />
         <input
           type="text"
-          value={value}
-          onChange={(event) => onChange(event.currentTarget.value)}
+          value={textValue}
+          onChange={(event) => scheduleColor(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              flushColor(event.currentTarget.value);
+            }
+          }}
+          onBlur={(event) => flushColor(event.currentTarget.value)}
+          aria-invalid={!normalizeHexColor(textValue)}
           className="min-w-0 flex-1 bg-transparent text-[12px] font-semibold text-slate-700 outline-none"
         />
       </span>
     </label>
   );
+}
+
+function clampNumberToStep(value: number, min: number, max: number, step: number) {
+  const clamped = Math.max(min, Math.min(max, value));
+  if (!Number.isFinite(step) || step <= 0) return clamped;
+  const decimals = getStepDecimals(step);
+  return Number((Math.round((clamped - min) / step) * step + min).toFixed(decimals));
+}
+
+function getStepDecimals(step: number) {
+  const [, decimals = ""] = String(step).split(".");
+  return Math.min(6, decimals.length);
+}
+
+function areNumbersEqual(left: number, right: number) {
+  return Math.abs(left - right) < 0.0001;
+}
+
+function normalizeHexColor(value: string) {
+  const raw = String(value || "").trim();
+  const short = raw.match(/^#?([0-9a-f]{3})$/i);
+  if (short) {
+    return `#${short[1]
+      .split("")
+      .map((part) => `${part}${part}`)
+      .join("")
+      .toLowerCase()}`;
+  }
+  const full = raw.match(/^#?([0-9a-f]{6})$/i);
+  return full ? `#${full[1].toLowerCase()}` : null;
 }
 
 function SelectInput({

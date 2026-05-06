@@ -10,6 +10,7 @@ import {
   type SortLayersBy,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { useThrottledCommit } from "~/client/hooks/useThrottledCommit";
 
 type TurnPolicy = "black" | "white" | "left" | "right" | "minority" | "majority";
 type TraceMode = "single" | "layered";
@@ -2736,56 +2737,46 @@ function ColorInput({
   onCommit: (value: string) => void;
 }) {
   const normalizedInitial = normalizeColorInput(value) || "#ffffff";
-  const [localValue, setLocalValue] = React.useState(normalizedInitial);
+  const normalize = React.useCallback(
+    (nextValue: string) => normalizeColorInput(nextValue),
+    [],
+  );
+  const controller = useThrottledCommit({
+    value: normalizedInitial,
+    onCommit,
+    delayMs: 100,
+    normalize,
+  });
   const [textValue, setTextValue] = React.useState(normalizedInitial);
   const [rgbValue, setRgbValue] = React.useState(() =>
     hexToRgbParts(normalizedInitial),
   );
-  const latestRef = React.useRef(normalizedInitial);
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     const normalized = normalizeColorInput(value) || "#ffffff";
-    setLocalValue((current) => (current === normalized ? current : normalized));
     setTextValue((current) => (current === normalized ? current : normalized));
     const nextRgb = hexToRgbParts(normalized);
     setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
-    latestRef.current = normalized;
   }, [value]);
-
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
 
   function schedule(nextValue: string) {
     const normalized = normalizeColorInput(nextValue);
     setTextValue((current) => (current === nextValue ? current : nextValue));
     if (!normalized) return;
-    setLocalValue((current) => (current === normalized ? current : normalized));
     const nextRgb = hexToRgbParts(normalized);
     setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
-    latestRef.current = normalized;
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      onCommit(latestRef.current);
-    }, 100);
+    controller.schedule(normalized);
   }
 
   function flush(nextValue = textValue) {
-    const normalized = normalizeColorInput(nextValue) || latestRef.current;
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    latestRef.current = normalized;
-    setLocalValue((current) => (current === normalized ? current : normalized));
+    const normalized =
+      normalizeColorInput(nextValue) ||
+      normalizeColorInput(controller.draft) ||
+      normalizedInitial;
     setTextValue((current) => (current === normalized ? current : normalized));
     const nextRgb = hexToRgbParts(normalized);
     setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
-    onCommit(normalized);
+    controller.flush(normalized);
   }
 
   function updateRgb(channel: "r" | "g" | "b", next: string) {
@@ -2799,7 +2790,7 @@ function ColorInput({
     <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
       <input
         type="color"
-        value={localValue}
+        value={normalizeColorInput(controller.draft) || normalizedInitial}
         disabled={disabled}
         title={title}
         onInput={(event) => schedule(event.currentTarget.value)}
@@ -2901,38 +2892,28 @@ function Range({
   step: number;
   onCommit: (value: number) => void;
 }) {
-  const [localValue, setLocalValue] = React.useState(value);
-  const latestRef = React.useRef(value);
-  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  React.useEffect(() => {
-    setLocalValue((current) => (current === value ? current : value));
-    latestRef.current = value;
-  }, [value]);
-
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const normalize = React.useCallback(
+    (nextValue: number) => {
+      const numberValue = Number(nextValue);
+      if (!Number.isFinite(numberValue)) return null;
+      return clampNumber(numberValue, min, max);
+    },
+    [max, min],
+  );
+  const controller = useThrottledCommit({
+    value: normalize(value) ?? min,
+    onCommit,
+    delayMs: 100,
+    normalize,
+    isEqual: areNumbersNearlyEqual,
+  });
 
   function schedule(next: number) {
-    const clamped = clampNumber(next, min, max);
-    setLocalValue((current) => (current === clamped ? current : clamped));
-    latestRef.current = clamped;
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      onCommit(latestRef.current);
-    }, 100);
+    controller.schedule(next);
   }
 
-  function flush() {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    onCommit(latestRef.current);
+  function flush(next?: number) {
+    controller.flush(next);
   }
 
   return (
@@ -2941,15 +2922,21 @@ function Range({
       min={min}
       max={max}
       step={step}
-      value={localValue}
-      onChange={(event) => schedule(Number(event.target.value))}
-      onPointerUp={flush}
-      onMouseUp={flush}
-      onTouchEnd={flush}
-      onBlur={flush}
+      value={controller.draft}
+      onInput={(event) => schedule(Number(event.currentTarget.value))}
+      onChange={(event) => schedule(Number(event.currentTarget.value))}
+      onPointerUp={(event) => flush(Number(event.currentTarget.value))}
+      onMouseUp={(event) => flush(Number(event.currentTarget.value))}
+      onTouchEnd={(event) => flush(Number(event.currentTarget.value))}
+      onKeyUp={(event) => flush(Number(event.currentTarget.value))}
+      onBlur={(event) => flush(Number(event.currentTarget.value))}
       className="w-[140px] accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
     />
   );
+}
+
+function areNumbersNearlyEqual(left: number, right: number) {
+  return Math.abs(left - right) < 0.0001;
 }
 
 function NumberInput({

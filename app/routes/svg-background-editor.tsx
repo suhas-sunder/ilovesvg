@@ -170,6 +170,7 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
   const [outSvg, setOutSvg] = React.useState<string>("");
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
+  const deferredSettings = React.useDeferredValue(settings);
 
   const [detect, setDetect] = React.useState<BgDetection>({
     found: false,
@@ -354,21 +355,33 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
     }
 
     try {
-      const result = applyBackgroundEdits(inputSvgValid, settings);
-      setOutSvg(result);
-      setOutPreviewSrc(makeSvgDataUrl(result));
+      const result = applyBackgroundEdits(inputSvgValid, deferredSettings);
+      React.startTransition(() => {
+        setOutSvg(result);
+        setOutPreviewSrc(makeSvgDataUrl(result));
+      });
       setErr(null);
     } catch (e: any) {
-      setOutSvg("");
-      setOutPreviewSrc(null);
-      setErr(e?.message || "Could not update this SVG.");
+      React.startTransition(() => {
+        setOutSvg("");
+        setOutPreviewSrc(null);
+        setErr(e?.message || "Could not update this SVG.");
+      });
     }
-  }, [hydrated, inputSvgValid, settings]);
+  }, [hydrated, inputSvgValid, deferredSettings]);
 
   function downloadSvg() {
-    if (!outSvg) return;
+    if (!inputSvgValid) return;
+    let exportSvg = "";
+    try {
+      exportSvg = applyBackgroundEdits(inputSvgValid, settings);
+    } catch (e: any) {
+      setErr(e?.message || "Could not update this SVG.");
+      return;
+    }
+    if (!exportSvg) return;
     const nameBase = safeBaseName(settings.fileName || "svg-background");
-    const blob = new Blob([outSvg], { type: "image/svg+xml;charset=utf-8" });
+    const blob = new Blob([exportSvg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -380,8 +393,13 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
   }
 
   function copySvg() {
-    if (!outSvg) return;
-    navigator.clipboard.writeText(outSvg).then(() => showToast("Copied"));
+    if (!inputSvgValid) return;
+    try {
+      const exportSvg = applyBackgroundEdits(inputSvgValid, settings);
+      navigator.clipboard.writeText(exportSvg).then(() => showToast("Copied"));
+    } catch (e: any) {
+      setErr(e?.message || "Could not update this SVG.");
+    }
   }
 
   const buttonDisabled = isServer || !hydrated || !outSvg;

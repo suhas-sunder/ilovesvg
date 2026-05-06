@@ -146,8 +146,10 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
   const [outSvg, setOutSvg] = React.useState<string>("");
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
+  const deferredSettings = React.useDeferredValue(settings);
 
   const [pairs, setPairs] = React.useState<ReplacePair[]>([]);
+  const deferredPairs = React.useDeferredValue(pairs);
   const [activePairId, setActivePairId] = React.useState<string | null>(null);
 
   const [palette, setPalette] = React.useState<PaletteItem[]>([]);
@@ -266,15 +268,19 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
     }
 
     try {
-      const result = recolorSvg(inSvg, settings, pairs);
-      setOutSvg(result);
+      const result = recolorSvg(inSvg, deferredSettings, deferredPairs);
+      React.startTransition(() => {
+        setOutSvg(result);
+      });
       setErr(null);
     } catch (e: any) {
-      setOutSvg("");
-      setErr(e?.message || "Could not recolor this SVG.");
+      React.startTransition(() => {
+        setOutSvg("");
+        setErr(e?.message || "Could not recolor this SVG.");
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, inSvg, settings, pairs]);
+  }, [hydrated, inSvg, deferredSettings, deferredPairs]);
 
   function setPair(id: string, patch: Partial<ReplacePair>) {
     setPairs((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -353,8 +359,13 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
   }
 
   function copySvg() {
-    if (!outSvg) return;
-    navigator.clipboard.writeText(outSvg).then(() => showToast("Copied"));
+    if (!hydrated || !inSvg) return;
+    try {
+      const exportSvg = recolorSvg(inSvg, settings, pairs);
+      navigator.clipboard.writeText(exportSvg).then(() => showToast("Copied"));
+    } catch (e: any) {
+      setErr(e?.message || "Could not recolor this SVG.");
+    }
   }
 
   function copyInputSvg() {
