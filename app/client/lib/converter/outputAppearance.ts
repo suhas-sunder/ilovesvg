@@ -451,11 +451,14 @@ function buildInternalGapFillClones(
     const sharedAttrs = [
       ["transform", readAttribute(attrs, "transform")],
       ["clip-path", readAttribute(attrs, "clip-path")],
-      ["opacity", readAttribute(attrs, "opacity")],
     ]
       .filter(([, value]) => value)
       .map(([attribute, value]) => ` ${attribute}="${escapeSvgAttribute(value || "")}"`)
       .join("");
+
+    clones.push(
+      `<path${sharedAttrs} d="${escapeSvgAttribute(d)}" fill="${escapeSvgAttribute(color)}" stroke="none" fill-rule="nonzero" clip-rule="nonzero" data-gap-fill-shape="solid-backfill"/>`,
+    );
 
     const pathClones: string[] = [];
     for (const subpath of splitClosedPathSubpaths(d)) {

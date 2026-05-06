@@ -118,6 +118,23 @@ assertIncludes(gapSvg, 'data-gap-fill-shape="true"', "internal gap fill should e
 assertIncludes(gapSvg, 'fill="#00aaff"', "internal gap fill should use the requested gap color");
 assertIncludes(gapSvg, 'id="subject" fill="#f97316"', "internal gap fill should preserve original filled artwork");
 
+const compoundOutlineFixture =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100"><path id="canvas" fill="#fff" d="M0 0H120V100H0Z"/><path id="outline" fill="#000" fill-rule="evenodd" d="M20 20H100V80H20Z M42 42H78V58H42Z"/></svg>';
+const compoundGapSvg = applyOutputAppearanceToSvg(
+  compoundOutlineFixture,
+  {
+    internalGapFillEnabled: true,
+    internalGapFillColor: "#facc15",
+  },
+  detectOutputAppearanceSupport(compoundOutlineFixture),
+  { idPrefix: "pp-compound-gap" },
+);
+const compoundGapGroup = extractGroup(compoundGapSvg, 'data-post-processing="internal-gap-fill"');
+assertIncludes(compoundGapGroup, 'data-gap-fill-shape="solid-backfill"', "compound gap fill should include a solid backing clone");
+assertIncludes(compoundGapGroup, 'fill-rule="nonzero"', "compound gap fill should override evenodd holes for interior backing");
+assertNotIncludes(compoundGapGroup, 'id="canvas"', "compound gap fill should not include the full-canvas background");
+assertNoDuplicateIds(compoundGapSvg);
+
 const gradientSvg = applyOutputAppearanceToSvg(
   fixtureSvg,
   {

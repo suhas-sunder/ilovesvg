@@ -1417,7 +1417,7 @@ export function OutputAppearanceControls({
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <ToggleRow
-                    label="Fill small internal gaps"
+                    label="Fill internal gaps"
                     checked={settings.internalGapFillEnabled}
                     disabled={!support.supportsInternalGapFill}
                     onChange={(checked) => onChange({ internalGapFillEnabled: checked })}
@@ -1430,7 +1430,7 @@ export function OutputAppearanceControls({
                 />
               </div>
               <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-                Conservative visual fill behind artwork. Keep off for designs where transparent holes matter.
+                Adds the chosen color behind compound line-art interiors. Keep off for designs where transparent holes matter.
               </p>
               {!support.supportsInternalGapFill ? (
                 <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
