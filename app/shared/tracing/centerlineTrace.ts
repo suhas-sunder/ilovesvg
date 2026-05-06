@@ -675,18 +675,57 @@ function buildStrokeSvg(
           normalizeHexColor(settings.bgColor) || "#ffffff",
         )}" />`
       : "";
-  const paths = polylines.map((line, index) => {
-    const d = line
-      .map((point, pointIndex) => {
-        const cmd = pointIndex === 0 ? "M" : "L";
-        return `${cmd}${formatNumber(point.x + 0.5)} ${formatNumber(point.y + 0.5)}`;
-      })
-      .join(" ");
+  const paths = polylines.map((line) => {
+    const d = buildStrokePathData(line);
     return `<path data-stroke-layer-id="centerline-stroke-1" data-layer-label="Centerline strokes" data-layer-color="${stroke}" d="${d}" />`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${output.width}" height="${output.height}" viewBox="0 0 ${sourceWidth} ${sourceHeight}">${background}<g fill="none" stroke="${escapeAttr(
     stroke,
   )}" stroke-width="${formatNumber(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round">${paths.join("")}</g></svg>`;
+}
+
+function buildStrokePathData(line: Point[]) {
+  const pathLine = line.length >= 6 ? smoothStrokePoints(line) : line;
+  if (pathLine.length <= 2) {
+    return pathLine
+      .map((point, pointIndex) => {
+        const cmd = pointIndex === 0 ? "M" : "L";
+        return `${cmd}${formatPoint(point)}`;
+      })
+      .join(" ");
+  }
+
+  // Midpoint quadratic smoothing keeps the traced topology, but removes the
+  // obvious pixel-step feel from longer centerline strokes.
+  let d = `M${formatPoint(pathLine[0])}`;
+  for (let i = 1; i < pathLine.length - 2; i += 1) {
+    const control = pathLine[i];
+    const next = pathLine[i + 1];
+    d += ` Q${formatPoint(control)} ${formatNumber((control.x + next.x) / 2 + 0.5)} ${formatNumber(
+      (control.y + next.y) / 2 + 0.5,
+    )}`;
+  }
+  d += ` Q${formatPoint(pathLine[pathLine.length - 2])} ${formatPoint(pathLine[pathLine.length - 1])}`;
+  return d;
+}
+
+function smoothStrokePoints(points: Point[]) {
+  const smoothed = points.map((point) => ({ ...point }));
+  const strength = 0.28;
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const prev = points[i - 1];
+    const point = points[i];
+    const next = points[i + 1];
+    smoothed[i] = {
+      x: point.x * (1 - strength) + ((prev.x + next.x) / 2) * strength,
+      y: point.y * (1 - strength) + ((prev.y + next.y) / 2) * strength,
+    };
+  }
+  return smoothed;
+}
+
+function formatPoint(point: Point) {
+  return `${formatNumber(point.x + 0.5)} ${formatNumber(point.y + 0.5)}`;
 }
 
 function simplifyPolyline(points: Point[], tolerance: number): Point[] {

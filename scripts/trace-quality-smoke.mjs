@@ -391,15 +391,17 @@ function auditCenterlineStrokeRecipes() {
     validateCenterlineSvg(`centerline-cartoon-outline:${preset.id}`, result.svg);
     const coverage = measureSvgCoordinateCoverage(result.svg);
     const outlineRecall = measureCartoonOutlineRecall(result.svg);
+    const hasSmoothedStrokePaths = /\sd="[^"]*\bQ-?\d/i.test(result.svg);
     if (
       result.pathCount < 8 ||
       result.pathCount > 260 ||
       coverage.width < 280 ||
       coverage.height < 280 ||
-      outlineRecall < 0.55
+      outlineRecall < 0.55 ||
+      !hasSmoothedStrokePaths
     ) {
       throw new Error(
-        `centerline-cartoon-outline:${preset.id} did not preserve the drawing outline enough: paths=${result.pathCount}, coverage=${coverage.width}x${coverage.height}, recall=${outlineRecall.toFixed(2)}`,
+        `centerline-cartoon-outline:${preset.id} did not preserve the drawing outline enough: paths=${result.pathCount}, coverage=${coverage.width}x${coverage.height}, recall=${outlineRecall.toFixed(2)}, smoothed=${hasSmoothedStrokePaths}`,
       );
     }
     rows.push({
@@ -543,9 +545,7 @@ function distToSegment(x, y, x1, y1, x2, y2) {
 }
 
 function measureSvgCoordinateCoverage(svg) {
-  const values = [...svg.matchAll(/[ML](-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)]
-    .map((match) => [Number(match[1]), Number(match[2])])
-    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+  const values = extractSvgPolylines(svg).flat();
   if (!values.length) return { width: 0, height: 0 };
   const xs = values.map(([x]) => x);
   const ys = values.map(([, y]) => y);
@@ -556,11 +556,6 @@ function measureSvgCoordinateCoverage(svg) {
 }
 
 function measureCartoonOutlineRecall(svg) {
-  const outputPoints = [...svg.matchAll(/[ML](-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)]
-    .map((match) => [Number(match[1]), Number(match[2])])
-    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
-  if (!outputPoints.length) return 0;
-
   const anchors = [
     ...sampleEllipse(190, 220, 75, 60, 0, Math.PI * 2, 80),
     ...sampleEllipse(290, 306, 92, 55, 0, Math.PI * 2, 80),
@@ -571,14 +566,7 @@ function measureCartoonOutlineRecall(svg) {
     ...sampleLine(118, 405, 260, 410, 30),
     ...sampleLine(145, 345, 108, 390, 18),
   ];
-  let hits = 0;
-  for (const [anchorX, anchorY] of anchors) {
-    const close = outputPoints.some(
-      ([x, y]) => Math.hypot(x - anchorX, y - anchorY) <= 12,
-    );
-    if (close) hits += 1;
-  }
-  return hits / anchors.length;
+  return measureSvgAnchorRecall(svg, anchors, 12);
 }
 
 function measureInternalLayerLineRecall(svg) {
@@ -609,12 +597,54 @@ function measureSvgAnchorRecall(svg, anchors, radius) {
 
 function extractSvgPolylines(svg) {
   return [...svg.matchAll(/\sd="([^"]+)"/g)]
-    .map((match) =>
-      [...match[1].matchAll(/[ML](-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)]
-        .map((pointMatch) => [Number(pointMatch[1]), Number(pointMatch[2])])
-        .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)),
-    )
+    .map((match) => sampleSvgPathData(match[1]))
     .filter((line) => line.length > 0);
+}
+
+function sampleSvgPathData(pathData) {
+  const tokens = [...pathData.matchAll(/[MLQ]|-?\d+(?:\.\d+)?/g)].map((match) => match[0]);
+  const points = [];
+  let index = 0;
+  let current = null;
+  while (index < tokens.length) {
+    const command = tokens[index++];
+    if (command === "M" || command === "L") {
+      const x = Number(tokens[index++]);
+      const y = Number(tokens[index++]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) break;
+      current = [x, y];
+      points.push(current);
+      continue;
+    }
+    if (command === "Q") {
+      const cx = Number(tokens[index++]);
+      const cy = Number(tokens[index++]);
+      const x = Number(tokens[index++]);
+      const y = Number(tokens[index++]);
+      if (
+        !current ||
+        !Number.isFinite(cx) ||
+        !Number.isFinite(cy) ||
+        !Number.isFinite(x) ||
+        !Number.isFinite(y)
+      ) {
+        break;
+      }
+      const [startX, startY] = current;
+      for (let step = 1; step <= 8; step += 1) {
+        const t = step / 8;
+        const inv = 1 - t;
+        points.push([
+          inv * inv * startX + 2 * inv * t * cx + t * t * x,
+          inv * inv * startY + 2 * inv * t * cy + t * t * y,
+        ]);
+      }
+      current = [x, y];
+      continue;
+    }
+    break;
+  }
+  return points.filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 }
 
 function sampleEllipse(cx, cy, rx, ry, start, end, count) {
