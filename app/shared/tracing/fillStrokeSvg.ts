@@ -88,6 +88,7 @@ export function filterFillStrokePathTags(
 function buildStrokePathAttrs(attrs: string): string {
   let nextAttrs = String(attrs || "");
   for (const name of [
+    "id",
     "fill",
     "fill-opacity",
     "stroke",

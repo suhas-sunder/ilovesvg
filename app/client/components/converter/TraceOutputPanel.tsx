@@ -95,6 +95,13 @@ export type TraceOutputLayerPatch = {
 };
 
 const outputAppearanceStore = new Map<string, OutputAppearanceSettings>();
+type OutputAppearanceSvgCacheEntry = {
+  baseSvg: string;
+  settingsKey: string;
+  precisionOutput: boolean;
+  svg: string;
+};
+const outputAppearanceSvgCache = new Map<string, OutputAppearanceSvgCacheEntry>();
 
 export function getTraceOutputSvg<TSettings extends MixedTraceSettings>(
   item: TraceOutputItem<TSettings>,
@@ -102,12 +109,31 @@ export function getTraceOutputSvg<TSettings extends MixedTraceSettings>(
   const baseSvg = getTraceOutputBaseSvg(item);
   const appearance = getStoredOutputAppearance(item);
   if (!hasOutputAppearanceChanges(appearance)) return baseSvg;
+  const cacheKey = getOutputAppearanceKey(item);
+  const settingsKey = serializeOutputAppearance(appearance);
+  const precisionOutput = isPrecisionOutputItem(item);
+  const cached = outputAppearanceSvgCache.get(cacheKey);
+  if (
+    cached &&
+    cached.baseSvg === baseSvg &&
+    cached.settingsKey === settingsKey &&
+    cached.precisionOutput === precisionOutput
+  ) {
+    return cached.svg;
+  }
   const support = detectOutputAppearanceSupport(baseSvg, {
-    precisionOutput: isPrecisionOutputItem(item),
+    precisionOutput,
   });
-  return applyOutputAppearanceToSvg(baseSvg, appearance, support, {
+  const svg = applyOutputAppearanceToSvg(baseSvg, appearance, support, {
     idPrefix: `output-${getOutputAppearanceKey(item)}`,
   });
+  outputAppearanceSvgCache.set(cacheKey, {
+    baseSvg,
+    settingsKey,
+    precisionOutput,
+    svg,
+  });
+  return svg;
 }
 
 export function getTraceOutputBaseSvg<TSettings extends MixedTraceSettings>(
@@ -406,6 +432,10 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     return () => URL.revokeObjectURL(url);
   }, [file, focusedOutputHasSourcePreview, focusedOutputStamp]);
 
+  React.useEffect(() => {
+    pruneOutputAppearanceState(history.map((item) => getOutputAppearanceKey(item)));
+  }, [history]);
+
   function closeFocusedEditor(stamp: number) {
     setFocusedOutputStamp(null);
     setHighlightedOutputStamp(stamp);
@@ -463,12 +493,24 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     const key = getOutputAppearanceKey(item);
     const current = getStoredOutputAppearance(item);
     const next = normalizeOutputAppearance({ ...current, ...patch });
+    if (serializeOutputAppearance(current) === serializeOutputAppearance(next)) return;
     outputAppearanceStore.set(key, next);
+    outputAppearanceSvgCache.delete(key);
     setAppearanceVersion((value) => value + 1);
   }
 
   function resetOutputAppearance(item: TraceOutputItem<TSettings>) {
-    outputAppearanceStore.set(getOutputAppearanceKey(item), DEFAULT_OUTPUT_APPEARANCE);
+    const key = getOutputAppearanceKey(item);
+    const current = getStoredOutputAppearance(item);
+    if (
+      serializeOutputAppearance(current) ===
+        serializeOutputAppearance(DEFAULT_OUTPUT_APPEARANCE) &&
+      !outputAppearanceSvgCache.has(key)
+    ) {
+      return;
+    }
+    outputAppearanceStore.set(key, DEFAULT_OUTPUT_APPEARANCE);
+    outputAppearanceSvgCache.delete(key);
     setAppearanceVersion((value) => value + 1);
   }
 
@@ -1217,6 +1259,9 @@ export function OutputAppearanceControls({
       stickerBorderWidth: DEFAULT_OUTPUT_APPEARANCE.stickerBorderWidth,
       stickerBorderColor: DEFAULT_OUTPUT_APPEARANCE.stickerBorderColor,
       stickerBorderJoin: DEFAULT_OUTPUT_APPEARANCE.stickerBorderJoin,
+    });
+  const resetInternalGap = () =>
+    onChange({
       internalGapFillEnabled: false,
       internalGapFillColor: DEFAULT_OUTPUT_APPEARANCE.internalGapFillColor,
     });
@@ -1315,7 +1360,6 @@ export function OutputAppearanceControls({
           <EffectResetButton
             disabled={
               !settings.stickerBorderEnabled &&
-              !settings.internalGapFillEnabled &&
               settings.stickerBorderWidth <= 0.001
             }
             onClick={resetSticker}
@@ -1370,15 +1414,30 @@ export function OutputAppearanceControls({
               onChange={(value) => onChange({ stickerBorderWidth: value })}
             />
             <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-2">
-              <ToggleRow
-                label="Fill small internal gaps"
-                checked={settings.internalGapFillEnabled}
-                disabled={!support.supportsInternalGapFill}
-                onChange={(checked) => onChange({ internalGapFillEnabled: checked })}
-              />
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <ToggleRow
+                    label="Fill small internal gaps"
+                    checked={settings.internalGapFillEnabled}
+                    disabled={!support.supportsInternalGapFill}
+                    onChange={(checked) => onChange({ internalGapFillEnabled: checked })}
+                  />
+                </div>
+                <EffectResetButton
+                  disabled={!settings.internalGapFillEnabled}
+                  onClick={resetInternalGap}
+                  label="Reset gap"
+                />
+              </div>
               <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
                 Conservative visual fill behind artwork. Keep off for designs where transparent holes matter.
               </p>
+              {!support.supportsInternalGapFill ? (
+                <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
+                  {support.internalGapFillDisabledReason ||
+                    "Gap fill needs foreground filled path regions."}
+                </p>
+              ) : null}
               {settings.internalGapFillEnabled ? (
                 <div className="mt-2">
                   <ColorInput
@@ -1886,6 +1945,22 @@ function getStoredOutputAppearance<TSettings extends MixedTraceSettings>(
   return normalizeOutputAppearance(
     item.appearance ?? outputAppearanceStore.get(getOutputAppearanceKey(item)),
   );
+}
+
+function serializeOutputAppearance(
+  appearance: Partial<OutputAppearanceSettings> | null | undefined,
+): string {
+  return JSON.stringify(normalizeOutputAppearance(appearance));
+}
+
+function pruneOutputAppearanceState(keys: Iterable<string>) {
+  const activeKeys = new Set(keys);
+  for (const key of outputAppearanceStore.keys()) {
+    if (!activeKeys.has(key)) outputAppearanceStore.delete(key);
+  }
+  for (const key of outputAppearanceSvgCache.keys()) {
+    if (!activeKeys.has(key)) outputAppearanceSvgCache.delete(key);
+  }
 }
 
 function getOutputAppearanceKey<TSettings extends MixedTraceSettings>(

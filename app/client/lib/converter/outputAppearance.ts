@@ -49,6 +49,7 @@ export type OutputAppearanceSupport = {
   hasFill: boolean;
   fillSpreadDisabledReason?: string;
   stickerBorderDisabledReason?: string;
+  internalGapFillDisabledReason?: string;
   fillStyleDisabledReason?: string;
   shadowEffectDisabledReason?: string;
 };
@@ -252,12 +253,14 @@ export function detectOutputAppearanceSupport(
   const fillUnavailableReason = hasFill
     ? undefined
     : "This effect needs filled SVG regions.";
+  const supportsStickerBorder = hasForegroundFilledShape(source);
+  const supportsInternalGapFill = hasForegroundFilledPath(source);
 
   return {
     supportsLineWeight: hasStroke,
     supportsFillSpread: hasFill && !precisionOutput,
-    supportsStickerBorder: hasFill,
-    supportsInternalGapFill: hasFill,
+    supportsStickerBorder,
+    supportsInternalGapFill,
     supportsGradientFill: hasFill,
     supportsPatternFill: hasFill,
     supportsShadowEffect: (hasFill || hasStroke) && !precisionOutput,
@@ -268,7 +271,16 @@ export function detectOutputAppearanceSupport(
       : hasFill
         ? undefined
         : "Fill spread needs filled SVG regions.",
-    stickerBorderDisabledReason: fillUnavailableReason,
+    stickerBorderDisabledReason: supportsStickerBorder
+      ? undefined
+      : hasFill
+        ? "Sticker border needs foreground filled SVG shapes."
+        : fillUnavailableReason,
+    internalGapFillDisabledReason: supportsInternalGapFill
+      ? undefined
+      : hasFill
+        ? "Gap fill needs foreground filled path regions."
+        : fillUnavailableReason,
     fillStyleDisabledReason: fillUnavailableReason,
     shadowEffectDisabledReason: precisionOutput
       ? "Shadow and glow are visual effects, so they are disabled for precision cut outputs."
@@ -397,9 +409,10 @@ function applyStickerBorder(
   settings: OutputAppearanceSettings,
   idPrefix: string,
 ): string {
-  const paths = buildForegroundPathClones(sourceSvg, "sticker", settings);
+  const paths = buildForegroundShapeClones(sourceSvg);
   if (!paths.length) return targetSvg;
-  const group = `<g id="${idPrefix}-sticker-border" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}" stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
+  const groupId = makeUniqueSvgId(targetSvg, `${idPrefix}-sticker-border`);
+  const group = `<g id="${groupId}" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}" stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
   return insertAfterOpeningSvgAndDefs(targetSvg, group);
 }
 
@@ -413,7 +426,8 @@ function applyInternalGapFill(
   const paths = buildInternalGapFillClones(sourceSvg, settings, width);
   if (!paths.length) return targetSvg;
   const color = settings.internalGapFillColor || settings.stickerBorderColor;
-  const group = `<g id="${idPrefix}-internal-gap-fill" data-post-processing="internal-gap-fill" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(0.5, width * 0.08))}" stroke-linejoin="round" stroke-linecap="round" opacity="0.96" paint-order="stroke fill markers">${paths.join("")}</g>`;
+  const groupId = makeUniqueSvgId(targetSvg, `${idPrefix}-internal-gap-fill`);
+  const group = `<g id="${groupId}" data-post-processing="internal-gap-fill" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(0.5, width * 0.08))}" stroke-linejoin="round" stroke-linecap="round" opacity="0.96" paint-order="stroke fill markers">${paths.join("")}</g>`;
   return insertAfterOpeningSvgAndDefs(targetSvg, group);
 }
 
@@ -469,14 +483,30 @@ function splitClosedPathSubpaths(pathData: string): string[] {
     .filter((chunk) => /[zZ]\s*$/.test(chunk));
 }
 
-function buildForegroundPathClones(
-  svg: string,
-  mode: "sticker" | "gap",
-  settings: OutputAppearanceSettings,
-  strokeWidth?: number,
-): string[] {
+function buildForegroundShapeClones(svg: string): string[] {
   const viewport = readSvgViewport(svg);
   const clones: string[] = [];
+  for (const match of String(svg).matchAll(FILL_SHAPE_TAG_PATTERN)) {
+    const tagName = String(match[1] || "").toLowerCase();
+    const rawAttrs = String(match[2] || "");
+    if (rawAttrs.includes("data-post-processing=")) continue;
+    if (isCanvasBackgroundElement(tagName, rawAttrs, viewport)) continue;
+    const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
+    if (!fill || !isPaintEnabled(fill)) continue;
+
+    const preserved = buildShapeCloneAttributes(tagName, rawAttrs);
+    if (!preserved) continue;
+    clones.push(`<${tagName}${preserved}/>`);
+  }
+  return clones;
+}
+
+function hasForegroundFilledShape(svg: string): boolean {
+  return buildForegroundShapeClones(svg).length > 0;
+}
+
+function hasForegroundFilledPath(svg: string): boolean {
+  const viewport = readSvgViewport(svg);
   for (const match of String(svg).matchAll(PATH_TAG_PATTERN)) {
     const attrs = match[1] || "";
     if (attrs.includes("data-post-processing=")) continue;
@@ -484,29 +514,81 @@ function buildForegroundPathClones(
     if (!d || isCanvasBackgroundPath(d, viewport)) continue;
     const fill = readPaint(attrs, "fill") ?? readStyleProperty(attrs, "fill");
     if (!fill || !isPaintEnabled(fill)) continue;
-
-    const preserved = [
-      ["d", d],
-      ["transform", readAttribute(attrs, "transform")],
-      ["clip-path", readAttribute(attrs, "clip-path")],
-      ["fill-rule", readAttribute(attrs, "fill-rule")],
-      ["clip-rule", readAttribute(attrs, "clip-rule")],
-      ["opacity", readAttribute(attrs, "opacity")],
-    ]
-      .filter(([, value]) => value)
-      .map(([attribute, value]) => ` ${attribute}="${escapeSvgAttribute(value || "")}"`)
-      .join("");
-
-    if (mode === "sticker") {
-      clones.push(`<path${preserved}/>`);
-    } else {
-      const color = settings.internalGapFillColor || settings.stickerBorderColor;
-      clones.push(
-        `<path${preserved} fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(strokeWidth || 2)}"/>`,
-      );
-    }
+    return true;
   }
-  return clones;
+  return false;
+}
+
+function buildShapeCloneAttributes(tagName: string, attrs: string): string {
+  const geometryByTag: Record<string, string[]> = {
+    path: ["d"],
+    rect: ["x", "y", "width", "height", "rx", "ry"],
+    circle: ["cx", "cy", "r"],
+    ellipse: ["cx", "cy", "rx", "ry"],
+    polygon: ["points"],
+  };
+  const attributes = [
+    ...(geometryByTag[tagName] || []),
+    "transform",
+    "clip-path",
+    "fill-rule",
+    "clip-rule",
+    "opacity",
+  ];
+  const preserved = attributes
+    .map((attribute) => [attribute, readAttribute(attrs, attribute)] as const)
+    .filter(([, value]) => value)
+    .map(([attribute, value]) => ` ${attribute}="${escapeSvgAttribute(value || "")}"`)
+    .join("");
+  const requiredByTag: Record<string, string[]> = {
+    path: ["d"],
+    rect: ["width", "height"],
+    circle: ["r"],
+    ellipse: ["rx", "ry"],
+    polygon: ["points"],
+  };
+  const missingRequired = (requiredByTag[tagName] || []).some(
+    (attribute) => !readAttribute(attrs, attribute),
+  );
+  if (missingRequired) return "";
+  return preserved;
+}
+
+function isCanvasBackgroundElement(
+  tagName: string,
+  attrs: string,
+  viewport: { x: number; y: number; width: number; height: number } | null,
+): boolean {
+  if (!viewport) return false;
+  if (tagName === "path") {
+    const d = readAttribute(attrs, "d");
+    return Boolean(d && isCanvasBackgroundPath(d, viewport));
+  }
+  if (tagName === "rect") {
+    const x = parseSvgNumber(readAttribute(attrs, "x") || "") ?? 0;
+    const y = parseSvgNumber(readAttribute(attrs, "y") || "") ?? 0;
+    const width = parseSvgNumber(readAttribute(attrs, "width") || "");
+    const height = parseSvgNumber(readAttribute(attrs, "height") || "");
+    if (!width || !height) return false;
+    return rectangleMatchesViewport(x, y, x + width, y + height, viewport);
+  }
+  if (tagName === "polygon") {
+    const points = readAttribute(attrs, "points") || "";
+    const numbers = [...points.matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)].map(
+      (match) => Number(match[0]),
+    );
+    if (numbers.length < 8 || numbers.length % 2 !== 0) return false;
+    const xs = numbers.filter((_, index) => index % 2 === 0);
+    const ys = numbers.filter((_, index) => index % 2 === 1);
+    return rectangleMatchesViewport(
+      Math.min(...xs),
+      Math.min(...ys),
+      Math.max(...xs),
+      Math.max(...ys),
+      viewport,
+    );
+  }
+  return false;
 }
 
 function applyGradientFill(
@@ -514,7 +596,7 @@ function applyGradientFill(
   settings: OutputAppearanceSettings,
   idPrefix: string,
 ): string {
-  const gradientId = `${idPrefix}-gradient-fill`;
+  const gradientId = makeUniqueSvgId(svg, `${idPrefix}-gradient-fill`);
   const defs =
     settings.gradientType === "radial"
       ? `<radialGradient id="${gradientId}" cx="50%" cy="50%" r="65%"><stop offset="0%" stop-color="${escapeSvgAttribute(settings.gradientStartColor)}"/><stop offset="100%" stop-color="${escapeSvgAttribute(settings.gradientEndColor)}"/></radialGradient>`
@@ -541,7 +623,7 @@ function applyPatternFill(
   settings: OutputAppearanceSettings,
   idPrefix: string,
 ): string {
-  const patternId = `${idPrefix}-pattern-fill`;
+  const patternId = makeUniqueSvgId(svg, `${idPrefix}-pattern-fill`);
   const scale = formatNumber(settings.patternScale);
   const background = settings.patternBackgroundTransparent
     ? ""
@@ -591,7 +673,7 @@ function applyShadowEffect(
   settings: OutputAppearanceSettings,
   idPrefix: string,
 ): string {
-  const filterId = `${idPrefix}-shadow-effect`;
+  const filterId = makeUniqueSvgId(svg, `${idPrefix}-shadow-effect`);
   const blur = formatNumber(settings.shadowBlur);
   const offsetX = formatNumber(settings.shadowType === "glow" ? 0 : settings.shadowOffsetX);
   const offsetY = formatNumber(settings.shadowType === "glow" ? 0 : settings.shadowOffsetY);
@@ -618,6 +700,32 @@ function injectDefs(svg: string, definition: string): string {
     return `${source.slice(0, insertAt)}${definition}${source.slice(insertAt)}`;
   }
   return insertAfterOpeningSvgAndDefs(source, `<defs>${definition}</defs>`);
+}
+
+function makeUniqueSvgId(svg: string, desiredId: string): string {
+  const safeDesired = sanitizeSvgId(desiredId);
+  const existing = new Set(
+    [...String(svg || "").matchAll(/\sid\s*=\s*(["'])([^"']+)\1/gi)].map(
+      (match) => match[2],
+    ),
+  );
+  if (!existing.has(safeDesired)) return safeDesired;
+
+  let suffix = 2;
+  let candidate = `${safeDesired}-${suffix}`;
+  while (existing.has(candidate)) {
+    suffix += 1;
+    candidate = `${safeDesired}-${suffix}`;
+  }
+  return candidate;
+}
+
+function sanitizeSvgId(value: string): string {
+  const sanitized = String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+/, "");
+  return /^[a-zA-Z_]/.test(sanitized) ? sanitized : `pp-${sanitized || "output"}`;
 }
 
 function insertAfterOpeningSvgAndDefs(svg: string, content: string): string {
@@ -880,8 +988,7 @@ function formatPercent(value: number): string {
 
 function buildSvgIdPrefix(value: string | undefined, svg: string): string {
   const raw = value?.trim() || `output-polish-${hashString(svg)}`;
-  const sanitized = raw.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+/, "");
-  return /^[a-zA-Z_]/.test(sanitized) ? sanitized : `pp-${sanitized || "output"}`;
+  return sanitizeSvgId(raw);
 }
 
 function hashString(value: string): string {

@@ -76,6 +76,13 @@ type BespokeTraceOutputPanelProps<TItem extends BespokeTraceOutputItem> = {
 };
 
 const appearanceStore = new Map<string, OutputAppearanceSettings>();
+type AppearanceSvgCacheEntry = {
+  rawSvg: string;
+  settingsKey: string;
+  precisionOutput: boolean;
+  svg: string;
+};
+const appearanceSvgCache = new Map<string, AppearanceSvgCacheEntry>();
 
 export function getBespokeTraceOutputSvg<TItem extends BespokeTraceOutputItem>(
   item: TItem,
@@ -88,10 +95,28 @@ export function getBespokeTraceOutputSvg<TItem extends BespokeTraceOutputItem>(
   }
   const appearance = getStoredAppearance(item);
   if (!hasOutputAppearanceChanges(appearance)) return rawSvg;
+  const cacheKey = getAppearanceKey(item);
+  const settingsKey = serializeAppearance(appearance);
+  const cached = appearanceSvgCache.get(cacheKey);
+  if (
+    cached &&
+    cached.rawSvg === rawSvg &&
+    cached.settingsKey === settingsKey &&
+    cached.precisionOutput === precisionOutput
+  ) {
+    return cached.svg;
+  }
   const support = detectOutputAppearanceSupport(rawSvg, { precisionOutput });
-  return applyOutputAppearanceToSvg(rawSvg, appearance, support, {
+  const svg = applyOutputAppearanceToSvg(rawSvg, appearance, support, {
     idPrefix: `output-${getAppearanceKey(item)}`,
   });
+  appearanceSvgCache.set(cacheKey, {
+    rawSvg,
+    settingsKey,
+    precisionOutput,
+    svg,
+  });
+  return svg;
 }
 
 export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
@@ -167,6 +192,10 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
     return () => URL.revokeObjectURL(url);
   }, [file, focusedOutputHasSourcePreview, focusedOutputStamp]);
 
+  React.useEffect(() => {
+    pruneAppearanceState(history.map((item) => getAppearanceKey(item)));
+  }, [history]);
+
   function openFocusedEditor(item: TItem) {
     const stamp = item.stamp;
     onOpenEditor?.(item);
@@ -208,12 +237,24 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
   ) {
     const key = getAppearanceKey(item);
     const current = getStoredAppearance(item);
-    appearanceStore.set(key, normalizeOutputAppearance({ ...current, ...patch }));
+    const next = normalizeOutputAppearance({ ...current, ...patch });
+    if (serializeAppearance(current) === serializeAppearance(next)) return;
+    appearanceStore.set(key, next);
+    appearanceSvgCache.delete(key);
     setAppearanceVersion((value) => value + 1);
   }
 
   function resetOutputAppearance(item: TItem) {
-    appearanceStore.set(getAppearanceKey(item), DEFAULT_OUTPUT_APPEARANCE);
+    const key = getAppearanceKey(item);
+    const current = getStoredAppearance(item);
+    if (
+      serializeAppearance(current) === serializeAppearance(DEFAULT_OUTPUT_APPEARANCE) &&
+      !appearanceSvgCache.has(key)
+    ) {
+      return;
+    }
+    appearanceStore.set(key, DEFAULT_OUTPUT_APPEARANCE);
+    appearanceSvgCache.delete(key);
     setAppearanceVersion((value) => value + 1);
   }
 
@@ -724,6 +765,22 @@ function getStoredAppearance(item: BespokeTraceOutputItem) {
   return normalizeOutputAppearance(
     item.appearance ?? appearanceStore.get(getAppearanceKey(item)),
   );
+}
+
+function serializeAppearance(
+  appearance: Partial<OutputAppearanceSettings> | null | undefined,
+) {
+  return JSON.stringify(normalizeOutputAppearance(appearance));
+}
+
+function pruneAppearanceState(keys: Iterable<string>) {
+  const activeKeys = new Set(keys);
+  for (const key of appearanceStore.keys()) {
+    if (!activeKeys.has(key)) appearanceStore.delete(key);
+  }
+  for (const key of appearanceSvgCache.keys()) {
+    if (!activeKeys.has(key)) appearanceSvgCache.delete(key);
+  }
 }
 
 function getAppearanceKey(item: BespokeTraceOutputItem) {

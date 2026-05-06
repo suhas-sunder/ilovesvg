@@ -1445,7 +1445,7 @@ async function verifyFocusedAccordionHasNoHorizontalShift(client) {
 }
 
 async function runOutputUxResponsiveChecks(client) {
-  const widths = [390, 768, 1024, 1280, 1440, 1920];
+  const widths = [320, 360, 390, 430, 768, 1024, 1280, 1440, 1920];
   const checks = [];
   for (const width of widths) {
     await client.send("Emulation.setDeviceMetricsOverride", {

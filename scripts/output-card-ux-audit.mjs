@@ -57,6 +57,13 @@ try {
   checks.push("output appearance helper exists: missing app/client/lib/converter/outputAppearance.ts");
 }
 
+let fillStrokeSvg = "";
+try {
+  fillStrokeSvg = await read("app/shared/tracing/fillStrokeSvg.ts");
+} catch {
+  checks.push("fill+stroke SVG helper exists: missing app/shared/tracing/fillStrokeSvg.ts");
+}
+
 checks.push(
   assertIncludes(outputPanel, "focusedOutputStamp", "shared output panel tracks focused editor target"),
   assertIncludes(outputPanel, "collapsedOutputStamps", "shared output panel tracks collapsed cards"),
@@ -79,6 +86,9 @@ checks.push(
     assertIncludes(outputPanel, "Gradient fill", "shared output panel exposes gradient fill controls"),
     assertIncludes(outputPanel, "Pattern fill", "shared output panel exposes pattern fill controls"),
     assertIncludes(outputPanel, "Shadow and glow", "shared output panel exposes shadow/glow controls"),
+    assertIncludes(outputPanel, "Reset gap", "shared output panel exposes an internal-gap-only reset"),
+    assertIncludes(outputPanel, "outputAppearanceSvgCache", "shared output panel caches finalized post-processed SVGs"),
+    assertIncludes(outputPanel, "pruneOutputAppearanceState", "shared output panel prunes removed output appearance state"),
     assertIncludes(outputPanel, "livePreviewLeadTitle=\"Post-processing\"", "shared focused editor labels live SVG edits as post-processing"),
   assertIncludes(outputPanel, "Line weight", "line weight control is visible in output settings"),
   assertIncludes(outputPanel, "Fill spread", "fill spread control is visible where supported"),
@@ -191,8 +201,16 @@ if (appearance) {
     assertIncludes(appearance, "shadowEnabled", "appearance helper supports shadow/glow"),
     assertIncludes(appearance, "data-post-processing=\"sticker-border\"", "appearance helper emits sticker border metadata"),
     assertIncludes(appearance, "data-post-processing=\"internal-gap-fill\"", "appearance helper emits internal gap fill metadata"),
+    assertIncludes(appearance, "makeUniqueSvgId", "appearance helper avoids duplicate generated SVG IDs"),
     assertIncludes(appearance, "LINE_WEIGHT_MAX = 30", "appearance helper allows practical manual line weight"),
     assertIncludes(appearance, "FILL_SPREAD_MAX = 30", "appearance helper allows wider guarded fill spread"),
+  );
+}
+
+if (fillStrokeSvg) {
+  checks.push(
+    assertIncludes(fillStrokeSvg, "isCanvasBackgroundPath", "fill+stroke helper excludes canvas/background strokes"),
+    assertIncludes(fillStrokeSvg, '"id",', "fill+stroke cloned outline paths remove original IDs"),
   );
 }
 
@@ -204,6 +222,8 @@ if (bespokeOutputPanel) {
     assertIncludes(bespokeOutputPanel, "data-output-file-size", "bespoke output cards expose displayed SVG file size"),
     assertIncludes(bespokeOutputPanel, "data-output-source-file", "bespoke output cards preserve source-file metadata"),
     assertIncludes(bespokeOutputPanel, "OutputAppearanceControls", "bespoke output panel renders line/fill controls"),
+    assertIncludes(bespokeOutputPanel, "appearanceSvgCache", "bespoke output panel caches finalized post-processed SVGs"),
+    assertIncludes(bespokeOutputPanel, "pruneAppearanceState", "bespoke output panel prunes removed output appearance state"),
     assertIncludes(bespokeOutputPanel, "data-output-panel-focused", "bespoke output panel exposes focused state"),
     assertIncludes(bespokeOutputPanel, "data-collapse-state", "bespoke output panel exposes collapse state"),
   );
