@@ -827,6 +827,9 @@ async function runOutputUxSmoke(fixtures) {
   const cases = [
     { route: "/", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
     { route: "/png-to-svg-converter", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
+    { route: "/sketch-to-svg-converter", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
+    { route: "/photo-to-svg-outline", fixture: fixtures.jpg, replacementFixture: fixtures.png, expectedEngine: null },
+    { route: "/png-to-svg-for-cricut", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
     {
       route: "/png-to-layered-svg-for-cricut",
       fixture: fixtures.png,
@@ -1003,6 +1006,13 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
       focused.openSettingsSectionCount === 1 &&
+      focused.appearanceRanges.lineWeightMax >= 20 &&
+      focused.appearanceRanges.fillSpreadMax >= 8 &&
+      Math.max(
+        focused.transitionSample.outputPanelMs,
+        focused.transitionSample.workspaceMs,
+        focused.transitionSample.settingsPanelMs,
+      ) >= 280 &&
       !focused.minimizeInActionRow &&
       focused.leftPaneCollapsed &&
       focused.editorNearTop &&
@@ -1011,7 +1021,8 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.cursorViolations.length === 0 &&
       controls.hasLineWeight &&
       controls.hasFillSpread &&
-      (!appearance.applied || (copy.hasFillSpread && download.hasFillSpread)) &&
+      (!appearance.applied ||
+        (Number(appearance.value) >= 8 && copy.hasFillSpread && download.hasFillSpread)) &&
       copy.ok &&
       download.ok &&
       !restored.focused &&
@@ -1075,7 +1086,14 @@ async function verifyOutputHistoryPersistsAcrossInputReplacement(
       value?.sourceFileNames?.some((name) => name === firstName),
   );
   const removed = await clickButtonIfPresent(client, "/Remove selected file|^x$|^×$/i");
-  await delay(100);
+  const afterRemove = await waitForValue(
+    client,
+    outputUxSnapshotExpression,
+    8_000,
+    (value) =>
+      value?.expandedCards >= before.expandedCards &&
+      value?.sourceFileNames?.some((name) => name === firstName),
+  ).catch(() => null);
   await setFileInput(client, replacementFixture);
   let after = await waitForValue(
     client,
@@ -1099,56 +1117,92 @@ async function verifyOutputHistoryPersistsAcrossInputReplacement(
     ).catch(() => null);
   }
   return {
-    ok: Boolean(after),
+    ok: Boolean(afterRemove && after),
     removed,
     firstName,
     replacementName,
     before,
+    afterRemove,
     after,
   };
 }
 
 async function verifyFocusedAccordionHasNoHorizontalShift(client) {
   const before = await outputUxLayoutSnapshot(client);
-  const clicked = await evaluate(client, `(() => {
+  const result = await evaluate(client, `(async () => {
     const panel = document.querySelector('[data-editor-settings-panel="true"]');
-    if (!panel) return false;
+    if (!panel) return { clicked: false, samples: [] };
     const buttons = Array.from(panel.querySelectorAll('button[aria-controls]'));
-    const target =
-      buttons.find((button) => button.getAttribute("aria-expanded") === "false") ||
-      buttons.find((button) => button.getAttribute("aria-expanded") === "true") ||
-      buttons[0];
-    if (!target) return false;
-    target.click();
-    return true;
+    const read = () => {
+      const currentPanel = document.querySelector('[data-editor-settings-panel="true"]');
+      const workspace = document.querySelector('[data-focused-editor-workspace="true"]');
+      const p = currentPanel?.getBoundingClientRect?.();
+      const w = workspace?.getBoundingClientRect?.();
+      return {
+        panelLeft: p?.left ?? 0,
+        panelWidth: p?.width ?? 0,
+        workspaceLeft: w?.left ?? 0,
+        workspaceWidth: w?.width ?? 0,
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+      };
+    };
+    const samples = [];
+    for (const button of buttons) {
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 240));
+      samples.push(read());
+    }
+    return { clicked: buttons.length > 0, samples };
   })()`);
-  await delay(260);
   const after = await outputUxLayoutSnapshot(client);
-  const panelLeftDelta = Math.abs(
-    (after.settingsPanelRect?.left ?? 0) - (before.settingsPanelRect?.left ?? 0),
-  );
-  const panelWidthDelta = Math.abs(
-    (after.settingsPanelRect?.width ?? 0) - (before.settingsPanelRect?.width ?? 0),
-  );
-  const workspaceLeftDelta = Math.abs(
-    (after.workspaceRect?.left ?? 0) - (before.workspaceRect?.left ?? 0),
-  );
-  const workspaceWidthDelta = Math.abs(
-    (after.workspaceRect?.width ?? 0) - (before.workspaceRect?.width ?? 0),
+  const deltas = (result.samples || []).map((sample) => ({
+    panelLeftDelta: Math.abs(
+      sample.panelLeft - (before.settingsPanelRect?.left ?? 0),
+    ),
+    panelWidthDelta: Math.abs(
+      sample.panelWidth - (before.settingsPanelRect?.width ?? 0),
+    ),
+    workspaceLeftDelta: Math.abs(
+      sample.workspaceLeft - (before.workspaceRect?.left ?? 0),
+    ),
+    workspaceWidthDelta: Math.abs(
+      sample.workspaceWidth - (before.workspaceRect?.width ?? 0),
+    ),
+    hasHorizontalOverflow: sample.scrollWidth > sample.viewportWidth + 2,
+  }));
+  const maxDelta = deltas.reduce(
+    (acc, sample) => ({
+      panelLeftDelta: Math.max(acc.panelLeftDelta, sample.panelLeftDelta),
+      panelWidthDelta: Math.max(acc.panelWidthDelta, sample.panelWidthDelta),
+      workspaceLeftDelta: Math.max(acc.workspaceLeftDelta, sample.workspaceLeftDelta),
+      workspaceWidthDelta: Math.max(acc.workspaceWidthDelta, sample.workspaceWidthDelta),
+      hasHorizontalOverflow: acc.hasHorizontalOverflow || sample.hasHorizontalOverflow,
+    }),
+    {
+      panelLeftDelta: 0,
+      panelWidthDelta: 0,
+      workspaceLeftDelta: 0,
+      workspaceWidthDelta: 0,
+      hasHorizontalOverflow: false,
+    },
   );
   return {
     ok:
-      Boolean(clicked) &&
+      Boolean(result.clicked) &&
       !after.hasHorizontalOverflow &&
-      panelLeftDelta <= 2 &&
-      panelWidthDelta <= 2 &&
-      workspaceLeftDelta <= 2 &&
-      workspaceWidthDelta <= 2,
-    clicked,
-    panelLeftDelta,
-    panelWidthDelta,
-    workspaceLeftDelta,
-    workspaceWidthDelta,
+      !maxDelta.hasHorizontalOverflow &&
+      maxDelta.panelLeftDelta <= 2 &&
+      maxDelta.panelWidthDelta <= 2 &&
+      maxDelta.workspaceLeftDelta <= 2 &&
+      maxDelta.workspaceWidthDelta <= 2,
+    clicked: result.clicked,
+    sampleCount: result.samples?.length || 0,
+    panelLeftDelta: maxDelta.panelLeftDelta,
+    panelWidthDelta: maxDelta.panelWidthDelta,
+    workspaceLeftDelta: maxDelta.workspaceLeftDelta,
+    workspaceWidthDelta: maxDelta.workspaceWidthDelta,
+    samples: result.samples || [],
     before,
     after,
   };
@@ -1206,6 +1260,8 @@ async function runOutputUxResponsiveChecks(client) {
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
       focused.openSettingsSectionCount === 1 &&
+      focused.appearanceRanges.lineWeightMax >= 20 &&
+      focused.appearanceRanges.fillSpreadMax >= 8 &&
       !focused.minimizeInActionRow &&
       focused.leftPaneCollapsed &&
       focused.editorNearTop &&
@@ -1304,10 +1360,10 @@ async function applyFillSpreadIfAvailable(client) {
     if (!input) return { available: true, applied: false, reason: "missing-input" };
     if (input.disabled) return { available: true, applied: false, disabled: true };
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    setter?.call(input, "2");
+    setter?.call(input, "8");
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    return { available: true, applied: true, value: input.value };
+    return { available: true, applied: true, value: input.value, max: input.max };
   })()`);
 }
 
@@ -1369,6 +1425,38 @@ function outputUxSnapshotExpression() {
     const sourceFileNames = Array.from(document.querySelectorAll('[data-output-source-file]'))
       .map((element) => element.getAttribute("data-output-source-file") || "")
       .filter(Boolean);
+    const appearanceRanges = Array.from(document.querySelectorAll("label")).reduce((acc, label) => {
+      const text = label.textContent || "";
+      const input = label.querySelector('input[type="range"]') || label.parentElement?.querySelector('input[type="range"]');
+      if (!input) return acc;
+      if (/Line weight/i.test(text)) acc.lineWeightMax = Number(input.max || 0);
+      if (/Fill spread/i.test(text)) acc.fillSpreadMax = Number(input.max || 0);
+      return acc;
+    }, { lineWeightMax: 0, fillSpreadMax: 0 });
+    const transitionSample = (() => {
+      const outputPanel = document.querySelector('[data-output-panel-focused="true"]');
+      const workspace = document.querySelector('[data-focused-editor-workspace="true"]');
+      const settingsPanel = document.querySelector('[data-editor-settings-panel="true"]');
+      const getMs = (element) => {
+        if (!element) return 0;
+        const style = getComputedStyle(element);
+        const durations = style.transitionDuration.split(",").map((value) => {
+          const trimmed = value.trim();
+          if (trimmed.endsWith("ms")) return Number.parseFloat(trimmed);
+          if (trimmed.endsWith("s")) return Number.parseFloat(trimmed) * 1000;
+          return Number.parseFloat(trimmed) || 0;
+        });
+        const animationDuration = style.animationDuration.trim().endsWith("s")
+          ? Number.parseFloat(style.animationDuration) * 1000
+          : Number.parseFloat(style.animationDuration) || 0;
+        return Math.max(animationDuration, ...durations);
+      };
+      return {
+        outputPanelMs: getMs(outputPanel),
+        workspaceMs: getMs(workspace),
+        settingsPanelMs: getMs(settingsPanel),
+      };
+    })();
     return {
       focused: focusedContainers.length > 0 || focusedCards.length > 0,
       focusedCards: focusedCards.length,
@@ -1390,6 +1478,8 @@ function outputUxSnapshotExpression() {
       editorNearTop,
       cursorViolations,
       sourceFileNames,
+      appearanceRanges,
+      transitionSample,
       layoutShift: {
         ok: doc.scrollWidth <= window.innerWidth + 2,
         scrollWidth: doc.scrollWidth,

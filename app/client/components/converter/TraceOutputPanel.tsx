@@ -467,7 +467,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
       data-focused-editor={focusedMode ? "true" : "false"}
       data-output-panel-focused={focusedMode ? "true" : "false"}
       className={[
-        "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-200 ease-out",
+        "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]",
         focusedMode
           ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
           : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
@@ -1176,7 +1176,7 @@ export function OutputAppearanceControls({
         <input
           type="range"
           min={0.25}
-          max={4}
+          max={20}
           step={0.05}
           value={settings.lineWeight}
           disabled={!lineSupported}
@@ -1185,7 +1185,9 @@ export function OutputAppearanceControls({
         />
         <span className="text-[12px] text-slate-500">
           {lineSupported
-            ? "Make stroked lines thinner or thicker."
+            ? settings.lineWeight > 8
+              ? "High line weights are manual polish settings and can visually overpower delicate paths."
+              : "Make stroked lines thinner or thicker."
             : "No stroked lines were detected in this SVG."}
         </span>
       </label>
@@ -1211,7 +1213,7 @@ export function OutputAppearanceControls({
         <input
           type="range"
           min={0}
-          max={4}
+          max={12}
           step={0.1}
           value={settings.fillSpread}
           disabled={!fillSupported}
@@ -1220,7 +1222,9 @@ export function OutputAppearanceControls({
         />
         <span className="text-[12px] text-slate-500">
           {fillSupported
-            ? "Expand filled regions slightly with a same-color under-stroke."
+            ? settings.fillSpread > 8
+              ? "Large fill spread values are manual visual boosts and may make shapes heavier."
+              : "Expand filled regions with a same-color under-stroke."
             : support.fillSpreadDisabledReason || "Fill spread is not safe for this output."}
         </span>
       </label>

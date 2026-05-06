@@ -93,8 +93,14 @@ h3[class] {
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) {
   grid-template-columns: minmax(0, 1fr) !important;
   transition:
-    grid-template-columns 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    gap 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    grid-template-columns 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    gap 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
+  transition:
+    grid-template-columns 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    gap 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [data-output-panel-focused="true"] {
@@ -118,10 +124,10 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   pointer-events: none;
   transform: translateY(-0.5rem);
   transition:
-    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    max-height 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    padding 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 300ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    padding 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 [data-focused-editor-workspace="true"] {
@@ -129,7 +135,7 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   max-width: 100%;
   min-width: 0;
   overflow-x: clip;
-  animation: focused-editor-enter 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: focused-editor-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 [data-editor-settings-panel="true"],
@@ -138,8 +144,8 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   min-width: 0;
   overflow-x: clip;
   transition:
-    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 [data-output-panel-focused="true"] {

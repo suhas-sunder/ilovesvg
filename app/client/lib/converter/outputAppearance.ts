@@ -21,9 +21,9 @@ export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
 const PAINTABLE_TAG_PATTERN =
   /<(path|line|polyline|polygon|rect|circle|ellipse|g)\b([^>]*?)(\/?)>/gi;
 const LINE_WEIGHT_MIN = 0.25;
-const LINE_WEIGHT_MAX = 4;
+const LINE_WEIGHT_MAX = 20;
 const FILL_SPREAD_MIN = 0;
-const FILL_SPREAD_MAX = 4;
+const FILL_SPREAD_MAX = 12;
 
 export function normalizeOutputAppearance(
   settings?: Partial<OutputAppearanceSettings> | null,

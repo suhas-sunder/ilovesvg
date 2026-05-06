@@ -11,11 +11,21 @@ function assertIncludes(source, needle, label) {
   return null;
 }
 
+function assertNotIncludes(source, needle, label) {
+  if (source.includes(needle)) {
+    return `${label}: unexpected ${JSON.stringify(needle)}`;
+  }
+  return null;
+}
+
 const checks = [];
 const outputPanel = await read("app/client/components/converter/TraceOutputPanel.tsx");
 const home = await read("app/routes/home.tsx");
 const pngToSvg = await read("app/routes/png-to-svg-converter.tsx");
 const pngLayered = await read("app/routes/png-to-layered-svg-for-cricut.tsx");
+const sketchToSvg = await read("app/routes/sketch-to-svg-converter.tsx");
+const photoOutline = await read("app/routes/photo-to-svg-outline.tsx");
+const pngCricut = await read("app/routes/png-to-svg-for-cricut.tsx");
 const browserSmoke = await read("scripts/hybrid-browser-smoke.mjs");
 const appCss = await read("app/app.css");
 const packageJson = await read("package.json");
@@ -60,6 +70,12 @@ checks.push(
   assertIncludes(pngToSvg, "trimOutputHistory", "PNG route trims output history instead of clearing it"),
   assertIncludes(pngToSvg, "outputMatchesActiveSource", "PNG route guards old-source output update actions"),
   assertIncludes(pngToSvg, "sourceFileName", "PNG route stamps outputs with source-file metadata"),
+  assertIncludes(sketchToSvg, "sourceFileName", "sketch route stamps outputs with source-file metadata"),
+  assertNotIncludes(sketchToSvg, "setHistory([])", "sketch route preserves output history on file replacement/removal"),
+  assertIncludes(photoOutline, "sourceFileName", "photo outline route stamps outputs with source-file metadata"),
+  assertNotIncludes(photoOutline, "setHistory([])", "photo outline route preserves output history on file replacement/removal"),
+  assertIncludes(pngCricut, "sourceFileName", "PNG Cricut route stamps outputs with source-file metadata"),
+  assertNotIncludes(pngCricut, "setHistory([])", "PNG Cricut route preserves output history on file replacement/removal"),
   assertIncludes(pngLayered, "focusedOutputStamp", "PNG layered bespoke card tracks focused editor target"),
   assertIncludes(pngLayered, "collapsedOutputStamps", "PNG layered bespoke card tracks collapsed cards"),
   assertIncludes(pngLayered, "data-focused-editor", "PNG layered bespoke card exposes focused editor state"),
@@ -72,6 +88,12 @@ checks.push(
   assertIncludes(browserSmoke, "OUTPUT_UX_SMOKE", "browser smoke has focused-editor/collapse/appearance mode"),
   assertIncludes(browserSmoke, "verifyOutputHistoryPersistsAcrossInputReplacement", "browser smoke verifies output history survives input replacement"),
   assertIncludes(browserSmoke, "verifyFocusedAccordionHasNoHorizontalShift", "browser smoke verifies accordion x-axis stability"),
+  assertIncludes(browserSmoke, "/sketch-to-svg-converter", "browser smoke covers sketch route history replacement"),
+  assertIncludes(browserSmoke, "/photo-to-svg-outline", "browser smoke covers photo outline route history replacement"),
+  assertIncludes(browserSmoke, "/png-to-svg-for-cricut", "browser smoke covers PNG Cricut route history replacement"),
+  assertIncludes(browserSmoke, "appearanceRanges", "browser smoke verifies useful stroke/fill ranges"),
+  assertIncludes(browserSmoke, "lineWeightMax >= 20", "browser smoke requires wider line-weight control"),
+  assertIncludes(browserSmoke, "fillSpreadMax >= 8", "browser smoke requires wider fill-spread control"),
   assertIncludes(browserSmoke, "sourceFileNames", "browser smoke reads output source-file metadata"),
   assertIncludes(browserSmoke, "leftPaneCollapsed", "browser smoke verifies focused editor hides the upload pane"),
   assertIncludes(browserSmoke, "hasOriginalComparison", "browser smoke verifies original comparison is visible"),
@@ -92,6 +114,8 @@ if (appearance) {
     assertIncludes(appearance, "applyOutputAppearanceToSvg", "appearance helper finalizes SVG adjustments"),
     assertIncludes(appearance, "lineWeight", "appearance helper supports line weight"),
     assertIncludes(appearance, "fillSpread", "appearance helper supports fill spread"),
+    assertIncludes(appearance, "LINE_WEIGHT_MAX = 20", "appearance helper allows practical manual line weight"),
+    assertIncludes(appearance, "FILL_SPREAD_MAX = 12", "appearance helper allows wider guarded fill spread"),
   );
 }
 

@@ -875,6 +875,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  sourceFileName?: string;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -929,6 +930,7 @@ export default function SketchToSvgConverter({
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingSourceFileNameRef = React.useRef<string | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -961,6 +963,7 @@ export default function SketchToSvgConverter({
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
+        sourceFileName: pendingSourceFileNameRef.current ?? undefined,
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
       
@@ -984,6 +987,7 @@ export default function SketchToSvgConverter({
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingSourceFileNameRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
@@ -1006,6 +1010,7 @@ export default function SketchToSvgConverter({
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingSourceFileNameRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -1074,7 +1079,6 @@ export default function SketchToSvgConverter({
 
     setSettings(DEFAULTS);
     setActivePreset("sketch-pencil-light");
-    setHistory([]);
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
@@ -1147,6 +1151,8 @@ export default function SketchToSvgConverter({
             : currentSettings.lineColor,
       };
     })();
+
+    pendingSourceFileNameRef.current = current.name;
 
     const fd = new FormData();
     fd.append("file", current);
@@ -1485,7 +1491,6 @@ export default function SketchToSvgConverter({
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
-                        setHistory([]);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >

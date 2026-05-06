@@ -1004,6 +1004,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  sourceFileName?: string;
 };
 
 // ---- tiering helpers (client) ----
@@ -1057,6 +1058,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingSourceFileNameRef = React.useRef<string | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -1095,6 +1097,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
+        sourceFileName: pendingSourceFileNameRef.current ?? undefined,
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
       
@@ -1118,6 +1121,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingSourceFileNameRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
@@ -1153,6 +1157,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingSourceFileNameRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -1202,10 +1207,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
+    // Reset source-facing settings for the new upload while preserving output history.
     setSettings(DEFAULTS);
     setActivePreset("cricut-clean-cut");
-    setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
     setInfo(null);
@@ -1284,6 +1288,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             : targetSettings.lineColor,
       };
     })();
+
+    pendingSourceFileNameRef.current = targetFile.name;
 
     const fd = new FormData();
     fd.append("file", targetFile);

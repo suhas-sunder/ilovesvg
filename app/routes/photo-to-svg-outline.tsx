@@ -836,6 +836,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  sourceFileName?: string;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -890,6 +891,7 @@ export default function PhotoToSvgOutline({
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingSourceFileNameRef = React.useRef<string | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -936,6 +938,7 @@ export default function PhotoToSvgOutline({
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
+        sourceFileName: pendingSourceFileNameRef.current ?? undefined,
         presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
       
@@ -959,6 +962,7 @@ export default function PhotoToSvgOutline({
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingSourceFileNameRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
@@ -981,6 +985,7 @@ export default function PhotoToSvgOutline({
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingSourceFileNameRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -1109,6 +1114,7 @@ export default function PhotoToSvgOutline({
     fd.append("edgeBoost", String(targetSettings.edgeBoost));
     fd.append("presetId", activePreset);
 
+    pendingSourceFileNameRef.current = targetFile.name;
     setErr(null);
 
     fetcher.submit(fd, {
