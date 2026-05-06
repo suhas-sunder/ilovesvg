@@ -30,6 +30,16 @@ export default function SiteFooter() {
               </li>
 
               <li>
+                <Link to="/how-it-works" className={linkClass}>
+                  How it works
+                </Link>
+              </li>
+
+              <li className={sepClass} aria-hidden="true">
+                |
+              </li>
+
+              <li>
                 <Link to="/sitemap" className={linkClass}>
                   Sitemap
                 </Link>

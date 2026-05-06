@@ -349,6 +349,34 @@ function RouteIntentGuide({ guide }: { guide: RouteGuide }) {
         </div>
       ) : null}
 
+      <div className="mt-4 rounded-xl border border-sky-100 bg-white/70 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold uppercase tracking-wide text-slate-600">
+              Need help choosing?
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Read the concise workflow, preset, settings, and troubleshooting
+              docs without adding clutter to the converter.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link
+              to="/how-it-works"
+              className="cursor-pointer rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-800 transition-colors hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            >
+              How it works
+            </Link>
+            <Link
+              to="/how-it-works/presets"
+              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            >
+              Preset Guide
+            </Link>
+          </div>
+        </div>
+      </div>
+
     </section>
   );
 }

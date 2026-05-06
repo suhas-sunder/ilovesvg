@@ -4,6 +4,23 @@ export default [
   index("routes/home.tsx"),
   route("api/batch-svg", "routes/api.batch-svg.tsx"),
 
+  // Documentation
+  route("how-it-works", "routes/how-it-works.tsx"),
+  route(
+    "how-it-works/conversion-workflow",
+    "routes/how-it-works.conversion-workflow.tsx",
+  ),
+  route("how-it-works/presets", "routes/how-it-works.presets.tsx"),
+  route("how-it-works/settings", "routes/how-it-works.settings.tsx"),
+  route(
+    "how-it-works/troubleshooting",
+    "routes/how-it-works.troubleshooting.tsx",
+  ),
+  route(
+    "how-it-works/exporting-and-downloads",
+    "routes/how-it-works.exporting-and-downloads.tsx",
+  ),
+
   // SVG -> raster/pdf
   route("svg-to-png-converter", "routes/svg-to-png-converter.tsx"),
   route("svg-to-jpg-converter", "routes/svg-to-jpg-converter.tsx"),

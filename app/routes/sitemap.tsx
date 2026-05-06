@@ -21,6 +21,49 @@ type SitemapSection = {
 
 const sitemapSections: SitemapSection[] = [
   {
+    title: "How it works and converter help",
+    description:
+      "Practical documentation for choosing presets, understanding settings, troubleshooting output, and exporting SVG results.",
+    links: [
+      {
+        title: "How It Works",
+        path: "/how-it-works",
+        description:
+          "Start with the iLoveSVG workflow hub for presets, settings, queueing, output history, source previews, and downloads.",
+      },
+      {
+        title: "Conversion Workflow",
+        path: "/how-it-works/conversion-workflow",
+        description:
+          "Learn what Upload, Presets, Convert, queued status, Settings/Edit, Update preview, Copy SVG, Download SVG, Batch, and Minimize do.",
+      },
+      {
+        title: "Preset Guide",
+        path: "/how-it-works/presets",
+        description:
+          "Compare actual image-to-SVG presets by family, speed label, output style, best use, and settings to adjust.",
+      },
+      {
+        title: "Settings Guide",
+        path: "/how-it-works/settings",
+        description:
+          "Understand live preview edits, click-to-convert trace controls, layer colors, output appearance, and batch settings.",
+      },
+      {
+        title: "Troubleshooting",
+        path: "/how-it-works/troubleshooting",
+        description:
+          "Fix blank previews, messy SVG output, unwanted transparent backgrounds, slow presets, failed jobs, and large files.",
+      },
+      {
+        title: "Exporting and Downloads",
+        path: "/how-it-works/exporting-and-downloads",
+        description:
+          "Use Copy SVG, Download SVG, fullscreen preview, batch ZIP downloads, SVG file size, and SVG-to-raster export routes correctly.",
+      },
+    ],
+  },
+  {
     title: "Main SVG tools",
     description:
       "Core conversion tools for turning SVG files into browser-friendly image and document formats.",
