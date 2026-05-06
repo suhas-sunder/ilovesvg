@@ -566,6 +566,29 @@ async function runQueueSmoke(fixtures) {
         card.engine === "vtracer" &&
         card.previewDecoded,
     );
+  const slowPotraceCompleteForSource = (value, sourceName) =>
+    value?.cards?.some(
+      (card) =>
+        card.isSlow &&
+        card.sourceFileName === sourceName &&
+        card.engine === "potrace" &&
+        card.previewDecoded,
+    );
+  const slowCanceledForSource = (value, sourceName) =>
+    value?.cards?.some(
+      (card) =>
+        card.isSlow &&
+        card.sourceFileName === sourceName &&
+        card.status === "canceled",
+    );
+  const fastCompleteForSource = (value, sourceName) =>
+    value?.cards?.some(
+      (card) =>
+        card.isFast &&
+        card.sourceFileName === sourceName &&
+        card.engine === "potrace" &&
+        card.previewDecoded,
+    );
   client.onEvent((message) => {
     if (message.method === "Runtime.exceptionThrown") {
       const details = message.params?.exceptionDetails;
@@ -603,7 +626,7 @@ async function runQueueSmoke(fixtures) {
       client,
       queueSnapshotExpression,
       8_000,
-      (value) => value?.slowActive && value?.slowCards >= 1,
+      oldSlowIsActive,
     );
 
     const replacementControls = await evaluate(client, `(() => {
@@ -643,7 +666,9 @@ async function runQueueSmoke(fixtures) {
       client,
       queueSnapshotExpression,
       40_000,
-      (value) => value?.fastComplete && oldSlowIsActive(value),
+      (value) =>
+        fastCompleteForSource(value, replacementWhileSlow.supported ? replacementName : queueSourceName) &&
+        oldSlowIsActive(value),
     );
 
     const slowComplete = await waitForValue(
@@ -653,20 +678,24 @@ async function runQueueSmoke(fixtures) {
       oldSlowIsComplete,
     );
 
+    await clickButtonIfPresent(client, "/Remove selected file|^x$|^\\u00d7$/i");
+    await delay(250);
+    await setFileInput(client, queueFixture);
+    await waitForValue(client, () => textIncludesExpression(queueSourceName), 8_000);
     await showAllPresetButtons(client);
     const cancelSelected = await clickButtonMatching(client, "/^Filled Layers - Separate Colors\\b/i");
     const cancelPending = await waitForValue(
       client,
       queueSnapshotExpression,
       8_000,
-      (value) => value?.slowActive,
+      oldSlowIsActive,
     );
-    const cancelClicked = await clickCancelForSlowJob(client);
+    const cancelClicked = await clickCancelForSlowJob(client, queueSourceName);
     const canceled = await waitForValue(
       client,
       queueSnapshotExpression,
       8_000,
-      (value) => value?.slowCanceled,
+      (value) => slowCanceledForSource(value, queueSourceName),
     );
     const traceDebug = await readTraceDebug(client);
     const canceledFallback = traceDebug.some(
@@ -682,17 +711,17 @@ async function runQueueSmoke(fixtures) {
       Boolean(cancelSelected) &&
       Boolean(cancelClicked) &&
       slowPending.slowActive &&
-      !slowPending.slowPotraceComplete &&
+      !slowPotraceCompleteForSource(slowPending, queueSourceName) &&
       oldSlowIsActive(replacementWhileSlow) &&
       (!replacementWhileSlow.supported ||
         (replacementWhileSlow.sourceFileNames.includes(queueSourceName) &&
           replacementWhileSlow.sourceFileNames.includes(replacementName))) &&
-      fastWhileSlow.fastComplete &&
+      fastCompleteForSource(fastWhileSlow, replacementWhileSlow.supported ? replacementName : queueSourceName) &&
       oldSlowIsActive(fastWhileSlow) &&
-      !fastWhileSlow.slowPotraceComplete &&
+      !slowPotraceCompleteForSource(fastWhileSlow, queueSourceName) &&
       oldSlowIsComplete(slowComplete) &&
-      !slowComplete.slowPotraceComplete &&
-      canceled.slowCanceled &&
+      !slowPotraceCompleteForSource(slowComplete, queueSourceName) &&
+      slowCanceledForSource(canceled, queueSourceName) &&
       !canceledFallback &&
       slowComplete.vtracerPreviewDecoded &&
       fastWhileSlow.potracePreviewDecoded;
@@ -806,13 +835,17 @@ function queueSnapshotExpression() {
   })()`;
 }
 
-async function clickCancelForSlowJob(client) {
+async function clickCancelForSlowJob(client, sourceName = "") {
   return evaluate(client, `(() => {
+    const sourceName = ${JSON.stringify(sourceName)};
     const cards = Array.from(document.querySelectorAll("[data-engine-used]"));
     const card = cards.find((candidate) => {
       const text = candidate.innerText || "";
       const status = candidate.getAttribute("data-job-status") || "";
-      return /Filled Layers - Separate Colors/i.test(text) && (status === "queued" || status === "running");
+      const sourceFileName = candidate.querySelector("[data-output-source-file]")?.getAttribute("data-output-source-file") || "";
+      return /Filled Layers - Separate Colors/i.test(text) &&
+        (!sourceName || sourceFileName === sourceName) &&
+        (status === "queued" || status === "running");
     });
     if (!card) return false;
     const button = Array.from(card.querySelectorAll("button"))

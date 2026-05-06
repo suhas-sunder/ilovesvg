@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import type { Route } from "./+types/png-to-svg-for-cricut-stickers";
 import {
   json,
@@ -25,8 +25,20 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
-  FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import {
+  BespokeTraceOutputPanel,
+  getBespokeTraceOutputSvg,
+} from "~/client/components/converter/BespokeTraceOutputPanel";
+import {
+  createOutputSourceSnapshot,
+  cleanupUnusedSourceSnapshots,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
+import {
+  mergeOutputSourceSnapshot,
+  trimOutputHistory,
+} from "~/client/lib/converter/outputHistory";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 
@@ -349,7 +361,7 @@ async function buildStickerSvg(
   const mp = (originalW * originalH) / 1_000_000;
   if (originalW > MAX_SIDE || originalH > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${originalW}×${originalH} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${originalW}Ã—${originalH} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 
@@ -1001,7 +1013,22 @@ type HistoryItem = {
   stamp: number;
   cutSource: string;
   settingsSnapshot: Settings;
+  name?: string;
+  presetLabel?: string;
+  sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
 };
+
+const OUTPUT_HISTORY_LIMIT = 8;
+
+function getPresetLabelById(presetId: string): string {
+  return (
+    DISPLAY_PRESETS.find((preset) => preset.id === presetId)?.label ||
+    "Custom settings"
+  );
+}
 
 type AutoMode = "fast" | "medium" | "off";
 function getAutoMode(bytes?: number | null): AutoMode {
@@ -1045,17 +1072,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   >(null);
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
-  const [openSettingsStamp, setOpenSettingsStamp] = React.useState<
-    number | null
-  >(null);
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
   const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
   const pendingReplaceStampRef = React.useRef<number | null>(null);
+  const historyRef = React.useRef<HistoryItem[]>([]);
   const busy = fetcher.state !== "idle";
 
   React.useEffect(() => setHydrated(true), []);
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  React.useEffect(() => {
+    return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
 
   React.useEffect(() => {
     if (fetcher.data?.svg) {
@@ -1076,6 +1110,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         stamp: Date.now(),
         cutSource: fetcher.data.cutSource ?? settings.cutSource,
         settingsSnapshot: lastSubmittedSettingsRef.current,
+        name: `Output - ${getPresetLabelById(activePreset)}`,
+        presetLabel: getPresetLabelById(activePreset),
+        sourceFileName: lastSubmittedSourceSnapshotRef.current.sourceFileName,
+        sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
+        sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
+        sourcePreviewUrl: lastSubmittedSourceSnapshotRef.current.sourcePreviewUrl,
       };
       const replaceStamp = pendingReplaceStampRef.current;
       pendingReplaceStampRef.current = null;
@@ -1085,13 +1125,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           const next = prev.map((candidate) => {
             if (candidate.stamp !== replaceStamp) return candidate;
             replaced = true;
-            return { ...item, stamp: candidate.stamp };
+            return mergeOutputSourceSnapshot(
+              { ...item, stamp: candidate.stamp, name: candidate.name },
+              candidate,
+            );
           });
-          return replaced ? next : [item, ...prev].slice(0, 8);
+          const limited = replaced
+            ? next
+            : trimOutputHistory([item, ...prev], prev, OUTPUT_HISTORY_LIMIT);
+          cleanupUnusedSourceSnapshots([...prev, item], limited);
+          return limited;
         });
-        setOpenSettingsStamp(replaceStamp);
       } else {
-        setHistory((prev) => [item, ...prev].slice(0, 8));
+        setHistory((prev) =>
+          trimOutputHistory([item, ...prev], prev, OUTPUT_HISTORY_LIMIT),
+        );
       }
       setInfo(null);
     }
@@ -1100,6 +1148,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fetcher.data?.width,
     fetcher.data?.height,
     fetcher.data?.cutSource,
+    activePreset,
   ]);
 
   React.useEffect(() => {
@@ -1111,6 +1160,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return () => clearTimeout(t);
     }
     setErr(fetcher.data.error);
+    cleanupUnusedSourceSnapshots(
+      [lastSubmittedSourceSnapshotRef.current],
+      historyRef.current,
+    );
   }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
 
   React.useEffect(() => {
@@ -1176,8 +1229,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setPreviewUrl(null);
     setSettings(DEFAULTS);
     setActivePreset("white-border");
-    setHistory([]);
-    setOpenSettingsStamp(null);
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1191,7 +1242,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         );
         chosen = await compressToTarget25MB(chosen);
         setInfo(
-          `Compressed for preview: ${prettyBytes(f.size)} → ${prettyBytes(chosen.size)}.`,
+          `Compressed for preview: ${prettyBytes(f.size)} â†’ ${prettyBytes(chosen.size)}.`,
         );
       } catch (e: any) {
         suppressLiveRef.current = false;
@@ -1252,6 +1303,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("bgColor", targetSettings.bgColor);
     setErr(null);
     lastSubmittedSettingsRef.current = targetSettings;
+    lastSubmittedSourceSnapshotRef.current =
+      createOutputSourceSnapshot(targetFile);
     pendingReplaceStampRef.current = replaceStamp ?? null;
 
     fd.append("presetId", activePreset);
@@ -1353,7 +1406,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -1370,18 +1423,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
-                        setOpenSettingsStamp(null);
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      ×
+                      Ã—
                     </button>
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}×{dims.h}
+                        {dims.w}Ã—{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -1407,7 +1459,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Creating sticker SVG…" : "Create sticker SVG"}
+                  {busy ? "Creating sticker SVGâ€¦" : "Create sticker SVG"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1436,145 +1488,62 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
-              {busy && (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+            <BespokeTraceOutputPanel
+              history={history}
+              busy={busy}
+              file={file}
+              downloadLabel="Download SVG"
+              downloadFileName="cricut-sticker.svg"
+              emptyTitle="Sticker SVG previews appear here..."
+              emptyBusyTitle="Creating sticker SVG..."
+              resultKindLabel="Sticker SVG result"
+              precisionOutput={true}
+              fullscreenPreviewIndex={fullscreenPreviewIndex}
+              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              getSvg={(item) => item.svg}
+              onCopySvg={handleCopySvg}
+              onOpenEditor={(item) => setSettings(item.settingsSnapshot)}
+              renderPreview={({ displaySvg }) => (
+                <SvgObjectPreview svg={displaySvg} title="Sticker SVG result" />
               )}
-              {history.length > 0 ? (
+              renderSettings={({
+                item,
+                sourceAvailableForOutput,
+                appearanceControls,
+              }) => (
                 <div className="grid gap-3">
-                  {history.map((item, index) => (
-                    <div
-                      key={item.stamp}
-                      data-engine-used={item.engineUsed || "potrace"}
-                      data-source-kind={item.sourceKind || "raster"}
-                      data-engine-warnings={(item.warnings || []).join(" | ")}
-                      className="rounded-xl border border-slate-200 bg-white p-2"
-                    >
-                      <div className="flex gap-3 items-center flex-wrap justify-between">
-                        <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0
-                            ? `${item.width} × ${item.height} px`
-                            : "size unknown"}{" "}
-                          • cut source: {formatCutSource(item.cutSource)}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 flex-wrap my-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const b = new Blob([item.svg], {
-                              type: "image/svg+xml;charset=utf-8",
-                            });
-                            const u = URL.createObjectURL(b);
-                            const a = document.createElement("a");
-                            a.href = u;
-                            a.download = "cricut-sticker.svg";
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                            URL.revokeObjectURL(u);
-                          }}
-                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
-                        >
-                          <Icons
-                            name="download"
-                            size={16}
-                            className="inline-block mr-1"
-                          />
-                          Download SVG
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopySvg(item.svg)}
-                          className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
-                        >
-                          <Icons
-                            name="copy"
-                            size={16}
-                            className="inline-block mr-1"
-                          />
-                          Copy SVG
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSettings(item.settingsSnapshot);
-                            setOpenSettingsStamp((current) =>
-                              current === item.stamp ? null : item.stamp,
-                            );
-                          }}
-                          aria-expanded={openSettingsStamp === item.stamp}
-                          aria-controls={`output-settings-${item.stamp}`}
-                          className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                        >
-                          <Icons
-                            name="settings"
-                            size={16}
-                            className="mr-1 inline-block"
-                          />
+                  {appearanceControls}
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="m-0 text-base font-bold text-sky-950">
                           Settings
-                        </button>
+                        </h3>
+                        <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
+                          {sourceAvailableForOutput
+                            ? "These settings regenerate this sticker output card only."
+                            : item.sourceFileName
+                              ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                              : "Choose the original source image to update this output."}
+                        </p>
                       </div>
-
-                      {openSettingsStamp === item.stamp && (
-                        <div
-                          id={`output-settings-${item.stamp}`}
-                          className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3"
-                        >
-                          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <h3 className="m-0 text-base font-bold text-sky-950">
-                                Settings
-                              </h3>
-                              <p className="m-0 mt-1 text-[13px] text-slate-600">
-                                These settings regenerate this sticker output
-                                card only.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void submitConvert(file, settings, item.stamp)
-                              }
-                              disabled={buttonDisabled}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 cursor-pointer transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Update preview
-                            </button>
-                          </div>
-                          <StickerSettingsFields
-                            settings={settings}
-                            setSettings={setSettings}
-                          />
-                        </div>
-                      )}
-
-                      <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <SvgObjectPreview
-                          svg={item.svg}
-                          title="Sticker SVG result"
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void submitConvert(file, settings, item.stamp)}
+                        disabled={buttonDisabled || !sourceAvailableForOutput}
+                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Update preview
+                      </button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="converter-empty-output-state">
-                  {!busy && (
-                    <Icons
-                      name="success"
-                      size={20}
-                      className="inline-block mr-1"
+                    <StickerSettingsFields
+                      settings={settings}
+                      setSettings={setSettings}
                     />
-                  )}
-                  {busy
-                    ? "Creating sticker SVG…"
-                    : "Sticker SVG previews appear here...  "}
-                </p>
+                  </div>
+                </div>
               )}
-            </div>
+            />
           </section>
         </div>
 
@@ -1585,7 +1554,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,
-            svg: item.svg,
+            svg: getBespokeTraceOutputSvg(item, (output) => output.svg, true),
             width: item.width,
             height: item.height,
             kind: "SVG",
@@ -1815,7 +1784,7 @@ function SvgObjectPreview({ svg, title }: { svg: string; title: string }) {
   }, [svg]);
 
   if (!url) {
-    return <span className="text-sm text-slate-500">Preparing preview…</span>;
+    return <span className="text-sm text-slate-500">Preparing previewâ€¦</span>;
   }
 
   return (
@@ -1867,7 +1836,7 @@ async function validateBeforeSubmit(file: File) {
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${w}Ã—${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 }
@@ -2104,7 +2073,7 @@ function SeoSections() {
                 How to convert PNG to SVG for Cricut stickers
               </h3>
               <span className="text-xs text-slate-500">
-                Upload → choose sticker preset → adjust border → download SVG
+                Upload â†’ choose sticker preset â†’ adjust border â†’ download SVG
               </span>
             </div>
 

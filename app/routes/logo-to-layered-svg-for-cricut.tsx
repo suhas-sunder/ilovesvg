@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import type { Route } from "./+types/logo-to-layered-svg-for-cricut";
 import {
   json,
@@ -25,9 +25,20 @@ import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversio
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
-  FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
-import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
+import {
+  BespokeTraceOutputPanel,
+  getBespokeTraceOutputSvg,
+} from "~/client/components/converter/BespokeTraceOutputPanel";
+import {
+  createOutputSourceSnapshot,
+  cleanupUnusedSourceSnapshots,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
+import {
+  mergeOutputSourceSnapshot,
+  trimOutputHistory,
+} from "~/client/lib/converter/outputHistory";
 import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -257,7 +268,7 @@ export async function action({ request }: ActionFunctionArgs) {
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
             {
-              error: `Logo image too large: ${w}×${h} (~${mp.toFixed(
+              error: `Logo image too large: ${w}Ã—${h} (~${mp.toFixed(
                 1,
               )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
@@ -1234,7 +1245,23 @@ type HistoryItem = {
   svgBytes?: number;
   stamp: number;
   layers: LayerState[];
+  settingsSnapshot: Settings;
+  name?: string;
+  presetLabel?: string;
+  sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
 };
+
+const OUTPUT_HISTORY_LIMIT = 10;
+
+function getPresetLabelById(presetId: string): string {
+  return (
+    DISPLAY_PRESETS.find((preset) => preset.id === presetId)?.label ||
+    "Custom settings"
+  );
+}
 
 type AutoMode = "fast" | "medium" | "off";
 
@@ -1289,10 +1316,10 @@ export default function LogoToLayeredSvgForCricut({
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
   const [toast, setToast] = React.useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
-  const [openSettingsStamp, setOpenSettingsStamp] = React.useState<
-    number | null
-  >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
+  const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
+  const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const historyRef = React.useRef<HistoryItem[]>([]);
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
@@ -1301,6 +1328,14 @@ export default function LogoToLayeredSvgForCricut({
   const busy = fetcher.state !== "idle";
 
   React.useEffect(() => setHydrated(true), []);
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  React.useEffect(() => {
+    return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
 
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
@@ -1349,6 +1384,13 @@ export default function LogoToLayeredSvgForCricut({
         pixelPercent: layer.pixelPercent,
         pathTags: layer.pathTags,
       })),
+      settingsSnapshot: lastSubmittedSettingsRef.current,
+      name: `Output - ${getPresetLabelById(activePreset)}`,
+      presetLabel: getPresetLabelById(activePreset),
+      sourceFileName: lastSubmittedSourceSnapshotRef.current.sourceFileName,
+      sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
+      sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
+      sourcePreviewUrl: lastSubmittedSourceSnapshotRef.current.sourcePreviewUrl,
     };
 
     const replaceStamp = pendingReplaceStampRef.current;
@@ -1360,15 +1402,27 @@ export default function LogoToLayeredSvgForCricut({
         const next = prev.map((historyItem) => {
           if (historyItem.stamp !== replaceStamp) return historyItem;
           replaced = true;
-          return { ...historyItem, ...item, stamp: historyItem.stamp };
+          return mergeOutputSourceSnapshot(
+            {
+              ...historyItem,
+              ...item,
+              stamp: historyItem.stamp,
+              name: historyItem.name,
+            },
+            historyItem,
+          );
         });
-        return replaced ? next : [item, ...prev].slice(0, 10);
+        const limited = replaced
+          ? next
+          : trimOutputHistory([item, ...prev], prev, OUTPUT_HISTORY_LIMIT);
+        cleanupUnusedSourceSnapshots([...prev, item], limited);
+        return limited;
       }
 
-      return [item, ...prev].slice(0, 10);
+      return trimOutputHistory([item, ...prev], prev, OUTPUT_HISTORY_LIMIT);
     });
     setInfo(null);
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height, activePreset]);
 
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
@@ -1387,6 +1441,10 @@ export default function LogoToLayeredSvgForCricut({
     }
 
     setErr(fetcher.data.error);
+    cleanupUnusedSourceSnapshots(
+      [lastSubmittedSourceSnapshotRef.current],
+      historyRef.current,
+    );
   }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
 
   React.useEffect(() => {
@@ -1443,8 +1501,7 @@ export default function LogoToLayeredSvgForCricut({
     setPreviewUrl(null);
     setSettings(DEFAULTS);
     setActivePreset("layered-color");
-    setHistory([]);
-    setOpenSettingsStamp(null);
+
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1515,6 +1572,9 @@ export default function LogoToLayeredSvgForCricut({
     appendAdvancedTraceSettings(fd, sourceSettings);
 
     setErr(null);
+    lastSubmittedSettingsRef.current = sourceSettings;
+    lastSubmittedSourceSnapshotRef.current =
+      createOutputSourceSnapshot(sourceFile);
     pendingReplaceStampRef.current = replaceStamp ?? null;
 
     fd.append("presetId", activePreset);
@@ -1575,6 +1635,16 @@ export default function LogoToLayeredSvgForCricut({
     );
   }
 
+  function getHistoryItemSvg(item: HistoryItem): string {
+    const itemSettings = item.settingsSnapshot || settings;
+    return buildClientLayeredSvg({
+      width: item.width,
+      height: item.height,
+      layers: item.layers,
+      transparent: itemSettings.transparent,
+      bgColor: itemSettings.bgColor,
+    });
+  }
   const buttonDisabled = isServer || !hydrated || busy || !file;
 
   return (
@@ -1631,7 +1701,7 @@ export default function LogoToLayeredSvgForCricut({
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -1653,11 +1723,11 @@ export default function LogoToLayeredSvgForCricut({
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
-                        setHistory([]);
+
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      ×
+                      Ã—
                     </button>
                   </div>
 
@@ -1665,7 +1735,7 @@ export default function LogoToLayeredSvgForCricut({
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}×{dims.h}
+                        {dims.w}Ã—{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -1692,7 +1762,7 @@ export default function LogoToLayeredSvgForCricut({
                     title="Convert"
                   />
                   {busy
-                    ? "Building logo layers…"
+                    ? "Building logo layersâ€¦"
                     : "Convert Logo to Layered SVG"}
                 </button>
 
@@ -1723,217 +1793,93 @@ export default function LogoToLayeredSvgForCricut({
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
-              {busy && (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-              )}
-
-              {history.length > 0 ? (
+            <BespokeTraceOutputPanel
+              history={history}
+              busy={busy}
+              file={file}
+              downloadLabel="Download Layered SVG"
+              downloadFileName="logo-to-layered-svg-for-cricut.svg"
+              emptyTitle="Layered SVG files appear here..."
+              emptyBusyTitle="Building layered SVG..."
+              resultKindLabel="Layered SVG result"
+              precisionOutput={true}
+              fullscreenPreviewIndex={fullscreenPreviewIndex}
+              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              getSvg={getHistoryItemSvg}
+              onCopySvg={handleCopySvg}
+              onOpenEditor={(item) => setSettings(item.settingsSnapshot)}
+              renderSettings={({
+                item,
+                sourceAvailableForOutput,
+                appearanceControls,
+              }) => (
                 <div className="grid gap-3">
-                  {history.map((item, index) => {
-                    const editedSvg = buildClientLayeredSvg({
-                      width: item.width,
-                      height: item.height,
-                      layers: item.layers,
-                      transparent: settings.transparent,
-                      bgColor: settings.bgColor,
-                    });
-
-                    return (
-                      <div
-                        key={item.stamp}
-                        data-engine-used={item.engineUsed || "vtracer"}
-                        data-source-kind={item.sourceKind || "raster"}
-                        data-engine-warnings={(item.warnings || []).join(" | ")}
-                        className="rounded-xl border border-slate-200 bg-white p-2"
-                      >
-                        <div className="flex gap-3 items-center flex-wrap justify-between">
-                          <span className="text-[13px] text-slate-700">
-                            {item.width > 0 && item.height > 0
-                              ? `${item.width} × ${item.height} px`
-                              : "size unknown"}{" "}
-                            • {item.layers.length} layers
-                          </span>
-                        </div>
-
-                        <div className="flex gap-2 flex-wrap my-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const b = new Blob([editedSvg], {
-                                type: "image/svg+xml;charset=utf-8",
-                              });
-                              const u = URL.createObjectURL(b);
-                              const a = document.createElement("a");
-                              a.href = u;
-                              a.download = "logo-to-layered-svg-for-cricut.svg";
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              URL.revokeObjectURL(u);
-                            }}
-                            className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
-                          >
-                            <Icons
-                              name="download"
-                              size={16}
-                              className="inline-block mr-1"
-                            />
-                            Download Layered SVG
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleCopySvg(editedSvg)}
-                            className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
-                          >
-                            <Icons
-                              name="copy"
-                              size={16}
-                              className="inline-block mr-1"
-                            />
-                            Copy SVG
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenSettingsStamp((current) =>
-                                current === item.stamp ? null : item.stamp,
-                              )
-                            }
-                            aria-expanded={openSettingsStamp === item.stamp}
-                            aria-controls={`output-settings-${item.stamp}`}
-                            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-950 transition-colors hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                          >
-                            <Icons
-                              name="settings"
-                              size={16}
-                              className="mr-1 inline-block"
-                            />
-                            Settings
-                          </button>
-                        </div>
-
-                        {openSettingsStamp === item.stamp && (
-                          <div
-                            id={`output-settings-${item.stamp}`}
-                            className="mb-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2"
-                          >
-                            <LayeredAdvancedSettingsPanel
-                              id={`output-settings-panel-${item.stamp}`}
-                              open={true}
-                              settings={settings}
-                              setSettings={setSettings}
-                              capabilities={routeCapabilities}
-                              detectedColorItems={[item]}
-                              sourceFile={file}
-                              removeColorsEnabled={
-                                !(
-                                  file &&
-                                  (file.type === "image/svg+xml" ||
-                                    /\.svg$/i.test(file.name || ""))
-                                )
-                              }
-                              outputLayerItems={item.layers}
-                              onOutputLayerChange={(layerId, patch) =>
-                                updateHistoryItemLayers(item.stamp, (layers) =>
-                                  layers.map((layer) =>
-                                    layer.id === layerId
-                                      ? { ...layer, ...patch }
-                                      : layer,
-                                  ),
-                                )
-                              }
-                              onResetOutputLayer={(layerId) =>
-                                updateHistoryItemLayers(item.stamp, (layers) =>
-                                  layers.map((layer) =>
-                                    layer.id === layerId
-                                      ? {
-                                          ...layer,
-                                          color: layer.originalColor,
-                                          visible: true,
-                                        }
-                                      : layer,
-                                  ),
-                                )
-                              }
-                              onResetAllOutputLayers={() =>
-                                updateHistoryItemLayers(item.stamp, (layers) =>
-                                  layers.map((layer) => ({
-                                    ...layer,
-                                    color: layer.originalColor,
-                                    visible: true,
-                                  })),
-                                )
-                              }
-                              buttonDisabled={buttonDisabled || busy}
-                              helpHref="#advanced-settings-help"
-                              liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
-                              livePreviewLead={
-                                <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                  <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                    Layer colors
-                                  </p>
-<LayerControls
-                          layers={item.layers}
-                          onLayerChange={(layerId, patch) =>
-                            updateHistoryItemLayers(item.stamp, (layers) =>
-                              layers.map((layer) =>
-                                layer.id === layerId
-                                  ? { ...layer, ...patch }
-                                  : layer,
-                              ),
-                            )
-                          }
-                          onReset={() =>
-                            updateHistoryItemLayers(item.stamp, (layers) =>
-                              layers.map((layer) => ({
+                  {appearanceControls}
+                  <LayeredAdvancedSettingsPanel
+                    id={`output-settings-panel-${item.stamp}`}
+                    open={true}
+                    settings={settings}
+                    setSettings={setSettings}
+                    capabilities={routeCapabilities}
+                    detectedColorItems={[item]}
+                    sourceFile={sourceAvailableForOutput ? file : null}
+                    removeColorsEnabled={
+                      sourceAvailableForOutput &&
+                      !(
+                        file &&
+                        (file.type === "image/svg+xml" ||
+                          /\.svg$/i.test(file.name || ""))
+                      )
+                    }
+                    outputLayerItems={item.layers}
+                    onOutputLayerChange={(layerId, patch) =>
+                      updateHistoryItemLayers(item.stamp, (layers) =>
+                        layers.map((layer) =>
+                          layer.id === layerId
+                            ? { ...layer, ...patch }
+                            : layer,
+                        ),
+                      )
+                    }
+                    onResetOutputLayer={(layerId) =>
+                      updateHistoryItemLayers(item.stamp, (layers) =>
+                        layers.map((layer) =>
+                          layer.id === layerId
+                            ? {
                                 ...layer,
                                 color: layer.originalColor,
                                 visible: true,
-                              })),
-                            )
-                          }
-                        />
-                                </div>
                               }
-                              convertSectionDescription="These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
-                              hideOutputLayerStyling={true}
-                              onUpdatePreview={() =>
-                                void submitConvert(file, settings, item.stamp)
-                              }
-                            />
-                          </div>
-                        )}
-
-                        <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                          <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                          <EditedSvgPreviewImage
-                            svg={editedSvg}
-                            alt="Layered SVG result from logo"
-                            className="max-w-full h-auto"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                            : layer,
+                        ),
+                      )
+                    }
+                    onResetAllOutputLayers={() =>
+                      updateHistoryItemLayers(item.stamp, (layers) =>
+                        layers.map((layer) => ({
+                          ...layer,
+                          color: layer.originalColor,
+                          visible: true,
+                        })),
+                      )
+                    }
+                    buttonDisabled={buttonDisabled || busy || !sourceAvailableForOutput}
+                    helpHref="#advanced-settings-help"
+                    liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                    convertSectionDescription={
+                      sourceAvailableForOutput
+                        ? "These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                        : item.sourceFileName
+                          ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
+                          : "Choose the original source image to retrace this output."
+                    }
+                    onUpdatePreview={() =>
+                      void submitConvert(file, settings, item.stamp)
+                    }
+                  />
                 </div>
-              ) : (
-                <p className="converter-empty-output-state">
-                  {!busy && (
-                    <Icons
-                      name="success"
-                      size={20}
-                      className="inline-block mr-1"
-                    />
-                  )}
-                  {busy
-                    ? "Building layered SVG…"
-                    : "Layered SVG files appear here..."}
-                </p>
               )}
-            </div>
+            />
           </section>
         </div>
 
@@ -1944,7 +1890,7 @@ export default function LogoToLayeredSvgForCricut({
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,
-            svg: buildClientLayeredSvg({ width: item.width, height: item.height, layers: item.layers, transparent: settings.transparent, bgColor: settings.bgColor }),
+            svg: getBespokeTraceOutputSvg(item, getHistoryItemSvg, true),
             width: item.width,
             height: item.height,
             kind: "SVG",
@@ -2022,7 +1968,7 @@ async function validateBeforeSubmit(file: File) {
 
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Logo image too large: ${w}×${h} (~${mp.toFixed(
+      `Logo image too large: ${w}Ã—${h} (~${mp.toFixed(
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
@@ -2359,7 +2305,7 @@ function LayerControlRow({
             Layer {index + 1}
           </div>
           <div className="text-xs text-slate-500">
-            {draftColor.toUpperCase()} • {layer.pixelPercent}% of traced pixels
+            {draftColor.toUpperCase()} â€¢ {layer.pixelPercent}% of traced pixels
           </div>
         </div>
 
@@ -2555,7 +2501,7 @@ function SeoSections() {
                 How to convert a logo to layered SVG for Cricut
               </h3>
               <span className="text-xs text-slate-500">
-                Upload logo → choose preset → edit layers → download SVG
+                Upload logo â†’ choose preset â†’ edit layers â†’ download SVG
               </span>
             </div>
 

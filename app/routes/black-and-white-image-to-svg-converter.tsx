@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import type { Route } from "./+types/black-and-white-image-to-svg-converter";
 import {
   json,
@@ -25,9 +25,18 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 import { PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
-  FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
-import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
+import { getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
+import {
+  BespokeTraceOutputPanel,
+  getBespokeTraceOutputSvg,
+} from "~/client/components/converter/BespokeTraceOutputPanel";
+import {
+  createOutputSourceSnapshot,
+  cleanupUnusedSourceSnapshots,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
+import { trimOutputHistory } from "~/client/lib/converter/outputHistory";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 
@@ -292,7 +301,7 @@ export async function action({ request }: ActionFunctionArgs) {
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
           return json(
             {
-              error: `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+              error: `Image too large: ${w}Ã—${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
             },
             { status: 413 },
           );
@@ -1580,7 +1589,23 @@ type HistoryItem = {
   svgBytes?: number;
   stamp: number;
   layers?: EditableSvgLayer[];
+  settingsSnapshot: Settings;
+  name?: string;
+  presetLabel?: string;
+  sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
 };
+
+const OUTPUT_HISTORY_LIMIT = 10;
+
+function getPresetLabelById(presetId: string): string {
+  return (
+    DISPLAY_PRESETS.find((preset) => preset.id === presetId)?.label ||
+    "Custom settings"
+  );
+}
 
 type AutoMode = "fast" | "medium" | "off";
 
@@ -1638,6 +1663,17 @@ export default function BlackAndWhiteImageToSvgConverter({
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
+  const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
+  const historyRef = React.useRef<HistoryItem[]>([]);
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  React.useEffect(() => {
+    return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
 
   React.useEffect(() => {
     if (fetcher.data?.svg) {
@@ -1657,14 +1693,29 @@ export default function BlackAndWhiteImageToSvgConverter({
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         layers: fetcher.data.layers,
+        settingsSnapshot: lastSubmittedSettingsRef.current,
+        name: `Output - ${getPresetLabelById(activePreset)}`,
+        presetLabel: getPresetLabelById(activePreset),
+        sourceFileName: lastSubmittedSourceSnapshotRef.current.sourceFileName,
+        sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
+        sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
+        sourcePreviewUrl: lastSubmittedSourceSnapshotRef.current.sourcePreviewUrl,
       };
-      setHistory((prev) => [item, ...prev].slice(0, 10));
+      setHistory((prev) =>
+        trimOutputHistory([item, ...prev], prev, OUTPUT_HISTORY_LIMIT),
+      );
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height, activePreset]);
 
   React.useEffect(() => {
     const serverErr = fetcher.data?.error;
-    if (serverErr) setErr(serverErr);
+    if (serverErr) {
+      setErr(serverErr);
+      cleanupUnusedSourceSnapshots(
+        [lastSubmittedSourceSnapshotRef.current],
+        historyRef.current,
+      );
+    }
   }, [fetcher.data?.error]);
 
   React.useEffect(() => {
@@ -1840,6 +1891,8 @@ export default function BlackAndWhiteImageToSvgConverter({
     fd.append("presetId", presetId);
 
     setErr(null);
+    lastSubmittedSettingsRef.current = effective;
+    lastSubmittedSourceSnapshotRef.current = createOutputSourceSnapshot(f);
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1980,7 +2033,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                     ].join(" ")}
                     aria-hidden="true"
                   >
-                    ▾
+                    â–¾
                   </span>
                 </button>
 
@@ -2364,7 +2417,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {file?.name} â€¢ {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -2384,14 +2437,14 @@ export default function BlackAndWhiteImageToSvgConverter({
                       }}
                       className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
                     >
-                      ×
+                      Ã—
                     </button>
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}×{dims.h}
+                        {dims.w}Ã—{dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -2411,7 +2464,7 @@ export default function BlackAndWhiteImageToSvgConverter({
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
                 >
-                  {busy ? "Converting…" : "Convert"}
+                  {busy ? "Convertingâ€¦" : "Convert"}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -2437,108 +2490,50 @@ export default function BlackAndWhiteImageToSvgConverter({
               )}
             </div>
 
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
-              {busy && (
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
-              )}
-
-              {history.length > 0 ? (
+            <BespokeTraceOutputPanel
+              history={history}
+              busy={busy}
+              file={file}
+              downloadLabel="Download SVG"
+              downloadFileName="converted.svg"
+              emptyTitle="Converted files appear here..."
+              emptyBusyTitle="Converting..."
+              resultKindLabel="SVG result"
+              fullscreenPreviewIndex={fullscreenPreviewIndex}
+              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              getSvg={getHistoryItemSvg}
+              onCopySvg={handleCopySvg}
+              onOpenEditor={(item) => setSettings(item.settingsSnapshot)}
+              renderSettings={({ item, appearanceControls }) => (
                 <div className="grid gap-3">
-                  {history.map((item, index) => (
-                    <div
-                      key={item.stamp}
-                      data-engine-used={item.engineUsed || "potrace"}
-                      data-source-kind={item.sourceKind || "raster"}
-                      data-engine-warnings={(item.warnings || []).join(" | ")}
-                      className="rounded-xl border border-slate-200 bg-white p-2"
-                    >
-                      <div className="relative rounded-xl border border-slate-200 bg-white transparent-checkerboard min-h-[240px] flex items-center justify-center p-2">
-                        <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
-                        <EditedSvgPreviewImage
-                          svg={item.svg}
-                          layers={item.layers}
-                          alt="SVG result"
-                          className="max-w-full h-auto"
-                        />
-                      </div>
-                      {item.layers?.length ? (
-                        <LayerPaletteEditor
-                          layers={item.layers}
-                          onColorChange={(layerId, color) =>
-                            setHistoryLayer(item.stamp, layerId, { color })
-                          }
-                          onVisibilityChange={(layerId, visible) =>
-                            setHistoryLayer(item.stamp, layerId, { visible })
-                          }
-                          onResetLayer={(layerId) =>
-                            resetHistoryLayer(item.stamp, layerId)
-                          }
-                          onResetAll={() => resetAllHistoryLayers(item.stamp)}
-                        />
-                      ) : null}
-                      <div className="flex gap-3 items-center mt-3 flex-wrap justify-between">
-                        <span className="text-[13px] text-slate-700">
-                          {item.width > 0 && item.height > 0
-                            ? `${item.width} × ${item.height} px`
-                            : "size unknown"}
-                        </span>
-                        <div className="flex gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const b = new Blob([getHistoryItemSvg(item)], {
-                                type: "image/svg+xml;charset=utf-8",
-                              });
-                              const u = URL.createObjectURL(b);
-                              const a = document.createElement("a");
-                              a.href = u;
-                              a.download = "converted.svg";
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              URL.revokeObjectURL(u);
-                            }}
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
-                          >
-                            <Icons
-                              name="download"
-                              size={16}
-                              className="inline-block mr-1"
-                            />
-                            Download SVG
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCopySvg(getHistoryItemSvg(item))
-                            }
-                            className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
-                          >
-                            <Icons
-                              name="copy"
-                              size={16}
-                              className="inline-block mr-1"
-                            />
-                            Copy SVG
-                          </button>
-                        </div>
-                      </div>
+                  {appearanceControls}
+                  {item.layers?.length ? (
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <h3 className="m-0 mb-2 text-base font-bold text-sky-950">
+                        Layer colors
+                      </h3>
+                      <LayerPaletteEditor
+                        layers={item.layers}
+                        onColorChange={(layerId, color) =>
+                          setHistoryLayer(item.stamp, layerId, { color })
+                        }
+                        onVisibilityChange={(layerId, visible) =>
+                          setHistoryLayer(item.stamp, layerId, { visible })
+                        }
+                        onResetLayer={(layerId) =>
+                          resetHistoryLayer(item.stamp, layerId)
+                        }
+                        onResetAll={() => resetAllHistoryLayers(item.stamp)}
+                      />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="converter-empty-output-state">
-                  {!busy && (
-                    <Icons
-                      name="success"
-                      size={20}
-                      className="inline-block mr-1"
-                    />
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-white p-3 text-[13px] text-slate-600">
+                      This output has no editable layer palette.
+                    </div>
                   )}
-                  {busy ? "Converting…" : "Converted files appear here...  "}
-                </p>
+                </div>
               )}
-            </div>
+            />
           </section>
         </div>
 
@@ -2549,7 +2544,7 @@ export default function BlackAndWhiteImageToSvgConverter({
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,
-            svg: getHistoryItemSvg(item),
+            svg: getBespokeTraceOutputSvg(item, getHistoryItemSvg),
             width: item.width,
             height: item.height,
             kind: "SVG",
@@ -2617,7 +2612,7 @@ async function validateBeforeSubmit(file: File) {
   const mp = (w * h) / 1_000_000;
   if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
     throw new Error(
-      `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
+      `Image too large: ${w}Ã—${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
   }
 }
@@ -3100,7 +3095,7 @@ function SeoSections() {
                 {[
                   { k: "Binary mode", v: "True 2-color thresholding" },
                   { k: "Speckle cleanup", v: "Turd size removes tiny noise" },
-                  { k: "Fast preview", v: "≤10 MB live updates" },
+                  { k: "Fast preview", v: "â‰¤10 MB live updates" },
                   { k: "Private by default", v: "Processed in memory" },
                 ].map((x) => (
                   <div

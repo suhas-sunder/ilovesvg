@@ -145,10 +145,11 @@ export function AdvancedSettingsHelpSection() {
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Preset tags estimate backend processing intensity. Lightning Fast
-              and Insane Speed presets are expected to be the lightest; Low
-              Speed and Slow Speed presets usually request more detail, edge
-              cleanup, or layered color tracing. The tag is informational and
-              does not change the SVG by itself.
+              and Extreme Speed presets are expected to be the lightest; Low
+              Speed, Slow Speed, Very Slow, and Insanely Slow presets usually
+              request more detail, edge cleanup, larger palettes, or layered
+              color tracing. The tag is informational and does not change the
+              SVG by itself.
             </p>
           </section>
 

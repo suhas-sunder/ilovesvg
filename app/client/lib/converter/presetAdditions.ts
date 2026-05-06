@@ -778,7 +778,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "icon-simple",
     label: "Icon - Simple",
     category: "logo",
-    backendIntensity: "insane-speed",
+    backendIntensity: "lightning-fast",
     settings: {
       traceMode: "single",
       preprocess: "none",
@@ -925,7 +925,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "stencil-simple",
     label: "Stencil - Simple",
     category: "diagram",
-    backendIntensity: "insane-speed",
+    backendIntensity: "lightning-fast",
     settings: {
       traceMode: "single",
       preprocess: "none",
@@ -1022,7 +1022,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "vinyl-simple",
     label: "Vinyl - Simple",
     category: "diagram",
-    backendIntensity: "insane-speed",
+    backendIntensity: "lightning-fast",
     settings: {
       traceMode: "single",
       preprocess: "none",
@@ -1384,7 +1384,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "layered-logo",
     label: "Layered - Logo",
     category: "layered",
-    backendIntensity: "low-speed",
+    backendIntensity: "slow-speed",
     settings: {
       traceMode: "layered",
       colorLayerCount: 5,
@@ -1423,7 +1423,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "layered-detail",
     label: "Layered - Detail",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "very-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 28,
@@ -1511,7 +1511,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "layered-soft-poster",
     label: "Layered - Soft Poster",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "very-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 12,
@@ -1541,7 +1541,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "layered-flat-color",
     label: "Layered - Flat Color",
     category: "layered",
-    backendIntensity: "low-speed",
+    backendIntensity: "insanely-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 16,
@@ -1571,7 +1571,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "ui-mockup-app-screen",
     label: "UI Mockup / App Screen",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "very-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 28,
@@ -1601,7 +1601,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "photo-many-colors",
     label: "Photo Many Colors",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "very-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 32,
@@ -1631,7 +1631,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "filled-layers-smooth",
     label: "Filled Layers - Smooth",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "very-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 20,
@@ -1660,7 +1660,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "filled-layers-separate-colors",
     label: "Filled Layers - Separate Colors",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "insanely-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 16,
@@ -1689,7 +1689,7 @@ export const TRACE_PRESET_ADDITIONS: AddedPreset[] = [
     id: "clean-color-sticker",
     label: "Clean Color Sticker",
     category: "layered",
-    backendIntensity: "slow-speed",
+    backendIntensity: "very-slow",
     settings: {
       traceMode: "layered",
       colorLayerCount: 20,

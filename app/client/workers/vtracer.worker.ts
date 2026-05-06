@@ -603,7 +603,11 @@ function quantizeLayeredPixels(
     height,
     options.layerBuildMode,
   );
+  const transparentPixelMask = buildTransparentPixelMask(data, settings);
   const source = new Uint8ClampedArray(data);
+  if (transparentPixelMask) {
+    applyTransparentPixelMask(source, transparentPixelMask);
+  }
   const pointContainer = imageQUtils.PointContainer.fromUint8Array(source, width, height);
   const palette = buildPaletteSync([pointContainer], {
     colors: effectiveRequested,
@@ -626,6 +630,9 @@ function quantizeLayeredPixels(
     imageQuantization: "nearest",
   }).toUint8Array();
   const out = new Uint8ClampedArray(quantized);
+  if (transparentPixelMask) {
+    applyTransparentPixelMask(out, transparentPixelMask);
+  }
   const initialPalette = collectPaletteFromData(out, settings);
   const mergedPalette = mergePerceptualPalette(
     initialPalette,
@@ -635,12 +642,18 @@ function quantizeLayeredPixels(
 
   if (mergedPalette.length > 0) {
     snapPixelsToPalette(out, mergedPalette, distance, settings);
+    if (transparentPixelMask) {
+      applyTransparentPixelMask(out, transparentPixelMask);
+    }
   }
 
   const morphed = applyLayerMaskProcessing(out, width, height, settings, {
     layerBuildMode: options.layerBuildMode,
     palette: mergedPalette.length ? mergedPalette : initialPalette,
   });
+  if (transparentPixelMask) {
+    applyTransparentPixelMask(morphed.data, transparentPixelMask);
+  }
   const finalPalette = collectPaletteFromData(morphed.data, settings);
 
   return {
@@ -663,6 +676,36 @@ function quantizeLayeredPixels(
       maskCleanup: morphed.diagnostics,
     },
   };
+}
+
+function buildTransparentPixelMask(
+  data: Uint8ClampedArray,
+  settings: NormalizedTraceSettings,
+): Uint8Array | null {
+  if (settings.removeTransparent === false && settings.transparent === false) {
+    return null;
+  }
+  const total = Math.floor(data.length / 4);
+  const mask = new Uint8Array(total);
+  let transparentPixels = 0;
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    if (data[pixel * 4 + 3] >= 18) continue;
+    mask[pixel] = 1;
+    transparentPixels += 1;
+  }
+  return transparentPixels > 0 ? mask : null;
+}
+
+function applyTransparentPixelMask(data: Uint8ClampedArray, mask: Uint8Array) {
+  const total = Math.min(mask.length, Math.floor(data.length / 4));
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    if (!mask[pixel]) continue;
+    const off = pixel * 4;
+    data[off] = 255;
+    data[off + 1] = 255;
+    data[off + 2] = 255;
+    data[off + 3] = 0;
+  }
 }
 
 function applyLayerMaskProcessing(

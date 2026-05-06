@@ -27,6 +27,16 @@ import {
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
 import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
+import {
+  BespokeTraceOutputPanel,
+  getBespokeTraceOutputSvg,
+} from "~/client/components/converter/BespokeTraceOutputPanel";
+import {
+  cleanupUnusedSourceSnapshots,
+  createOutputSourceSnapshot,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
+import { trimOutputHistory } from "~/client/lib/converter/outputHistory";
 
 const isServer = typeof document === "undefined";
 
@@ -1022,6 +1032,13 @@ type HistoryItem = {
   kind: CandidateKind | "raster-trace";
   stamp: number;
   layers?: EditableSvgLayer[];
+  name?: string;
+  presetLabel?: string;
+  svgBytes?: number;
+  sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
 };
 
 const DEFAULTS: Settings = {
@@ -1614,8 +1631,19 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
   const [showTips, setShowTips] = React.useState(false);
   const [toast, setToast] = React.useState<string | null>(null);
   const [hydrated, setHydrated] = React.useState(false);
+  const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
+  const historyRef = React.useRef(history);
 
   React.useEffect(() => setHydrated(true), []);
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  React.useEffect(
+    () => () => cleanupUnusedSourceSnapshots(historyRef.current, []),
+    [],
+  );
 
   const busy = fetcher.state !== "idle";
 
@@ -1643,19 +1671,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     if (selected.svg) {
       try {
         const styled = styleExistingSvg(selected.svg, settings);
-        setHistory((prev) =>
-          [
-            {
-              svg: styled.svg,
-              width: styled.width,
-              height: styled.height,
-              kind: selected.kind,
-              stamp: Date.now(),
-              layers: styled.layers,
-            },
-            ...prev,
-          ].slice(0, 10),
-        );
+        appendHistoryItem(createSvgHistoryItem(selected, styled));
         setErr(null);
         setInfo("Existing SVG detected. Styling applied locally.");
       } catch (error: any) {
@@ -1678,9 +1694,13 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
         kind: "raster-trace",
         stamp: Date.now(),
         layers: data.layers,
+        name: "Raster traced output",
+        presetLabel: activePresetObject.label,
+        svgBytes: getSvgByteSizeForRoute(data.svg),
+        ...lastSubmittedSourceSnapshotRef.current,
       };
 
-      setHistory((prev) => [nextItem, ...prev].slice(0, 10));
+      appendHistoryItem(nextItem);
       setErr(null);
       setInfo("Raster image data converted to SVG paths.");
     }
@@ -1694,6 +1714,48 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     PRESETS.find((preset) => preset.id === activePreset) ?? PRESETS[0];
 
   const buttonDisabled = isServer || !hydrated || busy || !input.trim();
+
+  function appendHistoryItem(item: HistoryItem) {
+    setHistory((prev) => trimOutputHistory([item, ...prev], prev, 10));
+  }
+
+  function createSvgHistoryItem(
+    candidate: ExtractedCandidate,
+    styled: { svg: string; width: number; height: number; layers: EditableSvgLayer[] },
+    presetLabel = activePresetObject.label,
+  ): HistoryItem {
+    const sourceSnapshot = createCandidateSourceSnapshot(candidate, styled.svg);
+    return {
+      svg: styled.svg,
+      width: styled.width,
+      height: styled.height,
+      kind: candidate.kind,
+      stamp: Date.now(),
+      layers: styled.layers,
+      name: `${readableKind(candidate.kind)} output`,
+      presetLabel,
+      svgBytes: getSvgByteSizeForRoute(styled.svg),
+      ...sourceSnapshot,
+    };
+  }
+
+  function createCandidateSourceSnapshot(
+    candidate: ExtractedCandidate,
+    previewSvg?: string,
+  ): OutputSourceSnapshot {
+    if (candidate.file) return createOutputSourceSnapshot(candidate.file);
+    const sourceSvg = candidate.svg || previewSvg || "";
+    const label = candidate.label || readableKind(candidate.kind);
+    if (!sourceSvg) return { sourceFileName: label };
+    return {
+      sourceFileName: label,
+      sourceMimeType: "image/svg+xml",
+      sourceFileSize: getSvgByteSizeForRoute(sourceSvg),
+      sourcePreviewUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+        sourceSvg,
+      )}`,
+    };
+  }
 
   function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -1713,19 +1775,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     if (selected.svg) {
       try {
         const styled = styleExistingSvg(selected.svg, nextSettings);
-        setHistory((prev) =>
-          [
-            {
-              svg: styled.svg,
-              width: styled.width,
-              height: styled.height,
-              kind: selected.kind,
-              stamp: Date.now(),
-              layers: styled.layers,
-            },
-            ...prev,
-          ].slice(0, 10),
-        );
+        appendHistoryItem(createSvgHistoryItem(selected, styled, preset.label));
         setErr(null);
         setInfo("Existing SVG detected. Styling applied locally.");
       } catch (error: any) {
@@ -1749,7 +1799,6 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     setFilename("sample-code-to-svg");
     setSourceMode("auto");
     setSelectedCandidate(0);
-    setHistory([]);
     setErr(null);
     setInfo(null);
   }
@@ -1757,12 +1806,15 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
   function clearInput() {
     setInput("");
     setSelectedCandidate(0);
-    setHistory([]);
     setErr(null);
     setInfo(null);
   }
 
-  function submitRasterCandidate(file: File, overrideSettings?: Settings) {
+  function submitRasterCandidate(
+    file: File,
+    overrideSettings?: Settings,
+    sourceSnapshot = createOutputSourceSnapshot(file),
+  ) {
     const effective = getEffectiveSettings(overrideSettings ?? settings);
 
     const fd = new FormData();
@@ -1791,6 +1843,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
 
     setErr(null);
     setInfo("Raster image data detected. Converting to SVG paths...");
+    lastSubmittedSourceSnapshotRef.current = sourceSnapshot;
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1813,7 +1866,6 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
       setErr(
         "No extractable SVG or image data found. Paste raw SVG, Base64 SVG, SVG data URI, PNG/JPEG/WebP data URI, CSS url(...), Markdown image syntax, HTML, or JSON.",
       );
-      setHistory([]);
       return;
     }
 
@@ -1823,19 +1875,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     if (item.svg) {
       try {
         const styled = styleExistingSvg(item.svg, settings);
-        setHistory((prev) =>
-          [
-            {
-              svg: styled.svg,
-              width: styled.width,
-              height: styled.height,
-              kind: item.kind,
-              stamp: Date.now(),
-              layers: styled.layers,
-            },
-            ...prev,
-          ].slice(0, 10),
-        );
+        appendHistoryItem(createSvgHistoryItem(item, styled));
         setErr(null);
         setInfo("Existing SVG detected. Styling applied locally.");
       } catch (error: any) {
@@ -1845,7 +1885,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
     }
 
     if (item.file) {
-      submitRasterCandidate(item.file);
+      submitRasterCandidate(item.file, undefined, createCandidateSourceSnapshot(item));
       return;
     }
 
@@ -2460,6 +2500,52 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
               )}
             </div>
 
+            <BespokeTraceOutputPanel
+              history={history}
+              busy={busy}
+              file={null}
+              fullscreenPreviewIndex={fullscreenPreviewIndex}
+              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              getSvg={getHistoryItemSvg}
+              onCopySvg={copySvg}
+              downloadFileName={makeDownloadName(filename || "converted", "svg")}
+              precisionOutput={true}
+              resultKindLabel="code-to-SVG result"
+              renderSettings={({ item, appearanceControls }) => (
+                <div className="grid gap-3">
+                  {appearanceControls}
+                  {item.layers?.length ? (
+                    <LayerPaletteEditor
+                      layers={item.layers}
+                      onColorChange={(layerId, color) =>
+                        setHistoryLayer(item.stamp, layerId, { color })
+                      }
+                      onVisibleChange={(layerId, visible) =>
+                        setHistoryLayer(item.stamp, layerId, { visible })
+                      }
+                      onResetLayer={(layerId) =>
+                        resetHistoryLayer(item.stamp, layerId)
+                      }
+                      onResetAll={() => resetAllHistoryLayers(item.stamp)}
+                    />
+                  ) : (
+                    <p className="m-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] leading-5 text-slate-600">
+                      This output has no editable color layers. Copy and
+                      download still use the finalized visible SVG.
+                    </p>
+                  )}
+                </div>
+              )}
+              renderPreview={({ item, displaySvg }) => (
+                <EditedSvgPreviewImage
+                  svg={displaySvg}
+                  layers={item.layers}
+                  alt="SVG result"
+                  className="h-auto max-w-full"
+                />
+              )}
+            />
+            {false ? (
             <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
               {busy && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
@@ -2560,6 +2646,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
                 </p>
               )}
             </div>
+            ) : null}
           </section>
         </div>
 
@@ -2570,7 +2657,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,
-            svg: getHistoryItemSvg(item),
+            svg: getBespokeTraceOutputSvg(item, getHistoryItemSvg, true),
             width: item.width,
             height: item.height,
             kind: "SVG",
@@ -3919,6 +4006,13 @@ function makeDownloadName(name: string, extension: string) {
       .replace(/(^-|-$)/g, "") || "converted";
 
   return `${safeBase}.${extension}`;
+}
+
+function getSvgByteSizeForRoute(svg: string) {
+  if (typeof TextEncoder !== "undefined") {
+    return new TextEncoder().encode(svg).byteLength;
+  }
+  return svg.length;
 }
 
 function csvEscape(value: string) {

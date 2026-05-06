@@ -30,7 +30,6 @@ export const LIMITED_BATCH_MAX = 20;
 const LIGHTWEIGHT_MAX_TRACE_SIDE = 1600;
 const FASTEST_PRESET_INTENSITIES = new Set<PresetBackendIntensity>([
   "lightning-fast",
-  "insane-speed",
   "extreme-speed",
 ]);
 

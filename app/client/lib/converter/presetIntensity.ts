@@ -1,10 +1,11 @@
 export type PresetBackendIntensity =
   | "lightning-fast"
-  | "insane-speed"
   | "extreme-speed"
   | "high-speed"
   | "low-speed"
-  | "slow-speed";
+  | "slow-speed"
+  | "very-slow"
+  | "insanely-slow";
 
 export type PresetIntensityBadge = {
   id: PresetBackendIntensity;
@@ -28,40 +29,47 @@ const INTENSITY_BADGES: Record<PresetBackendIntensity, PresetIntensityBadge> = {
     title:
       "Lightning Fast: very light backend work or local output styling.",
   },
-  "insane-speed": {
-    id: "insane-speed",
-    label: "Insane Speed",
-    rank: 1,
-    className: "border-lime-200 bg-lime-50 text-lime-700",
-    title: "Insane Speed: simple tracing with low processing cost.",
-  },
   "extreme-speed": {
     id: "extreme-speed",
     label: "Extreme Speed",
-    rank: 2,
+    rank: 1,
     className: "border-cyan-200 bg-cyan-50 text-cyan-700",
-    title: "Extreme Speed: light tracing with moderate detail.",
+    title: "Extreme Speed: simple tracing with low processing cost.",
   },
   "high-speed": {
     id: "high-speed",
     label: "High Speed",
-    rank: 3,
+    rank: 2,
     className: "border-blue-200 bg-blue-50 text-blue-700",
     title: "High Speed: normal tracing cost for balanced output.",
   },
   "low-speed": {
     id: "low-speed",
     label: "Low Speed",
-    rank: 4,
+    rank: 3,
     className: "border-amber-200 bg-amber-50 text-amber-800",
     title: "Low Speed: detailed tracing or heavier preprocessing.",
   },
   "slow-speed": {
     id: "slow-speed",
     label: "Slow Speed",
-    rank: 5,
+    rank: 4,
     className: "border-rose-200 bg-rose-50 text-rose-700",
     title: "Slow Speed: layered, high-detail, or complex tracing.",
+  },
+  "very-slow": {
+    id: "very-slow",
+    label: "Very Slow",
+    rank: 5,
+    className: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700",
+    title: "Very Slow: heavy layered or color-preserving tracing.",
+  },
+  "insanely-slow": {
+    id: "insanely-slow",
+    label: "Insanely Slow",
+    rank: 6,
+    className: "border-red-300 bg-red-50 text-red-700",
+    title: "Insanely Slow: very heavy per-color or high-palette tracing.",
   },
 };
 
@@ -102,11 +110,21 @@ export function inferPresetBackendIntensity(
   const minIslandPx = numberValue(values.minIslandPx, 0);
   const holeFillPx = numberValue(values.holeFillPx, 0);
   const colorMergeTolerance = numberValue(values.colorMergeTolerance, 0);
+  const requestedPaletteCount = numberValue(values.requestedPaletteCount, 0);
+  const layerBuildMode = String(values.layerBuildMode || "");
 
   const isLayered = traceMode === "layered" || layerCount > 0;
   if (isLayered) {
-    if (layerCount >= 7 || layerMaxTraceSide >= 1800) return "slow-speed";
-    if (layerCount >= 4 || layerMaxTraceSide >= 1400) return "low-speed";
+    const palettePressure = Math.max(layerCount, requestedPaletteCount);
+    if (
+      layerBuildMode === "per-color-cutout" &&
+      (palettePressure >= 16 || layerMaxTraceSide >= 1800)
+    ) {
+      return "insanely-slow";
+    }
+    if (palettePressure >= 10 || layerMaxTraceSide >= 2200) return "very-slow";
+    if (palettePressure >= 7 || layerMaxTraceSide >= 1800) return "slow-speed";
+    if (palettePressure >= 4 || layerMaxTraceSide >= 1400) return "low-speed";
     return "high-speed";
   }
 
@@ -129,10 +147,10 @@ export function inferPresetBackendIntensity(
   }
 
   if (colorMergeTolerance >= 30 || turdSize >= 6 || optTolerance >= 0.6) {
-    return "insane-speed";
+    return "lightning-fast";
   }
 
-  if (maxTraceSide > 0 && maxTraceSide <= 1200) return "insane-speed";
+  if (maxTraceSide > 0 && maxTraceSide <= 1200) return "lightning-fast";
 
   return "extreme-speed";
 }
@@ -140,11 +158,12 @@ export function inferPresetBackendIntensity(
 export function isPresetBackendIntensity(value: unknown): value is PresetBackendIntensity {
   return (
     value === "lightning-fast" ||
-    value === "insane-speed" ||
     value === "extreme-speed" ||
     value === "high-speed" ||
     value === "low-speed" ||
-    value === "slow-speed"
+    value === "slow-speed" ||
+    value === "very-slow" ||
+    value === "insanely-slow"
   );
 }
 

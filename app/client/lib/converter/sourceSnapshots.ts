@@ -27,7 +27,7 @@ export function cleanupUnusedSourceSnapshots<T extends OutputSourceSnapshot>(
   );
   for (const item of before) {
     const url = item.sourcePreviewUrl;
-    if (url && !kept.has(url)) URL.revokeObjectURL(url);
+    if (url?.startsWith("blob:") && !kept.has(url)) URL.revokeObjectURL(url);
   }
 }
 

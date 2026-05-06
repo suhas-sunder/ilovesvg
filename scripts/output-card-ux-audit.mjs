@@ -23,6 +23,15 @@ const outputPanel = await read("app/client/components/converter/TraceOutputPanel
 const home = await read("app/routes/home.tsx");
 const pngToSvg = await read("app/routes/png-to-svg-converter.tsx");
 const pngLayered = await read("app/routes/png-to-layered-svg-for-cricut.tsx");
+const blackWhiteConverter = await read("app/routes/black-and-white-image-to-svg-converter.tsx");
+const printThenCut = await read("app/routes/png-to-svg-for-cricut-print-then-cut.tsx");
+const cricutStickers = await read("app/routes/png-to-svg-for-cricut-stickers.tsx");
+const sketchCricut = await read("app/routes/sketch-to-svg-for-cricut.tsx");
+const codeCricut = await read("app/routes/code-to-svg-for-cricut.tsx");
+const imageLayered = await read("app/routes/image-to-layered-svg-for-cricut.tsx");
+const jpgLayered = await read("app/routes/jpg-to-layered-svg-for-cricut.tsx");
+const layeredCricut = await read("app/routes/layered-svg-for-cricut.tsx");
+const logoLayered = await read("app/routes/logo-to-layered-svg-for-cricut.tsx");
 const sketchToSvg = await read("app/routes/sketch-to-svg-converter.tsx");
 const photoOutline = await read("app/routes/photo-to-svg-outline.tsx");
 const pngCricut = await read("app/routes/png-to-svg-for-cricut.tsx");
@@ -30,6 +39,16 @@ const browserSmoke = await read("scripts/hybrid-browser-smoke.mjs");
 const appCss = await read("app/app.css");
 const packageJson = await read("package.json");
 const sourceSnapshots = await read("app/client/lib/converter/sourceSnapshots.ts");
+const presetIntensity = await read("app/client/lib/converter/presetIntensity.ts");
+const presetSelector = await read("app/client/components/converter/PresetSelector.tsx");
+const presetAdditions = await read("app/client/lib/converter/presetAdditions.ts");
+const vtracerWorker = await read("app/client/workers/vtracer.worker.ts");
+let bespokeOutputPanel = "";
+try {
+  bespokeOutputPanel = await read("app/client/components/converter/BespokeTraceOutputPanel.tsx");
+} catch {
+  checks.push("bespoke output panel exists: missing app/client/components/converter/BespokeTraceOutputPanel.tsx");
+}
 
 let appearance = "";
 try {
@@ -93,6 +112,23 @@ checks.push(
   assertIncludes(pngLayered, "cleanupUnusedSourceSnapshots", "PNG layered cleans source snapshots with history lifetime"),
   assertIncludes(pngLayered, "outputMatchesActiveSource", "PNG layered keeps old-source output update actions guarded"),
   assertIncludes(pngLayered, "trimOutputHistory", "PNG layered trims output history instead of clearing it"),
+  ...[
+    ["black-and-white-image-to-svg-converter", blackWhiteConverter],
+    ["png-to-svg-for-cricut-print-then-cut", printThenCut],
+    ["png-to-svg-for-cricut-stickers", cricutStickers],
+    ["sketch-to-svg-for-cricut", sketchCricut],
+    ["code-to-svg-for-cricut", codeCricut],
+    ["image-to-layered-svg-for-cricut", imageLayered],
+    ["jpg-to-layered-svg-for-cricut", jpgLayered],
+    ["layered-svg-for-cricut", layeredCricut],
+    ["logo-to-layered-svg-for-cricut", logoLayered],
+  ].flatMap(([route, source]) => [
+    assertIncludes(source, "BespokeTraceOutputPanel", `${route} uses the shared bespoke output-card shell`),
+    assertIncludes(source, "createOutputSourceSnapshot", `${route} captures per-output source preview snapshots`),
+    assertIncludes(source, "cleanupUnusedSourceSnapshots", `${route} cleans source snapshots with history lifetime`),
+    assertIncludes(source, "trimOutputHistory", `${route} trims output history instead of clearing it`),
+    assertNotIncludes(source, "setHistory([])", `${route} preserves output history on file replacement/removal`),
+  ]),
   assertIncludes(browserSmoke, "OUTPUT_UX_SMOKE", "browser smoke has focused-editor/collapse/appearance mode"),
   assertIncludes(browserSmoke, "verifyOutputHistoryPersistsAcrossInputReplacement", "browser smoke verifies output history survives input replacement"),
   assertIncludes(browserSmoke, "verifyFocusedOriginalPreviewForSource", "browser smoke verifies old outputs keep original preview snapshots"),
@@ -119,6 +155,18 @@ checks.push(
   assertIncludes(packageJson, "test:output-ux", "package exposes output UX audit"),
   assertIncludes(sourceSnapshots, "createOutputSourceSnapshot", "source snapshot helper captures preview URL per job"),
   assertIncludes(sourceSnapshots, "cleanupUnusedSourceSnapshots", "source snapshot helper revokes URLs only after history removal"),
+  assertIncludes(presetIntensity, '"very-slow"', "preset intensity model includes Very Slow"),
+  assertIncludes(presetIntensity, '"insanely-slow"', "preset intensity model includes Insanely Slow"),
+  assertIncludes(presetIntensity, "Very Slow", "preset intensity badges render Very Slow"),
+  assertIncludes(presetIntensity, "Insanely Slow", "preset intensity badges render Insanely Slow"),
+  assertIncludes(presetSelector, '"very-slow"', "preset speed filter includes Very Slow"),
+  assertIncludes(presetSelector, '"insanely-slow"', "preset speed filter includes Insanely Slow"),
+  assertIncludes(presetAdditions, 'id: "filled-layers-separate-colors"', "heavy filled-layers preset exists"),
+  assertIncludes(presetAdditions, 'backendIntensity: "insanely-slow"', "heaviest layered presets are labeled Insanely Slow"),
+  assertIncludes(presetAdditions, 'backendIntensity: "very-slow"', "heavy layered presets are labeled Very Slow"),
+  assertIncludes(vtracerWorker, "buildTransparentPixelMask", "VTracer worker builds transparency mask before quantization"),
+  assertIncludes(vtracerWorker, "applyTransparentPixelMask", "VTracer worker reapplies transparency mask after quantization"),
+  assertIncludes(vtracerWorker, "transparentPixelMask", "layered quantization preserves transparent source pixels"),
 );
 
 if (appearance) {
@@ -129,6 +177,19 @@ if (appearance) {
     assertIncludes(appearance, "fillSpread", "appearance helper supports fill spread"),
     assertIncludes(appearance, "LINE_WEIGHT_MAX = 30", "appearance helper allows practical manual line weight"),
     assertIncludes(appearance, "FILL_SPREAD_MAX = 30", "appearance helper allows wider guarded fill spread"),
+  );
+}
+
+if (bespokeOutputPanel) {
+  checks.push(
+    assertIncludes(bespokeOutputPanel, "focusedOutputStamp", "bespoke output panel tracks focused editor target"),
+    assertIncludes(bespokeOutputPanel, "collapsedOutputStamps", "bespoke output panel tracks collapsed cards"),
+    assertIncludes(bespokeOutputPanel, "FocusedEditorPreviewComparison", "bespoke focused editor shows original comparison"),
+    assertIncludes(bespokeOutputPanel, "data-output-file-size", "bespoke output cards expose displayed SVG file size"),
+    assertIncludes(bespokeOutputPanel, "data-output-source-file", "bespoke output cards preserve source-file metadata"),
+    assertIncludes(bespokeOutputPanel, "OutputAppearanceControls", "bespoke output panel renders line/fill controls"),
+    assertIncludes(bespokeOutputPanel, "data-output-panel-focused", "bespoke output panel exposes focused state"),
+    assertIncludes(bespokeOutputPanel, "data-collapse-state", "bespoke output panel exposes collapse state"),
   );
 }
 

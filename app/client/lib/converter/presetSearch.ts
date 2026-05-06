@@ -47,8 +47,10 @@ const LABEL_ALIASES: Array<[RegExp, string[]]> = [
   [/\bcolor\b/i, ["layered", "blue", "red", "gray"]],
   [/\btransparent\b/i, ["background", "alpha", "white remove"]],
   [/\bwhite\b/i, ["transparent", "remove white", "white lines"]],
-  [/\bfast\b/i, ["speed", "lightning", "insane", "extreme"]],
+  [/\bfast\b/i, ["speed", "lightning", "extreme"]],
   [/\bslow\b/i, ["detail", "layered", "high detail"]],
+  [/\bvery slow\b/i, ["heavy", "layered", "color detail"]],
+  [/\binsanely slow\b/i, ["heaviest", "per color", "many layers"]],
   [/\bsmooth\b/i, ["cut friendly", "rounded", "cleanup"]],
   [/\bdetail\b/i, ["fine", "high detail", "tiny detail"]],
 ];
@@ -121,8 +123,6 @@ function speedAlias(intensity: PresetBackendIntensity): string {
   switch (intensity) {
     case "lightning-fast":
       return "fast quick instant local";
-    case "insane-speed":
-      return "fast simple quick";
     case "extreme-speed":
       return "fast light quick";
     case "high-speed":
@@ -131,5 +131,9 @@ function speedAlias(intensity: PresetBackendIntensity): string {
       return "detail heavier slower";
     case "slow-speed":
       return "slow layered high detail complex";
+    case "very-slow":
+      return "very slow heavy layered color detail";
+    case "insanely-slow":
+      return "insanely slow heaviest per color many layers complex";
   }
 }

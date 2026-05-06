@@ -30,11 +30,12 @@ export type ConverterPresetOption = {
 const SPEED_FILTERS: Array<PresetBackendIntensity | "all"> = [
   "all",
   "lightning-fast",
-  "insane-speed",
   "extreme-speed",
   "high-speed",
   "low-speed",
   "slow-speed",
+  "very-slow",
+  "insanely-slow",
 ];
 
 export function PresetPicker<TPreset extends ConverterPresetOption>({
