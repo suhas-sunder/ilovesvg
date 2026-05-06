@@ -2434,12 +2434,13 @@ export default function PngToLayeredSvgForCricut({
                       !isActiveJob &&
                       !isFailedJob &&
                       hasOutputAppearanceChanges(appearance)
-                        ? applyOutputAppearanceToSvg(
+                          ? applyOutputAppearanceToSvg(
                             editedSvg,
                             appearance,
                             detectOutputAppearanceSupport(editedSvg, {
                               precisionOutput: false,
                             }),
+                            { idPrefix: `output-${item.jobId || item.stamp}` },
                           )
                         : editedSvg;
                     const displaySvgBytes = displaySvg
@@ -2548,6 +2549,7 @@ export default function PngToLayeredSvgForCricut({
                             buttonDisabled || !sourceAvailableForOutput
                           }
                           liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                          livePreviewLeadTitle="Post-processing"
                           livePreviewLead={
                             <div className="grid gap-2">
                               {appearanceControls}
@@ -3067,6 +3069,7 @@ export default function PngToLayeredSvgForCricut({
                                 buttonDisabled || !sourceAvailableForOutput
                               }
                               liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                              livePreviewLeadTitle="Post-processing"
                               livePreviewLead={
                                 <div className="grid gap-2">
                                   {appearanceControls}
@@ -3199,6 +3202,7 @@ export default function PngToLayeredSvgForCricut({
                   detectOutputAppearanceSupport(baseSvg, {
                     precisionOutput: false,
                   }),
+                  { idPrefix: `output-${item.jobId || item.stamp}` },
                 )
               : baseSvg;
             return {

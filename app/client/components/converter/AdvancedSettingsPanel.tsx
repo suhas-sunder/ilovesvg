@@ -64,6 +64,7 @@ type Props<TSettings extends MixedTraceSettings> = {
   liveSectionTitle?: string;
   liveSectionDescription?: string;
   livePreviewLead?: React.ReactNode;
+  livePreviewLeadTitle?: string;
   convertSectionTitle?: string;
   convertSectionDescription?: string;
   hideOutputLayerStyling?: boolean;
@@ -120,6 +121,7 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   liveSectionTitle?: string;
   liveSectionDescription?: string;
   livePreviewLead?: React.ReactNode;
+  livePreviewLeadTitle?: string;
   convertSectionTitle?: string;
   convertSectionDescription?: string;
   hideOutputLayerStyling?: boolean;
@@ -200,6 +202,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   liveSectionTitle = "Live preview edits",
   liveSectionDescription = "These settings edit the current output preview directly when output data is available.",
   livePreviewLead,
+  livePreviewLeadTitle = "Output appearance",
   convertSectionTitle = "Click to convert",
   convertSectionDescription = "These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them.",
   hideOutputLayerStyling = false,
@@ -342,7 +345,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         {livePreviewLead ? (
           focusedEditorMode ? (
             <SettingSection
-              title="Output appearance"
+              title={livePreviewLeadTitle}
               sectionId={`${id}-live-output-appearance`}
               open={sectionOpen(openLiveSection, "output-appearance")}
               onToggle={() =>
@@ -990,6 +993,7 @@ export function LayeredAdvancedSettingsPanel<
   liveSectionTitle = "Live preview edits",
   liveSectionDescription = "These settings edit the current layered SVG preview directly when output data is available.",
   livePreviewLead,
+  livePreviewLeadTitle = "Output appearance",
   convertSectionTitle = "Click to convert",
   convertSectionDescription = "These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them.",
   hideOutputLayerStyling = false,
@@ -1128,7 +1132,7 @@ export function LayeredAdvancedSettingsPanel<
         {livePreviewLead ? (
           focusedEditorMode ? (
             <SettingSection
-              title="Output appearance"
+              title={livePreviewLeadTitle}
               sectionId={`${id}-live-output-appearance`}
               open={sectionOpen(openLiveSection, "output-appearance")}
               onToggle={() =>

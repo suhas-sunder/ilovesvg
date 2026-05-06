@@ -3927,6 +3927,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       sized,
       appearance,
       detectOutputAppearanceSupport(sized, { precisionOutput: false }),
+      { idPrefix: `output-${item.jobId || item.stamp}` },
     );
   }
 
@@ -4450,6 +4451,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           }
                           liveSectionTitle="Live preview edits"
                           liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                          livePreviewLeadTitle="Post-processing"
                           livePreviewLead={
                             appearanceControls || item.layers?.length ? (
                               <div className="grid gap-2">
@@ -5156,6 +5158,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             }
                             liveSectionTitle="Live preview edits"
                             liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                            livePreviewLeadTitle="Post-processing"
                             livePreviewLead={
                               appearanceControls || item.layers?.length ? (
                                 <div className="grid gap-2">

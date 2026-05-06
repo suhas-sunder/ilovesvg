@@ -1,33 +1,122 @@
+export type StickerBorderJoin = "round" | "bevel" | "miter";
+export type GradientFillType = "linear" | "radial";
+export type PatternFillType =
+  | "dots"
+  | "diagonal-stripes"
+  | "horizontal-stripes"
+  | "checker";
+export type ShadowEffectType = "shadow" | "glow";
+
 export type OutputAppearanceSettings = {
   lineWeight: number;
   fillSpread: number;
   nonScalingStroke: boolean;
+  stickerBorderEnabled: boolean;
+  stickerBorderWidth: number;
+  stickerBorderColor: string;
+  stickerBorderJoin: StickerBorderJoin;
+  internalGapFillEnabled: boolean;
+  internalGapFillColor: string;
+  gradientEnabled: boolean;
+  gradientType: GradientFillType;
+  gradientStartColor: string;
+  gradientEndColor: string;
+  gradientAngle: number;
+  patternEnabled: boolean;
+  patternType: PatternFillType;
+  patternColor: string;
+  patternBackgroundColor: string;
+  patternBackgroundTransparent: boolean;
+  patternScale: number;
+  shadowEnabled: boolean;
+  shadowType: ShadowEffectType;
+  shadowColor: string;
+  shadowBlur: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  shadowOpacity: number;
 };
 
 export type OutputAppearanceSupport = {
   supportsLineWeight: boolean;
   supportsFillSpread: boolean;
+  supportsStickerBorder: boolean;
+  supportsInternalGapFill: boolean;
+  supportsGradientFill: boolean;
+  supportsPatternFill: boolean;
+  supportsShadowEffect: boolean;
   hasStroke: boolean;
   hasFill: boolean;
   fillSpreadDisabledReason?: string;
+  stickerBorderDisabledReason?: string;
+  fillStyleDisabledReason?: string;
+  shadowEffectDisabledReason?: string;
+};
+
+export type OutputAppearanceApplyOptions = {
+  idPrefix?: string;
 };
 
 export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
   lineWeight: 1,
   fillSpread: 0,
   nonScalingStroke: false,
+  stickerBorderEnabled: false,
+  stickerBorderWidth: 0,
+  stickerBorderColor: "#ffffff",
+  stickerBorderJoin: "round",
+  internalGapFillEnabled: false,
+  internalGapFillColor: "#ffffff",
+  gradientEnabled: false,
+  gradientType: "linear",
+  gradientStartColor: "#38bdf8",
+  gradientEndColor: "#0b2dff",
+  gradientAngle: 35,
+  patternEnabled: false,
+  patternType: "dots",
+  patternColor: "#0f172a",
+  patternBackgroundColor: "#ffffff",
+  patternBackgroundTransparent: true,
+  patternScale: 12,
+  shadowEnabled: false,
+  shadowType: "shadow",
+  shadowColor: "#0f172a",
+  shadowBlur: 4,
+  shadowOffsetX: 2,
+  shadowOffsetY: 3,
+  shadowOpacity: 0.35,
 };
 
 const PAINTABLE_TAG_PATTERN =
   /<(path|line|polyline|polygon|rect|circle|ellipse|g)\b([^>]*?)(\/?)>/gi;
+const FILL_SHAPE_TAG_PATTERN =
+  /<(path|polygon|rect|circle|ellipse)\b([^>]*?)(\/?)>/gi;
+const PATH_TAG_PATTERN = /<path\b([^>]*?)(\/?)>/gi;
 const LINE_WEIGHT_MIN = 0.25;
 const LINE_WEIGHT_MAX = 30;
 const FILL_SPREAD_MIN = 0;
 const FILL_SPREAD_MAX = 30;
+const STICKER_BORDER_MIN = 0;
+const STICKER_BORDER_MAX = 30;
+const GRADIENT_ANGLE_MIN = 0;
+const GRADIENT_ANGLE_MAX = 360;
+const PATTERN_SCALE_MIN = 4;
+const PATTERN_SCALE_MAX = 48;
+const SHADOW_BLUR_MIN = 0;
+const SHADOW_BLUR_MAX = 24;
+const SHADOW_OFFSET_MIN = -40;
+const SHADOW_OFFSET_MAX = 40;
+const SHADOW_OPACITY_MIN = 0;
+const SHADOW_OPACITY_MAX = 1;
 
 export function normalizeOutputAppearance(
   settings?: Partial<OutputAppearanceSettings> | null,
 ): OutputAppearanceSettings {
+  const stickerBorderColor = normalizeHexColor(
+    settings?.stickerBorderColor,
+    DEFAULT_OUTPUT_APPEARANCE.stickerBorderColor,
+  );
+
   return {
     lineWeight: clampNumber(
       settings?.lineWeight ?? DEFAULT_OUTPUT_APPEARANCE.lineWeight,
@@ -40,6 +129,94 @@ export function normalizeOutputAppearance(
       FILL_SPREAD_MAX,
     ),
     nonScalingStroke: Boolean(settings?.nonScalingStroke),
+    stickerBorderEnabled: Boolean(settings?.stickerBorderEnabled),
+    stickerBorderWidth: clampNumber(
+      settings?.stickerBorderWidth ?? DEFAULT_OUTPUT_APPEARANCE.stickerBorderWidth,
+      STICKER_BORDER_MIN,
+      STICKER_BORDER_MAX,
+    ),
+    stickerBorderColor,
+    stickerBorderJoin: normalizeEnum(
+      settings?.stickerBorderJoin,
+      ["round", "bevel", "miter"],
+      DEFAULT_OUTPUT_APPEARANCE.stickerBorderJoin,
+    ),
+    internalGapFillEnabled: Boolean(settings?.internalGapFillEnabled),
+    internalGapFillColor: normalizeHexColor(
+      settings?.internalGapFillColor,
+      stickerBorderColor,
+    ),
+    gradientEnabled: Boolean(settings?.gradientEnabled),
+    gradientType: normalizeEnum(
+      settings?.gradientType,
+      ["linear", "radial"],
+      DEFAULT_OUTPUT_APPEARANCE.gradientType,
+    ),
+    gradientStartColor: normalizeHexColor(
+      settings?.gradientStartColor,
+      DEFAULT_OUTPUT_APPEARANCE.gradientStartColor,
+    ),
+    gradientEndColor: normalizeHexColor(
+      settings?.gradientEndColor,
+      DEFAULT_OUTPUT_APPEARANCE.gradientEndColor,
+    ),
+    gradientAngle: clampNumber(
+      settings?.gradientAngle ?? DEFAULT_OUTPUT_APPEARANCE.gradientAngle,
+      GRADIENT_ANGLE_MIN,
+      GRADIENT_ANGLE_MAX,
+    ),
+    patternEnabled: Boolean(settings?.patternEnabled),
+    patternType: normalizeEnum(
+      settings?.patternType,
+      ["dots", "diagonal-stripes", "horizontal-stripes", "checker"],
+      DEFAULT_OUTPUT_APPEARANCE.patternType,
+    ),
+    patternColor: normalizeHexColor(
+      settings?.patternColor,
+      DEFAULT_OUTPUT_APPEARANCE.patternColor,
+    ),
+    patternBackgroundColor: normalizeHexColor(
+      settings?.patternBackgroundColor,
+      DEFAULT_OUTPUT_APPEARANCE.patternBackgroundColor,
+    ),
+    patternBackgroundTransparent:
+      settings?.patternBackgroundTransparent ??
+      DEFAULT_OUTPUT_APPEARANCE.patternBackgroundTransparent,
+    patternScale: clampNumber(
+      settings?.patternScale ?? DEFAULT_OUTPUT_APPEARANCE.patternScale,
+      PATTERN_SCALE_MIN,
+      PATTERN_SCALE_MAX,
+    ),
+    shadowEnabled: Boolean(settings?.shadowEnabled),
+    shadowType: normalizeEnum(
+      settings?.shadowType,
+      ["shadow", "glow"],
+      DEFAULT_OUTPUT_APPEARANCE.shadowType,
+    ),
+    shadowColor: normalizeHexColor(
+      settings?.shadowColor,
+      DEFAULT_OUTPUT_APPEARANCE.shadowColor,
+    ),
+    shadowBlur: clampNumber(
+      settings?.shadowBlur ?? DEFAULT_OUTPUT_APPEARANCE.shadowBlur,
+      SHADOW_BLUR_MIN,
+      SHADOW_BLUR_MAX,
+    ),
+    shadowOffsetX: clampNumber(
+      settings?.shadowOffsetX ?? DEFAULT_OUTPUT_APPEARANCE.shadowOffsetX,
+      SHADOW_OFFSET_MIN,
+      SHADOW_OFFSET_MAX,
+    ),
+    shadowOffsetY: clampNumber(
+      settings?.shadowOffsetY ?? DEFAULT_OUTPUT_APPEARANCE.shadowOffsetY,
+      SHADOW_OFFSET_MIN,
+      SHADOW_OFFSET_MAX,
+    ),
+    shadowOpacity: clampNumber(
+      settings?.shadowOpacity ?? DEFAULT_OUTPUT_APPEARANCE.shadowOpacity,
+      SHADOW_OPACITY_MIN,
+      SHADOW_OPACITY_MAX,
+    ),
   };
 }
 
@@ -50,7 +227,12 @@ export function hasOutputAppearanceChanges(
   return (
     Math.abs(normalized.lineWeight - 1) > 0.001 ||
     normalized.fillSpread > 0.001 ||
-    normalized.nonScalingStroke
+    normalized.nonScalingStroke ||
+    (normalized.stickerBorderEnabled && normalized.stickerBorderWidth > 0.001) ||
+    normalized.internalGapFillEnabled ||
+    normalized.gradientEnabled ||
+    normalized.patternEnabled ||
+    normalized.shadowEnabled
   );
 }
 
@@ -67,10 +249,18 @@ export function detectOutputAppearanceSupport(
     /\bfill\s*=\s*["'](?!none\b|transparent\b)[^"']+["']/i.test(source) ||
     /\bfill\s*:\s*(?!none\b|transparent\b)[^;"']+/i.test(source);
   const precisionOutput = Boolean(options?.precisionOutput);
+  const fillUnavailableReason = hasFill
+    ? undefined
+    : "This effect needs filled SVG regions.";
 
   return {
     supportsLineWeight: hasStroke,
     supportsFillSpread: hasFill && !precisionOutput,
+    supportsStickerBorder: hasFill,
+    supportsInternalGapFill: hasFill,
+    supportsGradientFill: hasFill,
+    supportsPatternFill: hasFill,
+    supportsShadowEffect: (hasFill || hasStroke) && !precisionOutput,
     hasStroke,
     hasFill,
     fillSpreadDisabledReason: precisionOutput
@@ -78,6 +268,13 @@ export function detectOutputAppearanceSupport(
       : hasFill
         ? undefined
         : "Fill spread needs filled SVG regions.",
+    stickerBorderDisabledReason: fillUnavailableReason,
+    fillStyleDisabledReason: fillUnavailableReason,
+    shadowEffectDisabledReason: precisionOutput
+      ? "Shadow and glow are visual effects, so they are disabled for precision cut outputs."
+      : hasFill || hasStroke
+        ? undefined
+        : "Shadow and glow need visible SVG artwork.",
   };
 }
 
@@ -85,6 +282,7 @@ export function applyOutputAppearanceToSvg(
   svg: string,
   settings?: Partial<OutputAppearanceSettings> | null,
   support?: OutputAppearanceSupport,
+  options?: OutputAppearanceApplyOptions,
 ): string {
   const normalized = normalizeOutputAppearance(settings);
   const detected = support ?? detectOutputAppearanceSupport(svg);
@@ -100,6 +298,36 @@ export function applyOutputAppearanceToSvg(
 
   if (detected.supportsFillSpread && normalized.fillSpread > 0.001) {
     out = applyFillSpread(out, normalized.fillSpread);
+  }
+
+  const idPrefix = buildSvgIdPrefix(options?.idPrefix, out);
+  const stickerSource = out;
+
+  if (detected.supportsGradientFill && normalized.gradientEnabled) {
+    out = applyGradientFill(out, normalized, idPrefix);
+  }
+
+  if (detected.supportsPatternFill && normalized.patternEnabled) {
+    out = applyPatternFill(out, normalized, idPrefix);
+  }
+
+  if (
+    detected.supportsStickerBorder &&
+    normalized.stickerBorderEnabled &&
+    normalized.stickerBorderWidth > 0.001
+  ) {
+    out = applyStickerBorder(out, stickerSource, normalized, idPrefix);
+  }
+
+  if (
+    detected.supportsInternalGapFill &&
+    normalized.internalGapFillEnabled
+  ) {
+    out = applyInternalGapFill(out, stickerSource, normalized, idPrefix);
+  }
+
+  if (detected.supportsShadowEffect && normalized.shadowEnabled) {
+    out = applyShadowEffect(out, normalized, idPrefix);
   }
 
   return out;
@@ -163,9 +391,288 @@ function applyFillSpread(svg: string, spreadPx: number): string {
   });
 }
 
+function applyStickerBorder(
+  targetSvg: string,
+  sourceSvg: string,
+  settings: OutputAppearanceSettings,
+  idPrefix: string,
+): string {
+  const paths = buildForegroundPathClones(sourceSvg, "sticker", settings);
+  if (!paths.length) return targetSvg;
+  const group = `<g id="${idPrefix}-sticker-border" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}" stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
+  return insertAfterOpeningSvgAndDefs(targetSvg, group);
+}
+
+function applyInternalGapFill(
+  targetSvg: string,
+  sourceSvg: string,
+  settings: OutputAppearanceSettings,
+  idPrefix: string,
+): string {
+  const width = Math.max(1, Math.min(30, settings.stickerBorderWidth || 2));
+  const paths = buildInternalGapFillClones(sourceSvg, settings, width);
+  if (!paths.length) return targetSvg;
+  const color = settings.internalGapFillColor || settings.stickerBorderColor;
+  const group = `<g id="${idPrefix}-internal-gap-fill" data-post-processing="internal-gap-fill" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(0.5, width * 0.08))}" stroke-linejoin="round" stroke-linecap="round" opacity="0.96" paint-order="stroke fill markers">${paths.join("")}</g>`;
+  return insertAfterOpeningSvgAndDefs(targetSvg, group);
+}
+
+function buildInternalGapFillClones(
+  svg: string,
+  settings: OutputAppearanceSettings,
+  strokeWidth: number,
+): string[] {
+  const viewport = readSvgViewport(svg);
+  const color = settings.internalGapFillColor || settings.stickerBorderColor;
+  const clones: string[] = [];
+
+  for (const match of String(svg).matchAll(PATH_TAG_PATTERN)) {
+    const attrs = match[1] || "";
+    if (attrs.includes("data-post-processing=")) continue;
+    const d = readAttribute(attrs, "d");
+    if (!d || isCanvasBackgroundPath(d, viewport)) continue;
+    const fill = readPaint(attrs, "fill") ?? readStyleProperty(attrs, "fill");
+    if (!fill || !isPaintEnabled(fill)) continue;
+
+    const sharedAttrs = [
+      ["transform", readAttribute(attrs, "transform")],
+      ["clip-path", readAttribute(attrs, "clip-path")],
+      ["opacity", readAttribute(attrs, "opacity")],
+    ]
+      .filter(([, value]) => value)
+      .map(([attribute, value]) => ` ${attribute}="${escapeSvgAttribute(value || "")}"`)
+      .join("");
+
+    const pathClones: string[] = [];
+    for (const subpath of splitClosedPathSubpaths(d)) {
+      if (isCanvasBackgroundPath(subpath, viewport)) continue;
+      pathClones.push(
+        `<path${sharedAttrs} d="${escapeSvgAttribute(subpath)}" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(0.5, strokeWidth * 0.08))}" fill-rule="nonzero" data-gap-fill-shape="true"/>`,
+      );
+    }
+
+    if (!pathClones.length) {
+      pathClones.push(
+        `<path${sharedAttrs} d="${escapeSvgAttribute(d)}" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(1, strokeWidth))}" fill-rule="nonzero" data-gap-fill-shape="fallback"/>`,
+      );
+    }
+    clones.push(...pathClones);
+  }
+
+  return clones;
+}
+
+function splitClosedPathSubpaths(pathData: string): string[] {
+  const chunks = String(pathData || "").match(/[Mm][^Mm]*/g) || [];
+  return chunks
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => /[zZ]\s*$/.test(chunk));
+}
+
+function buildForegroundPathClones(
+  svg: string,
+  mode: "sticker" | "gap",
+  settings: OutputAppearanceSettings,
+  strokeWidth?: number,
+): string[] {
+  const viewport = readSvgViewport(svg);
+  const clones: string[] = [];
+  for (const match of String(svg).matchAll(PATH_TAG_PATTERN)) {
+    const attrs = match[1] || "";
+    if (attrs.includes("data-post-processing=")) continue;
+    const d = readAttribute(attrs, "d");
+    if (!d || isCanvasBackgroundPath(d, viewport)) continue;
+    const fill = readPaint(attrs, "fill") ?? readStyleProperty(attrs, "fill");
+    if (!fill || !isPaintEnabled(fill)) continue;
+
+    const preserved = [
+      ["d", d],
+      ["transform", readAttribute(attrs, "transform")],
+      ["clip-path", readAttribute(attrs, "clip-path")],
+      ["fill-rule", readAttribute(attrs, "fill-rule")],
+      ["clip-rule", readAttribute(attrs, "clip-rule")],
+      ["opacity", readAttribute(attrs, "opacity")],
+    ]
+      .filter(([, value]) => value)
+      .map(([attribute, value]) => ` ${attribute}="${escapeSvgAttribute(value || "")}"`)
+      .join("");
+
+    if (mode === "sticker") {
+      clones.push(`<path${preserved}/>`);
+    } else {
+      const color = settings.internalGapFillColor || settings.stickerBorderColor;
+      clones.push(
+        `<path${preserved} fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(strokeWidth || 2)}"/>`,
+      );
+    }
+  }
+  return clones;
+}
+
+function applyGradientFill(
+  svg: string,
+  settings: OutputAppearanceSettings,
+  idPrefix: string,
+): string {
+  const gradientId = `${idPrefix}-gradient-fill`;
+  const defs =
+    settings.gradientType === "radial"
+      ? `<radialGradient id="${gradientId}" cx="50%" cy="50%" r="65%"><stop offset="0%" stop-color="${escapeSvgAttribute(settings.gradientStartColor)}"/><stop offset="100%" stop-color="${escapeSvgAttribute(settings.gradientEndColor)}"/></radialGradient>`
+      : buildLinearGradientDef(gradientId, settings);
+  return applyFillDefinition(svg, defs, `url(#${gradientId})`);
+}
+
+function buildLinearGradientDef(
+  gradientId: string,
+  settings: OutputAppearanceSettings,
+): string {
+  const radians = (settings.gradientAngle * Math.PI) / 180;
+  const dx = Math.cos(radians) / 2;
+  const dy = Math.sin(radians) / 2;
+  const x1 = formatPercent(0.5 - dx);
+  const y1 = formatPercent(0.5 - dy);
+  const x2 = formatPercent(0.5 + dx);
+  const y2 = formatPercent(0.5 + dy);
+  return `<linearGradient id="${gradientId}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><stop offset="0%" stop-color="${escapeSvgAttribute(settings.gradientStartColor)}"/><stop offset="100%" stop-color="${escapeSvgAttribute(settings.gradientEndColor)}"/></linearGradient>`;
+}
+
+function applyPatternFill(
+  svg: string,
+  settings: OutputAppearanceSettings,
+  idPrefix: string,
+): string {
+  const patternId = `${idPrefix}-pattern-fill`;
+  const scale = formatNumber(settings.patternScale);
+  const background = settings.patternBackgroundTransparent
+    ? ""
+    : `<rect width="100%" height="100%" fill="${escapeSvgAttribute(settings.patternBackgroundColor)}"/>`;
+  const patternContent = buildPatternContent(settings);
+  const defs = `<pattern id="${patternId}" patternUnits="userSpaceOnUse" width="${scale}" height="${scale}">${background}${patternContent}</pattern>`;
+  return applyFillDefinition(svg, defs, `url(#${patternId})`);
+}
+
+function buildPatternContent(settings: OutputAppearanceSettings): string {
+  const scale = settings.patternScale;
+  const color = escapeSvgAttribute(settings.patternColor);
+  if (settings.patternType === "diagonal-stripes") {
+    return `<path d="M0 ${formatNumber(scale)}L${formatNumber(scale)} 0" stroke="${color}" stroke-width="${formatNumber(Math.max(1, scale * 0.16))}" stroke-linecap="square"/>`;
+  }
+  if (settings.patternType === "horizontal-stripes") {
+    return `<path d="M0 ${formatNumber(scale / 2)}H${formatNumber(scale)}" stroke="${color}" stroke-width="${formatNumber(Math.max(1, scale * 0.16))}" stroke-linecap="square"/>`;
+  }
+  if (settings.patternType === "checker") {
+    const half = formatNumber(scale / 2);
+    return `<rect width="${half}" height="${half}" fill="${color}"/><rect x="${half}" y="${half}" width="${half}" height="${half}" fill="${color}"/>`;
+  }
+  return `<circle cx="${formatNumber(scale / 2)}" cy="${formatNumber(scale / 2)}" r="${formatNumber(Math.max(0.8, scale * 0.16))}" fill="${color}"/>`;
+}
+
+function applyFillDefinition(svg: string, definition: string, paint: string): string {
+  const withDefs = injectDefs(svg, definition);
+  const { source, defs } = protectDefs(withDefs);
+  const rewritten = source.replace(
+    FILL_SHAPE_TAG_PATTERN,
+    (match, tagName, attrs, slash) => {
+      const rawAttrs = String(attrs || "");
+      if (rawAttrs.includes("data-post-processing=")) return match;
+      const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
+      if (!fill || !isPaintEnabled(fill) || /^url\(/i.test(fill.trim())) {
+        return match;
+      }
+      const nextAttrs = writeFillPaint(rawAttrs, paint);
+      return `<${tagName}${nextAttrs}${slash || ""}>`;
+    },
+  );
+  return restoreDefs(rewritten, defs);
+}
+
+function applyShadowEffect(
+  svg: string,
+  settings: OutputAppearanceSettings,
+  idPrefix: string,
+): string {
+  const filterId = `${idPrefix}-shadow-effect`;
+  const blur = formatNumber(settings.shadowBlur);
+  const offsetX = formatNumber(settings.shadowType === "glow" ? 0 : settings.shadowOffsetX);
+  const offsetY = formatNumber(settings.shadowType === "glow" ? 0 : settings.shadowOffsetY);
+  const definition = `<filter id="${filterId}" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB"><feDropShadow dx="${offsetX}" dy="${offsetY}" stdDeviation="${blur}" flood-color="${escapeSvgAttribute(settings.shadowColor)}" flood-opacity="${formatNumber(settings.shadowOpacity)}"/></filter>`;
+  return wrapSvgContentWithFilter(injectDefs(svg, definition), filterId);
+}
+
+function wrapSvgContentWithFilter(svg: string, filterId: string): string {
+  const source = String(svg || "");
+  const svgOpenEnd = source.indexOf(">");
+  const svgCloseStart = source.lastIndexOf("</svg>");
+  if (svgOpenEnd < 0 || svgCloseStart < 0 || svgCloseStart <= svgOpenEnd) {
+    return svg;
+  }
+  const insertAfter = findInsertPositionAfterSvgDefs(source, svgOpenEnd + 1);
+  return `${source.slice(0, insertAfter)}<g data-post-processing="shadow-effect" filter="url(#${filterId})">${source.slice(insertAfter, svgCloseStart)}</g>${source.slice(svgCloseStart)}`;
+}
+
+function injectDefs(svg: string, definition: string): string {
+  const source = String(svg || "");
+  const defsMatch = source.match(/<defs\b[^>]*>/i);
+  if (defsMatch?.index != null) {
+    const insertAt = defsMatch.index + defsMatch[0].length;
+    return `${source.slice(0, insertAt)}${definition}${source.slice(insertAt)}`;
+  }
+  return insertAfterOpeningSvgAndDefs(source, `<defs>${definition}</defs>`);
+}
+
+function insertAfterOpeningSvgAndDefs(svg: string, content: string): string {
+  const source = String(svg || "");
+  const svgOpenEnd = source.indexOf(">");
+  if (svgOpenEnd < 0) return svg;
+  const insertAt = findInsertPositionAfterSvgDefs(source, svgOpenEnd + 1);
+  return `${source.slice(0, insertAt)}${content}${source.slice(insertAt)}`;
+}
+
+function findInsertPositionAfterSvgDefs(source: string, afterSvgOpen: number): number {
+  const rest = source.slice(afterSvgOpen);
+  const defsMatch = rest.match(/^\s*<defs\b[\s\S]*?<\/defs>/i);
+  return defsMatch ? afterSvgOpen + defsMatch[0].length : afterSvgOpen;
+}
+
+function protectDefs(svg: string): { source: string; defs: string[] } {
+  const defs: string[] = [];
+  const source = String(svg || "").replace(/<defs\b[\s\S]*?<\/defs>/gi, (match) => {
+    const index = defs.push(match) - 1;
+    return `__SVG_DEFS_PLACEHOLDER_${index}__`;
+  });
+  return { source, defs };
+}
+
+function restoreDefs(svg: string, defs: string[]): string {
+  return defs.reduce(
+    (source, block, index) =>
+      source.replace(`__SVG_DEFS_PLACEHOLDER_${index}__`, block),
+    svg,
+  );
+}
+
+function writeFillPaint(attrs: string, paint: string): string {
+  const directFill = readPaint(attrs, "fill");
+  if (directFill && isPaintEnabled(directFill)) {
+    return writeAttribute(attrs, "fill", paint);
+  }
+  const styledFill = readStyleProperty(attrs, "fill");
+  if (styledFill && isPaintEnabled(styledFill)) {
+    return rewriteStyleProperty(attrs, "fill", paint);
+  }
+  return attrs;
+}
+
 function readPaint(attrs: string, property: "fill" | "stroke"): string | null {
   const match = attrs.match(
     new RegExp(`\\s${property}\\s*=\\s*["']([^"']+)["']`, "i"),
+  );
+  return match?.[1]?.trim() || null;
+}
+
+function readAttribute(attrs: string, attribute: string): string | null {
+  const match = attrs.match(
+    new RegExp(`\\s${escapeRegExp(attribute)}\\s*=\\s*["']([^"']+)["']`, "i"),
   );
   return match?.[1]?.trim() || null;
 }
@@ -218,6 +725,10 @@ function rewriteStyleProperty(
   );
 }
 
+function writeAttribute(attrs: string, attribute: string, value: string): string {
+  return `${removeAttribute(attrs, attribute)} ${attribute}="${escapeSvgAttribute(value)}"`;
+}
+
 function removeAttribute(attrs: string, attribute: string): string {
   return attrs.replace(
     new RegExp(`\\s${escapeRegExp(attribute)}\\s*=\\s*["'][^"']*["']`, "gi"),
@@ -231,6 +742,7 @@ function isPaintEnabled(value: string): boolean {
     normalized &&
       normalized !== "none" &&
       normalized !== "transparent" &&
+      normalized !== "currentcolor" &&
       normalized !== "rgba(0,0,0,0)" &&
       normalized !== "rgba(0, 0, 0, 0)",
   );
@@ -247,6 +759,99 @@ function normalizePaint(value: string): string {
     return `#${r}${r}${g}${g}${b}${b}`;
   }
   return trimmed.replace(/\s+/g, "");
+}
+
+function normalizeHexColor(value: string | undefined, fallback: string): string {
+  const input = String(value || "").trim();
+  if (/^#[0-9a-f]{3}$/i.test(input)) {
+    const [, r, g, b] = input.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i) || [];
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  if (/^#[0-9a-f]{6}$/i.test(input)) return input.toLowerCase();
+  return fallback;
+}
+
+function normalizeEnum<T extends string>(
+  value: T | undefined,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  return value && allowed.includes(value) ? value : fallback;
+}
+
+function readSvgViewport(svg: string): { x: number; y: number; width: number; height: number } | null {
+  const viewBox = String(svg || "").match(/\bviewBox\s*=\s*["']([^"']+)["']/i)?.[1];
+  if (viewBox) {
+    const parts = viewBox
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((value) => Number.isFinite(value));
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      return { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+    }
+  }
+  const width = parseSvgNumber(
+    String(svg || "").match(/\bwidth\s*=\s*["']([^"']+)["']/i)?.[1] || "",
+  );
+  const height = parseSvgNumber(
+    String(svg || "").match(/\bheight\s*=\s*["']([^"']+)["']/i)?.[1] || "",
+  );
+  return width && height ? { x: 0, y: 0, width, height } : null;
+}
+
+function isCanvasBackgroundPath(
+  pathData: string,
+  viewport: { x: number; y: number; width: number; height: number } | null,
+): boolean {
+  if (!viewport) return false;
+  const normalized = pathData.trim().replace(/,/g, " ").replace(/\s+/g, " ");
+  const hv = normalized.match(
+    /^M\s*(-?\d*\.?\d+)\s+(-?\d*\.?\d+)\s*H\s*(-?\d*\.?\d+)\s*V\s*(-?\d*\.?\d+)\s*H\s*(-?\d*\.?\d+)\s*Z?$/i,
+  );
+  if (hv) {
+    const x1 = Number(hv[1]);
+    const y1 = Number(hv[2]);
+    const x2 = Number(hv[3]);
+    const y2 = Number(hv[4]);
+    const x3 = Number(hv[5]);
+    return rectangleMatchesViewport(
+      Math.min(x1, x2, x3),
+      Math.min(y1, y2),
+      Math.max(x1, x2, x3),
+      Math.max(y1, y2),
+      viewport,
+    );
+  }
+  const numbers = [...normalized.matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)].map(
+    (match) => Number(match[0]),
+  );
+  if (numbers.length < 8 || numbers.length % 2 !== 0) return false;
+  const xs = numbers.filter((_, index) => index % 2 === 0);
+  const ys = numbers.filter((_, index) => index % 2 === 1);
+  return rectangleMatchesViewport(
+    Math.min(...xs),
+    Math.min(...ys),
+    Math.max(...xs),
+    Math.max(...ys),
+    viewport,
+  );
+}
+
+function rectangleMatchesViewport(
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  viewport: { x: number; y: number; width: number; height: number },
+): boolean {
+  const tolerance = Math.max(viewport.width, viewport.height) * 0.01 + 0.5;
+  return (
+    Math.abs(minX - viewport.x) <= tolerance &&
+    Math.abs(minY - viewport.y) <= tolerance &&
+    Math.abs(maxX - (viewport.x + viewport.width)) <= tolerance &&
+    Math.abs(maxY - (viewport.y + viewport.height)) <= tolerance
+  );
 }
 
 function parseSvgNumber(value: string): number | null {
@@ -267,6 +872,25 @@ function formatNumber(value: number): string {
     .toFixed(3)
     .replace(/0+$/, "")
     .replace(/\.$/, "");
+}
+
+function formatPercent(value: number): string {
+  return `${formatNumber(Math.min(1, Math.max(0, value)) * 100)}%`;
+}
+
+function buildSvgIdPrefix(value: string | undefined, svg: string): string {
+  const raw = value?.trim() || `output-polish-${hashString(svg)}`;
+  const sanitized = raw.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+/, "");
+  return /^[a-zA-Z_]/.test(sanitized) ? sanitized : `pp-${sanitized || "output"}`;
+}
+
+function hashString(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash >>> 0).toString(36);
 }
 
 function escapeRegExp(value: string): string {

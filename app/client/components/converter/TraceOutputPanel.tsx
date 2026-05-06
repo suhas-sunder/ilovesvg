@@ -105,7 +105,9 @@ export function getTraceOutputSvg<TSettings extends MixedTraceSettings>(
   const support = detectOutputAppearanceSupport(baseSvg, {
     precisionOutput: isPrecisionOutputItem(item),
   });
-  return applyOutputAppearanceToSvg(baseSvg, appearance, support);
+  return applyOutputAppearanceToSvg(baseSvg, appearance, support, {
+    idPrefix: `output-${getOutputAppearanceKey(item)}`,
+  });
 }
 
 export function getTraceOutputBaseSvg<TSettings extends MixedTraceSettings>(
@@ -615,6 +617,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     }
                     liveSectionTitle="Live preview edits"
                     liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                    livePreviewLeadTitle="Post-processing"
                     livePreviewLead={
                       appearanceControls || item.layers?.length ? (
                         <div className="grid gap-2">
@@ -1201,16 +1204,56 @@ export function OutputAppearanceControls({
 }) {
   const lineSupported = support.supportsLineWeight;
   const fillSupported = support.supportsFillSpread;
+  const stickerSupported = support.supportsStickerBorder;
+  const fillStyleSupported = support.supportsGradientFill || support.supportsPatternFill;
+  const shadowSupported = support.supportsShadowEffect;
   const hasChanges = hasOutputAppearanceChanges(settings);
   const strokeModeDisabled = Boolean(strokeOutputModeDisabledReason);
   const showStrokeOutputMode =
     strokeOutputModeAvailable && !strokeModeDisabled && Boolean(onStrokeOutputModeChange);
+  const resetSticker = () =>
+    onChange({
+      stickerBorderEnabled: false,
+      stickerBorderWidth: DEFAULT_OUTPUT_APPEARANCE.stickerBorderWidth,
+      stickerBorderColor: DEFAULT_OUTPUT_APPEARANCE.stickerBorderColor,
+      stickerBorderJoin: DEFAULT_OUTPUT_APPEARANCE.stickerBorderJoin,
+      internalGapFillEnabled: false,
+      internalGapFillColor: DEFAULT_OUTPUT_APPEARANCE.internalGapFillColor,
+    });
+  const resetGradient = () =>
+    onChange({
+      gradientEnabled: false,
+      gradientType: DEFAULT_OUTPUT_APPEARANCE.gradientType,
+      gradientStartColor: DEFAULT_OUTPUT_APPEARANCE.gradientStartColor,
+      gradientEndColor: DEFAULT_OUTPUT_APPEARANCE.gradientEndColor,
+      gradientAngle: DEFAULT_OUTPUT_APPEARANCE.gradientAngle,
+    });
+  const resetPattern = () =>
+    onChange({
+      patternEnabled: false,
+      patternType: DEFAULT_OUTPUT_APPEARANCE.patternType,
+      patternColor: DEFAULT_OUTPUT_APPEARANCE.patternColor,
+      patternBackgroundColor: DEFAULT_OUTPUT_APPEARANCE.patternBackgroundColor,
+      patternBackgroundTransparent:
+        DEFAULT_OUTPUT_APPEARANCE.patternBackgroundTransparent,
+      patternScale: DEFAULT_OUTPUT_APPEARANCE.patternScale,
+    });
+  const resetShadow = () =>
+    onChange({
+      shadowEnabled: false,
+      shadowType: DEFAULT_OUTPUT_APPEARANCE.shadowType,
+      shadowColor: DEFAULT_OUTPUT_APPEARANCE.shadowColor,
+      shadowBlur: DEFAULT_OUTPUT_APPEARANCE.shadowBlur,
+      shadowOffsetX: DEFAULT_OUTPUT_APPEARANCE.shadowOffsetX,
+      shadowOffsetY: DEFAULT_OUTPUT_APPEARANCE.shadowOffsetY,
+      shadowOpacity: DEFAULT_OUTPUT_APPEARANCE.shadowOpacity,
+    });
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
+    <div className="rounded-xl border border-slate-200 bg-white p-3" data-post-processing-controls="true">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="m-0 text-[13px] font-bold text-slate-900">
-          Stroke and fill
+          Output polish
         </p>
         <button
           type="button"
@@ -1258,6 +1301,97 @@ export function OutputAppearanceControls({
           </p>
         </div>
       ) : null}
+
+      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="m-0 text-[12px] font-bold text-slate-800">
+              Sticker border
+            </p>
+            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
+              Adds a visual outline behind the converted SVG. It is not a true cutline offset.
+            </p>
+          </div>
+          <EffectResetButton
+            disabled={
+              !settings.stickerBorderEnabled &&
+              !settings.internalGapFillEnabled &&
+              settings.stickerBorderWidth <= 0.001
+            }
+            onClick={resetSticker}
+          />
+        </div>
+        <ToggleRow
+          label="Enable border"
+          checked={settings.stickerBorderEnabled}
+          disabled={!stickerSupported}
+          onChange={(checked) =>
+            onChange({
+              stickerBorderEnabled: checked,
+              stickerBorderWidth:
+                checked && settings.stickerBorderWidth <= 0.001
+                  ? 8
+                  : settings.stickerBorderWidth,
+            })
+          }
+        />
+        {!stickerSupported ? (
+          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
+            {support.stickerBorderDisabledReason ||
+              "Sticker border needs filled SVG artwork."}
+          </p>
+        ) : settings.stickerBorderEnabled ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <ColorInput
+              label="Border color"
+              value={settings.stickerBorderColor}
+              onChange={(value) => onChange({ stickerBorderColor: value })}
+            />
+            <SelectInput
+              label="Join style"
+              value={settings.stickerBorderJoin}
+              options={[
+                ["round", "Round"],
+                ["bevel", "Bevel"],
+                ["miter", "Miter"],
+              ]}
+              onChange={(value) =>
+                onChange({ stickerBorderJoin: value as typeof settings.stickerBorderJoin })
+              }
+            />
+            <RangeInput
+              className="sm:col-span-2"
+              label="Border thickness"
+              value={settings.stickerBorderWidth}
+              min={0}
+              max={30}
+              step={0.5}
+              suffix="px"
+              onChange={(value) => onChange({ stickerBorderWidth: value })}
+            />
+            <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-2">
+              <ToggleRow
+                label="Fill small internal gaps"
+                checked={settings.internalGapFillEnabled}
+                disabled={!support.supportsInternalGapFill}
+                onChange={(checked) => onChange({ internalGapFillEnabled: checked })}
+              />
+              <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
+                Conservative visual fill behind artwork. Keep off for designs where transparent holes matter.
+              </p>
+              {settings.internalGapFillEnabled ? (
+                <div className="mt-2">
+                  <ColorInput
+                    label="Gap fill color"
+                    value={settings.internalGapFillColor}
+                    onChange={(value) => onChange({ internalGapFillColor: value })}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <label className="mt-3 block">
         <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">
@@ -1319,7 +1453,375 @@ export function OutputAppearanceControls({
             : support.fillSpreadDisabledReason || "Fill spread is not safe for this output."}
         </span>
       </label>
+
+      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="m-0 text-[12px] font-bold text-slate-800">
+              Fill style
+            </p>
+            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
+              Applies simple SVG defs to filled shapes. Pattern replaces gradient when both are enabled.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <EffectResetButton disabled={!settings.gradientEnabled} onClick={resetGradient} label="Reset gradient" />
+            <EffectResetButton disabled={!settings.patternEnabled} onClick={resetPattern} label="Reset pattern" />
+          </div>
+        </div>
+        {!fillStyleSupported ? (
+          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
+            {support.fillStyleDisabledReason ||
+              "Gradient and pattern fills need filled SVG regions."}
+          </p>
+        ) : (
+          <div className="mt-2 grid gap-3">
+            <ToggleRow
+              label="Gradient fill"
+              checked={settings.gradientEnabled}
+              disabled={!support.supportsGradientFill}
+              onChange={(checked) =>
+                onChange({ gradientEnabled: checked, patternEnabled: checked ? false : settings.patternEnabled })
+              }
+            />
+            {settings.gradientEnabled ? (
+              <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-2">
+                <SelectInput
+                  label="Gradient type"
+                  value={settings.gradientType}
+                  options={[
+                    ["linear", "Linear"],
+                    ["radial", "Radial"],
+                  ]}
+                  onChange={(value) =>
+                    onChange({ gradientType: value as typeof settings.gradientType })
+                  }
+                />
+                <RangeInput
+                  label="Angle"
+                  value={settings.gradientAngle}
+                  min={0}
+                  max={360}
+                  step={1}
+                  suffix="deg"
+                  disabled={settings.gradientType === "radial"}
+                  onChange={(value) => onChange({ gradientAngle: value })}
+                />
+                <ColorInput
+                  label="Start"
+                  value={settings.gradientStartColor}
+                  onChange={(value) => onChange({ gradientStartColor: value })}
+                />
+                <ColorInput
+                  label="End"
+                  value={settings.gradientEndColor}
+                  onChange={(value) => onChange({ gradientEndColor: value })}
+                />
+              </div>
+            ) : null}
+
+            <ToggleRow
+              label="Pattern fill"
+              checked={settings.patternEnabled}
+              disabled={!support.supportsPatternFill}
+              onChange={(checked) =>
+                onChange({ patternEnabled: checked, gradientEnabled: checked ? false : settings.gradientEnabled })
+              }
+            />
+            {settings.patternEnabled ? (
+              <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-2">
+                <SelectInput
+                  label="Pattern"
+                  value={settings.patternType}
+                  options={[
+                    ["dots", "Dots"],
+                    ["diagonal-stripes", "Diagonal stripes"],
+                    ["horizontal-stripes", "Horizontal stripes"],
+                    ["checker", "Checker"],
+                  ]}
+                  onChange={(value) =>
+                    onChange({ patternType: value as typeof settings.patternType })
+                  }
+                />
+                <RangeInput
+                  label="Spacing"
+                  value={settings.patternScale}
+                  min={4}
+                  max={48}
+                  step={1}
+                  suffix="px"
+                  onChange={(value) => onChange({ patternScale: value })}
+                />
+                <ColorInput
+                  label="Pattern color"
+                  value={settings.patternColor}
+                  onChange={(value) => onChange({ patternColor: value })}
+                />
+                <div className="min-w-0">
+                  <ToggleRow
+                    label="Transparent background"
+                    checked={settings.patternBackgroundTransparent}
+                    onChange={(checked) =>
+                      onChange({ patternBackgroundTransparent: checked })
+                    }
+                  />
+                  {!settings.patternBackgroundTransparent ? (
+                    <div className="mt-2">
+                      <ColorInput
+                        label="Background"
+                        value={settings.patternBackgroundColor}
+                        onChange={(value) =>
+                          onChange({ patternBackgroundColor: value })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="m-0 text-[12px] font-bold text-slate-800">
+              Shadow and glow
+            </p>
+            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
+              Visual SVG filter for previews and graphic exports. Disabled for precision cut outputs.
+            </p>
+          </div>
+          <EffectResetButton disabled={!settings.shadowEnabled} onClick={resetShadow} />
+        </div>
+        <ToggleRow
+          label="Enable effect"
+          checked={settings.shadowEnabled}
+          disabled={!shadowSupported}
+          onChange={(checked) => onChange({ shadowEnabled: checked })}
+        />
+        {!shadowSupported ? (
+          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
+            {support.shadowEffectDisabledReason ||
+              "Shadow and glow need visible SVG artwork."}
+          </p>
+        ) : settings.shadowEnabled ? (
+          <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-2">
+            <SelectInput
+              label="Effect"
+              value={settings.shadowType}
+              options={[
+                ["shadow", "Soft shadow"],
+                ["glow", "Glow"],
+              ]}
+              onChange={(value) =>
+                onChange({ shadowType: value as typeof settings.shadowType })
+              }
+            />
+            <ColorInput
+              label="Color"
+              value={settings.shadowColor}
+              onChange={(value) => onChange({ shadowColor: value })}
+            />
+            <RangeInput
+              label="Blur"
+              value={settings.shadowBlur}
+              min={0}
+              max={24}
+              step={0.5}
+              suffix="px"
+              onChange={(value) => onChange({ shadowBlur: value })}
+            />
+            <RangeInput
+              label="Opacity"
+              value={settings.shadowOpacity}
+              min={0}
+              max={1}
+              step={0.05}
+              suffix=""
+              onChange={(value) => onChange({ shadowOpacity: value })}
+            />
+            {settings.shadowType === "shadow" ? (
+              <>
+                <RangeInput
+                  label="Offset X"
+                  value={settings.shadowOffsetX}
+                  min={-40}
+                  max={40}
+                  step={1}
+                  suffix="px"
+                  onChange={(value) => onChange({ shadowOffsetX: value })}
+                />
+                <RangeInput
+                  label="Offset Y"
+                  value={settings.shadowOffsetY}
+                  min={-40}
+                  max={40}
+                  step={1}
+                  suffix="px"
+                  onChange={(value) => onChange({ shadowOffsetY: value })}
+                />
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="mt-2 flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
+      <span className="min-w-0">{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+        className="h-4 w-4 shrink-0 cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed"
+      />
+    </label>
+  );
+}
+
+function RangeInput({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix,
+  disabled = false,
+  className = "",
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix: string;
+  disabled?: boolean;
+  className?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className={`block min-w-0 ${className}`}>
+      <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">
+        <span>{label}</span>
+        <span>
+          {Number(value).toFixed(suffix === "" ? 2 : suffix === "deg" ? 0 : 1)}
+          {suffix}
+        </span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-1 w-full cursor-pointer accent-[#0b2dff] disabled:cursor-not-allowed disabled:opacity-50"
+      />
+    </label>
+  );
+}
+
+function ColorInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="block text-[12px] font-semibold text-slate-700">
+        {label}
+      </span>
+      <span className="mt-1 flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5">
+        <input
+          type="color"
+          value={value}
+          onInput={(event) => onChange(event.currentTarget.value)}
+          onChange={(event) => onChange(event.currentTarget.value)}
+          className="h-7 w-8 shrink-0 cursor-pointer rounded border border-slate-200 bg-transparent p-0"
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.currentTarget.value)}
+          className="min-w-0 flex-1 bg-transparent text-[12px] font-semibold text-slate-700 outline-none"
+        />
+      </span>
+    </label>
+  );
+}
+
+function SelectInput({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<[string, string]>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="block text-[12px] font-semibold text-slate-700">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        className="mt-1 w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-2 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      >
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function EffectResetButton({
+  disabled,
+  onClick,
+  label = "Reset",
+}: {
+  disabled: boolean;
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="cursor-pointer rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {label}
+    </button>
   );
 }
 

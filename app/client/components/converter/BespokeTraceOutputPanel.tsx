@@ -89,7 +89,9 @@ export function getBespokeTraceOutputSvg<TItem extends BespokeTraceOutputItem>(
   const appearance = getStoredAppearance(item);
   if (!hasOutputAppearanceChanges(appearance)) return rawSvg;
   const support = detectOutputAppearanceSupport(rawSvg, { precisionOutput });
-  return applyOutputAppearanceToSvg(rawSvg, appearance, support);
+  return applyOutputAppearanceToSvg(rawSvg, appearance, support, {
+    idPrefix: `output-${getAppearanceKey(item)}`,
+  });
 }
 
 export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
