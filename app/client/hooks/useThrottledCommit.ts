@@ -4,6 +4,7 @@ type UseThrottledCommitOptions<TValue> = {
   value: TValue;
   onCommit: (value: TValue) => void;
   delayMs?: number;
+  leading?: boolean;
   normalize?: (value: TValue) => TValue | null;
   isEqual?: (left: TValue, right: TValue) => boolean;
 };
@@ -20,6 +21,7 @@ export function useThrottledCommit<TValue>({
   value,
   onCommit,
   delayMs = 120,
+  leading = true,
   normalize = defaultNormalize,
   isEqual = Object.is,
 }: UseThrottledCommitOptions<TValue>): ThrottledCommitController<TValue> {
@@ -80,6 +82,14 @@ export function useThrottledCommit<TValue>({
       const remaining = delayMs - (now() - lastCommitAtRef.current);
       if (remaining <= 0) {
         cancel();
+        if (!leading) {
+          timerRef.current = setTimeout(() => {
+            timerRef.current = null;
+            const latest = latestDraftRef.current;
+            commitNormalized(latest);
+          }, delayMs);
+          return;
+        }
         commitNormalized(normalized);
         return;
       }
@@ -92,7 +102,7 @@ export function useThrottledCommit<TValue>({
         commitNormalized(latest);
       }, remaining);
     },
-    [cancel, commitNormalized, delayMs, isEqual, normalize],
+    [cancel, commitNormalized, delayMs, isEqual, leading, normalize],
   );
 
   React.useEffect(() => {

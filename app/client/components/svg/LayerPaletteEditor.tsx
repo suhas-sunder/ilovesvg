@@ -349,6 +349,7 @@ function LayerPaletteRow({
   const colorCommit = useThrottledCommit({
     value: safeLayerColor,
     delayMs: 120,
+    leading: false,
     normalize: normalizeHexColor,
     onCommit: React.useCallback(
       (color: string) => {
@@ -362,6 +363,7 @@ function LayerPaletteRow({
   const opacityCommit = useThrottledCommit({
     value: Math.round(normalizeOpacity(layer.opacity) * 100),
     delayMs: 120,
+    leading: false,
     normalize: normalizeOpacityPercent,
     onCommit: React.useCallback(
       (opacityPercent: number) => {
