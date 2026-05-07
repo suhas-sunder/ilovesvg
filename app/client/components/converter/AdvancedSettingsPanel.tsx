@@ -203,12 +203,12 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   onOutputSizeChange,
   helpHref,
   buttonDisabled = false,
-  liveSectionTitle = "Live preview edits",
-  liveSectionDescription = "These settings edit the current output preview directly when output data is available.",
+  liveSectionTitle = "Live Preview Edits",
+  liveSectionDescription = "These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here.",
   livePreviewLead,
   livePreviewLeadTitle = "Output appearance",
-  convertSectionTitle = "Click to convert",
-  convertSectionDescription = "These settings change the next backend trace. Click Update preview or Convert to generate a new SVG from them.",
+  convertSectionTitle = "Click To Convert",
+  convertSectionDescription = "Use Update preview when you are ready. These controls rebuild the SVG from the original image, so the app does not restart conversion after every slider or color change.",
   hideOutputLayerStyling = false,
   focusedEditorMode = false,
   defaultOpenSection = null,
@@ -225,6 +225,8 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   const [openConvertSection, setOpenConvertSection] = React.useState<
     string | null
   >(null);
+  const [liveTopOpen, setLiveTopOpen] = React.useState(false);
+  const [convertTopOpen, setConvertTopOpen] = React.useState(false);
   const [localFocusedSection, setLocalFocusedSection] = React.useState<
     string | null
   >(defaultOpenSection);
@@ -345,11 +347,14 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         title={liveSectionTitle}
         description={liveSectionDescription}
         tone="live"
+        open={liveTopOpen}
+        onToggle={() => setLiveTopOpen((current) => !current)}
       >
         {livePreviewLead ? (
           focusedEditorMode ? (
             <SettingSection
               title={livePreviewLeadTitle}
+              tone="effects"
               sectionId={`${id}-live-output-appearance`}
               open={sectionOpen(openLiveSection, "output-appearance")}
               onToggle={() =>
@@ -395,6 +400,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
           !capabilities.supportsCutFriendlyOutput && (
             <SettingSection
               title="Size and export"
+              tone="export"
               sectionId={`${id}-live-size-export`}
               open={sectionOpen(openLiveSection, "size-export")}
               onToggle={() =>
@@ -415,6 +421,8 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         title={convertSectionTitle}
         description={convertSectionDescription}
         tone="convert"
+        open={convertTopOpen}
+        onToggle={() => setConvertTopOpen((current) => !current)}
         action={
           <button
             type="button"
@@ -441,6 +449,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
       <SettingSection
         title="Line tracing"
+        tone="convert"
         sectionId={`${id}-convert-line-tracing`}
         open={sectionOpen(openConvertSection, "line-tracing")}
         onToggle={() =>
@@ -519,6 +528,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       {showLayered && (
         <SettingSection
           title="Color and layers"
+          tone="convert"
           sectionId={`${id}-convert-color-layers`}
           open={sectionOpen(openConvertSection, "color-layers")}
           onToggle={() =>
@@ -620,10 +630,11 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
       <SettingSection
         title="Edges and cleanup"
+        tone="cleanup"
         sectionId={`${id}-convert-edges-cleanup`}
-        open={openConvertSection === "edges-cleanup"}
+        open={sectionOpen(openConvertSection, "edges-cleanup")}
         onToggle={() =>
-          toggleAccordionSection(setOpenConvertSection, "edges-cleanup")
+          toggleSection(setOpenConvertSection, "edges-cleanup")
         }
       >
         {capabilities.supportsEdgePreprocess && (
@@ -755,6 +766,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
       {showSelectedColors && (
         <SettingSection
           title="Remove colors"
+          tone="remove"
           sectionId={`${id}-convert-input-colors`}
           open={sectionOpen(openConvertSection, "input-colors")}
           onToggle={() =>
@@ -860,10 +872,11 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
       <SettingSection
         title="Appearance"
+        tone="appearance"
         sectionId={`${id}-convert-appearance`}
-        open={openConvertSection === "appearance"}
+        open={sectionOpen(openConvertSection, "appearance")}
         onToggle={() =>
-          toggleAccordionSection(setOpenConvertSection, "appearance")
+          toggleSection(setOpenConvertSection, "appearance")
         }
       >
         {showSingleTrace && (
@@ -994,12 +1007,12 @@ export function LayeredAdvancedSettingsPanel<
   onOutputSizeChange,
   helpHref,
   buttonDisabled = false,
-  liveSectionTitle = "Live preview edits",
-  liveSectionDescription = "These settings edit the current layered SVG preview directly when output data is available.",
+  liveSectionTitle = "Live Preview Edits",
+  liveSectionDescription = "These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here.",
   livePreviewLead,
   livePreviewLeadTitle = "Output appearance",
-  convertSectionTitle = "Click to convert",
-  convertSectionDescription = "These settings change the next layered trace. Click Update preview or Convert to generate a new SVG from them.",
+  convertSectionTitle = "Click To Convert",
+  convertSectionDescription = "Use Update preview when you are ready. These controls rebuild the SVG from the original image, so the app does not restart conversion after every slider or color change.",
   hideOutputLayerStyling = false,
   focusedEditorMode = false,
   defaultOpenSection = null,
@@ -1016,6 +1029,8 @@ export function LayeredAdvancedSettingsPanel<
   const [openConvertSection, setOpenConvertSection] = React.useState<
     string | null
   >(null);
+  const [liveTopOpen, setLiveTopOpen] = React.useState(false);
+  const [convertTopOpen, setConvertTopOpen] = React.useState(false);
   const [localFocusedSection, setLocalFocusedSection] = React.useState<
     string | null
   >(defaultOpenSection);
@@ -1132,11 +1147,14 @@ export function LayeredAdvancedSettingsPanel<
         title={liveSectionTitle}
         description={liveSectionDescription}
         tone="live"
+        open={liveTopOpen}
+        onToggle={() => setLiveTopOpen((current) => !current)}
       >
         {livePreviewLead ? (
           focusedEditorMode ? (
             <SettingSection
               title={livePreviewLeadTitle}
+              tone="effects"
               sectionId={`${id}-live-output-appearance`}
               open={sectionOpen(openLiveSection, "output-appearance")}
               onToggle={() =>
@@ -1181,6 +1199,7 @@ export function LayeredAdvancedSettingsPanel<
         {capabilities.supportsOutputGeometry && (
           <SettingSection
             title="Size and export"
+            tone="export"
             sectionId={`${id}-live-size-export`}
             open={sectionOpen(openLiveSection, "size-export")}
             onToggle={() =>
@@ -1201,6 +1220,8 @@ export function LayeredAdvancedSettingsPanel<
         title={convertSectionTitle}
         description={convertSectionDescription}
         tone="convert"
+        open={convertTopOpen}
+        onToggle={() => setConvertTopOpen((current) => !current)}
         action={
           <button
             type="button"
@@ -1227,6 +1248,7 @@ export function LayeredAdvancedSettingsPanel<
 
       <SettingSection
         title="Color and layers"
+        tone="convert"
         sectionId={`${id}-convert-color-layers`}
         open={sectionOpen(openConvertSection, "color-layers")}
         onToggle={() =>
@@ -1351,6 +1373,7 @@ export function LayeredAdvancedSettingsPanel<
       {capabilities.supportsSelectedColorRemoval && (
         <SettingSection
           title="Remove colors"
+          tone="remove"
           sectionId={`${id}-convert-input-colors`}
           open={sectionOpen(openConvertSection, "input-colors")}
           onToggle={() =>
@@ -1439,6 +1462,7 @@ export function LayeredAdvancedSettingsPanel<
 
       <SettingSection
         title="Edges and cleanup"
+        tone="cleanup"
         sectionId={`${id}-convert-edges-cleanup`}
         open={sectionOpen(openConvertSection, "edges-cleanup")}
         onToggle={() =>
@@ -1488,6 +1512,7 @@ export function LayeredAdvancedSettingsPanel<
       {capabilities.supportsBackground && (
         <SettingSection
           title="Appearance"
+          tone="appearance"
           sectionId={`${id}-convert-appearance`}
           open={sectionOpen(openConvertSection, "appearance")}
           onToggle={() =>
@@ -1567,6 +1592,8 @@ export function SvgRasterExportSettingsPanel<
   const [openLiveSection, setOpenLiveSection] = React.useState<string | null>(
     null,
   );
+  const [liveTopOpen, setLiveTopOpen] = React.useState(false);
+  const [convertTopOpen, setConvertTopOpen] = React.useState(false);
   if (!open) return null;
 
   function patch(patchValue: Partial<TSettings>) {
@@ -1619,9 +1646,11 @@ export function SvgRasterExportSettingsPanel<
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
-        title="Live preview edits"
-        description="These settings update the browser-rendered raster preview before download."
+        title="Live Preview Edits"
+        description="These controls update the browser preview right away. Copy and download use what you see here."
         tone="live"
+        open={liveTopOpen}
+        onToggle={() => setLiveTopOpen((current) => !current)}
       >
         <SettingSection
           title="SVG/raster export"
@@ -1712,9 +1741,11 @@ export function SvgRasterExportSettingsPanel<
       </AdvancedTopLevelSection>
 
       <AdvancedTopLevelSection
-        title="Click to convert"
-        description="SVG-to-raster export does not retrace the image. Click Convert to finalize the current preview settings into a downloadable file."
+        title="Click To Convert"
+        description="Use Convert when you are ready. Raster export waits so resize and appearance changes do not recreate the downloadable file after every edit."
         tone="convert"
+        open={convertTopOpen}
+        onToggle={() => setConvertTopOpen((current) => !current)}
       >
         <p className="m-0 rounded-md border border-indigo-100 bg-white/70 px-3 py-2 text-[12px] leading-5 text-slate-600">
           Convert uses the live preview settings above for the final raster
@@ -1857,18 +1888,14 @@ function OutputColorRemovalSection({
   return (
     <SettingSection
       title="Remove detected output colors"
+      tone="remove"
       sectionId={sectionId}
       open={open}
       onToggle={onToggle}
     >
       <p className="text-[12px] leading-5 text-slate-600">
-        These are colors currently present in the generated SVG output. Use this
-        to remove final SVG colors directly without guessing which source colors
-        created them.
-      </p>
-      <p className="text-[12px] leading-5 text-slate-500">
-        Output colors update after each trace. If you change trace settings, the
-        available output colors may change.
+        Hide colors from the current SVG output. The detected list refreshes
+        after each new trace.
       </p>
 
       {layers.length === 0 ? (
@@ -1945,15 +1972,15 @@ function OutputLayerStylingSection({
 }) {
   return (
     <SettingSection
-      title="Output layer styling"
+      title="Layer colors"
+      tone="layers"
       sectionId={sectionId}
       open={open}
       onToggle={onToggle}
     >
       <p className="text-[12px] leading-5 text-slate-600">
-        These controls edit the current SVG output directly. Per-layer opacity
-        affects one layer; global layer opacity applies to all layers in the
-        next trace.
+        Edit visible SVG layers for this output only. Copy and download use the
+        current layer state.
       </p>
       {layers.length === 0 ? (
         <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
@@ -1971,7 +1998,7 @@ function OutputLayerStylingSection({
               Reset all
             </button>
           </div>
-          <div className="grid max-h-[24rem] min-w-0 max-w-full gap-2 overflow-y-auto overflow-x-hidden pr-1">
+          <div className="grid max-h-[34rem] min-w-0 max-w-full gap-0 overflow-y-auto overflow-x-hidden">
             {layers.map((layer) => (
               <OutputLayerStyleRow
                 key={layer.id}
@@ -2116,7 +2143,7 @@ function OutputLayerStyleRow({
   const colorInputRef = useNativeColorFinalCommit(commitColorNow);
 
   return (
-    <div className="min-w-0 max-w-full overflow-x-hidden rounded-md border border-slate-100 bg-slate-50 p-2">
+    <div className="min-w-0 max-w-full overflow-x-hidden border-t border-slate-100 py-2 first:border-t-0">
       <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
         <input
           type="checkbox"
@@ -2156,9 +2183,9 @@ function OutputLayerStyleRow({
           onBlur={() => commitColorNow(colorText)}
           aria-label={`${label} hex color`}
           aria-invalid={!normalizeColorInput(colorText)}
-          className="w-[104px] max-w-full rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          className="min-w-[7rem] flex-1 rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
-        <details className="relative max-w-full">
+        <details className="relative shrink-0 max-w-full">
           <summary className="list-none rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
             RGB
           </summary>
@@ -2180,11 +2207,11 @@ function OutputLayerStyleRow({
             ))}
           </div>
         </details>
-        <div className="min-w-[120px] max-w-full flex-1">
+        <div className="min-w-0 flex-[1_1_9rem]">
           <div className="truncate text-[12px] font-semibold text-slate-700">
             {label}
           </div>
-          <div className="text-[11px] text-slate-500">
+          <div className="truncate text-[11px] text-slate-500">
             Original {original}
             {typeof layer.pixelPercent === "number"
               ? ` - ${layer.pixelPercent}%`
@@ -2201,7 +2228,7 @@ function OutputLayerStyleRow({
           </button>
         ) : null}
       </div>
-      <label className="mt-2 grid min-w-0 max-w-full gap-1 text-[12px] text-slate-600 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+      <label className="mt-2 grid min-w-0 max-w-full gap-1 text-[12px] text-slate-600">
         <span className="shrink-0">Per-layer opacity {localOpacity}%</span>
         <input
           type="range"
@@ -2545,34 +2572,114 @@ function rgbToHex(r: number, g: number, b: number) {
     .join("")}`;
 }
 
+type SettingsSectionTone =
+  | "live"
+  | "effects"
+  | "layers"
+  | "remove"
+  | "export"
+  | "convert"
+  | "cleanup"
+  | "appearance";
+
+function getSettingsSectionToneClasses(tone: SettingsSectionTone = "live") {
+  const tones: Record<
+    SettingsSectionTone,
+    {
+      shell: string;
+      header: string;
+      dot: string;
+    }
+  > = {
+    live: {
+      shell: "border-sky-100 border-l-sky-300",
+      header: "hover:bg-sky-50",
+      dot: "bg-sky-400",
+    },
+    effects: {
+      shell: "border-teal-100 border-l-teal-300",
+      header: "hover:bg-teal-50",
+      dot: "bg-teal-400",
+    },
+    layers: {
+      shell: "border-indigo-100 border-l-indigo-300",
+      header: "hover:bg-indigo-50",
+      dot: "bg-indigo-400",
+    },
+    remove: {
+      shell: "border-rose-100 border-l-rose-300",
+      header: "hover:bg-rose-50",
+      dot: "bg-rose-400",
+    },
+    export: {
+      shell: "border-emerald-100 border-l-emerald-300",
+      header: "hover:bg-emerald-50",
+      dot: "bg-emerald-400",
+    },
+    convert: {
+      shell: "border-amber-100 border-l-amber-300",
+      header: "hover:bg-amber-50",
+      dot: "bg-amber-400",
+    },
+    cleanup: {
+      shell: "border-orange-100 border-l-orange-300",
+      header: "hover:bg-orange-50",
+      dot: "bg-orange-400",
+    },
+    appearance: {
+      shell: "border-violet-100 border-l-violet-300",
+      header: "hover:bg-violet-50",
+      dot: "bg-violet-400",
+    },
+  };
+  return tones[tone];
+}
+
 function SettingSection({
   title,
   children,
   sectionId,
   open,
   onToggle,
+  tone = "live",
 }: {
   title: string;
   children: React.ReactNode;
   sectionId?: string;
   open?: boolean;
   onToggle?: () => void;
+  tone?: SettingsSectionTone;
 }) {
+  const toneClasses = getSettingsSectionToneClasses(tone);
+
   if (sectionId && onToggle && typeof open === "boolean") {
     return (
       <section
         data-settings-section={sectionId}
         data-settings-section-open={open ? "true" : "false"}
-        className="min-w-0 max-w-full overflow-hidden rounded-lg border border-slate-200 bg-white"
+        data-settings-section-tone={tone}
+        className={[
+          "min-w-0 max-w-full overflow-hidden rounded-lg border border-l-4 bg-white/95 shadow-sm shadow-slate-900/[0.03]",
+          toneClasses.shell,
+        ].join(" ")}
       >
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
           aria-controls={sectionId}
-          className="flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-bold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-inset"
+          className={[
+            "flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-bold text-sky-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-inset",
+            toneClasses.header,
+          ].join(" ")}
         >
-          <span className="min-w-0 truncate">{title}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              className={["h-2 w-2 shrink-0 rounded-full", toneClasses.dot].join(" ")}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 truncate">{title}</span>
+          </span>
           <ChevronDownIcon open={open} />
         </button>
         <div
@@ -2599,8 +2706,20 @@ function SettingSection({
   }
 
   return (
-    <section className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white p-3">
-      <h3 className="m-0 mb-2 text-[13px] font-bold text-sky-950">{title}</h3>
+    <section
+      data-settings-section-tone={tone}
+      className={[
+        "min-w-0 max-w-full rounded-lg border border-l-4 bg-white/95 p-3 shadow-sm shadow-slate-900/[0.03]",
+        toneClasses.shell,
+      ].join(" ")}
+    >
+      <h3 className="m-0 mb-2 flex min-w-0 items-center gap-2 text-[13px] font-bold text-sky-950">
+        <span
+          className={["h-2 w-2 shrink-0 rounded-full", toneClasses.dot].join(" ")}
+          aria-hidden="true"
+        />
+        <span className="min-w-0 truncate">{title}</span>
+      </h3>
       <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden">
         {children}
       </div>
@@ -2612,32 +2731,76 @@ function AdvancedTopLevelSection({
   title,
   description,
   tone,
+  open,
+  onToggle,
   action,
   children,
 }: {
   title: string;
   description: string;
   tone: "live" | "convert";
+  open: boolean;
+  onToggle: () => void;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const contentId = React.useId();
   const toneClass =
     tone === "live"
-      ? "border-sky-200 bg-sky-50/80"
-      : "border-indigo-200 bg-indigo-50/80";
+      ? "border-sky-200 border-l-sky-400 bg-sky-50/70"
+      : "border-amber-200 border-l-amber-400 bg-amber-50/70";
+  const dotClass = tone === "live" ? "bg-sky-500" : "bg-amber-500";
 
   return (
-    <section className={["rounded-xl border p-3", toneClass].join(" ")}>
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="m-0 text-[13px] font-bold text-sky-950">{title}</h3>
-          <p className="m-0 mt-0.5 text-[12px] leading-5 text-slate-600">
-            {description}
-          </p>
-        </div>
-        {action}
+    <section
+      data-settings-top-section-tone={tone}
+      data-settings-top-section-open={open ? "true" : "false"}
+      className={["rounded-xl border border-l-4 p-3", toneClass].join(" ")}
+    >
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls={contentId}
+          className="group flex min-w-0 flex-1 cursor-pointer items-start justify-between gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
+          <div className="min-w-0">
+            <h3 className="m-0 flex min-w-0 items-center gap-2 text-[13px] font-bold text-sky-950">
+              <span
+                className={["h-2 w-2 shrink-0 rounded-full", dotClass].join(" ")}
+                aria-hidden="true"
+              />
+              <span className="min-w-0 truncate">{title}</span>
+            </h3>
+            <p className="m-0 mt-0.5 text-[12px] leading-5 text-slate-600">
+              {description}
+            </p>
+          </div>
+          <span className="mt-0.5 shrink-0 rounded-full p-0.5 text-slate-500 transition-colors group-hover:bg-white/70 group-hover:text-slate-700">
+            <ChevronDownIcon open={open} />
+          </span>
+        </button>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      <div className="flex flex-col gap-2">{children}</div>
+      <div
+        id={contentId}
+        className={[
+          "grid transition-[grid-template-rows,opacity,margin] duration-200 ease-out",
+          open ? "mt-2 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0",
+        ].join(" ")}
+      >
+        <div
+          className={[
+            "min-h-0 overflow-hidden",
+            open ? "pointer-events-auto" : "pointer-events-none",
+          ].join(" ")}
+        >
+          <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden">
+            {children}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

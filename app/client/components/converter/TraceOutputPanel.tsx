@@ -16,7 +16,6 @@ import {
   getEditedSvg,
 } from "~/client/components/svg/EditedSvgPreviewImage";
 import {
-  LayerPaletteEditor,
   type EditableSvgLayer,
 } from "~/client/components/svg/LayerPaletteEditor";
 import {
@@ -470,7 +469,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     });
   }
 
-  function openFocusedEditor(stamp: number, sectionId = "output-appearance") {
+  function openFocusedEditor(stamp: number, sectionId: string | null = null) {
     setFocusedSettingsSection(stamp, sectionId);
     setFocusedOutputStamp(stamp);
     setCollapsedOutputStamps((current) => {
@@ -559,7 +558,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             const sourceAvailableForOutput =
               !item.sourceFileName || file?.name === item.sourceFileName;
             const focusedSettingsSection =
-              focusedSettingsSections.get(item.stamp) ?? "output-appearance";
+              focusedSettingsSections.get(item.stamp) ?? null;
             if (focusedOutputStamp != null && !focused) return null;
             const collapsed =
               !focused && collapsedOutputStamps.has(item.stamp);
@@ -618,7 +617,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   className={[
                     "rounded-xl border border-sky-200 bg-sky-50/70 p-2",
                     focused
-                      ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
+                      ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3"
                       : "mb-2",
                   ].join(" ")}
                 >
@@ -665,58 +664,21 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     buttonDisabled={
                       buttonDisabled || isUpdating || !sourceAvailableForOutput
                     }
-                    liveSectionTitle="Live preview edits"
-                    liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                    liveSectionTitle="Live Preview Edits"
+                    liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
                     livePreviewLeadTitle="Post-processing"
-                    livePreviewLead={
-                      appearanceControls || item.layers?.length ? (
-                        <div className="grid gap-2">
-                          {appearanceControls}
-                          {item.layers?.length ? (
-                            <div className="rounded-xl border border-slate-200 bg-white p-2">
-                              <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                Layer colors
-                              </p>
-                              <LayerPaletteEditor
-                                item={item}
-                                onColorChange={(layerId, color) =>
-                                  onOutputLayerChange(item.stamp, layerId, {
-                                    color,
-                                  })
-                                }
-                                onVisibilityChange={(layerId, visible) =>
-                                  onOutputLayerChange(item.stamp, layerId, {
-                                    visible,
-                                  })
-                                }
-                                onOpacityChange={(layerId, opacity) =>
-                                  onOutputLayerChange(item.stamp, layerId, {
-                                    opacity,
-                                  })
-                                }
-                                onResetLayer={(layerId) =>
-                                  onResetOutputLayer(item.stamp, layerId)
-                                }
-                                onResetAll={() =>
-                                  onResetAllOutputLayers(item.stamp)
-                                }
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null
-                    }
-                    convertSectionTitle="Click to convert"
+                    livePreviewLead={appearanceControls}
+                    convertSectionTitle="Click To Convert"
                     convertSectionDescription={
                       sourceAvailableForOutput
-                        ? "These settings retrace the source image for this output only."
+                        ? "Use Update preview when you are ready. These controls rebuild this output from the original image, so the app does not restart conversion after every slider or color change."
                         : item.sourceFileName
                           ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
                           : "Choose the original source image to retrace this output. Copy and download still use the saved SVG."
                     }
-                    hideOutputLayerStyling={true}
+                    hideOutputLayerStyling={false}
                     focusedEditorMode={focused}
-                    defaultOpenSection="output-appearance"
+                    defaultOpenSection={null}
                     openSection={focused ? focusedSettingsSection : undefined}
                     onOpenSectionChange={
                       focused
@@ -937,7 +899,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 {focused ? (
                   <div
                     data-focused-editor-workspace="true"
-                    className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:items-start"
+                    className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(300px,390px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)]"
                   >
                     <FocusedEditorPreviewComparison
                       outputSvg={previewSvg}
@@ -1305,8 +1267,8 @@ export function OutputAppearanceControls({
     });
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3" data-post-processing-controls="true">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="min-w-0" data-post-processing-controls="true">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
         <p className="m-0 text-[13px] font-bold text-slate-900">
           Output polish
         </p>
@@ -1321,7 +1283,10 @@ export function OutputAppearanceControls({
       </div>
 
       {showStrokeOutputMode ? (
-        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div
+          className="mt-3 border-t border-slate-100 pt-3"
+          data-output-polish-group="stroke-output-mode"
+        >
           <span className="block text-[12px] font-semibold text-slate-700">
             Stroke output mode
           </span>
@@ -1357,7 +1322,10 @@ export function OutputAppearanceControls({
         </div>
       ) : null}
 
-      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div
+        className="mt-3 border-t border-slate-100 pt-3"
+        data-output-polish-group="sticker-border"
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="m-0 text-[12px] font-bold text-slate-800">
@@ -1434,7 +1402,10 @@ export function OutputAppearanceControls({
               suffix=""
               onChange={(value) => onChange({ stickerBorderOpacity: value })}
             />
-            <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-2">
+            <div
+              className="sm:col-span-2 border-t border-slate-100 pt-3"
+              data-output-polish-subcontrols="internal-gap-fill"
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <ToggleRow
@@ -1542,7 +1513,10 @@ export function OutputAppearanceControls({
         </span>
       </label>
 
-      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div
+        className="mt-4 border-t border-slate-100 pt-3"
+        data-output-polish-group="fill-style"
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="m-0 text-[12px] font-bold text-slate-800">
@@ -1573,7 +1547,10 @@ export function OutputAppearanceControls({
               }
             />
             {settings.gradientEnabled ? (
-              <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-2">
+              <div
+                className="grid gap-3 border-l-2 border-teal-100 pl-3 sm:grid-cols-2"
+                data-output-polish-subcontrols="gradient-fill"
+              >
                 <SelectInput
                   label="Gradient type"
                   value={settings.gradientType}
@@ -1617,7 +1594,10 @@ export function OutputAppearanceControls({
               }
             />
             {settings.patternEnabled ? (
-              <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-2">
+              <div
+                className="grid gap-3 border-l-2 border-teal-100 pl-3 sm:grid-cols-2"
+                data-output-polish-subcontrols="pattern-fill"
+              >
                 <SelectInput
                   label="Pattern"
                   value={settings.patternType}
@@ -1671,7 +1651,10 @@ export function OutputAppearanceControls({
         )}
       </div>
 
-      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div
+        className="mt-4 border-t border-slate-100 pt-3"
+        data-output-polish-group="shadow-glow"
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="m-0 text-[12px] font-bold text-slate-800">
@@ -1695,7 +1678,10 @@ export function OutputAppearanceControls({
               "Shadow and glow need visible SVG artwork."}
           </p>
         ) : settings.shadowEnabled ? (
-          <div className="mt-3 grid gap-3 rounded-lg border border-slate-200 bg-white p-2 sm:grid-cols-2">
+          <div
+            className="mt-3 grid gap-3 border-l-2 border-violet-100 pl-3 sm:grid-cols-2"
+            data-output-polish-subcontrols="shadow-glow"
+          >
             <SelectInput
               label="Effect"
               value={settings.shadowType}

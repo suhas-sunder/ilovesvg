@@ -2125,7 +2125,7 @@ export default function PngToLayeredSvgForCricut({
     });
   }
 
-  function openFocusedEditor(stamp: number, sectionId = "output-appearance") {
+  function openFocusedEditor(stamp: number, sectionId: string | null = null) {
     selectHistoryOutput(stamp);
     setOpenSettingsStamp(stamp);
     setFocusedSettingsSection(stamp, sectionId);
@@ -2451,8 +2451,7 @@ export default function PngToLayeredSvgForCricut({
                       outputMatchesActiveSource(item, file);
                     if (focusedOutputStamp != null && !focused) return null;
                     const focusedSettingsSection =
-                      focusedSettingsSections.get(item.stamp) ??
-                      "output-appearance";
+                      focusedSettingsSections.get(item.stamp) ?? null;
                     const collapsed =
                       !focused && collapsedOutputStamps.has(item.stamp);
                     const appearanceSupport =
@@ -2480,7 +2479,7 @@ export default function PngToLayeredSvgForCricut({
                         className={[
                           "rounded-xl border border-sky-200 bg-sky-50/70 p-2",
                           focused
-                            ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
+                            ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3"
                             : "mb-2",
                         ].join(" ")}
                       >
@@ -2548,56 +2547,21 @@ export default function PngToLayeredSvgForCricut({
                           buttonDisabled={
                             buttonDisabled || !sourceAvailableForOutput
                           }
-                          liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                          liveSectionTitle="Live Preview Edits"
+                          liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
                           livePreviewLeadTitle="Post-processing"
-                          livePreviewLead={
-                            <div className="grid gap-2">
-                              {appearanceControls}
-                              <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                  Layer colors
-                                </p>
-                                <LayerControls
-                                  layers={item.layers}
-                                  onChange={(nextLayers) =>
-                                    updateHistoryItemLayers(
-                                      item.stamp,
-                                      () => nextLayers,
-                                    )
-                                  }
-                                  onLayerChange={(layerId, patch) =>
-                                    updateHistoryItemLayers(item.stamp, (layers) =>
-                                      layers.map((layer) =>
-                                        layer.id === layerId
-                                          ? { ...layer, ...patch }
-                                          : layer,
-                                      ),
-                                    )
-                                  }
-                                  onReset={() =>
-                                    updateHistoryItemLayers(item.stamp, (layers) =>
-                                      layers.map((layer) => ({
-                                        ...layer,
-                                        color: layer.originalColor,
-                                        visible: true,
-                                        opacity: layer.originalOpacity ?? 1,
-                                      })),
-                                    )
-                                  }
-                                />
-                              </div>
-                            </div>
-                          }
+                          livePreviewLead={appearanceControls}
+                          convertSectionTitle="Click To Convert"
                           convertSectionDescription={
                             sourceAvailableForOutput
-                              ? "These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                              ? "Use Update preview when you are ready. These controls rebuild this output from the original image, so the app does not restart conversion after every slider or color change."
                               : item.sourceFileName
                                 ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
                                 : "Choose the original source image to retrace this output. Copy and download still use the saved SVG."
                           }
-                          hideOutputLayerStyling={true}
+                          hideOutputLayerStyling={false}
                           focusedEditorMode={focused}
-                          defaultOpenSection="output-appearance"
+                          defaultOpenSection={null}
                           openSection={focused ? focusedSettingsSection : undefined}
                           onOpenSectionChange={
                             focused
@@ -2976,7 +2940,7 @@ export default function PngToLayeredSvgForCricut({
                         {focused && (
                           <div
                             data-focused-editor-workspace="true"
-                            className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:items-start"
+                            className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(300px,390px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)]"
                           >
                             <FocusedEditorPreviewComparison
                               outputSvg={displaySvg}
@@ -3068,54 +3032,19 @@ export default function PngToLayeredSvgForCricut({
                               buttonDisabled={
                                 buttonDisabled || !sourceAvailableForOutput
                               }
-                              liveSectionDescription="These settings edit this output card directly. Copy and download use the current visible SVG."
+                              liveSectionTitle="Live Preview Edits"
+                              liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
                               livePreviewLeadTitle="Post-processing"
-                              livePreviewLead={
-                                <div className="grid gap-2">
-                                  {appearanceControls}
-                                  <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                    <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                      Layer colors
-                                    </p>
-                                    <LayerControls
-                                      layers={item.layers}
-                                      onChange={(nextLayers) =>
-                                        updateHistoryItemLayers(
-                                          item.stamp,
-                                          () => nextLayers,
-                                        )
-                                      }
-                                      onLayerChange={(layerId, patch) =>
-                                        updateHistoryItemLayers(item.stamp, (layers) =>
-                                          layers.map((layer) =>
-                                            layer.id === layerId
-                                              ? { ...layer, ...patch }
-                                              : layer,
-                                          ),
-                                        )
-                                      }
-                                      onReset={() =>
-                                        updateHistoryItemLayers(item.stamp, (layers) =>
-                                          layers.map((layer) => ({
-                                            ...layer,
-                                            color: layer.originalColor,
-                                            visible: true,
-                                            opacity: layer.originalOpacity ?? 1,
-                                          })),
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              }
+                              livePreviewLead={appearanceControls}
+                              convertSectionTitle="Click To Convert"
                               convertSectionDescription={
                                 sourceAvailableForOutput
-                                  ? "These settings retrace the source image for this output only. Unapplied changes apply after Update preview."
+                                  ? "Use Update preview when you are ready. These controls rebuild this output from the original image, so the app does not restart conversion after every slider or color change."
                                   : item.sourceFileName
                                     ? `Update preview needs the original source file (${item.sourceFileName}). Copy and download still use the saved SVG.`
                                     : "Choose the original source image to retrace this output. Copy and download still use the saved SVG."
                               }
-                              hideOutputLayerStyling={true}
+                              hideOutputLayerStyling={false}
                               onUpdatePreview={() => {
                                 if (!sourceAvailableForOutput || !file) {
                                   setToast(

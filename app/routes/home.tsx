@@ -26,7 +26,6 @@ import {
   PreviewHistoryArrowButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
 import {
-  LayerPaletteEditor,
   applyLayerEditsToSvg,
 } from "~/client/components/svg/LayerPaletteEditor";
 import { ensureSvgRootNamespace } from "~/client/components/svg/EditedSvgPreviewImage";
@@ -4009,7 +4008,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
-  function openFocusedEditor(stamp: number, sectionId = "output-appearance") {
+  function openFocusedEditor(stamp: number, sectionId: string | null = null) {
     setFocusedSettingsSection(stamp, sectionId);
     setFocusedOutputStamp(stamp);
     setCollapsedOutputStamps((current) => {
@@ -4343,8 +4342,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const sourceAvailableForOutput =
                       outputMatchesActiveSource(item, file);
                     const focusedSettingsSection =
-                      focusedSettingsSections.get(item.stamp) ??
-                      "output-appearance";
+                      focusedSettingsSections.get(item.stamp) ?? null;
                     const batchSectionOpen = focused
                       ? focusedSettingsSection === "batch"
                       : !!item.batchOpen;
@@ -4404,7 +4402,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         className={[
                           "rounded-xl border border-sky-200 bg-sky-50/70 p-2",
                           focused
-                            ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
+                            ? "max-h-none min-w-0 max-w-full overflow-x-hidden p-3"
                             : "mb-2",
                         ].join(" ")}
                       >
@@ -4449,58 +4447,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           buttonDisabled={
                             buttonDisabled || isUpdating || !sourceAvailableForOutput
                           }
-                          liveSectionTitle="Live preview edits"
-                          liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                          liveSectionTitle="Live Preview Edits"
+                          liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
                           livePreviewLeadTitle="Post-processing"
-                          livePreviewLead={
-                            appearanceControls || item.layers?.length ? (
-                              <div className="grid gap-2">
-                                {appearanceControls}
-                                {item.layers?.length ? (
-                                  <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                    <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                      Layer colors
-                                    </p>
-                                    <LayerPaletteEditor
-                                      item={item}
-                                      onColorChange={(layerId, color) =>
-                                        setHistoryLayer(item.stamp, layerId, {
-                                          color,
-                                        })
-                                      }
-                                      onVisibilityChange={(layerId, visible) =>
-                                        setHistoryLayer(item.stamp, layerId, {
-                                          visible,
-                                        })
-                                      }
-                                      onOpacityChange={(layerId, opacity) =>
-                                        setHistoryLayer(item.stamp, layerId, {
-                                          opacity,
-                                        })
-                                      }
-                                      onResetLayer={(layerId) =>
-                                        resetHistoryLayer(item.stamp, layerId)
-                                      }
-                                      onResetAll={() =>
-                                        resetAllHistoryLayers(item.stamp)
-                                      }
-                                    />
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null
-                          }
-                          convertSectionTitle="Click to convert"
+                          livePreviewLead={appearanceControls}
+                          convertSectionTitle="Click To Convert"
                           convertSectionDescription={
                             sourceAvailableForOutput
-                              ? "These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
+                              ? "Use Update preview when you are ready. These controls rebuild this output from the original image, so the app does not restart conversion after every slider or color change."
                               : item.sourceFileName
                                 ? `Update preview needs the original source file (${item.sourceFileName}). Copy, download, and batch still use the saved SVG.`
                                 : "Choose the original source image to retrace this output. Copy, download, and batch still use the saved SVG."
                           }
-                          hideOutputLayerStyling={true}
+                          hideOutputLayerStyling={false}
                           focusedEditorMode={focused}
-                          defaultOpenSection="output-appearance"
+                          defaultOpenSection={null}
                           openSection={focused ? focusedSettingsSection : undefined}
                           onOpenSectionChange={
                             focused
@@ -5071,7 +5032,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       {focused && (
                         <div
                           data-focused-editor-workspace="true"
-                          className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:items-start"
+                          className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(300px,390px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)]"
                         >
                           <FocusedEditorPreviewComparison
                             outputSvg={previewData.svg}
@@ -5156,56 +5117,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             buttonDisabled={
                               buttonDisabled || isUpdating || !sourceAvailableForOutput
                             }
-                            liveSectionTitle="Live preview edits"
-                            liveSectionDescription="These settings edit this output card directly. Copy, download, and batch conversion use the current visible SVG."
+                            liveSectionTitle="Live Preview Edits"
+                            liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
                             livePreviewLeadTitle="Post-processing"
-                            livePreviewLead={
-                              appearanceControls || item.layers?.length ? (
-                                <div className="grid gap-2">
-                                  {appearanceControls}
-                                  {item.layers?.length ? (
-                                    <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                      <p className="m-0 mb-2 text-[13px] font-bold text-slate-900">
-                                        Layer colors
-                                      </p>
-                                      <LayerPaletteEditor
-                                        item={item}
-                                        onColorChange={(layerId, color) =>
-                                          setHistoryLayer(item.stamp, layerId, {
-                                            color,
-                                          })
-                                        }
-                                        onVisibilityChange={(layerId, visible) =>
-                                          setHistoryLayer(item.stamp, layerId, {
-                                            visible,
-                                          })
-                                        }
-                                        onOpacityChange={(layerId, opacity) =>
-                                          setHistoryLayer(item.stamp, layerId, {
-                                            opacity,
-                                          })
-                                        }
-                                        onResetLayer={(layerId) =>
-                                          resetHistoryLayer(item.stamp, layerId)
-                                        }
-                                        onResetAll={() =>
-                                          resetAllHistoryLayers(item.stamp)
-                                        }
-                                      />
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ) : null
-                            }
-                            convertSectionTitle="Click to convert"
+                            livePreviewLead={appearanceControls}
+                            convertSectionTitle="Click To Convert"
                             convertSectionDescription={
                               sourceAvailableForOutput
-                                ? "These settings retrace the source image for this output only. Unapplied changes do not affect batch conversion."
+                                ? "Use Update preview when you are ready. These controls rebuild this output from the original image, so the app does not restart conversion after every slider or color change."
                                 : item.sourceFileName
                                   ? `Update preview needs the original source file (${item.sourceFileName}). Copy, download, and batch still use the saved SVG.`
                                   : "Choose the original source image to retrace this output. Copy, download, and batch still use the saved SVG."
                             }
-                            hideOutputLayerStyling={true}
+                            hideOutputLayerStyling={false}
                             updatePreviewLabel={
                               isUpdating ? "Updating..." : "Update preview"
                             }

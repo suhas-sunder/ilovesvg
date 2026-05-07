@@ -162,20 +162,12 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   max-width: 100%;
   min-width: 0;
   overflow-x: clip;
-  scrollbar-gutter: stable;
 }
 
 [data-editor-settings-panel="true"] {
-  scrollbar-gutter: stable;
   contain: layout paint;
   inline-size: 100%;
   justify-self: stretch;
-}
-
-@media (min-width: 1024px) {
-  [data-editor-settings-panel="true"] {
-    inline-size: clamp(340px, 28vw, 430px);
-  }
 }
 
 [data-editor-settings-panel="true"] *,

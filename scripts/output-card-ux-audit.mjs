@@ -46,6 +46,7 @@ const presetIntensity = await read("app/client/lib/converter/presetIntensity.ts"
 const presetSelector = await read("app/client/components/converter/PresetSelector.tsx");
 const presetAdditions = await read("app/client/lib/converter/presetAdditions.ts");
 const vtracerWorker = await read("app/client/workers/vtracer.worker.ts");
+const layerPaletteEditor = await read("app/client/components/svg/LayerPaletteEditor.tsx");
 let bespokeOutputPanel = "";
 try {
   bespokeOutputPanel = await read("app/client/components/converter/BespokeTraceOutputPanel.tsx");
@@ -92,12 +93,33 @@ checks.push(
     assertIncludes(outputPanel, "Reset gap", "shared output panel exposes an internal-gap-only reset"),
     assertIncludes(outputPanel, "outputAppearanceSvgCache", "shared output panel caches finalized post-processed SVGs"),
     assertIncludes(outputPanel, "pruneOutputAppearanceState", "shared output panel prunes removed output appearance state"),
-    assertIncludes(outputPanel, "livePreviewLeadTitle=\"Post-processing\"", "shared focused editor labels live SVG edits as post-processing"),
+    assertIncludes(outputPanel, "livePreviewLeadTitle=\"Post-processing\"", "shared focused editor labels post-processing inside live preview edits"),
+    assertIncludes(outputPanel, "Live Preview Edits", "shared focused editor labels immediate output controls clearly"),
+    assertIncludes(outputPanel, "Click To Convert", "shared focused editor labels source-retrace controls clearly"),
+    assertIncludes(outputPanel, "does not restart conversion after every slider or color change", "shared focused editor explains why update preview is manual"),
+    assertIncludes(outputPanel, 'data-output-polish-group="sticker-border"', "sticker border controls have a named output-polish group"),
+    assertIncludes(outputPanel, "data-output-polish-subcontrols", "expanded output-polish controls use lightweight subcontrol group markers"),
+    assertNotIncludes(outputPanel, 'defaultOpenSection="output-appearance"', "focused editor does not force the post-processing menu open"),
+    assertNotIncludes(outputPanel, "mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2", "output polish groups use dividers instead of nested cards"),
+    assertNotIncludes(outputPanel, "sm:col-span-2 rounded-lg border border-slate-200 bg-white p-2", "internal gap controls do not add another nested card"),
     assertIncludes(outputPanel, "useThrottledCommit", "shared output appearance controls throttle high-frequency SVG edits"),
     assertIncludes(outputPanel, "ThrottledRangeInput", "shared output appearance range controls keep draft values before committing"),
     assertNotIncludes(outputPanel, "onChange={(event) => onChange({ lineWeight", "line weight avoids direct per-event SVG rewrites"),
     assertNotIncludes(outputPanel, "onChange={(event) => onChange({ fillSpread", "fill spread avoids direct per-event SVG rewrites"),
     assertIncludes(advancedSettingsPanel, "useThrottledCommit", "shared advanced settings color/range controls use the draft/commit helper"),
+    assertIncludes(advancedSettingsPanel, "data-settings-section-tone", "settings sections expose category tone markers for visual hierarchy"),
+    assertIncludes(advancedSettingsPanel, "data-settings-top-section-open", "top-level settings groups expose collapsed/open state"),
+    assertIncludes(advancedSettingsPanel, "aria-expanded={open}", "top-level settings groups are accessible accordions"),
+    assertIncludes(advancedSettingsPanel, "React.useState(false)", "top-level settings groups start collapsed"),
+    assertIncludes(advancedSettingsPanel, "Live Preview Edits", "advanced settings labels live preview edits plainly"),
+    assertIncludes(advancedSettingsPanel, "Click To Convert", "advanced settings labels manual retrace controls plainly"),
+    assertIncludes(advancedSettingsPanel, "does not restart conversion after every slider or color change", "advanced settings explain manual Update preview behavior"),
+    assertIncludes(advancedSettingsPanel, "getSettingsSectionToneClasses", "settings category tone classes are centralized"),
+    assertIncludes(advancedSettingsPanel, 'tone="effects"', "output polish section uses an effects category tone"),
+    assertIncludes(advancedSettingsPanel, 'tone="layers"', "layer color section uses a layer category tone"),
+    assertIncludes(advancedSettingsPanel, 'tone="remove"', "color removal sections use a cleanup/removal category tone"),
+    assertIncludes(advancedSettingsPanel, 'tone="export"', "size and export section uses an export category tone"),
+    assertIncludes(advancedSettingsPanel, 'tone="convert"', "retrace settings use a click-to-convert category tone"),
     assertIncludes(svgRecolor, "deferredSettings", "SVG recolor defers expensive preview recoloring while color controls update"),
     assertIncludes(svgRecolor, "deferredPairs", "SVG recolor defers expensive replacement-rule preview updates"),
     assertIncludes(svgRecolor, "recolorSvg(inSvg, settings, pairs)", "SVG recolor copy/download regenerate from committed current state"),
@@ -179,7 +201,8 @@ checks.push(
   assertIncludes(browserSmoke, "openSettingsSectionCount", "browser smoke verifies one settings section is open"),
   assertIncludes(browserSmoke, "batchShortcut", "browser smoke verifies batch settings shortcut behavior"),
   assertIncludes(appCss, "data-output-panel-focused", "CSS contains focused editor parent grid transition"),
-  assertIncludes(appCss, "scrollbar-gutter", "CSS reserves scrollbar space for focused editor/settings stability"),
+  assertNotIncludes(appCss, "scrollbar-gutter: stable", "CSS avoids reserved scrollbar gutters that create focused-editor right-side gaps"),
+  assertNotIncludes(appCss, "inline-size: clamp", "focused editor settings rail does not force a clamp wider than its column"),
   assertIncludes(appCss, "data-settings-section", "CSS constrains settings sections against horizontal drift"),
   assertIncludes(appCss, "focused-editor-enter", "CSS contains smoother focused editor transition"),
   assertIncludes(appCss, "prefers-reduced-motion", "CSS respects reduced motion for editor transitions"),
@@ -199,6 +222,7 @@ checks.push(
   assertIncludes(vtracerWorker, "buildTransparentPixelMask", "VTracer worker builds transparency mask before quantization"),
   assertIncludes(vtracerWorker, "applyTransparentPixelMask", "VTracer worker reapplies transparency mask after quantization"),
   assertIncludes(vtracerWorker, "transparentPixelMask", "layered quantization preserves transparent source pixels"),
+  assertNotIncludes(layerPaletteEditor, "sm:grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto]", "layer palette rows avoid viewport-based grids inside narrow settings rails"),
 );
 
 if (appearance) {

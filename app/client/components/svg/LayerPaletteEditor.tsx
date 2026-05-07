@@ -430,8 +430,8 @@ function LayerPaletteRow({
   }, [colorCommit.cancel, opacityCommit.cancel, resetSignal]);
 
   return (
-    <div className="grid min-w-0 max-w-full gap-2 overflow-x-hidden rounded-md border border-slate-200 bg-white px-2 py-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto] sm:items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+    <div className="grid min-w-0 max-w-full gap-2 overflow-x-hidden rounded-md border border-slate-200 bg-white px-2 py-1.5">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <input
           type="checkbox"
           checked={layer.visible}
@@ -454,13 +454,13 @@ function LayerPaletteRow({
           className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
 
-        <span className="min-w-0 flex-1 truncate text-[12px] text-slate-700">
+        <span className="min-w-0 flex-[1_1_9rem] truncate text-[12px] text-slate-700">
           {layer.label} {layer.originalColor}
         </span>
       </div>
 
       {onOpacityChange && (
-        <label className="grid min-w-0 max-w-full gap-1 text-[11px] text-slate-600 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+        <label className="grid min-w-0 max-w-full gap-1 text-[11px] text-slate-600">
           <span className="shrink-0">Opacity {opacityCommit.draft}%</span>
           <input
             type="range"
