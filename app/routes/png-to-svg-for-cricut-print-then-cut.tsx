@@ -22,6 +22,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
   FullscreenOutputPreview,
@@ -2227,11 +2228,10 @@ function PrintThenCutSettingsFields({
       </Field>
 
       <Field label="Cut line color">
-        <input
-          type="color"
+        <SharedThrottledColorInput
           value={settings.cutLineColor}
-          onChange={(e) =>
-            setSettings((s) => ({ ...s, cutLineColor: e.target.value }))
+          onCommit={(value) =>
+            setSettings((s) => ({ ...s, cutLineColor: value }))
           }
           className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
         />
@@ -2263,13 +2263,12 @@ function PrintThenCutSettingsFields({
           <span className="text-[13px] text-slate-700">
             Add printable border behind artwork
           </span>
-          <input
-            type="color"
+          <SharedThrottledColorInput
             value={settings.printableBorderColor}
-            onChange={(e) =>
+            onCommit={(value) =>
               setSettings((s) => ({
                 ...s,
-                printableBorderColor: e.target.value,
+                printableBorderColor: value,
               }))
             }
             aria-disabled={!settings.includePrintableBorder}

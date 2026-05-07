@@ -126,6 +126,33 @@ export function useThrottledCommit<TValue>({
   );
 }
 
+export function useNativeColorFinalCommit(
+  onCommit: (value: string) => void,
+): React.RefObject<HTMLInputElement | null> {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const onCommitRef = React.useRef(onCommit);
+
+  React.useEffect(() => {
+    onCommitRef.current = onCommit;
+  }, [onCommit]);
+
+  React.useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return undefined;
+
+    const handleNativeChange = () => {
+      onCommitRef.current(input.value);
+    };
+
+    input.addEventListener("change", handleNativeChange);
+    return () => {
+      input.removeEventListener("change", handleNativeChange);
+    };
+  }, []);
+
+  return inputRef;
+}
+
 function defaultNormalize<TValue>(value: TValue): TValue {
   return value;
 }

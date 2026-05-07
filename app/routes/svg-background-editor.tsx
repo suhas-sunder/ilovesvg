@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
@@ -647,13 +648,12 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                       {!settings.transparent && (
                         <>
                           <Field label="Background color">
-                            <input
-                              type="color"
+                            <ThrottledColorInput
                               value={settings.color}
-                              onChange={(e) =>
+                              onCommit={(value) =>
                                 setSettings((s) => ({
                                   ...s,
-                                  color: e.target.value,
+                                  color: value,
                                 }))
                               }
                               className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"

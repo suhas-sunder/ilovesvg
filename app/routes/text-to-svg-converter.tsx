@@ -15,6 +15,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 
 const isServer = typeof document === "undefined";
 
@@ -1253,10 +1254,9 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                       </Field>
 
                       <Field label="Fill">
-                        <input
-                          type="color"
+                        <SharedThrottledColorInput
                           value={fill}
-                          onChange={(e) => setFill(e.target.value)}
+                          onCommit={setFill}
                           className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                         />
                       </Field>
@@ -1357,10 +1357,9 @@ export default function TextToSvgConverter(_: Route.ComponentProps) {
                           <option value="transparent">Transparent</option>
                           <option value="solid">Solid</option>
                         </select>
-                        <input
-                          type="color"
+                        <SharedThrottledColorInput
                           value={bgColor}
-                          onChange={(e) => setBgColor(e.target.value)}
+                          onCommit={setBgColor}
                           aria-disabled={bg !== "solid"}
                           className={[
                             "w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer",

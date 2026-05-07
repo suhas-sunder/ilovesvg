@@ -2452,7 +2452,7 @@ function LayerControlRow({
   index: number;
   onLayerChange: (layerId: string, patch: Partial<LayerState>) => void;
 }) {
-  const COLOR_COMMIT_THROTTLE_MS = 110;
+  const COLOR_COMMIT_THROTTLE_MS = 180;
   const [localColor, setLocalColor] = React.useState(layer.color);
   const latestColorRef = React.useRef(layer.color);
   const lastCommitAtRef = React.useRef(0);
@@ -2494,11 +2494,6 @@ function LayerControlRow({
     const elapsed = now - lastCommitAtRef.current;
     const remaining = COLOR_COMMIT_THROTTLE_MS - elapsed;
 
-    if (remaining <= 0) {
-      commitColorNow(nextColor);
-      return;
-    }
-
     if (timeoutRef.current) {
       return;
     }
@@ -2506,7 +2501,7 @@ function LayerControlRow({
     timeoutRef.current = setTimeout(() => {
       timeoutRef.current = null;
       commitColorNow(latestColorRef.current);
-    }, remaining);
+    }, Math.max(remaining, COLOR_COMMIT_THROTTLE_MS));
   }
 
   function resetLayer() {

@@ -10,6 +10,8 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
+import { useNativeColorFinalCommit } from "~/client/hooks/useThrottledCommit";
 
 /* ========================
    Limits
@@ -1077,6 +1079,11 @@ export default function FreeColorPicker() {
     queueOutputColorCommit(selectedPaletteIndex, cleanHex);
   }
 
+  const outputColorInputRef = useNativeColorFinalCommit((value) => {
+    updateOutputColor(value);
+    flushPendingColorCommit();
+  });
+
   function updateSelectedAlpha(nextAlpha: number) {
     const cleanAlpha = clamp(nextAlpha, 0, 1);
     setAlpha(cleanAlpha);
@@ -1952,6 +1959,7 @@ export default function FreeColorPicker() {
                   </span>
 
                   <input
+                    ref={outputColorInputRef}
                     type="color"
                     value={hexOut}
                     onChange={(e) => updateOutputColor(e.currentTarget.value)}
@@ -2053,13 +2061,11 @@ export default function FreeColorPicker() {
                             Background color
                           </span>
 
-                          <input
-                            type="color"
+                          <ThrottledColorInput
                             value={normalizeHex(backgroundHex) || "#ffffff"}
-                            onChange={(e) => {
-                              backgroundPickerDraftRef.current =
-                                e.currentTarget.value;
-                              setBackgroundHex(e.currentTarget.value);
+                            onCommit={(value) => {
+                              backgroundPickerDraftRef.current = value;
+                              setBackgroundHex(value);
                             }}
                             className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                             aria-label="Replacement background color"

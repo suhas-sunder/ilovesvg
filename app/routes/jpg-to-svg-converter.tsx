@@ -2831,7 +2831,7 @@ function LayerPaletteRow({
   onVisibilityChange: (layerId: string, visible: boolean) => void;
   onResetLayer: (layerId: string) => void;
 }) {
-  const COLOR_COMMIT_THROTTLE_MS = 90;
+  const COLOR_COMMIT_THROTTLE_MS = 180;
 
   const [localColor, setLocalColor] = React.useState(layer.color);
   const latestColorRef = React.useRef(layer.color);
@@ -2871,17 +2871,12 @@ function LayerPaletteRow({
     const elapsed = now - lastCommitAtRef.current;
     const remaining = COLOR_COMMIT_THROTTLE_MS - elapsed;
 
-    if (remaining <= 0) {
-      commitColorNow(nextColor);
-      return;
-    }
-
     if (timeoutRef.current) return;
 
     timeoutRef.current = setTimeout(() => {
       timeoutRef.current = null;
       commitColorNow(latestColorRef.current);
-    }, remaining);
+    }, Math.max(remaining, COLOR_COMMIT_THROTTLE_MS));
   }
 
   return (

@@ -10,7 +10,10 @@ import {
   type SortLayersBy,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
-import { useThrottledCommit } from "~/client/hooks/useThrottledCommit";
+import {
+  useNativeColorFinalCommit,
+  useThrottledCommit,
+} from "~/client/hooks/useThrottledCommit";
 
 type TurnPolicy = "black" | "white" | "left" | "right" | "minority" | "majority";
 type TraceMode = "single" | "layered";
@@ -2110,6 +2113,7 @@ function OutputLayerStyleRow({
 
   const label = layer.label || layer.name || layer.id;
   const original = normalizeColorInput(layer.originalColor || layer.color || "") || normalizedColor;
+  const colorInputRef = useNativeColorFinalCommit(commitColorNow);
 
   return (
     <div className="min-w-0 max-w-full overflow-x-hidden rounded-md border border-slate-100 bg-slate-50 p-2">
@@ -2124,10 +2128,11 @@ function OutputLayerStyleRow({
           aria-label={`Show ${label}`}
         />
         <input
+          ref={colorInputRef}
           type="color"
           value={normalizeColorInput(localColor) || normalizedColor}
           onInput={(event) => queueColorCommit(event.currentTarget.value)}
-          onChange={(event) => commitColorNow(event.currentTarget.value)}
+          onChange={(event) => queueColorCommit(event.currentTarget.value)}
           onPointerUp={() => commitColorNow()}
           onMouseUp={() => commitColorNow()}
           onTouchEnd={() => commitColorNow()}
@@ -2744,7 +2749,8 @@ function ColorInput({
   const controller = useThrottledCommit({
     value: normalizedInitial,
     onCommit,
-    delayMs: 100,
+    delayMs: 180,
+    leading: false,
     normalize,
   });
   const [textValue, setTextValue] = React.useState(normalizedInitial);
@@ -2785,20 +2791,18 @@ function ColorInput({
     const hex = rgbPartsToHex(draft);
     if (hex) schedule(hex);
   }
+  const colorInputRef = useNativeColorFinalCommit(flush);
 
   return (
     <span className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
       <input
+        ref={colorInputRef}
         type="color"
         value={normalizeColorInput(controller.draft) || normalizedInitial}
         disabled={disabled}
         title={title}
         onInput={(event) => schedule(event.currentTarget.value)}
-        onChange={(event) => {
-          const nextValue = event.currentTarget.value;
-          schedule(nextValue);
-          flush(nextValue);
-        }}
+        onChange={(event) => schedule(event.currentTarget.value)}
         onPointerUp={() => flush()}
         onMouseUp={() => flush()}
         onTouchEnd={() => flush()}

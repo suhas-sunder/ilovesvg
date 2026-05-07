@@ -10,6 +10,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 
 /* ========================
    Meta
@@ -498,13 +499,12 @@ export default function SvgToWebpConverter(_: Route.ComponentProps) {
                             <option value="solid">Solid color</option>
                           </select>
 
-                          <input
-                            type="color"
+                          <SharedThrottledColorInput
                             value={settings.bgColor}
-                            onChange={(e) =>
+                            onCommit={(value) =>
                               setSettings((s) => ({
                                 ...s,
-                                bgColor: e.target.value,
+                                bgColor: value,
                               }))
                             }
                             aria-disabled={

@@ -27,7 +27,10 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
-import { useThrottledCommit } from "~/client/hooks/useThrottledCommit";
+import {
+  useNativeColorFinalCommit,
+  useThrottledCommit,
+} from "~/client/hooks/useThrottledCommit";
 
 type OutputVersion<TSettings extends MixedTraceSettings> = {
   svg: string;
@@ -1824,7 +1827,7 @@ function ThrottledRangeInput({
   const controller = useThrottledCommit({
     value: normalize(value) ?? min,
     onCommit: onChange,
-    delayMs: 120,
+    delayMs: 180,
     normalize,
     isEqual: areNumbersEqual,
   });
@@ -1884,6 +1887,7 @@ function ColorInput({
     value: normalizedValue,
     onCommit: onChange,
     delayMs: 120,
+    leading: false,
     normalize,
   });
   const [textValue, setTextValue] = React.useState(normalizedValue);
@@ -1915,6 +1919,7 @@ function ColorInput({
     },
     [controller, normalizedValue, textValue],
   );
+  const colorInputRef = useNativeColorFinalCommit(flushColor);
   const colorValue =
     normalizeHexColor(controller.draft) || normalizedValue;
 
@@ -1925,10 +1930,11 @@ function ColorInput({
       </span>
       <span className="mt-1 flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5">
         <input
+          ref={colorInputRef}
           type="color"
           value={colorValue}
           onInput={(event) => scheduleColor(event.currentTarget.value)}
-          onChange={(event) => flushColor(event.currentTarget.value)}
+          onChange={(event) => scheduleColor(event.currentTarget.value)}
           onPointerUp={() => flushColor()}
           onMouseUp={() => flushColor()}
           onTouchEnd={() => flushColor()}

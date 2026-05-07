@@ -23,6 +23,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -2732,13 +2733,12 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                                   <option value="solid">Solid</option>
                                 </select>
 
-                                <input
-                                  type="color"
+                                <SharedThrottledColorInput
                                   value={tset.bgColor}
-                                  onChange={(e) =>
+                                  onCommit={(value) =>
                                     setTset((s) => ({
                                       ...s,
-                                      bgColor: e.target.value,
+                                      bgColor: value,
                                     }))
                                   }
                                   aria-disabled={tset.bg !== "solid"}
@@ -2788,13 +2788,12 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                               Single color
                             </span>
 
-                            <input
-                              type="color"
+                            <SharedThrottledColorInput
                               value={tset.recolorColor}
-                              onChange={(e) =>
+                              onCommit={(value) =>
                                 setTset((s) => ({
                                   ...s,
-                                  recolorColor: e.target.value,
+                                  recolorColor: value,
                                 }))
                               }
                               aria-disabled={!tset.recolor}
@@ -3062,13 +3061,12 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                         </Field>
 
                         <Field label="Line color">
-                          <input
-                            type="color"
+                          <SharedThrottledColorInput
                             value={iset.lineColor}
-                            onChange={(e) =>
+                            onCommit={(value) =>
                               setIset((s) => ({
                                 ...s,
-                                lineColor: e.target.value,
+                                lineColor: value,
                               }))
                             }
                             className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
@@ -3106,13 +3104,12 @@ export default function EmojiToSvgConverter(_: Route.ComponentProps) {
                               Transparent
                             </span>
 
-                            <input
-                              type="color"
+                            <SharedThrottledColorInput
                               value={iset.bgColor}
-                              onChange={(e) =>
+                              onCommit={(value) =>
                                 setIset((s) => ({
                                   ...s,
-                                  bgColor: e.target.value,
+                                  bgColor: value,
                                 }))
                               }
                               aria-disabled={iset.transparent}

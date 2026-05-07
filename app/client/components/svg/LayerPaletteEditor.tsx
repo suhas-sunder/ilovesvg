@@ -1,5 +1,8 @@
 import * as React from "react";
-import { useThrottledCommit } from "~/client/hooks/useThrottledCommit";
+import {
+  useNativeColorFinalCommit,
+  useThrottledCommit,
+} from "~/client/hooks/useThrottledCommit";
 
 export type SvgLayerKind = "fill" | "stroke";
 
@@ -348,7 +351,7 @@ function LayerPaletteRow({
     "#000000";
   const colorCommit = useThrottledCommit({
     value: safeLayerColor,
-    delayMs: 120,
+    delayMs: 180,
     leading: false,
     normalize: normalizeHexColor,
     onCommit: React.useCallback(
@@ -392,12 +395,15 @@ function LayerPaletteRow({
 
   const handleColorChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      colorCommit.flush(event.currentTarget.value);
+      colorCommit.schedule(event.currentTarget.value);
     },
     [colorCommit],
   );
 
   const flushColor = React.useCallback(() => colorCommit.flush(), [colorCommit]);
+  const colorInputRef = useNativeColorFinalCommit((value) =>
+    colorCommit.flush(value),
+  );
 
   const handleOpacityInput = React.useCallback(
     (event: React.FormEvent<HTMLInputElement>) => {
@@ -435,6 +441,7 @@ function LayerPaletteRow({
         />
 
         <input
+          ref={colorInputRef}
           type="color"
           value={colorCommit.draft}
           onInput={handleColorInput}

@@ -19,6 +19,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
@@ -1661,13 +1662,12 @@ function StickerSettingsFields({
       </Field>
 
       <Field label="Cut line color">
-        <input
-          type="color"
+        <SharedThrottledColorInput
           value={settings.cutLineColor}
-          onChange={(e) =>
+          onCommit={(value) =>
             setSettings((s) => ({
               ...s,
-              cutLineColor: e.target.value,
+              cutLineColor: value,
             }))
           }
           className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
@@ -1747,13 +1747,12 @@ function StickerSettingsFields({
             className="h-4 w-4 accent-[#0b2dff] cursor-pointer"
           />
           <span className="text-[13px] text-slate-700">Transparent</span>
-          <input
-            type="color"
+          <SharedThrottledColorInput
             value={settings.bgColor}
-            onChange={(e) =>
+            onCommit={(value) =>
               setSettings((s) => ({
                 ...s,
-                bgColor: e.target.value,
+                bgColor: value,
               }))
             }
             aria-disabled={settings.transparent}

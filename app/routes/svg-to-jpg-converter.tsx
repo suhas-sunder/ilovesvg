@@ -9,6 +9,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 
 /* ========================
    Meta
@@ -443,13 +444,12 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
                         </Field>
 
                         <Field label="Background color">
-                          <input
-                            type="color"
+                          <SharedThrottledColorInput
                             value={settings.bgColor}
-                            onChange={(e) =>
+                            onCommit={(value) =>
                               setSettings((s) => ({
                                 ...s,
-                                bgColor: e.target.value,
+                                bgColor: value,
                               }))
                             }
                             className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"

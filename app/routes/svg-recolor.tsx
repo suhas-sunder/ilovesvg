@@ -6,6 +6,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
+import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
@@ -573,10 +574,9 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
                               <span className="text-[13px] text-slate-600">
                                 Set all To:
                               </span>
-                              <input
-                                type="color"
+                              <ThrottledColorInput
                                 defaultValue={"#0b2dff"}
-                                onChange={(e) => setAllToColor(e.target.value)}
+                                onCommit={setAllToColor}
                                 className="w-12 h-8 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
                                 title="Set all To to color"
                               />
@@ -695,13 +695,12 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
 
                         {settings.mode === "global" && (
                           <Field label="Global color">
-                            <input
-                              type="color"
+                            <ThrottledColorInput
                               value={settings.globalColor}
-                              onChange={(e) =>
+                              onCommit={(value) =>
                                 setSettings((s) => ({
                                   ...s,
-                                  globalColor: e.target.value,
+                                  globalColor: value,
                                 }))
                               }
                               className="w-14 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
@@ -756,15 +755,14 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
                                           className="w-[160px] max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 font-mono text-[12px]"
                                           placeholder="#000000"
                                         />
-                                        <input
-                                          type="color"
+                                        <ThrottledColorInput
                                           value={normalizeHexOrFallback(
                                             p.from,
                                             "#000000",
                                           )}
-                                          onChange={(e) =>
+                                          onCommit={(value) =>
                                             setPair(p.id, {
-                                              from: e.target.value,
+                                              from: value,
                                             })
                                           }
                                           className="w-10 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
@@ -784,15 +782,14 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
                                           className="w-[160px] max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 font-mono text-[12px]"
                                           placeholder="#0b2dff"
                                         />
-                                        <input
-                                          type="color"
+                                        <ThrottledColorInput
                                           value={normalizeHexOrFallback(
                                             p.to,
                                             "#0b2dff",
                                           )}
-                                          onChange={(e) =>
+                                          onCommit={(value) =>
                                             setPair(p.id, {
-                                              to: e.target.value,
+                                              to: value,
                                             })
                                           }
                                           className="w-10 h-7 rounded-md border border-[#dbe3ef] bg-white cursor-pointer"
@@ -950,13 +947,12 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
                                   </span>
                                 </label>
 
-                                <input
-                                  type="color"
+                                <ThrottledColorInput
                                   value={settings.rootColor}
-                                  onChange={(e) =>
+                                  onCommit={(value) =>
                                     setSettings((s) => ({
                                       ...s,
-                                      rootColor: e.target.value,
+                                      rootColor: value,
                                     }))
                                   }
                                   className={[
@@ -982,13 +978,12 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
 
                         {/* Background controls (single background for output preview + export) */}
                         <Field label="Background">
-                          <input
-                            type="color"
+                          <ThrottledColorInput
                             value={settings.backgroundColor}
-                            onChange={(e) =>
+                            onCommit={(value) =>
                               setSettings((s) => ({
                                 ...s,
-                                backgroundColor: e.target.value,
+                                backgroundColor: value,
                                 includeBackground: true,
                               }))
                             }

@@ -9,6 +9,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 
 /* ========================
    Meta
@@ -969,10 +970,9 @@ function ColorField(props: {
       >
         {props.label}
       </label>
-      <input
-        type="color"
+      <SharedThrottledColorInput
         value={isHex(props.value) ? normalizeHex(props.value) : "#000000"}
-        onChange={(e) => props.onChange(normalizeHex(e.target.value))}
+        onCommit={(value) => props.onChange(normalizeHex(value))}
         className="w-14 h-9 rounded-lg border border-slate-200 bg-white cursor-pointer"
         aria-label={`${props.label} color`}
       />

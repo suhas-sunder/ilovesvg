@@ -9,6 +9,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 
 /* ========================
    Meta
@@ -1281,13 +1282,12 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                               <span className="text-[12px] text-slate-600 min-w-[90px]">
                                 Color
                               </span>
-                              <input
-                                type="color"
+                              <SharedThrottledColorInput
                                 value={settings.demoColor}
-                                onChange={(e) =>
+                                onCommit={(value) =>
                                   setSettings((s) => ({
                                     ...s,
-                                    demoColor: e.target.value,
+                                    demoColor: value,
                                   }))
                                 }
                                 className="h-8 w-12 border border-slate-200 rounded-md bg-white cursor-pointer"
@@ -1309,13 +1309,12 @@ export default function InlineSvgVsImg(_: Route.ComponentProps) {
                               <span className="text-[12px] text-slate-600 min-w-[90px]">
                                 Background
                               </span>
-                              <input
-                                type="color"
+                              <SharedThrottledColorInput
                                 value={settings.demoBg}
-                                onChange={(e) =>
+                                onCommit={(value) =>
                                   setSettings((s) => ({
                                     ...s,
-                                    demoBg: e.target.value,
+                                    demoBg: value,
                                   }))
                                 }
                                 className="h-8 w-12 border border-slate-200 rounded-md bg-white cursor-pointer"

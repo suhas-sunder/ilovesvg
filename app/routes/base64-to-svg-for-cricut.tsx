@@ -17,6 +17,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
+import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 
 /* ========================
@@ -2733,12 +2734,9 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
 
                     {settings.colorMode !== "preserve" && (
                       <Field label="Force color">
-                        <input
-                          type="color"
+                        <SharedThrottledColorInput
                           value={settings.forceColor}
-                          onChange={(event) =>
-                            update("forceColor", event.target.value)
-                          }
+                          onCommit={(value) => update("forceColor", value)}
                           className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white"
                         />
                       </Field>
@@ -2762,12 +2760,9 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
 
                     {settings.backgroundMode === "solid" && (
                       <Field label="Background color">
-                        <input
-                          type="color"
+                        <SharedThrottledColorInput
                           value={settings.backgroundColor}
-                          onChange={(event) =>
-                            update("backgroundColor", event.target.value)
-                          }
+                          onCommit={(value) => update("backgroundColor", value)}
                           className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white"
                         />
                       </Field>
@@ -2945,12 +2940,9 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
                           />
                         </Field>
                         <Field label="Line color">
-                          <input
-                            type="color"
+                          <SharedThrottledColorInput
                             value={settings.lineColor}
-                            onChange={(event) =>
-                              update("lineColor", event.target.value)
-                            }
+                            onCommit={(value) => update("lineColor", value)}
                             className="h-7 w-14 cursor-pointer rounded-md border border-[#dbe3ef] bg-white"
                           />
                         </Field>
