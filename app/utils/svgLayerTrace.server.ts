@@ -277,9 +277,7 @@ export async function createLayeredColorSvg(
         const percent = (count / totalAssignable) * 100;
         return { index, rgb, color: rgbObjectToHex(rgb), count, percent };
       })
-      .filter(
-        (item) => item.count > 0 && item.percent >= safeOptions.minRegionPercent,
-      )
+      .filter((item) => shouldKeepLayerCandidate(item, safeOptions))
       .sort((a, b) => sortLayerItems(a, b, safeOptions.sortLayersBy));
     endTimer(diagnostics, "assignLayerMasks");
 
@@ -821,6 +819,25 @@ function sortLayerItems(
   return b.count - a.count;
 }
 
+function shouldKeepLayerCandidate(
+  item: { rgb: RGB; count: number; percent: number },
+  options: NormalizedLayeredColorSvgOptions,
+): boolean {
+  if (item.count <= 0) return false;
+  if (item.percent >= options.minRegionPercent) return true;
+  if (options.fillStrokeWidth <= 0) return false;
+
+  const detailPercentFloor = Math.min(options.minRegionPercent, 0.035);
+  const isDark = luminance(item.rgb) < 96;
+  const isSaturatedAccent = colorSaturation(item.rgb) >= 42;
+  const isNearBackgroundWhite = isNearWhite(item.rgb);
+  return (
+    item.percent >= detailPercentFloor &&
+    (isDark || isSaturatedAccent) &&
+    !isNearBackgroundWhite
+  );
+}
+
 function seedLayerCentroids(pixels: RGB[], k: number): RGB[] {
   const sorted = [...pixels].sort((a, b) => {
     const lumDiff = luminance(a) - luminance(b);
@@ -1148,6 +1165,10 @@ function colorDistance(a: RGB, b: RGB): number {
 
 function luminance(color: RGB): number {
   return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+}
+
+function colorSaturation(color: RGB): number {
+  return Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
 }
 
 function blendChannel(channel: number, alpha: number, bg: number): number {

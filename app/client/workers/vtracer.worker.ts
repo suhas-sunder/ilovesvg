@@ -23,7 +23,10 @@ import type {
   PaletteDistance,
   TraceLayerMeta,
 } from "~/shared/tracing/types";
-import { injectFillStrokeOutlineGroup } from "../../shared/tracing/fillStrokeSvg";
+import {
+  filterLayeredTraceArtifactPaths,
+  injectFillStrokeOutlineGroup,
+} from "../../shared/tracing/fillStrokeSvg";
 
 type WorkerRequest = {
   id: string;
@@ -399,6 +402,12 @@ function postprocessSvg(
       return `<path${stripAttr(parsed.attrs, "opacity")} opacity="${formatAlpha(
         Number(settings.layerAlpha),
       )}"${parsed.close}`;
+    });
+  }
+
+  if (settings.traceMode === "layered") {
+    svg = filterLayeredTraceArtifactPaths(svg, {
+      fillStrokeColor: settings.fillStrokeColor,
     });
   }
 

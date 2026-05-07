@@ -5,7 +5,11 @@ import {
   hasOutputAppearanceChanges,
   normalizeOutputAppearance,
 } from "../app/client/lib/converter/outputAppearance.ts";
-import { injectFillStrokeOutlineGroup } from "../app/shared/tracing/fillStrokeSvg.ts";
+import {
+  filterFillStrokePathTags,
+  filterLayeredTraceArtifactPaths,
+  injectFillStrokeOutlineGroup,
+} from "../app/shared/tracing/fillStrokeSvg.ts";
 
 function assert(condition, message) {
   if (!condition) {
@@ -80,6 +84,21 @@ assert(
   "sticker border should render behind the original artwork",
 );
 
+const thickSticker = normalizeOutputAppearance({
+  stickerBorderEnabled: true,
+  stickerBorderWidth: 200,
+  stickerBorderColor: "#ff00aa",
+  stickerBorderOpacity: 0.42,
+  stickerBorderJoin: "round",
+});
+assert(thickSticker.stickerBorderWidth === 200, "sticker border thickness should allow 200px");
+assert(thickSticker.stickerBorderOpacity === 0.42, "sticker border opacity should normalize");
+const thickStickerSvg = applyOutputAppearanceToSvg(fixtureSvg, thickSticker, support, {
+  idPrefix: "pp-thick-sticker",
+});
+assertIncludes(thickStickerSvg, 'stroke-width="200"', "sticker border should emit 200px thickness");
+assertIncludes(thickStickerSvg, 'stroke-opacity="0.42"', "sticker border should emit requested opacity");
+
 const shapeStickerFixture =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><rect id="canvas-rect" fill="#ffffff" width="100" height="80"/><circle id="shape-subject" fill="#f97316" cx="50" cy="40" r="16"/></svg>';
 const shapeStickerSupport = detectOutputAppearanceSupport(shapeStickerFixture);
@@ -109,6 +128,7 @@ const gapSvg = applyOutputAppearanceToSvg(
     stickerBorderColor: "#00aaff",
     internalGapFillEnabled: true,
     internalGapFillColor: "#00aaff",
+    internalGapFillOpacity: 0.36,
   },
   support,
   { idPrefix: "pp-gap" },
@@ -116,6 +136,7 @@ const gapSvg = applyOutputAppearanceToSvg(
 assertIncludes(gapSvg, 'data-post-processing="internal-gap-fill"', "internal gap fill group should be emitted when enabled");
 assertIncludes(gapSvg, 'data-gap-fill-shape="true"', "internal gap fill should emit closed subpath fill shapes");
 assertIncludes(gapSvg, 'fill="#00aaff"', "internal gap fill should use the requested gap color");
+assertIncludes(gapSvg, 'opacity="0.36"', "internal gap fill should emit requested opacity");
 assertIncludes(gapSvg, 'id="subject" fill="#f97316"', "internal gap fill should preserve original filled artwork");
 
 const compoundOutlineFixture =
@@ -308,5 +329,61 @@ assert(
   fillStrokeSvg.indexOf('id="subject-fill"') < fillStrokeSvg.indexOf('data-layer-id="fill-stroke-outline"'),
   "fill+stroke outline layer should render above filled artwork",
 );
+
+const tinyFeatureFixture =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path id="canvas" fill="#fff" d="M0 0H1000V1000H0Z"/><path id="subject" fill="#f97316" d="M200 200H700V700H200Z"/><path id="tiny-detail" fill="#0f172a" d="M820 120H828V128H820Z"/><path id="dust" fill="#0f172a" d="M10 10H10.2V10.2H10Z"/></svg>';
+const tinyFeatureStickerSvg = applyOutputAppearanceToSvg(
+  tinyFeatureFixture,
+  {
+    stickerBorderEnabled: true,
+    stickerBorderWidth: 12,
+    stickerBorderColor: "#020617",
+  },
+  detectOutputAppearanceSupport(tinyFeatureFixture),
+  { idPrefix: "pp-tiny-feature" },
+);
+const tinyFeatureStickerGroup = extractGroup(
+  tinyFeatureStickerSvg,
+  'data-post-processing="sticker-border"',
+);
+assertIncludes(tinyFeatureStickerGroup, 'M820 120H828V128H820Z', "sticker border should preserve small intentional details");
+assertNotIncludes(tinyFeatureStickerGroup, 'M10 10H10.2V10.2H10Z', "sticker border should discard subpixel dust artifacts");
+
+const tinyFeatureOutlineSvg = injectFillStrokeOutlineGroup(tinyFeatureFixture, {
+  fillStrokeWidth: 3,
+  fillStrokeColor: "#020617",
+});
+const tinyFeatureOutlineGroup = extractGroup(
+  tinyFeatureOutlineSvg,
+  'data-layer-id="fill-stroke-outline"',
+);
+assertIncludes(tinyFeatureOutlineGroup, 'M820 120H828V128H820Z', "fill+stroke outline should preserve small intentional details");
+assertNotIncludes(tinyFeatureOutlineGroup, 'M10 10H10.2V10.2H10Z', "fill+stroke outline should discard subpixel dust artifacts");
+
+const filteredPathTags = filterFillStrokePathTags(
+  '<path id="tiny-detail" d="M820 120H828V128H820Z"/><path id="dust" d="M10 10H10.2V10.2H10Z"/>',
+  { width: 1000, height: 1000 },
+);
+assertIncludes(filteredPathTags, 'id="tiny-detail"', "server fill+stroke filtering should preserve small details");
+assertNotIncludes(filteredPathTags, 'id="dust"', "server fill+stroke filtering should remove subpixel artifacts");
+
+const layeredArtifactFixture =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path id="body" fill="#f8fafc" d="M220 220H720V720H220Z"/><path id="eye" fill="#020617" d="M380 390C410 390 430 420 430 455C430 490 410 520 380 520C350 520 330 490 330 455C330 420 350 390 380 390Z"/><path id="blue-z" fill="#3b82f6" d="M720 110H760V125H735L760 165H710V150H735L710 110Z"/><path id="blue-dash" fill="#3b82f6" d="M120 120C124 120 128 120 132 120C132 121 132 122 132 123C128 123 124 123 120 123C120 122 120 121 120 120Z"/><path id="edge-chip" fill="#1a355a" d="M0 0C3.63 0 7.26 0 11 0C11 0.99 11 1.98 11 3C7.37 3 3.74 3 0 3C0 2.01 0 1.02 0 0Z"/><path id="neutral-chip" fill="#b4bfcd" d="M0 0C4.62 0 9.24 0 14 0C14 0.99 14 1.98 14 3C9.38 3 4.76 3 0 3C0 2.01 0 1.02 0 0Z"/><path id="edge-sliver" fill="#050f1f" d="M725 240C728 240 730 240 732 240L732 315C730 315 728 315 725 315Z"/><path id="halo-sliver" fill="#f8fafc" d="M198 300C201 300 203 301 205 302L204 390C202 390 200 389 198 388Z"/></svg>';
+const filteredLayeredArtifactSvg = filterLayeredTraceArtifactPaths(layeredArtifactFixture);
+assertIncludes(filteredLayeredArtifactSvg, 'id="body"', "layered artifact filter should keep normal filled regions");
+assertIncludes(filteredLayeredArtifactSvg, 'id="eye"', "layered artifact filter should keep meaningful small dark details");
+assertIncludes(filteredLayeredArtifactSvg, 'id="blue-z"', "layered artifact filter should keep saturated decorative marks");
+assertIncludes(filteredLayeredArtifactSvg, 'id="blue-dash"', "layered artifact filter should keep short saturated decorative marks");
+assertNotIncludes(filteredLayeredArtifactSvg, 'id="edge-chip"', "layered artifact filter should remove short dark edge chips");
+assertNotIncludes(filteredLayeredArtifactSvg, 'id="neutral-chip"', "layered artifact filter should remove short neutral edge chips");
+assertNotIncludes(filteredLayeredArtifactSvg, 'id="edge-sliver"', "layered artifact filter should remove skinny dark edge slivers");
+assertNotIncludes(filteredLayeredArtifactSvg, 'id="halo-sliver"', "layered artifact filter should remove skinny light halo slivers");
+
+const fullScaleLayeredArtifactFixture =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254"><path id="body" fill="#f8fafc" d="M220 220H720V720H220Z"/><path id="blue-dash" fill="#3b82f6" d="M120 120C122.64 120 125.28 120 128 120C128 120.99 128 121.98 128 123C125.36 123 122.72 123 120 123C120 122.01 120 121.02 120 120Z"/><path id="pale-chip" fill="#fbf6f2" d="M0 0C1.32 0 2.64 0 4 0C4 0.66 4 1.32 4 2C4.99 2.33 5.98 2.66 7 3C4.69 3 2.38 3 0 3C0 2.01 0 1.02 0 0Z"/></svg>';
+const filteredFullScaleLayeredArtifactSvg = filterLayeredTraceArtifactPaths(fullScaleLayeredArtifactFixture);
+assertIncludes(filteredFullScaleLayeredArtifactSvg, 'id="body"', "full-scale layered artifact filter should keep normal filled regions");
+assertIncludes(filteredFullScaleLayeredArtifactSvg, 'id="blue-dash"', "full-scale layered artifact filter should keep short saturated marks");
+assertNotIncludes(filteredFullScaleLayeredArtifactSvg, 'id="pale-chip"', "full-scale layered artifact filter should remove 8px pale edge chips");
 
 console.log("[post-processing-smoke] ok");

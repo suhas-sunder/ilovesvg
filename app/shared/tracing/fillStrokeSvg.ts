@@ -6,6 +6,10 @@ export type FillStrokeSvgOptions = {
   includeCanvasStroke?: boolean | null;
 };
 
+export type LayeredTraceArtifactFilterOptions = {
+  fillStrokeColor?: string | null;
+};
+
 const DEFAULT_STROKE_COLOR = "#020617";
 const DEFAULT_LAYER_ID = "fill-stroke-outline";
 const DEFAULT_LAYER_LABEL = "Stroke outline";
@@ -50,6 +54,7 @@ export function injectFillStrokeOutlineGroup(
     if (!fill || !isEnabledFill(fill)) return match;
     if (!/\sd\s*=\s*(["'])(?!\s*\1)[\s\S]*?\1/i.test(rawAttrs)) return match;
     if (!options.includeCanvasStroke && isCanvasBackgroundPath(rawAttrs, viewport)) return match;
+    if (isTraceArtifactPath(rawAttrs, viewport, strokeColor)) return match;
 
     const nextAttrs = buildStrokePathAttrs(rawAttrs);
     const closeToken = String(close || "").includes("/") ? " />" : ">";
@@ -78,11 +83,36 @@ export function filterFillStrokePathTags(
   const safeViewport = normalizeViewport(viewport);
   return String(pathTags || "").replace(
     /<path\b([^>]*?)(\s*\/?)>/gi,
-    (match, attrs = "") =>
-      !options.includeCanvasStroke && isCanvasBackgroundPath(String(attrs || ""), safeViewport)
-        ? ""
-        : match,
+    (match, attrs = "") => {
+      const rawAttrs = String(attrs || "");
+      if (!options.includeCanvasStroke && isCanvasBackgroundPath(rawAttrs, safeViewport)) {
+        return "";
+      }
+      if (isTraceArtifactPath(rawAttrs, safeViewport)) {
+        return "";
+      }
+      return match;
+    },
   );
+}
+
+export function filterLayeredTraceArtifactPaths(
+  svg: string,
+  options: LayeredTraceArtifactFilterOptions = {},
+): string {
+  const source = String(svg || "");
+  const viewport = parseSvgViewport(source);
+  if (!viewport) return source;
+  const strokeColor = options.fillStrokeColor
+    ? normalizeFillStrokeColor(options.fillStrokeColor)
+    : undefined;
+
+  return source.replace(/<path\b([^>]*?)(\s*\/?)>/gi, (match, attrs = "") => {
+    const rawAttrs = String(attrs || "");
+    if (rawAttrs.includes("data-post-processing=")) return match;
+    if (isCanvasBackgroundPath(rawAttrs, viewport)) return match;
+    return isTraceArtifactPath(rawAttrs, viewport, strokeColor) ? "" : match;
+  });
 }
 
 function buildStrokePathAttrs(attrs: string): string {
@@ -233,6 +263,125 @@ function isCanvasBackgroundPath(
   return area / canvasArea >= 0.88;
 }
 
+function isTinyForegroundArtifactPath(
+  attrs: string,
+  viewport: FillStrokeViewport | null,
+): boolean {
+  if (!viewport) return false;
+  const d = String(attrs || "").match(/\sd\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
+  if (!d) return false;
+  const bounds = measurePathBounds(d);
+  if (!bounds) return false;
+
+  const width = Math.max(0, bounds.maxX - bounds.minX);
+  const height = Math.max(0, bounds.maxY - bounds.minY);
+  const maxDimension = Math.max(width, height);
+  const area = width * height;
+  const canvasMax = Math.max(viewport.width, viewport.height);
+  const canvasArea = Math.max(1, viewport.width * viewport.height);
+  const minimumMeaningfulDimension = Math.max(2.5, canvasMax * 0.0035);
+  const minimumMeaningfulArea = Math.max(4, canvasArea * 0.000006);
+
+  return maxDimension < minimumMeaningfulDimension && area < minimumMeaningfulArea;
+}
+
+function isTraceArtifactPath(
+  attrs: string,
+  viewport: FillStrokeViewport | null,
+  fillStrokeColor?: string,
+): boolean {
+  if (!viewport) return false;
+  if (isTinyForegroundArtifactPath(attrs, viewport)) return true;
+  return isSkinnyLayeredEdgeArtifactPath(attrs, viewport, fillStrokeColor);
+}
+
+function isSkinnyLayeredEdgeArtifactPath(
+  attrs: string,
+  viewport: FillStrokeViewport | null,
+  fillStrokeColor?: string,
+): boolean {
+  if (!viewport) return false;
+  const d = String(attrs || "").match(/\sd\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
+  if (!d) return false;
+  const bounds = measurePathBounds(d);
+  if (!bounds) return false;
+
+  const width = Math.max(0, bounds.maxX - bounds.minX);
+  const height = Math.max(0, bounds.maxY - bounds.minY);
+  const major = Math.max(width, height);
+  const minor = Math.min(width, height);
+  const boxArea = width * height;
+  const canvasMax = Math.max(viewport.width, viewport.height);
+  const canvasArea = Math.max(1, viewport.width * viewport.height);
+
+  const minSliverLength = 6;
+  const maxSliverLength = Math.max(72, canvasMax * 0.18);
+  const maxSliverThickness = Math.max(3.5, canvasMax * 0.008);
+  const maxSliverArea = Math.max(32, canvasArea * 0.00085);
+  if (
+    major < minSliverLength ||
+    major > maxSliverLength ||
+    minor > maxSliverThickness ||
+    boxArea > maxSliverArea
+  ) {
+    return false;
+  }
+
+  const fill = readPaint(attrs, "fill") ?? readStyleProperty(attrs, "fill");
+  if (!fill || !isEnabledFill(fill)) return false;
+  const color = parseHexColor(fill);
+  if (!color) return false;
+
+  const saturation = colorSaturation(color);
+  const lightness = colorLightness(color);
+  const isBrightSaturatedAccent = saturation >= 42 && lightness >= 72;
+  if (isBrightSaturatedAccent) return false;
+
+  const aspectRatio = minor > 0 ? major / minor : Number.POSITIVE_INFINITY;
+  const resemblesPaleHalo = lightness >= 220 && saturation <= 34;
+  const minArtifactAspectRatio = resemblesPaleHalo ? 2.1 : 2.6;
+  if (aspectRatio < minArtifactAspectRatio) {
+    return false;
+  }
+
+  const resemblesStroke =
+    lightness <= 90 ||
+    (fillStrokeColor ? hexColorDistance(color, parseHexColor(fillStrokeColor)) <= 48 : false);
+  const resemblesNeutralEdge = saturation <= 34;
+
+  return resemblesStroke || resemblesPaleHalo || resemblesNeutralEdge;
+}
+
+type RgbColor = { r: number; g: number; b: number };
+
+function parseHexColor(value: string | null | undefined): RgbColor | null {
+  const text = String(value || "").trim().toLowerCase();
+  const hex = /^#([0-9a-f]{6})$/.exec(text)?.[1];
+  if (!hex) return null;
+  return {
+    r: Number.parseInt(hex.slice(0, 2), 16),
+    g: Number.parseInt(hex.slice(2, 4), 16),
+    b: Number.parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function colorSaturation(color: RgbColor): number {
+  return Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
+}
+
+function colorLightness(color: RgbColor): number {
+  return (Math.max(color.r, color.g, color.b) + Math.min(color.r, color.g, color.b)) / 2;
+}
+
+function hexColorDistance(a: RgbColor, b: RgbColor | null): number {
+  if (!b) return Number.POSITIVE_INFINITY;
+  return Math.sqrt(
+    (a.r - b.r) * (a.r - b.r) +
+      (a.g - b.g) * (a.g - b.g) +
+      (a.b - b.b) * (a.b - b.b),
+  );
+}
+
 function measurePathBounds(pathData: string):
   | { minX: number; minY: number; maxX: number; maxY: number }
   | null {
@@ -241,20 +390,22 @@ function measurePathBounds(pathData: string):
     .filter(Number.isFinite);
   if (values.length < 4) return null;
 
-  const xs: number[] = [];
-  const ys: number[] = [];
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
   for (let index = 0; index < values.length - 1; index += 2) {
-    xs.push(values[index]);
-    ys.push(values[index + 1]);
+    const x = values[index];
+    const y = values[index + 1];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
   }
-  if (!xs.length || !ys.length) return null;
-
-  return {
-    minX: Math.min(...xs),
-    minY: Math.min(...ys),
-    maxX: Math.max(...xs),
-    maxY: Math.max(...ys),
-  };
+  return Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)
+    ? { minX, minY, maxX, maxY }
+    : null;
 }
 
 function formatNumber(value: number): string {

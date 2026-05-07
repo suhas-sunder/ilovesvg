@@ -1266,12 +1266,14 @@ export function OutputAppearanceControls({
       stickerBorderEnabled: false,
       stickerBorderWidth: DEFAULT_OUTPUT_APPEARANCE.stickerBorderWidth,
       stickerBorderColor: DEFAULT_OUTPUT_APPEARANCE.stickerBorderColor,
+      stickerBorderOpacity: DEFAULT_OUTPUT_APPEARANCE.stickerBorderOpacity,
       stickerBorderJoin: DEFAULT_OUTPUT_APPEARANCE.stickerBorderJoin,
     });
   const resetInternalGap = () =>
     onChange({
       internalGapFillEnabled: false,
       internalGapFillColor: DEFAULT_OUTPUT_APPEARANCE.internalGapFillColor,
+      internalGapFillOpacity: DEFAULT_OUTPUT_APPEARANCE.internalGapFillOpacity,
     });
   const resetGradient = () =>
     onChange({
@@ -1368,7 +1370,8 @@ export function OutputAppearanceControls({
           <EffectResetButton
             disabled={
               !settings.stickerBorderEnabled &&
-              settings.stickerBorderWidth <= 0.001
+              settings.stickerBorderWidth <= 0.001 &&
+              Math.abs(settings.stickerBorderOpacity - DEFAULT_OUTPUT_APPEARANCE.stickerBorderOpacity) <= 0.001
             }
             onClick={resetSticker}
           />
@@ -1416,10 +1419,20 @@ export function OutputAppearanceControls({
               label="Border thickness"
               value={settings.stickerBorderWidth}
               min={0}
-              max={30}
-              step={0.5}
+              max={200}
+              step={1}
               suffix="px"
               onChange={(value) => onChange({ stickerBorderWidth: value })}
+            />
+            <RangeInput
+              className="sm:col-span-2"
+              label="Border opacity"
+              value={settings.stickerBorderOpacity}
+              min={0}
+              max={1}
+              step={0.05}
+              suffix=""
+              onChange={(value) => onChange({ stickerBorderOpacity: value })}
             />
             <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1432,7 +1445,10 @@ export function OutputAppearanceControls({
                   />
                 </div>
                 <EffectResetButton
-                  disabled={!settings.internalGapFillEnabled}
+                  disabled={
+                    !settings.internalGapFillEnabled &&
+                    Math.abs(settings.internalGapFillOpacity - DEFAULT_OUTPUT_APPEARANCE.internalGapFillOpacity) <= 0.001
+                  }
                   onClick={resetInternalGap}
                   label="Reset gap"
                 />
@@ -1447,11 +1463,20 @@ export function OutputAppearanceControls({
                 </p>
               ) : null}
               {settings.internalGapFillEnabled ? (
-                <div className="mt-2">
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <ColorInput
                     label="Gap fill color"
                     value={settings.internalGapFillColor}
                     onChange={(value) => onChange({ internalGapFillColor: value })}
+                  />
+                  <RangeInput
+                    label="Gap fill opacity"
+                    value={settings.internalGapFillOpacity}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    suffix=""
+                    onChange={(value) => onChange({ internalGapFillOpacity: value })}
                   />
                 </div>
               ) : null}

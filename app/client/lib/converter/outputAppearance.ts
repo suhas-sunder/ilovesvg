@@ -14,9 +14,11 @@ export type OutputAppearanceSettings = {
   stickerBorderEnabled: boolean;
   stickerBorderWidth: number;
   stickerBorderColor: string;
+  stickerBorderOpacity: number;
   stickerBorderJoin: StickerBorderJoin;
   internalGapFillEnabled: boolean;
   internalGapFillColor: string;
+  internalGapFillOpacity: number;
   gradientEnabled: boolean;
   gradientType: GradientFillType;
   gradientStartColor: string;
@@ -65,9 +67,11 @@ export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
   stickerBorderEnabled: false,
   stickerBorderWidth: 0,
   stickerBorderColor: "#ffffff",
+  stickerBorderOpacity: 1,
   stickerBorderJoin: "round",
   internalGapFillEnabled: false,
   internalGapFillColor: "#ffffff",
+  internalGapFillOpacity: 0.96,
   gradientEnabled: false,
   gradientType: "linear",
   gradientStartColor: "#38bdf8",
@@ -98,7 +102,9 @@ const LINE_WEIGHT_MAX = 30;
 const FILL_SPREAD_MIN = 0;
 const FILL_SPREAD_MAX = 30;
 const STICKER_BORDER_MIN = 0;
-const STICKER_BORDER_MAX = 30;
+const STICKER_BORDER_MAX = 200;
+const OUTPUT_OPACITY_MIN = 0;
+const OUTPUT_OPACITY_MAX = 1;
 const GRADIENT_ANGLE_MIN = 0;
 const GRADIENT_ANGLE_MAX = 360;
 const PATTERN_SCALE_MIN = 4;
@@ -137,6 +143,11 @@ export function normalizeOutputAppearance(
       STICKER_BORDER_MAX,
     ),
     stickerBorderColor,
+    stickerBorderOpacity: clampNumber(
+      settings?.stickerBorderOpacity ?? DEFAULT_OUTPUT_APPEARANCE.stickerBorderOpacity,
+      OUTPUT_OPACITY_MIN,
+      OUTPUT_OPACITY_MAX,
+    ),
     stickerBorderJoin: normalizeEnum(
       settings?.stickerBorderJoin,
       ["round", "bevel", "miter"],
@@ -146,6 +157,11 @@ export function normalizeOutputAppearance(
     internalGapFillColor: normalizeHexColor(
       settings?.internalGapFillColor,
       stickerBorderColor,
+    ),
+    internalGapFillOpacity: clampNumber(
+      settings?.internalGapFillOpacity ?? DEFAULT_OUTPUT_APPEARANCE.internalGapFillOpacity,
+      OUTPUT_OPACITY_MIN,
+      OUTPUT_OPACITY_MAX,
     ),
     gradientEnabled: Boolean(settings?.gradientEnabled),
     gradientType: normalizeEnum(
@@ -412,7 +428,11 @@ function applyStickerBorder(
   const paths = buildForegroundShapeClones(sourceSvg);
   if (!paths.length) return targetSvg;
   const groupId = makeUniqueSvgId(targetSvg, `${idPrefix}-sticker-border`);
-  const group = `<g id="${groupId}" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}" stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
+  const opacity =
+    settings.stickerBorderOpacity < 0.999
+      ? ` stroke-opacity="${formatNumber(settings.stickerBorderOpacity)}"`
+      : "";
+  const group = `<g id="${groupId}" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}"${opacity} stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
   return insertAfterOpeningSvgAndDefs(targetSvg, group);
 }
 
@@ -427,7 +447,7 @@ function applyInternalGapFill(
   if (!paths.length) return targetSvg;
   const color = settings.internalGapFillColor || settings.stickerBorderColor;
   const groupId = makeUniqueSvgId(targetSvg, `${idPrefix}-internal-gap-fill`);
-  const group = `<g id="${groupId}" data-post-processing="internal-gap-fill" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(0.5, width * 0.08))}" stroke-linejoin="round" stroke-linecap="round" opacity="0.96" paint-order="stroke fill markers">${paths.join("")}</g>`;
+  const group = `<g id="${groupId}" data-post-processing="internal-gap-fill" fill="${escapeSvgAttribute(color)}" stroke="${escapeSvgAttribute(color)}" stroke-width="${formatNumber(Math.max(0.5, width * 0.08))}" stroke-linejoin="round" stroke-linecap="round" opacity="${formatNumber(settings.internalGapFillOpacity)}" paint-order="stroke fill markers">${paths.join("")}</g>`;
   return insertAfterOpeningSvgAndDefs(targetSvg, group);
 }
 
@@ -445,6 +465,7 @@ function buildInternalGapFillClones(
     if (attrs.includes("data-post-processing=")) continue;
     const d = readAttribute(attrs, "d");
     if (!d || isCanvasBackgroundPath(d, viewport)) continue;
+    if (isTinyForegroundArtifact({ d }, viewport)) continue;
     const fill = readPaint(attrs, "fill") ?? readStyleProperty(attrs, "fill");
     if (!fill || !isPaintEnabled(fill)) continue;
 
@@ -494,6 +515,7 @@ function buildForegroundShapeClones(svg: string): string[] {
     const rawAttrs = String(match[2] || "");
     if (rawAttrs.includes("data-post-processing=")) continue;
     if (isCanvasBackgroundElement(tagName, rawAttrs, viewport)) continue;
+    if (isTinyForegroundArtifact(readElementGeometry(tagName, rawAttrs), viewport)) continue;
     const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
     if (!fill || !isPaintEnabled(fill)) continue;
 
@@ -515,6 +537,7 @@ function hasForegroundFilledPath(svg: string): boolean {
     if (attrs.includes("data-post-processing=")) continue;
     const d = readAttribute(attrs, "d");
     if (!d || isCanvasBackgroundPath(d, viewport)) continue;
+    if (isTinyForegroundArtifact({ d }, viewport)) continue;
     const fill = readPaint(attrs, "fill") ?? readStyleProperty(attrs, "fill");
     if (!fill || !isPaintEnabled(fill)) continue;
     return true;
@@ -581,17 +604,83 @@ function isCanvasBackgroundElement(
       (match) => Number(match[0]),
     );
     if (numbers.length < 8 || numbers.length % 2 !== 0) return false;
-    const xs = numbers.filter((_, index) => index % 2 === 0);
-    const ys = numbers.filter((_, index) => index % 2 === 1);
-    return rectangleMatchesViewport(
-      Math.min(...xs),
-      Math.min(...ys),
-      Math.max(...xs),
-      Math.max(...ys),
-      viewport,
+    const bounds = measureNumberPairBounds(numbers);
+    return Boolean(
+      bounds &&
+        rectangleMatchesViewport(
+          bounds.minX,
+          bounds.minY,
+          bounds.maxX,
+          bounds.maxY,
+          viewport,
+        ),
     );
   }
   return false;
+}
+
+type SvgBounds = { minX: number; minY: number; maxX: number; maxY: number };
+type ForegroundGeometry = { d?: string; bounds?: SvgBounds | null };
+
+function readElementGeometry(tagName: string, attrs: string): ForegroundGeometry {
+  if (tagName === "path") {
+    return { d: readAttribute(attrs, "d") || "" };
+  }
+
+  if (tagName === "rect") {
+    const x = parseSvgNumber(readAttribute(attrs, "x") || "") ?? 0;
+    const y = parseSvgNumber(readAttribute(attrs, "y") || "") ?? 0;
+    const width = parseSvgNumber(readAttribute(attrs, "width") || "") ?? 0;
+    const height = parseSvgNumber(readAttribute(attrs, "height") || "") ?? 0;
+    return width > 0 && height > 0
+      ? { bounds: { minX: x, minY: y, maxX: x + width, maxY: y + height } }
+      : {};
+  }
+
+  if (tagName === "circle") {
+    const cx = parseSvgNumber(readAttribute(attrs, "cx") || "") ?? 0;
+    const cy = parseSvgNumber(readAttribute(attrs, "cy") || "") ?? 0;
+    const r = parseSvgNumber(readAttribute(attrs, "r") || "") ?? 0;
+    return r > 0
+      ? { bounds: { minX: cx - r, minY: cy - r, maxX: cx + r, maxY: cy + r } }
+      : {};
+  }
+
+  if (tagName === "ellipse") {
+    const cx = parseSvgNumber(readAttribute(attrs, "cx") || "") ?? 0;
+    const cy = parseSvgNumber(readAttribute(attrs, "cy") || "") ?? 0;
+    const rx = parseSvgNumber(readAttribute(attrs, "rx") || "") ?? 0;
+    const ry = parseSvgNumber(readAttribute(attrs, "ry") || "") ?? 0;
+    return rx > 0 && ry > 0
+      ? { bounds: { minX: cx - rx, minY: cy - ry, maxX: cx + rx, maxY: cy + ry } }
+      : {};
+  }
+
+  if (tagName === "polygon") {
+    return { bounds: measurePointListBounds(readAttribute(attrs, "points") || "") };
+  }
+
+  return {};
+}
+
+function isTinyForegroundArtifact(
+  geometry: ForegroundGeometry,
+  viewport: { x: number; y: number; width: number; height: number } | null,
+): boolean {
+  if (!viewport) return false;
+  const bounds = geometry.bounds ?? (geometry.d ? measurePathBounds(geometry.d) : null);
+  if (!bounds) return false;
+
+  const width = Math.max(0, bounds.maxX - bounds.minX);
+  const height = Math.max(0, bounds.maxY - bounds.minY);
+  const maxDimension = Math.max(width, height);
+  const area = width * height;
+  const canvasMax = Math.max(viewport.width, viewport.height);
+  const canvasArea = Math.max(1, viewport.width * viewport.height);
+  const minimumMeaningfulDimension = Math.max(2.5, canvasMax * 0.0035);
+  const minimumMeaningfulArea = Math.max(4, canvasArea * 0.000006);
+
+  return maxDimension < minimumMeaningfulDimension && area < minimumMeaningfulArea;
 }
 
 function applyGradientFill(
@@ -938,15 +1027,52 @@ function isCanvasBackgroundPath(
     (match) => Number(match[0]),
   );
   if (numbers.length < 8 || numbers.length % 2 !== 0) return false;
-  const xs = numbers.filter((_, index) => index % 2 === 0);
-  const ys = numbers.filter((_, index) => index % 2 === 1);
-  return rectangleMatchesViewport(
-    Math.min(...xs),
-    Math.min(...ys),
-    Math.max(...xs),
-    Math.max(...ys),
-    viewport,
+  const bounds = measureNumberPairBounds(numbers);
+  return Boolean(
+    bounds &&
+      rectangleMatchesViewport(
+        bounds.minX,
+        bounds.minY,
+        bounds.maxX,
+        bounds.maxY,
+        viewport,
+      ),
   );
+}
+
+function measurePathBounds(pathData: string): SvgBounds | null {
+  const values = [...String(pathData || "").matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)]
+    .map((match) => Number(match[0]))
+    .filter(Number.isFinite);
+  if (values.length < 4) return null;
+  return measureNumberPairBounds(values);
+}
+
+function measurePointListBounds(points: string): SvgBounds | null {
+  const values = [...String(points || "").matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)]
+    .map((match) => Number(match[0]))
+    .filter(Number.isFinite);
+  if (values.length < 4 || values.length % 2 !== 0) return null;
+  return measureNumberPairBounds(values);
+}
+
+function measureNumberPairBounds(values: number[]): SvgBounds | null {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (let index = 0; index < values.length - 1; index += 2) {
+    const x = values[index];
+    const y = values[index + 1];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)
+    ? { minX, minY, maxX, maxY }
+    : null;
 }
 
 function rectangleMatchesViewport(
