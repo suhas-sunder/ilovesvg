@@ -249,7 +249,7 @@ export default function ProWaitlist() {
     setSubmitState("sending");
     setStatusMessage("Sending your request...");
 
-    const payload = {
+    const payload: Record<string, string | boolean> = {
       access_key: WEB3FORMS_ACCESS_KEY,
       subject: "New iLoveSVG Pro waitlist signup",
       from_name: "iLoveSVG",
@@ -258,18 +258,24 @@ export default function ProWaitlist() {
       form_type: "pro_waitlist",
       name: submissionLabel || buildSubmissionLabel(),
       email: trimmed.email,
-      use_case: trimmed.useCase,
-      expected_usage: trimmed.expectedUsage,
-      most_wanted_feature: trimmed.mostWantedFeature,
-      country_or_region: trimmed.countryOrRegion,
-      message: trimmed.message,
       submitted_at: new Date().toISOString(),
       marketing_consent: trimmed.marketingConsent ? "yes" : "no",
-      marketing_consent_text: MARKETING_CONSENT_TEXT,
       source_url: getSourceUrl(),
       referrer_path: getReferrerPath(),
       botcheck: false,
     };
+    appendOptionalPayloadField(payload, "use_case", trimmed.useCase);
+    appendOptionalPayloadField(payload, "expected_usage", trimmed.expectedUsage);
+    appendOptionalPayloadField(
+      payload,
+      "most_wanted_feature",
+      trimmed.mostWantedFeature,
+    );
+    appendOptionalPayloadField(payload, "country_or_region", trimmed.countryOrRegion);
+    appendOptionalPayloadField(payload, "message", trimmed.message);
+    if (trimmed.marketingConsent) {
+      payload.marketing_consent_text = MARKETING_CONSENT_TEXT;
+    }
 
     try {
       const response = await fetch(WEB3FORMS_ENDPOINT, {
@@ -950,6 +956,16 @@ function validateForm(values: FormValues): FormErrors {
   }
 
   return nextErrors;
+}
+
+function appendOptionalPayloadField(
+  payload: Record<string, string | boolean>,
+  key: string,
+  value: string,
+) {
+  if (value) {
+    payload[key] = value;
+  }
 }
 
 function buildSubmissionLabel() {

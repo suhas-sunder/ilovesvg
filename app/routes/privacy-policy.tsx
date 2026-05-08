@@ -251,8 +251,9 @@ export default function PrivacyPolicy() {
                   Users can submit an email address to request iLoveSVG Pro
                   early access. The waitlist form may collect your email,
                   optional use case, optional expected usage, optional message,
-                  optional country or region if you enter it, consent preference,
-                  timestamp, and page/source metadata.
+                  optional country or region if your browser autofills it or
+                  you enter it, consent preference, timestamp, and page/source
+                  metadata.
                 </p>
                 <p>
                   We use this information to respond about early access,

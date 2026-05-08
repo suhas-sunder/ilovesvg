@@ -42,6 +42,7 @@ async function main() {
     layouts: [],
     validation: null,
     success: null,
+    minimal: null,
     error: null,
     consoleMessages: [],
   };
@@ -72,6 +73,13 @@ async function main() {
       await successClient.close().catch(() => {});
     }
 
+    const minimalClient = await openPage(waitlistPath, 390, 900, "success");
+    try {
+      results.minimal = await checkMinimalSubmission(minimalClient);
+    } finally {
+      await minimalClient.close().catch(() => {});
+    }
+
     const errorClient = await openPage(waitlistPath, 390, 900, "error");
     try {
       results.error = await checkSubmission(errorClient, "error");
@@ -93,6 +101,7 @@ async function main() {
     ...results.layouts.filter((result) => !result.ok),
     ...(results.validation?.ok === false ? [results.validation] : []),
     ...(results.success?.ok === false ? [results.success] : []),
+    ...(results.minimal?.ok === false ? [results.minimal] : []),
     ...(results.error?.ok === false ? [results.error] : []),
   ];
   const badConsoleMessages = results.consoleMessages.filter((message) =>
@@ -154,6 +163,7 @@ async function checkLayout(client, width) {
       hasHiddenGeneratedName: Boolean(hiddenName && /^Waitlist Signup wls_[a-z0-9]+$/.test(hiddenName.value)),
       marketingChecked: Boolean(checkbox?.checked),
       honeypotHidden: Boolean(honeypot && honeypotStyle?.display === "none"),
+      hasCountryField: Boolean(document.querySelector('#waitlist-country')),
       hasCountryValue: Boolean(document.querySelector('#waitlist-country')?.value),
       scrollWidth: document.documentElement.scrollWidth,
       overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
@@ -177,6 +187,7 @@ async function checkLayout(client, width) {
       state.hasHiddenGeneratedName === true &&
       state.marketingChecked === false &&
       state.honeypotHidden === true &&
+      state.hasCountryField === true &&
       state.hasCountryValue === false &&
       !state.overflow,
   };
@@ -266,6 +277,50 @@ async function checkSubmission(client, mode) {
       (expectsReset
         ? state.emailValue === "" && state.marketingChecked === false
         : state.emailValue.trim() === "test@example.com"),
+  };
+}
+
+async function checkMinimalSubmission(client) {
+  await evaluate(client, `(() => {
+    const element = document.querySelector('#waitlist-email');
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    descriptor.set.call(element, ' minimal@example.com ');
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector('form')?.requestSubmit();
+    return true;
+  })()`);
+
+  const state = await waitForValue(
+    client,
+    () => `(() => ({
+      status: document.querySelector('#waitlist-status')?.textContent?.trim() || "",
+      payload: window.__waitlistPayloads?.[0] || null,
+    }))()`,
+    8000,
+    (value) => value?.status.includes("Thanks,") && value?.status.includes("on the waitlist"),
+  );
+
+  const payload = state.payload || {};
+  const omittedKeys = [
+    "use_case",
+    "expected_usage",
+    "most_wanted_feature",
+    "country_or_region",
+    "message",
+    "marketing_consent_text",
+  ];
+
+  return {
+    scenario: "minimal-submission",
+    ...state,
+    omittedKeys,
+    ok:
+      state.status.includes("Thanks,") &&
+      state.status.includes("on the waitlist") &&
+      payload.email === "minimal@example.com" &&
+      payload.marketing_consent === "no" &&
+      omittedKeys.every((key) => !(key in payload)),
   };
 }
 
