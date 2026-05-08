@@ -755,6 +755,8 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     <>
       <main className="bg-slate-50 text-[#0f2537]" onPaste={onPaste}>
         <div className="max-w-[1180px] mx-auto px-4 pb-8">
+          <h1 className="sr-only">SVG Viewer</h1>
+
           <div className="hidden lg:block py-6">
             <AdSenseDelayed
               slot="2090332782"

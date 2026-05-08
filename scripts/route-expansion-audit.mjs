@@ -73,6 +73,15 @@ const redirectRoutes = [
   "/svg-code-cleaner",
 ];
 
+const unsupportedRoutes = [
+  "/heic-to-svg-converter",
+  "/ai-image-to-svg-converter",
+  "/png-background-remover",
+  "/logo-background-remover",
+  "/svg-path-optimizer",
+  "/svg-code-formatter",
+];
+
 const files = {
   routes: await read("app/routes.ts"),
   utilities: await read("app/client/components/navigation/OtherToolsLinks.tsx"),
@@ -81,6 +90,7 @@ const files = {
   xmlSitemap: await read("public/sitemap.xml"),
   capabilities: await read("app/client/lib/converter/routeCapabilities.ts"),
   affiliates: await read("app/client/lib/monetization/affiliateRouteIntents.ts"),
+  affiliateOffers: await read("app/client/lib/monetization/affiliateOffers.ts"),
 };
 
 const failures = [];
@@ -105,6 +115,21 @@ for (const route of redirectRoutes) {
   assertIncludes(files.affiliates, `"${route}":`, `${route} in affiliate intent map`);
   assertNotIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} excluded from XML sitemap`);
 }
+
+for (const route of unsupportedRoutes) {
+  const slug = route.slice(1);
+  await assertNoFile(`app/routes/${slug}.tsx`, `${route} unsupported route file`);
+  assertNotIncludes(files.routes, `route("${slug}"`, `${route} route registration`);
+  assertNotIncludes(files.utilities, `to: "${route}"`, `${route} all-tools registry entry`);
+  assertNotIncludes(files.nav, `href: "${route}"`, `${route} searchable nav entry`);
+  assertNotIncludes(files.htmlSitemap, `path: "${route}"`, `${route} HTML sitemap entry`);
+  assertNotIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} XML sitemap entry`);
+}
+
+assertOfferEnabled(files.affiliateOffers, "printify-product-mockups", true);
+assertOfferEnabled(files.affiliateOffers, "sticker-mule-custom-stickers", true);
+assertOfferEnabled(files.affiliateOffers, "namecheap-domain-hosting", false);
+assertIncludes(files.affiliateOffers, "export const CRICUT_URL = \"\";", "Cricut affiliate URL remains unset");
 
 assertNoDuplicateJsonLd("FAQPage", files.utilities, "OtherToolsLinks FAQ schema");
 assertNoDuplicateRouteUtility(indexableRoutes, files.utilities);
@@ -143,6 +168,15 @@ async function assertFile(relativePath, label) {
   }
 }
 
+async function assertNoFile(relativePath, label) {
+  try {
+    await fs.access(path.join(rootDir, relativePath));
+    failures.push(`${label} should not be present`);
+  } catch {
+    // Expected for unsupported routes.
+  }
+}
+
 function assertIncludes(text, needle, label) {
   if (!text.includes(needle)) {
     failures.push(`${label} missing`);
@@ -152,6 +186,25 @@ function assertIncludes(text, needle, label) {
 function assertNotIncludes(text, needle, label) {
   if (text.includes(needle)) {
     failures.push(`${label} should not be present`);
+  }
+}
+
+function assertOfferEnabled(text, offerId, expectedEnabled) {
+  const escapedOfferId = offerId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = text.match(
+    new RegExp(`id:\\s*"${escapedOfferId}"[\\s\\S]*?enabled:\\s*(true|false)`),
+  );
+
+  if (!match) {
+    failures.push(`${offerId} offer block missing enabled flag`);
+    return;
+  }
+
+  const actualEnabled = match[1] === "true";
+  if (actualEnabled !== expectedEnabled) {
+    failures.push(
+      `${offerId} enabled expected ${expectedEnabled} but found ${actualEnabled}`,
+    );
   }
 }
 

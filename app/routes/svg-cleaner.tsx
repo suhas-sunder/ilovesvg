@@ -3,7 +3,7 @@ import type { Route } from "./+types/svg-cleaner";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
@@ -446,9 +446,12 @@ export default function SvgCleaner(_: Route.ComponentProps) {
     });
   }
 
+  const { pathname } = useLocation();
+  const cleanerPath = normalizeCleanerPath(pathname);
+  const cleanerTitle = getCleanerBreadcrumbTitle(cleanerPath);
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG Cleaner", href: "/svg-cleaner" },
+    { name: cleanerTitle, href: cleanerPath },
   ];
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -1082,7 +1085,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
       </div>
       <ContextualAffiliateCard />
       <SeoSections />
-      <JsonLdBreadcrumbs />
+      <JsonLdBreadcrumbs crumbs={crumbs} />
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1676,21 +1679,22 @@ function Breadcrumbs({
   );
 }
 
-function JsonLdBreadcrumbs() {
+function JsonLdBreadcrumbs({
+  crumbs,
+}: {
+  crumbs: Array<{ name: string; href: string }>;
+}) {
   const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "SVG Cleaner",
-        item: `${baseUrl}/svg-cleaner`,
-      },
-    ],
+    itemListElement: crumbs.map((crumb, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: crumb.name,
+      item: `${baseUrl}${crumb.href === "/" ? "" : crumb.href}`,
+    })),
   };
 
   return (
@@ -1701,6 +1705,28 @@ function JsonLdBreadcrumbs() {
       }}
     />
   );
+}
+
+function normalizeCleanerPath(pathname: string) {
+  const cleanPath = pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+  if (
+    cleanPath === "/svg-cleaner-for-figma" ||
+    cleanPath === "/svg-cleaner-for-glowforge" ||
+    cleanPath === "/svg-cleaner-for-silhouette"
+  ) {
+    return cleanPath;
+  }
+
+  return "/svg-cleaner";
+}
+
+function getCleanerBreadcrumbTitle(pathname: string) {
+  if (pathname === "/svg-cleaner-for-figma") return "SVG Cleaner for Figma";
+  if (pathname === "/svg-cleaner-for-glowforge")
+    return "SVG Cleaner for Glowforge";
+  if (pathname === "/svg-cleaner-for-silhouette")
+    return "SVG Cleaner for Silhouette";
+  return "SVG Cleaner";
 }
 
 type FaqItem = { q: string; a: string };
@@ -2168,8 +2194,6 @@ function SeoSections() {
         </article>
       </div>
 
-      {/* Keep your other JSON-LD separate if you want */}
-      <JsonLdBreadcrumbs />
     </section>
   );
 }

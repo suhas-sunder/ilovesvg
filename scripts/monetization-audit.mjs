@@ -206,8 +206,8 @@ function runWaterfallSelectionTests() {
   });
   assert.deepEqual(
     relevant.map((offer) => offer.id),
-    ["printify-product-mockups", "sticker-mule-custom-stickers"],
-    "sticker route keeps the first two relevant offers in priority order",
+    ["sticker-mule-custom-stickers", "printify-product-mockups"],
+    "sticker and print routes prioritize Sticker Mule before Printify",
   );
 
   assert.equal(
@@ -250,13 +250,13 @@ function runWaterfallSelectionTests() {
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).selectedOffer?.id,
-    "printify-product-mockups",
+    "sticker-mule-custom-stickers",
     "one relevant affiliate shows before AdSense",
   );
 
   const timedOutFirst = stateFor([
     entry({
-      offerId: "printify-product-mockups",
+      offerId: "sticker-mule-custom-stickers",
       routeContext: "/png-to-svg-for-cricut-stickers",
       viewCount: 5,
       timedOut: true,
@@ -269,19 +269,19 @@ function runWaterfallSelectionTests() {
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).selectedOffer?.id,
-    "sticker-mule-custom-stickers",
+    "printify-product-mockups",
     "timed-out offer 1 advances to offer 2",
   );
 
   const timedOutBoth = stateFor([
     entry({
-      offerId: "printify-product-mockups",
+      offerId: "sticker-mule-custom-stickers",
       routeContext: "/png-to-svg-for-cricut-stickers",
       viewCount: 5,
       timedOut: true,
     }),
     entry({
-      offerId: "sticker-mule-custom-stickers",
+      offerId: "printify-product-mockups",
       routeContext: "/png-to-svg-for-cricut-stickers",
       clicked: true,
       timedOut: true,
@@ -340,8 +340,8 @@ function runRouteRelevanceTests() {
         ),
       })
       .some((offer) => offer.id === "namecheap-domain-hosting"),
-    true,
-    "web design SVG utilities can show Namecheap",
+    false,
+    "Namecheap stays inactive even on web design SVG utilities",
   );
 
   assert.deepEqual(
@@ -349,6 +349,51 @@ function runRouteRelevanceTests() {
     ["general-svg-conversion"],
     "unknown routes use conservative fallback categories",
   );
+
+  assert.deepEqual(
+    offers
+      .getRelevantAffiliateOffers({
+        offers: offers.AFFILIATE_OFFERS,
+        routeCategories: routeIntents.getAffiliateRouteCategories(
+          "/sticker-to-png-for-printing",
+        ),
+      })
+      .map((offer) => offer.id),
+    ["sticker-mule-custom-stickers", "printify-product-mockups"],
+    "sticker printing routes prioritize Sticker Mule before Printify",
+  );
+
+  assert.deepEqual(
+    offers
+      .getRelevantAffiliateOffers({
+        offers: offers.AFFILIATE_OFFERS,
+        routeCategories: routeIntents.getAffiliateRouteCategories(
+          "/svg-to-png-for-printify",
+        ),
+      })
+      .map((offer) => offer.id),
+    ["printify-product-mockups"],
+    "Printify-specific routes can show the Printify offer",
+  );
+
+  for (const route of [
+    "/svg-to-png-for-printful",
+    "/png-to-svg-for-glowforge",
+    "/jpg-to-svg-for-silhouette",
+    "/svg-cleaner-for-figma",
+    "/svg-to-jsx-converter",
+  ]) {
+    assert.deepEqual(
+      offers
+        .getRelevantAffiliateOffers({
+          offers: offers.AFFILIATE_OFFERS,
+          routeCategories: routeIntents.getAffiliateRouteCategories(route),
+        })
+        .map((offer) => offer.id),
+      [],
+      `${route} does not show irrelevant affiliate offers`,
+    );
+  }
 }
 
 function runVisibilityTests() {
@@ -467,10 +512,35 @@ function runClickAndSuppressionTests() {
   assert.equal(clicked?.timedOut, true, "actual affiliate link click times out");
 }
 
+function runActiveAffiliateTests() {
+  const activeOfferIds = offers.AFFILIATE_OFFERS.filter((offer) =>
+    offers.isValidAffiliateOffer(offer),
+  ).map((offer) => offer.id);
+
+  assert.deepEqual(
+    activeOfferIds,
+    ["printify-product-mockups", "sticker-mule-custom-stickers"],
+    "only Printify and Sticker Mule are active affiliate offers",
+  );
+
+  assert.equal(
+    activeOfferIds.includes("namecheap-domain-hosting"),
+    false,
+    "Namecheap is not active",
+  );
+
+  assert.equal(
+    activeOfferIds.includes("cricut-project-workflow"),
+    false,
+    "Cricut is not active",
+  );
+}
+
 runStorageParserTests();
 runWaterfallSelectionTests();
 runRouteRelevanceTests();
 runVisibilityTests();
 runClickAndSuppressionTests();
+runActiveAffiliateTests();
 
 console.log("[monetization-audit] all checks passed");

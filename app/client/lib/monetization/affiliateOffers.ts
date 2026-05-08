@@ -53,7 +53,7 @@ export const AFFILIATE_OFFERS: AffiliateOffer[] = [
     href: STICKER_MULE_URL,
     categories: ["stickers", "print-then-cut", "silhouette-vinyl"],
     enabled: true,
-    priority: 20,
+    priority: 5,
   },
   {
     id: "namecheap-domain-hosting",
@@ -61,7 +61,7 @@ export const AFFILIATE_OFFERS: AffiliateOffer[] = [
     label: "Namecheap domains and hosting",
     href: NAMECHEAP_URL,
     categories: ["web-design", "ecommerce-selling", "logo-icon"],
-    enabled: true,
+    enabled: false,
     priority: 30,
   },
   {

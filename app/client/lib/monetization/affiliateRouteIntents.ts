@@ -183,7 +183,7 @@ export const ROUTE_AFFILIATE_INTENTS: Record<string, AffiliateCategory[]> = {
   "/svg-to-png-for-printify": ["print-on-demand", "ecommerce-selling"],
   "/svg-to-png-for-printful": ["technical-utility"],
   "/sticker-to-png-for-printing": ["stickers", "print-on-demand"],
-  "/svg-to-transparent-png-for-printing": ["print-on-demand"],
+  "/svg-to-transparent-png-for-printing": ["stickers", "print-on-demand"],
   "/png-to-svg-for-glowforge": ["technical-utility"],
   "/jpg-to-svg-for-glowforge": ["technical-utility"],
   "/logo-to-svg-for-glowforge": ["technical-utility"],
