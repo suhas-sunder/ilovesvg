@@ -5,7 +5,7 @@ import {
 } from "./affiliateOffers";
 import type { AffiliateCategory } from "./affiliateRouteIntents";
 import {
-  shouldSuppressAffiliateForViewport,
+  shouldSuppressAdsenseFallbackForViewport,
   AFFILIATE_MOBILE_SUPPRESSION_BREAKPOINT_PX,
 } from "./affiliateResponsive";
 import { selectAffiliateWaterfallOffer } from "./affiliateWaterfallSelection";
@@ -67,13 +67,7 @@ export function useAffiliateWaterfall({
     setState(readCurrentState());
 
     const updateMobileLayout = () => {
-      setIsMobileLayout(
-        shouldSuppressAffiliateForViewport({
-          viewportWidth: window.innerWidth,
-          suppressAffiliateOnMobileWhenAdjacentAdExists: true,
-          breakpointPx: mobileBreakpointPx,
-        }),
-      );
+      setIsMobileLayout(window.innerWidth < mobileBreakpointPx);
     };
 
     updateMobileLayout();
@@ -100,16 +94,16 @@ export function useAffiliateWaterfall({
     [offers, routeCategories],
   );
 
-  const shouldSuppressAffiliate =
+  const shouldSuppressAdsenseFallback =
     isReady &&
-    shouldSuppressAffiliateForViewport({
+    shouldSuppressAdsenseFallbackForViewport({
       viewportWidth: isMobileLayout ? mobileBreakpointPx - 1 : mobileBreakpointPx,
       suppressAffiliateOnMobileWhenAdjacentAdExists,
       breakpointPx: mobileBreakpointPx,
     });
 
   const selection = React.useMemo(() => {
-    if (!isReady || shouldSuppressAffiliate) {
+    if (!isReady) {
       return {
         selectedOffer: null,
         shouldShowAdsense: false,
@@ -126,7 +120,6 @@ export function useAffiliateWaterfall({
     isReady,
     relevantOffers,
     routeContext,
-    shouldSuppressAffiliate,
     slotId,
     state,
   ]);
@@ -151,7 +144,7 @@ export function useAffiliateWaterfall({
 
   const trackAffiliateClick = React.useCallback(
     (offerId?: string) => {
-      if (!isReady || shouldSuppressAffiliate) return;
+      if (!isReady) return;
 
       const selectedOfferId = offerId ?? selection.selectedOffer?.id;
       if (!selectedOfferId) return;
@@ -168,14 +161,13 @@ export function useAffiliateWaterfall({
       refreshState,
       routeContext,
       selection.selectedOffer?.id,
-      shouldSuppressAffiliate,
       slotId,
     ],
   );
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!isReady || shouldSuppressAffiliate) return;
+    if (!isReady) return;
     const selectedOffer = selection.selectedOffer;
     if (!selectedOffer || !bannerElement) return;
     if (selectedOfferTimedOut) return;
@@ -216,7 +208,6 @@ export function useAffiliateWaterfall({
     routeContext,
     selectedOfferTimedOut,
     selection.selectedOffer,
-    shouldSuppressAffiliate,
     slotId,
   ]);
 
@@ -224,7 +215,7 @@ export function useAffiliateWaterfall({
     selectedOffer: selection.selectedOffer,
     relevantOffers,
     shouldShowAdsense: selection.shouldShowAdsense,
-    shouldSuppressAffiliate,
+    shouldSuppressAdsenseFallback,
     registerBannerElement,
     trackAffiliateClick,
     isReady,

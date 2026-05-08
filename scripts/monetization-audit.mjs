@@ -431,30 +431,30 @@ function runVisibilityTests() {
 
 function runClickAndSuppressionTests() {
   assert.equal(
-    responsive.shouldSuppressAffiliateForViewport({
+    responsive.shouldSuppressAdsenseFallbackForViewport({
       viewportWidth: 390,
       suppressAffiliateOnMobileWhenAdjacentAdExists: true,
     }),
     true,
-    "mobile width with adjacent ad suppresses affiliate",
+    "mobile width with adjacent ad suppresses contextual AdSense fallback",
   );
 
   assert.equal(
-    responsive.shouldSuppressAffiliateForViewport({
+    responsive.shouldSuppressAdsenseFallbackForViewport({
       viewportWidth: 768,
       suppressAffiliateOnMobileWhenAdjacentAdExists: true,
     }),
     true,
-    "768px boundary still suppresses because the adjacent mobile ad is lg:hidden",
+    "768px boundary still suppresses contextual AdSense fallback because the adjacent mobile ad is lg:hidden",
   );
 
   assert.equal(
-    responsive.shouldSuppressAffiliateForViewport({
+    responsive.shouldSuppressAdsenseFallbackForViewport({
       viewportWidth: 1024,
       suppressAffiliateOnMobileWhenAdjacentAdExists: true,
     }),
     false,
-    "1024px desktop boundary keeps the affiliate waterfall visible",
+    "1024px desktop boundary keeps contextual AdSense fallback available",
   );
 
   const clickStore = new MemoryStorage();

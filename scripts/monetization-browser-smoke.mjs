@@ -8,7 +8,8 @@ import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 const baseUrl = getSmokeBaseUrl();
 const debugPort = Number(process.env.CDP_PORT || 9241);
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const tmpDir = path.join(os.tmpdir(), "ilovesvg-monetization-browser-smoke", String(debugPort));
+const runId = `${debugPort}-${process.pid}-${Date.now()}`;
+const tmpDir = path.join(os.tmpdir(), "ilovesvg-monetization-browser-smoke", runId);
 const profileDir = path.join(tmpDir, "profile");
 const storageKey = "ilovesvg:affiliate-waterfall:v1";
 const stickerRoute = "/png-to-svg-for-cricut-stickers";
@@ -41,6 +42,7 @@ async function main() {
     baseUrl,
     checkedAt: new Date().toISOString(),
     browserPath,
+    serverReserve: null,
     mobile: [],
     desktop: [],
     tracking: {},
@@ -49,11 +51,12 @@ async function main() {
 
   try {
     await waitForCdp();
+    results.serverReserve = await checkServerReservedShell();
 
     for (const width of mobileWidths) {
       const client = await openPage(stickerRoute, width, 900);
       try {
-        const result = await checkMobileSuppression(client, width);
+        const result = await checkMobileAffiliate(client, width);
         results.mobile.push(result);
       } finally {
         await client.close().catch(() => {});
@@ -88,6 +91,7 @@ async function main() {
   }
 
   const failures = [
+    ...(results.serverReserve?.ok === false ? [results.serverReserve] : []),
     ...results.mobile.filter((result) => !result.ok),
     ...results.desktop.filter((result) => !result.ok),
   ];
@@ -111,7 +115,28 @@ async function main() {
   }
 }
 
-async function checkMobileSuppression(client, width) {
+async function checkServerReservedShell() {
+  const response = await fetch(`${baseUrl}${stickerRoute}`);
+  const html = await response.text();
+  const hasReserve = html.includes('data-monetization-kind="pending"');
+  const hasSlot = html.includes('data-monetization-slot="converter-below-tool"');
+  const reserveStart = html.indexOf('data-monetization-kind="pending"');
+  const reserveMarkup =
+    reserveStart >= 0
+      ? html.slice(Math.max(0, reserveStart - 500), reserveStart + 500)
+      : "";
+  const mobileHidden =
+    /\bhidden\b/.test(reserveMarkup) && /\blg:block\b/.test(reserveMarkup);
+  return {
+    scenario: "server-reserved-shell",
+    hasReserve,
+    hasSlot,
+    mobileHidden,
+    ok: response.ok && hasReserve && hasSlot && !mobileHidden,
+  };
+}
+
+async function checkMobileAffiliate(client, width) {
   await clearAffiliateStorage(client);
   await reload(client);
   await delay(1300);
@@ -120,6 +145,7 @@ async function checkMobileSuppression(client, width) {
     const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
     const slotAdsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
     const ads = Array.from(document.querySelectorAll('[aria-label="Advertisement"]'));
+    const visibleAdSlots = ${visibleAdSlotsExpression()};
     const stored = window.localStorage.getItem(${JSON.stringify(storageKey)});
     const scrollWidth = document.documentElement.scrollWidth;
     const viewportWidth = window.innerWidth;
@@ -128,21 +154,47 @@ async function checkMobileSuppression(client, width) {
       affiliateCount: affiliate ? 1 : 0,
       slotAdsenseCount: slotAdsense ? 1 : 0,
       adCount: ads.length,
+      visibleAdSlots,
+      duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
       stored,
       scrollWidth,
       overflow: scrollWidth > viewportWidth + 2,
     };
   })()`);
 
+  await markStickerOffersTimedOut(client);
+  await reload(client);
+  await delay(1300);
+
+  const fallbackState = await evaluate(client, `(() => {
+    const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+    const slotAdsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+    const ads = Array.from(document.querySelectorAll('[aria-label="Advertisement"]'));
+    const visibleAdSlots = ${visibleAdSlotsExpression()};
+    return {
+      affiliateCount: affiliate ? 1 : 0,
+      slotAdsenseCount: slotAdsense ? 1 : 0,
+      adCount: ads.length,
+      visibleAdSlots,
+      duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+    };
+  })()`);
+
   return {
-    scenario: "mobile-suppression",
+    scenario: "mobile-affiliate-with-fallback-suppression",
     width,
     ...state,
+    fallbackState,
     ok:
-      state.affiliateCount === 0 &&
+      state.affiliateCount === 1 &&
       state.slotAdsenseCount === 0 &&
       state.adCount >= 1 &&
+      state.duplicateVisibleAdSlots.length === 0 &&
       !state.stored &&
+      fallbackState.affiliateCount === 0 &&
+      fallbackState.slotAdsenseCount === 0 &&
+      fallbackState.adCount >= 1 &&
+      fallbackState.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
   };
 }
@@ -156,12 +208,15 @@ async function checkDesktopAffiliate(client, width) {
       const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
       const rect = affiliate?.getBoundingClientRect?.();
+      const visibleAdSlots = ${visibleAdSlotsExpression()};
       return {
         width: window.innerWidth,
         affiliateCount: affiliate ? 1 : 0,
         adsenseCount: adsense ? 1 : 0,
         offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
         visible: Boolean(rect && rect.width > 0 && rect.height > 0),
+        visibleAdSlots,
+        duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
         overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
       };
     })()`,
@@ -178,6 +233,7 @@ async function checkDesktopAffiliate(client, width) {
       state.adsenseCount === 0 &&
       state.offerId === "printify-product-mockups" &&
       state.visible &&
+      state.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
   };
 }
@@ -236,7 +292,13 @@ async function checkTrackingAndFallback(client) {
     () => `(() => {
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
       const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
-      return { adsense: Boolean(adsense), affiliate: Boolean(affiliate) };
+      const visibleAdSlots = ${visibleAdSlotsExpression()};
+      return {
+        adsense: Boolean(adsense),
+        affiliate: Boolean(affiliate),
+        visibleAdSlots,
+        duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+      };
     })()`,
     8000,
     (state) => state?.adsense === true,
@@ -252,8 +314,57 @@ async function checkTrackingAndFallback(client) {
       afterClick?.clicked === true &&
       afterClick?.timedOut === true &&
       fallback.adsense === true &&
-      fallback.affiliate === false,
+      fallback.affiliate === false &&
+      fallback.duplicateVisibleAdSlots.length === 0,
   };
+}
+
+async function markStickerOffersTimedOut(client) {
+  await evaluate(client, `(() => {
+    const state = {
+      version: 1,
+      entries: [
+        {
+          offerId: "printify-product-mockups",
+          slotId: "converter-below-tool",
+          routeContext: ${JSON.stringify(stickerRoute)},
+          viewCount: 5,
+          clicked: false,
+          timedOut: true,
+          lastViewedAt: Date.now()
+        },
+        {
+          offerId: "sticker-mule-custom-stickers",
+          slotId: "converter-below-tool",
+          routeContext: ${JSON.stringify(stickerRoute)},
+          viewCount: 5,
+          clicked: false,
+          timedOut: true,
+          lastViewedAt: Date.now()
+        }
+      ]
+    };
+    window.localStorage.setItem(${JSON.stringify(storageKey)}, JSON.stringify(state));
+    return true;
+  })()`);
+}
+
+function visibleAdSlotsExpression() {
+  return `Array.from(document.querySelectorAll('ins.adsbygoogle[data-ad-slot]'))
+    .filter((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = window.getComputedStyle(node);
+      return rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.top < window.innerHeight &&
+        rect.right > 0 &&
+        rect.left < window.innerWidth &&
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        style.opacity !== "0";
+    })
+    .map((node) => node.getAttribute('data-ad-slot'))`;
 }
 
 async function collectConsoleSignals(client) {

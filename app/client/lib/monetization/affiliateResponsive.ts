@@ -1,6 +1,6 @@
 export const AFFILIATE_MOBILE_SUPPRESSION_BREAKPOINT_PX = 1024;
 
-export function shouldSuppressAffiliateForViewport({
+export function shouldSuppressAdsenseFallbackForViewport({
   viewportWidth,
   suppressAffiliateOnMobileWhenAdjacentAdExists,
   breakpointPx = AFFILIATE_MOBILE_SUPPRESSION_BREAKPOINT_PX,
@@ -13,3 +13,6 @@ export function shouldSuppressAffiliateForViewport({
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
   return viewportWidth < breakpointPx;
 }
+
+export const shouldSuppressAffiliateForViewport =
+  shouldSuppressAdsenseFallbackForViewport;

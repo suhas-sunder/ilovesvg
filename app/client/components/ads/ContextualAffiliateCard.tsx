@@ -18,6 +18,8 @@ import { useAffiliateWaterfall } from "~/client/lib/monetization/useAffiliateWat
 
 const CONTEXTUAL_AFFILIATE_SLOT_ID = "converter-below-tool";
 const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "7336722354";
+const CONTEXTUAL_AFFILIATE_RESERVE_CLASS = "min-h-[39rem]";
+const CONTEXTUAL_ADSENSE_RESERVE_CLASS = "min-h-[11rem]";
 
 type AffiliatePlacement = {
   provider: AffiliateProvider;
@@ -1076,6 +1078,7 @@ function ContextualAffiliateContent({
   variantSeed,
   offerId,
   slotId,
+  reserveHeightClass,
   registerBannerElement,
   onAffiliateClick,
 }: {
@@ -1084,6 +1087,7 @@ function ContextualAffiliateContent({
   variantSeed: number;
   offerId: string;
   slotId: string;
+  reserveHeightClass: string;
   registerBannerElement: (element: HTMLElement | null) => void;
   onAffiliateClick: () => void;
 }) {
@@ -1094,7 +1098,7 @@ function ContextualAffiliateContent({
     <section
       ref={registerBannerElement}
       aria-labelledby="contextual-affiliate-heading"
-      className="bg-white px-4 py-4 sm:py-5"
+      className={`bg-white px-4 py-4 sm:py-5 ${reserveHeightClass}`}
       data-affiliate-offer-id={offerId}
       data-monetization-kind="affiliate"
       data-monetization-slot={slotId}
@@ -1172,8 +1176,9 @@ export function ContextualAffiliateCard() {
   const routeCategories = getAffiliateRouteCategories(pathname);
   const {
     selectedOffer,
+    relevantOffers,
     shouldShowAdsense,
-    shouldSuppressAffiliate,
+    shouldSuppressAdsenseFallback,
     registerBannerElement,
     trackAffiliateClick,
     isReady,
@@ -1187,6 +1192,7 @@ export function ContextualAffiliateCard() {
   const placement = selectedOffer
     ? getAffiliatePlacement(pathname, selectedOffer)
     : null;
+  const hasRelevantOffers = relevantOffers.length > 0;
   const fallbackSeed = hashText(pathname);
   const variantSeedRef = useRef(
     typeof rootData?.affiliateVariantSeed === "number"
@@ -1194,10 +1200,20 @@ export function ContextualAffiliateCard() {
       : fallbackSeed,
   );
 
-  if (!isReady || shouldSuppressAffiliate) return null;
+  if (!isReady) {
+    return hasRelevantOffers ? (
+      <ContextualMonetizationPendingReserve />
+    ) : (
+      <ContextualAdsenseFallback reserveMode="compact" />
+    );
+  }
 
   if (!selectedOffer || !placement) {
-    return shouldShowAdsense ? <ContextualAdsenseFallback /> : null;
+    return shouldShowAdsense && !shouldSuppressAdsenseFallback ? (
+      <ContextualAdsenseFallback
+        reserveMode={hasRelevantOffers ? "affiliate" : "compact"}
+      />
+    ) : null;
   }
 
   return (
@@ -1207,19 +1223,63 @@ export function ContextualAffiliateCard() {
       variantSeed={variantSeedRef.current}
       offerId={selectedOffer.id}
       slotId={CONTEXTUAL_AFFILIATE_SLOT_ID}
+      reserveHeightClass={CONTEXTUAL_AFFILIATE_RESERVE_CLASS}
       registerBannerElement={registerBannerElement}
       onAffiliateClick={() => trackAffiliateClick(selectedOffer.id)}
     />
   );
 }
 
-function ContextualAdsenseFallback() {
+function ContextualMonetizationPendingReserve() {
   return (
     <section
-      className="bg-white px-4 py-4 sm:py-5"
+      className={`bg-white px-4 py-4 sm:py-5 ${CONTEXTUAL_AFFILIATE_RESERVE_CLASS}`}
+      aria-label="Sponsored placement loading"
+      data-monetization-kind="pending"
+      data-monetization-slot={CONTEXTUAL_AFFILIATE_SLOT_ID}
+      data-monetization-reserve="affiliate"
+    >
+      <div className="mx-auto flex h-full max-w-[1120px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50 shadow-sm">
+        <div className="px-5 py-5 lg:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="w-full max-w-[760px]">
+              <div className="h-3 w-40 rounded bg-slate-200" />
+              <div className="mt-3 h-8 w-full max-w-[620px] rounded bg-slate-200/80" />
+            </div>
+            <div className="h-11 w-full rounded-xl bg-slate-200/80 lg:mt-4 lg:w-[210px]" />
+          </div>
+          <div className="mt-4 h-4 w-full max-w-[760px] rounded bg-slate-200/70" />
+          <div className="mt-2 h-4 w-full max-w-[620px] rounded bg-slate-200/60" />
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="h-10 rounded-lg bg-white/90 shadow-sm" />
+            <div className="h-10 rounded-lg bg-white/90 shadow-sm" />
+            <div className="h-10 rounded-lg bg-white/90 shadow-sm" />
+          </div>
+          <div className="mt-4 h-3 w-72 rounded bg-slate-200/70" />
+        </div>
+        <div className="mt-auto h-[18rem] border-t border-slate-200 bg-slate-100/80" />
+      </div>
+    </section>
+  );
+}
+
+function ContextualAdsenseFallback({
+  reserveMode,
+}: {
+  reserveMode: "affiliate" | "compact";
+}) {
+  const reserveHeightClass =
+    reserveMode === "affiliate"
+      ? CONTEXTUAL_AFFILIATE_RESERVE_CLASS
+      : CONTEXTUAL_ADSENSE_RESERVE_CLASS;
+
+  return (
+    <section
+      className={`hidden bg-white px-4 py-4 sm:py-5 lg:block ${reserveHeightClass}`}
       aria-label="Sponsored advertisement"
       data-monetization-kind="adsense"
       data-monetization-slot={CONTEXTUAL_AFFILIATE_SLOT_ID}
+      data-monetization-reserve={reserveMode}
     >
       <div className="mx-auto w-full max-w-[970px]">
         <AdSenseDelayed
