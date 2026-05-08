@@ -1,7 +1,23 @@
 import { useRef } from "react";
 import { useLocation, useRouteLoaderData } from "react-router";
+import { AdSenseDelayed } from "./AdsenseDelayed";
+import {
+  AFFILIATE_OFFERS,
+  CRICUT_URL,
+  NAMECHEAP_URL,
+  PRINTIFY_URL,
+  STICKER_MULE_URL,
+  type AffiliateOffer,
+  type AffiliateProvider,
+} from "~/client/lib/monetization/affiliateOffers";
+import {
+  getAffiliateRouteCategories,
+  normalizeAffiliatePathname,
+} from "~/client/lib/monetization/affiliateRouteIntents";
+import { useAffiliateWaterfall } from "~/client/lib/monetization/useAffiliateWaterfall";
 
-type AffiliateProvider = "cricut" | "printify" | "stickerMule" | "namecheap";
+const CONTEXTUAL_AFFILIATE_SLOT_ID = "converter-below-tool";
+const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "7336722354";
 
 type AffiliatePlacement = {
   provider: AffiliateProvider;
@@ -32,18 +48,6 @@ type AffiliateMessage = Pick<
   AffiliatePlacement,
   "eyebrow" | "heading" | "headingAlternates" | "body" | "cta" | "benefits"
 >;
-
-const CRICUT_URL = "";
-const ENABLE_CRICUT_AFFILIATE = Boolean(CRICUT_URL);
-
-const PRINTIFY_URL =
-  "https://try.printify.com/ilovesvg?utm_source=ilovesvg&utm_medium=affiliate&utm_campaign=printify_pod";
-
-const STICKER_MULE_URL =
-  "https://www.stickermule.com/ca/unlock?ref_id=1974725801&utm_medium=embed&utm_source=invite&utm_content=728x90";
-
-const NAMECHEAP_URL =
-  "https://namecheap.pxf.io/c/7235182/738167/5618?utm_source=ilovesvg&utm_medium=affiliate&utm_campaign=domain_hosting_bundle";
 
 const PRINTIFY_IMAGE = {
   src: "https://assets.ilovesvg.com/printify-items.jpg",
@@ -534,86 +538,6 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
   },
 };
 
-const NO_AFFILIATE_ROUTES = new Set([
-  "/cookies",
-  "/privacy-policy",
-  "/terms-of-service",
-
-  "/svg-to-pdf-converter",
-  "/svg-to-webp-converter",
-
-  "/svg-minifier",
-  "/svg-preview-viewer",
-  "/inline-svg-vs-img",
-  "/svg-dimensions-inspector",
-  "/svg-file-size-inspector",
-  "/svg-accessibility-and-contrast-checker",
-
-  "/svg-to-base64",
-  "/base64-to-svg",
-  "/free-color-picker",
-
-  "/png-to-svg-for-laser-cutting",
-]);
-
-function normalizePathname(pathname: string) {
-  return pathname.replace(/\/+$/, "") || "/";
-}
-
-function hasAny(pathname: string, terms: string[]) {
-  return terms.some((term) => pathname.includes(term));
-}
-
-function matchesCricut(pathname: string) {
-  return hasAny(pathname, [
-    "cricut",
-    "print-then-cut",
-    "svg-cut-file",
-    "cut-file",
-    "vinyl",
-    "layered",
-    "multicolor",
-  ]);
-}
-
-function matchesPrintify(pathname: string) {
-  return hasAny(pathname, [
-    "print-on-demand",
-    "t-shirt",
-    "merch",
-    "cricut",
-    "vinyl",
-    "layered",
-    "multicolor",
-    "crafters",
-    "etsy",
-    "digital-download",
-  ]);
-}
-
-function matchesStickerMule(pathname: string) {
-  return hasAny(pathname, [
-    "sticker",
-    "label",
-    "decal",
-    "print-then-cut",
-    "black-square",
-    "background-layer",
-    "white-background",
-  ]);
-}
-
-function matchesNamecheap(pathname: string) {
-  return hasAny(pathname, [
-    "etsy",
-    "digital-download",
-    "logo",
-    "favicon",
-    "embed-code",
-    "svg-to-favicon",
-  ]);
-}
-
 function basePlacement(provider: AffiliateProvider) {
   if (provider === "cricut") {
     return {
@@ -1015,33 +939,31 @@ function namecheapPlacement(pathname: string): AffiliatePlacement {
   };
 }
 
-function getAffiliatePlacement(pathname: string): AffiliatePlacement | null {
-  if (NO_AFFILIATE_ROUTES.has(pathname)) {
-    return null;
+function getAffiliatePlacement(
+  pathname: string,
+  offer: AffiliateOffer,
+): AffiliatePlacement | null {
+  let placement: AffiliatePlacement | null = null;
+
+  if (offer.provider === "printify") {
+    placement =
+      explicitPrintifyPlacement(pathname) ??
+      polishPrintifyPlacement(pathname, printifyPlacement(pathname));
+  } else if (offer.provider === "stickerMule") {
+    placement = stickerMulePlacement(pathname);
+  } else if (offer.provider === "namecheap") {
+    placement = namecheapPlacement(pathname);
+  } else if (offer.provider === "cricut") {
+    placement = cricutPlacement(pathname);
   }
 
-  const explicitPrintify = explicitPrintifyPlacement(pathname);
-  if (explicitPrintify) {
-    return explicitPrintify;
-  }
+  if (!placement) return null;
 
-  if (ENABLE_CRICUT_AFFILIATE && matchesCricut(pathname)) {
-    return cricutPlacement(pathname);
-  }
-
-  if (matchesStickerMule(pathname)) {
-    return stickerMulePlacement(pathname);
-  }
-
-  if (matchesPrintify(pathname)) {
-    return polishPrintifyPlacement(pathname, printifyPlacement(pathname));
-  }
-
-  if (matchesNamecheap(pathname)) {
-    return namecheapPlacement(pathname);
-  }
-
-  return null;
+  return {
+    ...placement,
+    provider: offer.provider,
+    href: offer.href,
+  };
 }
 
 type RootAffiliateLoaderData = {
@@ -1100,7 +1022,13 @@ function CricutVisual() {
   );
 }
 
-function AffiliateVisual({ placement }: { placement: AffiliatePlacement }) {
+function AffiliateVisual({
+  placement,
+  onAffiliateClick,
+}: {
+  placement: AffiliatePlacement;
+  onAffiliateClick: () => void;
+}) {
   if (placement.image) {
     return (
       <a
@@ -1109,6 +1037,7 @@ function AffiliateVisual({ placement }: { placement: AffiliatePlacement }) {
         rel="nofollow sponsored noopener noreferrer"
         className={`cursor-pointer ${placement.image.wrapperClass}`}
         aria-label={`Open ${placement.provider} in a new tab`}
+        onClick={onAffiliateClick}
       >
         <img
           alt={placement.image.alt}
@@ -1131,6 +1060,7 @@ function AffiliateVisual({ placement }: { placement: AffiliatePlacement }) {
         rel="nofollow sponsored noopener noreferrer"
         className="block cursor-pointer transition-opacity hover:opacity-95"
         aria-label="Open Cricut in a new tab"
+        onClick={onAffiliateClick}
       >
         <CricutVisual />
       </a>
@@ -1144,18 +1074,30 @@ function ContextualAffiliateContent({
   pathname,
   placement,
   variantSeed,
+  offerId,
+  slotId,
+  registerBannerElement,
+  onAffiliateClick,
 }: {
   pathname: string;
   placement: AffiliatePlacement;
   variantSeed: number;
+  offerId: string;
+  slotId: string;
+  registerBannerElement: (element: HTMLElement | null) => void;
+  onAffiliateClick: () => void;
 }) {
   const displayHeading = getAffiliateHeading(pathname, placement, variantSeed);
   const displayCta = getAffiliateCta(placement);
 
   return (
     <section
+      ref={registerBannerElement}
       aria-labelledby="contextual-affiliate-heading"
       className="bg-white px-4 py-4 sm:py-5"
+      data-affiliate-offer-id={offerId}
+      data-monetization-kind="affiliate"
+      data-monetization-slot={slotId}
     >
       <div
         className={`mx-auto ${placement.maxWidthClass} overflow-hidden rounded-2xl border ${placement.borderClass} ${placement.surfaceClass} shadow-sm`}
@@ -1182,6 +1124,7 @@ function ContextualAffiliateContent({
               target="_blank"
               rel="nofollow sponsored noopener noreferrer"
               className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl px-5 py-3 text-center text-sm font-extrabold text-white shadow-sm transition-colors ${placement.buttonClass} lg:mt-4 lg:w-auto lg:min-w-[200px] lg:shrink-0 lg:whitespace-nowrap`}
+              onClick={onAffiliateClick}
             >
               {displayCta}
             </a>
@@ -1213,7 +1156,10 @@ function ContextualAffiliateContent({
           </p>
         </div>
 
-        <AffiliateVisual placement={placement} />
+        <AffiliateVisual
+          placement={placement}
+          onAffiliateClick={onAffiliateClick}
+        />
       </div>
     </section>
   );
@@ -1222,8 +1168,25 @@ function ContextualAffiliateContent({
 export function ContextualAffiliateCard() {
   const location = useLocation();
   const rootData = useRouteLoaderData("root") as RootAffiliateLoaderData;
-  const pathname = normalizePathname(location.pathname);
-  const placement = getAffiliatePlacement(pathname);
+  const pathname = normalizeAffiliatePathname(location.pathname);
+  const routeCategories = getAffiliateRouteCategories(pathname);
+  const {
+    selectedOffer,
+    shouldShowAdsense,
+    shouldSuppressAffiliate,
+    registerBannerElement,
+    trackAffiliateClick,
+    isReady,
+  } = useAffiliateWaterfall({
+    slotId: CONTEXTUAL_AFFILIATE_SLOT_ID,
+    routeContext: pathname,
+    routeCategories,
+    offers: AFFILIATE_OFFERS,
+    suppressAffiliateOnMobileWhenAdjacentAdExists: true,
+  });
+  const placement = selectedOffer
+    ? getAffiliatePlacement(pathname, selectedOffer)
+    : null;
   const fallbackSeed = hashText(pathname);
   const variantSeedRef = useRef(
     typeof rootData?.affiliateVariantSeed === "number"
@@ -1231,13 +1194,44 @@ export function ContextualAffiliateCard() {
       : fallbackSeed,
   );
 
-  if (!placement) return null;
+  if (!isReady || shouldSuppressAffiliate) return null;
+
+  if (!selectedOffer || !placement) {
+    return shouldShowAdsense ? <ContextualAdsenseFallback /> : null;
+  }
 
   return (
     <ContextualAffiliateContent
       pathname={pathname}
       placement={placement}
       variantSeed={variantSeedRef.current}
+      offerId={selectedOffer.id}
+      slotId={CONTEXTUAL_AFFILIATE_SLOT_ID}
+      registerBannerElement={registerBannerElement}
+      onAffiliateClick={() => trackAffiliateClick(selectedOffer.id)}
     />
+  );
+}
+
+function ContextualAdsenseFallback() {
+  return (
+    <section
+      className="bg-white px-4 py-4 sm:py-5"
+      aria-label="Sponsored advertisement"
+      data-monetization-kind="adsense"
+      data-monetization-slot={CONTEXTUAL_AFFILIATE_SLOT_ID}
+    >
+      <div className="mx-auto w-full max-w-[970px]">
+        <AdSenseDelayed
+          slot={CONTEXTUAL_ADSENSE_FALLBACK_SLOT}
+          delayMs={1500}
+          minHeight={120}
+          maxHeight={180}
+          format="horizontal"
+          fullWidth={true}
+          className="mx-auto w-full"
+        />
+      </div>
+    </section>
   );
 }

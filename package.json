@@ -20,6 +20,8 @@
     "test:nav": "node scripts/responsive-nav-example-audit.mjs nav",
     "test:examples": "node scripts/responsive-nav-example-audit.mjs examples",
     "test:links": "node scripts/responsive-nav-example-audit.mjs links",
+    "test:monetization": "node scripts/monetization-audit.mjs",
+    "test:monetization-browser": "node scripts/monetization-browser-smoke.mjs",
     "test:routes": "node scripts/route-http-smoke.mjs",
     "test:trace-engine": "node scripts/trace-engine-audit.mjs",
     "test:trace-quality": "node scripts/trace-quality-smoke.mjs",
