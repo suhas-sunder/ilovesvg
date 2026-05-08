@@ -75,7 +75,7 @@ export default function PrivacyPolicy() {
               Privacy Policy
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Last updated January 10, 2026
+              Last updated May 8, 2026
             </p>
 
             <div className="mt-5 space-y-4 text-slate-700 leading-relaxed">
@@ -242,6 +242,29 @@ export default function PrivacyPolicy() {
                   be purchased. Any purchase you make through a third-party
                   store is governed by that third party’s terms and privacy
                   policy.
+                </p>
+
+                <h3 className="text-lg font-bold text-slate-900 mt-8">
+                  Waitlist and early-access requests
+                </h3>
+                <p>
+                  Users can submit an email address to request iLoveSVG Pro
+                  early access. The waitlist form may collect your email,
+                  optional use case, optional expected usage, optional message,
+                  optional country or region if you enter it, consent preference,
+                  timestamp, and page/source metadata.
+                </p>
+                <p>
+                  We use this information to respond about early access,
+                  understand demand for Pro features, and contact users about
+                  product updates, offers, or possible trial invitations only if
+                  they opted in to those optional messages.
+                </p>
+                <p>
+                  You can ask to be removed from the waitlist anytime. The site
+                  does not use browser geolocation for the waitlist, does not
+                  silently collect precise location for the waitlist, and the
+                  waitlist does not store uploaded images or SVG conversion outputs.
                 </p>
 
                 <p>

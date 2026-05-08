@@ -22,6 +22,8 @@
     "test:links": "node scripts/responsive-nav-example-audit.mjs links",
     "test:monetization": "node scripts/monetization-audit.mjs",
     "test:monetization-browser": "node scripts/monetization-browser-smoke.mjs",
+    "test:pro-waitlist": "node scripts/pro-waitlist-audit.mjs",
+    "test:pro-waitlist-browser": "node scripts/pro-waitlist-browser-smoke.mjs",
     "test:routes": "node scripts/route-http-smoke.mjs",
     "test:trace-engine": "node scripts/trace-engine-audit.mjs",
     "test:trace-quality": "node scripts/trace-quality-smoke.mjs",

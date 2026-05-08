@@ -496,6 +496,12 @@ const sitemapSections: SitemapSection[] = [
         description: "Read how iLoveSVG handles privacy-related information.",
       },
       {
+        title: "iLoveSVG Pro Waitlist",
+        path: "/pro-waitlist",
+        description:
+          "Request early access to the planned iLoveSVG Pro workspace for higher limits, larger batch workflows, saved presets, and fewer interruptions.",
+      },
+      {
         title: "Terms of Service",
         path: "/terms-of-service",
         description: "Review the terms that apply when using iLoveSVG tools.",

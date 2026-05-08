@@ -20,6 +20,7 @@ export default [
     "how-it-works/exporting-and-downloads",
     "routes/how-it-works.exporting-and-downloads.tsx",
   ),
+  route("pro-waitlist", "routes/pro-waitlist.tsx"),
 
   // SVG -> raster/pdf
   route("svg-to-png-converter", "routes/svg-to-png-converter.tsx"),

@@ -40,6 +40,16 @@ export default function SiteFooter() {
               </li>
 
               <li>
+                <Link to="/pro-waitlist" className={linkClass}>
+                  Pro Waitlist
+                </Link>
+              </li>
+
+              <li className={sepClass} aria-hidden="true">
+                |
+              </li>
+
+              <li>
                 <Link to="/sitemap" className={linkClass}>
                   Sitemap
                 </Link>

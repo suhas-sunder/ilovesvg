@@ -153,6 +153,7 @@ const ROUTE_GROUPS: Record<string, ConverterRouteGroup> = {
   "how-it-works/settings": "static",
   "how-it-works/troubleshooting": "static",
   "how-it-works/exporting-and-downloads": "static",
+  "pro-waitlist": "static",
   cookies: "static",
   "privacy-policy": "static",
   "terms-of-service": "static",
