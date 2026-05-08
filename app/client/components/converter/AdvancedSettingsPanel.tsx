@@ -341,6 +341,16 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
     toggleAccordionSection(groupSetter, sectionId);
   }
 
+  function renderUpdatePreviewAction() {
+    return (
+      <UpdatePreviewAction
+        label={updatePreviewLabel}
+        disabled={buttonDisabled}
+        onClick={onUpdatePreview}
+      />
+    );
+  }
+
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
@@ -423,20 +433,6 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         tone="convert"
         open={convertTopOpen}
         onToggle={() => setConvertTopOpen((current) => !current)}
-        action={
-          <button
-            type="button"
-            onClick={onUpdatePreview}
-            disabled={buttonDisabled}
-            className={[
-              "shrink-0 rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors cursor-pointer",
-              "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-              "disabled:opacity-60 disabled:cursor-not-allowed",
-            ].join(" ")}
-          >
-            {updatePreviewLabel}
-          </button>
-        }
       >
         {helpHref ? (
           <a
@@ -455,6 +451,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         onToggle={() =>
           toggleSection(setOpenConvertSection, "line-tracing")
         }
+        footer={renderUpdatePreviewAction()}
       >
         {capabilities.supportsLayeredTrace && capabilities.supportsSingleTrace && (
           <Field label="SVG mode">
@@ -534,6 +531,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
           onToggle={() =>
             toggleSection(setOpenConvertSection, "color-layers")
           }
+          footer={renderUpdatePreviewAction()}
         >
           <Field label={`Color layers (${settings.colorLayerCount ?? 5})`}>
             <Range
@@ -636,6 +634,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         onToggle={() =>
           toggleSection(setOpenConvertSection, "edges-cleanup")
         }
+        footer={renderUpdatePreviewAction()}
       >
         {capabilities.supportsEdgePreprocess && (
             <Field label="Image preprocessing">
@@ -772,6 +771,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
           onToggle={() =>
             toggleSection(setOpenConvertSection, "input-colors")
           }
+          footer={renderUpdatePreviewAction()}
         >
           <p className="text-[12px] leading-5 text-slate-600">
             Choose colors from the image or current SVG output, or enter a
@@ -878,6 +878,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         onToggle={() =>
           toggleSection(setOpenConvertSection, "appearance")
         }
+        footer={renderUpdatePreviewAction()}
       >
         {showSingleTrace && (
           <>
@@ -1141,6 +1142,16 @@ export function LayeredAdvancedSettingsPanel<
     toggleAccordionSection(groupSetter, sectionId);
   }
 
+  function renderUpdatePreviewAction() {
+    return (
+      <UpdatePreviewAction
+        label={updatePreviewLabel}
+        disabled={buttonDisabled}
+        onClick={onUpdatePreview}
+      />
+    );
+  }
+
   return (
     <div id={id} className="flex flex-col gap-2 min-w-0">
       <AdvancedTopLevelSection
@@ -1222,20 +1233,6 @@ export function LayeredAdvancedSettingsPanel<
         tone="convert"
         open={convertTopOpen}
         onToggle={() => setConvertTopOpen((current) => !current)}
-        action={
-          <button
-            type="button"
-            onClick={onUpdatePreview}
-            disabled={buttonDisabled}
-            className={[
-              "shrink-0 rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors cursor-pointer",
-              "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-              "disabled:opacity-60 disabled:cursor-not-allowed",
-            ].join(" ")}
-          >
-            {updatePreviewLabel}
-          </button>
-        }
       >
         {helpHref ? (
           <a
@@ -1254,6 +1251,7 @@ export function LayeredAdvancedSettingsPanel<
         onToggle={() =>
           toggleSection(setOpenConvertSection, "color-layers")
         }
+        footer={renderUpdatePreviewAction()}
       >
         <Field label={`Layer count (${settings.layerCount})`}>
           <Range
@@ -1379,6 +1377,7 @@ export function LayeredAdvancedSettingsPanel<
           onToggle={() =>
             toggleSection(setOpenConvertSection, "input-colors")
           }
+          footer={renderUpdatePreviewAction()}
         >
           <p className="text-[12px] leading-5 text-slate-600">
             Choose colors from the image or current SVG output, or enter a
@@ -1468,6 +1467,7 @@ export function LayeredAdvancedSettingsPanel<
         onToggle={() =>
           toggleSection(setOpenConvertSection, "edges-cleanup")
         }
+        footer={renderUpdatePreviewAction()}
       >
         <Field label={`Brightness (${merged.brightness})`}>
           <Range
@@ -1518,6 +1518,7 @@ export function LayeredAdvancedSettingsPanel<
           onToggle={() =>
             toggleSection(setOpenConvertSection, "appearance")
           }
+          footer={renderUpdatePreviewAction()}
         >
           <Field label="Transparent background">
             <Checkbox
@@ -2642,6 +2643,7 @@ function SettingSection({
   open,
   onToggle,
   tone = "live",
+  footer,
 }: {
   title: string;
   children: React.ReactNode;
@@ -2649,6 +2651,7 @@ function SettingSection({
   open?: boolean;
   onToggle?: () => void;
   tone?: SettingsSectionTone;
+  footer?: React.ReactNode;
 }) {
   const toneClasses = getSettingsSectionToneClasses(tone);
 
@@ -2698,6 +2701,11 @@ function SettingSection({
           >
             <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden border-t border-slate-100 p-3">
               {children}
+              {footer ? (
+                <div className="mt-1 border-t border-slate-100 pt-2">
+                  {footer}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -2722,8 +2730,38 @@ function SettingSection({
       </h3>
       <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden">
         {children}
+        {footer ? (
+          <div className="mt-1 border-t border-slate-100 pt-2">{footer}</div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+function UpdatePreviewAction({
+  label,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="flex min-w-0 justify-end">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={[
+          "inline-flex min-h-9 w-full cursor-pointer items-center justify-center rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors sm:w-auto",
+          "border-amber-200 bg-white text-slate-900 shadow-sm hover:border-amber-300 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300",
+          "disabled:cursor-not-allowed disabled:opacity-60",
+        ].join(" ")}
+      >
+        {label}
+      </button>
+    </div>
   );
 }
 
