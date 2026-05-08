@@ -630,7 +630,7 @@ async function auditRouteEnginePaths(routeFiles, routeCapabilitiesSource) {
   for (const routeId of rasterRouteIds) {
     if (!routeFileSet.has(routeId)) continue;
     const file = `${routeId}.tsx`;
-    const text = await read(`app/routes/${file}`);
+    const text = await readResolvedRouteText(file);
     const group = routeGroups.get(routeId);
     const usesSharedHybrid =
       text.includes("useHybridTraceFetcher") ||
@@ -691,6 +691,16 @@ async function auditRouteEnginePaths(routeFiles, routeCapabilitiesSource) {
       `Raster routes still server-first instead of shared hybrid/client-engine routing: ${incompleteServerFirst.join(", ")}`,
     );
   }
+}
+
+async function readResolvedRouteText(file) {
+  const text = await read(`app/routes/${file}`);
+  const templateImport = text.match(/import\s+Template(?:\s*,\s*\{[^}]+\})?\s+from\s+"\.\/([^"]+)"/);
+  if (!templateImport) return text;
+
+  const templateFile = `${templateImport[1]}.tsx`;
+  if (!(await exists(`app/routes/${templateFile}`))) return text;
+  return `${text}\n${await read(`app/routes/${templateFile}`)}`;
 }
 
 function parseRouteGroups(source) {

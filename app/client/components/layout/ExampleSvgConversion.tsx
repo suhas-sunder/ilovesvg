@@ -136,11 +136,11 @@ const ROUTE_CATEGORY_RULES: Array<{
     category: "base64",
   },
   {
-    match: /cricut|vinyl|stickers|print-then-cut/i,
+    match: /cricut|vinyl|stickers|print-then-cut|silhouette/i,
     category: "cricut",
   },
   {
-    match: /laser-cutting/i,
+    match: /laser-cutting|glowforge/i,
     category: "laser-cutting",
   },
   {
@@ -178,7 +178,7 @@ const ROUTE_CATEGORY_RULES: Array<{
   },
   {
     match:
-      /png-to-svg|jpg-to-svg|jpeg-to-svg|webp-to-svg|image-to-svg|text-to-svg/i,
+      /png-to-svg|jpg-to-svg|jpeg-to-svg|webp-to-svg|gif-to-svg|avif-to-svg|bmp-to-svg|tiff-to-svg|transparent-png-to-svg|image-to-svg|text-to-svg/i,
     category: "general-image-to-svg",
   },
 ];

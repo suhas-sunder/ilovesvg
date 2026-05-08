@@ -21,7 +21,7 @@ import {
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
 import { Link, type ActionFunctionArgs } from "react-router";
-import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -1329,7 +1329,7 @@ export default function LogoToSvgConverter({
           </div>
           <header className="text-center mb-2">
             <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Logo to SVG Converter
+              <CurrentRouteTitle fallback="Logo to SVG Converter" />
             </h1>
             <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
               Turn a logo PNG or JPG into a clean SVG with smooth curves and

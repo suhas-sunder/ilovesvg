@@ -14,6 +14,18 @@ const routeFiles = (await fs.readdir(path.join(rootDir, "app", "routes")))
 
 const results = [];
 const failures = [];
+const redirectRouteIds = new Set([
+  "black-and-white-png-to-svg-converter",
+  "image-to-svg-converter",
+  "svg-code-cleaner",
+  "svg-inline-code-generator",
+  "svg-to-css-background",
+  "svg-to-data-uri-converter",
+  "svg-to-react-component",
+  "svg-transparent-background-tool",
+  "svg-viewbox-editor",
+  "tif-to-svg-converter",
+]);
 
 for (const file of routeFiles) {
   const routeId = file.replace(/\.tsx$/, "");
@@ -21,7 +33,7 @@ for (const file of routeFiles) {
   let result = null;
 
   for (const routePath of candidates) {
-    result = await fetchRoute(routePath);
+    result = await fetchRoute(routeId, routePath);
     if (result.ok) break;
   }
 
@@ -65,7 +77,7 @@ function routeCandidates(routeId) {
   return [`/${routeId}`];
 }
 
-async function fetchRoute(routePath) {
+async function fetchRoute(routeId, routePath) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -75,7 +87,14 @@ async function fetchRoute(routePath) {
       headers: { "User-Agent": "ilovesvg-route-smoke/1.0" },
     });
     const text = await response.text();
-    const ok = response.status >= 200 && response.status < 400 && text.length > 128;
+    const isExpectedRedirect =
+      redirectRouteIds.has(routeId) &&
+      response.status >= 300 &&
+      response.status < 400 &&
+      Boolean(response.headers.get("location"));
+    const ok =
+      isExpectedRedirect ||
+      (response.status >= 200 && response.status < 300 && text.length > 128);
     return {
       path: routePath,
       status: response.status,

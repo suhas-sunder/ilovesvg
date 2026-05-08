@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-favicon-generator";
-import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { Link } from "react-router";
@@ -536,7 +536,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="inline-flex mb-1 text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-                  SVG to Favicon Generator
+                  <CurrentRouteTitle fallback="SVG to Favicon Generator" />
                 </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button

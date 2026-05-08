@@ -39,7 +39,7 @@ import {
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
 import { Link, type ActionFunctionArgs } from "react-router";
-import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -2509,7 +2509,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
           </div>
           <header className="text-center mb-2">
             <h1 className="text-[32px] md:text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              JPG to SVG Converter
+              <CurrentRouteTitle fallback="JPG to SVG Converter" />
             </h1>
             <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
               Turn JPG photos and scans into editable SVG paths. Start with a

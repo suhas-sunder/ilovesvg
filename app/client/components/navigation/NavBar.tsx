@@ -659,6 +659,271 @@ export default function NavBar() {
         href: "/black-and-white-image-to-svg-converter",
         keywords: ["black and white", "b&w", "bw", "stencil", "monochrome"],
       },
+      {
+        label: "GIF to SVG Converter",
+        href: "/gif-to-svg-converter",
+        keywords: ["gif to svg converter", "gif to svg converter"],
+      },
+      {
+        label: "AVIF to SVG Converter",
+        href: "/avif-to-svg-converter",
+        keywords: ["avif to svg converter", "avif to svg converter"],
+      },
+      {
+        label: "BMP to SVG Converter",
+        href: "/bmp-to-svg-converter",
+        keywords: ["bmp to svg converter", "bmp to svg converter"],
+      },
+      {
+        label: "TIFF to SVG Converter",
+        href: "/tiff-to-svg-converter",
+        keywords: ["tiff to svg converter", "tiff to svg converter"],
+      },
+      {
+        label: "Transparent PNG to SVG Converter",
+        href: "/transparent-png-to-svg-converter",
+        keywords: ["transparent png to svg converter", "transparent png to svg converter"],
+      },
+      {
+        label: "Image to Layered SVG Converter",
+        href: "/image-to-layered-svg-converter",
+        keywords: ["image to layered svg converter", "image to layered svg converter"],
+      },
+      {
+        label: "JPG to Layered SVG Converter",
+        href: "/jpg-to-layered-svg-converter",
+        keywords: ["jpg to layered svg converter", "jpg to layered svg converter"],
+      },
+      {
+        label: "Logo to Layered SVG Converter",
+        href: "/logo-to-layered-svg-converter",
+        keywords: ["logo to layered svg converter", "logo to layered svg converter"],
+      },
+      {
+        label: "SVG to ICO Converter",
+        href: "/svg-to-ico-converter",
+        keywords: ["svg to ico converter", "svg to ico converter"],
+      },
+      {
+        label: "Image to Favicon Generator",
+        href: "/image-to-favicon-generator",
+        keywords: ["image to favicon generator", "image to favicon generator"],
+      },
+      {
+        label: "PNG to Favicon Generator",
+        href: "/png-to-favicon-generator",
+        keywords: ["png to favicon generator", "png to favicon generator"],
+      },
+      {
+        label: "JPG to Favicon Generator",
+        href: "/jpg-to-favicon-generator",
+        keywords: ["jpg to favicon generator", "jpg to favicon generator"],
+      },
+      {
+        label: "Logo to Favicon Generator",
+        href: "/logo-to-favicon-generator",
+        keywords: ["logo to favicon generator", "logo to favicon generator"],
+      },
+      {
+        label: "PNG to ICO Converter",
+        href: "/png-to-ico-converter",
+        keywords: ["png to ico converter", "png to ico converter"],
+      },
+      {
+        label: "PNG to SVG for Shopify",
+        href: "/png-to-svg-for-shopify",
+        keywords: ["png to svg for shopify", "png to svg for shopify"],
+      },
+      {
+        label: "Logo to SVG for Shopify",
+        href: "/logo-to-svg-for-shopify",
+        keywords: ["logo to svg for shopify", "logo to svg for shopify"],
+      },
+      {
+        label: "SVG to PNG for Shopify",
+        href: "/svg-to-png-for-shopify",
+        keywords: ["svg to png for shopify", "svg to png for shopify"],
+      },
+      {
+        label: "SVG to Favicon for Shopify",
+        href: "/svg-to-favicon-for-shopify",
+        keywords: ["svg to favicon for shopify", "svg to favicon for shopify"],
+      },
+      {
+        label: "SVG Resizer for Shopify",
+        href: "/svg-resizer-for-shopify",
+        keywords: ["svg resizer for shopify", "svg resizer for shopify"],
+      },
+      {
+        label: "Logo to Favicon for Shopify",
+        href: "/logo-to-favicon-for-shopify",
+        keywords: ["logo to favicon for shopify", "logo to favicon for shopify"],
+      },
+      {
+        label: "SVG to PNG for Etsy",
+        href: "/svg-to-png-for-etsy",
+        keywords: ["svg to png for etsy", "svg to png for etsy"],
+      },
+      {
+        label: "SVG to JPG for Etsy",
+        href: "/svg-to-jpg-for-etsy",
+        keywords: ["svg to jpg for etsy", "svg to jpg for etsy"],
+      },
+      {
+        label: "Logo to SVG for Etsy",
+        href: "/logo-to-svg-for-etsy",
+        keywords: ["logo to svg for etsy", "logo to svg for etsy"],
+      },
+      {
+        label: "Sticker to SVG for Etsy",
+        href: "/sticker-to-svg-for-etsy",
+        keywords: ["sticker to svg for etsy", "sticker to svg for etsy"],
+      },
+      {
+        label: "Image to SVG for Etsy",
+        href: "/image-to-svg-for-etsy",
+        keywords: ["image to svg for etsy", "image to svg for etsy"],
+      },
+      {
+        label: "JPG to SVG for Etsy",
+        href: "/jpg-to-svg-for-etsy",
+        keywords: ["jpg to svg for etsy", "jpg to svg for etsy"],
+      },
+      {
+        label: "SVG Resizer for Etsy",
+        href: "/svg-resizer-for-etsy",
+        keywords: ["svg resizer for etsy", "svg resizer for etsy"],
+      },
+      {
+        label: "SVG to PNG for Printify",
+        href: "/svg-to-png-for-printify",
+        keywords: ["svg to png for printify", "svg to png for printify"],
+      },
+      {
+        label: "SVG to PNG for Printful",
+        href: "/svg-to-png-for-printful",
+        keywords: ["svg to png for printful", "svg to png for printful"],
+      },
+      {
+        label: "Sticker SVG to PNG for Printing",
+        href: "/sticker-to-png-for-printing",
+        keywords: ["sticker svg to png for printing", "sticker to png for printing"],
+      },
+      {
+        label: "SVG to Transparent PNG for Printing",
+        href: "/svg-to-transparent-png-for-printing",
+        keywords: ["svg to transparent png for printing", "svg to transparent png for printing"],
+      },
+      {
+        label: "PNG to SVG for Glowforge",
+        href: "/png-to-svg-for-glowforge",
+        keywords: ["png to svg for glowforge", "png to svg for glowforge"],
+      },
+      {
+        label: "JPG to SVG for Glowforge",
+        href: "/jpg-to-svg-for-glowforge",
+        keywords: ["jpg to svg for glowforge", "jpg to svg for glowforge"],
+      },
+      {
+        label: "Logo to SVG for Glowforge",
+        href: "/logo-to-svg-for-glowforge",
+        keywords: ["logo to svg for glowforge", "logo to svg for glowforge"],
+      },
+      {
+        label: "SVG Cleaner for Glowforge",
+        href: "/svg-cleaner-for-glowforge",
+        keywords: ["svg cleaner for glowforge", "svg cleaner for glowforge"],
+      },
+      {
+        label: "SVG Resizer for Glowforge",
+        href: "/svg-resizer-for-glowforge",
+        keywords: ["svg resizer for glowforge", "svg resizer for glowforge"],
+      },
+      {
+        label: "Image to SVG for Glowforge",
+        href: "/image-to-svg-for-glowforge",
+        keywords: ["image to svg for glowforge", "image to svg for glowforge"],
+      },
+      {
+        label: "JPG to SVG for Silhouette",
+        href: "/jpg-to-svg-for-silhouette",
+        keywords: ["jpg to svg for silhouette", "jpg to svg for silhouette"],
+      },
+      {
+        label: "Image to SVG for Silhouette",
+        href: "/image-to-svg-for-silhouette",
+        keywords: ["image to svg for silhouette", "image to svg for silhouette"],
+      },
+      {
+        label: "Logo to SVG for Silhouette",
+        href: "/logo-to-svg-for-silhouette",
+        keywords: ["logo to svg for silhouette", "logo to svg for silhouette"],
+      },
+      {
+        label: "Sticker to SVG for Silhouette",
+        href: "/sticker-to-svg-for-silhouette",
+        keywords: ["sticker to svg for silhouette", "sticker to svg for silhouette"],
+      },
+      {
+        label: "SVG Cleaner for Silhouette",
+        href: "/svg-cleaner-for-silhouette",
+        keywords: ["svg cleaner for silhouette", "svg cleaner for silhouette"],
+      },
+      {
+        label: "SVG Resizer for Silhouette",
+        href: "/svg-resizer-for-silhouette",
+        keywords: ["svg resizer for silhouette", "svg resizer for silhouette"],
+      },
+      {
+        label: "PNG to SVG for Canva",
+        href: "/png-to-svg-for-canva",
+        keywords: ["png to svg for canva", "png to svg for canva"],
+      },
+      {
+        label: "JPG to SVG for Canva",
+        href: "/jpg-to-svg-for-canva",
+        keywords: ["jpg to svg for canva", "jpg to svg for canva"],
+      },
+      {
+        label: "SVG to PNG for Canva",
+        href: "/svg-to-png-for-canva",
+        keywords: ["svg to png for canva", "svg to png for canva"],
+      },
+      {
+        label: "Logo to SVG for Canva",
+        href: "/logo-to-svg-for-canva",
+        keywords: ["logo to svg for canva", "logo to svg for canva"],
+      },
+      {
+        label: "SVG Resizer for Canva",
+        href: "/svg-resizer-for-canva",
+        keywords: ["svg resizer for canva", "svg resizer for canva"],
+      },
+      {
+        label: "SVG Cleaner for Figma",
+        href: "/svg-cleaner-for-figma",
+        keywords: ["svg cleaner for figma", "svg cleaner for figma"],
+      },
+      {
+        label: "SVG Resizer for Figma",
+        href: "/svg-resizer-for-figma",
+        keywords: ["svg resizer for figma", "svg resizer for figma"],
+      },
+      {
+        label: "SVG to PNG for Figma",
+        href: "/svg-to-png-for-figma",
+        keywords: ["svg to png for figma", "svg to png for figma"],
+      },
+      {
+        label: "PNG to SVG for Figma",
+        href: "/png-to-svg-for-figma",
+        keywords: ["png to svg for figma", "png to svg for figma"],
+      },
+      {
+        label: "SVG to JSX Converter",
+        href: "/svg-to-jsx-converter",
+        keywords: ["svg to jsx converter", "svg to jsx converter"],
+      },
     ],
     [],
   );
@@ -1215,7 +1480,7 @@ function getNavCategoryId(item: NavItem): NavCategoryId {
   }
 
   if (
-    /cricut|silhouette|laser|vinyl|etsy|print then cut|print-then-cut|stickers|cut file/i.test(
+    /cricut|silhouette|glowforge|laser|vinyl|etsy|printify|printful|printing|print then cut|print-then-cut|stickers|cut file/i.test(
       target,
     )
   ) {
@@ -1230,11 +1495,11 @@ function getNavCategoryId(item: NavItem): NavCategoryId {
     return "logo-icon";
   }
 
-  if (/png-to-svg|jpg-to-svg|jpeg-to-svg|webp-to-svg|image to svg|image-to-svg/i.test(target)) {
+  if (/png-to-svg|jpg-to-svg|jpeg-to-svg|webp-to-svg|gif-to-svg|avif-to-svg|bmp-to-svg|tiff-to-svg|image to svg|image-to-svg/i.test(target)) {
     return item.href === "/" ? "general" : "file-types";
   }
 
-  if (/base64|color picker/i.test(target)) {
+  if (/base64|color picker|favicon|ico/i.test(target)) {
     return "file-types";
   }
 

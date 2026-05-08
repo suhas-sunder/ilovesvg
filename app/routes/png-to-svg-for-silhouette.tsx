@@ -13,7 +13,7 @@ import {
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
 import { Link, type ActionFunctionArgs } from "react-router";
-import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { useState } from "react";
@@ -1579,7 +1579,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             {/* INPUT */}
             <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="inline-flex text-center w-full justify-center mb-3 text-sky-950 items-center gap-2 text-xl sm:text-3xl font-extrabold leading-none m-0">
-                PNG to SVG for Silhouette
+                <CurrentRouteTitle fallback="PNG to SVG for Silhouette" />
               </h1>
 
               <PresetPicker

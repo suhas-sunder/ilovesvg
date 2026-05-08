@@ -456,6 +456,277 @@ const sitemapSections: SitemapSection[] = [
     ],
   },
   {
+    title: "Expanded SVG workflow routes",
+    description: "Additional SEO-safe converter, seller, print, design handoff, favicon, and developer routes built on supported iLoveSVG tools.",
+    links: [
+      {
+        title: "GIF to SVG Converter",
+        path: "/gif-to-svg-converter",
+        description: "Convert GIF artwork to SVG using the existing image tracing workflow. Static GIF frames, transparent web graphics, logos, old web art, and sticker-style images can be converted without promising animated SVG output.",
+      },
+      {
+        title: "AVIF to SVG Converter",
+        path: "/avif-to-svg-converter",
+        description: "Convert AVIF graphics to SVG using the existing image tracing workflow for modern compressed web artwork, icons, logos, and illustration exports.",
+      },
+      {
+        title: "BMP to SVG Converter",
+        path: "/bmp-to-svg-converter",
+        description: "Convert BMP images to SVG for legacy bitmap art, scans, line art, old design archives, and black-and-white cleanup workflows.",
+      },
+      {
+        title: "TIFF to SVG Converter",
+        path: "/tiff-to-svg-converter",
+        description: "Convert TIFF and TIF scans to SVG with the existing raster tracing workflow for archival artwork, scanned drawings, paperwork, and print handoff prep.",
+      },
+      {
+        title: "Transparent PNG to SVG Converter",
+        path: "/transparent-png-to-svg-converter",
+        description: "Convert transparent PNG logos, stickers, icons, and product artwork into SVG with background-aware tracing guidance.",
+      },
+      {
+        title: "Image to Layered SVG Converter",
+        path: "/image-to-layered-svg-converter",
+        description: "Convert images into layered SVG output for editable color regions, creator artwork, stickers, and design prep.",
+      },
+      {
+        title: "JPG to Layered SVG Converter",
+        path: "/jpg-to-layered-svg-converter",
+        description: "Convert JPG artwork into layered SVG output for editable color regions, poster-style graphics, and creator workflows.",
+      },
+      {
+        title: "Logo to Layered SVG Converter",
+        path: "/logo-to-layered-svg-converter",
+        description: "Convert logo artwork into layered SVG output for separated colors, reusable brand graphics, and editing workflows.",
+      },
+      {
+        title: "SVG to ICO Converter",
+        path: "/svg-to-ico-converter",
+        description: "Create favicon.ico output from an SVG logo or icon using the existing favicon generator and browser-side icon export workflow.",
+      },
+      {
+        title: "Image to Favicon Generator",
+        path: "/image-to-favicon-generator",
+        description: "Generate favicon assets from SVG, PNG, JPG, or WebP inputs with browser-side icon previews, ICO output, PNG sizes, and app icon snippets.",
+      },
+      {
+        title: "PNG to Favicon Generator",
+        path: "/png-to-favicon-generator",
+        description: "Create favicon assets from a PNG logo or app icon, including ICO and PNG icon sizes, using the existing favicon generator.",
+      },
+      {
+        title: "JPG to Favicon Generator",
+        path: "/jpg-to-favicon-generator",
+        description: "Create favicon assets from a JPG or JPEG logo image with square padding, background controls, ICO output, and app icon sizes.",
+      },
+      {
+        title: "Logo to Favicon Generator",
+        path: "/logo-to-favicon-generator",
+        description: "Turn an SVG, PNG, JPG, or WebP logo into favicon-ready ICO and PNG icon assets with browser-side previews.",
+      },
+      {
+        title: "PNG to ICO Converter",
+        path: "/png-to-ico-converter",
+        description: "Convert a PNG logo or icon into favicon.ico output and supporting icon sizes with the existing favicon generator.",
+      },
+      {
+        title: "PNG to SVG for Shopify",
+        path: "/png-to-svg-for-shopify",
+        description: "Convert PNG store graphics into SVG for scalable Shopify brand assets, theme graphics, badges, logos, and cleanup before export.",
+      },
+      {
+        title: "Logo to SVG for Shopify",
+        path: "/logo-to-svg-for-shopify",
+        description: "Convert a store logo into SVG for scalable Shopify theme assets, brand marks, favicon prep, and cleaner web graphics.",
+      },
+      {
+        title: "SVG to PNG for Shopify",
+        path: "/svg-to-png-for-shopify",
+        description: "Export Shopify-ready PNG copies from SVG assets with transparent backgrounds, exact sizing, and browser-side previews.",
+      },
+      {
+        title: "SVG to Favicon for Shopify",
+        path: "/svg-to-favicon-for-shopify",
+        description: "Generate favicon and app icon assets from a Shopify store SVG logo or brand mark.",
+      },
+      {
+        title: "SVG Resizer for Shopify",
+        path: "/svg-resizer-for-shopify",
+        description: "Resize Shopify SVG logos, theme graphics, badges, and brand assets while keeping the SVG editable.",
+      },
+      {
+        title: "Logo to Favicon for Shopify",
+        path: "/logo-to-favicon-for-shopify",
+        description: "Generate Shopify favicon assets from a logo image or SVG using the existing favicon workflow.",
+      },
+      {
+        title: "SVG to PNG for Etsy",
+        path: "/svg-to-png-for-etsy",
+        description: "Export Etsy listing preview images and digital product visuals from SVG with transparent or solid backgrounds.",
+      },
+      {
+        title: "SVG to JPG for Etsy",
+        path: "/svg-to-jpg-for-etsy",
+        description: "Export flattened JPG listing previews from SVG artwork for Etsy product images, mockups, and shop visuals.",
+      },
+      {
+        title: "Logo to SVG for Etsy",
+        path: "/logo-to-svg-for-etsy",
+        description: "Convert Etsy shop logos and brand marks into SVG for scalable listing graphics, watermarks, and seller assets.",
+      },
+      {
+        title: "Sticker to SVG for Etsy",
+        path: "/sticker-to-svg-for-etsy",
+        description: "Convert sticker artwork into SVG for Etsy digital downloads, sticker previews, decals, and product artwork prep.",
+      },
+      {
+        title: "Image to SVG for Etsy",
+        path: "/image-to-svg-for-etsy",
+        description: "Convert images into SVG for Etsy seller workflows, listing assets, digital downloads, mockup prep, and reusable graphics.",
+      },
+      {
+        title: "JPG to SVG for Etsy",
+        path: "/jpg-to-svg-for-etsy",
+        description: "Convert JPG artwork into SVG for Etsy shop assets, listing graphics, digital downloads, and simplified seller artwork.",
+      },
+      {
+        title: "SVG Resizer for Etsy",
+        path: "/svg-resizer-for-etsy",
+        description: "Resize SVG assets for Etsy listing visuals, digital download previews, product graphics, and seller files.",
+      },
+      {
+        title: "SVG to PNG for Printify",
+        path: "/svg-to-png-for-printify",
+        description: "Export transparent PNG product artwork from SVG for Printify mockups, product previews, and seller workflows.",
+      },
+      {
+        title: "SVG to PNG for Printful",
+        path: "/svg-to-png-for-printful",
+        description: "Export SVG artwork to PNG for Printful-style product mockups, print previews, and seller asset preparation.",
+      },
+      {
+        title: "Sticker SVG to PNG for Printing",
+        path: "/sticker-to-png-for-printing",
+        description: "Export sticker SVG artwork to transparent PNG for printing previews, labels, decals, and product mockups.",
+      },
+      {
+        title: "SVG to Transparent PNG for Printing",
+        path: "/svg-to-transparent-png-for-printing",
+        description: "Export SVG artwork as a transparent PNG for print previews, product mockups, stickers, and clean handoff files.",
+      },
+      {
+        title: "PNG to SVG for Glowforge",
+        path: "/png-to-svg-for-glowforge",
+        description: "Convert PNG art into SVG for Glowforge-style laser prep, simplified outlines, engraving tests, and sizing cleanup.",
+      },
+      {
+        title: "JPG to SVG for Glowforge",
+        path: "/jpg-to-svg-for-glowforge",
+        description: "Convert JPG artwork into SVG for Glowforge-style laser prep, outline cleanup, engraving references, and test cuts.",
+      },
+      {
+        title: "Logo to SVG for Glowforge",
+        path: "/logo-to-svg-for-glowforge",
+        description: "Convert logo artwork into SVG for Glowforge-style engraving, cutting prep, cleanup, and sizing checks.",
+      },
+      {
+        title: "SVG Cleaner for Glowforge",
+        path: "/svg-cleaner-for-glowforge",
+        description: "Clean SVG markup before Glowforge-style laser workflows, import testing, sizing checks, and path review.",
+      },
+      {
+        title: "SVG Resizer for Glowforge",
+        path: "/svg-resizer-for-glowforge",
+        description: "Resize SVG artwork for Glowforge-style laser prep while keeping viewBox and dimensions predictable.",
+      },
+      {
+        title: "Image to SVG for Glowforge",
+        path: "/image-to-svg-for-glowforge",
+        description: "Convert images into SVG for Glowforge-style laser prep, simplified outlines, engraving tests, and cleanup workflows.",
+      },
+      {
+        title: "JPG to SVG for Silhouette",
+        path: "/jpg-to-svg-for-silhouette",
+        description: "Convert JPG artwork into SVG for Silhouette-style cutting, sticker prep, vinyl designs, and import testing.",
+      },
+      {
+        title: "Image to SVG for Silhouette",
+        path: "/image-to-svg-for-silhouette",
+        description: "Convert images into SVG for Silhouette-style vinyl, sticker, decal, label, and cutting software workflows.",
+      },
+      {
+        title: "Logo to SVG for Silhouette",
+        path: "/logo-to-svg-for-silhouette",
+        description: "Convert logo artwork into SVG for Silhouette-style vinyl, decals, labels, and clean resizing.",
+      },
+      {
+        title: "Sticker to SVG for Silhouette",
+        path: "/sticker-to-svg-for-silhouette",
+        description: "Convert sticker artwork into SVG for Silhouette-style sticker, decal, label, and vinyl workflows.",
+      },
+      {
+        title: "SVG Cleaner for Silhouette",
+        path: "/svg-cleaner-for-silhouette",
+        description: "Clean SVG markup before Silhouette-style import, cutting software prep, sizing checks, and path review.",
+      },
+      {
+        title: "SVG Resizer for Silhouette",
+        path: "/svg-resizer-for-silhouette",
+        description: "Resize SVG artwork for Silhouette-style vinyl, sticker, decal, and cutting software projects.",
+      },
+      {
+        title: "PNG to SVG for Canva",
+        path: "/png-to-svg-for-canva",
+        description: "Convert PNG artwork into SVG for cleaner Canva design reuse, scalable logos, icons, and simple graphics.",
+      },
+      {
+        title: "JPG to SVG for Canva",
+        path: "/jpg-to-svg-for-canva",
+        description: "Convert JPG graphics into SVG for Canva design reuse, simplified line art, logos, and scalable layout assets.",
+      },
+      {
+        title: "SVG to PNG for Canva",
+        path: "/svg-to-png-for-canva",
+        description: "Export SVG artwork to PNG for Canva uploads, transparent graphics, predictable sizing, and design handoff.",
+      },
+      {
+        title: "Logo to SVG for Canva",
+        path: "/logo-to-svg-for-canva",
+        description: "Convert logo images into SVG for Canva brand graphics, scalable marks, and reusable design assets.",
+      },
+      {
+        title: "SVG Resizer for Canva",
+        path: "/svg-resizer-for-canva",
+        description: "Resize SVG logos and design assets before Canva handoff while keeping dimensions and viewBox predictable.",
+      },
+      {
+        title: "SVG Cleaner for Figma",
+        path: "/svg-cleaner-for-figma",
+        description: "Clean SVG markup for Figma handoff, removing editor clutter while preserving practical SVG structure.",
+      },
+      {
+        title: "SVG Resizer for Figma",
+        path: "/svg-resizer-for-figma",
+        description: "Resize SVG assets for Figma handoff, viewBox checks, component sizing, and predictable exports.",
+      },
+      {
+        title: "SVG to PNG for Figma",
+        path: "/svg-to-png-for-figma",
+        description: "Export SVG assets to PNG for Figma handoff, previews, thumbnails, and flattened sharing files.",
+      },
+      {
+        title: "PNG to SVG for Figma",
+        path: "/png-to-svg-for-figma",
+        description: "Convert PNG assets into SVG for Figma handoff, scalable graphics, icon prep, and cleanup workflows.",
+      },
+      {
+        title: "SVG to JSX Converter",
+        path: "/svg-to-jsx-converter",
+        description: "Open the SVG to JSX Converter route.",
+      },
+    ],
+  },
+  {
     title: "Base64, color, and code utilities",
     description:
       "Helper tools for SVG code, Base64 conversion, and choosing colors for design work.",
