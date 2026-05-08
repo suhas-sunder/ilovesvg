@@ -73,15 +73,33 @@ const stickerSvg = applyOutputAppearanceToSvg(fixtureSvg, sticker, support, {
   idPrefix: "pp-sticker",
 });
 assert(hasOutputAppearanceChanges(sticker), "enabled sticker border should count as changed");
+assert(sticker.stickerBorderPlacement === "top", "sticker border placement should default to top");
 assertIncludes(stickerSvg, 'data-post-processing="sticker-border"', "sticker border group should be emitted");
 assertIncludes(stickerSvg, 'stroke="#ff00aa"', "sticker border should use requested color");
 assertIncludes(stickerSvg, 'stroke-width="8"', "sticker border should use requested thickness");
 const stickerGroup = extractGroup(stickerSvg, 'data-post-processing="sticker-border"');
 assertNotIncludes(stickerGroup, "M0 0H100V80H0Z", "sticker border should not stroke the full canvas background");
 assert(
-  stickerSvg.indexOf('data-post-processing="sticker-border"') <
+  stickerSvg.indexOf('data-post-processing="sticker-border"') >
     stickerSvg.indexOf('id="subject"'),
-  "sticker border should render behind the original artwork",
+  "sticker border should render on top of the original artwork by default",
+);
+
+const behindSticker = normalizeOutputAppearance({
+  stickerBorderEnabled: true,
+  stickerBorderWidth: 8,
+  stickerBorderColor: "#ff00aa",
+  stickerBorderJoin: "round",
+  stickerBorderPlacement: "behind",
+});
+const behindStickerSvg = applyOutputAppearanceToSvg(fixtureSvg, behindSticker, support, {
+  idPrefix: "pp-sticker-behind",
+});
+assert(behindSticker.stickerBorderPlacement === "behind", "sticker border placement should support behind artwork");
+assert(
+  behindStickerSvg.indexOf('data-post-processing="sticker-border"') <
+    behindStickerSvg.indexOf('id="subject"'),
+  "sticker border should render behind the original artwork when requested",
 );
 
 const thickSticker = normalizeOutputAppearance({

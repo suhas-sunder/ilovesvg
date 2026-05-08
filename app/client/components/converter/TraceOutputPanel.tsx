@@ -1260,6 +1260,7 @@ export function OutputAppearanceControls({
       stickerBorderColor: DEFAULT_OUTPUT_APPEARANCE.stickerBorderColor,
       stickerBorderOpacity: DEFAULT_OUTPUT_APPEARANCE.stickerBorderOpacity,
       stickerBorderJoin: DEFAULT_OUTPUT_APPEARANCE.stickerBorderJoin,
+      stickerBorderPlacement: DEFAULT_OUTPUT_APPEARANCE.stickerBorderPlacement,
     });
   const resetInternalGap = () =>
     onChange({
@@ -1362,14 +1363,15 @@ export function OutputAppearanceControls({
               Sticker border
             </p>
             <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-              Adds a visual outline behind the converted SVG. It is not a true cutline offset.
+              Adds a visual outline to the converted SVG. It is not a true cutline offset.
             </p>
           </div>
           <EffectResetButton
             disabled={
               !settings.stickerBorderEnabled &&
               settings.stickerBorderWidth <= 0.001 &&
-              Math.abs(settings.stickerBorderOpacity - DEFAULT_OUTPUT_APPEARANCE.stickerBorderOpacity) <= 0.001
+              Math.abs(settings.stickerBorderOpacity - DEFAULT_OUTPUT_APPEARANCE.stickerBorderOpacity) <= 0.001 &&
+              settings.stickerBorderPlacement === DEFAULT_OUTPUT_APPEARANCE.stickerBorderPlacement
             }
             onClick={resetSticker}
           />
@@ -1410,6 +1412,21 @@ export function OutputAppearanceControls({
               ]}
               onChange={(value) =>
                 onChange({ stickerBorderJoin: value as typeof settings.stickerBorderJoin })
+              }
+            />
+            <SelectInput
+              className="sm:col-span-2"
+              label="Border layer"
+              value={settings.stickerBorderPlacement}
+              options={[
+                ["top", "On top of artwork"],
+                ["behind", "Behind artwork"],
+              ]}
+              onChange={(value) =>
+                onChange({
+                  stickerBorderPlacement:
+                    value as typeof settings.stickerBorderPlacement,
+                })
               }
             />
             <RangeInput
@@ -2035,15 +2052,17 @@ function SelectInput({
   label,
   value,
   options,
+  className,
   onChange,
 }: {
   label: string;
   value: string;
   options: Array<[string, string]>;
+  className?: string;
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="block min-w-0">
+    <label className={["block min-w-0", className || ""].join(" ")}>
       <span className="block text-[12px] font-semibold text-slate-700">
         {label}
       </span>

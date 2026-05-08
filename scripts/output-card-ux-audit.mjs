@@ -93,6 +93,8 @@ checks.push(
     assertIncludes(outputPanel, "OutputAppearanceControls", "shared output panel renders line/fill controls"),
     assertIncludes(outputPanel, "data-post-processing-controls", "shared output panel renders post-processing controls"),
     assertIncludes(outputPanel, "Sticker border", "shared output panel exposes sticker border controls"),
+    assertIncludes(outputPanel, "Border layer", "sticker border controls expose border layer placement"),
+    assertIncludes(outputPanel, "On top of artwork", "sticker border controls default to an on-top layer option"),
     assertIncludes(outputPanel, "Gradient fill", "shared output panel exposes gradient fill controls"),
     assertIncludes(outputPanel, "Pattern fill", "shared output panel exposes pattern fill controls"),
     assertIncludes(outputPanel, "Shadow and glow", "shared output panel exposes shadow/glow controls"),

@@ -1,4 +1,5 @@
 export type StickerBorderJoin = "round" | "bevel" | "miter";
+export type StickerBorderPlacement = "top" | "behind";
 export type GradientFillType = "linear" | "radial";
 export type PatternFillType =
   | "dots"
@@ -16,6 +17,7 @@ export type OutputAppearanceSettings = {
   stickerBorderColor: string;
   stickerBorderOpacity: number;
   stickerBorderJoin: StickerBorderJoin;
+  stickerBorderPlacement: StickerBorderPlacement;
   internalGapFillEnabled: boolean;
   internalGapFillColor: string;
   internalGapFillOpacity: number;
@@ -69,6 +71,7 @@ export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
   stickerBorderColor: "#ffffff",
   stickerBorderOpacity: 1,
   stickerBorderJoin: "round",
+  stickerBorderPlacement: "top",
   internalGapFillEnabled: false,
   internalGapFillColor: "#ffffff",
   internalGapFillOpacity: 0.96,
@@ -152,6 +155,11 @@ export function normalizeOutputAppearance(
       settings?.stickerBorderJoin,
       ["round", "bevel", "miter"],
       DEFAULT_OUTPUT_APPEARANCE.stickerBorderJoin,
+    ),
+    stickerBorderPlacement: normalizeEnum(
+      settings?.stickerBorderPlacement,
+      ["top", "behind"],
+      DEFAULT_OUTPUT_APPEARANCE.stickerBorderPlacement,
     ),
     internalGapFillEnabled: Boolean(settings?.internalGapFillEnabled),
     internalGapFillColor: normalizeHexColor(
@@ -433,7 +441,9 @@ function applyStickerBorder(
       ? ` stroke-opacity="${formatNumber(settings.stickerBorderOpacity)}"`
       : "";
   const group = `<g id="${groupId}" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}"${opacity} stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
-  return insertAfterOpeningSvgAndDefs(targetSvg, group);
+  return settings.stickerBorderPlacement === "behind"
+    ? insertAfterOpeningSvgAndDefs(targetSvg, group)
+    : insertBeforeClosingSvg(targetSvg, group);
 }
 
 function applyInternalGapFill(
@@ -826,6 +836,13 @@ function insertAfterOpeningSvgAndDefs(svg: string, content: string): string {
   if (svgOpenEnd < 0) return svg;
   const insertAt = findInsertPositionAfterSvgDefs(source, svgOpenEnd + 1);
   return `${source.slice(0, insertAt)}${content}${source.slice(insertAt)}`;
+}
+
+function insertBeforeClosingSvg(svg: string, content: string): string {
+  const source = String(svg || "");
+  const svgCloseStart = source.lastIndexOf("</svg>");
+  if (svgCloseStart < 0) return svg;
+  return `${source.slice(0, svgCloseStart)}${content}${source.slice(svgCloseStart)}`;
 }
 
 function findInsertPositionAfterSvgDefs(source: string, afterSvgOpen: number): number {
