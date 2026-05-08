@@ -1228,8 +1228,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset("white-border");
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1262,7 +1260,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     await measureAndSet(chosen);
 
     suppressLiveRef.current = false;
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(

@@ -1183,9 +1183,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
-    setSettings(DEFAULTS);
-    setActivePreset("cricut-clean-cut");
+    // Reset result history for the new upload while preserving the selected preset.
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -1221,13 +1219,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Re-enable live preview and force one conversion for the new file
     suppressLiveRef.current = false;
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings, null, activePreset);
   }
 
   async function submitConvert(
     targetFile = file,
     targetSettings = settings,
     replaceStamp: number | null = null,
+    presetIdForSubmit: string = activePreset,
   ) {
     if (!targetFile) {
       setErr("Choose an image first.");
@@ -1287,7 +1286,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
     setErr(null);
     pendingReplaceStampRef.current = replaceStamp;
     pendingOutputSettingsRef.current = effective;
@@ -1340,7 +1339,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, null, preset.id);
     }
   }
 

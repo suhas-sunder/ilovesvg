@@ -1186,6 +1186,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
   // ---- Tiered live preview debounce refs ----
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
+  const userSelectedPresetRef = React.useRef(false);
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
@@ -1202,9 +1203,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
-    setSettings(DEFAULTS);
-    setActivePreset("line-accurate");
+    // Clear results for the new upload while preserving explicit preset choices.
     setHistory([]);
 
     setErr(null);
@@ -1240,12 +1239,20 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
     // Re-enable live preview and force one conversion for the new file (only if live preview is on)
     suppressLiveRef.current = false;
 
-    // Apply recommended preset settings immediately for sticker intent
-    const preset = DISPLAY_PRESETS.find((p) => p.id === "sticker-clean");
-    if (preset) {
-      applyPreset(preset);
+    if (userSelectedPresetRef.current) {
+      if (mode !== "off") void submitConvert(chosen, settings, activePreset);
     } else {
-      if (mode !== "off") void submitConvert(chosen, DEFAULTS);
+      // Preserve the route's existing first-upload default when the user has not
+      // explicitly chosen a preset before upload.
+      const preset = DISPLAY_PRESETS.find((p) => p.id === "sticker-clean");
+      if (preset) {
+        const nextSettings = buildPresetSettings(preset);
+        setActivePreset(preset.id);
+        setSettings(nextSettings);
+        if (mode !== "off") void submitConvert(chosen, nextSettings, preset.id);
+      } else {
+        if (mode !== "off") void submitConvert(chosen, settings, activePreset);
+      }
     }
 
     if (mode === "off") {
@@ -1253,7 +1260,11 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
     }
   }
 
-  async function submitConvert(targetFile = file, targetSettings = settings) {
+  async function submitConvert(
+    targetFile = file,
+    targetSettings = settings,
+    presetIdForSubmit = activePreset,
+  ) {
     if (!targetFile) {
       setErr("Choose an image first.");
       return;
@@ -1312,7 +1323,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
     setErr(null);
 
     fetcher.submit(fd, {
@@ -1355,12 +1366,13 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
   }
 
   function applyPreset(preset: Preset) {
+    userSelectedPresetRef.current = true;
     const nextSettings = buildPresetSettings(preset);
     setActivePreset(preset.id);
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, preset.id);
     }
   }
 

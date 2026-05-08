@@ -38,22 +38,69 @@ const SPEED_FILTERS: Array<PresetBackendIntensity | "all"> = [
   "insanely-slow",
 ];
 
+export const PINNED_PRESETS_STORAGE_KEY = "ilovesvg:pinned-presets:v1";
+
+type PresetTab = "all" | "pinned";
+
+export function getPinnedPresetIds(): string[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const storedValue = window.localStorage.getItem(PINNED_PRESETS_STORAGE_KEY);
+    if (!storedValue) return [];
+    return parsePinnedPresetIds(JSON.parse(storedValue));
+  } catch {
+    return [];
+  }
+}
+
+export function setPinnedPresetIds(presetIds: readonly string[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      PINNED_PRESETS_STORAGE_KEY,
+      JSON.stringify(parsePinnedPresetIds(presetIds)),
+    );
+  } catch {
+    // LocalStorage can be unavailable in private modes. Pinning should not
+    // interrupt conversion or preset selection.
+  }
+}
+
+export function togglePinnedPresetId(
+  presetIds: readonly string[],
+  presetId: string,
+) {
+  const normalized = parsePinnedPresetIds(presetIds);
+  if (!presetId) return normalized;
+  return normalized.includes(presetId)
+    ? normalized.filter((id) => id !== presetId)
+    : [...normalized, presetId];
+}
+
 export function PresetPicker<TPreset extends ConverterPresetOption>({
   presets,
   activePreset,
   applyPreset,
   defaultPresetId,
+  onExpandedChange,
 }: {
   presets: readonly TPreset[];
   activePreset: string | null;
   applyPreset: (preset: TPreset) => void;
   defaultPresetId?: string | null;
+  onExpandedChange?: (expanded: boolean) => void;
 }) {
   const [expanded, setExpanded] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<PresetTab>("all");
   const [query, setQuery] = React.useState("");
   const [speedFilter, setSpeedFilter] = React.useState<
     PresetBackendIntensity | "all"
   >("all");
+  const [pinnedPresetIds, setPinnedPresetIdsState] = React.useState<string[]>(
+    [],
+  );
   const initialActivePresetIdRef = React.useRef(activePreset);
   const searchInputId = React.useId();
   const visibleLimit = 2;
@@ -76,9 +123,18 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
     () => dedupedPresets.map((preset) => preset.id).join("|"),
     [dedupedPresets],
   );
+  const pinnedPresetIdSet = React.useMemo(
+    () => new Set(pinnedPresetIds),
+    [pinnedPresetIds],
+  );
+  const routePinnedPresets = React.useMemo(
+    () => dedupedPresets.filter((preset) => pinnedPresetIdSet.has(preset.id)),
+    [dedupedPresets, pinnedPresetIdSet],
+  );
+  const tabPresets = activeTab === "pinned" ? routePinnedPresets : dedupedPresets;
   const searchRecords = React.useMemo(
-    () => createPresetSearchRecords(dedupedPresets),
-    [dedupedPresets],
+    () => createPresetSearchRecords(tabPresets),
+    [tabPresets],
   );
   const normalizedQuery = React.useMemo(() => normalizeSearchText(query), [query]);
   const filteredPresets = React.useMemo(
@@ -114,6 +170,14 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
     setExpanded((value) => !value);
   }, [clearFilters, expanded]);
 
+  const togglePinnedPreset = React.useCallback((presetId: string) => {
+    setPinnedPresetIdsState((currentPresetIds) => {
+      const nextPresetIds = togglePinnedPresetId(currentPresetIds, presetId);
+      setPinnedPresetIds(nextPresetIds);
+      return nextPresetIds;
+    });
+  }, []);
+
   const handleSpeedFilterChange = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const value = event.target.value;
@@ -125,6 +189,14 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   React.useEffect(() => {
     clearFilters();
   }, [clearFilters, presetSignature]);
+
+  React.useEffect(() => {
+    setPinnedPresetIdsState(getPinnedPresetIds());
+  }, []);
+
+  React.useEffect(() => {
+    onExpandedChange?.(expanded);
+  }, [expanded, onExpandedChange]);
 
   return (
     <div className="mb-2 mt-[.67rem] min-w-0">
@@ -139,6 +211,41 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
               <div className="space-y-2">
+                <div
+                  role="tablist"
+                  aria-label="Preset list"
+                  className="grid grid-cols-2 gap-1 rounded-lg border border-slate-200 bg-white p-1 text-xs font-bold"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === "all"}
+                    onClick={() => setActiveTab("all")}
+                    className={[
+                      "rounded-md px-3 py-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                      activeTab === "all"
+                        ? "bg-sky-100 text-sky-950"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                    ].join(" ")}
+                  >
+                    All presets
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === "pinned"}
+                    onClick={() => setActiveTab("pinned")}
+                    className={[
+                      "rounded-md px-3 py-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                      activeTab === "pinned"
+                        ? "bg-sky-100 text-sky-950"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                    ].join(" ")}
+                  >
+                    Pinned presets
+                  </button>
+                </div>
+
                 <label className="sr-only" htmlFor={searchInputId}>
                   Search presets
                 </label>
@@ -154,7 +261,11 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                         setQuery("");
                       }
                     }}
-                    placeholder="Search presets..."
+                    placeholder={
+                      activeTab === "pinned"
+                        ? "Search pinned presets..."
+                        : "Search presets..."
+                    }
                     className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-sky-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
                   />
                   {query ? (
@@ -209,7 +320,8 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                     className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-500"
                     aria-live="polite"
                   >
-                    {filteredPresets.length} presets
+                    {filteredPresets.length}{" "}
+                    {activeTab === "pinned" ? "pinned" : "presets"}
                   </span>
 
                   {filtersActive ? (
@@ -228,8 +340,11 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
             </div>
 
             <div
-              className="max-h-[22rem] space-y-4 overflow-y-auto pr-1 sm:max-h-[24rem]"
-              style={{ scrollbarWidth: "thin" }}
+              className="space-y-4 overflow-y-auto pr-1"
+              style={{
+                maxHeight: "min(62vh, 42rem)",
+                scrollbarWidth: "thin",
+              }}
             >
               {groupedPresets.length > 0 ? (
                 groupedPresets.map((group) => (
@@ -247,7 +362,9 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                           key={`${preset.id}-${index}`}
                           preset={preset}
                           active={activePreset === preset.id}
+                          pinned={pinnedPresetIdSet.has(preset.id)}
                           applyPreset={applyPreset}
+                          togglePinnedPreset={togglePinnedPreset}
                         />
                       ))}
                     </div>
@@ -255,9 +372,19 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-sm text-slate-600">
-                  <div className="font-semibold text-slate-700">No presets found.</div>
+                  <div className="font-semibold text-slate-700">
+                    {activeTab === "pinned" &&
+                    routePinnedPresets.length === 0 &&
+                    !filtersActive
+                      ? "No pinned presets yet."
+                      : "No presets found."}
+                  </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Try clearing search or choosing All speeds.
+                    {activeTab === "pinned" &&
+                    routePinnedPresets.length === 0 &&
+                    !filtersActive
+                      ? "Pin presets you use often to keep them here."
+                      : "Try clearing search or choosing All speeds."}
                   </div>
                   {filtersActive ? (
                     <button
@@ -279,7 +406,9 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                 key={`${preset.id}-${index}`}
                 preset={preset}
                 active={activePreset === preset.id}
+                pinned={pinnedPresetIdSet.has(preset.id)}
                 applyPreset={applyPreset}
+                togglePinnedPreset={togglePinnedPreset}
               />
             ))}
           </div>
@@ -309,11 +438,15 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
 function PresetButton<TPreset extends ConverterPresetOption>({
   preset,
   active,
+  pinned,
   applyPreset,
+  togglePinnedPreset,
 }: {
   preset: TPreset;
   active: boolean;
+  pinned: boolean;
   applyPreset: (preset: TPreset) => void;
+  togglePinnedPreset: (presetId: string) => void;
 }) {
   const intensityBadge = getPresetIntensityBadge(preset);
   const title = [
@@ -325,43 +458,73 @@ function PresetButton<TPreset extends ConverterPresetOption>({
     .join(" ");
 
   return (
-    <button
-      type="button"
-      onClick={() => applyPreset(preset)}
-      aria-pressed={active}
-      aria-label={`${preset.label}. ${intensityBadge.label}.`}
-      title={title}
+    <div
       className={[
-        "group flex min-h-[2.85rem] w-full items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors cursor-pointer",
-        "text-[13px] sm:text-sm leading-snug text-left font-semibold",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+        "group relative min-h-[4.25rem] w-full rounded-lg border transition-colors",
         active
           ? "bg-sky-50 border-sky-300 text-sky-950 shadow-sm ring-1 ring-sky-100 hover:bg-sky-100"
           : "bg-white text-slate-700 border-slate-200 hover:border-sky-200 hover:bg-sky-50",
       ].join(" ")}
     >
-      <span
+      <button
+        type="button"
+        onClick={() => applyPreset(preset)}
+        aria-pressed={active}
+        aria-label={`${preset.label}. ${intensityBadge.label}.`}
+        title={title}
         className={[
-          "h-2 w-2 shrink-0 rounded-full transition-colors",
-          active ? "bg-sky-500" : "bg-slate-200 group-hover:bg-sky-300",
+          "flex min-h-[4.25rem] w-full items-start gap-2 rounded-lg px-3 py-2.5 pr-10 transition-colors cursor-pointer",
+          "text-left text-[13px] font-semibold leading-snug sm:text-sm",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
         ].join(" ")}
-        aria-hidden="true"
-      />
-      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 break-words">{preset.label}</span>
+      >
         <span
           className={[
-            "shrink-0 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-            intensityBadge.className,
-            active ? "shadow-sm" : "",
+            "mt-1.5 h-2 w-2 shrink-0 rounded-full transition-colors",
+            active ? "bg-sky-500" : "bg-slate-200 group-hover:bg-sky-300",
           ].join(" ")}
-          aria-label={intensityBadge.title}
-          title={intensityBadge.title}
-        >
-          {intensityBadge.label}
+          aria-hidden="true"
+        />
+        <span className="grid min-w-0 flex-1 gap-1">
+          <span className="min-w-0 break-words pr-1 leading-tight">
+            {preset.label}
+          </span>
+          <span
+            className={[
+              "w-fit max-w-full truncate rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+              intensityBadge.className,
+              active ? "shadow-sm" : "",
+            ].join(" ")}
+            aria-label={intensityBadge.title}
+            title={intensityBadge.title}
+          >
+            {intensityBadge.label}
+          </span>
         </span>
-      </span>
-    </button>
+      </button>
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          togglePinnedPreset(preset.id);
+        }}
+        aria-label={pinned ? "Unpin preset" : "Pin preset"}
+        aria-pressed={pinned}
+        title={pinned ? "Unpin preset" : "Pin preset"}
+        className={[
+          "absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md border bg-white/90 text-slate-500 shadow-sm cursor-pointer transition-colors",
+          "hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+          pinned ? "border-sky-200 text-sky-700" : "border-slate-200",
+        ].join(" ")}
+      >
+        {pinned ? (
+          <BookmarkPinnedIcon className="h-4 w-4" />
+        ) : (
+          <BookmarkAddIcon className="h-4 w-4" />
+        )}
+      </button>
+    </div>
   );
 }
 
@@ -485,6 +648,23 @@ function presetCategoryLabel(preset: ConverterPresetOption) {
   }
 }
 
+function parsePinnedPresetIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const presetId = item.trim();
+    if (!presetId || seen.has(presetId)) continue;
+    seen.add(presetId);
+    result.push(presetId);
+  }
+
+  return result;
+}
+
 function stablePresetSettingsSignature(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stablePresetSettingsSignature).join(",")}]`;
@@ -504,4 +684,26 @@ function stablePresetSettingsSignature(value: unknown): string {
   }
 
   return JSON.stringify(value);
+}
+
+function BookmarkAddIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path
+        fill="currentColor"
+        d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2m0 15-5-2.18L7 18V5h10z"
+      />
+    </svg>
+  );
+}
+
+function BookmarkPinnedIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props}>
+      <path
+        fill="currentColor"
+        d="m19 21-7-3-7 3V5c0-1.1.9-2 2-2h7c-.63.84-1 1.87-1 3 0 2.76 2.24 5 5 5 .34 0 .68-.03 1-.1zM17.83 9 15 6.17l1.41-1.41 1.41 1.41 3.54-3.54 1.41 1.41z"
+      />
+    </svg>
+  );
 }

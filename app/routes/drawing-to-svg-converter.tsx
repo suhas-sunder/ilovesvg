@@ -2083,10 +2083,6 @@ export default function DrawingToSvgConverter({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
-    setSettings(DEFAULTS);
-    setActivePreset("drawing-accurate");
-
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -2122,7 +2118,7 @@ export default function DrawingToSvgConverter({
     // never depends on stale React state.
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, settings);
   }
 
   async function submitConvert() {

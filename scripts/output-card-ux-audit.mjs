@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 async function read(path) {
   return readFile(path, "utf8");
@@ -19,6 +19,12 @@ function assertNotIncludes(source, needle, label) {
 }
 
 const checks = [];
+const routeFiles = (await readdir("app/routes"))
+  .filter((file) => file.endsWith(".tsx"))
+  .map((file) => `app/routes/${file}`);
+const routeSources = await Promise.all(
+  routeFiles.map(async (file) => [file, await read(file)]),
+);
 const outputPanel = await read("app/client/components/converter/TraceOutputPanel.tsx");
 const advancedSettingsPanel = await read("app/client/components/converter/AdvancedSettingsPanel.tsx");
 const svgRecolor = await read("app/routes/svg-recolor.tsx");
@@ -198,7 +204,7 @@ checks.push(
   assertIncludes(browserSmoke, "leftPaneCollapsed", "browser smoke verifies focused editor hides the upload pane"),
   assertIncludes(browserSmoke, "hasOriginalComparison", "browser smoke verifies original comparison is visible"),
   assertIncludes(browserSmoke, "hasFocusedRedundantActions", "browser smoke rejects redundant focused editor actions"),
-  assertIncludes(browserSmoke, "openSettingsSectionCount", "browser smoke verifies one settings section is open"),
+  assertIncludes(browserSmoke, "openSettingsSectionCount === 0", "browser smoke verifies focused settings submenus start collapsed"),
   assertIncludes(browserSmoke, "batchShortcut", "browser smoke verifies batch settings shortcut behavior"),
   assertIncludes(appCss, "data-output-panel-focused", "CSS contains focused editor parent grid transition"),
   assertNotIncludes(appCss, "scrollbar-gutter: stable", "CSS avoids reserved scrollbar gutters that create focused-editor right-side gaps"),
@@ -216,6 +222,31 @@ checks.push(
   assertIncludes(presetIntensity, "Insanely Slow", "preset intensity badges render Insanely Slow"),
   assertIncludes(presetSelector, '"very-slow"', "preset speed filter includes Very Slow"),
   assertIncludes(presetSelector, '"insanely-slow"', "preset speed filter includes Insanely Slow"),
+  assertIncludes(presetSelector, 'PINNED_PRESETS_STORAGE_KEY = "ilovesvg:pinned-presets:v1"', "preset picker uses the stable pinned preset storage key"),
+  assertIncludes(presetSelector, "getPinnedPresetIds", "preset picker exposes a guarded pinned preset loader"),
+  assertIncludes(presetSelector, "setPinnedPresetIds", "preset picker exposes a guarded pinned preset writer"),
+  assertIncludes(presetSelector, "togglePinnedPresetId", "preset picker toggles pinned IDs without storing full presets"),
+  assertIncludes(presetSelector, 'role="tablist"', "preset picker renders All/Pinned tabs in the expanded menu"),
+  assertIncludes(presetSelector, 'role="tab"', "preset picker tabs are keyboard/screen-reader addressable"),
+  assertIncludes(presetSelector, "routePinnedPresets", "preset picker filters pinned presets through route-visible preset availability"),
+  assertIncludes(presetSelector, "Search pinned presets", "preset picker search is scoped and labeled for the active tab"),
+  assertIncludes(presetSelector, "Pin presets you use often to keep them here.", "preset picker shows a compact pinned empty state"),
+  assertIncludes(presetSelector, 'aria-label={pinned ? "Unpin preset" : "Pin preset"}', "preset pin button has accessible pin/unpin labels"),
+  assertIncludes(presetSelector, "BookmarkAddIcon", "preset picker contains the unpinned bookmark icon"),
+  assertIncludes(presetSelector, "BookmarkPinnedIcon", "preset picker contains the pinned bookmark icon"),
+  assertIncludes(presetSelector, 'fill="currentColor"', "preset pin icons inherit the current text color"),
+  assertIncludes(presetSelector, "min(62vh, 42rem)", "expanded preset menu can use more vertical space when previews are hidden"),
+  assertIncludes(presetSelector, "onExpandedChange?.(expanded)", "preset picker reports expanded/collapsed state to route layouts"),
+  assertIncludes(presetSelector, "pr-10", "preset card reserves space for the pin control without crushing labels"),
+  assertIncludes(presetSelector, "min-w-0 break-words", "preset card titles wrap cleanly in narrow cards"),
+  assertIncludes(presetSelector, "w-fit max-w-full truncate", "preset speed badges do not force awkward preset title wrapping"),
+  assertNotIncludes(presetSelector, "<button\n      className", "preset card avoids wrapping the whole card and pin control in one nested button"),
+  assertIncludes(home, "onExpandedChange={setPresetMenuExpanded}", "home hides the input preview while expanded presets are open"),
+  assertIncludes(home, "previewUrl && !presetMenuExpanded", "home restores source preview only after presets collapse"),
+  assertIncludes(pngToSvg, "onExpandedChange={setPresetMenuExpanded}", "PNG converter hides the input preview while expanded presets are open"),
+  assertIncludes(pngToSvg, "previewUrl && !presetMenuExpanded", "PNG converter restores source preview only after presets collapse"),
+  assertIncludes(pngLayered, "onExpandedChange={setPresetMenuExpanded}", "PNG layered route hides the input preview while expanded presets are open"),
+  assertIncludes(pngLayered, "previewUrl && !presetMenuExpanded", "PNG layered route restores source preview only after presets collapse"),
   assertIncludes(presetAdditions, 'id: "filled-layers-separate-colors"', "heavy filled-layers preset exists"),
   assertIncludes(presetAdditions, 'backendIntensity: "insanely-slow"', "heaviest layered presets are labeled Insanely Slow"),
   assertIncludes(presetAdditions, 'backendIntensity: "very-slow"', "heavy layered presets are labeled Very Slow"),
@@ -264,6 +295,23 @@ if (bespokeOutputPanel) {
     assertIncludes(bespokeOutputPanel, "data-output-panel-focused", "bespoke output panel exposes focused state"),
     assertIncludes(bespokeOutputPanel, "data-collapse-state", "bespoke output panel exposes collapse state"),
   );
+}
+
+for (const [routeFile, source] of routeSources) {
+  for (const pattern of [
+    "submitConvert(chosen, DEFAULTS",
+    "submitConvertWith(chosen, DEFAULTS",
+    "submitConvertForFile(chosen, DEFAULTS",
+    "void submitConvert(chosen, DEFAULTS",
+  ]) {
+    checks.push(
+      assertNotIncludes(
+        source,
+        pattern,
+        `${routeFile} does not ignore a user-selected preset on first upload conversion`,
+      ),
+    );
+  }
 }
 
 const failures = checks.filter(Boolean);

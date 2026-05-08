@@ -1136,6 +1136,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>("line-accurate");
+  const [presetMenuExpanded, setPresetMenuExpanded] = React.useState(false);
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1378,9 +1379,6 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    setSettings(DEFAULTS);
-    setActivePreset("line-accurate");
-
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1442,7 +1440,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
     try {
       await measureAndSet(chosen);
-      await submitConvertForFile(chosen, DEFAULTS);
+    await submitConvertForFile(chosen, settings, activePreset);
     } finally {
       suppressLiveRef.current = false;
     }
@@ -1864,6 +1862,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                 presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
+                onExpandedChange={setPresetMenuExpanded}
               />
 
               {!file ? (
@@ -1951,7 +1950,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
             </div>
 
-            {previewUrl && (
+            {previewUrl && !presetMenuExpanded && (
               <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
                 <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
                   Original image

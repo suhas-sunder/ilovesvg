@@ -1932,9 +1932,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
-  const [activePreset, setActivePreset] = React.useState<string>(
-    "layered-color",
-  );
+const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
 
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
@@ -2102,8 +2100,6 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    setSettings(DEFAULTS);
-    setActivePreset("scan-clean");
     setHistory([]);
 
     setErr(null);
@@ -2166,7 +2162,7 @@ export default function JpgToSvgConverter({}: Route.ComponentProps) {
 
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, settings);
   }
 
   async function submitConvert() {

@@ -1675,8 +1675,6 @@ export default function LayeredSvgForCricut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset("layered-color");
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1708,7 +1706,7 @@ export default function LayeredSvgForCricut({
 
     suppressLiveRef.current = false;
 
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(

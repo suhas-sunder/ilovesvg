@@ -1284,8 +1284,6 @@ export default function PngToSvgForCricutPrintThenCut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    setSettings(DEFAULTS);
-    setActivePreset("sticker-clean-offset");
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1330,7 +1328,7 @@ export default function PngToSvgForCricutPrintThenCut({
     await measureAndSet(chosen);
 
     suppressLiveRef.current = false;
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(

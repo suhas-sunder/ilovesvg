@@ -967,7 +967,7 @@ async function runOutputUxRouteSmoke(testCase) {
         value?.hasSettingsPanel &&
         value?.hasFileSize &&
         !value?.hasFocusedRedundantActions &&
-        value?.openSettingsSectionCount === 1 &&
+        value?.openSettingsSectionCount === 0 &&
         !value?.minimizeInActionRow &&
         value?.leftPaneCollapsed &&
         value?.editorNearTop &&
@@ -1063,7 +1063,7 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.hasSettingsPanel &&
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
-      focused.openSettingsSectionCount === 1 &&
+      focused.openSettingsSectionCount === 0 &&
       focused.appearanceRanges.lineWeightMax >= 30 &&
       focused.appearanceRanges.fillSpreadMax >= 30 &&
       Math.max(
@@ -1495,7 +1495,7 @@ async function runOutputUxResponsiveChecks(client) {
       focused.hasSettingsPanel &&
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
-      focused.openSettingsSectionCount === 1 &&
+      focused.openSettingsSectionCount === 0 &&
       focused.appearanceRanges.lineWeightMax >= 30 &&
       focused.appearanceRanges.fillSpreadMax >= 30 &&
       !focused.minimizeInActionRow &&

@@ -2067,9 +2067,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
-    setSettings(DEFAULTS);
-    setActivePreset(DEFAULT_PRESET_ID);
+    // Keep any preset/settings the user selected before upload.
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -2106,7 +2104,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Re-enable live preview and submit the selected file directly so the first upload
     // never depends on stale React state or generated output state.
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS, DEFAULT_PRESET_ID);
+    void submitConvertWith(chosen, settings, activePreset);
   }
 
   async function submitConvert() {

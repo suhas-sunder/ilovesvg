@@ -1667,8 +1667,6 @@ export default function ImageToLayeredSvgForCricut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset("layered-color");
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1701,7 +1699,7 @@ export default function ImageToLayeredSvgForCricut({
     suppressLiveRef.current = false;
 
     setTimeout(() => {
-      submitConvert(chosen, DEFAULTS);
+      submitConvert(chosen, settings);
     }, 0);
   }
 

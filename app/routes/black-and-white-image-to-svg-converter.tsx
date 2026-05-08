@@ -1794,9 +1794,6 @@ export default function BlackAndWhiteImageToSvgConverter({
     setInfo(null);
     setOriginalFileSize(f.size);
 
-    setSettings(DEFAULTS);
-    setActivePreset(DEFAULT_PRESET_ID);
-
     let chosen = f;
 
     setAutoMode(getAutoMode(chosen.size));
@@ -1809,7 +1806,7 @@ export default function BlackAndWhiteImageToSvgConverter({
     measureAndSet(chosen);
 
     if (getAutoMode(chosen.size) !== "off") {
-      submitConvertWith(chosen, DEFAULTS, DEFAULT_PRESET_ID);
+      submitConvertWith(chosen, settings, activePreset);
     }
   }
 

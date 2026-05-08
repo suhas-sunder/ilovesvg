@@ -1671,8 +1671,6 @@ export default function SketchToSvgForCricut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset(DEFAULT_PRESET_ID);
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -1705,7 +1703,7 @@ export default function SketchToSvgForCricut({
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
 
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(

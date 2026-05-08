@@ -1209,9 +1209,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset source-facing settings for the new upload while preserving output history.
-    setSettings(DEFAULTS);
-    setActivePreset("cricut-clean-cut");
+    // Keep any preset/settings the user selected before upload while preserving output history.
 
     setErr(null);
     setInfo(null);
@@ -1247,7 +1245,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Re-enable live preview and force one conversion for the new file
     suppressLiveRef.current = false;
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(

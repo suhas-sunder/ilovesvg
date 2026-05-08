@@ -1079,9 +1079,6 @@ export default function SketchToSvgConverter({
     setInfo(null);
     setDims(null);
 
-    setSettings(DEFAULTS);
-    setActivePreset("sketch-pencil-light");
-
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
@@ -1116,7 +1113,7 @@ export default function SketchToSvgConverter({
     await measureAndSet(chosen);
 
     suppressLiveRef.current = false;
-    submitConvert(chosen);
+    submitConvert(chosen, settings);
   }
 
   async function submitConvert(f?: File | null, settingsOverride?: Settings) {

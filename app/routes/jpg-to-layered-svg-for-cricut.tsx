@@ -1658,8 +1658,6 @@ export default function JpgToLayeredSvgForCricut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset("layered-color");
 
     setErr(null);
     setInfo(null);
@@ -1689,7 +1687,7 @@ export default function JpgToLayeredSvgForCricut({
 
     await measureAndSet(chosen);
 
-    submitConvert(chosen, DEFAULTS);
+    submitConvert(chosen, settings);
   }
 
   async function submitConvert(

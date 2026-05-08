@@ -1201,8 +1201,6 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    setSettings(DEFAULTS);
-    setActivePreset("line-accurate");
     setHistory([]);
 
     setErr(null);
@@ -1222,7 +1220,7 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
     await measureAndSet(chosen);
 
     suppressLiveRef.current = false;
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(targetFile = file, targetSettings = settings) {

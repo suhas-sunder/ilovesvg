@@ -1668,8 +1668,6 @@ export default function ImageToSvgOutline({
     setInfo(null);
     setDims(null);
     setOriginalFileSize(f.size);
-    setSettings(DEFAULTS);
-    setActivePreset("outline-clean");
     setHistory([]);
     latestPlanRef.current = null;
     lastAcceptedRequestIdRef.current = "";
@@ -1734,9 +1732,9 @@ export default function ImageToSvgOutline({
     await measureAndSet(chosen);
 
     if (nextAutoMode !== "off") {
-      await submitConvertWith(chosen, DEFAULTS, {
-        presetId: "outline-clean",
-        presetLabel: getPresetLabel("outline-clean"),
+      await submitConvertWith(chosen, settings, {
+        presetId: activePreset,
+        presetLabel: getPresetLabel(activePreset),
         reason: "upload",
       });
     }

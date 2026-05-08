@@ -1501,8 +1501,6 @@ export default function LogoToLayeredSvgForCricut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset("layered-color");
 
     setErr(null);
     setInfo(null);
@@ -1535,7 +1533,7 @@ export default function LogoToLayeredSvgForCricut({
 
     suppressLiveRef.current = false;
 
-    void submitConvert(chosen, DEFAULTS);
+    void submitConvert(chosen, settings);
   }
 
   async function submitConvert(

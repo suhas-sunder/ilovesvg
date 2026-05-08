@@ -2138,9 +2138,6 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
-    setSettings(DEFAULTS);
-    setActivePreset("scan-clean");
-
     setErr(null);
     setInfo(null);
     setDims(null);
@@ -2204,7 +2201,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
 
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, settings);
   }
 
   async function submitConvert() {

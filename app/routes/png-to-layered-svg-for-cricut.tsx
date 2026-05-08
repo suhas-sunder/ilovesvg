@@ -1353,6 +1353,7 @@ export default function PngToLayeredSvgForCricut({
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>(DEFAULT_PRESET_ID);
+  const [presetMenuExpanded, setPresetMenuExpanded] = React.useState(false);
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1825,8 +1826,6 @@ export default function PngToLayeredSvgForCricut({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset(DEFAULT_PRESET_ID);
     setOpenSettingsStamp(null);
     setErr(null);
     setInfo(null);
@@ -1859,8 +1858,8 @@ export default function PngToLayeredSvgForCricut({
 
     suppressLiveRef.current = false;
 
-    void submitConvert(chosen, DEFAULTS, {
-      presetId: DEFAULT_PRESET_ID,
+    void submitConvert(chosen, settings, {
+      presetId: activePreset,
       parentStamp: null,
     });
   }
@@ -2277,6 +2276,7 @@ export default function PngToLayeredSvgForCricut({
                 presets={DISPLAY_PRESETS}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
+                onExpandedChange={setPresetMenuExpanded}
               />
 
               {!file ? (
@@ -2375,7 +2375,7 @@ export default function PngToLayeredSvgForCricut({
                 )}
               </div>
 
-              {previewUrl && (
+              {previewUrl && !presetMenuExpanded && (
                 <div className="hidden md:flex flex-col mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
                   <p className="text-slate-700 ml-2 mt-1">
                     Original PNG Preview:

@@ -1086,8 +1086,6 @@ export default function WebpToSvgConverter({
     setErr(null);
     setInfo(null);
     setDims(null);
-    setSettings(DEFAULTS);
-    setActivePreset("webp-edge-balanced");
     setOriginalFileSize(f.size);
 
     let chosen = f;

@@ -2163,9 +2163,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
 
-    // Reset settings/results for the new upload
-    setSettings(DEFAULTS);
-    setActivePreset("cricut-clean-cut");
+    // Keep any preset/settings the user selected before upload.
     setHistory([]); // optional, remove if you want to keep old results
 
     setErr(null);
@@ -2187,7 +2185,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // never depends on stale React state.
     skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, DEFAULTS);
+    void submitConvertWith(chosen, settings);
   }
 
   async function submitConvert() {

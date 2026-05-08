@@ -1097,6 +1097,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
   const pendingFirstConvertRef = React.useRef<{
     file: File;
     settings: Settings;
+    presetId: string;
     requestId: number;
   } | null>(null);
 
@@ -1154,7 +1155,12 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
     if (busy) return;
 
     pendingFirstConvertRef.current = null;
-    submitFileForConversion(pending.file, pending.settings, "first-upload");
+    submitFileForConversion(
+      pending.file,
+      pending.settings,
+      "first-upload",
+      pending.presetId,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, busy]);
 
@@ -1305,8 +1311,6 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
     }
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset("sticker-clean");
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -1339,7 +1343,8 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
 
       pendingFirstConvertRef.current = {
         file: chosen,
-        settings: DEFAULTS,
+        settings,
+        presetId: activePreset,
         requestId,
       };
 
@@ -1370,6 +1375,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
     fileToConvert: File,
     settingsToUse: Settings,
     reason: "first-upload" | "manual" | "live-preview" | "retry",
+    presetIdForSubmit: string = activePreset,
   ) {
     if (!fileToConvert) {
       setErr("Choose a sticker image first.");
@@ -1443,7 +1449,7 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
 
     setErr(null);
     setInfo(reason === "first-upload" ? "Converting sticker image..." : null);
@@ -1499,7 +1505,12 @@ export default function StickerToSvgForCricut({}: Route.ComponentProps) {
       const presetFile = file;
       debounceRef.current = setTimeout(
         () => {
-          submitFileForConversion(presetFile, nextSettings, "live-preview");
+          submitFileForConversion(
+            presetFile,
+            nextSettings,
+            "live-preview",
+            preset.id,
+          );
         },
         autoMode === "fast" ? LIVE_FAST_MS : LIVE_MED_MS,
       );

@@ -2070,6 +2070,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
   const pendingFirstConvertRef = React.useRef<{
     file: File;
     settings: Settings;
+    presetId: string;
     requestId: number;
   } | null>(null);
 
@@ -2131,7 +2132,7 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
       pending.file,
       pending.settings,
       "first-upload",
-      DEFAULT_PRESET_ID,
+      pending.presetId,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, busy]);
@@ -2287,8 +2288,6 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
     }
 
     setPreviewUrl(null);
-    setSettings(DEFAULTS);
-    setActivePreset(DEFAULT_PRESET_ID);
     setHistory([]);
     setErr(null);
     setInfo(null);
@@ -2325,7 +2324,8 @@ export default function DrawingToSvgForCricut({}: Route.ComponentProps) {
 
       pendingFirstConvertRef.current = {
         file: chosen,
-        settings: DEFAULTS,
+        settings,
+        presetId: activePreset,
         requestId,
       };
 
