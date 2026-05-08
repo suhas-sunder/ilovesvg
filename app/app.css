@@ -117,7 +117,9 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
 }
 
 main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-1"],
-main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-3"] {
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-2"]:not([data-output-panel-focused="true"]),
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-3"]:not([data-output-panel-focused="true"]),
+main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-4"]:not([data-output-panel-focused="true"]) {
   grid-column: 1 / -1 !important;
   grid-row: 1 !important;
   max-height: 0 !important;
@@ -204,7 +206,9 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
 @media (prefers-reduced-motion: reduce) {
   main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]),
   main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-1"],
-  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-3"],
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-2"]:not([data-output-panel-focused="true"]),
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-3"]:not([data-output-panel-focused="true"]),
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"]:has(> [data-output-panel-focused="true"]) > [class*="order-4"]:not([data-output-panel-focused="true"]),
   [data-focused-editor-workspace="true"],
   [data-editor-comparison-panel="true"],
   [data-editor-settings-panel="true"] {
@@ -284,6 +288,16 @@ main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class]:hove
   line-height: 1.35;
 }
 
+.converter-empty-output-state.hidden {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .converter-empty-output-state.md\:flex {
+    display: flex;
+  }
+}
+
 .converter-empty-output-state svg {
   margin: 0 0 0.75rem;
   width: 2.75rem;
@@ -304,6 +318,65 @@ main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class]:hove
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"]:has(> section[class*="grid"]) {
+    width: 100%;
+    max-width: 100% !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] {
+    gap: 0.75rem !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="bg-white"][class*="p-4"] {
+    border-radius: 1rem;
+    padding: 0.75rem !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .converter-output-panel {
+    border-radius: 1rem !important;
+    padding: 0.5rem !important;
+    overflow: visible !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="order-3"][class*="hidden"][class*="md:flex"],
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="order-4"][class*="hidden"][class*="md:flex"] {
+    display: flex !important;
+    order: 2 !important;
+    margin-top: 0 !important;
+    border-radius: 1rem !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="order-1"] div[class*="hidden"][class*="md:flex"][class*="flex-col"][class*="mt-3"] {
+    display: flex !important;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  main[class*="bg-slate-50"] img.transparent-checkerboard {
+    max-height: 18rem;
+    object-fit: contain;
+  }
+
+  [data-focused-editor-workspace="true"] {
+    gap: 0.75rem !important;
+    overflow-x: clip;
+  }
+
+  [data-editor-settings-panel="true"] {
+    padding: 0.5rem !important;
+    overflow-x: clip;
+  }
+
+  [data-settings-section] {
+    border-radius: 0.875rem !important;
+  }
 }
 
 button[class*="bg-[#0b2dff]"],

@@ -460,7 +460,7 @@ function PresetButton<TPreset extends ConverterPresetOption>({
   return (
     <div
       className={[
-        "group relative min-h-[4.25rem] w-full rounded-lg border transition-colors",
+        "group relative min-h-[4.75rem] w-full rounded-lg border transition-colors",
         active
           ? "bg-sky-50 border-sky-300 text-sky-950 shadow-sm ring-1 ring-sky-100 hover:bg-sky-100"
           : "bg-white text-slate-700 border-slate-200 hover:border-sky-200 hover:bg-sky-50",
@@ -473,33 +473,33 @@ function PresetButton<TPreset extends ConverterPresetOption>({
         aria-label={`${preset.label}. ${intensityBadge.label}.`}
         title={title}
         className={[
-          "flex min-h-[4.25rem] w-full items-start gap-2 rounded-lg px-3 py-2.5 pr-10 transition-colors cursor-pointer",
+          "flex min-h-[4.75rem] w-full flex-col items-start gap-2 rounded-lg px-3 py-2.5 pr-10 transition-colors cursor-pointer",
           "text-left text-[13px] font-semibold leading-snug sm:text-sm",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
         ].join(" ")}
       >
-        <span
-          className={[
-            "mt-1.5 h-2 w-2 shrink-0 rounded-full transition-colors",
-            active ? "bg-sky-500" : "bg-slate-200 group-hover:bg-sky-300",
-          ].join(" ")}
-          aria-hidden="true"
-        />
-        <span className="grid min-w-0 flex-1 gap-1">
+        <span className="flex min-w-0 items-start gap-2 pr-1">
+          <span
+            className={[
+              "mt-1.5 h-2 w-2 shrink-0 rounded-full transition-colors",
+              active ? "bg-sky-500" : "bg-slate-200 group-hover:bg-sky-300",
+            ].join(" ")}
+            aria-hidden="true"
+          />
           <span className="min-w-0 break-words pr-1 leading-tight">
             {preset.label}
           </span>
-          <span
-            className={[
-              "w-fit max-w-full truncate rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-              intensityBadge.className,
-              active ? "shadow-sm" : "",
-            ].join(" ")}
-            aria-label={intensityBadge.title}
-            title={intensityBadge.title}
-          >
-            {intensityBadge.label}
-          </span>
+        </span>
+        <span
+          className={[
+            "mt-auto w-fit max-w-full truncate rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+            intensityBadge.className,
+            active ? "shadow-sm" : "",
+          ].join(" ")}
+          aria-label={intensityBadge.title}
+          title={intensityBadge.title}
+        >
+          {intensityBadge.label}
         </span>
       </button>
 

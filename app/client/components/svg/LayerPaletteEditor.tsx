@@ -191,7 +191,7 @@ export function LayerPaletteEditor({
       data-layer-palette-editor="true"
       className="my-2 min-w-0 max-w-full overflow-x-hidden rounded-lg border border-slate-200 bg-slate-50 p-2"
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
         <span className="text-[12px] font-semibold text-slate-700">
           Layer colors
         </span>
@@ -431,7 +431,7 @@ function LayerPaletteRow({
 
   return (
     <div className="grid min-w-0 max-w-full gap-2 overflow-x-hidden rounded-md border border-slate-200 bg-white px-2 py-1.5">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
         <input
           type="checkbox"
           checked={layer.visible}
@@ -454,9 +454,19 @@ function LayerPaletteRow({
           className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
 
-        <span className="min-w-0 flex-[1_1_9rem] truncate text-[12px] text-slate-700">
-          {layer.label} {layer.originalColor}
+        <span className="grid min-w-0 gap-0.5 text-[12px] text-slate-700">
+          <span className="min-w-0 truncate font-semibold">{layer.label}</span>
+          <span className="min-w-0 truncate text-[11px] text-slate-400">
+            Original {layer.originalColor}
+          </span>
         </span>
+        <button
+          type="button"
+          onClick={resetLayer}
+          className="col-span-3 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:col-span-1"
+        >
+          Reset
+        </button>
       </div>
 
       {onOpacityChange && (
@@ -479,13 +489,6 @@ function LayerPaletteRow({
         </label>
       )}
 
-      <button
-        type="button"
-        onClick={resetLayer}
-        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-medium text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-      >
-        Reset
-      </button>
     </div>
   );
 }
@@ -498,11 +501,11 @@ function LayerControlField({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-center gap-2 bg-[#fafcff] border border-[#edf2fb] rounded-lg px-3 py-2 min-w-0">
-      <span className="min-w-[180px] text-[13px] text-slate-700 shrink-0">
+    <label className="grid min-w-0 max-w-full gap-2 rounded-lg border border-[#edf2fb] bg-[#fafcff] px-3 py-2 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)] sm:items-center">
+      <span className="min-w-0 break-words text-[13px] text-slate-700">
         {label}
       </span>
-      <div className="flex items-center gap-2 flex-1 min-w-0">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
     </label>
   );
 }
@@ -552,7 +555,7 @@ function CommittedNumberInput({
           event.currentTarget.blur();
         }
       }}
-      className="w-[110px] px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900"
+      className="w-full min-w-0 max-w-[160px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 sm:w-[110px]"
     />
   );
 }

@@ -2699,7 +2699,7 @@ function SettingSection({
               open ? "opacity-100" : "opacity-0",
             ].join(" ")}
           >
-            <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden border-t border-slate-100 p-3">
+            <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-x-hidden border-t border-slate-100 p-2 sm:p-3">
               {children}
               {footer ? (
                 <div className="mt-1 border-t border-slate-100 pt-2">
@@ -2717,7 +2717,7 @@ function SettingSection({
     <section
       data-settings-section-tone={tone}
       className={[
-        "min-w-0 max-w-full rounded-lg border border-l-4 bg-white/95 p-3 shadow-sm shadow-slate-900/[0.03]",
+        "min-w-0 max-w-full rounded-lg border border-l-4 bg-white/95 p-2 shadow-sm shadow-slate-900/[0.03] sm:p-3",
         toneClasses.shell,
       ].join(" ")}
     >
@@ -2793,7 +2793,7 @@ function AdvancedTopLevelSection({
     <section
       data-settings-top-section-tone={tone}
       data-settings-top-section-open={open ? "true" : "false"}
-      className={["rounded-xl border border-l-4 p-3", toneClass].join(" ")}
+      className={["min-w-0 max-w-full overflow-hidden rounded-xl border border-l-4 p-2 sm:p-3", toneClass].join(" ")}
     >
       <div className="flex min-w-0 items-start justify-between gap-2">
         <button
@@ -2858,9 +2858,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-[13px] text-slate-800">
-      <span className="min-w-0 font-medium">{label}</span>
-      <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+    <label className="grid min-w-0 max-w-full gap-2 rounded-md border border-slate-100 bg-slate-50 px-2.5 py-2 text-[13px] text-slate-800 sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)] sm:items-center sm:px-3">
+      <span className="min-w-0 break-words font-medium">{label}</span>
+      <span className="flex min-w-0 w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
         {children}
       </span>
     </label>
@@ -2880,7 +2880,7 @@ function Select({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="max-w-[190px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      className="w-full min-w-0 max-w-full rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:max-w-[190px]"
     >
       {options.map(([optionValue, label]) => (
         <option key={optionValue} value={optionValue}>
@@ -3028,7 +3028,7 @@ function ColorInput({
         onBlur={() => flush()}
         aria-invalid={!normalizeColorInput(textValue)}
         className={[
-          "w-[104px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+          "min-w-0 w-[96px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-[104px]",
           disabled ? "opacity-50 pointer-events-none" : "",
         ].join(" ")}
         aria-label="Hex color"
@@ -3135,7 +3135,7 @@ function Range({
       onTouchEnd={(event) => flush(Number(event.currentTarget.value))}
       onKeyUp={(event) => flush(Number(event.currentTarget.value))}
       onBlur={(event) => flush(Number(event.currentTarget.value))}
-      className="w-[140px] accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      className="w-full min-w-[8rem] max-w-full accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-[140px]"
     />
   );
 }
@@ -3189,7 +3189,7 @@ function NumberInput({
           event.currentTarget.blur();
         }
       }}
-      className="w-[110px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      className="w-full min-w-0 max-w-[160px] rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:w-[110px]"
     />
   );
 }

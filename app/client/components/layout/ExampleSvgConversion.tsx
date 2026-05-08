@@ -330,9 +330,20 @@ export default function ExampleSvgConversion({
     return category ?? getCategoryForRoute(activeSlug);
   }, [activeSlug, category]);
 
-  const pair = React.useMemo(() => {
-    return getExamplePair(activeSlug, activeCategory);
+  const [randomSeed, setRandomSeed] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setRandomSeed(createExampleRandomSeed());
   }, [activeCategory, activeSlug]);
+
+  const pair = React.useMemo(() => {
+    if (!randomSeed) return null;
+    return getExamplePair(activeSlug, activeCategory, randomSeed);
+  }, [activeCategory, activeSlug, randomSeed]);
+
+  if (!pair) {
+    return <ExampleSvgConversionSkeleton className={className} />;
+  }
 
   const copy = CATEGORY_COPY[activeCategory](pair.example);
 
@@ -366,6 +377,34 @@ export default function ExampleSvgConversion({
           src={afterSrc}
           alt={copy.afterAlt}
         />
+      </div>
+    </section>
+  );
+}
+
+function ExampleSvgConversionSkeleton({ className = "" }: { className?: string }) {
+  return (
+    <section
+      aria-busy="true"
+      data-example-randomizing="true"
+      className={[
+        "mt-8 rounded-2xl border border-slate-200 bg-white p-5",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div className="h-6 w-64 max-w-full animate-pulse rounded bg-slate-100" />
+      <div className="mt-3 h-4 w-full max-w-xl animate-pulse rounded bg-slate-100" />
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-2 h-4 w-36 animate-pulse rounded bg-slate-100" />
+          <div className="aspect-square animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-2 h-4 w-36 animate-pulse rounded bg-slate-100" />
+          <div className="aspect-square animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+        </div>
       </div>
     </section>
   );
@@ -460,9 +499,10 @@ function getCategoryForRoute(routeSlug: string): ExampleCategory {
 function getExamplePair(
   routeSlug: string,
   category: ExampleCategory,
+  randomSeed: string,
 ): ExamplePair {
   const examples = getCandidateExamplesForRoute(routeSlug, category);
-  const seed = `${routeSlug}:${category}`;
+  const seed = `${randomSeed}:${routeSlug}:${category}`;
   const example =
     examples[stableIndex(`${seed}:example`, examples.length)] ??
     IMAGE_EXAMPLES[0];
@@ -546,6 +586,19 @@ function getBeforeSrc(pair: ExamplePair) {
 
 function getAfterSrc(pair: ExamplePair) {
   return `${ASSET_BASE_URL}/${pair.conversionName}.svg`;
+}
+
+function createExampleRandomSeed() {
+  if (typeof window === "undefined") return "server";
+
+  const cryptoApi = window.crypto;
+  if (cryptoApi?.getRandomValues) {
+    const values = new Uint32Array(2);
+    cryptoApi.getRandomValues(values);
+    return `${values[0].toString(36)}-${values[1].toString(36)}`;
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 function stableIndex(seed: string, length: number) {

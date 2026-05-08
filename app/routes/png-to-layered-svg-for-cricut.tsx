@@ -2393,7 +2393,8 @@ export default function PngToLayeredSvgForCricut({
               data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
               data-output-panel-focused={focusedOutputStamp != null ? "true" : "false"}
               className={[
-                "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]",
+                "converter-output-panel order-3 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
+                history.length === 0 && !busy ? "hidden md:block" : "",
                 focusedOutputStamp != null
                   ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
                   : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
@@ -2637,6 +2638,7 @@ export default function PngToLayeredSvgForCricut({
                             <button
                               type="button"
                               onClick={() => toggleCollapsedOutput(item.stamp)}
+                              data-output-restore-control="true"
                               className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
                             >
                               Restore
@@ -3086,7 +3088,12 @@ export default function PngToLayeredSvgForCricut({
                   })}
                 </div>
               ) : (
-                <p className="converter-empty-output-state">
+                <p
+                  className={[
+                    "converter-empty-output-state",
+                    busy ? "" : "hidden md:flex",
+                  ].join(" ")}
+                >
                   {!busy && (
                     <Icons
                       name="success"

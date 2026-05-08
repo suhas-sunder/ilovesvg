@@ -15,6 +15,76 @@ type NavItem = {
 
 type Rect = { top: number; left: number; width: number; height: number };
 
+type NavCategoryId =
+  | "general"
+  | "file-types"
+  | "cricut"
+  | "line-art"
+  | "logo-icon"
+  | "layered"
+  | "svg-export"
+  | "svg-tools"
+  | "more";
+
+type NavCategory = {
+  id: NavCategoryId;
+  label: string;
+  description: string;
+};
+
+type NavGroup = {
+  category: NavCategory;
+  items: NavItem[];
+};
+
+const NAV_CATEGORIES: NavCategory[] = [
+  {
+    id: "line-art",
+    label: "Line art and sketch",
+    description: "Outline, drawing, scan, and monochrome routes.",
+  },
+  {
+    id: "cricut",
+    label: "Cricut and cut files",
+    description: "Craft, vinyl, sticker, and cutter routes.",
+  },
+  {
+    id: "logo-icon",
+    label: "Logo and icon",
+    description: "Brand, icon, emoji, and text conversions.",
+  },
+  {
+    id: "file-types",
+    label: "File type converters",
+    description: "PNG, JPG, WebP, and Base64 tools.",
+  },
+  {
+    id: "layered",
+    label: "Layered and color SVG",
+    description: "Layered color and multi-color outputs.",
+  },
+  {
+    id: "svg-export",
+    label: "Export tools",
+    description: "SVG to image, PDF, and favicon outputs.",
+  },
+  {
+    id: "svg-tools",
+    label: "SVG editing tools",
+    description: "Recolor, clean, inspect, and edit SVG files.",
+  },
+  {
+    id: "general",
+    label: "General converters",
+    description: "Core raster to SVG workflows.",
+  },
+  {
+    id: "more",
+    label: "More tools",
+    description: "Reference and utility pages.",
+  },
+];
+
 function useIsClient() {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => setIsClient(true), []);
@@ -23,6 +93,7 @@ function useIsClient() {
 
 export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobileNavMode, setIsMobileNavMode] = useState(false);
 
   // Desktop "More" dropdown
   const [moreOpen, setMoreOpen] = useState(false);
@@ -614,6 +685,16 @@ export default function NavBar() {
     [items, mobileSearch],
   );
 
+  const desktopNavGroups = useMemo(
+    () => groupNavItems(filteredDesktopMoreLinks),
+    [filteredDesktopMoreLinks],
+  );
+
+  const mobileNavGroups = useMemo(
+    () => groupNavItems(filteredMobileLinks),
+    [filteredMobileLinks],
+  );
+
   const closeAll = () => {
     setMobileOpen(false);
     setMoreOpen(false);
@@ -738,6 +819,26 @@ export default function NavBar() {
     };
   }, [mobileOpen]);
 
+  // Keep desktop and mobile menu state mutually exclusive across resizes.
+  useEffect(() => {
+    if (!isClient) return;
+    const media = window.matchMedia("(max-width: 1023px)");
+    const syncMenuMode = () => {
+      setIsMobileNavMode(media.matches);
+      if (media.matches) {
+        setMoreOpen(false);
+      } else {
+        setMobileOpen(false);
+      }
+    };
+
+    syncMenuMode();
+    media.addEventListener?.("change", syncMenuMode);
+    return () => {
+      media.removeEventListener?.("change", syncMenuMode);
+    };
+  }, [isClient]);
+
   // Mobile close on backdrop click
   useEffect(() => {
     if (!mobileOpen) return;
@@ -766,9 +867,16 @@ export default function NavBar() {
     const gap = 8;
     const top = Math.round(moreRect.top + moreRect.height + gap);
 
-    const menuWidth = 380;
+    const viewportWidth =
+      typeof window === "undefined" ? 1180 : window.innerWidth;
+    const preferredWidth =
+      viewportWidth >= 1536 ? 1120 : viewportWidth >= 1180 ? 960 : viewportWidth >= 768 ? 720 : 380;
+    const menuWidth = Math.max(320, Math.min(viewportWidth - 24, preferredWidth));
     const rightEdge = Math.round(moreRect.left + moreRect.width);
-    const left = Math.max(8, rightEdge - menuWidth);
+    const left = Math.min(
+      Math.max(8, rightEdge - menuWidth),
+      Math.max(8, viewportWidth - menuWidth - 8),
+    );
 
     return {
       position: "fixed" as const,
@@ -822,7 +930,7 @@ export default function NavBar() {
           {/* Mobile burger */}
           <button
             type="button"
-            className="sm:hidden inline-flex items-center justify-center rounded-md px-3 py-2
+            className="lg:hidden inline-flex items-center justify-center rounded-md px-3 py-2
                        text-slate-200 hover:text-sky-200 hover:bg-sky-900/25 transition-colors
                        cursor-pointer"
             aria-label="Open menu"
@@ -838,7 +946,7 @@ export default function NavBar() {
           {/* Desktop nav */}
           <nav
             aria-label="Primary"
-            className="hidden sm:flex items-center gap-2 text-sm"
+            className="hidden lg:flex items-center gap-2 text-sm"
           >
             {primaryLinks.map((l) => (
               <DesktopLink
@@ -871,12 +979,12 @@ export default function NavBar() {
       </div>
 
       {/* Desktop dropdown in portal */}
-      {isClient && moreOpen && dropdownStyle
+      {isClient && !isMobileNavMode && moreOpen && dropdownStyle
         ? createPortal(
             <div
               ref={moreMenuRef}
               role="menu"
-              className="rounded-xl border border-sky-900/60 bg-sky-950 shadow-xl overflow-hidden"
+              className="rounded-2xl border border-sky-900/60 bg-sky-950 shadow-xl overflow-hidden"
               style={dropdownStyle}
             >
               <div className="shrink-0 border-b border-sky-900/60 bg-sky-950/95 p-3">
@@ -927,18 +1035,18 @@ export default function NavBar() {
               </div>
 
               <div
-                className={`${SCROLL_CLASS} max-h-[min(60vh,520px)] overflow-y-auto`}
+                className={`${SCROLL_CLASS} max-h-[min(72vh,680px)] overflow-y-auto`}
               >
                 {filteredDesktopMoreLinks.length > 0 ? (
-                  filteredDesktopMoreLinks.map((l) => (
-                    <DropdownLink
-                      key={l.href}
-                      href={l.href}
-                      onClick={(e) => handleNavClick(e, l.href)}
-                    >
-                      {l.label}
-                    </DropdownLink>
-                  ))
+                  <div className="grid items-start gap-3 p-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {desktopNavGroups.map((group) => (
+                      <DesktopNavGroup
+                        key={group.category.id}
+                        group={group}
+                        onNavClick={handleNavClick}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
                     No matching tools found.
@@ -951,8 +1059,8 @@ export default function NavBar() {
         : null}
 
       {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="sm:hidden fixed inset-0 z-[2147483647]">
+      {isMobileNavMode && mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-[2147483647]">
           <div className="absolute inset-0 bg-black/55" />
 
           <div
@@ -1039,15 +1147,17 @@ export default function NavBar() {
             <div className="flex-1 min-h-0">
               <div className={`${SCROLL_CLASS} h-full overflow-y-auto`}>
                 {filteredMobileLinks.length > 0 ? (
-                  filteredMobileLinks.map((l) => (
-                    <MobileLink
-                      key={l.href}
-                      href={l.href}
-                      onClick={(e) => handleNavClick(e, l.href)}
-                    >
-                      {l.label}
-                    </MobileLink>
-                  ))
+                  <div className="grid gap-2 p-3">
+                    {mobileNavGroups.map((group, index) => (
+                      <MobileNavGroup
+                        key={group.category.id}
+                        group={group}
+                        forceOpen={Boolean(mobileSearch)}
+                        defaultOpen={index < 2}
+                        onNavClick={handleNavClick}
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
                     No matching tools found.
@@ -1087,6 +1197,70 @@ function filterNavItems(items: NavItem[], query: string) {
   });
 }
 
+function getNavCategoryId(item: NavItem): NavCategoryId {
+  const target = `${item.href} ${item.label} ${(item.keywords ?? []).join(" ")}`;
+
+  if (/svg-to-(png|jpg|jpeg|webp|pdf)|favicon/i.test(target)) {
+    return "svg-export";
+  }
+
+  if (/layered/i.test(target)) {
+    return "layered";
+  }
+
+  if (
+    /cricut|silhouette|laser|vinyl|etsy|print then cut|print-then-cut|stickers|cut file/i.test(
+      target,
+    )
+  ) {
+    return "cricut";
+  }
+
+  if (/line art|line-art|outline|drawing|scan|sketch|black and white|black-and-white|b&w|bw/i.test(target)) {
+    return "line-art";
+  }
+
+  if (/logo|icon|emoji|text to svg|text-to-svg|favicon/i.test(target)) {
+    return "logo-icon";
+  }
+
+  if (/png-to-svg|jpg-to-svg|jpeg-to-svg|webp-to-svg|image to svg|image-to-svg/i.test(target)) {
+    return item.href === "/" ? "general" : "file-types";
+  }
+
+  if (/base64|color picker/i.test(target)) {
+    return "file-types";
+  }
+
+  if (
+    /recolor|background|resize|scale|minifier|cleaner|preview|embed|inline|stroke width|flip|rotate|dimensions|file size|accessibility|contrast/i.test(
+      target,
+    )
+  ) {
+    return "svg-tools";
+  }
+
+  return item.href === "/" ? "general" : "more";
+}
+
+function groupNavItems(items: NavItem[]): NavGroup[] {
+  const grouped = new Map<NavCategoryId, NavItem[]>();
+
+  for (const category of NAV_CATEGORIES) {
+    grouped.set(category.id, []);
+  }
+
+  for (const item of items) {
+    const categoryId = getNavCategoryId(item);
+    grouped.get(categoryId)?.push(item);
+  }
+
+  return NAV_CATEGORIES.map((category) => ({
+    category,
+    items: grouped.get(category.id) ?? [],
+  })).filter((group) => group.items.length > 0);
+}
+
 function DesktopLink({
   href,
   children,
@@ -1108,6 +1282,80 @@ function DesktopLink({
   );
 }
 
+function DesktopNavGroup({
+  group,
+  onNavClick,
+}: {
+  group: NavGroup;
+  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return (
+    <section
+      role="none"
+      className="min-w-0 rounded-xl border border-sky-800/70 bg-sky-900/20 p-2"
+    >
+      <div className="px-2 pb-2">
+        <h3 className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-sky-200">
+          {group.category.label}
+        </h3>
+        <p className="m-0 mt-1 text-[11px] leading-4 text-sky-100/65">
+          {group.category.description}
+        </p>
+      </div>
+      <div className="grid gap-1">
+        {group.items.map((item) => (
+          <DropdownLink
+            key={item.href}
+            href={item.href}
+            onClick={(event) => onNavClick(event, item.href)}
+          >
+            {item.label}
+          </DropdownLink>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MobileNavGroup({
+  group,
+  forceOpen,
+  defaultOpen,
+  onNavClick,
+}: {
+  group: NavGroup;
+  forceOpen: boolean;
+  defaultOpen: boolean;
+  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  const detailsProps = forceOpen ? { open: true } : { defaultOpen };
+
+  return (
+    <details
+      {...detailsProps}
+      className="rounded-xl border border-sky-800/70 bg-sky-900/20"
+    >
+      <summary className="flex min-h-12 list-none items-center justify-between gap-3 px-4 py-3 text-sm font-extrabold text-slate-100 marker:hidden [&::-webkit-details-marker]:hidden">
+        <span>{group.category.label}</span>
+        <span className="text-xs font-semibold text-sky-200/70">
+          {group.items.length}
+        </span>
+      </summary>
+      <div className="border-t border-sky-800/60 py-1">
+        {group.items.map((item) => (
+          <MobileLink
+            key={item.href}
+            href={item.href}
+            onClick={(event) => onNavClick(event, item.href)}
+          >
+            {item.label}
+          </MobileLink>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function DropdownLink({
   href,
   children,
@@ -1122,8 +1370,8 @@ function DropdownLink({
       href={href}
       onClick={onClick}
       role="menuitem"
-      className="block cursor-pointer select-none px-5 py-4 text-base
-                 text-slate-100 hover:bg-sky-900/25 hover:text-sky-200 transition-colors"
+      className="block min-w-0 cursor-pointer select-none rounded-lg px-3 py-2 text-sm font-semibold
+                 text-slate-100 hover:bg-sky-800/65 hover:text-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-300/50 transition-colors"
     >
       {children}
     </a>
@@ -1143,8 +1391,8 @@ function MobileLink({
     <a
       href={href}
       onClick={onClick}
-      className="block cursor-pointer select-none px-5 py-4 text-base font-semibold
-                 text-slate-100 hover:bg-sky-900/25 hover:text-sky-200 transition-colors"
+      className="block cursor-pointer select-none px-4 py-3 text-sm font-semibold
+                 text-slate-100 hover:bg-sky-800/55 hover:text-sky-200 transition-colors"
     >
       {children}
     </a>

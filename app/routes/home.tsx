@@ -2582,6 +2582,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [activePreset, setActivePreset] =
     React.useState<string>(DEFAULT_PRESET_ID);
   const [presetMenuExpanded, setPresetMenuExpanded] = React.useState(false);
+  const [originalPreviewCollapsed, setOriginalPreviewCollapsed] =
+    React.useState(false);
   const [activeClientTraceCount, setActiveClientTraceCount] = React.useState(0);
   const busy = fetcher.state !== "idle" || activeClientTraceCount > 0;
   const [err, setErr] = React.useState<string | null>(null);
@@ -2600,6 +2602,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // Hydration guard
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
+  React.useEffect(() => {
+    setOriginalPreviewCollapsed(false);
+  }, [previewUrl]);
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
@@ -4310,7 +4315,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
               data-output-panel-focused={focusedOutputStamp != null ? "true" : "false"}
               className={[
-                "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]",
+                "converter-output-panel order-3 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
+                history.length === 0 && !busy ? "hidden md:block" : "",
                 focusedOutputStamp != null
                   ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
                   : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
@@ -4728,6 +4734,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => toggleCollapsedOutput(item.stamp)}
+                                data-output-restore-control="true"
                                 className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100"
                               >
                                 Restore
@@ -5324,7 +5331,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   })}
                 </div>
               ) : (
-                <div className="flex min-h-[12rem] items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-center">
+                <div
+                  className={[
+                    "min-h-[12rem] items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-center",
+                    busy ? "flex" : "hidden md:flex",
+                  ].join(" ")}
+                >
                   <div className="max-w-[21rem]">
                     <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-slate-100">
                       {busy ? (
@@ -5346,15 +5358,46 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
 
             {previewUrl && !presetMenuExpanded && (
-              <div className="order-3 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-2 md:flex">
-                <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
-                  Original image
-                </p>
-                <img
-                  src={previewUrl}
-                  alt="Input"
-                  className="relative block h-auto w-full transparent-checkerboard"
-                />
+              <div className="order-2 flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:order-3 md:col-start-1 md:row-start-2 md:rounded-2xl">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="m-0 text-[13px] font-semibold text-slate-700">
+                      Original image
+                    </p>
+                    {file ? (
+                      <p className="m-0 truncate text-[11px] text-slate-500">
+                        {file.name}
+                        {dims ? ` · ${dims.w}×${dims.h}px` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    aria-expanded={!originalPreviewCollapsed}
+                    aria-label={
+                      originalPreviewCollapsed
+                        ? "Restore original image"
+                        : "Minimize original image"
+                    }
+                    onClick={() => setOriginalPreviewCollapsed((value) => !value)}
+                    className="inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 shadow-sm hover:border-sky-200 hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-300 md:hidden"
+                  >
+                    {originalPreviewCollapsed ? "Restore" : "Minimize"}
+                  </button>
+                </div>
+                {originalPreviewCollapsed ? (
+                  <div className="px-3 py-2 text-[12px] text-slate-500 md:hidden">
+                    Source preview hidden.
+                  </div>
+                ) : (
+                  <div className="overflow-hidden transparent-checkerboard">
+                    <img
+                      src={previewUrl}
+                      alt="Input"
+                      className="relative block h-auto max-h-[18rem] w-full object-contain md:max-h-none"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </section>

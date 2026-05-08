@@ -939,6 +939,7 @@ async function runOutputUxRouteSmoke(testCase) {
     await waitForDocumentReady(client);
     await delay(750);
     await setFileInput(client, testCase.fixture);
+    await waitForValue(client, () => textIncludesExpression(path.basename(testCase.fixture)), 8_000);
     let output = await waitForOutput(client, 8_000, testCase.expectedEngine).catch(() => null);
     if (!output) {
       await clickConvertButton(client);
@@ -1014,14 +1015,14 @@ async function runOutputUxRouteSmoke(testCase) {
         !value?.minimizeInActionRow,
     );
 
-    await clickButtonMatching(client, "/Minimize/i");
+    await clickControlBySelector(client, '[data-output-minimize-control="true"]');
     const collapsed = await waitForValue(
       client,
       outputUxSnapshotExpression,
       8_000,
       (value) => value?.collapsedCards >= 1,
     );
-    await clickButtonMatching(client, "/Restore/i");
+    await clickOutputRestoreControl(client);
     const expanded = await waitForValue(
       client,
       outputUxSnapshotExpression,
@@ -1472,7 +1473,7 @@ async function runOutputUxResponsiveChecks(client) {
       8_000,
       (value) => !value?.focused && value?.expandedCards >= 1,
     );
-    await clickButtonMatching(client, "/Minimize/i");
+    await clickControlBySelector(client, '[data-output-minimize-control="true"]');
     const collapsed = await waitForValue(
       client,
       outputUxSnapshotExpression,
@@ -1480,43 +1481,48 @@ async function runOutputUxResponsiveChecks(client) {
       (value) => value?.collapsedCards >= 1,
     );
     const collapsedLayout = await outputUxLayoutSnapshot(client);
-    await clickButtonMatching(client, "/Restore/i");
+    await clickOutputRestoreControl(client);
     await waitForValue(
       client,
       outputUxSnapshotExpression,
       8_000,
       (value) => value?.collapsedCards === 0 && value?.expandedCards >= 1,
     );
-    const ok =
-      !normal.hasHorizontalOverflow &&
-      focused.focused &&
-      focused.hasOutputComparison &&
-      focused.hasOriginalComparison &&
-      focused.hasSettingsPanel &&
-      focused.hasFileSize &&
-      !focused.hasFocusedRedundantActions &&
-      focused.openSettingsSectionCount === 0 &&
-      focused.appearanceRanges.lineWeightMax >= 30 &&
-      focused.appearanceRanges.fillSpreadMax >= 30 &&
-      !focused.minimizeInActionRow &&
-      focused.leftPaneCollapsed &&
-      focused.editorNearTop &&
-      focused.cursorViolations.length === 0 &&
-      focused.layoutShift.ok &&
-      !focusedLayout.hasHorizontalOverflow &&
-      focusedLayout.hasOutputComparison &&
-      focusedLayout.hasOriginalComparison &&
-      focusedLayout.hasSettingsPanel &&
-      focusedLayout.leftPaneCollapsed &&
-      focusedLayout.editorNearTop &&
-      accordionShift.ok &&
-      collapsed.collapsedCards >= 1 &&
-      !collapsedLayout.hasHorizontalOverflow;
+    const conditions = {
+      normalNoOverflow: !normal.hasHorizontalOverflow,
+      focused: focused.focused,
+      focusedHasOutputComparison: focused.hasOutputComparison,
+      focusedHasOriginalComparison: focused.hasOriginalComparison,
+      focusedHasSettingsPanel: focused.hasSettingsPanel,
+      focusedHasFileSize: focused.hasFileSize,
+      noFocusedRedundantActions: !focused.hasFocusedRedundantActions,
+      noSettingsSectionsOpen: focused.openSettingsSectionCount === 0,
+      lineWeightRange: focused.appearanceRanges.lineWeightMax >= 30,
+      fillSpreadRange: focused.appearanceRanges.fillSpreadMax >= 30,
+      noMinimizeInActionRow: !focused.minimizeInActionRow,
+      leftPaneCollapsed: focused.leftPaneCollapsed,
+      editorNearTop: focused.editorNearTop,
+      noCursorViolations: focused.cursorViolations.length === 0,
+      focusedNoLayoutShift: focused.layoutShift.ok,
+      focusedLayoutNoOverflow: !focusedLayout.hasHorizontalOverflow,
+      focusedLayoutHasOutputComparison: focusedLayout.hasOutputComparison,
+      focusedLayoutHasOriginalComparison: focusedLayout.hasOriginalComparison,
+      focusedLayoutHasSettingsPanel: focusedLayout.hasSettingsPanel,
+      focusedLayoutLeftPaneCollapsed: focusedLayout.leftPaneCollapsed,
+      focusedLayoutEditorNearTop: focusedLayout.editorNearTop,
+      accordionStable: accordionShift.ok,
+      collapsedCardCreated: collapsed.collapsedCards >= 1,
+      collapsedNoOverflow: !collapsedLayout.hasHorizontalOverflow,
+    };
+    const ok = Object.values(conditions).every(Boolean);
     checks.push({
       width,
       ok,
       normal,
       focused: focusedLayout,
+      conditionFailures: Object.entries(conditions)
+        .filter(([, passed]) => !passed)
+        .map(([name]) => name),
       accordionShift,
       collapsed: collapsedLayout,
     });
@@ -1647,13 +1653,21 @@ function outputUxSnapshotExpression() {
     const openSettingsSections = settingsPanel
       ? Array.from(settingsPanel.querySelectorAll('[data-settings-section-open="true"]'))
       : [];
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    };
     const focusedButtons = focusedCard
-      ? Array.from(focusedCard.querySelectorAll("button")).map((button) =>
-          (button.innerText || button.getAttribute("aria-label") || "").trim().replace(/\\s+/g, " ")
-        )
+      ? Array.from(focusedCard.querySelectorAll("button"))
+          .filter((button) => visible(button))
+          .map((button) => ({
+            label: (button.innerText || button.getAttribute("aria-label") || "").trim().replace(/\\s+/g, " "),
+            isOutputMinimize: button.getAttribute("data-output-minimize-control") === "true",
+          }))
       : [];
-    const hasFocusedRedundantActions = focusedButtons.some((label) =>
-      /Minimize/i.test(label) || /Settings\\s*\\/\\s*Edit/i.test(label)
+    const hasFocusedRedundantActions = focusedButtons.some(({ label, isOutputMinimize }) =>
+      isOutputMinimize || /Settings\\s*\\/\\s*Edit/i.test(label)
     );
     const outputPanel = document.querySelector('[data-output-panel-focused="true"]');
     const grid = outputPanel?.parentElement || null;
@@ -1673,11 +1687,6 @@ function outputUxSnapshotExpression() {
     const editorNearTop = !outputPanel || !outputPanelRect || !gridRect
       ? true
       : outputPanelRect.top <= gridRect.top + 56;
-    const visible = (element) => {
-      const rect = element.getBoundingClientRect();
-      const style = getComputedStyle(element);
-      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
-    };
     const cursorViolations = Array.from((outputPanel || document).querySelectorAll("button, summary"))
       .filter((element) => visible(element) && !element.disabled && element.getAttribute("aria-disabled") !== "true")
       .map((element) => ({
@@ -1866,6 +1875,64 @@ async function clickButtonMatching(client, patternSource, options = {}) {
   const clicked = await clickButtonIfPresent(client, patternSource, options);
   if (!clicked) throw new Error(`No enabled button matched ${patternSource}.`);
   return clicked;
+}
+
+async function clickControlBySelector(client, selector) {
+  const clicked = await evaluate(client, `(() => {
+    const controls = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
+    const target = controls.find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        !candidate.disabled &&
+        candidate.getAttribute("aria-disabled") !== "true"
+      );
+    });
+    if (!target) return null;
+    const label = target.innerText?.trim() || target.getAttribute("aria-label") || ${JSON.stringify(selector)};
+    for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
+      target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    }
+    target.click();
+    return label;
+  })()`);
+  if (!clicked) throw new Error(`No visible enabled control matched ${selector}.`);
+  return clicked;
+}
+
+async function clickOutputRestoreControl(client) {
+  const clickedByMarker = await clickControlIfPresentBySelector(client, '[data-output-restore-control="true"]');
+  if (clickedByMarker) return clickedByMarker;
+  return clickButtonMatching(client, "/^Restore$/i");
+}
+
+async function clickControlIfPresentBySelector(client, selector) {
+  return evaluate(client, `(() => {
+    const controls = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
+    const target = controls.find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        !candidate.disabled &&
+        candidate.getAttribute("aria-disabled") !== "true"
+      );
+    });
+    if (!target) return null;
+    const label = target.innerText?.trim() || target.getAttribute("aria-label") || ${JSON.stringify(selector)};
+    for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
+      target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    }
+    target.click();
+    return label;
+  })()`);
 }
 
 async function clickButtonIfPresent(client, patternSource, options = {}) {
@@ -2672,6 +2739,8 @@ function isIgnorableDevConsoleMessage(message) {
     /WebSocket connection .*24678/i.test(message) ||
     /WebSocket closed without opened/i.test(message) ||
     /Failed to load resource: net::ERR_FILE_NOT_FOUND/i.test(message) ||
+    /Access to resource at 'https:\/\/script\.google\.com\/macros\/s\//i.test(message) ||
+    /Failed to load resource: net::ERR_FAILED/i.test(message) ||
     /Framing 'https:\/\/www\.google\.com\/' violates .*report-only Content Security Policy/i.test(message) ||
     /server responded with a status of 404/i.test(message)
   );

@@ -291,6 +291,8 @@ export function FocusedEditorPreviewComparison({
   originalAlt?: string;
   toolbar?: React.ReactNode;
 }) {
+  const [originalCollapsed, setOriginalCollapsed] = React.useState(false);
+
   return (
     <div
       data-editor-comparison-panel="true"
@@ -324,22 +326,43 @@ export function FocusedEditorPreviewComparison({
         data-editor-original-preview="true"
         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
-        <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-bold text-slate-800">
-          Original
-        </p>
-        <div className="flex max-h-[260px] min-h-[150px] items-center justify-center overflow-auto p-3 transparent-checkerboard">
-          {originalPreviewUrl ? (
-            <img
-              src={originalPreviewUrl}
-              alt={originalAlt}
-              className="h-auto max-h-[240px] max-w-full"
-            />
-          ) : (
-            <p className="m-0 text-center text-[13px] font-medium text-slate-500">
-              Original image preview unavailable for this route.
-            </p>
-          )}
+        <div className="flex min-w-0 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+          <p className="m-0 min-w-0 truncate text-[13px] font-bold text-slate-800">
+            Original
+          </p>
+          <button
+            type="button"
+            aria-expanded={!originalCollapsed}
+            aria-label={
+              originalCollapsed
+                ? "Restore original image"
+                : "Minimize original image"
+            }
+            onClick={() => setOriginalCollapsed((value) => !value)}
+            className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:hidden"
+          >
+            {originalCollapsed ? "Restore" : "Minimize"}
+          </button>
         </div>
+        {originalCollapsed ? (
+          <div className="px-3 py-2 text-[12px] font-medium text-slate-500 sm:hidden">
+            Source preview hidden.
+          </div>
+        ) : (
+          <div className="flex max-h-[260px] min-h-[150px] items-center justify-center overflow-hidden p-3 transparent-checkerboard">
+            {originalPreviewUrl ? (
+              <img
+                src={originalPreviewUrl}
+                alt={originalAlt}
+                className="h-auto max-h-[240px] max-w-full object-contain"
+              />
+            ) : (
+              <p className="m-0 text-center text-[13px] font-medium text-slate-500">
+                Original image preview unavailable for this route.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -529,7 +552,8 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
       data-focused-editor={focusedMode ? "true" : "false"}
       data-output-panel-focused={focusedMode ? "true" : "false"}
       className={[
-        "converter-output-panel order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]",
+        "converter-output-panel order-3 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
+        history.length === 0 && !busy ? "hidden md:block" : "",
         focusedMode
           ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
           : "md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start",
@@ -965,7 +989,12 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
           })}
         </div>
       ) : (
-        <div className="converter-empty-output-state">
+        <div
+          className={[
+            "converter-empty-output-state",
+            busy ? "" : "hidden md:flex",
+          ].join(" ")}
+        >
           {!busy && (
             <Icons name="success" size={20} className="mb-2 inline-block" />
           )}
@@ -1183,6 +1212,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
           <button
             type="button"
             onClick={onToggleCollapsed}
+            data-output-restore-control="true"
             className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             Restore
