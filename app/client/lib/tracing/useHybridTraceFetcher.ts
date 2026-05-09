@@ -1,6 +1,16 @@
 import * as React from "react";
 import { useFetcher } from "react-router";
 
+import { buildConversionCacheKeyForFile } from "~/client/lib/converter/buildConversionCacheKey";
+import {
+  lookupConversionCache,
+  writeConversionCache,
+  type BaseConversionCacheResult,
+} from "~/client/lib/converter/conversionCache";
+import {
+  getInFlightConversion,
+  joinOrStartInFlightConversion,
+} from "~/client/lib/converter/inFlightConversionDedupe";
 import type {
   NormalizedTraceSettings,
   TraceEngine,
@@ -28,6 +38,8 @@ type HybridTracePayload = {
   svgBytes?: number;
   clientRunId?: string;
   traceJobId?: string;
+  cacheHit?: boolean;
+  conversionCacheKey?: string;
 };
 
 type FetcherReturn<TData> = ReturnType<typeof useFetcher<TData>>;
@@ -37,6 +49,7 @@ type HybridTraceFetcherReturn<TData> = FetcherReturn<TData> & {
 };
 type FetcherSubmitTarget = Parameters<FetcherReturn<unknown>["submit"]>[0];
 type FetcherSubmitOptions = Parameters<FetcherReturn<unknown>["submit"]>[1];
+const SERVER_FALLBACK_SUBMITTED = "ILOVESVG_SERVER_FALLBACK_SUBMITTED";
 
 export function useHybridTraceFetcher<
   TData extends HybridTracePayload = HybridTracePayload,
@@ -52,6 +65,16 @@ export function useHybridTraceFetcher<
   const fallbackWarningRef = React.useRef<string | null>(null);
   const abortControllersRef = React.useRef(new Map<string, AbortController>());
   const suppressedServerDataRef = React.useRef<unknown>(undefined);
+  const pendingServerCacheRef = React.useRef(
+    new Map<
+      string,
+      {
+        cacheKey: string;
+        resolve: (result: BaseConversionCacheResult) => void;
+        reject: (error: unknown) => void;
+      }
+    >(),
+  );
 
   const submit = React.useCallback(
     (target: FetcherSubmitTarget, submitOptions?: FetcherSubmitOptions) => {
@@ -78,6 +101,9 @@ export function useHybridTraceFetcher<
 
       const settings = formDataToTraceSettings(target, options.routeId);
       const requestedEngine = settings.engine || "auto";
+      const canShareInFlightConversion =
+        settings.traceMode !== "layered" &&
+        settings.strokeOutputMode !== "centerline";
       const clientRunId =
         readString(target, "clientRunId") ??
         `${options.routeId}-${Date.now()}-${runId}`;
@@ -85,16 +111,21 @@ export function useHybridTraceFetcher<
       setActiveClientJobs((count) => count + 1);
       const abortController = new AbortController();
       abortControllersRef.current.set(clientRunId, abortController);
-      recordHybridTraceDebug({
-        routeId: options.routeId,
-        stage: "client-attempt-start",
-        clientRunId,
-        traceJobId: String(runId),
-        presetId: settings.presetId,
-        traceMode: settings.traceMode,
-        requestedEngine,
-      });
-      void (async () => {
+
+      const runClientOrServerConversion = async (
+        cacheKey: string | null,
+      ): Promise<BaseConversionCacheResult> => {
+        recordHybridTraceDebug({
+          routeId: options.routeId,
+          stage: "client-attempt-start",
+          clientRunId,
+          traceJobId: String(runId),
+          presetId: settings.presetId,
+          traceMode: settings.traceMode,
+          requestedEngine,
+          conversionCacheKey: cacheKey,
+        });
+
         const clientAttempt = await tryTraceRasterInClient({
           file: submittedFile,
           settings,
@@ -113,15 +144,11 @@ export function useHybridTraceFetcher<
             latest: runIdRef.current === runId,
             engineUsed: clientAttempt.result.engineUsed,
             warnings: clientAttempt.result.warnings,
+            conversionCacheKey: cacheKey,
           });
           fallbackWarningRef.current = null;
-          setClientData(
-            traceResultToFetcherData<TData>(clientAttempt.result, {
-              clientRunId,
-              traceJobId: String(runId),
-            }),
-          );
-          return;
+          if (cacheKey) writeConversionCache(cacheKey, clientAttempt.result);
+          return clientAttempt.result;
         }
 
         const isLatest = runIdRef.current === runId;
@@ -133,40 +160,33 @@ export function useHybridTraceFetcher<
           latest: isLatest,
           reason: clientAttempt.reason,
           requestedEngine,
+          conversionCacheKey: cacheKey,
         });
-        if (abortController.signal.aborted || clientAttempt.reason === "Conversion was canceled.") {
+        if (
+          abortController.signal.aborted ||
+          clientAttempt.reason === "Conversion was canceled."
+        ) {
           recordHybridTraceDebug({
             routeId: options.routeId,
             stage: "client-attempt-canceled",
             clientRunId,
             traceJobId: String(runId),
           });
-          return;
+          throw new Error("Conversion was canceled.");
         }
         if (requestedEngine === "vtracer") {
-          setClientData({
-            error: `VTracer could not convert this image in your browser. ${clientAttempt.reason}`,
-            clientRunId,
-            traceJobId: String(runId),
-          } as TData);
-          return;
+          throw new Error(
+            `VTracer could not convert this image in your browser. ${clientAttempt.reason}`,
+          );
         }
         if (settings.strokeOutputMode === "centerline") {
-          setClientData({
-            error: `Centerline stroke tracing could not convert this image in your browser. ${clientAttempt.reason}`,
-            clientRunId,
-            traceJobId: String(runId),
-          } as TData);
-          return;
+          throw new Error(
+            `Centerline stroke tracing could not convert this image in your browser. ${clientAttempt.reason}`,
+          );
         }
 
         if (!isLatest) {
-          setClientData({
-            error: `An earlier browser trace did not finish. ${clientAttempt.reason}`,
-            clientRunId,
-            traceJobId: String(runId),
-          } as TData);
-          return;
+          throw new Error(`An earlier browser trace did not finish. ${clientAttempt.reason}`);
         }
 
         fallbackWarningRef.current = clientAttempt.reason;
@@ -176,15 +196,116 @@ export function useHybridTraceFetcher<
           clientRunId,
           traceJobId: String(runId),
           reason: clientAttempt.reason,
+          conversionCacheKey: cacheKey,
         });
-        fetcher.submit(target, submitOptions);
+
+        if (!cacheKey) {
+          fetcher.submit(target, submitOptions);
+          throw new Error(SERVER_FALLBACK_SUBMITTED);
+        }
+
+        return await new Promise<BaseConversionCacheResult>((resolve, reject) => {
+          pendingServerCacheRef.current.set(clientRunId, {
+            cacheKey,
+            resolve,
+            reject,
+          });
+          fetcher.submit(target, submitOptions);
+        });
+      };
+
+      void (async () => {
+        const keyInfo = await buildConversionCacheKeyForFile(submittedFile, {
+          routeId: options.routeId,
+          settings,
+        });
+        const cacheKey = keyInfo?.key ?? null;
+
+        if (cacheKey) {
+          const cached = lookupConversionCache(cacheKey);
+          if (cached) {
+            recordHybridTraceDebug({
+              routeId: options.routeId,
+              stage: "cache-hit",
+              clientRunId,
+              traceJobId: String(runId),
+              conversionCacheKey: cacheKey,
+              engineUsed: cached.engineUsed,
+            });
+            setClientData(
+              traceResultToFetcherData<TData>(cached, {
+                clientRunId,
+                traceJobId: String(runId),
+                cacheHit: true,
+                conversionCacheKey: cacheKey,
+              }),
+            );
+            return;
+          }
+
+          if (canShareInFlightConversion) {
+            const existing = getInFlightConversion(cacheKey);
+            if (existing) {
+              recordHybridTraceDebug({
+                routeId: options.routeId,
+                stage: "in-flight-join",
+                clientRunId,
+                traceJobId: String(runId),
+                conversionCacheKey: cacheKey,
+              });
+              const result = await existing;
+              setClientData(
+                traceResultToFetcherData<TData>(result, {
+                  clientRunId,
+                  traceJobId: String(runId),
+                  cacheHit: false,
+                  conversionCacheKey: cacheKey,
+                }),
+              );
+              return;
+            }
+
+            const result = await joinOrStartInFlightConversion(cacheKey, () =>
+              runClientOrServerConversion(cacheKey),
+            );
+            setClientData(
+              traceResultToFetcherData<TData>(result, {
+                clientRunId,
+                traceJobId: String(runId),
+                cacheHit: false,
+                conversionCacheKey: cacheKey,
+              }),
+            );
+            return;
+          }
+
+          const result = await runClientOrServerConversion(cacheKey);
+          setClientData(
+            traceResultToFetcherData<TData>(result, {
+              clientRunId,
+              traceJobId: String(runId),
+              cacheHit: false,
+              conversionCacheKey: cacheKey,
+            }),
+          );
+          return;
+        }
+
+        const result = await runClientOrServerConversion(null);
+        setClientData(
+          traceResultToFetcherData<TData>(result, {
+            clientRunId,
+            traceJobId: String(runId),
+          }),
+        );
       })()
         .catch((error) => {
-          const isLatest = runIdRef.current === runId;
           const message =
             error instanceof Error && error.message
               ? error.message
               : "Browser tracing failed.";
+          if (message === SERVER_FALLBACK_SUBMITTED) return;
+          const isLatest = runIdRef.current === runId;
           if (abortController.signal.aborted || /canceled/i.test(message)) {
             recordHybridTraceDebug({
               routeId: options.routeId,
@@ -192,6 +313,18 @@ export function useHybridTraceFetcher<
               clientRunId,
               traceJobId: String(runId),
             });
+            return;
+          }
+          if (
+            message.startsWith("VTracer could not convert") ||
+            message.startsWith("Centerline stroke tracing could not convert") ||
+            message.startsWith("An earlier browser trace did not finish")
+          ) {
+            setClientData({
+              error: message,
+              clientRunId,
+              traceJobId: String(runId),
+            } as TData);
             return;
           }
           if (requestedEngine === "vtracer") {
@@ -236,6 +369,50 @@ export function useHybridTraceFetcher<
     [fetcher, options.enabled, options.onProgress, options.routeId],
   );
 
+  React.useEffect(() => {
+    const rawData = fetcher.data;
+    if (!rawData) return;
+    const clientRunId = rawData.clientRunId || "";
+    const pending = clientRunId
+      ? pendingServerCacheRef.current.get(clientRunId)
+      : null;
+    if (!pending) return;
+
+    if (rawData.svg) {
+      const enriched = withServerFallbackMetadata(rawData, fallbackWarningRef.current);
+      const result = fetcherDataToTraceResult(enriched);
+      if (result) {
+        writeConversionCache(pending.cacheKey, result);
+        recordHybridTraceDebug({
+          routeId: options.routeId,
+          stage: "server-cache-write",
+          clientRunId,
+          conversionCacheKey: pending.cacheKey,
+          engineUsed: result.engineUsed,
+        });
+        pending.resolve(result);
+      } else {
+        pending.reject(new Error("Server conversion returned an invalid cache result."));
+      }
+      pendingServerCacheRef.current.delete(clientRunId);
+      return;
+    }
+
+    if (rawData.error) {
+      pending.reject(new Error(rawData.error));
+      pendingServerCacheRef.current.delete(clientRunId);
+    }
+  }, [fetcher.data, options.routeId]);
+
+  React.useEffect(() => {
+    return () => {
+      for (const pending of pendingServerCacheRef.current.values()) {
+        pending.reject(new Error("Conversion cache waiter was released."));
+      }
+      pendingServerCacheRef.current.clear();
+    };
+  }, []);
+
   const cancelClientJob = React.useCallback((clientRunId: string) => {
     const controller = abortControllersRef.current.get(clientRunId);
     controller?.abort();
@@ -275,7 +452,12 @@ function recordHybridTraceDebug(event: Record<string, unknown>) {
 
 function traceResultToFetcherData<TData extends HybridTracePayload>(
   result: TraceResult,
-  metadata?: { clientRunId?: string; traceJobId?: string },
+  metadata?: {
+    clientRunId?: string;
+    traceJobId?: string;
+    cacheHit?: boolean;
+    conversionCacheKey?: string;
+  },
 ): TData {
   return {
     svg: result.svg,
@@ -295,6 +477,8 @@ function traceResultToFetcherData<TData extends HybridTracePayload>(
     svgBytes: result.svgBytes,
     clientRunId: metadata?.clientRunId,
     traceJobId: metadata?.traceJobId,
+    cacheHit: metadata?.cacheHit,
+    conversionCacheKey: metadata?.conversionCacheKey,
   } as TData;
 }
 
@@ -315,6 +499,44 @@ function withServerFallbackMetadata<TData extends HybridTracePayload>(
     engineUsed: data.engineUsed || "potrace",
     sourceKind: data.sourceKind || "raster",
     warnings,
+  };
+}
+
+function fetcherDataToTraceResult<TData extends HybridTracePayload>(
+  data: TData | undefined,
+): BaseConversionCacheResult | null {
+  if (!data?.svg) return null;
+  const width = Number(data.width ?? 0);
+  const height = Number(data.height ?? 0);
+  const engineUsed = data.engineUsed || "potrace";
+  if (
+    !Number.isFinite(width) ||
+    width <= 0 ||
+    !Number.isFinite(height) ||
+    height <= 0 ||
+    (engineUsed !== "vtracer" &&
+      engineUsed !== "potrace" &&
+      engineUsed !== "centerline")
+  ) {
+    return null;
+  }
+
+  return {
+    svg: data.svg,
+    layers: (Array.isArray(data.layers) ? data.layers : []) as TraceResult["layers"],
+    width,
+    height,
+    engineUsed,
+    sourceKind: data.sourceKind || "raster",
+    warnings: Array.isArray(data.warnings) ? data.warnings : [],
+    timings: data.timings || {},
+    diagnostics: data.diagnostics || {},
+    layerBuildMode: data.layerBuildMode as TraceResult["layerBuildMode"],
+    requestedPaletteCount: data.requestedPaletteCount,
+    actualPaletteCount: data.actualPaletteCount,
+    outputDetectedColors: data.outputDetectedColors,
+    pathCount: data.pathCount,
+    svgBytes: data.svgBytes,
   };
 }
 

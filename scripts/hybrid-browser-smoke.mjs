@@ -565,9 +565,11 @@ async function runQueueSmoke(fixtures) {
   const client = await openTab(`${baseUrl}/png-to-svg-converter`);
   const errors = [];
   const queueFixture = await createQueueFixture(fixtures.png);
+  const cancelFixture = await createQueueCancelFixture(fixtures.png);
   const replacementFixture = fixtures.jpg || fixtures.png;
   const replacementName = path.basename(replacementFixture);
   const queueSourceName = path.basename(queueFixture);
+  const cancelSourceName = path.basename(cancelFixture);
   const oldSlowIsActive = (value) =>
     value?.cards?.some(
       (card) =>
@@ -582,6 +584,13 @@ async function runQueueSmoke(fixtures) {
         card.sourceFileName === queueSourceName &&
         card.engine === "vtracer" &&
         card.previewDecoded,
+    );
+  const slowActiveForSource = (value, sourceName) =>
+    value?.cards?.some(
+      (card) =>
+        card.isSlow &&
+        card.sourceFileName === sourceName &&
+        (card.status === "queued" || card.status === "running"),
     );
   const slowPotraceCompleteForSource = (value, sourceName) =>
     value?.cards?.some(
@@ -704,22 +713,22 @@ async function runQueueSmoke(fixtures) {
 
     await clickButtonIfPresent(client, "/Remove selected file|^x$|^\\u00d7$/i");
     await delay(250);
-    await setFileInput(client, queueFixture);
-    await waitForValue(client, () => textIncludesExpression(queueSourceName), 8_000);
+    await setFileInput(client, cancelFixture);
+    await waitForValue(client, () => textIncludesExpression(cancelSourceName), 8_000);
     await showAllPresetButtons(client);
     const cancelSelected = await clickButtonMatching(client, "/^Filled Layers - Separate Colors\\b/i");
     const cancelPending = await waitForValue(
       client,
       queueSnapshotExpression,
       8_000,
-      oldSlowIsActive,
+      (value) => slowActiveForSource(value, cancelSourceName),
     );
-    const cancelClicked = await clickCancelForSlowJob(client, queueSourceName);
+    const cancelClicked = await clickCancelForSlowJob(client, cancelSourceName);
     const canceled = await waitForValue(
       client,
       queueSnapshotExpression,
       8_000,
-      (value) => slowCanceledForSource(value, queueSourceName),
+      (value) => slowCanceledForSource(value, cancelSourceName),
     );
     const traceDebug = await readTraceDebug(client);
     const canceledFallback = traceDebug.some(
@@ -745,7 +754,7 @@ async function runQueueSmoke(fixtures) {
       !slowPotraceCompleteForSource(fastWhileSlow, queueSourceName) &&
       oldSlowIsComplete(slowComplete) &&
       !slowPotraceCompleteForSource(slowComplete, queueSourceName) &&
-      slowCanceledForSource(canceled, queueSourceName) &&
+      slowCanceledForSource(canceled, cancelSourceName) &&
       !canceledFallback &&
       slowComplete.vtracerPreviewDecoded &&
       fastWhileSlow.potracePreviewDecoded;
@@ -753,6 +762,7 @@ async function runQueueSmoke(fixtures) {
     return {
       route: "/png-to-svg-converter",
       fixture: path.basename(queueFixture),
+      cancelFixture: path.basename(cancelFixture),
       replacementFixture: replacementName,
       slowSelected,
       fastSelected,
@@ -796,6 +806,21 @@ async function createQueueFixture(fallbackPng) {
     await fs.access(source);
     await sharp(source, { limitInputPixels: false })
       .resize({ width: 2200, fit: "inside", withoutEnlargement: false })
+      .png()
+      .toFile(target);
+    return target;
+  } catch {
+    return fallbackPng;
+  }
+}
+
+async function createQueueCancelFixture(fallbackPng) {
+  const source = path.join(rootDir, "tests/fixtures/IMG_8487.PNG");
+  const target = path.join(fixturesDir, "queue-IMG_8487-cancel.png");
+  const input = await fs.access(source).then(() => source).catch(() => fallbackPng);
+  try {
+    await sharp(input, { limitInputPixels: false })
+      .resize({ width: 2050, fit: "inside", withoutEnlargement: false })
       .png()
       .toFile(target);
     return target;
@@ -2046,26 +2071,15 @@ async function setFileInput(client, filePath) {
 
 async function setFileInputFiles(client, selector, filePaths) {
   const expectedFileNames = filePaths.map((filePath) => path.basename(filePath));
-  const { root } = await client.send("DOM.getDocument", {
-    depth: -1,
-    pierce: true,
-  });
-  const { nodeId } = await client.send("DOM.querySelector", {
-    nodeId: root.nodeId,
-    selector,
-  });
-  if (!nodeId) {
-    const debug = await getPageDebugState(client);
-    throw new Error(`No file input found for ${selector}. Page state: ${JSON.stringify(debug)}`);
-  }
-  await client.send("DOM.setFileInputFiles", { nodeId, files: filePaths });
+  let nodeId = await setFileInputFilesByFreshNode(client, selector, filePaths);
   const filesAfterNodeSet = await evaluate(client, `(() => {
     const input = document.querySelector(${JSON.stringify(selector)});
     return input ? Array.from(input.files || []).map((file) => file.name) : null;
   })()`).catch(() => []);
   if (Array.isArray(filesAfterNodeSet) && filesAfterNodeSet.length === 0) {
     try {
-      const { node } = await client.send("DOM.describeNode", { nodeId });
+      const { node } = await describeFreshInputNode(client, selector, nodeId);
+      nodeId = node.nodeId || nodeId;
       await client.send("DOM.setFileInputFiles", {
         backendNodeId: node.backendNodeId,
         files: filePaths,
@@ -2134,6 +2148,54 @@ async function setFileInputFiles(client, selector, filePaths) {
     input.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
+}
+
+async function queryFileInputNodeId(client, selector) {
+  const { root } = await client.send("DOM.getDocument", {
+    depth: -1,
+    pierce: true,
+  });
+  const { nodeId } = await client.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  });
+  if (!nodeId) {
+    const debug = await getPageDebugState(client);
+    throw new Error(`No file input found for ${selector}. Page state: ${JSON.stringify(debug)}`);
+  }
+  return nodeId;
+}
+
+async function setFileInputFilesByFreshNode(client, selector, filePaths) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const nodeId = await queryFileInputNodeId(client, selector);
+    try {
+      await client.send("DOM.setFileInputFiles", { nodeId, files: filePaths });
+      return nodeId;
+    } catch (error) {
+      lastError = error;
+      if (!isStaleDomNodeError(error)) throw error;
+      await delay(150);
+    }
+  }
+  throw lastError || new Error(`Could not attach files to ${selector}.`);
+}
+
+async function describeFreshInputNode(client, selector, preferredNodeId) {
+  try {
+    return await client.send("DOM.describeNode", { nodeId: preferredNodeId });
+  } catch (error) {
+    if (!isStaleDomNodeError(error)) throw error;
+    const nodeId = await queryFileInputNodeId(client, selector);
+    return client.send("DOM.describeNode", { nodeId });
+  }
+}
+
+function isStaleDomNodeError(error) {
+  return /could not find node|no node with given id|cannot find context/i.test(
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 async function setFileInputFilesViaChooser(client, buttonPatternSource, filePaths) {
