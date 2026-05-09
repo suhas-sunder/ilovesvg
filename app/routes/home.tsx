@@ -958,7 +958,13 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    void err;
+    const {
+      createInvalidUploadDecodeResponse,
+      isInvalidUploadDecodeError,
+    } = await import("~/utils/backendSecurity.server");
+    if (isInvalidUploadDecodeError(err)) {
+      return createInvalidUploadDecodeResponse();
+    }
     return json(
       {
         error:

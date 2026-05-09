@@ -164,6 +164,7 @@ export async function action({ request }: ActionFunctionArgs) {
       validateMultipartFileCount,
       validateUploadedFileBasics,
       validateFileSignature,
+      createInvalidUploadDecodeResponse,
     } = await import("~/utils/backendSecurity.server");
 
     const originError = validateSameOrigin(request);
@@ -298,7 +299,7 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
       } catch {
-        // If sharp metadata fails, continue. Potrace may still handle small files.
+        return createInvalidUploadDecodeResponse();
       }
 
       const threshold = Number(form.get("threshold") ?? 224);
@@ -484,7 +485,14 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
+    const {
+      createInvalidUploadDecodeResponse,
+      isInvalidUploadDecodeError,
+      safeErrorMessage,
+    } = await import("~/utils/backendSecurity.server");
+    if (isInvalidUploadDecodeError(err)) {
+      return createInvalidUploadDecodeResponse();
+    }
     return json(
       { error: safeErrorMessage(err?.message || "Server error during conversion.", "Server error during conversion.") },
       { status: 500 },
