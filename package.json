@@ -62,7 +62,6 @@
     "@types/express-serve-static-core": "^5.0.6",
     "@types/morgan": "^1.9.9",
     "@types/node": "^20",
-    "@types/potrace": "^2.1.5",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "cross-env": "^7.0.3",
@@ -70,5 +69,8 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
     "vite-tsconfig-paths": "^5.1.4"
+  },
+  "overrides": {
+    "phin": "3.7.1"
   }
 }
