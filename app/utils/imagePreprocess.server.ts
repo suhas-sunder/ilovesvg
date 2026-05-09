@@ -1,4 +1,5 @@
 import { getSharp } from "./conversionModules.server";
+import { normalizeBmpForSharp } from "./bmpDecode.server";
 import {
   addConversionWarning,
   createConversionDiagnostics,
@@ -47,11 +48,16 @@ export async function normalizeRasterForTrace(
 
   try {
     const sharp = await getSharp();
+    const normalizedInput = await withTimer(
+      diagnostics,
+      "normalizeBmpInput",
+      () => normalizeBmpForSharp(input),
+    );
 
     let sourceInput = await withTimer(
       diagnostics,
       "neutralizeTransparency",
-      () => neutralizeTransparencyCheckerboard(input),
+      () => neutralizeTransparencyCheckerboard(normalizedInput),
     );
     const removeColors = normalizeRemoveColors(opts.removeColors);
     const removeColorTolerance = clampNumber(opts.removeColorTolerance ?? 18, 0, 160);
