@@ -439,6 +439,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                       convert.
                     </p>
                     <textarea
+                      aria-label="SVG source code"
                       value={svgText}
                       onChange={(e) => updatePreviewFromSvgText(e.target.value)}
                       className="mt-2 w-full h-[240px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"

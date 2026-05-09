@@ -485,6 +485,7 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                 </summary>
                 <div className="px-4 pb-4">
                   <textarea
+                    aria-label="Input SVG code"
                     value={inputText}
                     onChange={(e) => {
                       const next = e.target.value;
@@ -961,6 +962,7 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                   </summary>
                   <div className="px-4 pb-4">
                     <textarea
+                      aria-label="Output SVG code"
                       value={outSvg}
                       readOnly
                       className="mt-2 w-full h-[240px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
