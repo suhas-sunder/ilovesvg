@@ -190,7 +190,30 @@ results.push(
   }),
 );
 
-results.push(await expectInvalidUpload());
+results.push(
+  await expectRejectedUpload({
+    label: "invalid-upload-corrupt-png",
+    fileName: "fake.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("not really a png"),
+  }),
+);
+results.push(
+  await expectRejectedUpload({
+    label: "invalid-upload-empty-file",
+    fileName: "empty.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(0),
+  }),
+);
+results.push(
+  await expectRejectedUpload({
+    label: "invalid-upload-mime-extension-mismatch",
+    fileName: "fake.jpg",
+    mimeType: "image/png",
+    buffer: basicPng,
+  }),
+);
 
 console.log(
   JSON.stringify(
@@ -276,15 +299,10 @@ async function expectSvgResponse({
   };
 }
 
-async function expectInvalidUpload() {
+async function expectRejectedUpload({ label, fileName, mimeType, buffer }) {
   const route = "/png-to-svg-converter";
   const form = new FormData();
-  form.append(
-    "file",
-    new File([Buffer.from("not really a png")], "fake.png", {
-      type: "image/png",
-    }),
-  );
+  form.append("file", new File([buffer], fileName, { type: mimeType }));
   const routePath = dataRoute(route);
   const response = await fetch(`${baseUrl}${routePath}`, {
     method: "POST",
@@ -296,6 +314,7 @@ async function expectInvalidUpload() {
     throw new Error(`${route} accepted an invalid image upload.`);
   }
   return {
+    label,
     route,
     routePath,
     status: response.status,
