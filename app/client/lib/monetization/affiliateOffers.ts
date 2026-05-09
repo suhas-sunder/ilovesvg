@@ -1,14 +1,14 @@
 import type { AffiliateCategory } from "./affiliateRouteIntents";
+import {
+  type AffiliateProviderId,
+  isAffiliateProviderActive,
+} from "./affiliateProviders";
 
-export type AffiliateProvider =
-  | "cricut"
-  | "printify"
-  | "stickerMule"
-  | "namecheap";
+export type AffiliateProvider = AffiliateProviderId;
 
 export type AffiliateOffer = {
   id: string;
-  provider: AffiliateProvider;
+  providerId: AffiliateProvider;
   label: string;
   href: string;
   categories: AffiliateCategory[];
@@ -16,21 +16,16 @@ export type AffiliateOffer = {
   priority: number;
 };
 
-export const CRICUT_URL = "";
-
 export const PRINTIFY_URL =
   "https://try.printify.com/ilovesvg?utm_source=ilovesvg&utm_medium=affiliate&utm_campaign=printify_pod";
 
 export const STICKER_MULE_URL =
   "https://www.stickermule.com/ca/unlock?ref_id=1974725801&utm_medium=embed&utm_source=invite&utm_content=728x90";
 
-export const NAMECHEAP_URL =
-  "https://namecheap.pxf.io/c/7235182/738167/5618?utm_source=ilovesvg&utm_medium=affiliate&utm_campaign=domain_hosting_bundle";
-
 export const AFFILIATE_OFFERS: AffiliateOffer[] = [
   {
     id: "printify-product-mockups",
-    provider: "printify",
+    providerId: "printify",
     label: "Printify product mockups",
     href: PRINTIFY_URL,
     categories: [
@@ -48,30 +43,12 @@ export const AFFILIATE_OFFERS: AffiliateOffer[] = [
   },
   {
     id: "sticker-mule-custom-stickers",
-    provider: "stickerMule",
+    providerId: "stickerMule",
     label: "Sticker Mule custom stickers",
     href: STICKER_MULE_URL,
     categories: ["stickers", "print-then-cut", "silhouette-vinyl"],
     enabled: true,
     priority: 5,
-  },
-  {
-    id: "namecheap-domain-hosting",
-    provider: "namecheap",
-    label: "Namecheap domains and hosting",
-    href: NAMECHEAP_URL,
-    categories: ["web-design", "ecommerce-selling", "logo-icon"],
-    enabled: false,
-    priority: 30,
-  },
-  {
-    id: "cricut-project-workflow",
-    provider: "cricut",
-    label: "Cricut project workflow",
-    href: CRICUT_URL,
-    categories: ["cricut-cut", "print-then-cut", "silhouette-vinyl"],
-    enabled: Boolean(CRICUT_URL),
-    priority: 40,
   },
 ];
 
@@ -86,12 +63,25 @@ export function isValidAffiliateHref(href: string) {
 
 export function isValidAffiliateOffer(offer: AffiliateOffer) {
   return (
+    isAffiliateProviderActive(offer.providerId) &&
     offer.enabled === true &&
     Boolean(offer.id.trim()) &&
     Boolean(offer.label.trim()) &&
     isValidAffiliateHref(offer.href) &&
     offer.categories.length > 0
   );
+}
+
+export function filterActiveAffiliateOffers(offers: readonly AffiliateOffer[]) {
+  return offers.filter(isValidAffiliateOffer);
+}
+
+export function getActiveAffiliateOfferIds() {
+  return filterActiveAffiliateOffers(AFFILIATE_OFFERS).map((offer) => offer.id);
+}
+
+export function isKnownActiveAffiliateOffer(offerId: string) {
+  return getActiveAffiliateOfferIds().includes(offerId);
 }
 
 export function offerMatchesRouteCategories(
@@ -116,7 +106,7 @@ export function getRelevantAffiliateOffers({
 }) {
   const seenOfferIds = new Set<string>();
 
-  return [...offers]
+  return filterActiveAffiliateOffers(offers)
     .filter((offer) => offerMatchesRouteCategories(offer, routeCategories))
     .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id))
     .filter((offer) => {

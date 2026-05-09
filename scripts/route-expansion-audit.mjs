@@ -91,9 +91,12 @@ const files = {
   capabilities: await read("app/client/lib/converter/routeCapabilities.ts"),
   affiliates: await read("app/client/lib/monetization/affiliateRouteIntents.ts"),
   affiliateOffers: await read("app/client/lib/monetization/affiliateOffers.ts"),
+  affiliateProviders: await read("app/client/lib/monetization/affiliateProviders.ts"),
 };
 
 const failures = [];
+const removedProviderId = "name" + "cheap";
+const removedOfferId = `${removedProviderId}-domain-hosting`;
 
 for (const route of indexableRoutes) {
   const slug = route.slice(1);
@@ -128,8 +131,13 @@ for (const route of unsupportedRoutes) {
 
 assertOfferEnabled(files.affiliateOffers, "printify-product-mockups", true);
 assertOfferEnabled(files.affiliateOffers, "sticker-mule-custom-stickers", true);
-assertOfferEnabled(files.affiliateOffers, "namecheap-domain-hosting", false);
-assertIncludes(files.affiliateOffers, "export const CRICUT_URL = \"\";", "Cricut affiliate URL remains unset");
+assertNotIncludes(files.affiliateOffers, removedOfferId, "removed affiliate offer");
+assertNotIncludes(files.affiliateOffers, "cricut-project-workflow", "Cricut affiliate offer");
+assertNotIncludes(files.affiliateOffers, "NAME" + "CHEAP", "removed affiliate constant");
+assertNotIncludes(files.affiliateProviders, removedProviderId, "removed provider metadata");
+assertIncludes(files.affiliateProviders, "ACTIVE_AFFILIATE_PROVIDER_IDS", "active affiliate provider allowlist");
+assertIncludes(files.affiliateProviders, '"printify"', "Printify provider");
+assertIncludes(files.affiliateProviders, '"stickerMule"', "Sticker Mule provider");
 
 assertNoDuplicateJsonLd("FAQPage", files.utilities, "OtherToolsLinks FAQ schema");
 assertNoDuplicateRouteUtility(indexableRoutes, files.utilities);

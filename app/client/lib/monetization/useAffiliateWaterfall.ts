@@ -1,8 +1,10 @@
 import * as React from "react";
 import {
   type AffiliateOffer,
+  filterActiveAffiliateOffers,
   getRelevantAffiliateOffers,
 } from "./affiliateOffers";
+import { ACTIVE_AFFILIATE_PROVIDER_IDS } from "./affiliateProviders";
 import type { AffiliateCategory } from "./affiliateRouteIntents";
 import {
   shouldSuppressAdsenseFallbackForViewport,
@@ -47,17 +49,34 @@ export function useAffiliateWaterfall({
 
   const storageRef = React.useRef<AffiliateStorageLike | null>(null);
   const countedThisSessionRef = React.useRef(new Set<string>());
-  const validOfferIds = React.useMemo(() => offers.map((offer) => offer.id), [
+  const viewDwellTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const activeOffers = React.useMemo(() => filterActiveAffiliateOffers(offers), [
     offers,
   ]);
+  const validOfferIds = React.useMemo(
+    () => activeOffers.map((offer) => offer.id),
+    [activeOffers],
+  );
+  const validOffers = React.useMemo(
+    () =>
+      activeOffers.map((offer) => ({
+        id: offer.id,
+        providerId: offer.providerId,
+      })),
+    [activeOffers],
+  );
 
   const readCurrentState = React.useCallback(
     () =>
       readAffiliateWaterfallState(storageRef.current, {
         validOfferIds,
+        validOffers,
+        validProviderIds: ACTIVE_AFFILIATE_PROVIDER_IDS,
         validSlotIds: [slotId],
       }),
-    [slotId, validOfferIds],
+    [slotId, validOfferIds, validOffers],
   );
 
   React.useEffect(() => {
@@ -87,23 +106,24 @@ export function useAffiliateWaterfall({
   const relevantOffers = React.useMemo(
     () =>
       getRelevantAffiliateOffers({
-        offers,
+        offers: activeOffers,
         routeCategories,
         maxOffers: 2,
       }),
-    [offers, routeCategories],
+    [activeOffers, routeCategories],
   );
 
-  const shouldSuppressAdsenseFallback =
+  const shouldSuppressAffiliate =
     isReady &&
     shouldSuppressAdsenseFallbackForViewport({
       viewportWidth: isMobileLayout ? mobileBreakpointPx - 1 : mobileBreakpointPx,
       suppressAffiliateOnMobileWhenAdjacentAdExists,
       breakpointPx: mobileBreakpointPx,
     });
+  const shouldSuppressAdsenseFallback = shouldSuppressAffiliate;
 
   const selection = React.useMemo(() => {
-    if (!isReady) {
+    if (!isReady || shouldSuppressAffiliate) {
       return {
         selectedOffer: null,
         shouldShowAdsense: false,
@@ -122,6 +142,7 @@ export function useAffiliateWaterfall({
     routeContext,
     slotId,
     state,
+    shouldSuppressAffiliate,
   ]);
 
   const selectedEntry = selection.selectedOffer
@@ -145,14 +166,22 @@ export function useAffiliateWaterfall({
   const trackAffiliateClick = React.useCallback(
     (offerId?: string) => {
       if (!isReady) return;
+      if (shouldSuppressAffiliate) return;
 
-      const selectedOfferId = offerId ?? selection.selectedOffer?.id;
-      if (!selectedOfferId) return;
+      const selectedOffer = selection.selectedOffer;
+      if (!selectedOffer) return;
+
+      const selectedOfferId = offerId ?? selectedOffer.id;
+      if (!selectedOfferId || selectedOfferId !== selectedOffer.id) return;
 
       markAffiliateClicked(storageRef.current, {
+        providerId: selectedOffer.providerId,
         offerId: selectedOfferId,
         slotId,
         routeContext,
+        validOfferIds,
+        validOffers,
+        validProviderIds: ACTIVE_AFFILIATE_PROVIDER_IDS,
       });
       refreshState();
     },
@@ -160,14 +189,26 @@ export function useAffiliateWaterfall({
       isReady,
       refreshState,
       routeContext,
+      shouldSuppressAffiliate,
       selection.selectedOffer?.id,
+      selection.selectedOffer?.providerId,
       slotId,
+      validOfferIds,
+      validOffers,
     ],
   );
 
   React.useEffect(() => {
+    const clearDwellTimer = () => {
+      if (viewDwellTimerRef.current) {
+        clearTimeout(viewDwellTimerRef.current);
+        viewDwellTimerRef.current = null;
+      }
+    };
+
     if (typeof window === "undefined") return;
     if (!isReady) return;
+    if (shouldSuppressAffiliate) return;
     const selectedOffer = selection.selectedOffer;
     if (!selectedOffer || !bannerElement) return;
     if (selectedOfferTimedOut) return;
@@ -180,18 +221,38 @@ export function useAffiliateWaterfall({
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries.find((item) => item.target === bannerElement);
-        if (!entry?.isIntersecting || entry.intersectionRatio < 0.7) return;
-        if (countedThisSessionRef.current.has(sessionKey)) return;
-        if (!isAffiliateElementVisibleEnough(bannerElement, 0.7)) return;
+        if (!entry?.isIntersecting || entry.intersectionRatio < 0.7) {
+          clearDwellTimer();
+          return;
+        }
+        if (countedThisSessionRef.current.has(sessionKey)) {
+          clearDwellTimer();
+          return;
+        }
+        if (!isAffiliateElementVisibleEnough(bannerElement, 0.7)) {
+          clearDwellTimer();
+          return;
+        }
+        if (viewDwellTimerRef.current) return;
 
-        countedThisSessionRef.current.add(sessionKey);
-        incrementAffiliateView(storageRef.current, {
-          offerId: selectedOffer.id,
-          slotId,
-          routeContext,
-        });
-        refreshState();
-        observer.disconnect();
+        viewDwellTimerRef.current = setTimeout(() => {
+          viewDwellTimerRef.current = null;
+          if (countedThisSessionRef.current.has(sessionKey)) return;
+          if (!isAffiliateElementVisibleEnough(bannerElement, 0.7)) return;
+
+          countedThisSessionRef.current.add(sessionKey);
+          incrementAffiliateView(storageRef.current, {
+            providerId: selectedOffer.providerId,
+            offerId: selectedOffer.id,
+            slotId,
+            routeContext,
+            validOfferIds,
+            validOffers,
+            validProviderIds: ACTIVE_AFFILIATE_PROVIDER_IDS,
+          });
+          refreshState();
+          observer.disconnect();
+        }, 1000);
       },
       { threshold: [0, 0.7, 1] },
     );
@@ -199,6 +260,7 @@ export function useAffiliateWaterfall({
     observer.observe(bannerElement);
 
     return () => {
+      clearDwellTimer();
       observer.disconnect();
     };
   }, [
@@ -208,13 +270,17 @@ export function useAffiliateWaterfall({
     routeContext,
     selectedOfferTimedOut,
     selection.selectedOffer,
+    shouldSuppressAffiliate,
     slotId,
+    validOfferIds,
+    validOffers,
   ]);
 
   return {
     selectedOffer: selection.selectedOffer,
     relevantOffers,
     shouldShowAdsense: selection.shouldShowAdsense,
+    shouldSuppressAffiliate,
     shouldSuppressAdsenseFallback,
     registerBannerElement,
     trackAffiliateClick,

@@ -1,4 +1,7 @@
-import type { AffiliateOffer } from "./affiliateOffers";
+import {
+  type AffiliateOffer,
+  filterActiveAffiliateOffers,
+} from "./affiliateOffers";
 import {
   type AffiliateWaterfallState,
   getAffiliateWaterfallEntry,
@@ -21,14 +24,16 @@ export function selectAffiliateWaterfallOffer({
   slotId: string;
   routeContext: string;
 }): AffiliateWaterfallSelection {
-  if (!offers.length) {
+  const activeOffers = filterActiveAffiliateOffers(offers).slice(0, 2);
+
+  if (!activeOffers.length) {
     return {
       selectedOffer: null,
       shouldShowAdsense: true,
     };
   }
 
-  for (const offer of offers.slice(0, 2)) {
+  for (const offer of activeOffers) {
     const entry = getAffiliateWaterfallEntry(state, {
       offerId: offer.id,
       slotId,

@@ -132,7 +132,7 @@ async function checkServerReservedShell() {
     hasReserve,
     hasSlot,
     mobileHidden,
-    ok: response.ok && hasReserve && hasSlot && !mobileHidden,
+    ok: response.ok && hasReserve && hasSlot && mobileHidden,
   };
 }
 
@@ -181,12 +181,12 @@ async function checkMobileAffiliate(client, width) {
   })()`);
 
   return {
-    scenario: "mobile-affiliate-with-fallback-suppression",
+    scenario: "mobile-affiliate-suppressed-by-nearby-ad",
     width,
     ...state,
     fallbackState,
     ok:
-      state.affiliateCount === 1 &&
+      state.affiliateCount === 0 &&
       state.slotAdsenseCount === 0 &&
       state.adCount >= 1 &&
       state.duplicateVisibleAdSlots.length === 0 &&
@@ -231,7 +231,7 @@ async function checkDesktopAffiliate(client, width) {
     ok:
       state.affiliateCount === 1 &&
       state.adsenseCount === 0 &&
-      state.offerId === "printify-product-mockups" &&
+      state.offerId === "sticker-mule-custom-stickers" &&
       state.visible &&
       state.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
@@ -244,7 +244,7 @@ async function checkTrackingAndFallback(client) {
 
   await waitForValue(
     client,
-    () => `(() => Boolean(document.querySelector('[data-affiliate-offer-id="printify-product-mockups"]')))()`,
+    () => `(() => Boolean(document.querySelector('[data-affiliate-offer-id="sticker-mule-custom-stickers"]')))()`,
     8000,
   );
   await evaluate(client, `(() => {
@@ -252,29 +252,30 @@ async function checkTrackingAndFallback(client) {
     return true;
   })()`);
 
-  const afterView = await waitForWaterfallEntry(client, "printify-product-mockups", (entry) => entry?.viewCount === 1);
+  const afterView = await waitForWaterfallEntry(client, "sticker-mule-custom-stickers", (entry) => entry?.viewCount === 1);
 
   await evaluate(client, `(() => {
-    const link = document.querySelector('[data-affiliate-offer-id="printify-product-mockups"] a[href]');
+    const link = document.querySelector('[data-affiliate-offer-id="sticker-mule-custom-stickers"] a[href]');
     if (!link) return false;
     link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
     return true;
   })()`);
 
-  const afterClick = await waitForWaterfallEntry(client, "printify-product-mockups", (entry) => entry?.clicked === true && entry?.timedOut === true);
+  const afterClick = await waitForWaterfallEntry(client, "sticker-mule-custom-stickers", (entry) => entry?.clicked === true && entry?.timedOut === true);
 
   await reload(client);
   await waitForValue(
     client,
     () => `(() => document.querySelector('[data-monetization-kind="affiliate"]')?.getAttribute('data-affiliate-offer-id') || null)()`,
     8000,
-    (offerId) => offerId === "sticker-mule-custom-stickers",
+    (offerId) => offerId === "printify-product-mockups",
   );
 
   await evaluate(client, `(() => {
     const state = JSON.parse(window.localStorage.getItem(${JSON.stringify(storageKey)}));
     state.entries.push({
-      offerId: "sticker-mule-custom-stickers",
+      providerId: "printify",
+      offerId: "printify-product-mockups",
       slotId: "converter-below-tool",
       routeContext: ${JSON.stringify(stickerRoute)},
       viewCount: 5,
@@ -325,6 +326,7 @@ async function markStickerOffersTimedOut(client) {
       version: 1,
       entries: [
         {
+          providerId: "printify",
           offerId: "printify-product-mockups",
           slotId: "converter-below-tool",
           routeContext: ${JSON.stringify(stickerRoute)},
@@ -334,6 +336,7 @@ async function markStickerOffersTimedOut(client) {
           lastViewedAt: Date.now()
         },
         {
+          providerId: "stickerMule",
           offerId: "sticker-mule-custom-stickers",
           slotId: "converter-below-tool",
           routeContext: ${JSON.stringify(stickerRoute)},

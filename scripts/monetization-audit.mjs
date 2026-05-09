@@ -10,6 +10,7 @@ const srcDir = path.join(rootDir, "app", "client", "lib", "monetization");
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-monetization-audit");
 
 const moduleFiles = [
+  "affiliateProviders",
   "affiliateRouteIntents",
   "affiliateOffers",
   "affiliateResponsive",
@@ -42,8 +43,9 @@ for (const moduleName of moduleFiles) {
 const importAuditModule = (moduleName) =>
   import(pathToFileURL(path.join(tmpDir, `${moduleName}.mjs`)).href);
 
-const [storage, selection, routeIntents, offers, visibility, responsive] =
+const [providers, storage, selection, routeIntents, offers, visibility, responsive] =
   await Promise.all([
+    importAuditModule("affiliateProviders"),
     importAuditModule("affiliateWaterfallStorage"),
     importAuditModule("affiliateWaterfallSelection"),
     importAuditModule("affiliateRouteIntents"),
@@ -51,6 +53,9 @@ const [storage, selection, routeIntents, offers, visibility, responsive] =
     importAuditModule("affiliateVisibility"),
     importAuditModule("affiliateResponsive"),
   ]);
+
+const removedProviderId = "name" + "cheap";
+const removedOfferId = `${removedProviderId}-domain-hosting`;
 
 class MemoryStorage {
   constructor(initialValue = null) {
@@ -110,6 +115,13 @@ function writeState(storageLike, value) {
   );
 }
 
+function activeOfferRefs() {
+  return offers.filterActiveAffiliateOffers(offers.AFFILIATE_OFFERS).map((offer) => ({
+    id: offer.id,
+    providerId: offer.providerId,
+  }));
+}
+
 function runStorageParserTests() {
   assert.deepEqual(
     storage.readAffiliateWaterfallState(new MemoryStorage()),
@@ -142,6 +154,9 @@ function runStorageParserTests() {
     staleStore,
     stateFor([
       entry({ offerId: "removed-offer" }),
+      entry({ offerId: removedOfferId, providerId: removedProviderId }),
+      entry({ offerId: "cricut-project-workflow", providerId: "cricut" }),
+      entry({ offerId: "unknown-provider-offer", providerId: "unknown" }),
       entry({ offerId: "printify-product-mockups", viewCount: 2 }),
       entry({ offerId: "printify-product-mockups", viewCount: 4 }),
     ]),
@@ -149,32 +164,43 @@ function runStorageParserTests() {
   assert.deepEqual(
     storage
       .readAffiliateWaterfallState(staleStore, {
-        validOfferIds: ["printify-product-mockups"],
+        validOfferIds: offers.getActiveAffiliateOfferIds(),
+        validOffers: activeOfferRefs(),
+        validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
       })
       .entries.map((storedEntry) => ({
+        providerId: storedEntry.providerId,
         offerId: storedEntry.offerId,
         viewCount: storedEntry.viewCount,
       })),
-    [{ offerId: "printify-product-mockups", viewCount: 4 }],
-    "unknown offer IDs are ignored and duplicate entries are deduped",
+    [{ providerId: "printify", offerId: "printify-product-mockups", viewCount: 4 }],
+    "inactive, removed, and unknown provider entries are ignored while active duplicates are deduped",
   );
 
   const store = new MemoryStorage();
   const firstView = storage.incrementAffiliateView(store, {
+    providerId: "printify",
     offerId: "printify-product-mockups",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-etsy",
     now: 100,
+    validOfferIds: offers.getActiveAffiliateOfferIds(),
+    validOffers: activeOfferRefs(),
+    validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
   });
   assert.equal(firstView?.viewCount, 1, "view increment stores one view");
   assert.equal(firstView?.timedOut, false, "first view does not time out");
 
   for (let index = 0; index < 4; index += 1) {
     storage.incrementAffiliateView(store, {
+      providerId: "printify",
       offerId: "printify-product-mockups",
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-etsy",
       now: 200 + index,
+      validOfferIds: offers.getActiveAffiliateOfferIds(),
+      validOffers: activeOfferRefs(),
+      validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
     });
   }
   const afterFive = storage.getAffiliateWaterfallEntry(
@@ -190,13 +216,41 @@ function runStorageParserTests() {
 
   const clickStore = new MemoryStorage();
   const clicked = storage.markAffiliateClicked(clickStore, {
+    providerId: "stickerMule",
     offerId: "sticker-mule-custom-stickers",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-cricut-stickers",
     now: 300,
+    validOfferIds: offers.getActiveAffiliateOfferIds(),
+    validOffers: activeOfferRefs(),
+    validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
   });
   assert.equal(clicked?.clicked, true, "click stores clicked flag");
   assert.equal(clicked?.timedOut, true, "click immediately times out offer");
+
+  const inactiveView = storage.incrementAffiliateView(new MemoryStorage(), {
+    providerId: "cricut",
+    offerId: "cricut-project-workflow",
+    slotId: "converter-below-tool",
+    routeContext: "/cricut-svg-converter",
+    now: 500,
+    validOfferIds: offers.getActiveAffiliateOfferIds(),
+    validOffers: activeOfferRefs(),
+    validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
+  });
+  assert.equal(inactiveView, null, "inactive Cricut view increments are refused");
+
+  const removedClick = storage.markAffiliateClicked(new MemoryStorage(), {
+    providerId: removedProviderId,
+    offerId: removedOfferId,
+    slotId: "converter-below-tool",
+    routeContext: "/logo-to-svg-converter",
+    now: 600,
+    validOfferIds: offers.getActiveAffiliateOfferIds(),
+    validOffers: activeOfferRefs(),
+    validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
+  });
+  assert.equal(removedClick, null, "removed provider click timeouts are refused");
 }
 
 function runWaterfallSelectionTests() {
@@ -214,9 +268,29 @@ function runWaterfallSelectionTests() {
     offers.getRelevantAffiliateOffers({
       offers: offers.AFFILIATE_OFFERS,
       routeCategories: ["technical-utility"],
-    }).some((offer) => offer.id === "namecheap-domain-hosting"),
+    }).length,
+    0,
+    "technical utility routes get AdSense only",
+  );
+
+  assert.equal(
+    offers.getRelevantAffiliateOffers({
+      offers: [
+        {
+          id: "bad-cricut",
+          providerId: "cricut",
+          label: "Bad Cricut",
+          href: "https://example.com",
+          categories: ["stickers"],
+          enabled: true,
+          priority: 1,
+        },
+        ...offers.AFFILIATE_OFFERS,
+      ],
+      routeCategories: ["stickers"],
+    }).some((offer) => offer.providerId === "cricut"),
     false,
-    "domain offer is not relevant to technical utility routes",
+    "inactive providers are filtered before route relevance and priority",
   );
 
   assert.deepEqual(
@@ -233,13 +307,23 @@ function runWaterfallSelectionTests() {
   const emptyState = storage.createEmptyAffiliateWaterfallState();
   assert.equal(
     selection.selectAffiliateWaterfallOffer({
-      offers: [],
+      offers: [
+        {
+          id: "bad-removed-provider",
+          providerId: removedProviderId,
+          label: "Bad removed provider",
+          href: "https://example.com",
+          categories: ["logo-icon"],
+          enabled: true,
+          priority: 1,
+        },
+      ],
       state: emptyState,
       slotId: "converter-below-tool",
       routeContext: "/svg-minifier",
     }).shouldShowAdsense,
     true,
-    "no relevant affiliates falls back to AdSense",
+    "inactive or unknown provider offers fall back to AdSense",
   );
 
   const oneOffer = relevant.slice(0, 1);
@@ -255,7 +339,8 @@ function runWaterfallSelectionTests() {
   );
 
   const timedOutFirst = stateFor([
-    entry({
+      entry({
+      providerId: "stickerMule",
       offerId: "sticker-mule-custom-stickers",
       routeContext: "/png-to-svg-for-cricut-stickers",
       viewCount: 5,
@@ -274,13 +359,15 @@ function runWaterfallSelectionTests() {
   );
 
   const timedOutBoth = stateFor([
-    entry({
+      entry({
+      providerId: "stickerMule",
       offerId: "sticker-mule-custom-stickers",
       routeContext: "/png-to-svg-for-cricut-stickers",
       viewCount: 5,
       timedOut: true,
     }),
-    entry({
+      entry({
+      providerId: "printify",
       offerId: "printify-product-mockups",
       routeContext: "/png-to-svg-for-cricut-stickers",
       clicked: true,
@@ -299,55 +386,73 @@ function runWaterfallSelectionTests() {
   );
 }
 
+function runProviderCleanupTests() {
+  assert.deepEqual(
+    providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
+    ["printify", "stickerMule"],
+    "active provider allowlist contains Printify and Sticker Mule only",
+  );
+
+  assert.equal(
+    providers.isAffiliateProviderActive("printify"),
+    true,
+    "Printify is active",
+  );
+
+  assert.equal(
+    providers.isAffiliateProviderActive("stickerMule"),
+    true,
+    "Sticker Mule is active",
+  );
+
+  assert.equal(
+    providers.isAffiliateProviderActive("cricut"),
+    false,
+    "Cricut provider metadata is inactive",
+  );
+
+  assert.equal(
+    providers.isAffiliateProviderActive(removedProviderId),
+    false,
+    "removed provider is not a known active provider",
+  );
+
+  assert.equal(
+    providers.AFFILIATE_PROVIDERS.some((provider) => provider.id === removedProviderId),
+    false,
+    "removed provider is removed from provider metadata",
+  );
+
+  assert.deepEqual(
+    offers.getActiveAffiliateOfferIds(),
+    ["printify-product-mockups", "sticker-mule-custom-stickers"],
+    "active offer IDs are Printify and Sticker Mule only",
+  );
+
+  assert.equal(
+    offers.AFFILIATE_OFFERS.some((offer) => offer.providerId === removedProviderId),
+    false,
+    "removed provider is removed from affiliate offers",
+  );
+
+  assert.equal(
+    offers.AFFILIATE_OFFERS.some((offer) => offer.providerId === "cricut"),
+    false,
+    "Cricut has no active affiliate offer",
+  );
+}
+
 function runRouteRelevanceTests() {
-  assert.deepEqual(
-    routeIntents.getAffiliateRouteCategories("/png-to-svg-for-cricut-stickers"),
-    ["stickers", "print-then-cut", "cricut-cut", "ecommerce-selling"],
-    "sticker Cricut route receives sticker and print categories",
-  );
-
-  assert.equal(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
-          "/png-to-svg-for-cricut-stickers",
-        ),
-      })
-      .some((offer) => offer.id === "namecheap-domain-hosting"),
-    false,
-    "Namecheap is blocked from Cricut sticker routes",
-  );
-
-  assert.deepEqual(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories:
-          routeIntents.getAffiliateRouteCategories("/png-to-svg-converter"),
-      })
-      .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "general PNG conversion can show Printify first but not Namecheap",
-  );
-
-  assert.equal(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
-          "/svg-background-editor",
-        ),
-      })
-      .some((offer) => offer.id === "namecheap-domain-hosting"),
-    false,
-    "Namecheap stays inactive even on web design SVG utilities",
-  );
-
   assert.deepEqual(
     routeIntents.getAffiliateRouteCategories("/unknown-tool"),
     ["general-svg-conversion"],
     "unknown routes use conservative fallback categories",
+  );
+
+  assert.deepEqual(
+    routeIntents.getAffiliateRouteCategories("/png-to-svg-for-cricut-stickers"),
+    ["stickers", "print-then-cut", "cricut-cut", "ecommerce-selling"],
+    "sticker Cricut route receives sticker and print categories",
   );
 
   assert.deepEqual(
@@ -363,6 +468,31 @@ function runRouteRelevanceTests() {
     "sticker printing routes prioritize Sticker Mule before Printify",
   );
 
+  assert.equal(
+    offers
+      .getRelevantAffiliateOffers({
+        offers: offers.AFFILIATE_OFFERS,
+        routeCategories: routeIntents.getAffiliateRouteCategories(
+          "/png-to-svg-for-cricut-stickers",
+        ),
+      })
+      .some((offer) => offer.providerId === removedProviderId),
+    false,
+    "removed provider is absent from Cricut sticker route candidates",
+  );
+
+  assert.deepEqual(
+    offers
+      .getRelevantAffiliateOffers({
+        offers: offers.AFFILIATE_OFFERS,
+        routeCategories:
+          routeIntents.getAffiliateRouteCategories("/png-to-svg-converter"),
+      })
+      .map((offer) => offer.id),
+    ["printify-product-mockups"],
+    "general PNG conversion can show Printify first",
+  );
+
   assert.deepEqual(
     offers
       .getRelevantAffiliateOffers({
@@ -374,6 +504,32 @@ function runRouteRelevanceTests() {
       .map((offer) => offer.id),
     ["printify-product-mockups"],
     "Printify-specific routes can show the Printify offer",
+  );
+
+  assert.deepEqual(
+    offers
+      .getRelevantAffiliateOffers({
+        offers: offers.AFFILIATE_OFFERS,
+        routeCategories: routeIntents.getAffiliateRouteCategories(
+          "/svg-background-editor",
+        ),
+      })
+      .map((offer) => offer.id),
+    ["printify-product-mockups"],
+    "creator-focused SVG background editor route can show Printify",
+  );
+
+  assert.deepEqual(
+    offers
+      .getRelevantAffiliateOffers({
+        offers: offers.AFFILIATE_OFFERS,
+        routeCategories: routeIntents.getAffiliateRouteCategories(
+          "/svg-recolor",
+        ),
+      })
+      .map((offer) => offer.id),
+    ["printify-product-mockups"],
+    "creator-focused SVG recolor route can show Printify",
   );
 
   for (const route of [
@@ -524,9 +680,9 @@ function runActiveAffiliateTests() {
   );
 
   assert.equal(
-    activeOfferIds.includes("namecheap-domain-hosting"),
+    activeOfferIds.includes(removedOfferId),
     false,
-    "Namecheap is not active",
+    "removed provider is not active",
   );
 
   assert.equal(
@@ -538,6 +694,7 @@ function runActiveAffiliateTests() {
 
 runStorageParserTests();
 runWaterfallSelectionTests();
+runProviderCleanupTests();
 runRouteRelevanceTests();
 runVisibilityTests();
 runClickAndSuppressionTests();

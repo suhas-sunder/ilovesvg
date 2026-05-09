@@ -3,13 +3,11 @@ import { useLocation, useRouteLoaderData } from "react-router";
 import { AdSenseDelayed } from "./AdsenseDelayed";
 import {
   AFFILIATE_OFFERS,
-  CRICUT_URL,
-  NAMECHEAP_URL,
   PRINTIFY_URL,
   STICKER_MULE_URL,
   type AffiliateOffer,
-  type AffiliateProvider,
 } from "~/client/lib/monetization/affiliateOffers";
+import type { AffiliateProviderId } from "~/client/lib/monetization/affiliateProviders";
 import {
   getAffiliateRouteCategories,
   normalizeAffiliatePathname,
@@ -21,8 +19,13 @@ const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "7336722354";
 const CONTEXTUAL_AFFILIATE_RESERVE_CLASS = "min-h-[39rem]";
 const CONTEXTUAL_ADSENSE_RESERVE_CLASS = "min-h-[11rem]";
 
+type ActiveAffiliateProviderId = Extract<
+  AffiliateProviderId,
+  "printify" | "stickerMule"
+>;
+
 type AffiliatePlacement = {
-  provider: AffiliateProvider;
+  provider: AffiliateProviderId;
   eyebrow: string;
   heading: string;
   headingAlternates?: string[];
@@ -45,6 +48,19 @@ type AffiliatePlacement = {
     className: string;
   };
 };
+
+type AffiliatePlacementBase = Pick<
+  AffiliatePlacement,
+  | "href"
+  | "borderClass"
+  | "eyebrowClass"
+  | "headingClass"
+  | "buttonClass"
+  | "surfaceClass"
+  | "maxWidthClass"
+  | "benefits"
+  | "image"
+>;
 
 type AffiliateMessage = Pick<
   AffiliatePlacement,
@@ -71,16 +87,6 @@ const STICKER_MULE_IMAGE = {
   className: "h-auto w-full object-cover",
 };
 
-const NAMECHEAP_IMAGE = {
-  src: "https://assets.ilovesvg.com/namecheap.jpg",
-  alt: "Namecheap domain and shared hosting offer banner for portfolios, storefronts, product pages, and small business websites",
-  width: 2048,
-  height: 683,
-  wrapperClass:
-    "block border-t border-purple-100 bg-purple-50/80 transition-opacity hover:opacity-95",
-  className: "h-auto w-full object-cover",
-};
-
 const PRINTIFY_BENEFITS = [
   "Product mockups",
   "Listing-ready previews",
@@ -89,18 +95,6 @@ const PRINTIFY_BENEFITS = [
 
 const PRINTIFY_MARKETING_BODY =
   "Create polished mockups, test product ideas, and start selling online with Printify without handling inventory.";
-
-const CRICUT_BENEFITS = [
-  "Works with Cricut projects",
-  "Good for vinyl and stickers",
-  "Useful after SVG cleanup",
-];
-
-const NAMECHEAP_BENEFITS = [
-  "Domain and hosting options",
-  "Useful for shops or portfolios",
-  "Good fit for brand landing pages",
-];
 
 const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
   "/": {
@@ -515,7 +509,7 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
       "Turn Cricut sticker art into shop mockups",
       "Make creator-shop images from this sticker design",
     ],
-    body: "Use Printify to create product mockups from sticker-style your artwork before publishing listings or ordering samples.",
+    body: "Use Printify to create product mockups from sticker-style artwork before publishing listings or ordering samples.",
     cta: "Create sticker mockups",
     benefits: [
       "Sticker listing visuals",
@@ -540,20 +534,7 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
   },
 };
 
-function basePlacement(provider: AffiliateProvider) {
-  if (provider === "cricut") {
-    return {
-      href: CRICUT_URL,
-      borderClass: "border-cyan-200",
-      eyebrowClass: "text-cyan-700",
-      headingClass: "text-sky-950",
-      buttonClass: "bg-cyan-600 hover:bg-cyan-700",
-      surfaceClass: "bg-gradient-to-br from-cyan-50 via-white to-sky-50",
-      maxWidthClass: "max-w-[920px]",
-      benefits: CRICUT_BENEFITS,
-    };
-  }
-
+function basePlacement(provider: ActiveAffiliateProviderId): AffiliatePlacementBase {
   if (provider === "printify") {
     return {
       href: PRINTIFY_URL,
@@ -582,72 +563,14 @@ function basePlacement(provider: AffiliateProvider) {
   }
 
   return {
-    href: NAMECHEAP_URL,
-    borderClass: "border-purple-200",
-    eyebrowClass: "text-purple-700",
+    href: STICKER_MULE_URL,
+    borderClass: "border-orange-200",
+    eyebrowClass: "text-orange-700",
     headingClass: "text-sky-950",
-    buttonClass: "bg-purple-600 hover:bg-purple-700",
-    surfaceClass: "bg-gradient-to-br from-purple-50 via-white to-sky-50",
-    maxWidthClass: "max-w-[920px]",
-    benefits: NAMECHEAP_BENEFITS,
-    image: NAMECHEAP_IMAGE,
-  };
-}
-
-function cricutPlacement(pathname: string): AffiliatePlacement {
-  const base = basePlacement("cricut");
-
-  if (pathname.includes("print-then-cut")) {
-    return {
-      provider: "cricut",
-      eyebrow: "Cricut project next step",
-      heading: "Prepare this file for Cricut Print Then Cut",
-      body: "Check size, print quality, and cut setup before making Cricut stickers, labels, or decals.",
-      cta: "Continue with Cricut",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("vinyl")) {
-    return {
-      provider: "cricut",
-      eyebrow: "Cricut vinyl next step",
-      heading: "Use this SVG for a cleaner Cricut vinyl project",
-      body: "Review line thickness, spacing, and final size before cutting vinyl decals, labels, or signs.",
-      cta: "Continue with Cricut",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("sticker")) {
-    return {
-      provider: "cricut",
-      eyebrow: "Cricut sticker next step",
-      heading: "Check this design before making Cricut stickers",
-      body: "Review the cut edge, transparent areas, and final size before sending it to Cricut Design Space.",
-      cta: "Continue with Cricut",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("layered") || pathname.includes("multicolor")) {
-    return {
-      provider: "cricut",
-      eyebrow: "Cricut layered SVG next step",
-      heading: "Prepare this layered SVG for Cricut projects",
-      body: "Check that the layers separate cleanly and import properly before cutting or assembling the design.",
-      cta: "Continue with Cricut",
-      ...base,
-    };
-  }
-
-  return {
-    provider: "cricut",
-    eyebrow: "Cricut SVG next step",
-    heading: "Use this file in your next Cricut project",
-    body: "Check traced edges, background cleanup, and final size before importing the SVG into Cricut Design Space.",
-    cta: "Continue with Cricut",
-    ...base,
+    buttonClass: "bg-orange-600 hover:bg-orange-700",
+    surfaceClass: "bg-white",
+    maxWidthClass: "max-w-[760px]",
+    image: STICKER_MULE_IMAGE,
   };
 }
 
@@ -806,7 +729,7 @@ function printifyPlacement(pathname: string): AffiliatePlacement {
         "Move vinyl-style artwork into shop mockups",
         "Use simple SVG art for product ideas",
       ],
-      body: "Use Printify to place simple your artwork into product mockups before listing or sampling.",
+      body: "Use Printify to place simple artwork into product mockups before listing or sampling.",
       cta: "Create product mockups",
       ...base,
     };
@@ -884,86 +807,25 @@ function explicitPrintifyPlacement(
   });
 }
 
-function namecheapPlacement(pathname: string): AffiliatePlacement {
-  const base = basePlacement("namecheap");
-
-  if (pathname.includes("favicon")) {
-    return {
-      provider: "namecheap",
-      eyebrow: "Namecheap website next step",
-      heading: "Give your brand assets a real home online",
-      body: "Set up a simple website for your portfolio, storefront, or landing page.",
-      cta: "View Namecheap options",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("embed")) {
-    return {
-      provider: "namecheap",
-      eyebrow: "Namecheap website next step",
-      heading: "Put this SVG project on a real website",
-      body: "Get a simple site online for demos, portfolios, product pages, or small business use.",
-      cta: "View Namecheap options",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("etsy") || pathname.includes("digital-download")) {
-    return {
-      provider: "namecheap",
-      eyebrow: "Namecheap seller website next step",
-      heading: "Build a simple home for your SVG shop",
-      body: "A standalone site gives you a cleaner place to send customers beyond marketplace listings.",
-      cta: "View Namecheap options",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("logo")) {
-    return {
-      provider: "namecheap",
-      eyebrow: "Namecheap branding next step",
-      heading: "Have a logo? Secure a domain and site",
-      body: "Set up a simple website for your portfolio, storefront, product page, or landing page.",
-      cta: "View Namecheap options",
-      ...base,
-    };
-  }
-
-  return {
-    provider: "namecheap",
-    eyebrow: "Namecheap website next step",
-    heading: "Build a simple site for your design brand",
-    body: "Set up a simple website for your SVG portfolio, product page, storefront, or small business landing page.",
-    cta: "View Namecheap options",
-    ...base,
-  };
-}
-
 function getAffiliatePlacement(
   pathname: string,
   offer: AffiliateOffer,
 ): AffiliatePlacement | null {
   let placement: AffiliatePlacement | null = null;
 
-  if (offer.provider === "printify") {
+  if (offer.providerId === "printify") {
     placement =
       explicitPrintifyPlacement(pathname) ??
       polishPrintifyPlacement(pathname, printifyPlacement(pathname));
-  } else if (offer.provider === "stickerMule") {
+  } else if (offer.providerId === "stickerMule") {
     placement = stickerMulePlacement(pathname);
-  } else if (offer.provider === "namecheap") {
-    placement = namecheapPlacement(pathname);
-  } else if (offer.provider === "cricut") {
-    placement = cricutPlacement(pathname);
   }
 
   if (!placement) return null;
 
   return {
     ...placement,
-    provider: offer.provider,
+    provider: offer.providerId,
     href: offer.href,
   };
 }
@@ -1005,25 +867,6 @@ function getAffiliateCta(placement: AffiliatePlacement) {
   return placement.cta;
 }
 
-function CricutVisual() {
-  return (
-    <div className="border-t border-cyan-100 bg-cyan-50/70 px-4 py-3 sm:px-5 sm:py-4">
-      <div className="rounded-xl border border-cyan-100 bg-white p-3 shadow-sm sm:p-4">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-700 sm:text-xs">
-          Cricut project workflow
-        </p>
-        <p className="mt-1 text-lg font-black leading-tight text-sky-950 sm:text-2xl">
-          Prepare cleaner SVG files for Cricut projects
-        </p>
-        <p className="mt-1 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
-          Useful for Cricut Design Space, vinyl, stickers, labels, decals, and
-          layered cut files.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function AffiliateVisual({
   placement,
   onAffiliateClick,
@@ -1050,21 +893,6 @@ function AffiliateVisual({
           decoding="async"
           className={placement.image.className}
         />
-      </a>
-    );
-  }
-
-  if (placement.provider === "cricut") {
-    return (
-      <a
-        href={placement.href}
-        target="_blank"
-        rel="nofollow sponsored noopener noreferrer"
-        className="block cursor-pointer transition-opacity hover:opacity-95"
-        aria-label="Open Cricut in a new tab"
-        onClick={onAffiliateClick}
-      >
-        <CricutVisual />
       </a>
     );
   }
@@ -1178,6 +1006,7 @@ export function ContextualAffiliateCard() {
     selectedOffer,
     relevantOffers,
     shouldShowAdsense,
+    shouldSuppressAffiliate,
     shouldSuppressAdsenseFallback,
     registerBannerElement,
     trackAffiliateClick,
@@ -1208,6 +1037,10 @@ export function ContextualAffiliateCard() {
     );
   }
 
+  if (shouldSuppressAffiliate) {
+    return null;
+  }
+
   if (!selectedOffer || !placement) {
     return shouldShowAdsense && !shouldSuppressAdsenseFallback ? (
       <ContextualAdsenseFallback
@@ -1233,7 +1066,7 @@ export function ContextualAffiliateCard() {
 function ContextualMonetizationPendingReserve() {
   return (
     <section
-      className={`bg-white px-4 py-4 sm:py-5 ${CONTEXTUAL_AFFILIATE_RESERVE_CLASS}`}
+      className={`hidden bg-white px-4 py-4 sm:py-5 lg:block ${CONTEXTUAL_AFFILIATE_RESERVE_CLASS}`}
       aria-label="Sponsored placement loading"
       data-monetization-kind="pending"
       data-monetization-slot={CONTEXTUAL_AFFILIATE_SLOT_ID}

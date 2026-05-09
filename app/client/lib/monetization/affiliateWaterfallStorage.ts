@@ -7,6 +7,7 @@ export const AFFILIATE_TIMEOUT_VIEW_COUNT = 5;
 export type AffiliateStorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export type AffiliateWaterfallEntry = {
+  providerId?: string;
   offerId: string;
   slotId: string;
   routeContext: string;
@@ -23,9 +24,22 @@ export type AffiliateWaterfallState = {
 };
 
 type EntryKeyParts = {
+  providerId?: string;
   offerId: string;
   slotId: string;
   routeContext: string;
+};
+
+type ActiveAffiliateOfferRef = {
+  id: string;
+  providerId: string;
+};
+
+type AffiliateWaterfallValidationOptions = {
+  validOfferIds?: readonly string[];
+  validProviderIds?: readonly string[];
+  validOffers?: readonly ActiveAffiliateOfferRef[];
+  validSlotIds?: readonly string[];
 };
 
 export function createEmptyAffiliateWaterfallState(): AffiliateWaterfallState {
@@ -61,6 +75,7 @@ function cleanTimestamp(value: unknown) {
 function normalizeEntry(value: unknown): AffiliateWaterfallEntry | null {
   if (!isPlainObject(value)) return null;
 
+  const providerId = cleanString(value.providerId) || undefined;
   const offerId = cleanString(value.offerId);
   const slotId = cleanString(value.slotId);
   const routeContext = cleanString(value.routeContext);
@@ -76,6 +91,7 @@ function normalizeEntry(value: unknown): AffiliateWaterfallEntry | null {
     value.timedOut === true || clicked || viewCount >= AFFILIATE_TIMEOUT_VIEW_COUNT;
 
   return {
+    providerId,
     offerId,
     slotId,
     routeContext,
@@ -89,10 +105,7 @@ function normalizeEntry(value: unknown): AffiliateWaterfallEntry | null {
 
 export function sanitizeAffiliateWaterfallState(
   value: unknown,
-  options: {
-    validOfferIds?: readonly string[];
-    validSlotIds?: readonly string[];
-  } = {},
+  options: AffiliateWaterfallValidationOptions = {},
 ): AffiliateWaterfallState {
   if (!isPlainObject(value)) return createEmptyAffiliateWaterfallState();
   if (value.version !== AFFILIATE_WATERFALL_SCHEMA_VERSION) {
@@ -100,8 +113,18 @@ export function sanitizeAffiliateWaterfallState(
   }
   if (!Array.isArray(value.entries)) return createEmptyAffiliateWaterfallState();
 
-  const validOfferIds = options.validOfferIds
-    ? new Set(options.validOfferIds)
+  const providerByOfferId = options.validOffers
+    ? new Map(options.validOffers.map((offer) => [offer.id, offer.providerId]))
+    : null;
+  const validOfferIds =
+    (options.validOfferIds || options.validOffers)
+      ? new Set([
+          ...(options.validOfferIds ?? []),
+          ...(options.validOffers?.map((offer) => offer.id) ?? []),
+        ])
+      : null;
+  const validProviderIds = options.validProviderIds
+    ? new Set(options.validProviderIds)
     : null;
   const validSlotIds = options.validSlotIds ? new Set(options.validSlotIds) : null;
   const entriesByKey = new Map<string, AffiliateWaterfallEntry>();
@@ -110,6 +133,24 @@ export function sanitizeAffiliateWaterfallState(
     const normalizedEntry = normalizeEntry(rawEntry);
     if (!normalizedEntry) continue;
     if (validOfferIds && !validOfferIds.has(normalizedEntry.offerId)) continue;
+    const expectedProviderId = providerByOfferId?.get(normalizedEntry.offerId);
+    if (
+      expectedProviderId &&
+      normalizedEntry.providerId &&
+      normalizedEntry.providerId !== expectedProviderId
+    ) {
+      continue;
+    }
+    if (expectedProviderId) {
+      normalizedEntry.providerId = expectedProviderId;
+    }
+    if (
+      validProviderIds &&
+      normalizedEntry.providerId &&
+      !validProviderIds.has(normalizedEntry.providerId)
+    ) {
+      continue;
+    }
     if (validSlotIds && !validSlotIds.has(normalizedEntry.slotId)) continue;
     entriesByKey.set(
       makeAffiliateWaterfallEntryKey(normalizedEntry),
@@ -125,10 +166,7 @@ export function sanitizeAffiliateWaterfallState(
 
 export function readAffiliateWaterfallState(
   storageLike: AffiliateStorageLike | null | undefined,
-  options: {
-    validOfferIds?: readonly string[];
-    validSlotIds?: readonly string[];
-  } = {},
+  options: AffiliateWaterfallValidationOptions = {},
 ): AffiliateWaterfallState {
   if (!storageLike) return createEmptyAffiliateWaterfallState();
 
@@ -194,6 +232,54 @@ function createBaseEntry(keyParts: EntryKeyParts): AffiliateWaterfallEntry {
   };
 }
 
+function isValidMutationInput(
+  input: EntryKeyParts & AffiliateWaterfallValidationOptions,
+) {
+  const providerByOfferId = input.validOffers
+    ? new Map(input.validOffers.map((offer) => [offer.id, offer.providerId]))
+    : null;
+  const validOfferIds =
+    (input.validOfferIds || input.validOffers)
+      ? new Set([
+          ...(input.validOfferIds ?? []),
+          ...(input.validOffers?.map((offer) => offer.id) ?? []),
+        ])
+      : null;
+  const validProviderIds = input.validProviderIds
+    ? new Set(input.validProviderIds)
+    : null;
+
+  if (validOfferIds && !validOfferIds.has(input.offerId)) return false;
+
+  const expectedProviderId = providerByOfferId?.get(input.offerId);
+  if (expectedProviderId && input.providerId && input.providerId !== expectedProviderId) {
+    return false;
+  }
+  if (providerByOfferId && !expectedProviderId) return false;
+
+  const providerId = input.providerId ?? expectedProviderId;
+  if (validProviderIds && providerId && !validProviderIds.has(providerId)) {
+    return false;
+  }
+
+  return true;
+}
+
+function getMutationKeyParts(
+  input: EntryKeyParts & AffiliateWaterfallValidationOptions,
+): EntryKeyParts {
+  const expectedProviderId = input.validOffers?.find(
+    (offer) => offer.id === input.offerId,
+  )?.providerId;
+
+  return {
+    providerId: input.providerId ?? expectedProviderId,
+    offerId: input.offerId,
+    slotId: input.slotId,
+    routeContext: input.routeContext,
+  };
+}
+
 export function isAffiliateWaterfallEntryTimedOut(
   entry: AffiliateWaterfallEntry | null | undefined,
 ) {
@@ -207,12 +293,15 @@ export function isAffiliateWaterfallEntryTimedOut(
 
 export function incrementAffiliateView(
   storageLike: AffiliateStorageLike | null | undefined,
-  input: EntryKeyParts & { now?: number },
+  input: EntryKeyParts & AffiliateWaterfallValidationOptions & { now?: number },
 ) {
   if (!storageLike) return null;
+  if (!isValidMutationInput(input)) return null;
 
-  const state = readAffiliateWaterfallState(storageLike);
-  const current = getAffiliateWaterfallEntry(state, input) ?? createBaseEntry(input);
+  const keyParts = getMutationKeyParts(input);
+  const state = readAffiliateWaterfallState(storageLike, input);
+  const current =
+    getAffiliateWaterfallEntry(state, keyParts) ?? createBaseEntry(keyParts);
   if (isAffiliateWaterfallEntryTimedOut(current)) return current;
 
   const viewCount = current.viewCount + 1;
@@ -229,12 +318,15 @@ export function incrementAffiliateView(
 
 export function markAffiliateClicked(
   storageLike: AffiliateStorageLike | null | undefined,
-  input: EntryKeyParts & { now?: number },
+  input: EntryKeyParts & AffiliateWaterfallValidationOptions & { now?: number },
 ) {
   if (!storageLike) return null;
+  if (!isValidMutationInput(input)) return null;
 
-  const state = readAffiliateWaterfallState(storageLike);
-  const current = getAffiliateWaterfallEntry(state, input) ?? createBaseEntry(input);
+  const keyParts = getMutationKeyParts(input);
+  const state = readAffiliateWaterfallState(storageLike, input);
+  const current =
+    getAffiliateWaterfallEntry(state, keyParts) ?? createBaseEntry(keyParts);
   const nextEntry: AffiliateWaterfallEntry = {
     ...current,
     clicked: true,
@@ -245,6 +337,8 @@ export function markAffiliateClicked(
   writeAffiliateWaterfallState(storageLike, upsertEntry(state, nextEntry));
   return nextEntry;
 }
+
+export const cleanAffiliateWaterfallState = sanitizeAffiliateWaterfallState;
 
 export function getBrowserAffiliateStorage(): AffiliateStorageLike | null {
   if (typeof window === "undefined") return null;
