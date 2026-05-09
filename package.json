@@ -11,6 +11,7 @@
     "test:conversion-cache": "node scripts/conversion-cache-audit.mjs",
     "test:docs": "node scripts/docs-audit.mjs",
     "test:hybrid-browser": "node scripts/hybrid-browser-smoke.mjs",
+    "test:utility-layout": "cross-env LAYOUT_SMOKE=1 node scripts/hybrid-browser-smoke.mjs",
     "test:focused-editor": "cross-env OUTPUT_UX_SMOKE=1 node scripts/hybrid-browser-smoke.mjs",
     "test:preset-performance": "node scripts/preset-performance-smoke.mjs",
     "test:queue": "node scripts/conversion-queue-audit.mjs",

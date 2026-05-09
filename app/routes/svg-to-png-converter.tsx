@@ -448,7 +448,56 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                 </details>
               )}
 
-              <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={convert}
+                  disabled={buttonDisabled}
+                  className={[
+                    "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
+                    "text-white bg-[#2563eb] border-[#1d4ed8] hover:bg-[#1d4ed8] hover:border-[#1e40af] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
+                    "disabled:opacity-70 disabled:cursor-not-allowed",
+                  ].join(" ")}
+                >
+                  <Icons name="convert" size={20} className="mr-1" />
+                  {busy ? "Converting..." : "Convert to PNG"}
+                </button>
+
+                {err && <span className="text-red-700 text-sm">{err}</span>}
+                {!err && previewMeta && (
+                  <span className="text-[13px] text-slate-600">
+                    Output:{" "}
+                    <b>
+                      {previewMeta.width} x {previewMeta.height}
+                    </b>{" "}
+                    px - <b>{formatBytes(previewMeta.bytes)}</b>
+                    {liveBusy ? (
+                      <span className="ml-2 text-slate-500">updating...</span>
+                    ) : null}
+                  </span>
+                )}
+              </div>
+
+              <p className="m-0 mt-3 text-[13px] leading-5 text-slate-600">
+                Your SVG renders to canvas in your browser, then exports as a
+                PNG. Transparent backgrounds stay transparent unless you choose
+                a solid background color.
+              </p>
+            </div>
+
+            {/* OUTPUT */}
+            <div
+              data-layout-output-panel="true"
+              className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start"
+            >
+              <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
+                PNG output
+                {(busy || liveBusy) && (
+                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
+                )}
+              </h2>
+
+              <div className="mb-3 rounded-2xl border border-sky-200 bg-sky-50/80 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
                 <button
                   type="button"
                   onClick={() => setShowAdvanced((v) => !v)}
@@ -498,52 +547,6 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
                   </div>
                 )}
               </div>
-
-              <div className="mt-3 flex items-center gap-3 flex-wrap">
-                <button
-                  type="button"
-                  onClick={convert}
-                  disabled={buttonDisabled}
-                  className={[
-                    "inline-flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors cursor-pointer",
-                    "text-white bg-[#2563eb] border-[#1d4ed8] hover:bg-[#1d4ed8] hover:border-[#1e40af] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1",
-                    "disabled:opacity-70 disabled:cursor-not-allowed",
-                  ].join(" ")}
-                >
-                  <Icons name="convert" size={20} className="mr-1" />
-                  {busy ? "Converting..." : "Convert to PNG"}
-                </button>
-
-                {err && <span className="text-red-700 text-sm">{err}</span>}
-                {!err && previewMeta && (
-                  <span className="text-[13px] text-slate-600">
-                    Output:{" "}
-                    <b>
-                      {previewMeta.width} x {previewMeta.height}
-                    </b>{" "}
-                    px - <b>{formatBytes(previewMeta.bytes)}</b>
-                    {liveBusy ? (
-                      <span className="ml-2 text-slate-500">updating...</span>
-                    ) : null}
-                  </span>
-                )}
-              </div>
-
-              <p className="m-0 mt-3 text-[13px] leading-5 text-slate-600">
-                Your SVG renders to canvas in your browser, then exports as a
-                PNG. Transparent backgrounds stay transparent unless you choose
-                a solid background color.
-              </p>
-            </div>
-
-            {/* OUTPUT */}
-            <div className="order-2 min-w-0 overflow-auto rounded-2xl border border-slate-300/40 bg-[#43546b] p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:sticky md:top-4 md:row-span-3 md:max-h-[calc(100vh-2rem)] md:self-start">
-              <h2 className="m-0 font-bold mb-3 text-lg text-white flex items-center gap-2">
-                PNG output
-                {(busy || liveBusy) && (
-                  <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
-                )}
-              </h2>
 
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700">

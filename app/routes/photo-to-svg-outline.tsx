@@ -1336,25 +1336,12 @@ export default function PhotoToSvgOutline({
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-2">
-            <h1 className="text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              Photo to SVG Outline
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[85ch] mx-auto">
-              Turn a photo into a clean outline SVG by extracting contours
-              first, then tracing. Designed for portraits, objects, scenes, and
-              product photos.
-            </p>
-            <p className="mt-2 text-[13px] text-slate-500">
-              Fast path: use <b>Clean</b>. If it is noisy, use <b>Soft</b>. If
-              edges are missing, use <b>Strong</b>.
-            </p>
-          </header>
-
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
             <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">Input</h2>
+              <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] text-sky-950 sm:text-[34px]">
+                Photo to SVG Outline
+              </h1>
 
               <PresetPicker
                 presets={DISPLAY_PRESETS}
