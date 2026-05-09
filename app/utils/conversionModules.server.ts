@@ -1,8 +1,5 @@
 import { createRequire } from "node:module";
-import {
-  getPotrace,
-  traceBitmapToSvg,
-} from "./potraceCompat";
+import { traceBitmapToSvg } from "./potraceCompat";
 
 type SharpModule = typeof import("sharp");
 
@@ -29,4 +26,4 @@ export async function getSharp(): Promise<SharpModule> {
   return sharpModule;
 }
 
-export { getPotrace, traceBitmapToSvg };
+export { traceBitmapToSvg };

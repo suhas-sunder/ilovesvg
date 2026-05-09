@@ -2,7 +2,6 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import potrace from "potrace";
 import {
   applyPaletteSync,
   buildPaletteSync,
@@ -11,6 +10,7 @@ import {
 import { differenceCiede2000 } from "culori";
 import { traceCenterlineRasterToSvg } from "../app/shared/tracing/centerlineTrace.ts";
 import { injectFillStrokeOutlineGroup } from "../app/shared/tracing/fillStrokeSvg.ts";
+import { traceBitmapToSvg } from "../app/utils/potraceCompat.ts";
 import {
   STROKE_TRACE_PRESET_ADDITIONS,
   TRACE_PRESET_ADDITIONS,
@@ -200,20 +200,11 @@ async function traceWithPotrace(pixels, width, height) {
     .png()
     .toBuffer();
 
-  return new Promise((resolve, reject) => {
-    potrace.trace(
-      png,
-      {
-        color: "#000000",
-        threshold: 128,
-        turdSize: 2,
-        optTolerance: 0.2,
-      },
-      (error, svg) => {
-        if (error) reject(error);
-        else resolve(svg);
-      },
-    );
+  return traceBitmapToSvg(png, {
+    color: "#000000",
+    threshold: 128,
+    turdSize: 2,
+    optTolerance: 0.2,
   });
 }
 
