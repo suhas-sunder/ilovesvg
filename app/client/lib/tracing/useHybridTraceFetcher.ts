@@ -8,8 +8,7 @@ import {
   type BaseConversionCacheResult,
 } from "~/client/lib/converter/conversionCache";
 import {
-  getInFlightConversion,
-  joinOrStartInFlightConversion,
+  acquireInFlightConversion,
 } from "~/client/lib/converter/inFlightConversionDedupe";
 import type {
   NormalizedTraceSettings,
@@ -63,7 +62,8 @@ export function useHybridTraceFetcher<
   const [activeClientJobs, setActiveClientJobs] = React.useState(0);
   const runIdRef = React.useRef(0);
   const fallbackWarningRef = React.useRef<string | null>(null);
-  const abortControllersRef = React.useRef(new Map<string, AbortController>());
+  const clientCancelHandlersRef = React.useRef(new Map<string, () => void>());
+  const canceledClientRunIdsRef = React.useRef(new Set<string>());
   const suppressedServerDataRef = React.useRef<unknown>(undefined);
   const pendingServerCacheRef = React.useRef(
     new Map<
@@ -101,19 +101,32 @@ export function useHybridTraceFetcher<
 
       const settings = formDataToTraceSettings(target, options.routeId);
       const requestedEngine = settings.engine || "auto";
-      const canShareInFlightConversion =
-        settings.traceMode !== "layered" &&
-        settings.strokeOutputMode !== "centerline";
       const clientRunId =
         readString(target, "clientRunId") ??
         `${options.routeId}-${Date.now()}-${runId}`;
+      canceledClientRunIdsRef.current.delete(clientRunId);
 
       setActiveClientJobs((count) => count + 1);
-      const abortController = new AbortController();
-      abortControllersRef.current.set(clientRunId, abortController);
+      let cleanupInFlightConsumer: (() => void) | null = null;
+      let currentAbortController: AbortController | null = null;
+
+      const registerCancelHandler = (cancel: () => void) => {
+        clientCancelHandlersRef.current.set(clientRunId, () => {
+          canceledClientRunIdsRef.current.add(clientRunId);
+          cancel();
+        });
+      };
+
+      const createLocalAbortController = () => {
+        const controller = new AbortController();
+        currentAbortController = controller;
+        registerCancelHandler(() => controller.abort());
+        return controller;
+      };
 
       const runClientOrServerConversion = async (
         cacheKey: string | null,
+        signal: AbortSignal,
       ): Promise<BaseConversionCacheResult> => {
         recordHybridTraceDebug({
           routeId: options.routeId,
@@ -132,7 +145,7 @@ export function useHybridTraceFetcher<
           presetId: settings.presetId,
           presetBackendIntensity: settings.presetBackendIntensity,
           onProgress: options.onProgress,
-          signal: abortController.signal,
+          signal,
         });
 
         if (clientAttempt.ok) {
@@ -163,7 +176,7 @@ export function useHybridTraceFetcher<
           conversionCacheKey: cacheKey,
         });
         if (
-          abortController.signal.aborted ||
+          signal.aborted ||
           clientAttempt.reason === "Conversion was canceled."
         ) {
           recordHybridTraceDebug({
@@ -243,43 +256,22 @@ export function useHybridTraceFetcher<
             return;
           }
 
-          if (canShareInFlightConversion) {
-            const existing = getInFlightConversion(cacheKey);
-            if (existing) {
-              recordHybridTraceDebug({
-                routeId: options.routeId,
-                stage: "in-flight-join",
-                clientRunId,
-                traceJobId: String(runId),
-                conversionCacheKey: cacheKey,
-              });
-              const result = await existing;
-              setClientData(
-                traceResultToFetcherData<TData>(result, {
-                  clientRunId,
-                  traceJobId: String(runId),
-                  cacheHit: false,
-                  conversionCacheKey: cacheKey,
-                }),
-              );
-              return;
-            }
-
-            const result = await joinOrStartInFlightConversion(cacheKey, () =>
-              runClientOrServerConversion(cacheKey),
-            );
-            setClientData(
-              traceResultToFetcherData<TData>(result, {
-                clientRunId,
-                traceJobId: String(runId),
-                cacheHit: false,
-                conversionCacheKey: cacheKey,
-              }),
-            );
-            return;
+          const inFlight = acquireInFlightConversion(cacheKey, (signal) =>
+            runClientOrServerConversion(cacheKey, signal),
+          );
+          cleanupInFlightConsumer = inFlight.release;
+          registerCancelHandler(inFlight.cancel);
+          if (inFlight.shared) {
+            recordHybridTraceDebug({
+              routeId: options.routeId,
+              stage: "in-flight-join",
+              clientRunId,
+              traceJobId: String(runId),
+              conversionCacheKey: cacheKey,
+            });
           }
-
-          const result = await runClientOrServerConversion(cacheKey);
+          const result = await inFlight.promise;
+          if (canceledClientRunIdsRef.current.has(clientRunId)) return;
           setClientData(
             traceResultToFetcherData<TData>(result, {
               clientRunId,
@@ -291,7 +283,12 @@ export function useHybridTraceFetcher<
           return;
         }
 
-        const result = await runClientOrServerConversion(null);
+        const localAbortController = createLocalAbortController();
+        const result = await runClientOrServerConversion(
+          null,
+          localAbortController.signal,
+        );
+        if (canceledClientRunIdsRef.current.has(clientRunId)) return;
         setClientData(
           traceResultToFetcherData<TData>(result, {
             clientRunId,
@@ -306,7 +303,11 @@ export function useHybridTraceFetcher<
               : "Browser tracing failed.";
           if (message === SERVER_FALLBACK_SUBMITTED) return;
           const isLatest = runIdRef.current === runId;
-          if (abortController.signal.aborted || /canceled/i.test(message)) {
+          if (
+            currentAbortController?.signal.aborted ||
+            canceledClientRunIdsRef.current.has(clientRunId) ||
+            /canceled/i.test(message)
+          ) {
             recordHybridTraceDebug({
               routeId: options.routeId,
               stage: "client-attempt-canceled",
@@ -362,7 +363,9 @@ export function useHybridTraceFetcher<
           fetcher.submit(target, submitOptions);
         })
         .finally(() => {
-          abortControllersRef.current.delete(clientRunId);
+          cleanupInFlightConsumer?.();
+          clientCancelHandlersRef.current.delete(clientRunId);
+          canceledClientRunIdsRef.current.delete(clientRunId);
           setActiveClientJobs((count) => Math.max(0, count - 1));
         });
     },
@@ -414,8 +417,8 @@ export function useHybridTraceFetcher<
   }, []);
 
   const cancelClientJob = React.useCallback((clientRunId: string) => {
-    const controller = abortControllersRef.current.get(clientRunId);
-    controller?.abort();
+    const cancel = clientCancelHandlersRef.current.get(clientRunId);
+    cancel?.();
   }, []);
 
   const data = React.useMemo(() => {

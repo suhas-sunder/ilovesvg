@@ -10,6 +10,11 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ isSsrBuild }) => ({
   build: {
+    ...(isSsrBuild
+      ? {
+          target: "esnext",
+        }
+      : {}),
     rollupOptions: isSsrBuild
       ? {
           input: "./server/app.ts",

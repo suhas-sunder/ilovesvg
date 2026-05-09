@@ -68,6 +68,12 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { buildConversionCacheKeyForFile } from "~/client/lib/converter/buildConversionCacheKey";
+import {
+  lookupConversionCache,
+  writeConversionCache,
+  type BaseConversionCacheResult,
+} from "~/client/lib/converter/conversionCache";
 import {
   cleanupUnusedSourceSnapshots,
   createOutputSourceSnapshot,
@@ -2338,8 +2344,33 @@ type ServerResult = {
   outputDetectedColors?: number;
   pathCount?: number;
   svgBytes?: number;
+  cacheHit?: boolean;
+  conversionCacheKey?: string;
   gate?: { running: number; queued: number };
 };
+
+function traceResultToHomeServerResult(
+  result: BaseConversionCacheResult,
+  metadata: Pick<ServerResult, "clientRunId" | "cacheHit" | "conversionCacheKey">,
+): ServerResult {
+  return {
+    svg: result.svg,
+    width: result.width,
+    height: result.height,
+    layers: result.layers as SvgLayerMeta[] | undefined,
+    engineUsed: result.engineUsed,
+    sourceKind: result.sourceKind,
+    warnings: result.warnings,
+    timings: result.timings,
+    layerBuildMode: result.layerBuildMode,
+    requestedPaletteCount: result.requestedPaletteCount,
+    actualPaletteCount: result.actualPaletteCount,
+    outputDetectedColors: result.outputDetectedColors,
+    pathCount: result.pathCount,
+    svgBytes: result.svgBytes,
+    ...metadata,
+  };
+}
 
 type OutputVersion = {
   svg: string;
@@ -2636,6 +2667,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     startedAt?: number;
     fileName?: string;
     sourceSnapshot?: OutputSourceSnapshot;
+    conversionCacheKey?: string | null;
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -2656,6 +2688,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         startedAt?: number;
         fileName?: string;
         sourceSnapshot?: OutputSourceSnapshot;
+        conversionCacheKey?: string | null;
       }
     >(),
   );
@@ -2749,6 +2782,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       const resultSvg = data.svg;
       const resultWidth = data.width ?? 0;
       const resultHeight = data.height ?? 0;
+      if (submitted.conversionCacheKey && !data.cacheHit) {
+        writeConversionCache(submitted.conversionCacheKey, {
+          svg: resultSvg,
+          layers: data.layers as BaseConversionCacheResult["layers"],
+          width: resultWidth,
+          height: resultHeight,
+          engineUsed: data.engineUsed || "potrace",
+          sourceKind: data.sourceKind || "raster",
+          warnings: data.warnings,
+          timings: data.timings,
+          layerBuildMode:
+            data.layerBuildMode as BaseConversionCacheResult["layerBuildMode"],
+          requestedPaletteCount: data.requestedPaletteCount,
+          actualPaletteCount: data.actualPaletteCount,
+          outputDetectedColors: data.outputDetectedColors,
+          pathCount: data.pathCount,
+          svgBytes: data.svgBytes,
+        });
+      }
 
       if (submitted.replaceStamp) {
         const replaceStamp = submitted.replaceStamp;
@@ -3172,12 +3224,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Ensure invert always produces visible output (white on dark)
     const effective = getEffectiveSubmitSettings(targetSettings);
 
-    const fd = new FormData();
-    fd.append("file", targetFile);
-    appendTraceSettingsPayload(fd, effective);
     const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
     latestSubmittedRunIdRef.current = clientRunId;
-    fd.append("clientRunId", clientRunId);
     setErr(null);
     const submittedPresetId = resolveSubmittedPresetId(
       meta?.presetId ?? activePreset,
@@ -3188,6 +3236,51 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const presetLabel =
       DISPLAY_PRESETS.find((preset) => preset.id === submittedPresetId)?.label ||
       "Custom settings";
+    const cacheKeyInfo = isSvgFile(targetFile)
+      ? null
+      : await buildConversionCacheKeyForFile(targetFile, {
+          routeId: "home",
+          settings: {
+            ...effective,
+            routeId: "home",
+            presetId: submittedPresetId,
+            presetBackendIntensity: getPresetBackendIntensityById(submittedPresetId),
+          },
+          dimensions: dims ? { width: dims.w, height: dims.h } : undefined,
+        });
+    const conversionCacheKey = cacheKeyInfo?.key ?? null;
+    const cachedResult = lookupConversionCache(conversionCacheKey);
+    if (cachedResult) {
+      const sourceSnapshot = createOutputSourceSnapshot(targetFile);
+      const submittedMeta = {
+        settings: effective,
+        presetId: submittedPresetId,
+        parentStamp: meta?.parentStamp ?? null,
+        replaceStamp,
+        sourceLayerEdits: cloneEditableLayers(meta?.sourceLayerEdits),
+        stamp: replaceStamp ? null : startedAt,
+        name: replaceStamp ? undefined : `Output - ${presetLabel}`,
+        startedAt,
+        fileName: targetFile.name,
+        sourceSnapshot,
+        conversionCacheKey,
+      };
+      lastSubmittedRef.current = submittedMeta;
+      submittedByRunIdRef.current.set(clientRunId, submittedMeta);
+      handleSuccessfulTraceData(
+        traceResultToHomeServerResult(cachedResult, {
+          clientRunId,
+          cacheHit: true,
+          conversionCacheKey: conversionCacheKey ?? undefined,
+        }),
+      );
+      return true;
+    }
+
+    const fd = new FormData();
+    fd.append("file", targetFile);
+    appendTraceSettingsPayload(fd, effective);
+    fd.append("clientRunId", clientRunId);
     const pendingStamp = replaceStamp ? null : startedAt;
     const sourceSnapshot = createOutputSourceSnapshot(targetFile);
     const submittedMeta = {
@@ -3201,6 +3294,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       startedAt,
       fileName: targetFile.name,
       sourceSnapshot,
+      conversionCacheKey,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);

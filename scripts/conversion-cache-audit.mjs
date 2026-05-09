@@ -62,6 +62,10 @@ const hookSource = await fs.readFile(
   path.join(tracingDir, "useHybridTraceFetcher.ts"),
   "utf8",
 );
+const homeSource = await fs.readFile(
+  path.join(rootDir, "app", "routes", "home.tsx"),
+  "utf8",
+);
 
 await testStableSerialization();
 await testCacheKeyNormalization();
@@ -69,6 +73,7 @@ await testSourceFingerprinting();
 await testLruCache();
 await testInFlightDedupe();
 await testHookIntegrationTokens();
+await testHomeIntegrationTokens();
 
 console.log("[conversion-cache-audit] all checks passed");
 
@@ -330,6 +335,49 @@ async function testInFlightDedupe() {
     };
   });
   assert.equal(retryCalls, 1, "failure does not poison a future request");
+
+  let aborted = false;
+  let finishRefCounted;
+  const refCountedFirst = inFlight.acquireInFlightConversion(
+    "ref-counted-key",
+    (signal) =>
+      new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          aborted = true;
+          reject(new Error("aborted"));
+        });
+        finishRefCounted = () =>
+          resolve({
+            svg: '<svg width="1" height="1"><path d="M0 0"/></svg>',
+            width: 1,
+            height: 1,
+            layers: [],
+            engineUsed: "vtracer",
+            sourceKind: "raster",
+            warnings: [],
+          });
+      }),
+  );
+  const refCountedSecond = inFlight.acquireInFlightConversion(
+    "ref-counted-key",
+    () => {
+      throw new Error("second shared start should not run");
+    },
+  );
+  assert.equal(refCountedFirst.promise, refCountedSecond.promise);
+  await Promise.resolve();
+  refCountedFirst.cancel();
+  assert.equal(aborted, false, "one canceled consumer does not abort shared work");
+  assert.equal(
+    inFlight.getInFlightConsumerCountForTests("ref-counted-key"),
+    1,
+    "one active shared consumer remains",
+  );
+  refCountedSecond.release();
+  assert.equal(aborted, false, "release does not abort finished work");
+  finishRefCounted();
+  await refCountedFirst.promise;
+  assert.equal(inFlight.getInFlightConversionCountForTests(), 0);
 }
 
 async function testHookIntegrationTokens() {
@@ -337,8 +385,7 @@ async function testHookIntegrationTokens() {
     "buildConversionCacheKeyForFile",
     "lookupConversionCache",
     "writeConversionCache",
-    "joinOrStartInFlightConversion",
-    "canShareInFlightConversion",
+    "acquireInFlightConversion",
     "cache-hit",
     "in-flight-join",
     "server-cache-write",
@@ -346,6 +393,21 @@ async function testHookIntegrationTokens() {
     assert.ok(
       hookSource.includes(token),
       `shared hybrid fetcher includes cache integration token: ${token}`,
+    );
+  }
+}
+
+async function testHomeIntegrationTokens() {
+  for (const token of [
+    "buildConversionCacheKeyForFile",
+    "lookupConversionCache",
+    "writeConversionCache",
+    "conversionCacheKey",
+    "cacheHit",
+  ]) {
+    assert.ok(
+      homeSource.includes(token),
+      `home route includes cache integration token: ${token}`,
     );
   }
 }
