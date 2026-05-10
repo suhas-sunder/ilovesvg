@@ -46,11 +46,19 @@ function runResponsiveAudit() {
 
 function runNavAudit() {
   const nav = read("app/client/components/navigation/NavBar.tsx");
+  const navData = read("app/client/components/navigation/toolNavSections.ts");
 
-  assertIncludes(nav, "const NAV_CATEGORIES", "nav categories");
+  assertIncludes(nav, "TOOL_NAV_SECTIONS", "shared nav sections");
+  assertIncludes(navData, "label: \"Most Popular\"", "most popular section");
+  assertIncludes(navData, "label: \"Image to SVG\"", "image to svg section");
+  assertIncludes(navData, "label: \"Craft & Cut Files\"", "craft section");
+  assertIncludes(navData, "label: \"SVG Export\"", "export section");
+  assertIncludes(navData, "label: \"SVG Editing\"", "editing section");
+  assertIncludes(navData, "label: \"Developer & Code\"", "developer section");
+  assertIncludes(navData, "label: \"Learn\"", "learn section");
   assertIncludes(nav, "DesktopNavGroup", "desktop grouped nav");
   assertIncludes(nav, "MobileNavGroup", "mobile grouped nav");
-  assertIncludes(nav, "groupNavItems", "nav grouping helper");
+  assertIncludes(nav, "filterNavSections", "shared nav section filtering");
   assertIncludes(nav, "max-h-[min(72vh,680px)]", "larger desktop menu");
   assertIncludes(nav, "preferredWidth", "responsive dropdown width");
   assertIncludes(nav, "2xl:grid-cols-4", "comfortable wide desktop nav column");
@@ -60,12 +68,12 @@ function runNavAudit() {
   assertIncludes(nav, "isMobileNavMode && mobileOpen", "mobile drawer hidden outside mobile nav mode");
 
   const categoryOrder = Array.from(
-    nav.matchAll(/id:\s*"([^"]+)"[\s\S]*?label:\s*"([^"]+)"/g),
+    navData.matchAll(/id:\s*"([^"]+)"[\s\S]*?label:\s*"([^"]+)"/g),
     (match) => match[1],
-  ).slice(0, 9);
+  ).slice(0, 8);
   assert(
     categoryOrder.join(",") ===
-      "line-art,cricut,logo-icon,file-types,layered,svg-export,svg-tools,general,more",
+      "most-popular,image-to-svg,craft-cut-files,svg-export,svg-editing,marketplace-design,developer-code,learn",
     `unexpected nav category order: ${categoryOrder.join(",")}`,
   );
 }
@@ -84,19 +92,23 @@ function runExamplesAudit() {
 }
 
 function runLinksAudit() {
-  const nav = read("app/client/components/navigation/NavBar.tsx");
-  const routeDir = path.join(root, "app/routes");
+  const nav = read("app/client/components/navigation/toolNavSections.ts");
+  const routes = read("app/routes.ts");
+  const registeredRoutes = new Set(["/"]);
+  for (const match of routes.matchAll(/route\(\s*"([^"]+)"/g)) {
+    registeredRoutes.add(`/${match[1].replace(/\/+$/, "")}`);
+  }
   const hrefs = Array.from(nav.matchAll(/href:\s*"([^"]+)"/g)).map((match) => match[1]);
   const duplicates = hrefs.filter((href, index) => hrefs.indexOf(href) !== index);
 
-  assert(duplicates.length === 0, `duplicate nav hrefs: ${duplicates.join(", ")}`);
+  const allowedRepeatedHrefs = new Set(["/", "/png-to-svg-converter", "/svg-to-png-converter", "#other-tools"]);
+  const unexpectedDuplicates = duplicates.filter((href) => !allowedRepeatedHrefs.has(href));
+  assert(unexpectedDuplicates.length === 0, `duplicate nav hrefs: ${unexpectedDuplicates.join(", ")}`);
 
   for (const href of hrefs) {
     if (href === "/" || href.startsWith("#")) continue;
 
-    const slug = href.replace(/^\/+/, "");
-    const file = path.join(routeDir, `${slug}.tsx`);
-    assert(fs.existsSync(file), `nav href does not map to a route file: ${href}`);
+    assert(registeredRoutes.has(href), `nav href does not map to a route: ${href}`);
   }
 }
 

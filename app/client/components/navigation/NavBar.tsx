@@ -6,86 +6,20 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  PRIMARY_NAV_ITEMS,
+  TOOL_NAV_ITEMS,
+  TOOL_NAV_SECTIONS,
+  type ToolNavItem,
+  type ToolNavSection,
+} from "./toolNavSections";
 
-type NavItem = {
-  label: string;
-  href: string;
-  keywords?: string[];
-};
+type NavItem = ToolNavItem;
+type NavGroup = ToolNavSection;
 
 type Rect = { top: number; left: number; width: number; height: number };
 
-type NavCategoryId =
-  | "general"
-  | "file-types"
-  | "cricut"
-  | "line-art"
-  | "logo-icon"
-  | "layered"
-  | "svg-export"
-  | "svg-tools"
-  | "more";
-
-type NavCategory = {
-  id: NavCategoryId;
-  label: string;
-  description: string;
-};
-
-type NavGroup = {
-  category: NavCategory;
-  items: NavItem[];
-};
-
 const PRO_WAITLIST_PATH = "/pro-waitlist";
-
-const NAV_CATEGORIES: NavCategory[] = [
-  {
-    id: "line-art",
-    label: "Line art and sketch",
-    description: "Outline, drawing, scan, and monochrome routes.",
-  },
-  {
-    id: "cricut",
-    label: "Cricut and cut files",
-    description: "Craft, vinyl, sticker, and cutter routes.",
-  },
-  {
-    id: "logo-icon",
-    label: "Logo and icon",
-    description: "Brand, icon, emoji, and text conversions.",
-  },
-  {
-    id: "file-types",
-    label: "File type converters",
-    description: "PNG, JPG, WebP, and Base64 tools.",
-  },
-  {
-    id: "layered",
-    label: "Layered and color SVG",
-    description: "Layered color and multi-color outputs.",
-  },
-  {
-    id: "svg-export",
-    label: "Export tools",
-    description: "SVG to image, PDF, and favicon outputs.",
-  },
-  {
-    id: "svg-tools",
-    label: "SVG editing tools",
-    description: "Recolor, clean, inspect, and edit SVG files.",
-  },
-  {
-    id: "general",
-    label: "General converters",
-    description: "Core raster to SVG workflows.",
-  },
-  {
-    id: "more",
-    label: "More tools",
-    description: "Reference and utility pages.",
-  },
-];
 
 function useIsClient() {
   const [isClient, setIsClient] = useState(false);
@@ -115,832 +49,14 @@ export default function NavBar() {
 
   const SCROLL_CLASS = "ilovesvg-scroll";
 
-  const items: NavItem[] = useMemo(
-    () => [
-      // Current-page anchor
-      {
-        label: "All Tools",
-        href: "#other-tools",
-        keywords: ["all tools", "tools", "navigation", "browse tools"],
-      },
+  const items = TOOL_NAV_ITEMS;
 
-      // Home / main converter
-      {
-        label: "Image to SVG",
-        href: "/",
-        keywords: [
-          "image to svg",
-          "convert image",
-          "vectorize",
-          "png to svg",
-          "jpg to svg",
-          "jpeg to svg",
-          "webp to svg",
-          "photo to svg",
-          "raster to svg",
-        ],
-      },
-
-      // SVG -> raster/pdf
-      {
-        label: "SVG to PNG",
-        href: "/svg-to-png-converter",
-        keywords: ["svg to png", "png", "transparent png", "export png"],
-      },
-      {
-        label: "SVG to JPG",
-        href: "/svg-to-jpg-converter",
-        keywords: ["svg to jpg", "svg to jpeg", "jpg", "jpeg", "export jpg"],
-      },
-      {
-        label: "SVG to WebP",
-        href: "/svg-to-webp-converter",
-        keywords: ["svg to webp", "webp", "export webp"],
-      },
-      {
-        label: "SVG to PDF",
-        href: "/svg-to-pdf-converter",
-        keywords: ["svg to pdf", "pdf", "print", "export pdf"],
-      },
-
-      // SVG utilities
-      {
-        label: "SVG Background Editor",
-        href: "/svg-background-editor",
-        keywords: [
-          "svg background",
-          "background editor",
-          "transparent",
-          "add background",
-        ],
-      },
-      {
-        label: "SVG Resize / Scale",
-        href: "/svg-resize-and-scale-editor",
-        keywords: ["resize svg", "scale svg", "viewbox", "width", "height"],
-      },
-      {
-        label: "SVG Recolor",
-        href: "/svg-recolor",
-        keywords: ["recolor svg", "change color", "fill", "stroke"],
-      },
-      {
-        label: "SVG Minifier",
-        href: "/svg-minifier",
-        keywords: ["svg minifier", "minify", "compress", "reduce size"],
-      },
-      {
-        label: "SVG Cleaner",
-        href: "/svg-cleaner",
-        keywords: ["svg cleaner", "clean svg", "metadata", "optimize"],
-      },
-      {
-        label: "SVG Preview Viewer",
-        href: "/svg-preview-viewer",
-        keywords: ["svg preview", "viewer", "view svg", "render svg"],
-      },
-      {
-        label: "SVG Embed Code",
-        href: "/svg-embed-code-generator",
-        keywords: [
-          "embed svg",
-          "inline svg",
-          "img tag",
-          "css background",
-          "html code",
-        ],
-      },
-      {
-        label: "Inline SVG vs Img",
-        href: "/inline-svg-vs-img",
-        keywords: ["inline svg", "img", "svg vs img", "reference"],
-      },
-      {
-        label: "SVG to Favicon",
-        href: "/svg-to-favicon-generator",
-        keywords: ["favicon", "ico", "app icon", "browser icon"],
-      },
-      {
-        label: "SVG Stroke Width Editor",
-        href: "/svg-stroke-width-editor",
-        keywords: ["stroke width", "line thickness", "stroke-width"],
-      },
-      {
-        label: "SVG Flip / Rotate",
-        href: "/svg-flip-and-rotate-editor",
-        keywords: ["flip svg", "rotate svg", "mirror", "transform"],
-      },
-      {
-        label: "SVG Dimensions Inspector",
-        href: "/svg-dimensions-inspector",
-        keywords: ["dimensions", "width", "height", "viewbox", "inspect"],
-      },
-      {
-        label: "SVG File Size Inspector",
-        href: "/svg-file-size-inspector",
-        keywords: ["file size", "kb", "bytes", "inspect size"],
-      },
-      {
-        label: "SVG Accessibility / Contrast",
-        href: "/svg-accessibility-and-contrast-checker",
-        keywords: [
-          "accessibility",
-          "contrast",
-          "wcag",
-          "a11y",
-          "color blindness",
-        ],
-      },
-
-      // Cricut / craft target audience routes
-      {
-        label: "Cricut SVG Converter",
-        href: "/cricut-svg-converter",
-        keywords: [
-          "cricut",
-          "svg for cricut",
-          "cricut svg converter",
-          "design space",
-          "craft",
-          "cut file",
-          "vinyl",
-          "stickers",
-        ],
-      },
-      {
-        label: "Image to SVG for Cricut",
-        href: "/image-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "image to svg",
-          "jpg to svg",
-          "jpeg to svg",
-          "png to svg",
-          "webp to svg",
-          "gif to svg",
-          "bmp to svg",
-          "tiff to svg",
-          "svg cleanup",
-          "design space",
-          "cut file",
-        ],
-      },
-      {
-        label: "PNG to SVG for Cricut",
-        href: "/png-to-svg-for-cricut",
-        keywords: ["cricut", "png to svg", "craft", "cut file", "design space"],
-      },
-      {
-        label: "JPG to SVG for Cricut",
-        href: "/jpg-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "jpg to svg",
-          "jpeg to svg",
-          "photo",
-          "craft",
-          "cut file",
-          "design space",
-        ],
-      },
-      {
-        label: "JPEG to SVG for Cricut",
-        href: "/jpeg-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "jpeg to svg",
-          "jpg to svg",
-          "photo",
-          "craft",
-          "cut file",
-          "design space",
-        ],
-      },
-      {
-        label: "WebP to SVG for Cricut",
-        href: "/webp-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "webp to svg",
-          "craft",
-          "cut file",
-          "design space",
-        ],
-      },
-      {
-        label: "Photo to SVG for Cricut",
-        href: "/photo-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "photo to svg",
-          "picture to svg",
-          "craft",
-          "cut file",
-          "design space",
-        ],
-      },
-      {
-        label: "B&W Image to SVG for Cricut",
-        href: "/black-and-white-image-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "black and white",
-          "b&w",
-          "bw",
-          "stencil",
-          "monochrome",
-          "cut file",
-        ],
-      },
-      {
-        label: "Line Art to SVG for Cricut",
-        href: "/line-art-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "line art",
-          "outline",
-          "trace",
-          "coloring page",
-          "cut file",
-        ],
-      },
-      {
-        label: "Drawing to SVG for Cricut",
-        href: "/drawing-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "drawing to svg",
-          "hand drawn",
-          "trace",
-          "cut file",
-        ],
-      },
-      {
-        label: "Sketch to SVG for Cricut",
-        href: "/sketch-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "sketch to svg",
-          "pencil",
-          "drawing",
-          "trace",
-          "cut file",
-        ],
-      },
-      {
-        label: "Sticker to SVG for Cricut",
-        href: "/sticker-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "sticker to svg",
-          "stickers",
-          "labels",
-          "print then cut",
-          "cut file",
-        ],
-      },
-      {
-        label: "Logo to SVG for Cricut",
-        href: "/logo-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "logo to svg",
-          "brand",
-          "business logo",
-          "vector logo",
-          "design space",
-        ],
-      },
-      {
-        label: "Layered SVG for Cricut",
-        href: "/layered-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "layered svg",
-          "layers",
-          "multicolor",
-          "multi color",
-          "vinyl layers",
-          "cut file",
-        ],
-      },
-      {
-        label: "Image to Layered SVG for Cricut",
-        href: "/image-to-layered-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "image to layered svg",
-          "layered svg",
-          "layers",
-          "multicolor",
-          "multi color",
-          "vinyl layers",
-        ],
-      },
-      {
-        label: "PNG to Layered SVG for Cricut",
-        href: "/png-to-layered-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "png to layered svg",
-          "layered svg",
-          "layers",
-          "multicolor",
-          "multi color",
-          "vinyl layers",
-        ],
-      },
-      {
-        label: "JPG to Layered SVG for Cricut",
-        href: "/jpg-to-layered-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "jpg to layered svg",
-          "jpeg to layered svg",
-          "layered svg",
-          "layers",
-          "multicolor",
-          "multi color",
-        ],
-      },
-      {
-        label: "Logo to Layered SVG for Cricut",
-        href: "/logo-to-layered-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "logo to layered svg",
-          "layered svg",
-          "layers",
-          "multicolor",
-          "brand",
-          "business logo",
-        ],
-      },
-      {
-        label: "PNG to SVG for Print Then Cut",
-        href: "/png-to-svg-for-cricut-print-then-cut",
-        keywords: [
-          "cricut",
-          "print then cut",
-          "stickers",
-          "labels",
-          "print and cut",
-        ],
-      },
-      {
-        label: "PNG to SVG for Cricut Vinyl",
-        href: "/png-to-svg-for-cricut-vinyl",
-        keywords: ["cricut", "vinyl", "decal", "cut file", "htv", "iron on"],
-      },
-      {
-        label: "PNG to SVG for Cricut Stickers",
-        href: "/png-to-svg-for-cricut-stickers",
-        keywords: ["cricut", "stickers", "sticker svg", "labels", "kiss cut"],
-      },
-      {
-        label: "Base64 to SVG for Cricut",
-        href: "/base64-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "base64 to svg",
-          "decode svg",
-          "data url",
-          "design space",
-          "cut file",
-        ],
-      },
-      {
-        label: "Code to SVG for Cricut",
-        href: "/code-to-svg-for-cricut",
-        keywords: [
-          "cricut",
-          "code to svg",
-          "svg code",
-          "svg markup",
-          "design space",
-          "cut file",
-        ],
-      },
-      {
-        label: "PNG to SVG for Silhouette",
-        href: "/png-to-svg-for-silhouette",
-        keywords: [
-          "silhouette",
-          "silhouette studio",
-          "cameo",
-          "png to svg",
-          "craft",
-          "cut file",
-        ],
-      },
-      {
-        label: "PNG to SVG for Etsy",
-        href: "/png-to-svg-for-etsy",
-        keywords: [
-          "etsy",
-          "seller",
-          "digital download",
-          "png to svg",
-          "cut file",
-          "svg bundle",
-        ],
-      },
-      {
-        label: "PNG to SVG for Laser Cutting",
-        href: "/png-to-svg-for-laser-cutting",
-        keywords: [
-          "laser cutting",
-          "engraving",
-          "cut paths",
-          "outline",
-          "glowforge",
-          "xtool",
-          "lightburn",
-        ],
-      },
-
-      // Base64
-      {
-        label: "SVG to Base64",
-        href: "/svg-to-base64",
-        keywords: ["svg to base64", "encode", "data uri", "base64"],
-      },
-      {
-        label: "Base64 to SVG",
-        href: "/base64-to-svg",
-        keywords: ["base64 to svg", "decode", "data uri", "decoder"],
-      },
-
-      // Color tool
-      {
-        label: "Color Picker",
-        href: "/free-color-picker",
-        keywords: ["color picker", "palette", "hex", "rgb", "hsl"],
-      },
-
-      // Raster -> SVG
-      {
-        label: "PNG to SVG",
-        href: "/png-to-svg-converter",
-        keywords: ["png to svg", "vectorize png", "transparent png"],
-      },
-      {
-        label: "JPG to SVG",
-        href: "/jpg-to-svg-converter",
-        keywords: ["jpg to svg", "jpeg", "photo", "vectorize jpg"],
-      },
-      {
-        label: "JPEG to SVG",
-        href: "/jpeg-to-svg-converter",
-        keywords: ["jpeg to svg", "jpg", "photo", "vectorize jpeg"],
-      },
-      {
-        label: "WebP to SVG",
-        href: "/webp-to-svg-converter",
-        keywords: ["webp to svg", "vectorize webp"],
-      },
-      {
-        label: "Logo to SVG",
-        href: "/logo-to-svg-converter",
-        keywords: ["logo to svg", "brand", "vector logo"],
-      },
-      {
-        label: "Icon to SVG",
-        href: "/icon-to-svg-converter",
-        keywords: ["icon to svg", "ui icon", "vector icon"],
-      },
-      {
-        label: "Emoji to SVG",
-        href: "/emoji-to-svg-converter",
-        keywords: ["emoji to svg", "emoji", "sticker"],
-      },
-      {
-        label: "Text to SVG",
-        href: "/text-to-svg-converter",
-        keywords: ["text to svg", "wordmark", "typography"],
-      },
-      {
-        label: "Sticker to SVG",
-        href: "/sticker-to-svg-converter",
-        keywords: ["sticker to svg", "decal", "cut file"],
-      },
-      {
-        label: "Line Art to SVG",
-        href: "/line-art-to-svg-converter",
-        keywords: ["line art", "outline", "trace", "coloring page"],
-      },
-      {
-        label: "Drawing to SVG",
-        href: "/drawing-to-svg-converter",
-        keywords: ["drawing to svg", "hand drawn", "sketch", "trace"],
-      },
-      {
-        label: "Scan to SVG",
-        href: "/scan-to-svg-converter",
-        keywords: ["scan to svg", "scanned image", "document", "trace"],
-      },
-      {
-        label: "Sketch to SVG",
-        href: "/sketch-to-svg-converter",
-        keywords: ["sketch to svg", "pencil", "drawing", "trace"],
-      },
-      {
-        label: "Image to SVG Outline",
-        href: "/image-to-svg-outline",
-        keywords: ["image outline", "outline svg", "line art", "trace"],
-      },
-      {
-        label: "Photo to SVG Outline",
-        href: "/photo-to-svg-outline",
-        keywords: ["photo outline", "outline svg", "trace photo"],
-      },
-      {
-        label: "B&W Image to SVG",
-        href: "/black-and-white-image-to-svg-converter",
-        keywords: ["black and white", "b&w", "bw", "stencil", "monochrome"],
-      },
-      {
-        label: "GIF to SVG Converter",
-        href: "/gif-to-svg-converter",
-        keywords: ["gif to svg converter", "gif to svg converter"],
-      },
-      {
-        label: "AVIF to SVG Converter",
-        href: "/avif-to-svg-converter",
-        keywords: ["avif to svg converter", "avif to svg converter"],
-      },
-      {
-        label: "BMP to SVG Converter",
-        href: "/bmp-to-svg-converter",
-        keywords: ["bmp to svg converter", "bmp to svg converter"],
-      },
-      {
-        label: "TIFF to SVG Converter",
-        href: "/tiff-to-svg-converter",
-        keywords: ["tiff to svg converter", "tiff to svg converter"],
-      },
-      {
-        label: "Transparent PNG to SVG Converter",
-        href: "/transparent-png-to-svg-converter",
-        keywords: ["transparent png to svg converter", "transparent png to svg converter"],
-      },
-      {
-        label: "Image to Layered SVG Converter",
-        href: "/image-to-layered-svg-converter",
-        keywords: ["image to layered svg converter", "image to layered svg converter"],
-      },
-      {
-        label: "JPG to Layered SVG Converter",
-        href: "/jpg-to-layered-svg-converter",
-        keywords: ["jpg to layered svg converter", "jpg to layered svg converter"],
-      },
-      {
-        label: "Logo to Layered SVG Converter",
-        href: "/logo-to-layered-svg-converter",
-        keywords: ["logo to layered svg converter", "logo to layered svg converter"],
-      },
-      {
-        label: "SVG to ICO Converter",
-        href: "/svg-to-ico-converter",
-        keywords: ["svg to ico converter", "svg to ico converter"],
-      },
-      {
-        label: "Image to Favicon Generator",
-        href: "/image-to-favicon-generator",
-        keywords: ["image to favicon generator", "image to favicon generator"],
-      },
-      {
-        label: "PNG to Favicon Generator",
-        href: "/png-to-favicon-generator",
-        keywords: ["png to favicon generator", "png to favicon generator"],
-      },
-      {
-        label: "JPG to Favicon Generator",
-        href: "/jpg-to-favicon-generator",
-        keywords: ["jpg to favicon generator", "jpg to favicon generator"],
-      },
-      {
-        label: "Logo to Favicon Generator",
-        href: "/logo-to-favicon-generator",
-        keywords: ["logo to favicon generator", "logo to favicon generator"],
-      },
-      {
-        label: "PNG to ICO Converter",
-        href: "/png-to-ico-converter",
-        keywords: ["png to ico converter", "png to ico converter"],
-      },
-      {
-        label: "PNG to SVG for Shopify",
-        href: "/png-to-svg-for-shopify",
-        keywords: ["png to svg for shopify", "png to svg for shopify"],
-      },
-      {
-        label: "Logo to SVG for Shopify",
-        href: "/logo-to-svg-for-shopify",
-        keywords: ["logo to svg for shopify", "logo to svg for shopify"],
-      },
-      {
-        label: "SVG to PNG for Shopify",
-        href: "/svg-to-png-for-shopify",
-        keywords: ["svg to png for shopify", "svg to png for shopify"],
-      },
-      {
-        label: "SVG to Favicon for Shopify",
-        href: "/svg-to-favicon-for-shopify",
-        keywords: ["svg to favicon for shopify", "svg to favicon for shopify"],
-      },
-      {
-        label: "SVG Resizer for Shopify",
-        href: "/svg-resizer-for-shopify",
-        keywords: ["svg resizer for shopify", "svg resizer for shopify"],
-      },
-      {
-        label: "Logo to Favicon for Shopify",
-        href: "/logo-to-favicon-for-shopify",
-        keywords: ["logo to favicon for shopify", "logo to favicon for shopify"],
-      },
-      {
-        label: "SVG to PNG for Etsy",
-        href: "/svg-to-png-for-etsy",
-        keywords: ["svg to png for etsy", "svg to png for etsy"],
-      },
-      {
-        label: "SVG to JPG for Etsy",
-        href: "/svg-to-jpg-for-etsy",
-        keywords: ["svg to jpg for etsy", "svg to jpg for etsy"],
-      },
-      {
-        label: "Logo to SVG for Etsy",
-        href: "/logo-to-svg-for-etsy",
-        keywords: ["logo to svg for etsy", "logo to svg for etsy"],
-      },
-      {
-        label: "Sticker to SVG for Etsy",
-        href: "/sticker-to-svg-for-etsy",
-        keywords: ["sticker to svg for etsy", "sticker to svg for etsy"],
-      },
-      {
-        label: "Image to SVG for Etsy",
-        href: "/image-to-svg-for-etsy",
-        keywords: ["image to svg for etsy", "image to svg for etsy"],
-      },
-      {
-        label: "JPG to SVG for Etsy",
-        href: "/jpg-to-svg-for-etsy",
-        keywords: ["jpg to svg for etsy", "jpg to svg for etsy"],
-      },
-      {
-        label: "SVG Resizer for Etsy",
-        href: "/svg-resizer-for-etsy",
-        keywords: ["svg resizer for etsy", "svg resizer for etsy"],
-      },
-      {
-        label: "SVG to PNG for Printify",
-        href: "/svg-to-png-for-printify",
-        keywords: ["svg to png for printify", "svg to png for printify"],
-      },
-      {
-        label: "SVG to PNG for Printful",
-        href: "/svg-to-png-for-printful",
-        keywords: ["svg to png for printful", "svg to png for printful"],
-      },
-      {
-        label: "Sticker SVG to PNG for Printing",
-        href: "/sticker-to-png-for-printing",
-        keywords: ["sticker svg to png for printing", "sticker to png for printing"],
-      },
-      {
-        label: "SVG to Transparent PNG for Printing",
-        href: "/svg-to-transparent-png-for-printing",
-        keywords: ["svg to transparent png for printing", "svg to transparent png for printing"],
-      },
-      {
-        label: "PNG to SVG for Glowforge",
-        href: "/png-to-svg-for-glowforge",
-        keywords: ["png to svg for glowforge", "png to svg for glowforge"],
-      },
-      {
-        label: "JPG to SVG for Glowforge",
-        href: "/jpg-to-svg-for-glowforge",
-        keywords: ["jpg to svg for glowforge", "jpg to svg for glowforge"],
-      },
-      {
-        label: "Logo to SVG for Glowforge",
-        href: "/logo-to-svg-for-glowforge",
-        keywords: ["logo to svg for glowforge", "logo to svg for glowforge"],
-      },
-      {
-        label: "SVG Cleaner for Glowforge",
-        href: "/svg-cleaner-for-glowforge",
-        keywords: ["svg cleaner for glowforge", "svg cleaner for glowforge"],
-      },
-      {
-        label: "SVG Resizer for Glowforge",
-        href: "/svg-resizer-for-glowforge",
-        keywords: ["svg resizer for glowforge", "svg resizer for glowforge"],
-      },
-      {
-        label: "Image to SVG for Glowforge",
-        href: "/image-to-svg-for-glowforge",
-        keywords: ["image to svg for glowforge", "image to svg for glowforge"],
-      },
-      {
-        label: "JPG to SVG for Silhouette",
-        href: "/jpg-to-svg-for-silhouette",
-        keywords: ["jpg to svg for silhouette", "jpg to svg for silhouette"],
-      },
-      {
-        label: "Image to SVG for Silhouette",
-        href: "/image-to-svg-for-silhouette",
-        keywords: ["image to svg for silhouette", "image to svg for silhouette"],
-      },
-      {
-        label: "Logo to SVG for Silhouette",
-        href: "/logo-to-svg-for-silhouette",
-        keywords: ["logo to svg for silhouette", "logo to svg for silhouette"],
-      },
-      {
-        label: "Sticker to SVG for Silhouette",
-        href: "/sticker-to-svg-for-silhouette",
-        keywords: ["sticker to svg for silhouette", "sticker to svg for silhouette"],
-      },
-      {
-        label: "SVG Cleaner for Silhouette",
-        href: "/svg-cleaner-for-silhouette",
-        keywords: ["svg cleaner for silhouette", "svg cleaner for silhouette"],
-      },
-      {
-        label: "SVG Resizer for Silhouette",
-        href: "/svg-resizer-for-silhouette",
-        keywords: ["svg resizer for silhouette", "svg resizer for silhouette"],
-      },
-      {
-        label: "PNG to SVG for Canva",
-        href: "/png-to-svg-for-canva",
-        keywords: ["png to svg for canva", "png to svg for canva"],
-      },
-      {
-        label: "JPG to SVG for Canva",
-        href: "/jpg-to-svg-for-canva",
-        keywords: ["jpg to svg for canva", "jpg to svg for canva"],
-      },
-      {
-        label: "SVG to PNG for Canva",
-        href: "/svg-to-png-for-canva",
-        keywords: ["svg to png for canva", "svg to png for canva"],
-      },
-      {
-        label: "Logo to SVG for Canva",
-        href: "/logo-to-svg-for-canva",
-        keywords: ["logo to svg for canva", "logo to svg for canva"],
-      },
-      {
-        label: "SVG Resizer for Canva",
-        href: "/svg-resizer-for-canva",
-        keywords: ["svg resizer for canva", "svg resizer for canva"],
-      },
-      {
-        label: "SVG Cleaner for Figma",
-        href: "/svg-cleaner-for-figma",
-        keywords: ["svg cleaner for figma", "svg cleaner for figma"],
-      },
-      {
-        label: "SVG Resizer for Figma",
-        href: "/svg-resizer-for-figma",
-        keywords: ["svg resizer for figma", "svg resizer for figma"],
-      },
-      {
-        label: "SVG to PNG for Figma",
-        href: "/svg-to-png-for-figma",
-        keywords: ["svg to png for figma", "svg to png for figma"],
-      },
-      {
-        label: "PNG to SVG for Figma",
-        href: "/png-to-svg-for-figma",
-        keywords: ["png to svg for figma", "png to svg for figma"],
-      },
-      {
-        label: "SVG to JSX Converter",
-        href: "/svg-to-jsx-converter",
-        keywords: ["svg to jsx converter", "svg to jsx converter"],
-      },
-    ],
-    [],
-  );
-
-  // Keep the bar compact. Searchable More still contains all routes.
+  // Keep the bar compact. Searchable More still contains all route groups.
   const primaryLinks = useMemo(() => {
-    return items.filter((item) =>
-      [
-        "#other-tools",
-        "/",
-        "/cricut-svg-converter",
-        "/svg-to-png-converter",
-      ].includes(item.href),
-    );
-  }, [items]);
+    return PRIMARY_NAV_ITEMS;
+  }, []);
 
-  const moreLinks = useMemo(() => items, [items]);
+  const moreLinks = items;
 
   const filteredDesktopMoreLinks = useMemo(
     () => filterNavItems(moreLinks, desktopSearch),
@@ -952,14 +68,24 @@ export default function NavBar() {
     [items, mobileSearch],
   );
 
+  const filteredDesktopNavSections = useMemo(
+    () => filterNavSections(TOOL_NAV_SECTIONS, desktopSearch),
+    [desktopSearch],
+  );
+
+  const filteredMobileNavSections = useMemo(
+    () => filterNavSections(TOOL_NAV_SECTIONS, mobileSearch),
+    [mobileSearch],
+  );
+
   const desktopNavGroups = useMemo(
-    () => groupNavItems(filteredDesktopMoreLinks),
-    [filteredDesktopMoreLinks],
+    () => filteredDesktopNavSections,
+    [filteredDesktopNavSections],
   );
 
   const mobileNavGroups = useMemo(
-    () => groupNavItems(filteredMobileLinks),
-    [filteredMobileLinks],
+    () => filteredMobileNavSections,
+    [filteredMobileNavSections],
   );
 
   const closeAll = () => {
@@ -1310,7 +436,7 @@ export default function NavBar() {
                   <div className="grid items-start gap-3 p-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                     {desktopNavGroups.map((group) => (
                       <DesktopNavGroup
-                        key={group.category.id}
+                        key={group.id}
                         group={group}
                         onNavClick={handleNavClick}
                       />
@@ -1421,7 +547,7 @@ export default function NavBar() {
                   <div className="grid gap-2 p-3">
                     {mobileNavGroups.map((group, index) => (
                       <MobileNavGroup
-                        key={group.category.id}
+                        key={group.id}
                         group={group}
                         forceOpen={Boolean(mobileSearch)}
                         defaultOpen={index < 2}
@@ -1468,68 +594,23 @@ function filterNavItems(items: NavItem[], query: string) {
   });
 }
 
-function getNavCategoryId(item: NavItem): NavCategoryId {
-  const target = `${item.href} ${item.label} ${(item.keywords ?? []).join(" ")}`;
+function filterNavSections(
+  sections: ToolNavSection[],
+  query: string,
+): ToolNavSection[] {
+  const q = normalizeSearchText(query);
+  if (!q) return sections;
 
-  if (/svg-to-(png|jpg|jpeg|webp|pdf)|favicon/i.test(target)) {
-    return "svg-export";
-  }
+  return sections
+    .map((section) => {
+      const matchingItems = filterNavItems(section.items, q);
 
-  if (/layered/i.test(target)) {
-    return "layered";
-  }
-
-  if (
-    /cricut|silhouette|glowforge|laser|vinyl|etsy|printify|printful|printing|print then cut|print-then-cut|stickers|cut file/i.test(
-      target,
-    )
-  ) {
-    return "cricut";
-  }
-
-  if (/line art|line-art|outline|drawing|scan|sketch|black and white|black-and-white|b&w|bw/i.test(target)) {
-    return "line-art";
-  }
-
-  if (/logo|icon|emoji|text to svg|text-to-svg|favicon/i.test(target)) {
-    return "logo-icon";
-  }
-
-  if (/png-to-svg|jpg-to-svg|jpeg-to-svg|webp-to-svg|gif-to-svg|avif-to-svg|bmp-to-svg|tiff-to-svg|image to svg|image-to-svg/i.test(target)) {
-    return item.href === "/" ? "general" : "file-types";
-  }
-
-  if (/base64|color picker|favicon|ico/i.test(target)) {
-    return "file-types";
-  }
-
-  if (
-    /recolor|background|resize|scale|minifier|cleaner|preview|embed|inline|stroke width|flip|rotate|dimensions|file size|accessibility|contrast/i.test(
-      target,
-    )
-  ) {
-    return "svg-tools";
-  }
-
-  return item.href === "/" ? "general" : "more";
-}
-
-function groupNavItems(items: NavItem[]): NavGroup[] {
-  const grouped = new Map<NavCategoryId, NavItem[]>();
-
-  for (const category of NAV_CATEGORIES) {
-    grouped.set(category.id, []);
-  }
-
-  for (const item of items) {
-    const categoryId = getNavCategoryId(item);
-    grouped.get(categoryId)?.push(item);
-  }
-
-  return NAV_CATEGORIES.map((category) => ({
-    category,
-    items: grouped.get(category.id) ?? [],
-  })).filter((group) => group.items.length > 0);
+      return {
+        ...section,
+        items: matchingItems,
+      };
+    })
+    .filter((section) => section.items.length > 0);
 }
 
 function DesktopLink({
@@ -1604,10 +685,10 @@ function DesktopNavGroup({
     >
       <div className="px-2 pb-2">
         <h3 className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-sky-200">
-          {group.category.label}
+          {group.label}
         </h3>
         <p className="m-0 mt-1 text-[11px] leading-4 text-sky-100/65">
-          {group.category.description}
+          {group.description}
         </p>
       </div>
       <div className="grid gap-1">
@@ -1644,7 +725,7 @@ function MobileNavGroup({
       className="rounded-xl border border-sky-800/70 bg-sky-900/20"
     >
       <summary className="flex min-h-12 list-none items-center justify-between gap-3 px-4 py-3 text-sm font-extrabold text-slate-100 marker:hidden [&::-webkit-details-marker]:hidden">
-        <span>{group.category.label}</span>
+        <span>{group.label}</span>
         <span className="text-xs font-semibold text-sky-200/70">
           {group.items.length}
         </span>
