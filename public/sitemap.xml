@@ -7,6 +7,38 @@
     <lastmod>2026-05-04</lastmod>
   </url>
 
+  <!-- Product documentation -->
+  <url>
+    <loc>https://www.ilovesvg.com/how-it-works</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.ilovesvg.com/how-it-works/conversion-workflow</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.ilovesvg.com/how-it-works/exporting-and-downloads</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.ilovesvg.com/how-it-works/presets</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.ilovesvg.com/how-it-works/settings</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.ilovesvg.com/how-it-works/troubleshooting</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+
+  <!-- Product waitlist -->
+  <url>
+    <loc>https://www.ilovesvg.com/pro-waitlist</loc>
+    <lastmod>2026-05-10</lastmod>
+  </url>
+
   <!-- SVG → Raster / PDF -->
   <url>
     <loc>https://www.ilovesvg.com/svg-to-png-converter</loc>
