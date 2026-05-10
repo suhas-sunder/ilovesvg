@@ -522,6 +522,30 @@ const main = async () => {
       sourceFile: route.sourceFile,
       riskNotes: route.riskNotes,
     }));
+  const missingXmlSitemapRoutes = matrix
+    .filter(
+      (route) =>
+        route.sourceKind !== "public static" &&
+        route.public &&
+        route.shouldIndex &&
+        !route.inXmlSitemap,
+    )
+    .map((route) => route.path)
+    .sort();
+  const missingMetadataRoutes = matrix.filter(
+    (route) =>
+      route.public &&
+      route.hasMetadata === false &&
+      route.routeType !== "redirect/alias" &&
+      route.routeType !== "API/action endpoint",
+  );
+  const missingCanonicalRoutes = matrix.filter(
+    (route) =>
+      route.public &&
+      route.hasCanonical === false &&
+      route.routeType !== "redirect/alias" &&
+      route.routeType !== "API/action endpoint",
+  );
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -532,6 +556,7 @@ const main = async () => {
     sitemapOnlyPaths,
     htmlSitemapOnlyPaths,
     missingNavTargets,
+    missingXmlSitemapRoutes,
     gaps,
     matrix,
     robots: {
@@ -557,12 +582,20 @@ const main = async () => {
   print("SVG export/editor routes", counts.svgExportEditorRoutes);
   print("Public utility routes", counts.publicUtilityRoutes);
   print("XML sitemap paths", counts.xmlSitemapPaths);
-  print("Routes missing metadata", matrix.filter((route) => route.public && route.hasMetadata === false && route.routeType !== "redirect/alias" && route.routeType !== "API/action endpoint").length);
-  print("Routes missing canonical", matrix.filter((route) => route.public && route.hasCanonical === false && route.routeType !== "redirect/alias" && route.routeType !== "API/action endpoint").length);
+  print("Routes missing XML sitemap", missingXmlSitemapRoutes.length);
+  print("Routes missing metadata", missingMetadataRoutes.length);
+  print("Routes missing canonical", missingCanonicalRoutes.length);
+  print("Broken nav or related targets", missingNavTargets.length);
   print("Routes missing test classification", matrix.filter((route) => route.public && route.sourceKind !== "public static" && route.testCoverage.length === 0).length);
   print("Gap rows", gaps.length);
   print("Report", path.relative(ROOT, REPORT_PATH));
 
+  if (missingXmlSitemapRoutes.length) {
+    console.error(
+      `Canonical indexable routes missing from XML sitemap: ${missingXmlSitemapRoutes.join(", ")}`,
+    );
+    process.exitCode = 1;
+  }
   if (missingNavTargets.length) {
     console.log(`Missing nav or related targets: ${missingNavTargets.join(", ")}`);
   }

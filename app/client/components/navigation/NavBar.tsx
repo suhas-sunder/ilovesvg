@@ -20,6 +20,12 @@ type NavGroup = ToolNavSection;
 type Rect = { top: number; left: number; width: number; height: number };
 
 const PRO_WAITLIST_PATH = "/pro-waitlist";
+const DEFAULT_MOBILE_PREVIEW_LIMIT = 10;
+const MOBILE_PREVIEW_LIMITS: Record<string, number> = {
+  "craft-cut-files": 12,
+  "svg-export": 10,
+  "svg-editing": 10,
+};
 
 function useIsClient() {
   const [isClient, setIsClient] = useState(false);
@@ -34,10 +40,17 @@ export default function NavBar() {
   // Desktop "More" dropdown
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreRect, setMoreRect] = useState<Rect | null>(null);
+  const [viewportSize, setViewportSize] = useState({
+    width: 1180,
+    height: 720,
+  });
 
   // Search
   const [desktopSearch, setDesktopSearch] = useState("");
   const [mobileSearch, setMobileSearch] = useState("");
+  const [expandedMobileGroups, setExpandedMobileGroups] = useState<
+    Record<string, boolean>
+  >({});
 
   const moreBtnRef = useRef<HTMLButtonElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +70,8 @@ export default function NavBar() {
   }, []);
 
   const moreLinks = items;
+  const isDesktopSearching = normalizeSearchText(desktopSearch).length > 0;
+  const isMobileSearching = normalizeSearchText(mobileSearch).length > 0;
 
   const filteredDesktopMoreLinks = useMemo(
     () => filterNavItems(moreLinks, desktopSearch),
@@ -92,6 +107,13 @@ export default function NavBar() {
     setMobileOpen(false);
     setMoreOpen(false);
   };
+
+  function toggleMobileGroup(groupId: string) {
+    setExpandedMobileGroups((current) => ({
+      ...current,
+      [groupId]: !current[groupId],
+    }));
+  }
 
   function handleNavClick(
     e: React.MouseEvent<HTMLAnchorElement>,
@@ -217,6 +239,10 @@ export default function NavBar() {
     if (!isClient) return;
     const media = window.matchMedia("(max-width: 1023px)");
     const syncMenuMode = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
       setIsMobileNavMode(media.matches);
       if (media.matches) {
         setMoreOpen(false);
@@ -230,6 +256,26 @@ export default function NavBar() {
     return () => {
       media.removeEventListener?.("change", syncMenuMode);
     };
+  }, [isClient]);
+
+  useEffect(() => {
+    if (!isClient) return;
+
+    function updateViewportSize() {
+      setViewportSize((current) => {
+        const next = {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        };
+        return current.width === next.width && current.height === next.height
+          ? current
+          : next;
+      });
+    }
+
+    updateViewportSize();
+    window.addEventListener("resize", updateViewportSize);
+    return () => window.removeEventListener("resize", updateViewportSize);
   }, [isClient]);
 
   // Mobile close on backdrop click
@@ -262,23 +308,53 @@ export default function NavBar() {
 
     const viewportWidth =
       typeof window === "undefined" ? 1180 : window.innerWidth;
+    const viewportHeight =
+      typeof window === "undefined" ? 720 : window.innerHeight;
     const preferredWidth =
-      viewportWidth >= 1536 ? 1120 : viewportWidth >= 1180 ? 960 : viewportWidth >= 768 ? 720 : 380;
-    const menuWidth = Math.max(320, Math.min(viewportWidth - 24, preferredWidth));
-    const rightEdge = Math.round(moreRect.left + moreRect.width);
-    const left = Math.min(
-      Math.max(8, rightEdge - menuWidth),
-      Math.max(8, viewportWidth - menuWidth - 8),
+      viewportWidth >= 1840
+        ? 1680
+        : viewportWidth >= 1536
+          ? 1440
+          : viewportWidth >= 1280
+            ? 1240
+            : viewportWidth >= 1024
+              ? 992
+              : viewportWidth >= 768
+                ? 720
+                : 380;
+    const menuWidth = Math.max(
+      320,
+      Math.min(viewportWidth - 32, preferredWidth),
     );
+    const left = Math.round(
+      Math.max(
+        16,
+        Math.min((viewportWidth - menuWidth) / 2, viewportWidth - menuWidth - 16),
+      ),
+    );
+    const safeBottom = 16;
+    const maxHeight = `calc(100vh - ${Math.min(
+      viewportHeight - safeBottom,
+      top + safeBottom,
+    )}px)`;
 
     return {
       position: "fixed" as const,
       top,
       left,
       width: menuWidth,
+      maxHeight,
       zIndex: 2147483647,
     };
   }, [moreRect]);
+
+  const desktopMoreGridStyle = useMemo(() => {
+    const columnCount =
+      viewportSize.width >= 1840 ? 6 : viewportSize.width >= 1536 ? 5 : 4;
+    return {
+      gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+    };
+  }, [viewportSize.width]);
 
   return (
     <header className="block top-0 z-50 bg-sky-950 text-slate-200 border-b border-sky-900/60 shadow-sm">
@@ -379,7 +455,8 @@ export default function NavBar() {
             <div
               ref={moreMenuRef}
               role="menu"
-              className="rounded-2xl border border-sky-900/60 bg-sky-950 shadow-xl overflow-hidden"
+              data-nav-menu="desktop-more"
+              className="flex min-h-0 flex-col rounded-2xl border border-sky-900/60 bg-sky-950 shadow-xl overflow-hidden"
               style={dropdownStyle}
             >
               <div className="shrink-0 border-b border-sky-900/60 bg-sky-950/95 p-3">
@@ -430,18 +507,29 @@ export default function NavBar() {
               </div>
 
               <div
-                className={`${SCROLL_CLASS} max-h-[min(72vh,680px)] overflow-y-auto`}
+                className={`${SCROLL_CLASS} min-h-0 flex-1 overflow-y-auto`}
               >
                 {filteredDesktopMoreLinks.length > 0 ? (
-                  <div className="grid items-start gap-3 p-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    {desktopNavGroups.map((group) => (
-                      <DesktopNavGroup
-                        key={group.id}
-                        group={group}
-                        onNavClick={handleNavClick}
-                      />
-                    ))}
-                  </div>
+                  isDesktopSearching ? (
+                    <DesktopSearchResults
+                      items={filteredDesktopMoreLinks}
+                      gridStyle={desktopMoreGridStyle}
+                      onNavClick={handleNavClick}
+                    />
+                  ) : (
+                    <div
+                      className="grid auto-rows-max items-start gap-3 p-3"
+                      style={desktopMoreGridStyle}
+                    >
+                      {desktopNavGroups.map((group) => (
+                        <DesktopNavGroup
+                          key={group.id}
+                          group={group}
+                          onNavClick={handleNavClick}
+                        />
+                      ))}
+                    </div>
+                  )
                 ) : (
                   <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
                     No matching tools found.
@@ -460,7 +548,7 @@ export default function NavBar() {
 
           <div
             ref={mobilePanelRef}
-            className="absolute inset-y-0 right-0 w-[92vw] max-w-sm
+            className="absolute inset-y-0 right-0 w-full max-w-[46rem] sm:w-[94vw] md:w-[82vw]
                        bg-sky-950 border-l border-sky-900/60 shadow-2xl
                        flex flex-col"
             role="dialog"
@@ -544,16 +632,26 @@ export default function NavBar() {
             <div className="flex-1 min-h-0">
               <div className={`${SCROLL_CLASS} h-full overflow-y-auto`}>
                 {filteredMobileLinks.length > 0 ? (
-                  <div className="grid gap-2 p-3">
-                    {mobileNavGroups.map((group, index) => (
-                      <MobileNavGroup
-                        key={group.id}
-                        group={group}
-                        forceOpen={Boolean(mobileSearch)}
-                        defaultOpen={index < 2}
+                  <div
+                    data-nav-menu="mobile-tools"
+                    className="grid gap-3 p-3 sm:p-4"
+                  >
+                    {isMobileSearching ? (
+                      <MobileSearchResults
+                        items={filteredMobileLinks}
                         onNavClick={handleNavClick}
                       />
-                    ))}
+                    ) : (
+                      mobileNavGroups.map((group) => (
+                        <MobileNavGroup
+                          key={group.id}
+                          group={group}
+                          expanded={Boolean(expandedMobileGroups[group.id])}
+                          onToggleExpanded={() => toggleMobileGroup(group.id)}
+                          onNavClick={handleNavClick}
+                        />
+                      ))
+                    )}
                   </div>
                 ) : (
                   <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
@@ -574,6 +672,7 @@ function normalizeSearchText(value: string) {
   return value
     .toLowerCase()
     .replace(/&/g, " and ")
+    .replace(/\b(?:two|too|2)\b/g, " to ")
     .replace(/[^\w\s]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -583,15 +682,7 @@ function filterNavItems(items: NavItem[], query: string) {
   const q = normalizeSearchText(query);
   if (!q) return items;
 
-  const tokens = q.split(" ").filter(Boolean);
-
-  return items.filter((item) => {
-    const haystack = normalizeSearchText(
-      [item.label, item.href, ...(item.keywords ?? [])].join(" "),
-    );
-
-    return tokens.every((token) => haystack.includes(token));
-  });
+  return rankNavItems(items, q).map((result) => result.item);
 }
 
 function filterNavSections(
@@ -611,6 +702,65 @@ function filterNavSections(
       };
     })
     .filter((section) => section.items.length > 0);
+}
+
+function rankNavItems(items: NavItem[], normalizedQuery: string) {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      score: scoreNavItem(item, normalizedQuery),
+    }))
+    .filter((result) => result.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+}
+
+function scoreNavItem(item: NavItem, normalizedQuery: string) {
+  const label = normalizeSearchText(item.label);
+  const keywords = (item.keywords ?? []).map(normalizeSearchText);
+  const slug = normalizeSearchText(
+    item.href.replace(/^\/+/, "").replace(/-/g, " "),
+  );
+  const phrases = [label, ...keywords, slug].filter(Boolean);
+  const haystack = phrases.join(" ");
+  const tokens = normalizedQuery.split(" ").filter(Boolean);
+  const directional = hasDirectionalSearchIntent(normalizedQuery);
+
+  if (directional) {
+    if (phrases.some((phrase) => phrase === normalizedQuery)) return 1000;
+    if (phrases.some((phrase) => phrase.startsWith(`${normalizedQuery} `))) return 920;
+    if (phrases.some((phrase) => hasWordPhrase(phrase, normalizedQuery))) return 780;
+    return 0;
+  }
+
+  if (phrases.some((phrase) => phrase === normalizedQuery)) return 980;
+  if (phrases.some((phrase) => phrase.startsWith(`${normalizedQuery} `))) return 900;
+  if (phrases.some((phrase) => hasWordPhrase(phrase, normalizedQuery))) return 820;
+  if (tokens.every((token) => hasWordPrefix(haystack, token))) return 650;
+  if (tokens.length > 1 && tokens.every((token) => haystack.includes(token))) return 420;
+  if (tokens.length === 1 && haystack.includes(tokens[0])) return 360;
+
+  return 0;
+}
+
+function hasDirectionalSearchIntent(normalizedQuery: string) {
+  return (
+    normalizedQuery.includes(" to ") ||
+    normalizedQuery.endsWith(" to") ||
+    normalizedQuery.startsWith("to ")
+  );
+}
+
+function hasWordPhrase(value: string, phrase: string) {
+  return new RegExp(`(^|\\s)${escapeRegExp(phrase)}(\\s|$)`).test(value);
+}
+
+function hasWordPrefix(value: string, token: string) {
+  return new RegExp(`(^|\\s)${escapeRegExp(token)}`).test(value);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function DesktopLink({
@@ -678,10 +828,15 @@ function DesktopNavGroup({
   group: NavGroup;
   onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
+  const isLargeGroup = group.items.length >= 18;
+
   return (
     <section
       role="none"
-      className="min-w-0 rounded-xl border border-sky-800/70 bg-sky-900/20 p-2"
+      data-nav-section={group.id}
+      className={`min-w-0 rounded-xl border border-sky-800/70 bg-sky-900/20 p-2 ${
+        isLargeGroup ? "lg:col-span-2" : ""
+      }`}
     >
       <div className="px-2 pb-2">
         <h3 className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-sky-200">
@@ -691,7 +846,7 @@ function DesktopNavGroup({
           {group.description}
         </p>
       </div>
-      <div className="grid gap-1">
+      <div className={`grid gap-1 ${isLargeGroup ? "sm:grid-cols-2" : ""}`}>
         {group.items.map((item) => (
           <DropdownLink
             key={item.href}
@@ -706,32 +861,48 @@ function DesktopNavGroup({
   );
 }
 
-function MobileNavGroup({
-  group,
-  forceOpen,
-  defaultOpen,
+function DesktopSearchResults({
+  items,
+  gridStyle,
   onNavClick,
 }: {
-  group: NavGroup;
-  forceOpen: boolean;
-  defaultOpen: boolean;
+  items: NavItem[];
+  gridStyle: React.CSSProperties;
   onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
 }) {
-  const detailsProps = forceOpen ? { open: true } : { defaultOpen };
-
   return (
-    <details
-      {...detailsProps}
-      className="rounded-xl border border-sky-800/70 bg-sky-900/20"
+    <div
+      data-nav-search-results=""
+      className="grid auto-rows-max items-start gap-1 p-3"
+      style={gridStyle}
     >
-      <summary className="flex min-h-12 list-none items-center justify-between gap-3 px-4 py-3 text-sm font-extrabold text-slate-100 marker:hidden [&::-webkit-details-marker]:hidden">
-        <span>{group.label}</span>
-        <span className="text-xs font-semibold text-sky-200/70">
-          {group.items.length}
-        </span>
-      </summary>
-      <div className="border-t border-sky-800/60 py-1">
-        {group.items.map((item) => (
+      {items.map((item) => (
+        <DropdownLink
+          key={item.href}
+          href={item.href}
+          onClick={(event) => onNavClick(event, item.href)}
+        >
+          {item.label}
+        </DropdownLink>
+      ))}
+    </div>
+  );
+}
+
+function MobileSearchResults({
+  items,
+  onNavClick,
+}: {
+  items: NavItem[];
+  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return (
+    <section
+      data-nav-search-results=""
+      className="rounded-xl border border-sky-800/70 bg-sky-900/20 p-3"
+    >
+      <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 md:grid-cols-3">
+        {items.map((item) => (
           <MobileLink
             key={item.href}
             href={item.href}
@@ -741,7 +912,73 @@ function MobileNavGroup({
           </MobileLink>
         ))}
       </div>
-    </details>
+    </section>
+  );
+}
+
+function MobileNavGroup({
+  group,
+  expanded,
+  onToggleExpanded,
+  onNavClick,
+}: {
+  group: NavGroup;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  const previewLimit =
+    group.id === "most-popular"
+      ? group.items.length
+      : MOBILE_PREVIEW_LIMITS[group.id] ?? DEFAULT_MOBILE_PREVIEW_LIMIT;
+  const visibleItems = expanded
+    ? group.items
+    : group.items.slice(0, previewLimit);
+  const hiddenCount = group.items.length - visibleItems.length;
+  const gridClass =
+    group.id === "most-popular"
+      ? "grid-cols-1 min-[360px]:grid-cols-2"
+      : "grid-cols-1 min-[390px]:grid-cols-2 md:grid-cols-3";
+
+  return (
+    <section
+      data-nav-section={group.id}
+      className="rounded-xl border border-sky-800/70 bg-sky-900/20 p-3"
+    >
+      <div className="flex items-start justify-between gap-3 px-1 pb-2">
+        <div className="min-w-0">
+          <h3 className="m-0 text-[12px] font-extrabold uppercase tracking-[0.08em] text-sky-200">
+            {group.label}
+          </h3>
+          <p className="m-0 mt-1 text-[11px] leading-4 text-sky-100/65">
+            {group.description}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-sky-800/70 bg-sky-950/55 px-2 py-1 text-xs font-semibold text-sky-200/75">
+          {group.items.length}
+        </span>
+      </div>
+      <div className={`grid gap-2 ${gridClass}`}>
+        {visibleItems.map((item) => (
+          <MobileLink
+            key={item.href}
+            href={item.href}
+            onClick={(event) => onNavClick(event, item.href)}
+          >
+            {item.label}
+          </MobileLink>
+        ))}
+      </div>
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="mt-3 inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-sky-800/70 bg-sky-950/45 px-3 py-2 text-sm font-extrabold text-sky-100 transition-colors hover:border-sky-500/70 hover:bg-sky-800/65 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50"
+        >
+          Show {hiddenCount} more
+        </button>
+      ) : null}
+    </section>
   );
 }
 
@@ -759,6 +996,7 @@ function DropdownLink({
       href={href}
       onClick={onClick}
       role="menuitem"
+      data-nav-link=""
       className="block min-w-0 cursor-pointer select-none rounded-lg px-3 py-2 text-sm font-semibold
                  text-slate-100 hover:bg-sky-800/65 hover:text-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-300/50 transition-colors"
     >
@@ -780,8 +1018,9 @@ function MobileLink({
     <a
       href={href}
       onClick={onClick}
-      className="block cursor-pointer select-none px-4 py-3 text-sm font-semibold
-                 text-slate-100 hover:bg-sky-800/55 hover:text-sky-200 transition-colors"
+      data-nav-link=""
+      className="flex min-h-11 cursor-pointer select-none items-center rounded-lg border border-sky-800/60 bg-sky-950/35 px-3 py-2 text-sm font-semibold leading-snug
+                 text-slate-100 transition-colors hover:border-sky-500/65 hover:bg-sky-800/60 hover:text-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50"
     >
       {children}
     </a>
