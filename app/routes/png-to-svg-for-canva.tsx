@@ -1,9 +1,9 @@
 import type { Route } from "./+types/png-to-svg-for-canva";
-import { createManifestMeta } from "~/data/routeMeta";
+import { createCanvaFigmaMeta } from "~/data/routeMeta/canvaFigma";
 import Template, { action, loader } from "./png-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
-  return createManifestMeta("/png-to-svg-for-canva");
+  return createCanvaFigmaMeta("/png-to-svg-for-canva");
 }
 
 export { action, loader };

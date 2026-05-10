@@ -1,9 +1,9 @@
 import type { Route } from "./+types/svg-cleaner-for-glowforge";
-import { createManifestMeta } from "~/data/routeMeta";
+import { createSvgPlatformToolsMeta } from "~/data/routeMeta/svgPlatformTools";
 import Template from "./svg-cleaner";
 
 export function meta({}: Route.MetaArgs) {
-  return createManifestMeta("/svg-cleaner-for-glowforge");
+  return createSvgPlatformToolsMeta("/svg-cleaner-for-glowforge");
 }
 
 

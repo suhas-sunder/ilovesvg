@@ -1,9 +1,9 @@
 import type { Route } from "./+types/svg-to-favicon-for-shopify";
-import { createManifestMeta } from "~/data/routeMeta";
+import { createFaviconExportMeta } from "~/data/routeMeta/faviconExport";
 import Template from "./svg-to-favicon-generator";
 
 export function meta({}: Route.MetaArgs) {
-  return createManifestMeta("/svg-to-favicon-for-shopify");
+  return createFaviconExportMeta("/svg-to-favicon-for-shopify");
 }
 
 
