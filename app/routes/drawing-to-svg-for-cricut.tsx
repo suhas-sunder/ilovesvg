@@ -697,7 +697,14 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
+    const {
+      createInvalidUploadDecodeResponse,
+      isInvalidUploadDecodeError,
+      safeErrorMessage,
+    } = await import("~/utils/backendSecurity.server");
+    if (isInvalidUploadDecodeError(err)) {
+      return createInvalidUploadDecodeResponse();
+    }
     return json(
       { error: safeErrorMessage(err?.message || "Server error during drawing conversion.", "Server error during drawing conversion.") },
       { status: 500 },

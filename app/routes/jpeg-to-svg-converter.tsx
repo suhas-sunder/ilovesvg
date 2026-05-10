@@ -39,7 +39,7 @@ import {
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
 import { Link, type ActionFunctionArgs } from "react-router";
-import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -741,7 +741,14 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
+    const {
+      createInvalidUploadDecodeResponse,
+      isInvalidUploadDecodeError,
+      safeErrorMessage,
+    } = await import("~/utils/backendSecurity.server");
+    if (isInvalidUploadDecodeError(err)) {
+      return createInvalidUploadDecodeResponse();
+    }
     return json(
       { error: safeErrorMessage(err?.message || "Server error during conversion.", "Server error during conversion.") },
       { status: 500 },
@@ -2518,54 +2525,12 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
               className="mx-auto w-full max-w-[970px]"
             />
           </div>
-          <header className="text-center mb-2">
-            <h1 className="text-[32px] md:text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-              JPEG to SVG Converter
-            </h1>
-            <p className="mt-2 text-slate-600 max-w-[78ch] mx-auto">
-              Vectorize JPEG (JPG) photos, scans, and whiteboards into editable
-              SVG paths. For clean scans, start with a Scan preset. For photos,
-              switch to a Photo Edge preset to extract contours.
-            </p>
-
-            <div className="mt-3 flex flex-wrap gap-2 justify-center text-sm">
-              <a
-                href="/"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                Image to SVG (general)
-              </a>
-              <a
-                href="/png-to-svg-converter"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                PNG to SVG
-              </a>
-              <a
-                href="/svg-to-png-converter"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                SVG to PNG
-              </a>
-              <a
-                href="/svg-to-jpg-converter"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                SVG to JPG
-              </a>
-              <a
-                href="/svg-recolor"
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50"
-              >
-                Recolor SVG
-              </a>
-            </div>
-          </header>
-
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
             <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
-              <h2 className="m-0 mb-3 text-lg text-slate-900">JPEG input</h2>
+              <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] text-sky-950 sm:text-[34px]">
+                <CurrentRouteTitle fallback="JPEG to SVG Converter" />
+              </h1>
 
               <PresetPicker
                 presets={DISPLAY_PRESETS}

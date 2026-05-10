@@ -464,7 +464,14 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch {}
     }
   } catch (err: any) {
-    const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
+    const {
+      createInvalidUploadDecodeResponse,
+      isInvalidUploadDecodeError,
+      safeErrorMessage,
+    } = await import("~/utils/backendSecurity.server");
+    if (isInvalidUploadDecodeError(err)) {
+      return createInvalidUploadDecodeResponse();
+    }
     return json(
       { error: safeErrorMessage(err?.message || "Server error during sticker SVG conversion.", "Server error during sticker SVG conversion.") },
       { status: 500 },

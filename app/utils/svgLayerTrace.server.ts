@@ -15,6 +15,7 @@ import {
   type SortLayersBy,
 } from "./converterSettings.server";
 import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
+import { normalizeBmpForSharp } from "./bmpDecode.server";
 
 export type TraceMode = "single" | "layered";
 export type SvgLayerKind = "fill" | "stroke";
@@ -201,8 +202,13 @@ export async function createLayeredColorSvg(
     );
     let sourceInput = await withTimer(
       diagnostics,
+      "normalizeBmpInput",
+      () => normalizeBmpForSharp(input),
+    );
+    sourceInput = await withTimer(
+      diagnostics,
       "neutralizeTransparency",
-      () => neutralizeTransparencyCheckerboard(input),
+      () => neutralizeTransparencyCheckerboard(sourceInput),
     );
     sourceInput = await withTimer(diagnostics, "preprocessLayeredRaster", () =>
       preprocessLayeredRasterInput(sourceInput, safeOptions, sharp),

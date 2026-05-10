@@ -10,6 +10,8 @@ const TRACE_MAX_PIXELS = 24_000_000;
 const TRACE_MAX_SIDE = 8000;
 const TRACE_TIMEOUT_MS = 20_000;
 const TRACE_CACHE_VERSION = "trace-v2-kcaitech-potrace";
+const BMP_FILE_HEADER_BYTES = 14;
+const BMP_INFO_HEADER_BYTES = 40;
 const TRACE_ALLOWED_SIGNATURES = new Set([
   "png",
   "jpg",
@@ -92,10 +94,11 @@ async function traceBitmapToSvgUncached(
   if (!signature || !TRACE_ALLOWED_SIGNATURES.has(signature)) {
     throw new Error("Unsupported trace image type. Please upload a supported raster image.");
   }
+  const traceInput = await normalizeBmpForTrace(input, sharp);
 
   let metadata: Awaited<ReturnType<ReturnType<SharpModule>["metadata"]>>;
   try {
-    metadata = await sharp(input, { limitInputPixels: TRACE_MAX_PIXELS }).rotate().metadata();
+    metadata = await sharp(traceInput, { limitInputPixels: TRACE_MAX_PIXELS }).rotate().metadata();
   } catch {
     throw new Error("Could not read the uploaded image. Try a different file.");
   }
@@ -106,7 +109,7 @@ async function traceBitmapToSvgUncached(
 
   let raw: Awaited<ReturnType<ReturnType<SharpModule>["toBuffer"]>>;
   try {
-    raw = await sharp(input, { limitInputPixels: TRACE_MAX_PIXELS })
+    raw = await sharp(traceInput, { limitInputPixels: TRACE_MAX_PIXELS })
       .rotate()
       .ensureAlpha()
       .raw()
@@ -133,6 +136,80 @@ async function traceBitmapToSvgUncached(
   const tracer = new Potrace(imageData as ImageData, () => {});
   applyPotraceOptions(tracer, normalized);
   return tracer.getSVG();
+}
+
+async function normalizeBmpForTrace(input: Buffer, sharp: SharpModule): Promise<Buffer> {
+  if (detectRasterSignature(input) !== "bmp") return input;
+  const decoded = decodeBmpToRgba(input);
+  return sharp(decoded.rgba, {
+    raw: {
+      width: decoded.width,
+      height: decoded.height,
+      channels: 4,
+    },
+  })
+    .png()
+    .toBuffer();
+}
+
+function decodeBmpToRgba(input: Buffer): {
+  rgba: Buffer;
+  width: number;
+  height: number;
+} {
+  if (
+    input.length < BMP_FILE_HEADER_BYTES + BMP_INFO_HEADER_BYTES ||
+    input.slice(0, 2).toString("ascii") !== "BM"
+  ) {
+    throw new Error("Unsupported BMP image.");
+  }
+  const pixelOffset = input.readUInt32LE(10);
+  const dibHeaderSize = input.readUInt32LE(14);
+  if (dibHeaderSize < BMP_INFO_HEADER_BYTES) {
+    throw new Error("Unsupported BMP header.");
+  }
+
+  const width = input.readInt32LE(18);
+  const rawHeight = input.readInt32LE(22);
+  const planes = input.readUInt16LE(26);
+  const bitsPerPixel = input.readUInt16LE(28);
+  const compression = input.readUInt32LE(30);
+  const height = Math.abs(rawHeight);
+  const topDown = rawHeight < 0;
+
+  if (width <= 0 || height <= 0 || planes !== 1) {
+    throw new Error("Invalid BMP dimensions.");
+  }
+  if (![24, 32].includes(bitsPerPixel) || compression !== 0) {
+    throw new Error("Unsupported BMP format. Use an uncompressed 24-bit or 32-bit BMP.");
+  }
+
+  const bytesPerPixel = bitsPerPixel / 8;
+  const rowSize = Math.floor((bitsPerPixel * width + 31) / 32) * 4;
+  const requiredBytes = pixelOffset + rowSize * height;
+  if (pixelOffset < BMP_FILE_HEADER_BYTES + dibHeaderSize || requiredBytes > input.length) {
+    throw new Error("Invalid BMP pixel data.");
+  }
+
+  const rgba = Buffer.alloc(width * height * 4);
+  let alphaSum = 0;
+  for (let y = 0; y < height; y++) {
+    const sourceY = topDown ? y : height - 1 - y;
+    const sourceRow = pixelOffset + sourceY * rowSize;
+    for (let x = 0; x < width; x++) {
+      const source = sourceRow + x * bytesPerPixel;
+      const target = (y * width + x) * 4;
+      rgba[target] = input[source + 2];
+      rgba[target + 1] = input[source + 1];
+      rgba[target + 2] = input[source];
+      rgba[target + 3] = bytesPerPixel === 4 ? input[source + 3] : 255;
+      alphaSum += rgba[target + 3];
+    }
+  }
+  if (bytesPerPixel === 4 && alphaSum === 0) {
+    for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
+  }
+  return { rgba, width, height };
 }
 
 function applyPotraceOptions(tracer: Potrace, options: NormalizedPotraceOptions) {

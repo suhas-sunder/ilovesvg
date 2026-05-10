@@ -12,8 +12,81 @@ const regressionMeta = await sharp(regressionPng).metadata();
 const regressionJpg = await sharp(regressionPng).jpeg({ quality: 92 }).toBuffer();
 const regressionWebp = await sharp(regressionPng).webp({ quality: 90 }).toBuffer();
 const basicPng = await makePng();
+const longSafePngFileName = `long-${"a".repeat(120)}.png`;
+const truncatedPng = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+]);
 
 const results = [];
+
+results.push(
+  await expectSvgResponse({
+    route: "/png-to-svg-converter",
+    fileName: longSafePngFileName,
+    mimeType: "image/png",
+    buffer: basicPng,
+    fields: lineartAccurateFields({ maxTraceSide: "512" }),
+    label: "upload-regression-long-safe-png-filename",
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/png-to-svg-converter",
+    fileName: "..\\..\\sample.png",
+    mimeType: "image/png",
+    buffer: basicPng,
+    fields: lineartAccurateFields({ maxTraceSide: "512" }),
+    forbiddenTextPatterns: [/\.\.[\\/]/, /sample\.png/i],
+    label: "upload-regression-path-like-png-filename",
+  }),
+);
+
+for (const { route, label, fields } of [
+  {
+    route: "/",
+    label: "invalid-upload-truncated-png-home-shared",
+    fields: lineartAccurateFields({
+      clientRunId: `truncated-home-${Date.now()}`,
+    }),
+  },
+  {
+    route: "/png-to-svg-converter",
+    label: "invalid-upload-truncated-png-png-route",
+    fields: lineartAccurateFields(),
+  },
+  {
+    route: "/line-art-to-svg-converter",
+    label: "invalid-upload-truncated-png-route-local-line-art",
+    fields: lineartAccurateFields(),
+  },
+  {
+    route: "/png-to-svg-for-cricut-print-then-cut",
+    label: "invalid-upload-truncated-png-route-local-print-then-cut",
+    fields: lineartAccurateFields(),
+  },
+  {
+    route: "/api/batch-svg",
+    label: "invalid-upload-truncated-png-batch",
+    fields: lineartAccurateFields({
+      intent: "batch-file",
+      batchSessionId: `truncated-batch-${Date.now()}`,
+      batchIndex: "0",
+    }),
+  },
+]) {
+  results.push(
+    await expectRejectedUpload({
+      route,
+      label,
+      fileName: "truncated.png",
+      mimeType: "image/png",
+      buffer: truncatedPng,
+      fields,
+      expectedCode: "INVALID_FILE",
+    }),
+  );
+}
 
 results.push(
   await expectSvgResponse({
@@ -190,7 +263,30 @@ results.push(
   }),
 );
 
-results.push(await expectInvalidUpload());
+results.push(
+  await expectRejectedUpload({
+    label: "invalid-upload-corrupt-png",
+    fileName: "fake.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("not really a png"),
+  }),
+);
+results.push(
+  await expectRejectedUpload({
+    label: "invalid-upload-empty-file",
+    fileName: "empty.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(0),
+  }),
+);
+results.push(
+  await expectRejectedUpload({
+    label: "invalid-upload-mime-extension-mismatch",
+    fileName: "fake.jpg",
+    mimeType: "image/png",
+    buffer: basicPng,
+  }),
+);
 
 console.log(
   JSON.stringify(
@@ -221,6 +317,7 @@ async function expectSvgResponse({
   expectLayers = false,
   expectedWidth = null,
   expectedHeight = null,
+  forbiddenTextPatterns = [],
   label,
 }) {
   const form = new FormData();
@@ -242,6 +339,11 @@ async function expectSvgResponse({
   }
   if (!/<svg\b/i.test(text)) {
     throw new Error(`${route} did not return SVG output.`);
+  }
+  for (const pattern of forbiddenTextPatterns) {
+    if (pattern.test(text)) {
+      throw new Error(`${route} leaked unsafe filename text in the response.`);
+    }
   }
   if (!/<(?:path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b/i.test(text)) {
     throw new Error(`${route} returned SVG with no drawable content.`);
@@ -276,26 +378,38 @@ async function expectSvgResponse({
   };
 }
 
-async function expectInvalidUpload() {
-  const route = "/png-to-svg-converter";
+async function expectRejectedUpload({
+  label,
+  route = "/png-to-svg-converter",
+  fileName,
+  mimeType,
+  buffer,
+  fields = {},
+  expectedCode,
+}) {
   const form = new FormData();
-  form.append(
-    "file",
-    new File([Buffer.from("not really a png")], "fake.png", {
-      type: "image/png",
-    }),
-  );
-  const routePath = dataRoute(route);
+  form.append("file", new File([buffer], fileName, { type: mimeType }));
+  for (const [key, value] of Object.entries(fields)) {
+    form.append(key, value);
+  }
+  const routePath = route === "/api/batch-svg" ? route : dataRoute(route);
   const response = await fetch(`${baseUrl}${routePath}`, {
     method: "POST",
     headers: sameOriginHeaders(routePath),
     body: form,
   });
   const text = await response.text();
-  if (response.status < 400) {
-    throw new Error(`${route} accepted an invalid image upload.`);
+  if (response.status < 400 || response.status >= 500) {
+    throw new Error(`${route} did not return a bounded 4xx invalid-upload response for ${label}; got ${response.status}: ${text.slice(0, 240)}`);
+  }
+  if (expectedCode && !text.includes(expectedCode)) {
+    throw new Error(`${route} did not include expected error code ${expectedCode} for ${label}: ${text.slice(0, 240)}`);
+  }
+  if (/\bat\s+.*:\d+:\d+|node_modules|[A-Z]:\\|\/Users\/|<script\b|javascript:/i.test(text)) {
+    throw new Error(`${route} returned an unsafe invalid-upload error body for ${label}: ${text.slice(0, 240)}`);
   }
   return {
+    label,
     route,
     routePath,
     status: response.status,

@@ -275,18 +275,26 @@ export function validateContentLength(
 }
 
 export function safeUploadFilename(name: string, fallback = "upload"): string {
-  const cleaned = String(name || "")
-    .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]+/g, "-")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
-  return cleaned || fallback;
+  const cleaned = normalizeUploadFilenameLeaf(name);
+  const fallbackLeaf = normalizeUploadFilenameLeaf(fallback) || "upload";
+  if (!cleaned) return fallbackLeaf.slice(0, 120) || "upload";
+
+  const { base, extension } = splitFilenameExtension(cleaned);
+  const suffix = extension ? `.${extension}` : "";
+  const maxBaseLength = Math.max(1, 120 - suffix.length);
+  const fallbackBase =
+    splitFilenameExtension(fallbackLeaf).base.replace(/^[.\s-]+|[.\s-]+$/g, "") ||
+    "upload";
+  const safeBase =
+    (base || fallbackBase)
+      .replace(/^[.\s-]+|[.\s-]+$/g, "")
+      .slice(0, maxBaseLength)
+      .replace(/[.\s-]+$/g, "") || fallbackBase.slice(0, maxBaseLength) || "upload";
+  return `${safeBase}${suffix}`;
 }
 
 export function getFileExtension(name: string): string {
-  const safe = safeUploadFilename(name).toLowerCase();
-  const dot = safe.lastIndexOf(".");
-  return dot >= 0 ? safe.slice(dot + 1).replace(/[^a-z0-9]+/g, "") : "";
+  return splitFilenameExtension(normalizeUploadFilenameLeaf(name)).extension;
 }
 
 export function countUploadedFiles(form: FormData): number {
@@ -449,6 +457,32 @@ export function safeErrorMessage(message: string, fallback = "Conversion failed.
     .slice(0, 240);
 }
 
+export function isInvalidUploadDecodeError(error: unknown): boolean {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const message = rawMessage.toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes("could not read the uploaded image") ||
+    message.includes("could not prepare the uploaded image") ||
+    message.includes("unsupported trace image type") ||
+    message.includes("input buffer contains unsupported image format") ||
+    message.includes("corrupt")
+  );
+}
+
+export function createInvalidUploadDecodeResponse(): Response {
+  return createSafeErrorResponse(
+    "INVALID_FILE",
+    "Could not read the uploaded file. Try a different file.",
+    415,
+  );
+}
+
 function withJsonHeaders(headers?: HeadersInit): Headers {
   const next = new Headers(headers);
   next.set("Content-Type", "application/json; charset=utf-8");
@@ -471,6 +505,27 @@ function sameOrigin(value: string, expectedOrigin: string): boolean {
   } catch {
     return false;
   }
+}
+
+function normalizeUploadFilenameLeaf(name: string): string {
+  const raw = String(name || "");
+  const leaf = raw.split(/[\\/]+/).filter(Boolean).pop() || raw;
+  return leaf
+    .split("?")[0]
+    .replace(/[\u0000-\u001f\u007f:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitFilenameExtension(name: string): { base: string; extension: string } {
+  const safe = String(name || "").trim();
+  const dot = safe.lastIndexOf(".");
+  if (dot <= 0 || dot === safe.length - 1) {
+    return { base: safe, extension: "" };
+  }
+  const extension = safe.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (!extension) return { base: safe, extension: "" };
+  return { base: safe.slice(0, dot), extension };
 }
 
 function mimeTypesToExtensions(mimeTypes: Set<string>): Set<string> {

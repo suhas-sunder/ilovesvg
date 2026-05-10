@@ -58,6 +58,24 @@ const RASTER_ROUTES = [
 ];
 
 const SMOKE_ROUTES = buildSmokeScenarios();
+const UTILITY_LAYOUT_ROUTES = [
+  { path: "/", id: "home", file: "png", conversion: "raster" },
+  { path: "/png-to-svg-converter", id: "png-to-svg-converter", file: "png", conversion: "raster" },
+  { path: "/jpg-to-svg-converter", id: "jpg-to-svg-converter", file: "jpg", conversion: "raster" },
+  { path: "/jpeg-to-svg-converter", id: "jpeg-to-svg-converter", file: "jpg", conversion: "raster" },
+  { path: "/line-art-to-svg-converter", id: "line-art-to-svg-converter", file: "png", conversion: "raster" },
+  { path: "/logo-to-svg-converter", id: "logo-to-svg-converter", file: "png", conversion: "raster" },
+  { path: "/photo-to-svg-outline", id: "photo-to-svg-outline", file: "jpg", conversion: "raster" },
+  {
+    path: "/svg-to-png-converter",
+    id: "svg-to-png-converter",
+    file: "svg",
+    conversion: "svg-to-png",
+    settingsScopedToOutput: true,
+  },
+  { path: "/image-to-layered-svg-for-cricut", id: "image-to-layered-svg-for-cricut", file: "png", conversion: "raster" },
+];
+const UTILITY_LAYOUT_WIDTHS = [320, 360, 390, 430, 768, 1024, 1280];
 
 async function main() {
   const browserPath = await findBrowserExecutable();
@@ -85,9 +103,14 @@ async function main() {
   let batchZip = null;
   let queue = null;
   let outputUx = null;
+  let utilityLayout = null;
   try {
     await waitForCdp();
-    if (process.env.OUTPUT_UX_SMOKE === "1") {
+    if (process.env.LAYOUT_SMOKE === "1") {
+      console.error("[hybrid-browser] utility-first layout");
+      utilityLayout = await runUtilityLayoutSmoke(fixtures);
+      console.error(`[hybrid-browser] utility-first layout -> ${utilityLayout.ok ? "ok" : "failed"}`);
+    } else if (process.env.OUTPUT_UX_SMOKE === "1") {
       console.error("[hybrid-browser] output card UX");
       outputUx = await runOutputUxSmoke(fixtures);
       console.error(`[hybrid-browser] output card UX -> ${outputUx.ok ? "ok" : "failed"}`);
@@ -130,6 +153,7 @@ async function main() {
     batchZip,
     queue,
     outputUx,
+    utilityLayout,
   };
 
   console.log(JSON.stringify(report, null, 2));
@@ -138,6 +162,7 @@ async function main() {
   if (batchZip && !batchZip.ok) failures.push(batchZip);
   if (queue && !queue.ok) failures.push(queue);
   if (outputUx && !outputUx.ok) failures.push(outputUx);
+  if (utilityLayout && !utilityLayout.ok) failures.push(utilityLayout);
   if (failures.length > 0) {
     process.exit(1);
   }
@@ -903,6 +928,328 @@ async function clickCancelForSlowJob(client, sourceName = "") {
     button.click();
     return true;
   })()`);
+}
+
+async function runUtilityLayoutSmoke(fixtures) {
+  const routes = process.env.LAYOUT_ROUTE_FILTER
+    ? UTILITY_LAYOUT_ROUTES.filter((route) => route.path === process.env.LAYOUT_ROUTE_FILTER)
+    : UTILITY_LAYOUT_ROUTES;
+  const results = [];
+
+  for (const route of routes) {
+    const client = await openTab(`${baseUrl}${route.path}`);
+    const errors = [];
+    const network = [];
+    client.onEvent((message) => {
+      if (message.method === "Runtime.exceptionThrown") {
+        const details = message.params?.exceptionDetails;
+        const text =
+          details?.exception?.description ||
+          details?.exception?.value ||
+          details?.text ||
+          "Runtime exception";
+        if (!isIgnorableDevConsoleMessage(text)) errors.push(text);
+      }
+      if (message.method === "Log.entryAdded") {
+        const entry = message.params?.entry;
+        const text = entry?.text || "Browser log error";
+        if (entry?.level === "error" && !isIgnorableDevConsoleMessage(text)) {
+          errors.push(text);
+        }
+      }
+      if (message.method === "Network.responseReceived") {
+        const response = message.params?.response;
+        if (response?.url?.startsWith(baseUrl)) {
+          network.push({ status: response.status, url: response.url });
+        }
+      }
+    });
+
+    try {
+      await client.send("Runtime.enable");
+      await client.send("Log.enable");
+      await client.send("Page.enable");
+      await client.send("DOM.enable");
+      await client.send("Network.enable");
+
+      const widths = [];
+      for (const width of UTILITY_LAYOUT_WIDTHS) {
+        await client.send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height: 900,
+          deviceScaleFactor: 1,
+          mobile: width < 768,
+        });
+        await client.navigate(`${baseUrl}${route.path}`);
+        await waitForDocumentReady(client);
+        await delay(300);
+        widths.push(await captureUtilityLayoutState(client, route));
+      }
+
+      const conversion = await runUtilityLayoutConversion(client, route, fixtures).catch((error) => ({
+        ok: false,
+        failure: error instanceof Error ? error.message : String(error),
+      }));
+      const failures = [
+        ...widths.flatMap((state) =>
+          state.failures.map((failure) => `${state.width}px: ${failure}`),
+        ),
+        ...(conversion.ok ? [] : [`conversion: ${conversion.failure}`]),
+        ...errors.map((error) => `console: ${error}`),
+      ];
+
+      results.push({
+        route: route.path,
+        widths,
+        conversion,
+        consoleErrors: errors,
+        network: network.filter((entry) => entry.status >= 400),
+        ok: failures.length === 0,
+        failures,
+      });
+    } catch (error) {
+      results.push({
+        route: route.path,
+        ok: false,
+        failures: [error instanceof Error ? error.message : String(error)],
+        debug: await getPageDebugState(client).catch((debugError) => ({
+          error: debugError instanceof Error ? debugError.message : String(debugError),
+        })),
+      });
+    } finally {
+      await client.close().catch(() => {});
+    }
+  }
+
+  return {
+    routes: results,
+    ok: results.every((result) => result.ok),
+  };
+}
+
+async function captureUtilityLayoutState(client, route) {
+  const settingsScopedToOutput = Boolean(route.settingsScopedToOutput);
+  return evaluate(client, `(() => {
+    const visible = (element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    };
+    const main = document.querySelector("main");
+    const sections = Array.from(main?.querySelectorAll("section") || []);
+    const grid = sections.find((section) => {
+      const className = String(section.getAttribute("class") || "");
+      const text = section.innerText || "";
+      return className.includes("grid") && /convert|upload|choose|paste/i.test(text) && section.querySelector("h1, input[type='file'], textarea");
+    }) || null;
+    const parent = grid?.parentElement || null;
+    const siblings = parent ? Array.from(parent.children) : [];
+    const gridIndex = grid ? siblings.indexOf(grid) : -1;
+    const preceding = gridIndex >= 0 ? siblings.slice(0, gridIndex).filter((element) => {
+      if (!visible(element)) return false;
+      const text = (element.innerText || "").trim();
+      const isAdOnly = !text && Boolean(element.querySelector("ins, iframe"));
+      return !isAdOnly && (text || element.querySelector("h1, header, nav, p, a"));
+    }) : [];
+    const inputCard = grid ? Array.from(grid.children).find((element) => visible(element) && (element.querySelector("h1, input[type='file'], textarea") || /upload|paste|choose/i.test(element.innerText || ""))) : null;
+    const outputPanel = grid?.querySelector(".converter-output-panel, [data-layout-output-panel='true']") || null;
+    const inputRect = inputCard?.getBoundingClientRect() || null;
+    const outputRect = outputPanel?.getBoundingClientRect() || null;
+    const inputText = inputCard?.innerText || "";
+    const settingsButtonInInput = inputCard
+      ? Array.from(inputCard.querySelectorAll("button, summary")).some((element) => /\\bSettings\\b/i.test(element.innerText || ""))
+      : false;
+    const otherTools = document.querySelector("#other-tools");
+    const otherToolsRect = otherTools?.getBoundingClientRect() || null;
+    const failures = [];
+    if (!grid) failures.push("missing main converter grid");
+    if (preceding.some((element) => element.matches("header, nav") || element.querySelector("h1, header, nav, p, a"))) {
+      failures.push("standalone hero, breadcrumb, intro, or route chips before converter grid");
+    }
+    if (!inputCard?.querySelector("h1")) failures.push("utility/input card is missing the route H1");
+    if (inputCard && inputCard.querySelectorAll("h1").length !== 1) failures.push("utility/input card should contain exactly one H1");
+    if (${JSON.stringify(settingsScopedToOutput)} && inputCard && (settingsButtonInInput || /\\bSettings\\b[\\s\\S]*(Size|scale|transparency|export)/i.test(inputText))) {
+      failures.push("settings are exposed in the input card before output");
+    }
+    if (window.innerWidth >= 1024) {
+      if (!outputPanel || !visible(outputPanel)) {
+        failures.push("desktop output card is missing beside the utility");
+      } else if (inputRect && outputRect) {
+        if (outputRect.left <= inputRect.left + inputRect.width * 0.75) {
+          failures.push("desktop output card is not placed beside the utility card");
+        }
+        if (Math.abs(outputRect.top - inputRect.top) > 140) {
+          failures.push("desktop output card is not aligned with the utility card");
+        }
+      }
+    }
+    if (otherToolsRect && grid) {
+      const gridRect = grid.getBoundingClientRect();
+      if (otherToolsRect.top < gridRect.top) {
+        failures.push("related/SEO tools appear above the converter");
+      }
+    }
+    const documentOverflow = Math.ceil(document.documentElement.scrollWidth - window.innerWidth);
+    const bodyOverflow = Math.ceil(document.body.scrollWidth - window.innerWidth);
+    if (documentOverflow > 2 || bodyOverflow > 2) {
+      failures.push(\`horizontal overflow: document \${documentOverflow}px, body \${bodyOverflow}px\`);
+    }
+    return {
+      width: window.innerWidth,
+      href: location.pathname,
+      gridFound: Boolean(grid),
+      precedingText: preceding.map((element) => (element.innerText || element.tagName || "").trim().slice(0, 120)),
+      inputH1: inputCard?.querySelector("h1")?.innerText?.trim() || "",
+      settingsButtonInInput,
+      outputFound: Boolean(outputPanel),
+      inputRect: inputRect ? { left: inputRect.left, top: inputRect.top, width: inputRect.width, height: inputRect.height } : null,
+      outputRect: outputRect ? { left: outputRect.left, top: outputRect.top, width: outputRect.width, height: outputRect.height } : null,
+      scrollWidth: document.documentElement.scrollWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+      innerWidth: window.innerWidth,
+      failures,
+    };
+  })()`);
+}
+
+async function runUtilityLayoutConversion(client, route, fixtures) {
+  if (!route.conversion) return { ok: true, status: "not-required" };
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1280,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await client.navigate(`${baseUrl}${route.path}`);
+  await waitForDocumentReady(client);
+  await delay(300);
+
+  if (route.conversion === "svg-to-png") {
+    await configureDownloads(client);
+    const before = new Set(await listDownloads());
+    await setFileInput(client, fixtures.svg);
+    await waitForValue(client, () => textIncludesExpression(path.basename(fixtures.svg)), 8_000);
+    await clickConvertButton(client);
+    const output = await waitForValue(
+      client,
+      () => `(() => {
+        const img = document.querySelector("[data-layout-output-panel='true'] img[alt='PNG result'], [data-layout-output-panel='true'] img[alt='PNG preview']");
+        const downloadButton = Array.from(document.querySelectorAll("button")).find((button) => /Download PNG/i.test(button.innerText || ""));
+        const fullscreenButton = document.querySelector("[data-layout-output-panel='true'] button[aria-label*='fullscreen' i], [data-layout-output-panel='true'] button[title*='fullscreen' i]");
+        return {
+          previewDecoded: Boolean(img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0),
+          hasDownload: Boolean(downloadButton && !downloadButton.disabled),
+          hasFullscreen: Boolean(fullscreenButton),
+        };
+      })()`,
+      20_000,
+      (value) => value?.previewDecoded && value?.hasDownload,
+    );
+    const fullscreenStatus = await verifyFullscreenPreview(client);
+    await clickButtonMatching(client, "/Download PNG/i");
+    const file = await waitForDownload(before, ".png", 12_000);
+    const ok = Boolean(output.previewDecoded && output.hasDownload && fullscreenStatus.ok && file);
+    return {
+      ok,
+      status: "converted",
+      hasFullscreen: output.hasFullscreen,
+      fullscreenStatus,
+      downloadFile: file,
+      failure: ok ? null : "SVG to PNG did not render, open full-screen preview, and download.",
+    };
+  }
+
+  const fixturePath = fixtures[route.file];
+  await setFileInput(client, fixturePath);
+  await waitForValue(client, () => textIncludesExpression(path.basename(fixturePath)), 8_000);
+  let output = await waitForOutput(client, 8_000).catch(() => null);
+  if (!output) {
+    await clickConvertButton(client);
+    output = await waitForOutput(client, 60_000);
+  }
+  const copyStatus = await verifyCopySvg(client);
+  const downloadStatus = await verifySvgDownload(client, `utility-layout-${safeName(route.id)}`);
+  const updateStatus = await verifyUpdatePreview(client, output.engineUsed);
+  const fullscreenStatus = await verifyFullscreenPreview(client);
+  const ok = Boolean(
+    output?.hasOutput &&
+      output.previewDecoded &&
+      copyStatus.ok &&
+      downloadStatus.ok &&
+      updateStatus.ok &&
+      fullscreenStatus.ok,
+  );
+  return {
+    ok,
+    status: "converted",
+    engineUsed: output?.engineUsed || null,
+    copyStatus,
+    downloadStatus,
+    updateStatus,
+    fullscreenStatus,
+    failure: ok ? null : "Raster conversion, copy, download, full-screen preview, or update-preview check failed.",
+  };
+}
+
+async function verifyFullscreenPreview(client) {
+  const clicked = await evaluate(client, `(() => {
+    const visible = (element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    };
+    const button = Array.from(document.querySelectorAll("button[aria-label='Preview full screen'], button[title='Preview full screen']"))
+      .find((candidate) => visible(candidate) && !candidate.disabled);
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!clicked) {
+    return {
+      ok: false,
+      available: false,
+      failure: "Preview full screen button was not available.",
+    };
+  }
+
+  const opened = await waitForValue(
+    client,
+    () => `(() => {
+      const dialog = document.querySelector("[role='dialog'][aria-label='Full-screen output preview']");
+      const img = dialog?.querySelector("img");
+      return Boolean(dialog && img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
+    })()`,
+    8_000,
+    Boolean,
+  );
+  if (!opened) {
+    return {
+      ok: false,
+      available: true,
+      failure: "Full-screen output preview did not open.",
+    };
+  }
+
+  await evaluate(client, `(() => {
+    const close = document.querySelector("button[aria-label='Close full-screen preview']");
+    close?.click();
+    return Boolean(close);
+  })()`);
+  const closed = await waitForValue(
+    client,
+    () => `(() => !document.querySelector("[role='dialog'][aria-label='Full-screen output preview']"))()`,
+    8_000,
+    Boolean,
+  );
+  return {
+    ok: Boolean(opened && closed),
+    available: true,
+    opened: Boolean(opened),
+    closed: Boolean(closed),
+    failure: opened && closed ? null : "Full-screen output preview did not close.",
+  };
 }
 
 async function runOutputUxSmoke(fixtures) {
@@ -2731,15 +3078,17 @@ async function createFixtures() {
     const png = await normalized.png().toBuffer();
     const jpg = await sharp(png).jpeg({ quality: 92 }).toBuffer();
     const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
-    const files = {
-      png: path.join(fixturesDir, path.basename(sourcePng)),
-      jpg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.jpg`),
-      webp: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.webp`),
-    };
-    await fs.writeFile(files.png, png);
-    await fs.writeFile(files.jpg, jpg);
-    await fs.writeFile(files.webp, webp);
-    return files;
+  const files = {
+    svg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.svg`),
+    png: path.join(fixturesDir, path.basename(sourcePng)),
+    jpg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.jpg`),
+    webp: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.webp`),
+  };
+  await fs.writeFile(files.svg, `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><circle cx="72" cy="78" r="38" fill="#0ea5e9"/><path d="M32 132 C58 102, 94 150, 126 118 S190 126, 210 78" fill="none" stroke="#111827" stroke-width="9" stroke-linecap="round"/></svg>`);
+  await fs.writeFile(files.png, png);
+  await fs.writeFile(files.jpg, jpg);
+  await fs.writeFile(files.webp, webp);
+  return files;
   }
 
   const svg = `
@@ -2755,10 +3104,12 @@ async function createFixtures() {
   const jpg = await sharp(png).jpeg({ quality: 92 }).toBuffer();
   const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
   const files = {
+    svg: path.join(fixturesDir, "hybrid-smoke.svg"),
     png: path.join(fixturesDir, "hybrid-smoke.png"),
     jpg: path.join(fixturesDir, "hybrid-smoke.jpg"),
     webp: path.join(fixturesDir, "hybrid-smoke.webp"),
   };
+  await fs.writeFile(files.svg, svg);
   await fs.writeFile(files.png, png);
   await fs.writeFile(files.jpg, jpg);
   await fs.writeFile(files.webp, webp);
