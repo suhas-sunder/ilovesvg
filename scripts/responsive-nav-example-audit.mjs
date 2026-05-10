@@ -59,13 +59,23 @@ function runNavAudit() {
   assertIncludes(nav, "DesktopNavGroup", "desktop grouped nav");
   assertIncludes(nav, "MobileNavGroup", "mobile grouped nav");
   assertIncludes(nav, "filterNavSections", "shared nav section filtering");
-  assertIncludes(nav, "max-h-[min(72vh,680px)]", "larger desktop menu");
+  assertIncludes(nav, "data-nav-menu=\"desktop-more\"", "auditable desktop nav menu");
+  assertIncludes(nav, "data-nav-menu=\"mobile-tools\"", "auditable mobile nav menu");
+  assertIncludes(nav, "visibleItems.map", "mobile nav renders direct links");
+  assertIncludes(nav, "Show {hiddenCount} more", "large mobile sections expose direct links before show more");
+  assertIncludes(nav, "maxHeight", "viewport-aware desktop menu height");
+  assertIncludes(nav, "calc(100vh", "desktop menu height uses viewport calculation");
   assertIncludes(nav, "preferredWidth", "responsive dropdown width");
-  assertIncludes(nav, "2xl:grid-cols-4", "comfortable wide desktop nav column");
-  assertIncludes(nav, "grid items-start", "desktop nav cards avoid stretched empty columns");
+  assertIncludes(nav, "desktopMoreGridStyle", "desktop nav grid uses computed viewport columns");
+  assertIncludes(nav, "gridTemplateColumns", "desktop nav grid template is explicit");
+  assertIncludes(nav, "viewportSize.width >= 1536 ? 5", "wide desktop nav fifth column");
+  assertIncludes(nav, "viewportSize.width >= 1840 ? 6", "very wide desktop nav sixth column");
+  assertIncludes(nav, "grid auto-rows-max items-start", "desktop nav cards avoid stretched empty columns");
+  assertIncludes(nav, "lg:col-span-2", "large desktop nav sections can use wider cards");
   assertIncludes(nav, "matchMedia(\"(max-width: 1023px)\")", "desktop mobile nav state sync");
   assertIncludes(nav, "!isMobileNavMode && moreOpen", "desktop menu hidden in mobile nav mode");
   assertIncludes(nav, "isMobileNavMode && mobileOpen", "mobile drawer hidden outside mobile nav mode");
+  assert(!nav.includes("<details") && !nav.includes("<summary"), "mobile nav should not use category-only details blocks");
 
   const categoryOrder = Array.from(
     navData.matchAll(/id:\s*"([^"]+)"[\s\S]*?label:\s*"([^"]+)"/g),

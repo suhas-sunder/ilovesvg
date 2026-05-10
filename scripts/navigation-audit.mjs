@@ -81,6 +81,23 @@ assert(
   `Duplicate hrefs inside tool nav sections: ${duplicateSectionHrefs.join(", ")}`,
 );
 
+const desktopMenuHrefs = sectionHrefs;
+const mobileMenuHrefs = sectionHrefs;
+const duplicateDesktopMenuHrefs = desktopMenuHrefs.filter(
+  (href, index) => desktopMenuHrefs.indexOf(href) !== index,
+);
+const duplicateMobileMenuHrefs = mobileMenuHrefs.filter(
+  (href, index) => mobileMenuHrefs.indexOf(href) !== index,
+);
+assert(
+  duplicateDesktopMenuHrefs.length === 0,
+  `Duplicate hrefs inside desktop More menu: ${duplicateDesktopMenuHrefs.join(", ")}`,
+);
+assert(
+  duplicateMobileMenuHrefs.length === 0,
+  `Duplicate hrefs inside mobile menu: ${duplicateMobileMenuHrefs.join(", ")}`,
+);
+
 const popularStart = sectionsBlock.indexOf('id: "most-popular"');
 const imageSectionStart = sectionsBlock.indexOf('id: "image-to-svg"', popularStart);
 assert(popularStart >= 0 && imageSectionStart > popularStart, "Could not isolate Most Popular section");
@@ -149,6 +166,34 @@ assert(
   "Desktop and mobile grouped nav components must remain present",
 );
 
+assert(
+  navBarSource.includes('data-nav-menu="desktop-more"') &&
+    navBarSource.includes('data-nav-menu="mobile-tools"'),
+  "Desktop and mobile menus must expose auditable menu containers",
+);
+
+assert(
+  navBarSource.includes("filteredMobileNavSections") &&
+    navBarSource.includes("visibleItems.map") &&
+    navBarSource.includes('data-nav-link=""'),
+  "Mobile nav must render direct tool links from filtered sections",
+);
+
+assert(
+  !navBarSource.includes("<details") && !navBarSource.includes("<summary"),
+  "Mobile nav must not hide all links behind category-only details blocks",
+);
+
+assert(
+  navBarSource.includes("desktopMoreGridStyle") &&
+    navBarSource.includes("gridTemplateColumns") &&
+    navBarSource.includes("viewportSize.width >= 1840 ? 6") &&
+    navBarSource.includes("viewportSize.width >= 1536 ? 5") &&
+    navBarSource.includes("maxHeight") &&
+    navBarSource.includes("calc(100vh"),
+  "Desktop More menu must use viewport-aware width, columns, and height",
+);
+
 console.log(
   JSON.stringify(
     {
@@ -159,6 +204,8 @@ console.log(
       missingRoutes: missingRoutes.length,
       redirectRoutes: redirectRoutes.length,
       duplicateSectionHrefs: duplicateSectionHrefs.length,
+      duplicateDesktopMenuHrefs: duplicateDesktopMenuHrefs.length,
+      duplicateMobileMenuHrefs: duplicateMobileMenuHrefs.length,
     },
     null,
     2,

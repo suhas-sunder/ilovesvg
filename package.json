@@ -23,6 +23,7 @@
     "test:stage1-route-presets": "node scripts/stage1-route-preset-smoke.mjs",
     "test:nav": "node scripts/navigation-audit.mjs",
     "test:navigation": "node scripts/navigation-audit.mjs",
+    "test:navigation-browser": "node scripts/navigation-browser-audit.mjs",
     "test:examples": "node scripts/responsive-nav-example-audit.mjs examples",
     "test:links": "node scripts/responsive-nav-example-audit.mjs links",
     "test:monetization": "node scripts/monetization-audit.mjs",
