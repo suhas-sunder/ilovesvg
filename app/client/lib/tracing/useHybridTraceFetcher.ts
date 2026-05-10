@@ -104,6 +104,9 @@ export function useHybridTraceFetcher<
       const clientRunId =
         readString(target, "clientRunId") ??
         `${options.routeId}-${Date.now()}-${runId}`;
+      if (!readString(target, "clientRunId")) {
+        target.append("clientRunId", clientRunId);
+      }
       canceledClientRunIdsRef.current.delete(clientRunId);
 
       setActiveClientJobs((count) => count + 1);
@@ -321,6 +324,7 @@ export function useHybridTraceFetcher<
             message.startsWith("Centerline stroke tracing could not convert") ||
             message.startsWith("An earlier browser trace did not finish")
           ) {
+            if (!isLatest) return;
             setClientData({
               error: message,
               clientRunId,
@@ -328,6 +332,7 @@ export function useHybridTraceFetcher<
             } as TData);
             return;
           }
+          if (!isLatest) return;
           if (requestedEngine === "vtracer") {
             setClientData({
               error: `VTracer could not convert this image in your browser. ${message}`,
@@ -339,14 +344,6 @@ export function useHybridTraceFetcher<
           if (settings.strokeOutputMode === "centerline") {
             setClientData({
               error: `Centerline stroke tracing could not convert this image in your browser. ${message}`,
-              clientRunId,
-              traceJobId: String(runId),
-            } as TData);
-            return;
-          }
-          if (!isLatest) {
-            setClientData({
-              error: `An earlier browser trace did not finish. ${message}`,
               clientRunId,
               traceJobId: String(runId),
             } as TData);
@@ -376,9 +373,17 @@ export function useHybridTraceFetcher<
     const rawData = fetcher.data;
     if (!rawData) return;
     const clientRunId = rawData.clientRunId || "";
-    const pending = clientRunId
+    let pendingClientRunId = clientRunId;
+    let pending = clientRunId
       ? pendingServerCacheRef.current.get(clientRunId)
       : null;
+    if (!pending && !clientRunId && pendingServerCacheRef.current.size === 1) {
+      const fallbackPending = pendingServerCacheRef.current.entries().next().value;
+      if (fallbackPending) {
+        pendingClientRunId = fallbackPending[0];
+        pending = fallbackPending[1];
+      }
+    }
     if (!pending) return;
 
     if (rawData.svg) {
@@ -389,7 +394,7 @@ export function useHybridTraceFetcher<
         recordHybridTraceDebug({
           routeId: options.routeId,
           stage: "server-cache-write",
-          clientRunId,
+          clientRunId: pendingClientRunId,
           conversionCacheKey: pending.cacheKey,
           engineUsed: result.engineUsed,
         });
@@ -397,13 +402,13 @@ export function useHybridTraceFetcher<
       } else {
         pending.reject(new Error("Server conversion returned an invalid cache result."));
       }
-      pendingServerCacheRef.current.delete(clientRunId);
+      pendingServerCacheRef.current.delete(pendingClientRunId);
       return;
     }
 
     if (rawData.error) {
       pending.reject(new Error(rawData.error));
-      pendingServerCacheRef.current.delete(clientRunId);
+      pendingServerCacheRef.current.delete(pendingClientRunId);
     }
   }, [fetcher.data, options.routeId]);
 
