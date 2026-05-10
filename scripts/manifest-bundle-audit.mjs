@@ -23,6 +23,16 @@ const wrapperChunkPrefixes = [
   "png-to-favicon-generator-",
   "jpg-to-favicon-generator-",
   "logo-to-favicon-generator-",
+  "image-to-favicon-generator-",
+  "svg-resizer-for-canva-",
+  "svg-resizer-for-etsy-",
+  "svg-resizer-for-figma-",
+  "svg-resizer-for-glowforge-",
+  "svg-resizer-for-shopify-",
+  "svg-resizer-for-silhouette-",
+  "svg-cleaner-for-figma-",
+  "svg-cleaner-for-glowforge-",
+  "svg-cleaner-for-silhouette-",
 ];
 
 const fullManifestMarkers = [
