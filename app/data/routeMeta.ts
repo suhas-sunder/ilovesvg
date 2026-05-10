@@ -45,6 +45,90 @@ export const ROUTE_META_BY_PATH = {
       "Export SVG assets to PNG for Figma handoff, previews, thumbnails, and flattened sharing files.",
     canonicalPath: "/svg-to-png-for-figma",
   },
+  "/svg-to-png-for-etsy": {
+    label: "SVG To PNG For Etsy",
+    title: "SVG to PNG for Etsy | iLoveSVG",
+    description:
+      "Export Etsy listing preview images and digital product visuals from SVG with transparent or solid backgrounds.",
+    canonicalPath: "/svg-to-png-for-etsy",
+  },
+  "/svg-to-jpg-for-etsy": {
+    label: "SVG To JPG For Etsy",
+    title: "SVG to JPG for Etsy | iLoveSVG",
+    description:
+      "Export flattened JPG listing previews from SVG artwork for Etsy product images, mockups, and shop visuals.",
+    canonicalPath: "/svg-to-jpg-for-etsy",
+  },
+  "/svg-to-png-for-shopify": {
+    label: "SVG To PNG For Shopify",
+    title: "SVG to PNG for Shopify | iLoveSVG",
+    description:
+      "Export Shopify-ready PNG copies from SVG assets with transparent backgrounds, exact sizing, and browser-side previews.",
+    canonicalPath: "/svg-to-png-for-shopify",
+  },
+  "/svg-to-png-for-printify": {
+    label: "SVG To PNG For Printify",
+    title: "SVG to PNG for Printify | iLoveSVG",
+    description:
+      "Export transparent PNG product artwork from SVG for Printify mockups, product previews, and seller workflows.",
+    canonicalPath: "/svg-to-png-for-printify",
+  },
+  "/svg-to-png-for-printful": {
+    label: "SVG To PNG For Printful",
+    title: "SVG to PNG for Printful | iLoveSVG",
+    description:
+      "Export SVG artwork to PNG for Printful-style product mockups, print previews, and seller asset preparation.",
+    canonicalPath: "/svg-to-png-for-printful",
+  },
+  "/svg-to-favicon-for-shopify": {
+    label: "SVG To Favicon For Shopify",
+    title: "SVG to Favicon for Shopify | iLoveSVG",
+    description:
+      "Generate favicon and app icon assets from a Shopify store SVG logo or brand mark.",
+    canonicalPath: "/svg-to-favicon-for-shopify",
+  },
+  "/logo-to-favicon-for-shopify": {
+    label: "Logo To Favicon For Shopify",
+    title: "Logo to Favicon for Shopify | iLoveSVG",
+    description:
+      "Generate Shopify favicon assets from a logo image or SVG using the existing favicon workflow.",
+    canonicalPath: "/logo-to-favicon-for-shopify",
+  },
+  "/png-to-ico-converter": {
+    label: "PNG To ICO Converter",
+    title: "PNG to ICO Converter | iLoveSVG",
+    description:
+      "Convert a PNG logo or icon into favicon.ico output and supporting icon sizes with the existing favicon generator.",
+    canonicalPath: "/png-to-ico-converter",
+  },
+  "/svg-to-ico-converter": {
+    label: "SVG To ICO Converter",
+    title: "SVG to ICO Converter | iLoveSVG",
+    description:
+      "Create favicon.ico output from an SVG logo or icon using the existing favicon generator and browser-side icon export workflow.",
+    canonicalPath: "/svg-to-ico-converter",
+  },
+  "/png-to-favicon-generator": {
+    label: "PNG To Favicon Generator",
+    title: "PNG to Favicon Generator | iLoveSVG",
+    description:
+      "Create favicon assets from a PNG logo or app icon, including ICO and PNG icon sizes, using the existing favicon generator.",
+    canonicalPath: "/png-to-favicon-generator",
+  },
+  "/jpg-to-favicon-generator": {
+    label: "JPG To Favicon Generator",
+    title: "JPG to Favicon Generator | iLoveSVG",
+    description:
+      "Create favicon assets from a JPG or JPEG logo image with square padding, background controls, ICO output, and app icon sizes.",
+    canonicalPath: "/jpg-to-favicon-generator",
+  },
+  "/logo-to-favicon-generator": {
+    label: "Logo To Favicon Generator",
+    title: "Logo to Favicon Generator | iLoveSVG",
+    description:
+      "Turn an SVG, PNG, JPG, or WebP logo into favicon-ready ICO and PNG icon assets with browser-side previews.",
+    canonicalPath: "/logo-to-favicon-generator",
+  },
 } as const satisfies Readonly<Record<string, RouteMetaEntry>>;
 
 export type RouteMetaPath = keyof typeof ROUTE_META_BY_PATH;

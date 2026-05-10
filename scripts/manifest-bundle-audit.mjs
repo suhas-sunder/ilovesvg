@@ -11,6 +11,18 @@ const wrapperChunkPrefixes = [
   "svg-to-png-for-canva-",
   "png-to-svg-for-figma-",
   "svg-to-png-for-figma-",
+  "svg-to-png-for-etsy-",
+  "svg-to-jpg-for-etsy-",
+  "svg-to-png-for-shopify-",
+  "svg-to-png-for-printify-",
+  "svg-to-png-for-printful-",
+  "svg-to-favicon-for-shopify-",
+  "logo-to-favicon-for-shopify-",
+  "png-to-ico-converter-",
+  "svg-to-ico-converter-",
+  "png-to-favicon-generator-",
+  "jpg-to-favicon-generator-",
+  "logo-to-favicon-generator-",
 ];
 
 const fullManifestMarkers = [
