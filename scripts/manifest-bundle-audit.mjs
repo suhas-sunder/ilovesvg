@@ -36,6 +36,8 @@ const routeMetaFamilies = [
       "svg-to-png-for-shopify-",
       "svg-to-png-for-printify-",
       "svg-to-png-for-printful-",
+      "sticker-to-png-for-printing-",
+      "svg-to-transparent-png-for-printing-",
     ],
     routePaths: [
       "/svg-to-png-for-etsy",
@@ -43,6 +45,25 @@ const routeMetaFamilies = [
       "/svg-to-png-for-shopify",
       "/svg-to-png-for-printify",
       "/svg-to-png-for-printful",
+      "/sticker-to-png-for-printing",
+      "/svg-to-transparent-png-for-printing",
+    ],
+  },
+  {
+    key: "marketplaceCraft",
+    assetPrefix: "marketplaceCraft-",
+    maxBytes: 4000,
+    routePrefixes: [
+      "logo-to-svg-for-etsy-",
+      "logo-to-svg-for-shopify-",
+      "sticker-to-svg-for-etsy-",
+      "sticker-to-svg-for-silhouette-",
+    ],
+    routePaths: [
+      "/logo-to-svg-for-etsy",
+      "/logo-to-svg-for-shopify",
+      "/sticker-to-svg-for-etsy",
+      "/sticker-to-svg-for-silhouette",
     ],
   },
   {

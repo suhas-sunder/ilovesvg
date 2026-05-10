@@ -37,6 +37,20 @@ const MARKETPLACE_EXPORT_ROUTE_META = {
       "Export SVG artwork to PNG for Printful-style product mockups, print previews, and seller asset preparation.",
     canonicalPath: "/svg-to-png-for-printful",
   },
+  "/sticker-to-png-for-printing": {
+    label: "Sticker To PNG For Printing",
+    title: "Sticker SVG to PNG for Printing | iLoveSVG",
+    description:
+      "Export sticker SVG artwork to transparent PNG for printing previews, labels, decals, and product mockups.",
+    canonicalPath: "/sticker-to-png-for-printing",
+  },
+  "/svg-to-transparent-png-for-printing": {
+    label: "SVG To Transparent PNG For Printing",
+    title: "SVG to Transparent PNG for Printing | iLoveSVG",
+    description:
+      "Export SVG artwork as a transparent PNG for print previews, product mockups, stickers, and clean handoff files.",
+    canonicalPath: "/svg-to-transparent-png-for-printing",
+  },
 } as const satisfies Readonly<Record<string, RouteMetaEntry>>;
 
 export type MarketplaceExportRouteMetaPath = keyof typeof MARKETPLACE_EXPORT_ROUTE_META;
