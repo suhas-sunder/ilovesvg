@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/terms-of-service";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
+import { TERMS_OF_SERVICE_COPY } from "~/content/legal/policyRouteContent";
 
 export const meta: Route.MetaFunction = () => {
   const canonical = "https://www.ilovesvg.com/terms-of-service";
@@ -62,7 +63,7 @@ export default function TermsOfService() {
         </nav>
 
         <h1 className="mb-5 flex py-2 text-4xl">TERMS OF SERVICE</h1>
-        <h3 className="flex py-2 text-2xl">Last updated January 10, 2026</h3>
+        <h3 className="flex py-2 text-2xl">{TERMS_OF_SERVICE_COPY.lastUpdated}</h3>
 
         <h2>AGREEMENT TO OUR LEGAL TERMS</h2>
 
@@ -115,41 +116,14 @@ export default function TermsOfService() {
       </header>
 
       <main className="flex max-w-[1200px] flex-col gap-8">
-        <section className="flex flex-col gap-4">
-          <h2 className="flex py-2 text-2xl">1. OUR SERVICES</h2>
-          <p>
-            The Services provide tools, converters, generators, and educational
-            content related to SVG graphics, vector design, and web-friendly
-            visual assets. The information provided when using the Services is
-            not intended for distribution to or use by any person or entity in
-            any jurisdiction or country where such distribution or use would be
-            contrary to law or regulation or which would subject us to any
-            registration requirement within such jurisdiction or country.
-          </p>
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <h2 className="flex py-2 text-2xl">16. PRIVACY POLICY</h2>
-          <p>
-            We care about data privacy and security. Please review our Privacy
-            Policy: https://www.ilovesvg.com/privacy. By using the Services,
-            you agree to be bound by our Privacy Policy, which is incorporated
-            into these Legal Terms.
-          </p>
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <h2 className="flex py-2 text-2xl">30. CONTACT US</h2>
-          <p>
-            In order to resolve a complaint regarding the Services or to receive
-            further information regarding use of the Services, please contact us
-            at:
-          </p>
-          <p>https://www.ilovesvg.com</p>
-          <p>Toronto, Ontario</p>
-          <p>Canada</p>
-          <p>admin@ilovesvg.com</p>
-        </section>
+        {TERMS_OF_SERVICE_COPY.sections.map((section) => (
+          <section key={section.title} className="flex flex-col gap-4">
+            <h2 className="flex py-2 text-2xl">{section.title}</h2>
+            {section.paragraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </section>
+        ))}
 
         <SocialLinks />
       </main>
