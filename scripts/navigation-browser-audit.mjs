@@ -102,19 +102,19 @@ async function runMobileAudit(width) {
     );
 
     const initial = await evaluate(client, mobileStateExpression());
-    await evaluate(client, `(() => {
-      const input = document.querySelector('#mobile-tool-search');
-      if (!input) return false;
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      setter?.call(input, 'favicon');
-      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'favicon' }));
-      return true;
-    })()`);
+    await setSearchValue(client, "#mobile-tool-search", "favicon");
     const search = await waitForValue(
       client,
       () => mobileStateExpression(),
       8_000,
       (state) => state.searchValue === "favicon" && state.searchLinkLabels.some((label) => /favicon/i.test(label)),
+    );
+    await setSearchValue(client, "#mobile-tool-search", "svg two");
+    const directionalSearch = await waitForValue(
+      client,
+      () => mobileStateExpression(),
+      8_000,
+      (state) => state.searchValue === "svg two" && state.searchLinkLabels.some((label) => /^SVG to /i.test(label)),
     );
 
     const ok =
@@ -129,6 +129,15 @@ async function runMobileAudit(width) {
       search.searchDirectLinkCount > 0 &&
       search.searchDirectLinkCount < initial.directLinkCount &&
       search.searchLinkLabels.some((label) => /favicon/i.test(label)) &&
+      search.searchResultContainerCount === 1 &&
+      search.sectionCount === 0 &&
+      directionalSearch.searchDirectLinkCount > 0 &&
+      directionalSearch.searchHrefs.includes("/svg-to-png-converter") &&
+      directionalSearch.searchHrefs.includes("/svg-to-pdf-converter") &&
+      !directionalSearch.searchHrefs.includes("/png-to-svg-converter") &&
+      directionalSearch.searchLinkLabels.every((label) => /(^|\s)SVG to /i.test(label)) &&
+      directionalSearch.searchResultContainerCount === 1 &&
+      directionalSearch.sectionCount === 0 &&
       search.detailsCount === 0 &&
       errors.length === 0;
 
@@ -140,6 +149,12 @@ async function runMobileAudit(width) {
         searchValue: search.searchValue,
         searchDirectLinkCount: search.searchDirectLinkCount,
         searchLinkLabels: search.searchLinkLabels,
+      },
+      directionalSearch: {
+        searchValue: directionalSearch.searchValue,
+        searchDirectLinkCount: directionalSearch.searchDirectLinkCount,
+        searchLinkLabels: directionalSearch.searchLinkLabels,
+        includesPngToSvg: directionalSearch.searchHrefs.includes("/png-to-svg-converter"),
       },
       consoleErrors: errors,
       failure: ok ? null : "Mobile nav did not expose direct filtered links cleanly.",
@@ -173,6 +188,13 @@ async function runDesktopAudit(width) {
       8_000,
       (value) => value.hasMenu,
     );
+    await setSearchValue(client, "#desktop-tool-search", "svg two");
+    const directionalSearch = await waitForValue(
+      client,
+      () => desktopStateExpression(),
+      8_000,
+      (value) => value.searchValue === "svg two" && value.searchLabels.some((label) => /^SVG to /i.test(label)),
+    );
 
     const expectedColumns = width >= 1840 ? 6 : width >= 1536 ? 5 : 4;
     const ok =
@@ -180,10 +202,16 @@ async function runDesktopAudit(width) {
       state.columnCount >= expectedColumns &&
       state.menuLeft >= 0 &&
       state.menuRight <= width + 1 &&
+      state.centerOffset <= 2 &&
       state.menuBottom <= state.viewportHeight + 1 &&
       state.menuWidth >= Math.min(width - 32, width >= 1840 ? 1600 : width >= 1536 ? 1360 : 960) &&
       state.noHorizontalOverflow &&
       state.duplicateHrefCount === 0 &&
+      directionalSearch.searchResultContainerCount === 1 &&
+      directionalSearch.sectionCount === 0 &&
+      directionalSearch.searchHrefs.includes("/svg-to-png-converter") &&
+      directionalSearch.searchHrefs.includes("/svg-to-pdf-converter") &&
+      !directionalSearch.searchHrefs.includes("/png-to-svg-converter") &&
       errors.length === 0;
 
     return {
@@ -191,6 +219,11 @@ async function runDesktopAudit(width) {
       ok,
       expectedColumns,
       ...state,
+      directionalSearch: {
+        searchValue: directionalSearch.searchValue,
+        searchLabels: directionalSearch.searchLabels,
+        includesPngToSvg: directionalSearch.searchHrefs.includes("/png-to-svg-converter"),
+      },
       consoleErrors: errors,
       failure: ok ? null : "Desktop More menu did not fit or scale to the viewport cleanly.",
     };
@@ -209,12 +242,14 @@ function mobileStateExpression() {
     const mostPopularLinks = Array.from(mostPopular?.querySelectorAll('a[data-nav-link]') || []);
     const searchValue = document.querySelector('#mobile-tool-search')?.value || '';
     const searchLinks = Array.from(menu?.querySelectorAll('a[data-nav-link]') || []);
+    const searchHrefs = searchLinks.map((link) => link.getAttribute('href'));
     const firstPopularRect = mostPopularLinks[0]?.getBoundingClientRect();
     return {
       hasDialog: Boolean(dialog),
       hasMobileMenu: Boolean(menu),
       firstSectionId: sections[0]?.getAttribute('data-nav-section') || null,
       sectionCount: sections.length,
+      searchResultContainerCount: menu?.querySelectorAll('[data-nav-search-results]').length || 0,
       detailsCount: menu?.querySelectorAll('details, summary').length || 0,
       directLinkCount: links.length,
       mostPopularHrefs: mostPopularLinks.map((link) => link.getAttribute('href')),
@@ -222,6 +257,7 @@ function mobileStateExpression() {
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,
       searchValue,
       searchDirectLinkCount: searchLinks.length,
+      searchHrefs,
       searchLinkLabels: searchLinks.slice(0, 20).map((link) => (link.textContent || '').trim()),
     };
   })()`;
@@ -238,12 +274,17 @@ function desktopStateExpression() {
       : [];
     const hrefs = Array.from(menu?.querySelectorAll('a[data-nav-link]') || [])
       .map((link) => link.getAttribute('href'));
+    const labels = Array.from(menu?.querySelectorAll('a[data-nav-link]') || [])
+      .map((link) => (link.textContent || '').trim());
     const duplicateHrefCount = hrefs.filter((href, index) => hrefs.indexOf(href) !== index).length;
+    const leftSpace = rect?.left ?? 0;
+    const rightSpace = rect ? window.innerWidth - rect.right : 0;
     return {
       hasMenu: Boolean(menu && rect),
       viewportHeight: window.innerHeight,
       menuLeft: rect?.left ?? -1,
       menuRight: rect?.right ?? -1,
+      centerOffset: Math.abs(leftSpace - rightSpace),
       menuBottom: rect?.bottom ?? -1,
       menuWidth: rect?.width ?? 0,
       menuHeight: rect?.height ?? 0,
@@ -251,9 +292,25 @@ function desktopStateExpression() {
       maxHeight: menu ? getComputedStyle(menu).maxHeight : '',
       linkCount: hrefs.length,
       duplicateHrefCount,
+      searchValue: document.querySelector('#desktop-tool-search')?.value || '',
+      sectionCount: menu?.querySelectorAll('[data-nav-section]').length || 0,
+      searchResultContainerCount: menu?.querySelectorAll('[data-nav-search-results]').length || 0,
+      searchHrefs: hrefs,
+      searchLabels: labels.slice(0, 20),
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,
     };
   })()`;
+}
+
+async function setSearchValue(client, selector, value) {
+  await evaluate(client, `(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    if (!input) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ${JSON.stringify(value)} }));
+    return true;
+  })()`);
 }
 
 async function openPage(pathname, width, height) {

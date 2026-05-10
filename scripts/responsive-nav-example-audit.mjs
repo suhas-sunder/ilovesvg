@@ -70,6 +70,12 @@ function runNavAudit() {
   assertIncludes(nav, "gridTemplateColumns", "desktop nav grid template is explicit");
   assertIncludes(nav, "viewportSize.width >= 1536 ? 5", "wide desktop nav fifth column");
   assertIncludes(nav, "viewportSize.width >= 1840 ? 6", "very wide desktop nav sixth column");
+  assertIncludes(nav, "(viewportWidth - menuWidth) / 2", "desktop nav menu is centered in the viewport");
+  assertIncludes(nav, "DesktopSearchResults", "desktop search uses flat direct results");
+  assertIncludes(nav, "MobileSearchResults", "mobile search uses flat direct results");
+  assertIncludes(nav, "rankNavItems", "nav search uses scored results");
+  assertIncludes(nav, "hasDirectionalSearchIntent", "nav search preserves directional intent");
+  assertIncludes(nav, "data-nav-search-results=\"\"", "nav search results expose an audit marker");
   assertIncludes(nav, "grid auto-rows-max items-start", "desktop nav cards avoid stretched empty columns");
   assertIncludes(nav, "lg:col-span-2", "large desktop nav sections can use wider cards");
   assertIncludes(nav, "matchMedia(\"(max-width: 1023px)\")", "desktop mobile nav state sync");

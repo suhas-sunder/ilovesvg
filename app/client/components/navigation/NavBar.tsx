@@ -70,6 +70,8 @@ export default function NavBar() {
   }, []);
 
   const moreLinks = items;
+  const isDesktopSearching = normalizeSearchText(desktopSearch).length > 0;
+  const isMobileSearching = normalizeSearchText(mobileSearch).length > 0;
 
   const filteredDesktopMoreLinks = useMemo(
     () => filterNavItems(moreLinks, desktopSearch),
@@ -324,10 +326,11 @@ export default function NavBar() {
       320,
       Math.min(viewportWidth - 32, preferredWidth),
     );
-    const rightEdge = Math.round(moreRect.left + moreRect.width);
-    const left = Math.min(
-      Math.max(16, rightEdge - menuWidth),
-      Math.max(16, viewportWidth - menuWidth - 16),
+    const left = Math.round(
+      Math.max(
+        16,
+        Math.min((viewportWidth - menuWidth) / 2, viewportWidth - menuWidth - 16),
+      ),
     );
     const safeBottom = 16;
     const maxHeight = `calc(100vh - ${Math.min(
@@ -507,18 +510,26 @@ export default function NavBar() {
                 className={`${SCROLL_CLASS} min-h-0 flex-1 overflow-y-auto`}
               >
                 {filteredDesktopMoreLinks.length > 0 ? (
-                  <div
-                    className="grid auto-rows-max items-start gap-3 p-3"
-                    style={desktopMoreGridStyle}
-                  >
-                    {desktopNavGroups.map((group) => (
-                      <DesktopNavGroup
-                        key={group.id}
-                        group={group}
-                        onNavClick={handleNavClick}
-                      />
-                    ))}
-                  </div>
+                  isDesktopSearching ? (
+                    <DesktopSearchResults
+                      items={filteredDesktopMoreLinks}
+                      gridStyle={desktopMoreGridStyle}
+                      onNavClick={handleNavClick}
+                    />
+                  ) : (
+                    <div
+                      className="grid auto-rows-max items-start gap-3 p-3"
+                      style={desktopMoreGridStyle}
+                    >
+                      {desktopNavGroups.map((group) => (
+                        <DesktopNavGroup
+                          key={group.id}
+                          group={group}
+                          onNavClick={handleNavClick}
+                        />
+                      ))}
+                    </div>
+                  )
                 ) : (
                   <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
                     No matching tools found.
@@ -625,16 +636,22 @@ export default function NavBar() {
                     data-nav-menu="mobile-tools"
                     className="grid gap-3 p-3 sm:p-4"
                   >
-                    {mobileNavGroups.map((group) => (
-                      <MobileNavGroup
-                        key={group.id}
-                        group={group}
-                        isSearching={Boolean(mobileSearch)}
-                        expanded={Boolean(expandedMobileGroups[group.id])}
-                        onToggleExpanded={() => toggleMobileGroup(group.id)}
+                    {isMobileSearching ? (
+                      <MobileSearchResults
+                        items={filteredMobileLinks}
                         onNavClick={handleNavClick}
                       />
-                    ))}
+                    ) : (
+                      mobileNavGroups.map((group) => (
+                        <MobileNavGroup
+                          key={group.id}
+                          group={group}
+                          expanded={Boolean(expandedMobileGroups[group.id])}
+                          onToggleExpanded={() => toggleMobileGroup(group.id)}
+                          onNavClick={handleNavClick}
+                        />
+                      ))
+                    )}
                   </div>
                 ) : (
                   <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
@@ -655,6 +672,7 @@ function normalizeSearchText(value: string) {
   return value
     .toLowerCase()
     .replace(/&/g, " and ")
+    .replace(/\b(?:two|too|2)\b/g, " to ")
     .replace(/[^\w\s]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -664,15 +682,7 @@ function filterNavItems(items: NavItem[], query: string) {
   const q = normalizeSearchText(query);
   if (!q) return items;
 
-  const tokens = q.split(" ").filter(Boolean);
-
-  return items.filter((item) => {
-    const haystack = normalizeSearchText(
-      [item.label, item.href, ...(item.keywords ?? [])].join(" "),
-    );
-
-    return tokens.every((token) => haystack.includes(token));
-  });
+  return rankNavItems(items, q).map((result) => result.item);
 }
 
 function filterNavSections(
@@ -692,6 +702,65 @@ function filterNavSections(
       };
     })
     .filter((section) => section.items.length > 0);
+}
+
+function rankNavItems(items: NavItem[], normalizedQuery: string) {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      score: scoreNavItem(item, normalizedQuery),
+    }))
+    .filter((result) => result.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+}
+
+function scoreNavItem(item: NavItem, normalizedQuery: string) {
+  const label = normalizeSearchText(item.label);
+  const keywords = (item.keywords ?? []).map(normalizeSearchText);
+  const slug = normalizeSearchText(
+    item.href.replace(/^\/+/, "").replace(/-/g, " "),
+  );
+  const phrases = [label, ...keywords, slug].filter(Boolean);
+  const haystack = phrases.join(" ");
+  const tokens = normalizedQuery.split(" ").filter(Boolean);
+  const directional = hasDirectionalSearchIntent(normalizedQuery);
+
+  if (directional) {
+    if (phrases.some((phrase) => phrase === normalizedQuery)) return 1000;
+    if (phrases.some((phrase) => phrase.startsWith(`${normalizedQuery} `))) return 920;
+    if (phrases.some((phrase) => hasWordPhrase(phrase, normalizedQuery))) return 780;
+    return 0;
+  }
+
+  if (phrases.some((phrase) => phrase === normalizedQuery)) return 980;
+  if (phrases.some((phrase) => phrase.startsWith(`${normalizedQuery} `))) return 900;
+  if (phrases.some((phrase) => hasWordPhrase(phrase, normalizedQuery))) return 820;
+  if (tokens.every((token) => hasWordPrefix(haystack, token))) return 650;
+  if (tokens.length > 1 && tokens.every((token) => haystack.includes(token))) return 420;
+  if (tokens.length === 1 && haystack.includes(tokens[0])) return 360;
+
+  return 0;
+}
+
+function hasDirectionalSearchIntent(normalizedQuery: string) {
+  return (
+    normalizedQuery.includes(" to ") ||
+    normalizedQuery.endsWith(" to") ||
+    normalizedQuery.startsWith("to ")
+  );
+}
+
+function hasWordPhrase(value: string, phrase: string) {
+  return new RegExp(`(^|\\s)${escapeRegExp(phrase)}(\\s|$)`).test(value);
+}
+
+function hasWordPrefix(value: string, token: string) {
+  return new RegExp(`(^|\\s)${escapeRegExp(token)}`).test(value);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function DesktopLink({
@@ -792,15 +861,68 @@ function DesktopNavGroup({
   );
 }
 
+function DesktopSearchResults({
+  items,
+  gridStyle,
+  onNavClick,
+}: {
+  items: NavItem[];
+  gridStyle: React.CSSProperties;
+  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return (
+    <div
+      data-nav-search-results=""
+      className="grid auto-rows-max items-start gap-1 p-3"
+      style={gridStyle}
+    >
+      {items.map((item) => (
+        <DropdownLink
+          key={item.href}
+          href={item.href}
+          onClick={(event) => onNavClick(event, item.href)}
+        >
+          {item.label}
+        </DropdownLink>
+      ))}
+    </div>
+  );
+}
+
+function MobileSearchResults({
+  items,
+  onNavClick,
+}: {
+  items: NavItem[];
+  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return (
+    <section
+      data-nav-search-results=""
+      className="rounded-xl border border-sky-800/70 bg-sky-900/20 p-3"
+    >
+      <div className="grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 md:grid-cols-3">
+        {items.map((item) => (
+          <MobileLink
+            key={item.href}
+            href={item.href}
+            onClick={(event) => onNavClick(event, item.href)}
+          >
+            {item.label}
+          </MobileLink>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function MobileNavGroup({
   group,
-  isSearching,
   expanded,
   onToggleExpanded,
   onNavClick,
 }: {
   group: NavGroup;
-  isSearching: boolean;
   expanded: boolean;
   onToggleExpanded: () => void;
   onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
@@ -809,8 +931,9 @@ function MobileNavGroup({
     group.id === "most-popular"
       ? group.items.length
       : MOBILE_PREVIEW_LIMITS[group.id] ?? DEFAULT_MOBILE_PREVIEW_LIMIT;
-  const visibleItems =
-    isSearching || expanded ? group.items : group.items.slice(0, previewLimit);
+  const visibleItems = expanded
+    ? group.items
+    : group.items.slice(0, previewLimit);
   const hiddenCount = group.items.length - visibleItems.length;
   const gridClass =
     group.id === "most-popular"

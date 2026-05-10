@@ -180,6 +180,13 @@ assert(
 );
 
 assert(
+  navBarSource.includes("DesktopSearchResults") &&
+    navBarSource.includes("MobileSearchResults") &&
+    navBarSource.includes('data-nav-search-results=""'),
+  "Search mode must render flat direct tool links instead of grouped category blocks",
+);
+
+assert(
   !navBarSource.includes("<details") && !navBarSource.includes("<summary"),
   "Mobile nav must not hide all links behind category-only details blocks",
 );
@@ -192,6 +199,19 @@ assert(
     navBarSource.includes("maxHeight") &&
     navBarSource.includes("calc(100vh"),
   "Desktop More menu must use viewport-aware width, columns, and height",
+);
+
+assert(
+  navBarSource.includes("(viewportWidth - menuWidth) / 2") &&
+    !navBarSource.includes("rightEdge - menuWidth"),
+  "Desktop More menu should be centered in the viewport instead of right-aligned to the More button",
+);
+
+assert(
+  navBarSource.includes("rankNavItems") &&
+    navBarSource.includes("hasDirectionalSearchIntent") &&
+    navBarSource.includes('replace(/\\b(?:two|too|2)\\b/g, " to ")'),
+  "Tool search must rank direct results and preserve directional search intent",
 );
 
 console.log(
