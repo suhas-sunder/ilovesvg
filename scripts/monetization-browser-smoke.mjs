@@ -12,7 +12,9 @@ const runId = `${debugPort}-${process.pid}-${Date.now()}`;
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-monetization-browser-smoke", runId);
 const profileDir = path.join(tmpDir, "profile");
 const storageKey = "ilovesvg:affiliate-waterfall:v1";
+const suppressionStorageKey = "ilovesvg:affiliate-suppression:v1";
 const stickerRoute = "/png-to-svg-for-cricut-stickers";
+const routeAfterSuppression = "/png-to-svg-converter";
 
 const mobileWidths = [320, 360, 390, 430, 768];
 const desktopWidths = [1024, 1280, 1440, 1920];
@@ -80,6 +82,15 @@ async function main() {
       await trackingClient.close().catch(() => {});
     }
 
+    const suppressionClient = await openPage(stickerRoute, 1280, 900);
+    try {
+      results.crossRouteSuppression = await checkCrossRouteSuppressionAndFallbackLayout(
+        suppressionClient,
+      );
+    } finally {
+      await suppressionClient.close().catch(() => {});
+    }
+
     const consoleClient = await openPage(stickerRoute, 390, 900);
     try {
       results.consoleMessages = await collectConsoleSignals(consoleClient);
@@ -96,6 +107,9 @@ async function main() {
     ...results.desktop.filter((result) => !result.ok),
   ];
   if (results.tracking?.ok === false) failures.push(results.tracking);
+  if (results.crossRouteSuppression?.ok === false) {
+    failures.push(results.crossRouteSuppression);
+  }
   const badConsoleMessages = results.consoleMessages.filter(
     (message) => /hydration|did not match|error|exception/i.test(message),
   );
@@ -264,45 +278,26 @@ async function checkTrackingAndFallback(client) {
   const afterClick = await waitForWaterfallEntry(client, "sticker-mule-custom-stickers", (entry) => entry?.clicked === true && entry?.timedOut === true);
 
   await reload(client);
-  await waitForValue(
-    client,
-    () => `(() => document.querySelector('[data-monetization-kind="affiliate"]')?.getAttribute('data-affiliate-offer-id') || null)()`,
-    8000,
-    (offerId) => offerId === "printify-product-mockups",
-  );
-
-  await evaluate(client, `(() => {
-    const state = JSON.parse(window.localStorage.getItem(${JSON.stringify(storageKey)}));
-    state.entries.push({
-      providerId: "printify",
-      offerId: "printify-product-mockups",
-      slotId: "converter-below-tool",
-      routeContext: ${JSON.stringify(stickerRoute)},
-      viewCount: 5,
-      clicked: false,
-      timedOut: true,
-      lastViewedAt: Date.now()
-    });
-    window.localStorage.setItem(${JSON.stringify(storageKey)}, JSON.stringify(state));
-    return true;
-  })()`);
-
-  await reload(client);
   const fallback = await waitForValue(
     client,
     () => `(() => {
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
       const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const rect = adsense?.getBoundingClientRect?.();
       const visibleAdSlots = ${visibleAdSlotsExpression()};
+      const storedSuppression = window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)});
       return {
         adsense: Boolean(adsense),
         affiliate: Boolean(affiliate),
+        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
+        height: rect?.height || 0,
         visibleAdSlots,
         duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+        storedSuppression,
       };
     })()`,
     8000,
-    (state) => state?.adsense === true,
+    (state) => state?.adsense === true && Boolean(state.storedSuppression),
   );
 
   return {
@@ -316,7 +311,78 @@ async function checkTrackingAndFallback(client) {
       afterClick?.timedOut === true &&
       fallback.adsense === true &&
       fallback.affiliate === false &&
+      fallback.reserve === "compact" &&
+      fallback.height <= 260 &&
+      Boolean(fallback.storedSuppression) &&
       fallback.duplicateVisibleAdSlots.length === 0,
+  };
+}
+
+async function checkCrossRouteSuppressionAndFallbackLayout(client) {
+  await clearAffiliateStorage(client);
+  await markStickerOffersTimedOut(client);
+  await reload(client);
+
+  const fallback = await waitForValue(
+    client,
+    () => `(() => {
+      const fallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const rect = fallback?.getBoundingClientRect?.();
+      const storedSuppression = window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)});
+      return {
+        adsense: Boolean(fallback),
+        affiliate: Boolean(affiliate),
+        reserve: fallback?.getAttribute('data-monetization-reserve') || null,
+        height: rect?.height || 0,
+        storedSuppression,
+      };
+    })()`,
+    8000,
+    (state) => state?.adsense === true && Boolean(state.storedSuppression),
+  );
+
+  await navigate(client, `${baseUrl}${routeAfterSuppression}`);
+  const afterNavigation = await waitForValue(
+    client,
+    () => `(() => {
+      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const fallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+      const rect = fallback?.getBoundingClientRect?.();
+      const storedSuppression = window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)});
+      return {
+        route: window.location.pathname,
+        affiliate: Boolean(affiliate),
+        adsense: Boolean(fallback),
+        reserve: fallback?.getAttribute('data-monetization-reserve') || null,
+        height: rect?.height || 0,
+        storedSuppression,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+      };
+    })()`,
+    8000,
+    (state) => (state?.adsense === true || state?.affiliate === true) && Boolean(state.storedSuppression),
+  );
+
+  return {
+    scenario: "cross-route-suppression-and-compact-fallback",
+    firstRoute: stickerRoute,
+    nextRoute: routeAfterSuppression,
+    fallback,
+    afterNavigation,
+    ok:
+      fallback.adsense === true &&
+      fallback.affiliate === false &&
+      fallback.reserve === "compact" &&
+      fallback.height <= 260 &&
+      Boolean(fallback.storedSuppression) &&
+      afterNavigation.route === routeAfterSuppression &&
+      afterNavigation.adsense === true &&
+      afterNavigation.affiliate === false &&
+      afterNavigation.reserve === "compact" &&
+      afterNavigation.height <= 260 &&
+      Boolean(afterNavigation.storedSuppression) &&
+      !afterNavigation.overflow,
   };
 }
 
@@ -348,6 +414,7 @@ async function markStickerOffersTimedOut(client) {
       ]
     };
     window.localStorage.setItem(${JSON.stringify(storageKey)}, JSON.stringify(state));
+    window.sessionStorage.removeItem(${JSON.stringify(suppressionStorageKey)});
     return true;
   })()`);
 }
@@ -441,9 +508,14 @@ async function reload(client) {
   await delay(500);
 }
 
+async function navigate(client, url) {
+  await client.navigate(url);
+}
+
 async function clearAffiliateStorage(client) {
   await evaluate(client, `(() => {
     window.localStorage.removeItem(${JSON.stringify(storageKey)});
+    window.sessionStorage.removeItem(${JSON.stringify(suppressionStorageKey)});
     return true;
   })()`);
 }

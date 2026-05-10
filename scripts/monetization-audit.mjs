@@ -60,22 +60,25 @@ const removedOfferId = `${removedProviderId}-domain-hosting`;
 class MemoryStorage {
   constructor(initialValue = null) {
     this.value = initialValue;
+    this.values = new Map(
+      initialValue == null ? [] : [[storage.AFFILIATE_WATERFALL_STORAGE_KEY, initialValue]],
+    );
     this.writes = [];
   }
 
   getItem(key) {
-    if (key !== storage.AFFILIATE_WATERFALL_STORAGE_KEY) return null;
-    return this.value;
+    return this.values.get(key) ?? null;
   }
 
   setItem(key, value) {
-    if (key !== storage.AFFILIATE_WATERFALL_STORAGE_KEY) return;
     this.value = value;
+    this.values.set(key, value);
     this.writes.push(value);
   }
 
-  removeItem() {
+  removeItem(key) {
     this.value = null;
+    this.values.delete(key);
   }
 }
 
@@ -148,6 +151,47 @@ function runStorageParserTests() {
     storage.createEmptyAffiliateWaterfallState(),
     "blocked localStorage does not throw",
   );
+
+  assert.deepEqual(
+    storage.readAffiliateSuppressionState(new MemoryStorage("{bad json")),
+    storage.createEmptyAffiliateSuppressionState(),
+    "malformed session suppression JSON is ignored safely",
+  );
+
+  assert.deepEqual(
+    storage.readAffiliateSuppressionState(new ThrowingStorage()),
+    storage.createEmptyAffiliateSuppressionState(),
+    "blocked session suppression storage does not throw",
+  );
+
+  const suppressionStore = new MemoryStorage();
+  const suppressed = storage.markAffiliateSlotSuppressed(suppressionStore, {
+    slotId: "converter-below-tool",
+    routeContext: "/png-to-svg-for-cricut-stickers",
+    reason: "exhausted",
+    now: 900,
+    validSlotIds: ["converter-below-tool"],
+  });
+  const suppressionState = storage.readAffiliateSuppressionState(suppressionStore, {
+    validSlotIds: ["converter-below-tool"],
+  });
+  assert.equal(suppressed?.reason, "exhausted", "suppression reason is stored");
+  assert.equal(
+    storage.isAffiliateSlotSuppressed(suppressionState, {
+      slotId: "converter-below-tool",
+    }),
+    true,
+    "session suppression applies across compatible route placements",
+  );
+
+  const invalidSuppression = storage.markAffiliateSlotSuppressed(new MemoryStorage(), {
+    slotId: "other-slot",
+    routeContext: "/png-to-svg-for-cricut-stickers",
+    reason: "exhausted",
+    now: 901,
+    validSlotIds: ["converter-below-tool"],
+  });
+  assert.equal(invalidSuppression, null, "unknown suppression slot is refused");
 
   const staleStore = new MemoryStorage();
   writeState(

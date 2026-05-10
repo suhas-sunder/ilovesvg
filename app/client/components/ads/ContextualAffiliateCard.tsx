@@ -1037,15 +1037,13 @@ export function ContextualAffiliateCard() {
     );
   }
 
-  if (shouldSuppressAffiliate) {
+  if (shouldSuppressAffiliate && shouldSuppressAdsenseFallback) {
     return null;
   }
 
   if (!selectedOffer || !placement) {
     return shouldShowAdsense && !shouldSuppressAdsenseFallback ? (
-      <ContextualAdsenseFallback
-        reserveMode={hasRelevantOffers ? "affiliate" : "compact"}
-      />
+      <ContextualAdsenseFallback reserveMode="compact" />
     ) : null;
   }
 
