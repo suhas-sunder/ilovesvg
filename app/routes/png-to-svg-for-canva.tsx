@@ -1,5 +1,5 @@
 import type { Route } from "./+types/png-to-svg-for-canva";
-import { createManifestMeta } from "~/data/routeManifest";
+import { createManifestMeta } from "~/data/routeMeta";
 import Template, { action, loader } from "./png-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {

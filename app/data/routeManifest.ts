@@ -1,60 +1,6 @@
+import type { RouteManifestEntry } from "./routeManifest.types";
+
 export const SITE_ORIGIN = "https://www.ilovesvg.com";
-
-export type RouteFamily =
-  | "raster-to-svg"
-  | "cricut-craft"
-  | "layered-svg"
-  | "svg-export"
-  | "svg-editor"
-  | "text-base64-code"
-  | "documentation"
-  | "legal"
-  | "static"
-  | "redirect"
-  | "api"
-  | "sitemap-meta";
-
-export type RouteKind =
-  | "public-converter"
-  | "public-utility"
-  | "svg-export-editor"
-  | "static-content"
-  | "redirect-alias"
-  | "api-action"
-  | "sitemap-meta";
-
-export type SitemapPolicy = "xml" | "html" | "xml-and-html" | "exclude";
-export type NavPolicy = "none" | "primary" | "nav-or-related" | string;
-export type TestCoverageKey =
-  | "route-smoke"
-  | "conversion-action-smoke"
-  | "hybrid-browser-smoke"
-  | "utility-layout-smoke"
-  | "accessibility-smoke"
-  | "output-ux-smoke"
-  | "stage1-preset-smoke-candidate"
-  | "route-expansion-audit"
-  | "route-smoke-candidate";
-
-export type RouteManifestEntry = {
-  path: string;
-  sourceFile: string;
-  family: RouteFamily;
-  kind: RouteKind;
-  label: string;
-  h1?: string;
-  title?: string;
-  description?: string;
-  canonicalPath: string;
-  publicRoute: boolean;
-  indexable: boolean;
-  sitemap: SitemapPolicy;
-  nav: NavPolicy;
-  related: boolean;
-  guide: boolean;
-  testCoverage: readonly TestCoverageKey[];
-  redirectTo?: string;
-};
 
 export const ROUTE_MANIFEST = [
   { path: "/", sourceFile: "app/routes/home.tsx", family: "raster-to-svg", kind: "public-converter", label: "Image to SVG", title: "iLoveSVG | PNG to SVG Converter - Free Online Image to SVG", description: "Convert PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, and SVG images to scalable SVG with presets, speed tags, advanced trace controls, editable layers, copy, download, and full-screen preview.", canonicalPath: "/", publicRoute: true, indexable: true, sitemap: "xml", nav: "primary", related: false, guide: false, testCoverage: ["route-smoke", "conversion-action-smoke", "hybrid-browser-smoke", "utility-layout-smoke", "accessibility-smoke", "stage1-preset-smoke-candidate"] },
@@ -209,28 +155,4 @@ export function getRouteManifestEntry(pathname: string) {
 
 export function getCanonicalUrl(entry: RouteManifestEntry) {
   return `${SITE_ORIGIN}${entry.canonicalPath === "/" ? "" : entry.canonicalPath}`;
-}
-
-export function createManifestMeta(pathname: string) {
-  const entry = getRouteManifestEntry(pathname);
-  if (!entry) {
-    throw new Error(`Missing route manifest entry for ${pathname}`);
-  }
-
-  const title = entry.title ?? `${entry.label} | iLoveSVG`;
-  const description =
-    entry.description ?? `${entry.label} on iLoveSVG.`;
-  const canonical = getCanonicalUrl(entry);
-
-  return [
-    { title },
-    { name: "description", content: description },
-    { name: "viewport", content: "width=device-width, initial-scale=1" },
-    { name: "theme-color", content: "#0b2dff" },
-    { tagName: "link", rel: "canonical", href: canonical },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:type", content: "website" },
-    { property: "og:url", content: canonical },
-  ];
 }

@@ -1,5 +1,5 @@
 import type { Route } from "./+types/svg-to-png-for-figma";
-import { createManifestMeta } from "~/data/routeManifest";
+import { createManifestMeta } from "~/data/routeMeta";
 import Template from "./svg-to-png-converter";
 
 export function meta({}: Route.MetaArgs) {
