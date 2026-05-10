@@ -96,6 +96,42 @@ const extractArrayBlock = (source, name) => {
 const sourceIncludesPath = (source, routePath) =>
   new RegExp(`["'\`]${escapeRegExp(routePath)}["'\`]`).test(source);
 
+const parseStringField = (block, name) =>
+  block.match(new RegExp(`${name}:\\s*"([^"]*)"`))?.[1] || "";
+
+const parseBooleanField = (block, name) => {
+  const value = block.match(new RegExp(`${name}:\\s*(true|false)`))?.[1];
+  return value === "true" ? true : value === "false" ? false : null;
+};
+
+const parseRouteManifest = (source) => {
+  const entries = [];
+  const blockMatch = source.match(
+    /export const ROUTE_MANIFEST\s*=\s*\[([\s\S]*?)\]\s*as const/s,
+  );
+  const body = blockMatch?.[1] || "";
+
+  for (const match of body.matchAll(/\{\s*path:\s*"[^"]+"[\s\S]*?\}/g)) {
+    const block = match[0];
+    const entry = {
+      path: normalizeRoutePath(parseStringField(block, "path")),
+      sourceFile: parseStringField(block, "sourceFile").replaceAll("\\", "/"),
+      family: parseStringField(block, "family"),
+      kind: parseStringField(block, "kind"),
+      canonicalPath: normalizeRoutePath(parseStringField(block, "canonicalPath")),
+      publicRoute: parseBooleanField(block, "publicRoute"),
+      indexable: parseBooleanField(block, "indexable"),
+      sitemap: parseStringField(block, "sitemap"),
+      nav: parseStringField(block, "nav"),
+    };
+    if (entry.path) {
+      entries.push(entry);
+    }
+  }
+
+  return entries;
+};
+
 const parseMeta = (html) => {
   const title = html.match(/<title>([\s\S]*?)<\/title>/i)?.[1]?.trim() || "";
   const description =
@@ -221,6 +257,11 @@ const expectedCanonical = (routePath) => `${SITE_URL}${routePath === "/" ? "" : 
 
 const main = async () => {
   const routesSource = await readText("app/routes.ts");
+  const routeManifestSource = await readText("app/data/routeManifest.ts");
+  const routeManifest = parseRouteManifest(routeManifestSource);
+  const routeManifestByPath = new Map(
+    routeManifest.map((entry) => [entry.path, entry]),
+  );
   const sitemapXml = await readText("public/sitemap.xml");
   const sitemapRouteSource = await readText("app/routes/sitemap.tsx");
   const robotsText = await readText("public/robots.txt");
@@ -496,10 +537,43 @@ const main = async () => {
   const htmlSitemapOnlyPaths = [...htmlSitemapPaths]
     .filter((routePath) => !routePathSet.has(routePath) && !staticPathSet.has(routePath))
     .sort();
+  const missingManifestRoutes = appRoutes
+    .filter((route) => !routeManifestByPath.has(route.path))
+    .map((route) => route.path)
+    .sort();
+  const manifestOnlyRoutes = routeManifest
+    .filter((entry) => !routePathSet.has(entry.path))
+    .map((entry) => entry.path)
+    .sort();
+  const manifestSourceMismatches = appRoutes
+    .filter((route) => {
+      const entry = routeManifestByPath.get(route.path);
+      return entry && entry.sourceFile !== route.sourceFile.replaceAll("\\", "/");
+    })
+    .map((route) => route.path)
+    .sort();
 
   const routeConfigOnly = matrix.filter((route) => route.sourceKind !== "public static");
+  const manifestPolicyMismatches = routeConfigOnly
+    .filter((route) => {
+      const entry = routeManifestByPath.get(route.path);
+      if (!entry) return false;
+      const expectsXmlSitemap =
+        entry.sitemap === "xml" || entry.sitemap === "xml-and-html";
+      const expectsHtmlSitemap =
+        entry.sitemap === "html" || entry.sitemap === "xml-and-html";
+      return (
+        entry.publicRoute !== route.public ||
+        entry.indexable !== route.shouldIndex ||
+        expectsXmlSitemap !== route.inXmlSitemap ||
+        expectsHtmlSitemap !== route.inHtmlSitemap
+      );
+    })
+    .map((route) => route.path)
+    .sort();
   const counts = {
     appRoutes: routeConfigOnly.length,
+    manifestRoutes: routeManifest.length,
     publicStaticEndpoints: staticEndpoints.length,
     totalInventoryRows: matrix.length,
     publicRoutes: routeConfigOnly.filter((route) => route.public).length,
@@ -553,6 +627,10 @@ const main = async () => {
     wrongApp,
     counts,
     unregisteredRouteFiles,
+    missingManifestRoutes,
+    manifestOnlyRoutes,
+    manifestSourceMismatches,
+    manifestPolicyMismatches,
     sitemapOnlyPaths,
     htmlSitemapOnlyPaths,
     missingNavTargets,
@@ -574,6 +652,7 @@ const main = async () => {
   print("Base URL", BASE_URL);
   print("Wrong app detected", wrongApp ? "yes" : "no");
   print("Total app routes", counts.appRoutes);
+  print("Manifest routes", counts.manifestRoutes);
   print("Public routes", counts.publicRoutes);
   print("API/action routes", counts.apiActionRoutes);
   print("Redirect/alias routes", counts.redirectAliasRoutes);
@@ -586,6 +665,10 @@ const main = async () => {
   print("Routes missing metadata", missingMetadataRoutes.length);
   print("Routes missing canonical", missingCanonicalRoutes.length);
   print("Broken nav or related targets", missingNavTargets.length);
+  print("Routes missing manifest", missingManifestRoutes.length);
+  print("Manifest-only routes", manifestOnlyRoutes.length);
+  print("Manifest source mismatches", manifestSourceMismatches.length);
+  print("Manifest policy mismatches", manifestPolicyMismatches.length);
   print("Routes missing test classification", matrix.filter((route) => route.public && route.sourceKind !== "public static" && route.testCoverage.length === 0).length);
   print("Gap rows", gaps.length);
   print("Report", path.relative(ROOT, REPORT_PATH));
@@ -598,6 +681,22 @@ const main = async () => {
   }
   if (missingNavTargets.length) {
     console.log(`Missing nav or related targets: ${missingNavTargets.join(", ")}`);
+  }
+  if (missingManifestRoutes.length) {
+    console.error(`Routes missing route manifest entries: ${missingManifestRoutes.join(", ")}`);
+    process.exitCode = 1;
+  }
+  if (manifestOnlyRoutes.length) {
+    console.error(`Route manifest paths without app routes: ${manifestOnlyRoutes.join(", ")}`);
+    process.exitCode = 1;
+  }
+  if (manifestSourceMismatches.length) {
+    console.error(`Route manifest source mismatches: ${manifestSourceMismatches.join(", ")}`);
+    process.exitCode = 1;
+  }
+  if (manifestPolicyMismatches.length) {
+    console.error(`Route manifest policy mismatches: ${manifestPolicyMismatches.join(", ")}`);
+    process.exitCode = 1;
   }
   if (sitemapOnlyPaths.length) {
     console.log(`XML sitemap paths without app route: ${sitemapOnlyPaths.join(", ")}`);

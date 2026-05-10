@@ -38,7 +38,21 @@ const parseRegisteredRoutes = () => {
 const parseHrefList = (source) =>
   Array.from(source.matchAll(/href:\s*"([^"]+)"/g), (match) => match[1]);
 
+const parseRouteManifestPaths = () => {
+  const source = read("app/data/routeManifest.ts");
+  const blockMatch = source.match(
+    /export const ROUTE_MANIFEST\s*=\s*\[([\s\S]*?)\]\s*as const/s,
+  );
+  const body = blockMatch?.[1] || "";
+  return new Set(
+    Array.from(body.matchAll(/path:\s*"([^"]+)"/g), (match) =>
+      normalizeRoute(match[1]),
+    ),
+  );
+};
+
 const routes = parseRegisteredRoutes();
+const manifestPaths = parseRouteManifestPaths();
 const navDataSource = read("app/client/components/navigation/toolNavSections.ts");
 const navBarSource = read("app/client/components/navigation/NavBar.tsx");
 
@@ -134,10 +148,15 @@ assert(
 
 const knownAnchors = new Set(["#other-tools"]);
 const missingRoutes = [];
+const missingManifestRoutes = [];
 const redirectRoutes = [];
 
 for (const href of new Set([...sectionHrefs, ...primaryHrefs])) {
   if (knownAnchors.has(href)) continue;
+
+  if (!manifestPaths.has(normalizeRoute(href))) {
+    missingManifestRoutes.push(href);
+  }
 
   const registeredFile = routes.get(normalizeRoute(href));
   if (!registeredFile) {
@@ -152,6 +171,10 @@ for (const href of new Set([...sectionHrefs, ...primaryHrefs])) {
 }
 
 assert(missingRoutes.length === 0, `Nav hrefs missing registered routes: ${missingRoutes.join(", ")}`);
+assert(
+  missingManifestRoutes.length === 0,
+  `Nav hrefs missing route manifest entries: ${missingManifestRoutes.join(", ")}`,
+);
 assert(redirectRoutes.length === 0, `Nav hrefs point to redirect aliases: ${redirectRoutes.join(", ")}`);
 
 assert(
@@ -222,6 +245,7 @@ console.log(
       primaryHrefCount: primaryHrefs.length,
       mostPopular: popularHrefs,
       missingRoutes: missingRoutes.length,
+      missingManifestRoutes: missingManifestRoutes.length,
       redirectRoutes: redirectRoutes.length,
       duplicateSectionHrefs: duplicateSectionHrefs.length,
       duplicateDesktopMenuHrefs: duplicateDesktopMenuHrefs.length,
