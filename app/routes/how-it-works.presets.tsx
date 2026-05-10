@@ -16,6 +16,7 @@ import {
   SPEED_GUIDE,
   type PresetFamily,
 } from "~/client/lib/docs/howItWorksContent";
+import { PRESET_GUIDE_COPY } from "~/content/docs/howItWorksRouteContent";
 
 const title = "SVG Converter Preset Guide | iLoveSVG";
 const description =
@@ -37,21 +38,21 @@ export function meta() {
 }
 
 export default function PresetGuideDocs() {
+  const copy = PRESET_GUIDE_COPY;
   return (
     <DocsPageShell currentPath="/how-it-works/presets">
       <DocsHero
-        eyebrow="Preset Guide"
-        title="Choose a preset by goal, not by guesswork"
-        description="The guide below is based on the current preset inventory in the app. Presets are grouped by family and speed label so you can choose between lineart, sketch, scan, logo, optional stroke/centerline, photo-edge, diagram, Cricut/cut, sticker, UI mockup, poster, and layered color output without pretending every image converts the same way."
-        highlights={[
-          "Speed colors match the converter preset picker.",
-          "Families explain what the output tries to preserve.",
-          "Heavy layered presets are called out honestly.",
-        ]}
+        eyebrow={copy.hero.eyebrow}
+        title={copy.hero.title}
+        description={copy.hero.description}
+        highlights={copy.hero.highlights}
         actions={
           <>
-            <PillLink to="/png-to-svg-converter">Try PNG to SVG</PillLink>
-            <PillLink to="/png-to-layered-svg-for-cricut">Try layered SVG</PillLink>
+            {copy.hero.actions.map((action) => (
+              <PillLink key={action.to} to={action.to}>
+                {action.label}
+              </PillLink>
+            ))}
           </>
         }
       />
@@ -59,7 +60,7 @@ export default function PresetGuideDocs() {
       <DocsContent>
         <SectionBlock
           title="Speed labels"
-          intro="Speed depends on image size, detail, colors, transparency, browser/server workload, and whether the preset creates one trace or many layered/color regions."
+          intro={copy.speedLabelsIntro}
         >
           <div className="grid gap-3 md:grid-cols-2">
             {SPEED_GUIDE.map((speed) => (
@@ -74,7 +75,7 @@ export default function PresetGuideDocs() {
 
         <SectionBlock
           title="Most outputs are filled paths"
-          intro="Image-to-SVG conversion normally traces visible regions into filled paths. That is useful for logos, silhouettes, scans, stickers, Cricut/cut files, and layered color regions. The new stroke/centerline family is opt-in for simple drawings that should become real SVG strokes."
+          intro={copy.filledPathsIntro}
         >
           <CardGrid>
             {PRESET_FAMILIES.map((family) => (
@@ -98,7 +99,7 @@ export default function PresetGuideDocs() {
 
         <SectionBlock
           title={`Current preset inventory (${PRESET_GUIDE_ITEMS.length} entries)`}
-          intro="Use the browser preset picker for live search and speed filtering. This table keeps the documentation grounded in the current app data without showing fake before/after images."
+          intro={copy.inventoryIntro}
         >
           <div className="space-y-4">
             {PRESET_FAMILIES.map((family) => (

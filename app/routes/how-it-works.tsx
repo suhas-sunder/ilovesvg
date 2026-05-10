@@ -10,6 +10,7 @@ import {
   SimpleCard,
 } from "~/client/components/docs/HowItWorksDocs";
 import { DOCS_PAGES, SITE_URL } from "~/client/lib/docs/howItWorksContent";
+import { HOW_IT_WORKS_HUB_COPY } from "~/content/docs/howItWorksRouteContent";
 
 const title = "How the Image to SVG Converter Works | iLoveSVG";
 const description =
@@ -32,21 +33,21 @@ export function meta() {
 
 export default function HowItWorksHub() {
   const guidePages = DOCS_PAGES.filter((page) => page.path !== "/how-it-works");
+  const copy = HOW_IT_WORKS_HUB_COPY;
   return (
     <DocsPageShell currentPath="/how-it-works">
       <DocsHero
-        eyebrow="How It Works"
-        title="Understand the converter before you tweak it"
-        description="This hub explains how iLoveSVG turns raster images into SVG files, how presets and speed labels work, why most outputs are filled paths, when opt-in centerline stroke presets help, and how output history, queueing, copy, download, fullscreen preview, batch conversion, and source previews behave."
-        highlights={[
-          "Current converter behavior, not planned features.",
-          "Preset and speed guidance tied to real app data.",
-          "Troubleshooting paths for messy SVG output.",
-        ]}
+        eyebrow={copy.hero.eyebrow}
+        title={copy.hero.title}
+        description={copy.hero.description}
+        highlights={copy.hero.highlights}
         actions={
           <>
-            <PillLink to="/how-it-works/conversion-workflow">Start with the workflow</PillLink>
-            <PillLink to="/png-to-svg-converter">Open PNG to SVG</PillLink>
+            {copy.hero.actions.map((action) => (
+              <PillLink key={action.to} to={action.to}>
+                {action.label}
+              </PillLink>
+            ))}
           </>
         }
       />
@@ -54,7 +55,7 @@ export default function HowItWorksHub() {
       <DocsContent>
         <SectionBlock
           title="Start here"
-          intro="The converter is upload-first: choose an image, pick a preset, convert, inspect the output, then edit or export the result that actually fits your goal."
+          intro={copy.startIntro}
         >
           <CardGrid>
             {guidePages.map((page) => (
@@ -65,33 +66,15 @@ export default function HowItWorksHub() {
 
         <SectionBlock title="What the converter does">
           <CardGrid>
-            <SimpleCard
-              title="Traces image regions into SVG"
-              body="Raster-to-SVG conversion usually traces visible regions into filled paths. Filled paths are normal for logos, silhouettes, scans, stickers, cut files, and many editable SVG workflows."
-            />
-            <SimpleCard
-              title="Adds optional centerline strokes"
-              body="New stroke/centerline presets retrace simple line drawings, sketches, handwriting, and diagrams into real SVG strokes. They are opt-in and do not replace the existing filled-path presets."
-            />
-            <SimpleCard
-              title="Lets slow work keep running"
-              body="Queued conversions can stay pending or running while you start another preset. A later fast output can finish first, and the slow card should update when its own job finishes."
-            />
-            <SimpleCard
-              title="Keeps recent output context"
-              body="Output history can keep recent cards visible after the active upload changes. Cards may show source context and source previews so older outputs are still understandable."
-            />
+            {copy.whatConverterDoes.map((card) => (
+              <SimpleCard key={card.title} title={card.title} body={card.body} />
+            ))}
           </CardGrid>
         </SectionBlock>
 
         <SectionBlock title="What it does not guarantee">
           <div className="grid gap-3 md:grid-cols-2">
-            {[
-              "It cannot promise perfect background removal from every image. Transparency depends on the source and selected preset.",
-              "It does not turn every black line into strokes by default. Existing presets remain filled-path based; use opt-in centerline stroke presets when real SVG strokes are the goal.",
-              "It cannot guarantee Cricut, cutter, material, or design-app behavior after download.",
-              "It cannot make very noisy photos lightweight without simplifying detail or reducing colors.",
-            ].map((item) => (
+            {copy.doesNotGuarantee.map((item) => (
               <div key={item} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
                 {item}
               </div>
@@ -104,21 +87,20 @@ export default function HowItWorksHub() {
           intro="Use a route and preset family that matches the output you want, then adjust settings only if the first result needs help."
         >
           <CardGrid>
-            <SimpleCard
-              title="Clean black-and-white cut file"
-              body="Start with lineart, black-and-white, scan, or Cricut cut presets. Favor fewer specks and simpler filled paths."
-              footer={<PillLink to="/png-to-svg-for-cricut">Cricut SVG routes</PillLink>}
-            />
-            <SimpleCard
-              title="Layered color SVG"
-              body="Use layered color presets when color separation matters. Expect larger SVGs and slower speed labels as layers increase."
-              footer={<PillLink to="/png-to-layered-svg-for-cricut">Layered SVG routes</PillLink>}
-            />
-            <SimpleCard
-              title="Logo or icon"
-              body="Use logo/icon presets for transparent artwork with clean edges. Preserve transparency when the source should not have a background."
-              footer={<PillLink to="/logo-to-svg-converter">Logo to SVG</PillLink>}
-            />
+            {copy.chooseByGoal.map((card) => (
+              <SimpleCard
+                key={card.title}
+                title={card.title}
+                body={card.body}
+                footer={
+                  card.footerLinks?.map((link) => (
+                    <PillLink key={link.to} to={link.to}>
+                      {link.label}
+                    </PillLink>
+                  ))
+                }
+              />
+            ))}
           </CardGrid>
         </SectionBlock>
 

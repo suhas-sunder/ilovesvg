@@ -9,6 +9,7 @@ import {
   SimpleCard,
 } from "~/client/components/docs/HowItWorksDocs";
 import { SITE_URL } from "~/client/lib/docs/howItWorksContent";
+import { EXPORTING_DOWNLOADS_COPY } from "~/content/docs/howItWorksRouteContent";
 
 const title = "Exporting and Downloading SVG Results | iLoveSVG";
 const description =
@@ -30,23 +31,21 @@ export function meta() {
 }
 
 export default function ExportingDocs() {
+  const copy = EXPORTING_DOWNLOADS_COPY;
   return (
     <DocsPageShell currentPath="/how-it-works/exporting-and-downloads">
       <DocsHero
-        eyebrow="Exporting and Downloads"
-        title="Save the SVG you actually reviewed"
-        description="Output cards show dimensions and SVG file size when available. Copy SVG, Download SVG, fullscreen preview, and batch conversion should use the same finalized visible SVG, including supported local output edits."
-        highlights={[
-          "Copy and download use the finalized visible SVG.",
-          "File size and dimensions help compare outputs.",
-          "Batch ZIP behavior is documented where available.",
-        ]}
+        eyebrow={copy.hero.eyebrow}
+        title={copy.hero.title}
+        description={copy.hero.description}
+        highlights={copy.hero.highlights}
         actions={
           <>
-            <PillLink to="/svg-to-png-converter">SVG to PNG</PillLink>
-            <PillLink to="/svg-to-jpg-converter">SVG to JPG</PillLink>
-            <PillLink to="/svg-to-webp-converter">SVG to WebP</PillLink>
-            <PillLink to="/svg-to-pdf-converter">SVG to PDF</PillLink>
+            {copy.hero.actions.map((action) => (
+              <PillLink key={action.to} to={action.to}>
+                {action.label}
+              </PillLink>
+            ))}
           </>
         }
       />
@@ -54,54 +53,31 @@ export default function ExportingDocs() {
       <DocsContent>
         <SectionBlock title="SVG output actions">
           <CardGrid>
-            <SimpleCard
-              title="Download SVG"
-              body="Downloads the current finalized SVG for that output card. Use this when the SVG is large or another app rejects pasted SVG text."
-            />
-            <SimpleCard
-              title="Copy SVG"
-              body="Copies the current finalized SVG markup. Some design apps paste SVG differently, so download can be more reliable for large files."
-            />
-            <SimpleCard
-              title="Fullscreen Preview"
-              body="Opens a larger view for inspecting transparency, path detail, dimensions, and local output edits before saving."
-            />
-            <SimpleCard
-              title="Batch ZIP"
-              body="Batch conversion downloads multiple results as a ZIP file where the route supports batch output. Individual failed items should not break unrelated completed outputs."
-            />
+            {copy.svgOutputActions.map((card) => (
+              <SimpleCard key={card.title} title={card.title} body={card.body} />
+            ))}
           </CardGrid>
         </SectionBlock>
 
         <SectionBlock title="Raster and document exports">
           <CardGrid>
-            <SimpleCard
-              title="PNG and WebP"
-              body="Use PNG or WebP export routes when you need a raster image. These routes render SVG to canvas with size, aspect, background, and quality controls where available."
-            />
-            <SimpleCard
-              title="JPG"
-              body="JPG export always uses a solid background because JPEG does not support transparency. Choose the background color before downloading."
-            />
-            <SimpleCard
-              title="PDF"
-              body="Use SVG to PDF for document and print handoff when a PDF is the required format instead of editable SVG markup."
-            />
+            {copy.rasterDocumentExports.map((card) => (
+              <SimpleCard key={card.title} title={card.title} body={card.body} />
+            ))}
           </CardGrid>
         </SectionBlock>
 
         <SectionBlock title="Why file size changes">
           <div className="space-y-3 text-sm leading-7 text-slate-700">
-            <p>
-              Detailed SVGs can be large because every path, color layer, tiny region, and local output edit must be represented as markup. More colors, more layers, lower cleanup, higher trace size, Fill spread, and very detailed presets can all increase file size.
-            </p>
-            <p>
-              If a design tool becomes slow, try a simpler preset, reduce layers, increase cleanup, resize the source before tracing, or use an SVG cleanup/minifier route after download.
-            </p>
+            {copy.fileSizeNotes.map((note) => (
+              <p key={note}>{note}</p>
+            ))}
             <div className="flex flex-wrap gap-3">
-              <PillLink to="/svg-minifier">SVG Minifier</PillLink>
-              <PillLink to="/svg-cleaner">SVG Cleaner</PillLink>
-              <PillLink to="/svg-file-size-inspector">SVG File Size Inspector</PillLink>
+              {copy.fileSizeLinks.map((link) => (
+                <PillLink key={link.to} to={link.to}>
+                  {link.label}
+                </PillLink>
+              ))}
             </div>
           </div>
         </SectionBlock>
