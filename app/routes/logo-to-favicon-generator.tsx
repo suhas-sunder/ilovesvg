@@ -1,10 +1,17 @@
 import type { Route } from "./+types/logo-to-favicon-generator";
 import { createFaviconExportMeta } from "~/data/routeMeta/faviconExport";
+import { createTemplateWrapperRoute } from "./_shared/createTemplateWrapperRoute";
 import Template from "./svg-to-favicon-generator";
 
+const route = createTemplateWrapperRoute({
+  path: "/logo-to-favicon-generator",
+  createMeta: createFaviconExportMeta,
+  Component: Template,
+});
+
 export function meta({}: Route.MetaArgs) {
-  return createFaviconExportMeta("/logo-to-favicon-generator");
+  return route.meta();
 }
 
 
-export default Template;
+export default route.Component;
