@@ -1130,6 +1130,7 @@ async function runUtilityLayoutConversion(client, route, fixtures) {
     const before = new Set(await listDownloads());
     await setFileInput(client, fixtures.svg);
     await waitForValue(client, () => textIncludesExpression(path.basename(fixtures.svg)), 8_000);
+    await waitForConvertButtonEnabled(client, 8_000);
     await clickConvertButton(client);
     const output = await waitForValue(
       client,
@@ -2886,6 +2887,30 @@ async function clickConvertButton(client) {
   })()`);
   if (!clicked) throw new Error("No enabled convert button found.");
   return clicked;
+}
+
+async function waitForConvertButtonEnabled(client, timeoutMs) {
+  return waitForValue(
+    client,
+    () => `(() => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const button = buttons.find((candidate) => {
+        const text = candidate.innerText || "";
+        const rect = candidate.getBoundingClientRect();
+        const visible =
+          rect.width > 0 &&
+          rect.height > 0 &&
+          getComputedStyle(candidate).visibility !== "hidden" &&
+          getComputedStyle(candidate).display !== "none";
+        return /Convert|Create/i.test(text) && !/batch|ZIP|Download/i.test(text) && visible;
+      });
+      return button
+        ? { found: true, disabled: Boolean(button.disabled), label: button.innerText.trim() }
+        : { found: false, disabled: true, label: null };
+    })()`,
+    timeoutMs,
+    (state) => state?.found === true && state.disabled === false,
+  );
 }
 
 async function waitForOutput(client, timeoutMs, expectedEngine = null) {

@@ -14,11 +14,16 @@ import { selectAffiliateWaterfallOffer } from "./affiliateWaterfallSelection";
 import {
   type AffiliateStorageLike,
   createEmptyAffiliateWaterfallState,
+  createEmptyAffiliateSuppressionState,
   getAffiliateWaterfallEntry,
+  getBrowserAffiliateSuppressionStorage,
   getBrowserAffiliateStorage,
   incrementAffiliateView,
+  isAffiliateSlotSuppressed,
   isAffiliateWaterfallEntryTimedOut,
+  markAffiliateSlotSuppressed,
   markAffiliateClicked,
+  readAffiliateSuppressionState,
   readAffiliateWaterfallState,
 } from "./affiliateWaterfallStorage";
 import { isAffiliateElementVisibleEnough } from "./affiliateVisibility";
@@ -43,11 +48,15 @@ export function useAffiliateWaterfall({
   const [isReady, setIsReady] = React.useState(false);
   const [isMobileLayout, setIsMobileLayout] = React.useState(false);
   const [state, setState] = React.useState(createEmptyAffiliateWaterfallState);
+  const [suppressionState, setSuppressionState] = React.useState(
+    createEmptyAffiliateSuppressionState,
+  );
   const [bannerElement, setBannerElement] = React.useState<HTMLElement | null>(
     null,
   );
 
   const storageRef = React.useRef<AffiliateStorageLike | null>(null);
+  const suppressionStorageRef = React.useRef<AffiliateStorageLike | null>(null);
   const countedThisSessionRef = React.useRef(new Set<string>());
   const viewDwellTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -79,11 +88,21 @@ export function useAffiliateWaterfall({
     [slotId, validOfferIds, validOffers],
   );
 
+  const readCurrentSuppressionState = React.useCallback(
+    () =>
+      readAffiliateSuppressionState(suppressionStorageRef.current, {
+        validSlotIds: [slotId],
+      }),
+    [slotId],
+  );
+
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
     storageRef.current = getBrowserAffiliateStorage();
+    suppressionStorageRef.current = getBrowserAffiliateSuppressionStorage();
     setState(readCurrentState());
+    setSuppressionState(readCurrentSuppressionState());
 
     const updateMobileLayout = () => {
       setIsMobileLayout(window.innerWidth < mobileBreakpointPx);
@@ -101,7 +120,13 @@ export function useAffiliateWaterfall({
       media.removeEventListener?.("change", onChange);
       window.removeEventListener("resize", onChange);
     };
-  }, [mobileBreakpointPx, readCurrentState, routeContext, slotId]);
+  }, [
+    mobileBreakpointPx,
+    readCurrentState,
+    readCurrentSuppressionState,
+    routeContext,
+    slotId,
+  ]);
 
   const relevantOffers = React.useMemo(
     () =>
@@ -113,20 +138,34 @@ export function useAffiliateWaterfall({
     [activeOffers, routeCategories],
   );
 
-  const shouldSuppressAffiliate =
+  const isSessionSuppressed =
+    isReady &&
+    isAffiliateSlotSuppressed(suppressionState, {
+      slotId,
+    });
+  const shouldSuppressForAdjacentAd =
     isReady &&
     shouldSuppressAdsenseFallbackForViewport({
       viewportWidth: isMobileLayout ? mobileBreakpointPx - 1 : mobileBreakpointPx,
       suppressAffiliateOnMobileWhenAdjacentAdExists,
       breakpointPx: mobileBreakpointPx,
     });
-  const shouldSuppressAdsenseFallback = shouldSuppressAffiliate;
+  const shouldSuppressAffiliate =
+    isSessionSuppressed || shouldSuppressForAdjacentAd;
+  const shouldSuppressAdsenseFallback = shouldSuppressForAdjacentAd;
 
   const selection = React.useMemo(() => {
-    if (!isReady || shouldSuppressAffiliate) {
+    if (!isReady || shouldSuppressForAdjacentAd) {
       return {
         selectedOffer: null,
         shouldShowAdsense: false,
+      };
+    }
+
+    if (isSessionSuppressed) {
+      return {
+        selectedOffer: null,
+        shouldShowAdsense: true,
       };
     }
 
@@ -142,7 +181,8 @@ export function useAffiliateWaterfall({
     routeContext,
     slotId,
     state,
-    shouldSuppressAffiliate,
+    isSessionSuppressed,
+    shouldSuppressForAdjacentAd,
   ]);
 
   const selectedEntry = selection.selectedOffer
@@ -162,6 +202,25 @@ export function useAffiliateWaterfall({
   const refreshState = React.useCallback(() => {
     setState(readCurrentState());
   }, [readCurrentState]);
+
+  const refreshSuppressionState = React.useCallback(() => {
+    setSuppressionState(readCurrentSuppressionState());
+  }, [readCurrentSuppressionState]);
+
+  const suppressAffiliateSlot = React.useCallback(
+    (reason: "clicked" | "exhausted" | "view-cap") => {
+      if (!isReady) return null;
+      const entry = markAffiliateSlotSuppressed(suppressionStorageRef.current, {
+        slotId,
+        routeContext,
+        reason,
+        validSlotIds: [slotId],
+      });
+      refreshSuppressionState();
+      return entry;
+    },
+    [isReady, refreshSuppressionState, routeContext, slotId],
+  );
 
   const trackAffiliateClick = React.useCallback(
     (offerId?: string) => {
@@ -183,6 +242,7 @@ export function useAffiliateWaterfall({
         validOffers,
         validProviderIds: ACTIVE_AFFILIATE_PROVIDER_IDS,
       });
+      suppressAffiliateSlot("clicked");
       refreshState();
     },
     [
@@ -192,11 +252,28 @@ export function useAffiliateWaterfall({
       shouldSuppressAffiliate,
       selection.selectedOffer?.id,
       selection.selectedOffer?.providerId,
+      suppressAffiliateSlot,
       slotId,
       validOfferIds,
       validOffers,
     ],
   );
+
+  React.useEffect(() => {
+    if (!isReady) return;
+    if (shouldSuppressForAdjacentAd || isSessionSuppressed) return;
+    if (!relevantOffers.length) return;
+    if (selection.selectedOffer || !selection.shouldShowAdsense) return;
+    suppressAffiliateSlot("exhausted");
+  }, [
+    isReady,
+    isSessionSuppressed,
+    relevantOffers.length,
+    selection.selectedOffer,
+    selection.shouldShowAdsense,
+    shouldSuppressForAdjacentAd,
+    suppressAffiliateSlot,
+  ]);
 
   React.useEffect(() => {
     const clearDwellTimer = () => {
@@ -241,7 +318,7 @@ export function useAffiliateWaterfall({
           if (!isAffiliateElementVisibleEnough(bannerElement, 0.7)) return;
 
           countedThisSessionRef.current.add(sessionKey);
-          incrementAffiliateView(storageRef.current, {
+          const nextEntry = incrementAffiliateView(storageRef.current, {
             providerId: selectedOffer.providerId,
             offerId: selectedOffer.id,
             slotId,
@@ -250,6 +327,9 @@ export function useAffiliateWaterfall({
             validOffers,
             validProviderIds: ACTIVE_AFFILIATE_PROVIDER_IDS,
           });
+          if (nextEntry?.timedOut) {
+            suppressAffiliateSlot("view-cap");
+          }
           refreshState();
           observer.disconnect();
         }, 1000);
@@ -271,6 +351,7 @@ export function useAffiliateWaterfall({
     selectedOfferTimedOut,
     selection.selectedOffer,
     shouldSuppressAffiliate,
+    suppressAffiliateSlot,
     slotId,
     validOfferIds,
     validOffers,

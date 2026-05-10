@@ -1,7 +1,10 @@
 export const AFFILIATE_WATERFALL_STORAGE_KEY =
   "ilovesvg:affiliate-waterfall:v1";
+export const AFFILIATE_SUPPRESSION_STORAGE_KEY =
+  "ilovesvg:affiliate-suppression:v1";
 
 export const AFFILIATE_WATERFALL_SCHEMA_VERSION = 1;
+export const AFFILIATE_SUPPRESSION_SCHEMA_VERSION = 1;
 export const AFFILIATE_TIMEOUT_VIEW_COUNT = 5;
 
 export type AffiliateStorageLike = Pick<Storage, "getItem" | "setItem">;
@@ -21,6 +24,24 @@ export type AffiliateWaterfallEntry = {
 export type AffiliateWaterfallState = {
   version: 1;
   entries: AffiliateWaterfallEntry[];
+};
+
+export type AffiliateSuppressionReason =
+  | "affiliate-unavailable"
+  | "clicked"
+  | "exhausted"
+  | "view-cap";
+
+export type AffiliateSuppressionEntry = {
+  slotId: string;
+  reason: AffiliateSuppressionReason;
+  routeContext?: string;
+  suppressedAt: number;
+};
+
+export type AffiliateSuppressionState = {
+  version: 1;
+  entries: AffiliateSuppressionEntry[];
 };
 
 type EntryKeyParts = {
@@ -45,6 +66,13 @@ type AffiliateWaterfallValidationOptions = {
 export function createEmptyAffiliateWaterfallState(): AffiliateWaterfallState {
   return {
     version: AFFILIATE_WATERFALL_SCHEMA_VERSION,
+    entries: [],
+  };
+}
+
+export function createEmptyAffiliateSuppressionState(): AffiliateSuppressionState {
+  return {
+    version: AFFILIATE_SUPPRESSION_SCHEMA_VERSION,
     entries: [],
   };
 }
@@ -100,6 +128,32 @@ function normalizeEntry(value: unknown): AffiliateWaterfallEntry | null {
     timedOut,
     lastViewedAt: cleanTimestamp(value.lastViewedAt),
     lastClickedAt: cleanTimestamp(value.lastClickedAt),
+  };
+}
+
+function normalizeSuppressionEntry(value: unknown): AffiliateSuppressionEntry | null {
+  if (!isPlainObject(value)) return null;
+
+  const slotId = cleanString(value.slotId);
+  const routeContext = cleanString(value.routeContext) || undefined;
+  const suppressedAt = cleanTimestamp(value.suppressedAt) ?? 0;
+  if (!slotId || suppressedAt <= 0) return null;
+
+  const reason = cleanString(value.reason) as AffiliateSuppressionReason;
+  if (
+    reason !== "affiliate-unavailable" &&
+    reason !== "clicked" &&
+    reason !== "exhausted" &&
+    reason !== "view-cap"
+  ) {
+    return null;
+  }
+
+  return {
+    slotId,
+    reason,
+    routeContext,
+    suppressedAt,
   };
 }
 
@@ -164,6 +218,35 @@ export function sanitizeAffiliateWaterfallState(
   };
 }
 
+export function sanitizeAffiliateSuppressionState(
+  value: unknown,
+  options: Pick<AffiliateWaterfallValidationOptions, "validSlotIds"> = {},
+): AffiliateSuppressionState {
+  if (!isPlainObject(value)) return createEmptyAffiliateSuppressionState();
+  if (value.version !== AFFILIATE_SUPPRESSION_SCHEMA_VERSION) {
+    return createEmptyAffiliateSuppressionState();
+  }
+  if (!Array.isArray(value.entries)) return createEmptyAffiliateSuppressionState();
+
+  const validSlotIds = options.validSlotIds ? new Set(options.validSlotIds) : null;
+  const entriesBySlot = new Map<string, AffiliateSuppressionEntry>();
+
+  for (const rawEntry of value.entries) {
+    const normalizedEntry = normalizeSuppressionEntry(rawEntry);
+    if (!normalizedEntry) continue;
+    if (validSlotIds && !validSlotIds.has(normalizedEntry.slotId)) continue;
+    const existing = entriesBySlot.get(normalizedEntry.slotId);
+    if (!existing || normalizedEntry.suppressedAt >= existing.suppressedAt) {
+      entriesBySlot.set(normalizedEntry.slotId, normalizedEntry);
+    }
+  }
+
+  return {
+    version: AFFILIATE_SUPPRESSION_SCHEMA_VERSION,
+    entries: [...entriesBySlot.values()],
+  };
+}
+
 export function readAffiliateWaterfallState(
   storageLike: AffiliateStorageLike | null | undefined,
   options: AffiliateWaterfallValidationOptions = {},
@@ -179,6 +262,21 @@ export function readAffiliateWaterfallState(
   }
 }
 
+export function readAffiliateSuppressionState(
+  storageLike: AffiliateStorageLike | null | undefined,
+  options: Pick<AffiliateWaterfallValidationOptions, "validSlotIds"> = {},
+): AffiliateSuppressionState {
+  if (!storageLike) return createEmptyAffiliateSuppressionState();
+
+  try {
+    const raw = storageLike.getItem(AFFILIATE_SUPPRESSION_STORAGE_KEY);
+    if (!raw) return createEmptyAffiliateSuppressionState();
+    return sanitizeAffiliateSuppressionState(JSON.parse(raw), options);
+  } catch {
+    return createEmptyAffiliateSuppressionState();
+  }
+}
+
 function writeAffiliateWaterfallState(
   storageLike: AffiliateStorageLike | null | undefined,
   state: AffiliateWaterfallState,
@@ -187,6 +285,20 @@ function writeAffiliateWaterfallState(
 
   try {
     storageLike.setItem(AFFILIATE_WATERFALL_STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeAffiliateSuppressionState(
+  storageLike: AffiliateStorageLike | null | undefined,
+  state: AffiliateSuppressionState,
+) {
+  if (!storageLike) return false;
+
+  try {
+    storageLike.setItem(AFFILIATE_SUPPRESSION_STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch {
     return false;
@@ -291,6 +403,13 @@ export function isAffiliateWaterfallEntryTimedOut(
   );
 }
 
+export function isAffiliateSlotSuppressed(
+  state: AffiliateSuppressionState,
+  input: { slotId: string },
+) {
+  return state.entries.some((entry) => entry.slotId === input.slotId);
+}
+
 export function incrementAffiliateView(
   storageLike: AffiliateStorageLike | null | undefined,
   input: EntryKeyParts & AffiliateWaterfallValidationOptions & { now?: number },
@@ -313,6 +432,42 @@ export function incrementAffiliateView(
   };
 
   writeAffiliateWaterfallState(storageLike, upsertEntry(state, nextEntry));
+  return nextEntry;
+}
+
+export function markAffiliateSlotSuppressed(
+  storageLike: AffiliateStorageLike | null | undefined,
+  input: {
+    slotId: string;
+    reason: AffiliateSuppressionReason;
+    routeContext?: string;
+    now?: number;
+  } & Pick<AffiliateWaterfallValidationOptions, "validSlotIds">,
+) {
+  if (!storageLike) return null;
+  const slotId = cleanString(input.slotId);
+  if (!slotId) return null;
+
+  const validSlotIds = input.validSlotIds ? new Set(input.validSlotIds) : null;
+  if (validSlotIds && !validSlotIds.has(slotId)) return null;
+
+  const state = readAffiliateSuppressionState(storageLike, {
+    validSlotIds: input.validSlotIds,
+  });
+  const nextEntry: AffiliateSuppressionEntry = {
+    slotId,
+    reason: input.reason,
+    routeContext: cleanString(input.routeContext) || undefined,
+    suppressedAt: input.now ?? Date.now(),
+  };
+  const entries = state.entries.filter((entry) => entry.slotId !== slotId);
+  entries.push(nextEntry);
+
+  writeAffiliateSuppressionState(storageLike, {
+    version: AFFILIATE_SUPPRESSION_SCHEMA_VERSION,
+    entries,
+  });
+
   return nextEntry;
 }
 
@@ -353,3 +508,19 @@ export function getBrowserAffiliateStorage(): AffiliateStorageLike | null {
     return null;
   }
 }
+
+export function getBrowserAffiliateSuppressionStorage(): AffiliateStorageLike | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const storage = window.sessionStorage;
+    const probeKey = `${AFFILIATE_SUPPRESSION_STORAGE_KEY}:probe`;
+    storage.setItem(probeKey, "1");
+    storage.removeItem(probeKey);
+    return storage;
+  } catch {
+    return null;
+  }
+}
+
+export const cleanAffiliateSuppressionState = sanitizeAffiliateSuppressionState;
