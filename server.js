@@ -6,8 +6,29 @@ import morgan from "morgan";
 const BUILD_PATH = "./build/server/index.js";
 const DEVELOPMENT = process.env.NODE_ENV === "development";
 const PORT = Number.parseInt(process.env.PORT || "3000");
+const ACCESS_LOGS_ENABLED = process.env.ILOVESVG_ACCESS_LOGS === "1";
+const MAX_LOGGED_PATH_LENGTH = 180;
 
 const app = express();
+
+morgan.token("safe-path", (req) => sanitizeLoggedPath(getRawRequestUrl(req)));
+
+const accessLogger = morgan(":method :safe-path :status :response-time ms", {
+  skip(req, res) {
+    if (res.statusCode >= 500) return false;
+    if (shouldSuppressAccessLog(req)) return true;
+    return !DEVELOPMENT && !ACCESS_LOGS_ENABLED;
+  },
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[server] uncaughtException", sanitizeErrorForLog(error));
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (error) => {
+  console.error("[server] unhandledRejection", sanitizeErrorForLog(error));
+});
 
 app.use(compression());
 app.disable("x-powered-by");
@@ -45,6 +66,73 @@ function hasMatchingOrigin(value, expectedOrigin) {
   } catch {
     return false;
   }
+}
+
+/**
+ * @param {import("http").IncomingMessage & { originalUrl?: string }} req
+ */
+function getRawRequestUrl(req) {
+  return req.originalUrl || req.url || "/";
+}
+
+/**
+ * @param {string} rawUrl
+ */
+function sanitizeLoggedPath(rawUrl) {
+  try {
+    const pathname = new URL(rawUrl, "http://localhost").pathname || "/";
+    return truncateLoggedPath(pathname);
+  } catch {
+    return "/[invalid-url]";
+  }
+}
+
+/**
+ * @param {string} pathname
+ */
+function truncateLoggedPath(pathname) {
+  const cleanPath = String(pathname || "/").replace(/[\r\n\t]+/g, " ");
+  if (cleanPath.length <= MAX_LOGGED_PATH_LENGTH) return cleanPath;
+  return `${cleanPath.slice(0, MAX_LOGGED_PATH_LENGTH)}...`;
+}
+
+/**
+ * @param {import("http").IncomingMessage & { originalUrl?: string }} req
+ */
+function shouldSuppressAccessLog(req) {
+  const method = String(req.method || "").toUpperCase();
+  if (method === "HEAD") return true;
+
+  const pathname = sanitizeLoggedPath(getRawRequestUrl(req));
+  return (
+    pathname.startsWith("/assets/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/ads.txt"
+  );
+}
+
+/**
+ * @param {unknown} error
+ */
+function sanitizeErrorForLog(error) {
+  const source =
+    error instanceof Error
+      ? `${error.name || "Error"}: ${error.message || "Unexpected error"}`
+      : String(error || "Unknown error");
+
+  return source
+    .replace(/data:[^\s)]+/gi, "[data-url]")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, "[svg]")
+    .replace(/[^\s"'<>\\/]+\.(?:png|jpe?g|webp|gif|bmp|tiff?|svg|avif|ico|pdf)\b/gi, "[file]")
+    .replace(/[A-Z]:\\[^\s)]+/g, "[path]")
+    .replace(/\/(?:[^/\s)]+\/){2,}[^\s)]+/g, "[path]")
+    .replace(/[A-Za-z0-9+/_=-]{200,}/g, "[long-token]")
+    .replace(/[?#][^\s)]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
 }
 
 app.use((req, res, next) => {
@@ -97,11 +185,11 @@ if (DEVELOPMENT) {
   });
 } else {
   console.log("Starting production server");
+  app.use(accessLogger);
   app.use(
     "/assets",
     express.static("build/client/assets", { immutable: true, maxAge: "1y" }),
   );
-  app.use(morgan("tiny"));
   app.use(express.static("build/client", { maxAge: "1h" }));
   const reactRouterApp = await import(BUILD_PATH).then((mod) => mod.app);
   if (typeof reactRouterApp?.disable === "function") {
