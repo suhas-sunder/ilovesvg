@@ -20,7 +20,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -1721,7 +1721,53 @@ function prettyBytes(bytes: number) {
 }
 
 /* ===== SEO sections (logo-specific copy) ===== */
+const logoMarketplaceSeoCopyByPath: Record<
+  string,
+  {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    cards: Array<{ title: string; body: string }>;
+  }
+> = {
+  "/logo-to-svg-for-etsy": {
+    eyebrow: "Etsy logo to SVG",
+    heading: "Prepare Etsy logo SVGs for shop branding and listings",
+    intro:
+      "Use this version when a shop logo, watermark, badge, or simple brand mark needs to become an SVG starting point for Etsy listing graphics, digital downloads, packaging files, or seller asset review. Clean source artwork works best, and every SVG should be inspected before publishing or selling.",
+    cards: [
+      {
+        title: "Shop branding",
+        body: "Convert a high-contrast logo or brand mark into scalable SVG paths you can review for Etsy shop branding, listing images, watermarks, or digital product files.",
+      },
+      {
+        title: "Seller review",
+        body: "Open the exported SVG in design software before publishing. Check small text, counters, isolated dots, and scale so the logo behaves like a useful seller asset.",
+      },
+    ],
+  },
+  "/logo-to-svg-for-shopify": {
+    eyebrow: "Shopify logo to SVG",
+    heading: "Prepare Shopify logo SVGs for storefront theme assets",
+    intro:
+      "Use this version for Shopify logos, icons, badges, trust marks, and simple brand graphics that need a scalable SVG starting point. Transparent sources and high-contrast marks usually trace best, and the exported SVG should be reviewed before placing it in a theme or storefront workflow.",
+    cards: [
+      {
+        title: "Storefront branding",
+        body: "Convert clean logo artwork into SVG paths for Shopify storefront graphics, theme assets, icons, badges, and brand marks that need to scale without soft raster edges.",
+      },
+      {
+        title: "Theme review",
+        body: "Inspect the exported SVG before publishing. Check transparency, path complexity, small lettering, and whether the mark still reads clearly at header, footer, or badge sizes.",
+      },
+    ],
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const marketplaceCopy = logoMarketplaceSeoCopyByPath[pathname];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -1889,6 +1935,35 @@ function SeoSections() {
               ))}
             </div>
           </section>
+
+          {marketplaceCopy ? (
+            <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                {marketplaceCopy.eyebrow}
+              </p>
+              <h3 className="mt-2 text-lg font-bold text-slate-900">
+                {marketplaceCopy.heading}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {marketplaceCopy.intro}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {marketplaceCopy.cards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold text-slate-900">
+                      {card.title}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      {card.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* FAQ unchanged */}
           <CurrentRouteGuide />

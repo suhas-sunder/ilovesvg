@@ -27,14 +27,14 @@ const MARKETPLACE_EXPORT_ROUTE_META = {
     label: "SVG To PNG For Printify",
     title: "SVG to PNG for Printify | iLoveSVG",
     description:
-      "Export transparent PNG product artwork from SVG for Printify mockups, product previews, and seller workflows.",
+      "Export SVG artwork as transparent PNG for Printify product artwork, mockups, previews, and print-on-demand upload prep.",
     canonicalPath: "/svg-to-png-for-printify",
   },
   "/svg-to-png-for-printful": {
     label: "SVG To PNG For Printful",
     title: "SVG to PNG for Printful | iLoveSVG",
     description:
-      "Export SVG artwork to PNG for Printful-style product mockups, print previews, and seller asset preparation.",
+      "Export SVG artwork as transparent PNG for Printful product artwork, mockups, previews, and print-on-demand upload prep.",
     canonicalPath: "/svg-to-png-for-printful",
   },
   "/sticker-to-png-for-printing": {

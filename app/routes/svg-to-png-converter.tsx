@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-png-converter";
+import { useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -996,7 +997,53 @@ function JsonLdBreadcrumbs() {
 /* ========================
    SEO sections (RESTORED: original full version)
 ======================== */
+const svgToPngPlatformSeoCopyByPath: Record<
+  string,
+  {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    cards: Array<{ title: string; body: string }>;
+  }
+> = {
+  "/svg-to-png-for-printify": {
+    eyebrow: "Printify PNG export",
+    heading: "Prepare Printify print-on-demand PNG artwork",
+    intro:
+      "Use this version when an SVG logo, illustration, or product design needs a transparent PNG for Printify product artwork, mockups, or preview files. This tool exports the PNG; it does not validate platform upload rules, so check dimensions, background, and product placement before uploading.",
+    cards: [
+      {
+        title: "Transparent product artwork",
+        body: "Keep transparency when the design needs to sit on different product colors or mockup backgrounds. Use a solid background only when the artwork intentionally needs one.",
+      },
+      {
+        title: "Review size before upload",
+        body: "Set the pixel size and quality ratio deliberately, then inspect the PNG for soft edges, unexpected backgrounds, or cropped artwork before using it in a Printify workflow.",
+      },
+    ],
+  },
+  "/svg-to-png-for-printful": {
+    eyebrow: "Printful PNG export",
+    heading: "Prepare Printful print-on-demand PNG artwork",
+    intro:
+      "Use this version when an SVG design needs a transparent PNG for Printful product artwork, mockups, or print preview files. Export here, then review the final pixel dimensions, transparency, and placement before using the PNG in a product workflow.",
+    cards: [
+      {
+        title: "Product art prep",
+        body: "SVG artwork can scale cleanly before export, but the final PNG is raster. Choose dimensions and quality settings that fit the product-art use case you plan to review.",
+      },
+      {
+        title: "Transparent PNG handoff",
+        body: "Transparent backgrounds are useful for apparel, sticker, and product mockup workflows. Add a solid background only when the artwork should include that rectangle.",
+      },
+    ],
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const platformCopy = svgToPngPlatformSeoCopyByPath[pathname];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
@@ -1063,6 +1110,34 @@ function SeoSections() {
               maxHeight={300}
             />
           </div>
+          {platformCopy ? (
+            <section className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {platformCopy.eyebrow}
+              </p>
+              <h3 className="mt-2 text-lg font-extrabold tracking-tight text-sky-950">
+                {platformCopy.heading}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {platformCopy.intro}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {platformCopy.cards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold text-slate-900">
+                      {card.title}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      {card.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
           <section>
             <h3 className="m-0 font-bold">What the converter does</h3>
             <div className="mt-3 grid gap-4 text-slate-700">

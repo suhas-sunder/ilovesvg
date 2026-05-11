@@ -3747,7 +3747,7 @@ const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
     eyebrow: "Image to SVG for Etsy",
     heading: "Prepare SVG artwork for Etsy seller workflows",
     intro: [
-      "Use this page when you are starting with PNG screenshots, JPG artwork, WEBP downloads, scanned drawings, bitmap logos, phone photos, or existing SVGs that need cleanup for digital products, listing assets, sticker designs, or product graphics.",
+      "Use this page when you are starting with PNG screenshots, JPG artwork, WEBP downloads, scanned drawings, bitmap logos, phone photos, or existing SVGs that need cleanup for Etsy digital products, listing assets, sticker designs, or product graphics. It is broad seller prep, not a machine-specific cut-file workflow.",
       sharedImageIntro,
     ],
     stats: [

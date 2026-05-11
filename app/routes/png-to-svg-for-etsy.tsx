@@ -2171,7 +2171,7 @@ const pngToSvgSeoCopyByPath: Record<string, PngToSvgSeoCopy> = {
   },
   "/png-to-svg-for-shopify": {
     eyebrow: "PNG/JPEG to SVG for Shopify store assets",
-    heading: "Convert PNG logos and brand graphics into Shopify-ready SVG assets",
+    heading: "Convert PNG logos and brand graphics into Shopify SVG assets",
     intro: [
       "Convert PNG or JPEG logos, icons, badges, and simple brand graphics into clean SVG paths for Shopify storefront and design workflows. The converter keeps the same live preview and tracing controls, but this guidance is focused on scalable store assets.",
       "Upload a transparent PNG or simple brand graphic, choose a preset that matches the artwork, adjust the trace, then download or copy the SVG. For best results, start with high-contrast logos, icons, text marks, badges, or clean transparent PNGs.",

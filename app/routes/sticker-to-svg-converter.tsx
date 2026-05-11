@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -1953,7 +1953,37 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
+const stickerMarketplaceSeoCopyByPath: Record<
+  string,
+  {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    cards: Array<{ title: string; body: string }>;
+  }
+> = {
+  "/sticker-to-svg-for-etsy": {
+    eyebrow: "Sticker SVG for Etsy",
+    heading: "Prepare sticker SVG files for Etsy seller listings",
+    intro:
+      "Use this version for sticker artwork that needs an SVG starting point for Etsy listing assets, digital sticker products, transparent decal previews, or craft files. Keep the workflow seller-focused: inspect the result, clean up rough paths, and review before publishing or packaging it for buyers.",
+    cards: [
+      {
+        title: "Sticker product assets",
+        body: "Transparent PNG sticker art, labels, decals, and badge-style designs usually trace better than soft photos. Use the output as a reviewable SVG, not an automatically sell-ready product.",
+      },
+      {
+        title: "Seller review before publishing",
+        body: "Open the SVG in design software before listing it. Check cuttable outlines, small holes, stray specks, transparent edges, and whether the file is easy for a buyer or workflow to use.",
+      },
+    ],
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const marketplaceCopy = stickerMarketplaceSeoCopyByPath[pathname];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -2242,6 +2272,33 @@ function SeoSections() {
               ))}
             </div>
           </section>
+
+          {marketplaceCopy ? (
+            <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                {marketplaceCopy.eyebrow}
+              </p>
+              <h3 className="mt-2 text-lg font-bold">
+                {marketplaceCopy.heading}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {marketplaceCopy.intro}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {marketplaceCopy.cards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold">{card.title}</div>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {card.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* FAQ (UI only; JSON-LD is emitted above) */}
           <CurrentRouteGuide />

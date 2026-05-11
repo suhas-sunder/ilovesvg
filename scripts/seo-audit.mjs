@@ -134,16 +134,51 @@ const selectedRoutes = [
   {
     path: "/image-to-svg-for-etsy",
     label: "image-to-svg-for-etsy",
-    bodyTerms: ["etsy", "svg"],
+    bodyTerms: ["etsy", "seller", "listing", "review before publishing"],
     headingTerms: ["etsy"],
+    forbiddenHeadingTerms: ["cricut", "glowforge", "silhouette", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/logo-to-svg-for-etsy",
+    label: "logo-to-svg-for-etsy",
+    bodyTerms: ["etsy", "seller", "listing", "shop branding"],
+    headingTerms: ["etsy", "logo"],
+    forbiddenHeadingTerms: ["cricut", "glowforge", "silhouette", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/sticker-to-svg-for-etsy",
+    label: "sticker-to-svg-for-etsy",
+    bodyTerms: ["etsy", "seller", "sticker", "review before publishing"],
+    headingTerms: ["etsy", "sticker"],
     forbiddenHeadingTerms: ["cricut", "glowforge", "silhouette", "shopify", "printify", "printful"],
   },
   {
     path: "/png-to-svg-for-shopify",
     label: "png-to-svg-for-shopify",
-    bodyTerms: ["shopify", "svg"],
+    bodyTerms: ["shopify", "storefront", "theme", "transparent png"],
     headingTerms: ["shopify"],
     forbiddenHeadingTerms: ["etsy", "cricut", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
+    path: "/logo-to-svg-for-shopify",
+    label: "logo-to-svg-for-shopify",
+    bodyTerms: ["shopify", "storefront", "theme", "logo", "icon"],
+    headingTerms: ["shopify", "logo"],
+    forbiddenHeadingTerms: ["etsy", "cricut", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
+    path: "/svg-to-png-for-printify",
+    label: "svg-to-png-for-printify",
+    bodyTerms: ["printify", "print-on-demand", "transparent png", "product artwork"],
+    headingTerms: ["printify", "print-on-demand"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "cricut", "glowforge", "silhouette", "printful"],
+  },
+  {
+    path: "/svg-to-png-for-printful",
+    label: "svg-to-png-for-printful",
+    bodyTerms: ["printful", "print-on-demand", "transparent png", "product artwork"],
+    headingTerms: ["printful", "print-on-demand"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "cricut", "glowforge", "silhouette", "printify"],
   },
 ];
 
