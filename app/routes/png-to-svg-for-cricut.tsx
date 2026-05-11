@@ -65,7 +65,7 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Cricut - Cut File Converter | iLoveSVG";
   const description =
-    "Convert PNG artwork into SVG files for Cricut Design Space, vinyl decals, stickers, labels, stencils, and maker projects with cut-friendly presets.";
+    "Convert PNG or JPG artwork into single-color SVG cut-file starting points for Cricut Design Space with cleanup presets and review-before-cut guidance.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-cricut";
 
   return [
@@ -1551,7 +1551,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 PNG to SVG for Cricut
               </h1>
               <p className="mb-3 text-sm text-slate-600 text-center">
-                Create a single-color cut-ready SVG from PNG or JPG artwork.
+                Create a single-color cut-friendly SVG from PNG or JPG artwork.
                 Best for vinyl, HTV, decals, labels, silhouettes, stencils, and
                 simple craft graphics.
               </p>
@@ -2061,8 +2061,8 @@ function SeoSections() {
               </strong>{" "}
               This converter is best for single-color cut SVGs. For full-color
               sticker artwork, layered vinyl designs, or Print Then Cut
-              outlines, use dedicated Cricut tools when those routes are
-              available.
+              outlines, use the Cricut sticker, layered SVG, or Print Then Cut
+              workflow that matches your source art.
             </div>
           </section>
 

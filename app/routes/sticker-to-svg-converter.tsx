@@ -70,7 +70,7 @@ const ROUTE_LABEL = "Sticker to SVG Converter";
 export function meta({}: Route.MetaArgs) {
   const title = "Sticker to SVG Converter - Clean Sticker Vectors | iLoveSVG";
   const description =
-    "Convert sticker PNG or JPG artwork into SVG vectors for decals, labels, printable stickers, and cut-style graphics with cleanup presets and preview.";
+    "Convert sticker PNG or JPG artwork into clean SVG vectors for transparent decals, labels, printable stickers, and cuttable graphics with preview.";
   const canonical = "https://www.ilovesvg.com/sticker-to-svg-converter";
 
   return [
@@ -973,7 +973,7 @@ function autoModeDetail(mode: AutoMode): string {
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   {
     q: "What is a sticker-to-SVG converter?",
-    a: "It turns a sticker image (PNG or JPEG) into a scalable SVG vector. SVG stays crisp at any size and is easy to recolor.",
+    a: "It turns a sticker image (PNG or JPEG) into a scalable SVG vector that can be used as a starting point for printable or cuttable sticker graphics.",
   },
   {
     q: "What works best for sticker designs?",
@@ -1965,14 +1965,14 @@ function SeoSections() {
                 Sticker image to SVG vectorizer
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                Sticker to SVG converter for clean, cut-friendly vectors
+                Sticker to SVG converter for clean, cuttable vectors
               </h2>
               <p className="text-slate-600">
                 Turn sticker art into crisp SVG paths using Potrace. This page
                 is tuned for sticker-style graphics like bold outlines, flat
-                colors, and logo-like shapes. Live preview stays fast with
-                device-side compression when possible and a server concurrency
-                gate to keep the droplet stable.
+                colors, transparent PNG artwork, and logo-like shapes. It is
+                not Cricut-only; use it for broad sticker prep, decal artwork,
+                labels, and simple graphics that need editable SVG paths.
               </p>
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
@@ -1984,7 +1984,7 @@ function SeoSections() {
                     k: "Transparent-friendly",
                     v: "Keep alpha or add background",
                   },
-                  { k: "Fast preview", v: "≤10 MB live updates" },
+                  { k: "Fast preview", v: "Live updates for smaller files" },
                   { k: "In-memory", v: "No accounts, no saved uploads" },
                 ].map((x) => (
                   <div
@@ -2023,8 +2023,8 @@ function SeoSections() {
                 "Badge designs",
                 "Decals",
                 "Simple icons",
-                "Print-ready vectors",
-                "Cricut-style imports",
+                "Cuttable graphics",
+                "Design-app imports",
               ].map((t) => (
                 <span
                   key={t}
@@ -2041,7 +2041,7 @@ function SeoSections() {
                 <p className="mt-1 text-sm text-slate-600">
                   Start with “Sticker - Clean cut”. Increase curve tolerance a
                   little for smoother edges. Raise turd size if you see tiny
-                  specks.
+                  specks before exporting for decals, labels, or cuttable art.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
@@ -2088,7 +2088,7 @@ function SeoSections() {
                 },
                 {
                   title: "Download or copy SVG",
-                  body: "Export an SVG you can edit, recolor, and scale for print or web.",
+                  body: "Export an SVG you can edit, recolor, and scale for print, web, decals, or cutter workflows.",
                 },
               ].map((s, i) => (
                 <li

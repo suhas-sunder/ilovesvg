@@ -83,6 +83,41 @@ const selectedRoutes = [
     bodyTerms: ["favicon.ico", "logo"],
   },
   {
+    path: "/png-to-svg-for-cricut",
+    label: "png-to-svg-for-cricut",
+    bodyTerms: ["cricut", "design space", "single-color", "inspect"],
+    headingTerms: ["cricut"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
+    path: "/png-to-svg-for-cricut-print-then-cut",
+    label: "png-to-svg-for-cricut-print-then-cut",
+    bodyTerms: ["print then cut", "transparent png", "cut outline", "cut preview"],
+    headingTerms: ["print then cut"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
+    path: "/png-to-svg-for-cricut-stickers",
+    label: "png-to-svg-for-cricut-stickers",
+    bodyTerms: ["sticker", "transparent png", "cut outline", "sticker sheets"],
+    headingTerms: ["sticker"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
+    path: "/sticker-to-svg-converter",
+    label: "sticker-to-svg-converter",
+    bodyTerms: ["sticker", "transparent png", "cuttable", "not cricut-only"],
+    headingTerms: ["sticker"],
+    forbiddenHeadingTerms: ["cricut", "etsy", "shopify", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
+    path: "/sticker-to-svg-for-cricut",
+    label: "sticker-to-svg-for-cricut",
+    bodyTerms: ["cricut design space", "sticker image", "print then cut", "review before cutting"],
+    headingTerms: ["cricut", "sticker"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "glowforge", "silhouette", "printify", "printful"],
+  },
+  {
     path: "/image-to-svg-for-silhouette",
     label: "image-to-svg-for-silhouette",
     bodyTerms: ["silhouette", "svg"],
@@ -124,6 +159,7 @@ for (const route of selectedRoutes) {
 checkUnique("title");
 checkUnique("description");
 checkHomepageIntentSeparation();
+checkDistinctH1("/sticker-to-svg-converter", "/sticker-to-svg-for-cricut");
 
 console.log(
   JSON.stringify(
@@ -157,6 +193,7 @@ async function fetchRoute(route) {
     const title = decodeHtml(firstMatch(html, /<title>([^<]+)<\/title>/i) || "");
     const description = decodeHtml(firstMetaContent(html, "description") || "");
     const canonical = firstLinkHref(html, "canonical") || "";
+    const h1 = firstHeading(html, 1) || "";
     const h1Count = [...html.matchAll(/<h1\b/gi)].length;
     const bodyText = visibleText(html);
     const headings = headingText(html);
@@ -223,6 +260,7 @@ async function fetchRoute(route) {
       description,
       descriptionLength: description.length,
       canonical,
+      h1,
       h1Count,
       errors,
     };
@@ -237,6 +275,7 @@ async function fetchRoute(route) {
       description: "",
       descriptionLength: 0,
       canonical: "",
+      h1: "",
       h1Count: 0,
       errors: [`${route.path} failed to fetch: ${message}`],
     };
@@ -272,6 +311,16 @@ function checkHomepageIntentSeparation() {
   }
 }
 
+function checkDistinctH1(firstPath, secondPath) {
+  const first = results.find((result) => result.path === firstPath);
+  const second = results.find((result) => result.path === secondPath);
+  if (!first || !second || !first.h1 || !second.h1) return;
+
+  if (first.h1.trim().toLowerCase() === second.h1.trim().toLowerCase()) {
+    failures.push(`${firstPath} and ${secondPath} share the same H1`);
+  }
+}
+
 function firstMatch(text, regex) {
   const match = text.match(regex);
   return match?.[1]?.trim() || null;
@@ -285,6 +334,20 @@ function firstMetaContent(html, name) {
 function firstLinkHref(html, rel) {
   const tag = firstTagWithAttribute(html, "link", "rel", rel);
   return tag ? firstAttributeValue(tag, "href") : null;
+}
+
+function firstHeading(html, level) {
+  const match = html.match(new RegExp(`<h${level}\\b[^>]*>([\\s\\S]*?)<\\/h${level}>`, "i"));
+  if (!match) return null;
+
+  return decodeHtml(
+    match[1]
+      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 function firstTagWithAttribute(html, tagName, attributeName, expectedValue) {

@@ -52,7 +52,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to SVG for Cricut Stickers | Free Sticker Cut Outline Tool";
   const description =
-    "Turn PNG or JPG sticker artwork into Cricut-ready SVG output with smooth cut outlines, transparent-area checks, preview, and download controls.";
+    "Create Cricut sticker SVGs from PNG or JPG artwork with printable color, transparent-background guidance, separate cut outlines, and review tips.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-cricut-stickers";
 
   return [
@@ -2002,7 +2002,8 @@ function SeoSections() {
                 Use transparent PNG artwork when possible. For JPGs or PNGs on a
                 white page, use the white background removal preset and adjust
                 tolerance until the page is ignored and only the artwork becomes
-                the cut shape.
+                the cut shape. Review the cut outline in Cricut Design Space
+                before printing a full sticker sheet.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -2185,6 +2186,11 @@ function SeoSections() {
               embedded as an image, while the cut outline is vector. That
               matches sticker and Print Then Cut prep better than forcing
               full-color artwork into hundreds of vector paths.
+            </p>
+            <p className="mt-2 text-sm text-slate-700">
+              Treat the output as prep for a sticker workflow. Check the cut
+              outline, size, and layer behavior before sending printable
+              sticker paper or printable vinyl through your machine.
             </p>
           </section>
 

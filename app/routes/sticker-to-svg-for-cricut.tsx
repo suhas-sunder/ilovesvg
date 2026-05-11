@@ -62,7 +62,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "Sticker to SVG for Cricut - Free Sticker Image to SVG Converter";
   const description =
-    "Convert sticker images, decals, labels, sticker sheets, and simple artwork into Cricut-ready SVG files. Clean edges, remove speckles, smooth curves, and download SVG cut files online.";
+    "Convert sticker images into SVG cut-file starting points for Cricut Design Space with cleanup presets, smoother paths, and review-before-cut guidance.";
   const canonical = "https://www.ilovesvg.com/sticker-to-svg-for-cricut";
 
   return [
@@ -2255,7 +2255,7 @@ function SeoSections() {
               </p>
 
               <h2 className="text-2xl font-bold leading-tight text-sky-950 md:text-3xl">
-                Convert sticker images into Cricut-ready SVG files
+                Convert sticker images into SVG files for Cricut review
               </h2>
 
               <p className="text-slate-600">
@@ -2263,7 +2263,7 @@ function SeoSections() {
                 decals, sticker sheets, and simple illustrations into SVG files
                 for Cricut Design Space. Upload a PNG, JPG, JPEG, or WEBP
                 sticker image, choose a cleanup preset, preview the vector
-                result, and download an SVG cut file.
+                result, and download an SVG cut-file starting point.
               </p>
 
               <p className="text-slate-600">
@@ -2411,7 +2411,7 @@ function SeoSections() {
                 },
                 {
                   title: "Download and upload to Cricut Design Space",
-                  body: "Download the SVG file and upload it to Cricut Design Space. If the file feels too complex, return and increase smoothing or speckle removal.",
+                  body: "Download the SVG file and upload it to Cricut Design Space. Review before cutting, and if the file feels too complex, return and increase smoothing or speckle removal.",
                 },
               ].map((s, i) => (
                 <li
@@ -2559,7 +2559,7 @@ function SeoSections() {
               {[
                 {
                   q: "Can I turn a sticker image into an SVG for Cricut?",
-                  a: "Yes. Upload a PNG, JPG, JPEG, or WEBP sticker image, choose a sticker preset, adjust cleanup settings if needed, and download the SVG file for Cricut Design Space.",
+                  a: "Yes. Upload a PNG, JPG, JPEG, or WEBP sticker image, choose a sticker preset, adjust cleanup settings if needed, and download the SVG file for Cricut Design Space. Review before cutting paid materials.",
                 },
                 {
                   q: "What file types can I upload?",

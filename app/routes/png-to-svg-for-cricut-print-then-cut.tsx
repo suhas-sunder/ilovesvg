@@ -48,7 +48,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to SVG for Cricut Print Then Cut | Free Print Then Cut SVG Maker";
   const description =
-    "Prepare PNG or JPG artwork for Cricut Print Then Cut workflows with printable color preservation, SVG cut outline output, preview, and download controls.";
+    "Prepare transparent PNG or JPG artwork for Cricut Print Then Cut with printable color, a separate SVG cut outline, cut preview guidance, and downloads.";
   const canonical =
     "https://www.ilovesvg.com/png-to-svg-for-cricut-print-then-cut";
 
@@ -1839,9 +1839,9 @@ function AffiliateCta() {
             Turning this design into printed stickers or labels?
           </h2>
           <p className="mt-2 text-sm text-slate-700 max-w-[78ch]">
-            After creating your Cricut-ready file, check that the artwork stays
-            clear at the final print size and that the cut border has enough
-            breathing room before ordering stickers, labels, or decals.
+            After creating your Print Then Cut file, check that the artwork
+            stays clear at the final print size and that the cut preview leaves
+            enough breathing room before ordering stickers, labels, or decals.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -2073,8 +2073,8 @@ function SeoSections() {
             <p className="mt-2 text-sm text-slate-700">
               Cricut Design Space may still require you to confirm operations,
               flatten or attach layers, or adjust sizing after import. Always
-              test the SVG before using premium vinyl, printable sticker paper,
-              or commercial packaging materials.
+              check the cut preview and test the SVG before using premium
+              printable sticker paper or commercial packaging materials.
             </p>
           </section>
 
