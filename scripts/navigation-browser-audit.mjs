@@ -12,6 +12,20 @@ const tmpDir = path.join(os.tmpdir(), "ilovesvg-navigation-browser-audit", Strin
 const profileDir = path.join(tmpDir, "profile");
 const mobileWidths = [320, 360, 390, 430, 768];
 const desktopWidths = [1024, 1280, 1440, 1600, 1920];
+const compactPrimaryHrefs = [
+  "/svg-to-png-converter",
+  "/png-to-svg-converter",
+];
+const requiredPrimaryHrefs = [
+  "/svg-to-png-converter",
+  "/png-to-svg-converter",
+  "/svg-to-jpg-converter",
+  "/jpg-to-svg-converter",
+];
+const widePrimaryHrefs = [
+  ...requiredPrimaryHrefs,
+  "/svg-to-pdf-converter",
+];
 const expectedPopularHrefs = [
   "/png-to-svg-converter",
   "/svg-to-png-converter",
@@ -175,6 +189,7 @@ async function runDesktopAudit(width) {
   try {
     await client.navigate(`${baseUrl}/`);
     await assertIloveSvgApp(client);
+    const primary = await evaluate(client, desktopPrimaryStateExpression());
     await evaluate(client, `(() => {
       const button = Array.from(document.querySelectorAll('button'))
         .find((candidate) => /More/i.test(candidate.innerText || '') && candidate.getAttribute('aria-haspopup') === 'menu');
@@ -197,7 +212,25 @@ async function runDesktopAudit(width) {
     );
 
     const expectedColumns = width >= 1840 ? 6 : width >= 1536 ? 5 : 4;
+    const expectedVisiblePrimaryHrefs =
+      width >= 1536
+        ? widePrimaryHrefs
+        : width >= 1280
+          ? requiredPrimaryHrefs
+          : compactPrimaryHrefs;
     const ok =
+      primary.hasPrimaryNav &&
+      primary.homeLogoHref === "/" &&
+      primary.moreButtonVisible &&
+      primary.noPrimaryWrap &&
+      primary.noHorizontalOverflow &&
+      !primary.hasImageToSvgPrimary &&
+      !primary.visiblePrimaryHrefs.includes("/") &&
+      expectedVisiblePrimaryHrefs.every((href) => primary.visiblePrimaryHrefs.includes(href)) &&
+      (width >= 1280 || !primary.visiblePrimaryHrefs.includes("/svg-to-jpg-converter")) &&
+      (width >= 1280 || !primary.visiblePrimaryHrefs.includes("/jpg-to-svg-converter")) &&
+      (width >= 1536 || !primary.visiblePrimaryHrefs.includes("/svg-to-pdf-converter")) &&
+      (width < 1536 || primary.visiblePrimaryHrefs.includes("/svg-to-pdf-converter")) &&
       state.hasMenu &&
       state.columnCount >= expectedColumns &&
       state.menuLeft >= 0 &&
@@ -218,6 +251,8 @@ async function runDesktopAudit(width) {
       width,
       ok,
       expectedColumns,
+      expectedVisiblePrimaryHrefs,
+      primary,
       ...state,
       directionalSearch: {
         searchValue: directionalSearch.searchValue,
@@ -297,6 +332,64 @@ function desktopStateExpression() {
       searchResultContainerCount: menu?.querySelectorAll('[data-nav-search-results]').length || 0,
       searchHrefs: hrefs,
       searchLabels: labels.slice(0, 20),
+      noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,
+    };
+  })()`;
+}
+
+function desktopPrimaryStateExpression() {
+  return `(() => {
+    const nav = document.querySelector('nav[aria-label="Primary"]');
+    const logo = document.querySelector('a[aria-label="iLoveSVG home"]');
+    const topLevelAnchors = Array.from(nav?.querySelectorAll(':scope > a') || [])
+      .filter((link) => link.getAttribute('href') !== '/pro-waitlist');
+    const visiblePrimaryLinks = topLevelAnchors.filter((link) => {
+      const rect = link.getBoundingClientRect();
+      const styles = getComputedStyle(link);
+      return styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    });
+    const buttons = Array.from(nav?.querySelectorAll(':scope > button') || []);
+    const moreButton = buttons.find((button) => /More/i.test(button.innerText || '') && button.getAttribute('aria-haspopup') === 'menu');
+    const visibleNavControls = [
+      ...visiblePrimaryLinks,
+      ...buttons.filter((button) => {
+        const rect = button.getBoundingClientRect();
+        const styles = getComputedStyle(button);
+        return styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      }),
+      ...Array.from(nav?.querySelectorAll(':scope > a[href="/pro-waitlist"]') || []).filter((link) => {
+        const rect = link.getBoundingClientRect();
+        const styles = getComputedStyle(link);
+        return styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      }),
+    ];
+    const controlCenters = visibleNavControls.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.top + rect.height / 2;
+    });
+    const minControlCenter = controlCenters.length ? Math.min(...controlCenters) : 0;
+    const maxControlCenter = controlCenters.length ? Math.max(...controlCenters) : 0;
+    const moreRect = moreButton?.getBoundingClientRect();
+    return {
+      hasPrimaryNav: Boolean(nav),
+      homeLogoHref: logo?.getAttribute('href') || null,
+      allPrimaryHrefs: topLevelAnchors.map((link) => link.getAttribute('href')),
+      allPrimaryLabels: topLevelAnchors.map((link) => (link.textContent || '').trim()),
+      visiblePrimaryHrefs: visiblePrimaryLinks.map((link) => link.getAttribute('href')),
+      visiblePrimaryLabels: visiblePrimaryLinks.map((link) => (link.textContent || '').trim()),
+      hasImageToSvgPrimary: topLevelAnchors.some((link) => {
+        const href = link.getAttribute('href');
+        const label = (link.textContent || '').trim();
+        return href === '/' || label === 'Image to SVG';
+      }),
+      moreButtonVisible: Boolean(
+        moreButton &&
+        moreRect &&
+        getComputedStyle(moreButton).display !== 'none' &&
+        moreRect.width > 0 &&
+        moreRect.height > 0
+      ),
+      noPrimaryWrap: maxControlCenter - minControlCenter <= 4,
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,
     };
   })()`;
