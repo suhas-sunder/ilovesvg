@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "SVG Cleaner - Clean and Optimize SVG Files | iLoveSVG";
+  const title = "SVG Cleaner - Clean SVG Markup Safely | iLoveSVG";
   const description =
-    "Clean SVG files in your browser by removing metadata, comments, editor junk, unsafe scripts, unused markup, and extra whitespace. Preview, copy, and download.";
+    "Clean SVG markup in your browser by removing metadata, comments, editor junk, and unsafe scripts. Preview before exporting or minify later.";
   const canonical = "https://www.ilovesvg.com/svg-cleaner";
 
   return [
@@ -1810,6 +1810,11 @@ function SeoSections() {
               Remove metadata, comments, editor junk, and other bloat from SVG
               files. Runs fully client-side.
             </p>
+            <p className="mt-2 text-slate-600">
+              When to use this instead of the minifier: choose the cleaner when
+              you want safer markup, fewer editor leftovers, and script-related
+              cleanup before worrying about the smallest possible file size.
+            </p>
             <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
@@ -2093,6 +2098,25 @@ function SeoSections() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Cleaner vs minifier
+            </h3>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              Use the SVG cleaner when the file has comments, metadata, editor
+              namespaces, unsafe script behavior, or confusing structural
+              clutter. Use the minifier when the SVG already renders correctly
+              and your main goal is reducing file size for a website, icon set,
+              or app bundle.
+            </p>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              The cleaner can still reduce bytes, but its first job is safer,
+              easier-to-review markup. After the cleaned preview looks right,
+              the minifier is a better next step for compact spacing and
+              shipping-size tweaks.
+            </p>
           </section>
 
           {/* Common issues */}

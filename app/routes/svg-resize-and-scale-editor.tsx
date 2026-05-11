@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    `SVG Resize and Scale Tool - Change Width, Height and ViewBox | iLoveSVG`;
+    `SVG Resize and Scale Editor - Width, Height, ViewBox | iLoveSVG`;
   const description =
-    `Resize and scale SVG files in your browser. Change width, height, aspect ratio, scale percentage, and viewBox behavior before copying or downloading.`;
+    `Resize SVG width, height, scale percentage, and viewBox in your browser. Preview layout changes before copying or downloading.`;
   const canonical = "https://www.ilovesvg.com/svg-resize-and-scale-editor";
 
   return [
@@ -1184,6 +1184,11 @@ function SeoSections() {
             percentage, and optionally updating <b>viewBox</b> and{" "}
             <b>preserveAspectRatio</b>. This runs fully client-side.
           </p>
+          <p className="mt-2 text-slate-600">
+            This is not a cleaner or minifier. Use it when the problem is
+            displayed size, coordinate space, responsive behavior, or how the
+            SVG fits into a layout.
+          </p>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
             <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50">
@@ -1285,6 +1290,20 @@ function SeoSections() {
                 </a>
               </div>
             </div>
+          </section>
+
+          <section>
+            <h3 className="mt-8 font-bold">
+              When to use the resizer instead of other SVG tools
+            </h3>
+            <p>
+              Choose the resize and scale editor when your SVG already looks
+              correct but displays at the wrong size, crops unexpectedly, or
+              needs predictable width, height, and viewBox values. Choose the
+              SVG cleaner for metadata, comments, scripts, or editor junk.
+              Choose the SVG minifier when the markup is already good and file
+              size is the main problem.
+            </p>
           </section>
 
           <CurrentRouteGuide />

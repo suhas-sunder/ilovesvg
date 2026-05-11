@@ -53,6 +53,36 @@ const selectedRoutes = [
     bodyTerms: ["favicon.ico", "png icon"],
   },
   {
+    path: "/svg-cleaner",
+    label: "svg-cleaner",
+    bodyTerms: ["svg cleaner", "metadata", "comments", "when to use this instead of the minifier"],
+    headingTerms: ["svg cleaner"],
+  },
+  {
+    path: "/svg-resize-and-scale-editor",
+    label: "svg-resize-and-scale-editor",
+    bodyTerms: ["resize", "scale", "viewbox", "width", "height", "not a cleaner"],
+    headingTerms: ["resize"],
+  },
+  {
+    path: "/svg-minifier",
+    label: "svg-minifier",
+    bodyTerms: ["svg minifier", "file size", "markup", "not a resizer"],
+    headingTerms: ["minify"],
+  },
+  {
+    path: "/svg-file-size-inspector",
+    label: "svg-file-size-inspector",
+    bodyTerms: ["file size", "inspect", "cleanup opportunities", "inspection only"],
+    headingTerms: ["size"],
+  },
+  {
+    path: "/svg-dimensions-inspector",
+    label: "svg-dimensions-inspector",
+    bodyTerms: ["dimensions", "viewbox", "inspect", "apply fixes", "does not rewrite paths"],
+    headingTerms: ["dimensions"],
+  },
+  {
     path: "/svg-to-ico-converter",
     label: "svg-to-ico",
     bodyTerms: ["favicon.ico", "svg"],
