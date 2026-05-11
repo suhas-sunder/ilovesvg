@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -1954,7 +1954,418 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
+type SeoCard = { title: string; body: string };
+type SeoStat = { k: string; v: string };
+type PngToSvgSeoCopy = {
+  eyebrow: string;
+  heading: string;
+  intro: string[];
+  stats: SeoStat[];
+  bestForHeading: string;
+  bestForTags: string[];
+  useCaseCards: SeoCard[];
+  workflowHeading: string;
+  workflowIntro: string;
+  workflowCards: SeoCard[];
+  howToHeading: string;
+  howToSummary: string;
+  howToSteps: SeoCard[];
+  guidanceHeading: string;
+  guidanceIntro: string;
+  guidanceCards: SeoCard[];
+  settingsIntro: string;
+  settingsCards: SeoCard[];
+  troubleshootingCards: SeoCard[];
+  faqItems: { q: string; a: string }[];
+};
+
+const pngToSvgSeoCopyByPath: Record<string, PngToSvgSeoCopy> = {
+  "/png-to-svg-for-etsy": {
+    eyebrow: "PNG/JPEG to SVG for Etsy sellers",
+    heading: "PNG to SVG for Etsy listings, digital downloads, and shop assets",
+    intro: [
+      "Convert PNG or JPEG artwork into clean SVG paths for Etsy-style digital products, printable designs, sticker graphics, decals, product logos, and simple cut-file preparation. The converter keeps the same fast live preview and advanced tracing controls, but the guidance is tuned around Etsy seller workflows.",
+      "Upload your artwork, choose a preset that matches the design, adjust the trace, then download or copy the SVG. For best results, start with high-contrast artwork, logos, text graphics, line art, sticker designs, or clean transparent PNGs.",
+    ],
+    stats: [
+      { k: "Etsy-ready SVG", v: "Download clean editable paths" },
+      { k: "Sticker designs", v: "Trace bold outlines and shapes" },
+      { k: "Logo assets", v: "Vectorize shop marks and icons" },
+      { k: "Live preview", v: "Tune before exporting" },
+    ],
+    bestForHeading: "Best for Etsy sellers",
+    bestForTags: [
+      "Digital downloads",
+      "Sticker artwork",
+      "Decal graphics",
+      "Shop logos",
+      "Printable art",
+      "Simple cut files",
+      "Listing mockup assets",
+      "Line art bundles",
+    ],
+    useCaseCards: [
+      {
+        title: "Stickers, decals, and line art",
+        body: "Use the accurate-trace preset for clean artwork and the bold-outline preset when the design needs stronger filled shapes. Raise turd size to remove tiny dust specks before listing the SVG as a download.",
+      },
+      {
+        title: "Logos, icons, and shop branding",
+        body: "Use the clean-shapes preset for shop marks, icons, and simple product graphics. Lower curve tolerance if the result loses detail, or raise it if the SVG has too many rough nodes.",
+      },
+    ],
+    workflowHeading: "How this Etsy SVG converter works",
+    workflowIntro:
+      "This tool traces the visible dark and light areas of a PNG or JPEG into SVG paths. That means it works best when the source image has clear contrast, solid shapes, crisp lettering, or clean line work. It is not a magic layered-design generator: a complex full-color photo may become a stylized outline instead of a ready-made multi-layer SVG.",
+    workflowCards: [
+      {
+        title: "Upload artwork",
+        body: "Start with a PNG or JPEG up to 30 MB. Transparent PNGs, black line art, logo exports, and high-contrast sticker artwork are the strongest inputs.",
+      },
+      {
+        title: "Tune the trace",
+        body: "Pick an Etsy-focused preset, then adjust threshold, curve tolerance, turd size, color, and background until the preview matches the file you want to sell or edit.",
+      },
+      {
+        title: "Export SVG",
+        body: "Download the SVG or copy the markup. Open it in your design software to inspect paths, resize it, recolor it, or package it with your Etsy digital product files.",
+      },
+    ],
+    howToHeading: "How to convert PNG to SVG for Etsy",
+    howToSummary: "Fast path: upload -> preset -> tweak -> export",
+    howToSteps: [
+      {
+        title: "Upload a PNG or JPEG design",
+        body: "Drag and drop your Etsy artwork, sticker design, logo, printable graphic, or product icon. Large files may be compressed locally for smoother preview up to 25 MB.",
+      },
+      {
+        title: "Choose an Etsy-focused preset",
+        body: "Use accurate trace for general PNG artwork, bold outline for stickers, seal gaps for simple cut files, or clean logo shapes for shop branding.",
+      },
+      {
+        title: "Adjust the trace settings",
+        body: "Tune threshold, curve tolerance, turd size, and turn policy. Use these controls to balance clean shapes against fine detail.",
+      },
+      {
+        title: "Set line color and background",
+        body: "Keep the background transparent for most Etsy downloads, or add a solid background when you need a preview-style SVG asset.",
+      },
+      {
+        title: "Download the SVG file",
+        body: "Export the SVG and review it in your design software before adding it to a digital download bundle or using it in a listing workflow.",
+      },
+    ],
+    guidanceHeading: "Tips for better Etsy SVG results",
+    guidanceIntro:
+      "Etsy buyers expect clean, usable files. Before selling a converted SVG, open it in your design tool and verify that the paths, line thickness, transparency, and scale are what you intended.",
+    guidanceCards: [
+      {
+        title: "Use clean source artwork",
+        body: "High-contrast PNGs, black-and-white drawings, lettering, logos, and flat graphics trace better than noisy screenshots or low-resolution photos.",
+      },
+      {
+        title: "Keep transparency when possible",
+        body: "Transparent SVG output is usually better for Etsy digital downloads because buyers can place the design over different backgrounds.",
+      },
+      {
+        title: "Check lettering carefully",
+        body: "Text becomes paths after tracing. Inspect letters for filled counters, rough edges, or broken curves before packaging the file.",
+      },
+      {
+        title: "Do not oversell photo traces",
+        body: "Photo Edge presets can create stylized outlines, but they are not the same as a clean hand-built layered SVG for cutting or printing.",
+      },
+      {
+        title: "Package with useful formats",
+        body: "Many Etsy sellers include SVG alongside PNG, PDF, DXF, or EPS exports. This page creates SVG only, so create any extra formats in design software.",
+      },
+      {
+        title: "Test before listing",
+        body: "Open the SVG in the software your buyers are likely to use and confirm the file scales cleanly without unexpected filled areas.",
+      },
+    ],
+    settingsIntro:
+      "These controls decide how your PNG or JPEG becomes SVG paths. Small changes can make the difference between a usable Etsy file and a messy trace.",
+    settingsCards: [
+      {
+        title: "Preprocess",
+        body: "Use None for logos, icons, lettering, and clean line art. Use Edge mode for photos or painted artwork when you want contour-style SVG output.",
+      },
+      {
+        title: "Threshold",
+        body: "Controls what becomes part of the traced shape. Raise it to include lighter areas; lower it to keep only stronger dark marks.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Lower preserves detail. Higher smooths shapes and may reduce SVG file complexity.",
+      },
+      {
+        title: "Turd size",
+        body: "Removes tiny specks, scanner dust, and accidental texture that you probably do not want in an Etsy download file.",
+      },
+      {
+        title: "Turn policy",
+        body: "Controls how ambiguous corners resolve. Try a different policy if corners, small holes, or edges look wrong.",
+      },
+      {
+        title: "Line color, invert, background",
+        body: "Most Etsy SVG downloads should stay transparent. Use line color and invert when creating preview graphics or dark-background assets.",
+      },
+      {
+        title: "Edge boost and blur sigma",
+        body: "In Edge mode, blur reduces noise and edge boost strengthens contours before tracing.",
+      },
+    ],
+    troubleshootingCards: [
+      {
+        title: "SVG looks messy",
+        body: "Use a cleaner source PNG, raise turd size, or try a logo/line-art preset instead of a photo edge preset.",
+      },
+      {
+        title: "Tiny dots appear",
+        body: "Raise turd size or use a scan cleanup preset to remove dust, texture, and accidental specks.",
+      },
+      {
+        title: "Letters fill in",
+        body: "Lower threshold or try a fine-detail preset. Very small text may need to be rebuilt manually in design software.",
+      },
+      {
+        title: "Edges look jagged",
+        body: "Increase curve tolerance slightly, or upload a higher-resolution source image.",
+      },
+      {
+        title: "File is too large",
+        body: "Downscale or crop unused borders. Very large source images can create unnecessarily complex SVG paths.",
+      },
+      {
+        title: "Not suitable as a cut file",
+        body: "A traced SVG may still need cleanup before cutting. Inspect paths, gaps, overlaps, and small islands before selling it.",
+      },
+    ],
+    faqItems: [
+      {
+        q: "Can I use this SVG converter for Etsy digital downloads?",
+        a: "Yes. It is useful for converting clean PNG or JPEG artwork into SVG paths for Etsy-style digital downloads, stickers, logos, printable graphics, and simple design assets. Always inspect the SVG before selling it.",
+      },
+      {
+        q: "Will this make a layered SVG for cutting machines?",
+        a: "No. This tool creates traced SVG paths from a raster image. It can be useful for simple cut-file preparation, but complex layered files usually need manual cleanup in design software.",
+      },
+      {
+        q: "What type of PNG works best?",
+        a: "High-contrast artwork works best: black line art, transparent PNG designs, flat logos, icons, lettering, decals, and sticker-style graphics. Low-resolution screenshots and noisy photos usually trace poorly.",
+      },
+      {
+        q: "Should I use a transparent background?",
+        a: "For most Etsy download files, yes. Transparent SVG output is easier for buyers to place over different backgrounds. Use a solid background only when you intentionally need one.",
+      },
+      {
+        q: "What file limits apply?",
+        a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest at 10 MB or less and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+      },
+      {
+        q: "Can this convert full-color photos into Etsy SVG files?",
+        a: "It can create stylized edge traces from photos, but it will not automatically produce a polished multi-color commercial SVG. Photo-based products usually need manual design work after conversion.",
+      },
+    ],
+  },
+  "/png-to-svg-for-shopify": {
+    eyebrow: "PNG/JPEG to SVG for Shopify store assets",
+    heading: "Convert PNG logos and brand graphics into Shopify-ready SVG assets",
+    intro: [
+      "Convert PNG or JPEG logos, icons, badges, and simple brand graphics into clean SVG paths for Shopify storefront and design workflows. The converter keeps the same live preview and tracing controls, but this guidance is focused on scalable store assets.",
+      "Upload a transparent PNG or simple brand graphic, choose a preset that matches the artwork, adjust the trace, then download or copy the SVG. For best results, start with high-contrast logos, icons, text marks, badges, or clean transparent PNGs.",
+    ],
+    stats: [
+      { k: "Store graphics", v: "Prepare scalable SVG brand assets" },
+      { k: "Transparent PNGs", v: "Trace clean logos, icons, and marks" },
+      { k: "Theme review", v: "Inspect before using in a storefront" },
+      { k: "Live preview", v: "Tune before exporting" },
+    ],
+    bestForHeading: "Best for Shopify store owners",
+    bestForTags: [
+      "Store logos",
+      "Brand icons",
+      "Theme graphics",
+      "Badges",
+      "Trust marks",
+      "Simple product marks",
+      "Header assets",
+      "Transparent PNG logos",
+    ],
+    useCaseCards: [
+      {
+        title: "Logos, badges, and icons",
+        body: "Use the accurate-trace preset for clean brand artwork and the bold-outline preset when a mark needs stronger filled shapes. Raise turd size to remove tiny dust specks before using the SVG in a store asset workflow.",
+      },
+      {
+        title: "Store branding and theme graphics",
+        body: "Use the clean-shapes preset for logos, icons, trust badges, and simple product marks. Lower curve tolerance if the result loses detail, or raise it if the SVG has too many rough nodes.",
+      },
+    ],
+    workflowHeading: "How this Shopify SVG converter works",
+    workflowIntro:
+      "This tool traces the visible dark and light areas of a PNG or JPEG into SVG paths. It works best when the source image has clear contrast, solid shapes, crisp lettering, or clean line work. It is not a theme editor or a full design cleanup service: complex photos may become stylized outlines instead of polished storefront assets.",
+    workflowCards: [
+      {
+        title: "Upload brand artwork",
+        body: "Start with a PNG or JPEG up to 30 MB. Transparent PNG logos, black line art, icon exports, and high-contrast store graphics are the strongest inputs.",
+      },
+      {
+        title: "Tune the trace",
+        body: "Pick a preset, then adjust threshold, curve tolerance, turd size, color, and background until the preview matches the storefront graphic you want to test.",
+      },
+      {
+        title: "Export SVG",
+        body: "Download the SVG or copy the markup. Open it in your design or theme workflow to inspect paths, resize it, recolor it, and confirm it behaves like a useful store asset.",
+      },
+    ],
+    howToHeading: "How to convert PNG to SVG for Shopify",
+    howToSummary: "Fast path: upload -> preset -> tweak -> export",
+    howToSteps: [
+      {
+        title: "Upload a PNG or JPEG store graphic",
+        body: "Drag and drop your Shopify logo, brand icon, badge, transparent PNG, or simple product mark. Large files may be compressed locally for smoother preview up to 25 MB.",
+      },
+      {
+        title: "Choose a clean tracing preset",
+        body: "Use accurate trace for general PNG artwork, bold outline for strong marks, seal gaps for simple filled graphics, or clean logo shapes for store branding.",
+      },
+      {
+        title: "Adjust the trace settings",
+        body: "Tune threshold, curve tolerance, turd size, and turn policy. Use these controls to balance clean scalable shapes against fine detail.",
+      },
+      {
+        title: "Set line color and background",
+        body: "Keep the background transparent for most Shopify logo and icon assets, or add a solid background when you intentionally need a filled SVG graphic.",
+      },
+      {
+        title: "Download the SVG file",
+        body: "Export the SVG and review it in design software or a safe theme workflow before using it in a storefront.",
+      },
+    ],
+    guidanceHeading: "Tips for better Shopify SVG results",
+    guidanceIntro:
+      "Store assets should be clean, scalable, and predictable. Before using a converted SVG in a Shopify theme or storefront workflow, verify that the paths, transparency, color, and scale are what you intended.",
+    guidanceCards: [
+      {
+        title: "Use clean source artwork",
+        body: "High-contrast PNGs, transparent logo exports, lettering, icons, and flat graphics trace better than noisy screenshots or low-resolution product photos.",
+      },
+      {
+        title: "Keep transparency when possible",
+        body: "Transparent SVG output is usually better for logos, header graphics, badges, and icons because the asset can sit over different store backgrounds.",
+      },
+      {
+        title: "Check lettering carefully",
+        body: "Text becomes paths after tracing. Inspect letters for filled counters, rough edges, or broken curves before using the asset in a store design.",
+      },
+      {
+        title: "Avoid photo-heavy assets",
+        body: "Photo Edge presets can create stylized outlines, but photos are usually better kept as raster product images rather than forced into SVG paths.",
+      },
+      {
+        title: "Use SVG where it helps",
+        body: "SVG is useful for logos, icons, badges, and simple marks. Product photos, detailed lifestyle images, and textured artwork usually belong in raster formats.",
+      },
+      {
+        title: "Test before publishing",
+        body: "Preview the SVG in your design software or theme workflow and confirm the asset scales cleanly without unexpected filled areas.",
+      },
+    ],
+    settingsIntro:
+      "These controls decide how your PNG or JPEG becomes SVG paths. Small changes can make the difference between a useful Shopify store asset and a messy trace.",
+    settingsCards: [
+      {
+        title: "Preprocess",
+        body: "Use None for logos, icons, lettering, and clean line art. Use Edge mode for photos or painted artwork when you want contour-style SVG output.",
+      },
+      {
+        title: "Threshold",
+        body: "Controls what becomes part of the traced shape. Raise it to include lighter areas; lower it to keep only stronger dark marks.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Lower preserves detail. Higher smooths shapes and may reduce SVG file complexity.",
+      },
+      {
+        title: "Turd size",
+        body: "Removes tiny specks, scanner dust, and accidental texture that you probably do not want in a storefront SVG asset.",
+      },
+      {
+        title: "Turn policy",
+        body: "Controls how ambiguous corners resolve. Try a different policy if corners, small holes, or edges look wrong.",
+      },
+      {
+        title: "Line color, invert, background",
+        body: "Most Shopify logo and icon SVGs should stay transparent. Use line color and invert when creating preview graphics or dark-background assets.",
+      },
+      {
+        title: "Edge boost and blur sigma",
+        body: "In Edge mode, blur reduces noise and edge boost strengthens contours before tracing.",
+      },
+    ],
+    troubleshootingCards: [
+      {
+        title: "SVG looks messy",
+        body: "Use a cleaner source PNG, raise turd size, or try a logo/line-art preset instead of a photo edge preset.",
+      },
+      {
+        title: "Tiny dots appear",
+        body: "Raise turd size or use a scan cleanup preset to remove dust, texture, and accidental specks.",
+      },
+      {
+        title: "Letters fill in",
+        body: "Lower threshold or try a fine-detail preset. Very small text may need to be rebuilt manually in design software.",
+      },
+      {
+        title: "Edges look jagged",
+        body: "Increase curve tolerance slightly, or upload a higher-resolution source image.",
+      },
+      {
+        title: "File is too large",
+        body: "Downscale or crop unused borders. Very large source images can create unnecessarily complex SVG paths.",
+      },
+      {
+        title: "Not suitable as a store asset",
+        body: "A traced SVG may still need cleanup before use. Inspect paths, gaps, overlaps, and small islands before placing it in a storefront workflow.",
+      },
+    ],
+    faqItems: [
+      {
+        q: "Can I use this SVG converter for Shopify logos and icons?",
+        a: "Yes. It is useful for converting clean PNG or JPEG logos, icons, badges, and simple brand graphics into SVG paths for Shopify storefront workflows. Always inspect the SVG before using it in a store.",
+      },
+      {
+        q: "Will this edit my Shopify theme?",
+        a: "No. This page only creates an SVG file from an uploaded image. Review the output in design software or a safe theme workflow before adding it to a storefront.",
+      },
+      {
+        q: "What type of PNG works best?",
+        a: "High-contrast artwork works best: transparent PNG logos, flat icons, lettering, badges, and simple brand graphics. Low-resolution screenshots and noisy photos usually trace poorly.",
+      },
+      {
+        q: "Should I use a transparent background?",
+        a: "For most Shopify logos and icons, yes. Transparent SVG output is easier to place over different store backgrounds. Use a solid background only when you intentionally need one.",
+      },
+      {
+        q: "What file limits apply?",
+        a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest at 10 MB or less and throttled up to 25 MB. Above 25 MB we try on-device compression.",
+      },
+      {
+        q: "Can this convert full-color product photos into SVG files?",
+        a: "It can create stylized edge traces from photos, but detailed product photos usually work better as raster images. Use SVG for simple logos, icons, badges, and brand marks.",
+      },
+    ],
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const copy =
+    pngToSvgSeoCopyByPath[pathname] ??
+    pngToSvgSeoCopyByPath["/png-to-svg-for-etsy"];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -1963,33 +2374,19 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                PNG/JPEG to SVG for Etsy sellers
+                {copy.eyebrow}
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                PNG to SVG for Etsy listings, digital downloads, and shop assets
+                {copy.heading}
               </h2>
-              <p className="text-slate-600 ">
-                Convert PNG or JPEG artwork into clean SVG paths for Etsy-style
-                digital products, printable designs, sticker graphics, decals,
-                product logos, and simple cut-file preparation. The converter
-                keeps the same fast live preview and advanced tracing controls,
-                but the guidance is tuned around Etsy seller workflows.
-              </p>
-
-              <p className="text-slate-600">
-                Upload your artwork, choose a preset that matches the design,
-                adjust the trace, then download or copy the SVG. For best
-                results, start with high-contrast artwork, logos, text graphics,
-                line art, sticker designs, or clean transparent PNGs.
-              </p>
+              {copy.intro.map((paragraph) => (
+                <p key={paragraph} className="text-slate-600">
+                  {paragraph}
+                </p>
+              ))}
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { k: "Etsy-ready SVG", v: "Download clean editable paths" },
-                  { k: "Sticker designs", v: "Trace bold outlines and shapes" },
-                  { k: "Logo assets", v: "Vectorize shop marks and icons" },
-                  { k: "Live preview", v: "Tune before exporting" },
-                ].map((x) => (
+                {copy.stats.map((x) => (
                   <div
                     key={x.k}
                     className="rounded-xl border border-slate-200 bg-white p-4"
@@ -2017,18 +2414,9 @@ function SeoSections() {
 
           {/* Use cases */}
           <section className="">
-            <h3 className="text-lg font-bold">Best for Etsy sellers</h3>
+            <h3 className="text-lg font-bold">{copy.bestForHeading}</h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                "Digital downloads",
-                "Sticker artwork",
-                "Decal graphics",
-                "Shop logos",
-                "Printable art",
-                "Simple cut files",
-                "Listing mockup assets",
-                "Line art bundles",
-              ].map((t) => (
+              {copy.bestForTags.map((t) => (
                 <span
                   key={t}
                   className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
@@ -2039,68 +2427,36 @@ function SeoSections() {
             </div>
 
             <div className="mt-4 grid md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">
-                  Stickers, decals, and line art
+              {copy.useCaseCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-2xl border border-slate-200 p-5"
+                >
+                  <div className="text-sm font-semibold">{card.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{card.body}</p>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Use “Etsy PNG - Accurate trace” for clean artwork and “Etsy
-                  Sticker - Bold outline” when the design needs stronger filled
-                  shapes. Raise turd size to remove tiny dust specks before
-                  listing the SVG as a download.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">
-                  Logos, icons, and shop branding
-                </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Use “Etsy Logo - Clean shapes” for shop marks, icons, and
-                  simple product graphics. Lower curve tolerance if the result
-                  loses detail, or raise it if the SVG has too many rough nodes.
-                </p>
-              </div>
+              ))}
             </div>
           </section>
 
           {/* How it works */}
           <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:p-6">
             <h3 className="text-lg font-bold">
-              How this Etsy SVG converter works
+              {copy.workflowHeading}
             </h3>
             <p className="mt-2 text-sm text-slate-700 max-w-[90ch]">
-              This tool traces the visible dark and light areas of a PNG or JPEG
-              into SVG paths. That means it works best when the source image has
-              clear contrast, solid shapes, crisp lettering, or clean line work.
-              It is not a magic layered-design generator: a complex full-color
-              photo may become a stylized outline instead of a ready-made
-              multi-layer SVG.
+              {copy.workflowIntro}
             </p>
             <div className="mt-4 grid md:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="text-sm font-semibold">Upload artwork</div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Start with a PNG or JPEG up to 30 MB. Transparent PNGs, black
-                  line art, logo exports, and high-contrast sticker artwork are
-                  the strongest inputs.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="text-sm font-semibold">Tune the trace</div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Pick an Etsy-focused preset, then adjust threshold, curve
-                  tolerance, turd size, color, and background until the preview
-                  matches the file you want to sell or edit.
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="text-sm font-semibold">Export SVG</div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Download the SVG or copy the markup. Open it in your design
-                  software to inspect paths, resize it, recolor it, or package
-                  it with your Etsy digital product files.
-                </p>
-              </div>
+              {copy.workflowCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="text-sm font-semibold">{card.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{card.body}</p>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -2112,36 +2468,15 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold">
-                How to convert PNG to SVG for Etsy
+                {copy.howToHeading}
               </h3>
               <span className="text-xs text-slate-500">
-                Fast path: upload → preset → tweak → export
+                {copy.howToSummary}
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
-              {[
-                {
-                  title: "Upload a PNG or JPEG design",
-                  body: "Drag and drop your Etsy artwork, sticker design, logo, printable graphic, or product icon. Large files may be compressed locally for smoother preview up to 25 MB.",
-                },
-                {
-                  title: "Choose an Etsy-focused preset",
-                  body: "Use accurate trace for general PNG artwork, bold outline for stickers, seal gaps for simple cut files, or clean logo shapes for shop branding.",
-                },
-                {
-                  title: "Adjust the trace settings",
-                  body: "Tune threshold, curve tolerance, turd size, and turn policy. Use these controls to balance clean shapes against fine detail.",
-                },
-                {
-                  title: "Set line color and background",
-                  body: "Keep the background transparent for most Etsy downloads, or add a solid background when you need a preview-style SVG asset.",
-                },
-                {
-                  title: "Download the SVG file",
-                  body: "Export the SVG and review it in your design software before adding it to a digital download bundle or using it in a listing workflow.",
-                },
-              ].map((s, i) => (
+              {copy.howToSteps.map((s, i) => (
                 <li
                   key={s.title}
                   itemScope
@@ -2170,44 +2505,17 @@ function SeoSections() {
             </ol>
           </section>
 
-          {/* Etsy guidance */}
+          {/* Route guidance */}
           <section className="mt-12">
             <h3 className="text-lg font-bold">
-              Tips for better Etsy SVG results
+              {copy.guidanceHeading}
             </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              Etsy buyers expect clean, usable files. Before selling a converted
-              SVG, open it in your design tool and verify that the paths, line
-              thickness, transparency, and scale are what you intended.
+              {copy.guidanceIntro}
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
-              {[
-                {
-                  title: "Use clean source artwork",
-                  body: "High-contrast PNGs, black-and-white drawings, lettering, logos, and flat graphics trace better than noisy screenshots or low-resolution photos.",
-                },
-                {
-                  title: "Keep transparency when possible",
-                  body: "Transparent SVG output is usually better for Etsy digital downloads because buyers can place the design over different backgrounds.",
-                },
-                {
-                  title: "Check lettering carefully",
-                  body: "Text becomes paths after tracing. Inspect letters for filled counters, rough edges, or broken curves before packaging the file.",
-                },
-                {
-                  title: "Do not oversell photo traces",
-                  body: "Photo Edge presets can create stylized outlines, but they are not the same as a clean hand-built layered SVG for cutting or printing.",
-                },
-                {
-                  title: "Package with useful formats",
-                  body: "Many Etsy sellers include SVG alongside PNG, PDF, DXF, or EPS exports. This page creates SVG only, so create any extra formats in design software.",
-                },
-                {
-                  title: "Test before listing",
-                  body: "Open the SVG in the software your buyers are likely to use and confirm the file scales cleanly without unexpected filled areas.",
-                },
-              ].map((c) => (
+              {copy.guidanceCards.map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
@@ -2223,42 +2531,11 @@ function SeoSections() {
           <section className="mt-12">
             <h3 className="text-lg font-bold">Settings explained</h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              These controls decide how your PNG or JPEG becomes SVG paths.
-              Small changes can make the difference between a usable Etsy file
-              and a messy trace.
+              {copy.settingsIntro}
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
-              {[
-                {
-                  title: "Preprocess",
-                  body: "Use None for logos, icons, lettering, and clean line art. Use Edge mode for photos or painted artwork when you want contour-style SVG output.",
-                },
-                {
-                  title: "Threshold",
-                  body: "Controls what becomes part of the traced shape. Raise it to include lighter areas; lower it to keep only stronger dark marks.",
-                },
-                {
-                  title: "Curve tolerance",
-                  body: "Lower preserves detail. Higher smooths shapes and may reduce SVG file complexity.",
-                },
-                {
-                  title: "Turd size",
-                  body: "Removes tiny specks, scanner dust, and accidental texture that you probably do not want in an Etsy download file.",
-                },
-                {
-                  title: "Turn policy",
-                  body: "Controls how ambiguous corners resolve. Try a different policy if corners, small holes, or edges look wrong.",
-                },
-                {
-                  title: "Line color, invert, background",
-                  body: "Most Etsy SVG downloads should stay transparent. Use line color and invert when creating preview graphics or dark-background assets.",
-                },
-                {
-                  title: "Edge boost and blur σ",
-                  body: "In Edge mode, blur reduces noise and edge boost strengthens contours before tracing.",
-                },
-              ].map((c) => (
+              {copy.settingsCards.map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
@@ -2323,38 +2600,13 @@ function SeoSections() {
           <section className="mt-12">
             <h3 className="text-lg font-bold">Troubleshooting and tips</h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
-              {[
-                [
-                  "SVG looks messy",
-                  "Use a cleaner source PNG, raise turd size, or try a logo/line-art preset instead of a photo edge preset.",
-                ],
-                [
-                  "Tiny dots appear",
-                  "Raise turd size or use a scan cleanup preset to remove dust, texture, and accidental specks.",
-                ],
-                [
-                  "Letters fill in",
-                  "Lower threshold or try a fine-detail preset. Very small text may need to be rebuilt manually in design software.",
-                ],
-                [
-                  "Edges look jagged",
-                  "Increase curve tolerance slightly, or upload a higher-resolution source image.",
-                ],
-                [
-                  "File is too large",
-                  "Downscale or crop unused borders. Very large source images can create unnecessarily complex SVG paths.",
-                ],
-                [
-                  "Not suitable as a cut file",
-                  "A traced SVG may still need cleanup before cutting. Inspect paths, gaps, overlaps, and small islands before selling it.",
-                ],
-              ].map(([t, d]) => (
+              {copy.troubleshootingCards.map(({ title, body }) => (
                 <div
-                  key={t}
+                  key={title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold">{t}</div>
-                  <p className="mt-1 text-sm text-slate-600">{d}</p>
+                  <div className="text-sm font-semibold">{title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{body}</p>
                 </div>
               ))}
             </div>
@@ -2371,32 +2623,7 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "Can I use this SVG converter for Etsy digital downloads?",
-                  a: "Yes. It is useful for converting clean PNG or JPEG artwork into SVG paths for Etsy-style digital downloads, stickers, logos, printable graphics, and simple design assets. Always inspect the SVG before selling it.",
-                },
-                {
-                  q: "Will this make a layered SVG for cutting machines?",
-                  a: "No. This tool creates traced SVG paths from a raster image. It can be useful for simple cut-file preparation, but complex layered files usually need manual cleanup in design software.",
-                },
-                {
-                  q: "What type of PNG works best?",
-                  a: "High-contrast artwork works best: black line art, transparent PNG designs, flat logos, icons, lettering, decals, and sticker-style graphics. Low-resolution screenshots and noisy photos usually trace poorly.",
-                },
-                {
-                  q: "Should I use a transparent background?",
-                  a: "For most Etsy download files, yes. Transparent SVG output is easier for buyers to place over different backgrounds. Use a solid background only when you intentionally need one.",
-                },
-                {
-                  q: "What file limits apply?",
-                  a: "PNG/JPEG up to 30 MB, ~30 MP. Preview is fastest ≤10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression.",
-                },
-                {
-                  q: "Can this convert full-color photos into Etsy SVG files?",
-                  a: "It can create stylized edge traces from photos, but it will not automatically produce a polished multi-color commercial SVG. Photo-based products usually need manual design work after conversion.",
-                },
-              ].map((x) => (
+              {copy.faqItems.map((x) => (
                 <article
                   key={x.q}
                   itemScope

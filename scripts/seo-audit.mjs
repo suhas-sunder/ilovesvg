@@ -82,6 +82,34 @@ const selectedRoutes = [
     label: "logo-to-favicon",
     bodyTerms: ["favicon.ico", "logo"],
   },
+  {
+    path: "/image-to-svg-for-silhouette",
+    label: "image-to-svg-for-silhouette",
+    bodyTerms: ["silhouette", "svg"],
+    headingTerms: ["silhouette"],
+    forbiddenHeadingTerms: ["cricut", "glowforge", "etsy", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/image-to-svg-for-glowforge",
+    label: "image-to-svg-for-glowforge",
+    bodyTerms: ["glowforge", "svg"],
+    headingTerms: ["glowforge"],
+    forbiddenHeadingTerms: ["cricut", "silhouette", "etsy", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/image-to-svg-for-etsy",
+    label: "image-to-svg-for-etsy",
+    bodyTerms: ["etsy", "svg"],
+    headingTerms: ["etsy"],
+    forbiddenHeadingTerms: ["cricut", "glowforge", "silhouette", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/png-to-svg-for-shopify",
+    label: "png-to-svg-for-shopify",
+    bodyTerms: ["shopify", "svg"],
+    headingTerms: ["shopify"],
+    forbiddenHeadingTerms: ["etsy", "cricut", "glowforge", "silhouette", "printify", "printful"],
+  },
 ];
 
 const results = [];
@@ -131,6 +159,7 @@ async function fetchRoute(route) {
     const canonical = firstLinkHref(html, "canonical") || "";
     const h1Count = [...html.matchAll(/<h1\b/gi)].length;
     const bodyText = visibleText(html);
+    const headings = headingText(html);
     const errors = [];
 
     if (response.status !== 200) {
@@ -170,6 +199,18 @@ async function fetchRoute(route) {
     for (const term of route.bodyTerms || []) {
       if (!bodyText.includes(term.toLowerCase())) {
         errors.push(`${route.path} body text should include "${term}"`);
+      }
+    }
+
+    for (const term of route.headingTerms || []) {
+      if (!headings.includes(term.toLowerCase())) {
+        errors.push(`${route.path} headings should include "${term}"`);
+      }
+    }
+
+    for (const forbidden of route.forbiddenHeadingTerms || []) {
+      if (headings.includes(forbidden.toLowerCase())) {
+        errors.push(`${route.path} headings should not include wrong-platform term "${forbidden}"`);
       }
     }
 
@@ -267,6 +308,25 @@ function visibleText(html) {
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim(),
+  ).toLowerCase();
+}
+
+function headingText(html) {
+  const headings = Array.from(html.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)).map((match) =>
+    decodeHtml(
+      match[1]
+        .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    ),
+  );
+  const relatedIndex = headings.findIndex((heading) => heading.toLowerCase() === "related tools");
+  const primaryHeadings = relatedIndex >= 0 ? headings.slice(0, relatedIndex) : headings;
+
+  return decodeHtml(
+    primaryHeadings.join(" "),
   ).toLowerCase();
 }
 

@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -2128,6 +2128,10 @@ function autoModeDetail(mode: AutoMode): string {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "image-to-svg-for-cricut" });
+  const { pathname } = useLocation();
+  const routeCopy =
+    imageToSvgSeoCopyByPath[pathname] ??
+    imageToSvgSeoCopyByPath["/image-to-svg-for-cricut"];
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -2703,8 +2707,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               />
 
               <p className="mb-3 text-center text-sm text-slate-600">
-                Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and
-                SVG files for Cricut SVG output.
+                {routeCopy.supportText}
               </p>
 
 
@@ -2821,9 +2824,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               file={file}
               fallbackSettings={settings}
               routeCapabilities={routeCapabilities}
-              downloadLabel="Download Cricut SVG"
+              downloadLabel={routeCopy.downloadLabel}
               downloadFileName="image-to-svg-for-cricut.svg"
-              emptyTitle="Converted Cricut SVG files appear here..."
+              emptyTitle={routeCopy.emptyTitle}
               emptyDescription="Convert your input to preview, copy, or download the result."
               fullscreenPreviewIndex={fullscreenPreviewIndex}
               setFullscreenPreviewIndex={setFullscreenPreviewIndex}
@@ -3303,7 +3306,572 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
+type SeoCard = { title: string; body: string };
+type SeoStat = { k: string; v: string };
+type ImageToSvgSeoCopy = {
+  supportText: string;
+  downloadLabel: string;
+  emptyTitle: string;
+  eyebrow: string;
+  heading: string;
+  intro: string[];
+  stats: SeoStat[];
+  bestForHeading: string;
+  bestForTags: string[];
+  bestForCards: SeoCard[];
+  howToHeading: string;
+  howToSummary: string;
+  howToSteps: SeoCard[];
+  formatHeading: string;
+  formatIntro: string;
+  formatCards: SeoCard[];
+  settingsHeading: string;
+  settingsCards: SeoCard[];
+  sanityHeading: string;
+  sanityCards: SeoCard[];
+  immediateReadyQuestion: string;
+  immediateReadyAnswer: string;
+};
+
+const sharedImageIntro =
+  "Raster images are normalized and traced into vector paths. SVG uploads are handled differently: they are parsed, cleaned of risky markup, made responsive with a viewBox, and exported again without forcing a lossy retrace.";
+
+const sharedFormatCards: SeoCard[] = [
+  {
+    title: "PNG with transparent background",
+    body: "Usually the best raster source. Use Logo or Lineart presets. Transparent backgrounds help avoid tracing a full rectangular box around the design.",
+  },
+  {
+    title: "JPG photos or screenshots",
+    body: "Good for high-contrast subjects, but weak for shadows and gradients. Try Photo Edge presets if you want outlines; use simpler source art when you need clean paths.",
+  },
+  {
+    title: "WEBP, AVIF, HEIC, and HEIF",
+    body: "Common from phones and websites. These may not preview in every browser, but the server attempts to decode them and convert the first usable image frame.",
+  },
+  {
+    title: "GIF files",
+    body: "Animated GIFs are treated as a still source. Use them only when the first frame is the shape you want to trace.",
+  },
+  {
+    title: "TIFF and BMP scans",
+    body: "Useful for scanned drawings and older bitmap exports. Use Scan Cleanup presets and increase turd size if you see dust-like speckles.",
+  },
+  {
+    title: "Existing SVG files",
+    body: "Existing SVGs are parsed and cleaned rather than retraced. This preserves vector paths better than converting SVG to bitmap and tracing it again.",
+  },
+];
+
+const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
+  "/image-to-svg-for-cricut": {
+    supportText:
+      "Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG files for Cricut SVG output.",
+    downloadLabel: "Download Cricut SVG",
+    emptyTitle: "Converted Cricut SVG files appear here...",
+    eyebrow: "Image to SVG for Cricut",
+    heading: "Convert common image formats into Cricut-ready SVG files",
+    intro: [
+      "This page is built for people starting with mixed image sources: PNG screenshots, JPG artwork, WEBP downloads, scanned TIFFs, bitmap logos, phone photos, and existing SVGs that need cleanup before being used in Cricut Design Space.",
+      sharedImageIntro,
+    ],
+    stats: [
+      {
+        k: "More formats",
+        v: "PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, SVG",
+      },
+      { k: "SVG passthrough", v: "Clean existing SVGs instead of retracing them" },
+      { k: "Cricut workflow", v: "Designed for Design Space upload prep" },
+      { k: "Cut-file tuning", v: "Presets for decals, labels, stencils, and icons" },
+    ],
+    bestForHeading: "What this Cricut image converter is best for",
+    bestForTags: [
+      "Vinyl decals",
+      "Labels",
+      "Sticker outlines",
+      "Simple logos",
+      "Stencil art",
+      "Monograms",
+      "Card shapes",
+      "Existing SVG cleanup",
+      "Scanned line art",
+      "Icon cut files",
+    ],
+    bestForCards: [
+      {
+        title: "Use raster tracing for flat artwork",
+        body: "Best results come from high-contrast images with clear edges: black logos, simple clipart, handwriting scans, silhouettes, and solid shapes. These convert into cleaner cut paths than busy photos or soft gradients.",
+      },
+      {
+        title: "Use SVG cleanup for existing vectors",
+        body: "If you already have an SVG, upload it directly. The tool keeps the vector structure, removes risky script-style markup, adds responsive sizing, and exports a cleaner SVG for upload.",
+      },
+      {
+        title: "Avoid over-detailed source images",
+        body: "Cricut cut files work better with fewer, smoother paths. If a photo has hair, shadows, texture, or gradients, use Photo Edge presets only when you want a stylized outline rather than a perfect full-color recreation.",
+      },
+    ],
+    howToHeading: "How to convert an image to SVG for Cricut",
+    howToSummary: "Upload -> choose preset -> adjust -> download SVG",
+    howToSteps: [
+      {
+        title: "Upload your image or SVG",
+        body: "Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG. Less common formats may not preview in your browser, but the server will still attempt to parse them.",
+      },
+      {
+        title: "Pick the closest Cricut preset",
+        body: "Use Logo/Clean Shapes for decals and labels, Scan Cleanup for hand-drawn or scanned art, and Photo Edge only when you want an outline-style result from a photo.",
+      },
+      {
+        title: "Tune the cut path",
+        body: "Raise threshold to include lighter areas, lower it to keep only darker shapes. Increase turd size to remove tiny specks that can create unwanted Cricut cuts.",
+      },
+      {
+        title: "Keep transparency unless you need a background",
+        body: "Transparent SVGs are usually better for Cricut uploads. Add a background only when you intentionally need a filled rectangle behind the design.",
+      },
+      {
+        title: "Download and upload to Design Space",
+        body: "Download the SVG, then upload it into Cricut Design Space. Check the preview before cutting, especially around small holes, thin text, and isolated dots.",
+      },
+    ],
+    formatHeading: "Format guidance for Cricut projects",
+    formatIntro:
+      "Different source files need different handling. The goal is not just to make an SVG. The goal is to create an SVG that imports cleanly and does not create hundreds of messy cut paths.",
+    formatCards: sharedFormatCards,
+    settingsHeading: "Settings that matter for Cricut cuts",
+    settingsCards: [
+      {
+        title: "Threshold",
+        body: "Controls what becomes a shape. Raise it when pale gray lines disappear. Lower it when the design becomes too chunky or fills in small gaps.",
+      },
+      {
+        title: "Turd size",
+        body: "Removes tiny islands. For Cricut, this is important because every speck can become an unwanted cut. Raise it for scans and noisy images.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Higher values smooth paths and reduce file complexity. Lower values keep detail but can create more nodes and harder-to-cut shapes.",
+      },
+      {
+        title: "Turn policy",
+        body: "Changes how ambiguous corners resolve. Try black or majority when small corners look broken or when gaps need to close.",
+      },
+      {
+        title: "Transparent background",
+        body: "Usually keep this on. A solid background can become a large rectangle in Design Space unless you intentionally want that shape.",
+      },
+      {
+        title: "Line color",
+        body: "Useful for preview and simple single-color SVGs. Cricut material color is still chosen later in Design Space when you prepare the cut.",
+      },
+    ],
+    sanityHeading: "Before cutting: quick Cricut sanity check",
+    sanityCards: [
+      {
+        title: "Zoom into thin areas",
+        body: "Very thin strokes can tear vinyl or disappear at small sizes.",
+      },
+      {
+        title: "Remove stray dots",
+        body: "Tiny specks may become separate cuts. Increase turd size or clean the source image.",
+      },
+      {
+        title: "Check enclosed holes",
+        body: "Letters like A, O, P, R and small stencil bridges can fill in or cut incorrectly.",
+      },
+      {
+        title: "Simplify busy photos",
+        body: "A detailed photo trace can produce too many paths for a clean craft workflow.",
+      },
+    ],
+    immediateReadyQuestion: "Is every converted SVG ready to cut immediately?",
+    immediateReadyAnswer:
+      "No. Automatic tracing can create extra nodes, small islands, or filled-in holes. Always check the SVG in Design Space before cutting expensive vinyl or cardstock.",
+  },
+  "/image-to-svg-for-silhouette": {
+    supportText:
+      "Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG files for Silhouette SVG prep.",
+    downloadLabel: "Download SVG",
+    emptyTitle: "Converted SVG files for Silhouette prep appear here...",
+    eyebrow: "Image to SVG for Silhouette",
+    heading: "Prepare image-based SVGs for Silhouette projects",
+    intro: [
+      "Use this page when you are starting with PNG screenshots, JPG artwork, WEBP downloads, scanned drawings, bitmap logos, phone photos, or existing SVGs that need cleanup before a Silhouette Studio or cutting workflow.",
+      sharedImageIntro,
+    ],
+    stats: [
+      {
+        k: "More formats",
+        v: "PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, SVG",
+      },
+      { k: "SVG passthrough", v: "Clean existing SVGs instead of retracing them" },
+      { k: "Silhouette workflow", v: "Useful starting point for Studio and cut prep" },
+      { k: "Cut-file tuning", v: "Presets for decals, labels, stencils, and icons" },
+    ],
+    bestForHeading: "What this Silhouette image converter is best for",
+    bestForTags: [
+      "Vinyl decals",
+      "Labels",
+      "Sticker outlines",
+      "Simple logos",
+      "Stencil art",
+      "Monograms",
+      "Card shapes",
+      "Existing SVG cleanup",
+      "Scanned line art",
+      "Icon cut files",
+    ],
+    bestForCards: [
+      {
+        title: "Use raster tracing for simple artwork",
+        body: "Best results come from high-contrast images with clear edges: black logos, simple clipart, handwriting scans, silhouettes, and solid shapes. These convert into cleaner cut paths than busy photos or soft gradients.",
+      },
+      {
+        title: "Use SVG cleanup for existing vectors",
+        body: "If you already have an SVG, upload it directly. The tool keeps the vector structure, removes risky script-style markup, adds responsive sizing, and exports a cleaner SVG for upload.",
+      },
+      {
+        title: "Inspect before sending to a cutter",
+        body: "Silhouette projects work better with fewer, smoother paths. If a photo has hair, shadows, texture, or gradients, use Photo Edge presets only when you want a stylized outline rather than a perfect full-color recreation.",
+      },
+    ],
+    howToHeading: "How to convert an image to SVG for Silhouette",
+    howToSummary: "Upload -> choose preset -> adjust -> review SVG",
+    howToSteps: [
+      {
+        title: "Upload your image or SVG",
+        body: "Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG. Less common formats may not preview in your browser, but the server will still attempt to parse them.",
+      },
+      {
+        title: "Pick the closest cut-file preset",
+        body: "Use Logo/Clean Shapes for decals and labels, Scan Cleanup for hand-drawn or scanned art, and Photo Edge only when you want an outline-style result from a photo.",
+      },
+      {
+        title: "Tune the cut path",
+        body: "Raise threshold to include lighter areas, lower it to keep only darker shapes. Increase turd size to remove tiny specks that can become unwanted cuts.",
+      },
+      {
+        title: "Keep transparency unless you need a background",
+        body: "Transparent SVGs are usually better for cutting and design workflows. Add a background only when you intentionally need a filled rectangle behind the design.",
+      },
+      {
+        title: "Download and inspect the SVG",
+        body: "Download the SVG, then open it in Silhouette Studio or your design software. Check small holes, thin text, isolated dots, and scale before cutting.",
+      },
+    ],
+    formatHeading: "Format guidance for Silhouette projects",
+    formatIntro:
+      "Different source files need different handling. The goal is to create an SVG that imports cleanly and avoids hundreds of messy paths.",
+    formatCards: sharedFormatCards,
+    settingsHeading: "Settings that matter for Silhouette cut prep",
+    settingsCards: [
+      {
+        title: "Threshold",
+        body: "Controls what becomes a shape. Raise it when pale gray lines disappear. Lower it when the design becomes too chunky or fills in small gaps.",
+      },
+      {
+        title: "Turd size",
+        body: "Removes tiny islands. This matters because every speck can become a separate cut or cleanup task. Raise it for scans and noisy images.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Higher values smooth paths and reduce file complexity. Lower values keep detail but can create more nodes and harder-to-cut shapes.",
+      },
+      {
+        title: "Turn policy",
+        body: "Changes how ambiguous corners resolve. Try black or majority when small corners look broken or when gaps need to close.",
+      },
+      {
+        title: "Transparent background",
+        body: "Usually keep this on. A solid background can become a large rectangle unless you intentionally want that shape.",
+      },
+      {
+        title: "Line color",
+        body: "Useful for preview and simple single-color SVGs. Choose final material colors later in your design or cutting workflow.",
+      },
+    ],
+    sanityHeading: "Before cutting: quick Silhouette sanity check",
+    sanityCards: [
+      {
+        title: "Zoom into thin areas",
+        body: "Very thin strokes can tear vinyl or disappear at small sizes.",
+      },
+      {
+        title: "Remove stray dots",
+        body: "Tiny specks may become separate cuts. Increase turd size or clean the source image.",
+      },
+      {
+        title: "Check enclosed holes",
+        body: "Letters like A, O, P, R and small stencil bridges can fill in or cut incorrectly.",
+      },
+      {
+        title: "Simplify busy photos",
+        body: "A detailed photo trace can produce too many paths for a clean craft workflow.",
+      },
+    ],
+    immediateReadyQuestion: "Is every converted SVG ready to use immediately?",
+    immediateReadyAnswer:
+      "No. Automatic tracing can create extra nodes, small islands, or filled-in holes. Always check the SVG in Silhouette Studio or your design software before cutting material.",
+  },
+  "/image-to-svg-for-glowforge": {
+    supportText:
+      "Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG files for Glowforge laser-prep workflows.",
+    downloadLabel: "Download SVG",
+    emptyTitle: "Converted SVG files for Glowforge prep appear here...",
+    eyebrow: "Image to SVG for Glowforge",
+    heading: "Prepare SVG artwork for Glowforge laser projects",
+    intro: [
+      "Use this page when you are starting with high-contrast artwork, simple logos, icons, scanned line art, phone photos, or existing SVGs that need cleanup before laser cutting or engraving prep.",
+      sharedImageIntro,
+    ],
+    stats: [
+      {
+        k: "More formats",
+        v: "PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, SVG",
+      },
+      { k: "SVG passthrough", v: "Clean existing SVGs instead of retracing them" },
+      { k: "Glowforge prep", v: "Useful starting point for laser artwork review" },
+      { k: "Path tuning", v: "Presets for outlines, logos, scans, and icons" },
+    ],
+    bestForHeading: "What this Glowforge image converter is best for",
+    bestForTags: [
+      "Laser outlines",
+      "Engraving tests",
+      "Sign shapes",
+      "Logo artwork",
+      "High-contrast icons",
+      "Simple product marks",
+      "Existing SVG cleanup",
+      "Scanned line art",
+      "Shape templates",
+      "Path simplification",
+    ],
+    bestForCards: [
+      {
+        title: "Use raster tracing for high-contrast artwork",
+        body: "Best results come from clear edges: black logos, simple icons, handwriting scans, silhouettes, and solid shapes. These convert into cleaner paths than busy photos or soft gradients.",
+      },
+      {
+        title: "Use SVG cleanup for existing vectors",
+        body: "If you already have an SVG, upload it directly. The tool keeps the vector structure, removes risky script-style markup, adds responsive sizing, and exports a cleaner SVG for review.",
+      },
+      {
+        title: "Avoid noisy photo sources",
+        body: "Glowforge projects are easier to prepare when the SVG paths are readable and not overloaded. Photo traces can be useful as stylized outlines, but they are not automatically polished laser-ready geometry.",
+      },
+    ],
+    howToHeading: "How to convert an image to SVG for Glowforge",
+    howToSummary: "Upload -> choose preset -> adjust -> inspect SVG",
+    howToSteps: [
+      {
+        title: "Upload your image or SVG",
+        body: "Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG. Less common formats may not preview in your browser, but the server will still attempt to parse them.",
+      },
+      {
+        title: "Pick the closest outline preset",
+        body: "Use Logo/Clean Shapes for bold graphics, Scan Cleanup for hand-drawn or scanned art, and Photo Edge only when you want an outline-style result from a photo.",
+      },
+      {
+        title: "Tune the laser-friendly path",
+        body: "Raise threshold to include lighter areas, lower it to keep only darker shapes. Increase turd size to remove tiny specks that can become unwanted detail.",
+      },
+      {
+        title: "Keep transparency unless you need a preview background",
+        body: "Transparent SVGs are usually easier to inspect and place. Add a background only when you intentionally need a filled rectangle behind the design.",
+      },
+      {
+        title: "Download and inspect for laser prep",
+        body: "Download the SVG, then open it in design software before sending it to a Glowforge workflow. Check path complexity, scale, stroke or fill intent, and tiny isolated shapes.",
+      },
+    ],
+    formatHeading: "Format guidance for Glowforge prep",
+    formatIntro:
+      "Different source files need different handling. The goal is to create an SVG that is practical to inspect, simplify, scale, and prepare for laser cutting or engraving.",
+    formatCards: sharedFormatCards,
+    settingsHeading: "Settings that matter for Glowforge SVG prep",
+    settingsCards: [
+      {
+        title: "Threshold",
+        body: "Controls what becomes a shape. Raise it when pale gray lines disappear. Lower it when the design becomes too chunky or fills in small gaps.",
+      },
+      {
+        title: "Turd size",
+        body: "Removes tiny islands. This helps reduce accidental specks and texture that can make laser artwork harder to review.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Higher values smooth paths and reduce file complexity. Lower values keep detail but can create more nodes and heavier SVGs.",
+      },
+      {
+        title: "Turn policy",
+        body: "Changes how ambiguous corners resolve. Try black or majority when small corners look broken or when gaps need to close.",
+      },
+      {
+        title: "Transparent background",
+        body: "Usually keep this on. A solid background can become a large rectangle unless you intentionally want that shape.",
+      },
+      {
+        title: "Line color",
+        body: "Useful for preview and simple single-color SVGs. Confirm final stroke, fill, and operation settings later in your laser workflow.",
+      },
+    ],
+    sanityHeading: "Before laser prep: quick Glowforge sanity check",
+    sanityCards: [
+      {
+        title: "Zoom into thin areas",
+        body: "Very thin strokes or tiny shapes may need cleanup before laser cutting or engraving.",
+      },
+      {
+        title: "Remove stray dots",
+        body: "Tiny specks may become unnecessary path detail. Increase turd size or clean the source image.",
+      },
+      {
+        title: "Check enclosed holes",
+        body: "Letters and small enclosed spaces can fill in or become harder to interpret after tracing.",
+      },
+      {
+        title: "Simplify busy photos",
+        body: "A detailed photo trace can produce too many paths for a clean laser-prep workflow.",
+      },
+    ],
+    immediateReadyQuestion: "Is every converted SVG ready for laser use immediately?",
+    immediateReadyAnswer:
+      "No. Automatic tracing can create extra nodes, small islands, or filled-in holes. Always inspect and simplify the SVG in design software before using it for laser cutting or engraving.",
+  },
+  "/image-to-svg-for-etsy": {
+    supportText:
+      "Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG files for Etsy seller workflows.",
+    downloadLabel: "Download SVG",
+    emptyTitle: "Converted SVG files for Etsy prep appear here...",
+    eyebrow: "Image to SVG for Etsy",
+    heading: "Prepare SVG artwork for Etsy seller workflows",
+    intro: [
+      "Use this page when you are starting with PNG screenshots, JPG artwork, WEBP downloads, scanned drawings, bitmap logos, phone photos, or existing SVGs that need cleanup for digital products, listing assets, sticker designs, or product graphics.",
+      sharedImageIntro,
+    ],
+    stats: [
+      {
+        k: "More formats",
+        v: "PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, SVG",
+      },
+      { k: "SVG passthrough", v: "Clean existing SVGs instead of retracing them" },
+      { k: "Etsy seller prep", v: "Useful for listing assets and digital products" },
+      { k: "Artwork tuning", v: "Presets for logos, stickers, scans, and icons" },
+    ],
+    bestForHeading: "What this Etsy image converter is best for",
+    bestForTags: [
+      "Digital products",
+      "Listing assets",
+      "Sticker artwork",
+      "Seller logos",
+      "Craft designs",
+      "Mockup graphics",
+      "Existing SVG cleanup",
+      "Scanned art",
+      "Product icons",
+      "Reusable graphics",
+    ],
+    bestForCards: [
+      {
+        title: "Use raster tracing for simple seller artwork",
+        body: "Best results come from high-contrast images with clear edges: logos, simple clipart, handwriting scans, silhouettes, sticker graphics, and solid shapes. These convert into cleaner SVG paths than busy photos or soft gradients.",
+      },
+      {
+        title: "Use SVG cleanup for existing vectors",
+        body: "If you already have an SVG, upload it directly. The tool keeps the vector structure, removes risky script-style markup, adds responsive sizing, and exports a cleaner SVG for review.",
+      },
+      {
+        title: "Inspect before publishing or selling",
+        body: "Etsy assets work better when the paths are clean, the scale is predictable, and the file is easy to edit. Photo traces can be useful as stylized artwork, but they usually need manual review before being packaged.",
+      },
+    ],
+    howToHeading: "How to convert an image to SVG for Etsy",
+    howToSummary: "Upload -> choose preset -> adjust -> review SVG",
+    howToSteps: [
+      {
+        title: "Upload your image or SVG",
+        body: "Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG. Less common formats may not preview in your browser, but the server will still attempt to parse them.",
+      },
+      {
+        title: "Pick the closest seller workflow preset",
+        body: "Use Logo/Clean Shapes for shop marks and product graphics, Scan Cleanup for hand-drawn or scanned art, and Photo Edge only when you want an outline-style result from a photo.",
+      },
+      {
+        title: "Tune the seller asset",
+        body: "Raise threshold to include lighter areas, lower it to keep only darker shapes. Increase turd size to remove tiny specks that can make a download file harder to use.",
+      },
+      {
+        title: "Keep transparency unless a preview background is needed",
+        body: "Transparent SVGs are usually easier to place in listing previews, mockups, and design files. Add a background only when you intentionally need one.",
+      },
+      {
+        title: "Download and review before publishing",
+        body: "Download the SVG, then open it in design software before selling, uploading, or packaging it. Check path quality, scale, small holes, and isolated dots.",
+      },
+    ],
+    formatHeading: "Format guidance for Etsy seller assets",
+    formatIntro:
+      "Different source files need different handling. The goal is to create an SVG that is easy to inspect, edit, package, or use in listing and product workflows.",
+    formatCards: sharedFormatCards,
+    settingsHeading: "Settings that matter for Etsy SVG prep",
+    settingsCards: [
+      {
+        title: "Threshold",
+        body: "Controls what becomes a shape. Raise it when pale gray lines disappear. Lower it when the design becomes too chunky or fills in small gaps.",
+      },
+      {
+        title: "Turd size",
+        body: "Removes tiny islands. This helps reduce dust, texture, and accidental specks that can make a seller file look messy.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Higher values smooth paths and reduce file complexity. Lower values keep detail but can create more nodes and heavier SVGs.",
+      },
+      {
+        title: "Turn policy",
+        body: "Changes how ambiguous corners resolve. Try black or majority when small corners look broken or when gaps need to close.",
+      },
+      {
+        title: "Transparent background",
+        body: "Usually keep this on for reusable graphics. Add a solid background only when you intentionally need a preview-style asset.",
+      },
+      {
+        title: "Line color",
+        body: "Useful for preview and simple single-color SVGs. Confirm final colors later in your design file or listing asset workflow.",
+      },
+    ],
+    sanityHeading: "Before publishing: quick Etsy SVG sanity check",
+    sanityCards: [
+      {
+        title: "Zoom into thin areas",
+        body: "Very thin strokes can disappear, look rough, or be hard for buyers to edit.",
+      },
+      {
+        title: "Remove stray dots",
+        body: "Tiny specks may become separate paths. Increase turd size or clean the source image.",
+      },
+      {
+        title: "Check enclosed holes",
+        body: "Letters and small enclosed spaces can fill in or look wrong after automatic tracing.",
+      },
+      {
+        title: "Simplify busy photos",
+        body: "A detailed photo trace can produce too many paths for a clean digital product workflow.",
+      },
+    ],
+    immediateReadyQuestion: "Is every converted SVG ready to sell immediately?",
+    immediateReadyAnswer:
+      "No. Automatic tracing can create extra nodes, small islands, or filled-in holes. Always inspect the SVG before selling it, listing it, or packaging it with other digital product files.",
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const copy =
+    imageToSvgSeoCopyByPath[pathname] ??
+    imageToSvgSeoCopyByPath["/image-to-svg-for-cricut"];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -3311,43 +3879,19 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                Image to SVG for Cricut
+                {copy.eyebrow}
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                Convert common image formats into Cricut-ready SVG files
+                {copy.heading}
               </h2>
-              <p className="text-slate-600">
-                This page is built for people starting with mixed image sources:
-                PNG screenshots, JPG artwork, WEBP downloads, scanned TIFFs,
-                bitmap logos, phone photos, and existing SVGs that need cleanup
-                before being used in Cricut Design Space.
-              </p>
-              <p className="text-slate-600">
-                Raster images are normalized and traced into vector paths. SVG
-                uploads are handled differently: they are parsed, cleaned of
-                risky markup, made responsive with a viewBox, and exported again
-                without forcing a lossy retrace.
-              </p>
+              {copy.intro.map((paragraph) => (
+                <p key={paragraph} className="text-slate-600">
+                  {paragraph}
+                </p>
+              ))}
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  {
-                    k: "More formats",
-                    v: "PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, SVG",
-                  },
-                  {
-                    k: "SVG passthrough",
-                    v: "Clean existing SVGs instead of retracing them",
-                  },
-                  {
-                    k: "Cricut workflow",
-                    v: "Designed for Design Space upload prep",
-                  },
-                  {
-                    k: "Cut-file tuning",
-                    v: "Presets for decals, labels, stencils, and icons",
-                  },
-                ].map((x) => (
+                {copy.stats.map((x) => (
                   <div
                     key={x.k}
                     className="rounded-xl border border-slate-200 bg-white p-4"
@@ -3376,21 +3920,10 @@ function SeoSections() {
 
           <section className="">
             <h3 className="text-lg font-bold">
-              What this Cricut image converter is best for
+              {copy.bestForHeading}
             </h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                "Vinyl decals",
-                "Labels",
-                "Sticker outlines",
-                "Simple logos",
-                "Stencil art",
-                "Monograms",
-                "Card shapes",
-                "Existing SVG cleanup",
-                "Scanned line art",
-                "Icon cut files",
-              ].map((t) => (
+              {copy.bestForTags.map((t) => (
                 <span
                   key={t}
                   className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm text-slate-700"
@@ -3401,38 +3934,15 @@ function SeoSections() {
             </div>
 
             <div className="mt-4 grid md:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">
-                  Use raster tracing for flat artwork
+              {copy.bestForCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-2xl border border-slate-200 p-5"
+                >
+                  <div className="text-sm font-semibold">{card.title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{card.body}</p>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Best results come from high-contrast images with clear edges:
-                  black logos, simple clipart, handwriting scans, silhouettes,
-                  and solid shapes. These convert into cleaner cut paths than
-                  busy photos or soft gradients.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">
-                  Use SVG cleanup for existing vectors
-                </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  If you already have an SVG, upload it directly. The tool keeps
-                  the vector structure, removes risky script-style markup, adds
-                  responsive sizing, and exports a cleaner SVG for upload.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 p-5">
-                <div className="text-sm font-semibold">
-                  Avoid over-detailed source images
-                </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Cricut cut files work better with fewer, smoother paths. If a
-                  photo has hair, shadows, texture, or gradients, use Photo Edge
-                  presets only when you want a stylized outline rather than a
-                  perfect full-color recreation.
-                </p>
-              </div>
+              ))}
             </div>
           </section>
 
@@ -3443,36 +3953,15 @@ function SeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold">
-                How to convert an image to SVG for Cricut
+                {copy.howToHeading}
               </h3>
               <span className="text-xs text-slate-500">
-                Upload → choose preset → adjust → download SVG
+                {copy.howToSummary}
               </span>
             </div>
 
             <ol className="mt-4 grid gap-3">
-              {[
-                {
-                  title: "Upload your image or SVG",
-                  body: "Use PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, or SVG. Less common formats may not preview in your browser, but the server will still attempt to parse them.",
-                },
-                {
-                  title: "Pick the closest Cricut preset",
-                  body: "Use Logo/Clean Shapes for decals and labels, Scan Cleanup for hand-drawn or scanned art, and Photo Edge only when you want an outline-style result from a photo.",
-                },
-                {
-                  title: "Tune the cut path",
-                  body: "Raise threshold to include lighter areas, lower it to keep only darker shapes. Increase turd size to remove tiny specks that can create unwanted Cricut cuts.",
-                },
-                {
-                  title: "Keep transparency unless you need a background",
-                  body: "Transparent SVGs are usually better for Cricut uploads. Add a background only when you intentionally need a filled rectangle behind the design.",
-                },
-                {
-                  title: "Download and upload to Design Space",
-                  body: "Download the SVG, then upload it into Cricut Design Space. Check the preview before cutting, especially around small holes, thin text, and isolated dots.",
-                },
-              ].map((s, i) => (
+              {copy.howToSteps.map((s, i) => (
                 <li
                   key={s.title}
                   itemScope
@@ -3503,41 +3992,14 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold">
-              Format guidance for Cricut projects
+              {copy.formatHeading}
             </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[85ch]">
-              Different source files need different handling. The goal is not
-              just “make an SVG.” The goal is to create an SVG that imports
-              cleanly and does not create hundreds of messy cut paths.
+              {copy.formatIntro}
             </p>
 
             <div className="mt-5 grid md:grid-cols-2 gap-4">
-              {[
-                {
-                  title: "PNG with transparent background",
-                  body: "Usually the best raster source. Use Logo or Lineart presets. Transparent backgrounds help avoid tracing a full rectangular box around the design.",
-                },
-                {
-                  title: "JPG photos or screenshots",
-                  body: "Good for high-contrast subjects, but weak for shadows and gradients. Try Photo Edge presets if you want outlines; use simpler source art for actual cut files.",
-                },
-                {
-                  title: "WEBP, AVIF, HEIC, and HEIF",
-                  body: "Common from phones and websites. These may not preview in every browser, but the server attempts to decode them and convert the first usable image frame.",
-                },
-                {
-                  title: "GIF files",
-                  body: "Animated GIFs are treated as a still source. Use them only when the first frame is the shape you want to trace.",
-                },
-                {
-                  title: "TIFF and BMP scans",
-                  body: "Useful for scanned drawings and older bitmap exports. Use Scan Cleanup presets and increase turd size if you see dust-like speckles.",
-                },
-                {
-                  title: "Existing SVG files",
-                  body: "Existing SVGs are parsed and cleaned rather than retraced. This preserves vector paths better than converting SVG to bitmap and tracing it again.",
-                },
-              ].map((c) => (
+              {copy.formatCards.map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
@@ -3551,35 +4013,10 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold">
-              Settings that matter for Cricut cuts
+              {copy.settingsHeading}
             </h3>
             <div className="mt-5 grid md:grid-cols-2 gap-4">
-              {[
-                {
-                  title: "Threshold",
-                  body: "Controls what becomes a shape. Raise it when pale gray lines disappear. Lower it when the design becomes too chunky or fills in small gaps.",
-                },
-                {
-                  title: "Turd size",
-                  body: "Removes tiny islands. For Cricut, this is important because every speck can become an unwanted cut. Raise it for scans and noisy images.",
-                },
-                {
-                  title: "Curve tolerance",
-                  body: "Higher values smooth paths and reduce file complexity. Lower values keep detail but can create more nodes and harder-to-cut shapes.",
-                },
-                {
-                  title: "Turn policy",
-                  body: "Changes how ambiguous corners resolve. Try black or majority when small corners look broken or when gaps need to close.",
-                },
-                {
-                  title: "Transparent background",
-                  body: "Usually keep this on. A solid background can become a large rectangle in Design Space unless you intentionally want that shape.",
-                },
-                {
-                  title: "Line color",
-                  body: "Useful for preview and simple single-color SVGs. Cricut material color is still chosen later in Design Space when you prepare the cut.",
-                },
-              ].map((c) => (
+              {copy.settingsCards.map((c) => (
                 <div
                   key={c.title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
@@ -3593,33 +4030,16 @@ function SeoSections() {
 
           <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h3 className="text-lg font-bold">
-              Before cutting: quick Cricut sanity check
+              {copy.sanityHeading}
             </h3>
             <div className="mt-4 grid md:grid-cols-2 gap-4">
-              {[
-                [
-                  "Zoom into thin areas",
-                  "Very thin strokes can tear vinyl or disappear at small sizes.",
-                ],
-                [
-                  "Remove stray dots",
-                  "Tiny specks may become separate cuts. Increase turd size or clean the source image.",
-                ],
-                [
-                  "Check enclosed holes",
-                  "Letters like A, O, P, R and small stencil bridges can fill in or cut incorrectly.",
-                ],
-                [
-                  "Simplify busy photos",
-                  "A detailed photo trace can produce too many paths for a clean craft workflow.",
-                ],
-              ].map(([t, d]) => (
+              {copy.sanityCards.map(({ title, body }) => (
                 <div
-                  key={t}
+                  key={title}
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <div className="text-sm font-semibold">{t}</div>
-                  <p className="mt-1 text-sm text-slate-600">{d}</p>
+                  <div className="text-sm font-semibold">{title}</div>
+                  <p className="mt-1 text-sm text-slate-600">{body}</p>
                 </div>
               ))}
             </div>
@@ -3645,8 +4065,8 @@ function SeoSections() {
                   a: "SVG files are not retraced. The tool sanitizes the markup, removes risky active content, normalizes sizing with a viewBox, and exports the SVG again.",
                 },
                 {
-                  q: "Is every converted SVG ready to cut immediately?",
-                  a: "No. Automatic tracing can create extra nodes, small islands, or filled-in holes. Always check the SVG in Design Space before cutting expensive vinyl or cardstock.",
+                  q: copy.immediateReadyQuestion,
+                  a: copy.immediateReadyAnswer,
                 },
                 {
                   q: "Why does my photo look like a rough outline?",
