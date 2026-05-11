@@ -86,6 +86,48 @@ const selectedRoutes = [
     headingTerms: ["resize"],
   },
   {
+    path: "/svg-resizer-for-canva",
+    label: "svg-resizer-for-canva",
+    bodyTerms: ["canva", "layout sizing", "design upload", "viewbox"],
+    headingTerms: ["canva"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "glowforge", "silhouette", "laser", "cutting"],
+  },
+  {
+    path: "/svg-resizer-for-etsy",
+    label: "svg-resizer-for-etsy",
+    bodyTerms: ["etsy", "seller", "listing", "product preview", "review before publishing"],
+    headingTerms: ["etsy"],
+    forbiddenHeadingTerms: ["canva", "shopify", "glowforge", "silhouette", "laser", "cutting"],
+  },
+  {
+    path: "/svg-resizer-for-figma",
+    label: "svg-resizer-for-figma",
+    bodyTerms: ["figma", "import", "component", "viewbox"],
+    headingTerms: ["figma"],
+    forbiddenHeadingTerms: ["etsy", "shopify", "glowforge", "silhouette", "laser", "cutting"],
+  },
+  {
+    path: "/svg-resizer-for-glowforge",
+    label: "svg-resizer-for-glowforge",
+    bodyTerms: ["glowforge", "laser", "workspace", "material sizing", "not laser-ready"],
+    headingTerms: ["glowforge"],
+    forbiddenHeadingTerms: ["figma", "canva", "etsy", "shopify", "silhouette"],
+  },
+  {
+    path: "/svg-resizer-for-shopify",
+    label: "svg-resizer-for-shopify",
+    bodyTerms: ["shopify", "storefront", "logo", "icon", "theme asset"],
+    headingTerms: ["shopify"],
+    forbiddenHeadingTerms: ["etsy", "canva", "glowforge", "silhouette", "laser", "cutting"],
+  },
+  {
+    path: "/svg-resizer-for-silhouette",
+    label: "svg-resizer-for-silhouette",
+    bodyTerms: ["silhouette studio", "cut project", "viewbox", "review before cutting"],
+    headingTerms: ["silhouette"],
+    forbiddenHeadingTerms: ["glowforge", "laser", "figma", "canva", "shopify"],
+  },
+  {
     path: "/svg-minifier",
     label: "svg-minifier",
     bodyTerms: ["svg minifier", "file size", "markup", "not a resizer"],
@@ -313,6 +355,14 @@ checkNoDuplicateFaqPageJsonLd([
   "/svg-cleaner-for-figma",
   "/svg-cleaner-for-glowforge",
   "/svg-cleaner-for-silhouette",
+]);
+checkNoDuplicateFaqPageJsonLd([
+  "/svg-resizer-for-canva",
+  "/svg-resizer-for-etsy",
+  "/svg-resizer-for-figma",
+  "/svg-resizer-for-glowforge",
+  "/svg-resizer-for-shopify",
+  "/svg-resizer-for-silhouette",
 ]);
 
 console.log(
