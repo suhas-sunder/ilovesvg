@@ -66,7 +66,7 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Laser Cutting - Vector Cut Paths | iLoveSVG";
   const description =
-    "Convert PNG or JPG artwork into SVG vector paths for laser cutting, scoring, engraving, wood, acrylic, cardstock, stencils, and maker projects.";
+    "Convert PNG or JPG artwork into SVG path starting points for laser cutting, scoring, engraving, and review in laser software.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-laser-cutting";
 
   return [
@@ -2049,7 +2049,7 @@ function SeoSections() {
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="text-sky-950 text-lg font-bold">
-              Best for laser-ready vector paths
+              Best for laser-prep vector paths
             </h3>
             <p className="mt-2 text-sm text-slate-600">
               This page creates traced SVG paths from raster artwork. It is
@@ -2057,6 +2057,12 @@ function SeoSections() {
               engrave shapes. It does not set your machine power, speed, kerf,
               material thickness, or origin. Always test your SVG in your laser
               software before cutting expensive material.
+            </p>
+            <p className="mt-3 text-sm text-slate-600">
+              Not every PNG becomes a clean cut file automatically. Treat the
+              output as a path review starting point: inspect small islands,
+              enclosed holes, stroke or fill intent, and path count before using
+              the design with laser software or real materials.
             </p>
           </section>
 

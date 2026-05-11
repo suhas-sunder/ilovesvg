@@ -1953,7 +1953,7 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-const stickerMarketplaceSeoCopyByPath: Record<
+const stickerRouteSeoCopyByPath: Record<
   string,
   {
     eyebrow: string;
@@ -1978,11 +1978,27 @@ const stickerMarketplaceSeoCopyByPath: Record<
       },
     ],
   },
+  "/sticker-to-svg-for-silhouette": {
+    eyebrow: "Sticker SVG for Silhouette",
+    heading: "Prepare Silhouette sticker SVGs for Studio cut lines",
+    intro:
+      "Use this version for sticker-style artwork that needs an SVG starting point for Silhouette Studio. Transparent PNGs, bold outlines, labels, decals, and simple sticker art usually work best. Review before cutting so cut lines, small holes, stray specks, and printable sticker edges behave the way you expect.",
+    cards: [
+      {
+        title: "Sticker and decal prep",
+        body: "Trace transparent sticker art, labels, decal graphics, and badge-style designs into SVG paths that can be inspected before a Silhouette workflow.",
+      },
+      {
+        title: "Review before cutting",
+        body: "Open the SVG in Silhouette Studio or design software. Check cut lines, outline thickness, tiny islands, and whether the artwork still fits the printable or cuttable project size.",
+      },
+    ],
+  },
 };
 
 function SeoSections() {
   const { pathname } = useLocation();
-  const marketplaceCopy = stickerMarketplaceSeoCopyByPath[pathname];
+  const routeCopy = stickerRouteSeoCopyByPath[pathname];
 
   return (
     <section className="bg-white border-t border-slate-200">
@@ -2273,19 +2289,19 @@ function SeoSections() {
             </div>
           </section>
 
-          {marketplaceCopy ? (
+          {routeCopy ? (
             <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                {marketplaceCopy.eyebrow}
+                {routeCopy.eyebrow}
               </p>
               <h3 className="mt-2 text-lg font-bold">
-                {marketplaceCopy.heading}
+                {routeCopy.heading}
               </h3>
               <p className="mt-3 text-sm leading-6 text-slate-700">
-                {marketplaceCopy.intro}
+                {routeCopy.intro}
               </p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                {marketplaceCopy.cards.map((card) => (
+                {routeCopy.cards.map((card) => (
                   <div
                     key={card.title}
                     className="rounded-xl border border-slate-200 bg-white p-4"

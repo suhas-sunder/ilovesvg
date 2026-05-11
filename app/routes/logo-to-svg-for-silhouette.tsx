@@ -3,7 +3,8 @@ import Template, { action, loader } from "./logo-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Logo to SVG for Silhouette | iLoveSVG";
-  const description = "Convert logo artwork into SVG for Silhouette-style vinyl, decals, labels, and clean resizing.";
+  const description =
+    "Convert logo artwork into SVG starting points for Silhouette Studio vinyl, decals, labels, and review before cutting.";
   const canonical = "https://www.ilovesvg.com/logo-to-svg-for-silhouette";
 
   return [

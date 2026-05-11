@@ -27,7 +27,7 @@ const MARKETPLACE_CRAFT_ROUTE_META = {
     label: "Sticker To SVG For Silhouette",
     title: "Sticker to SVG for Silhouette | iLoveSVG",
     description:
-      "Convert sticker artwork into SVG for Silhouette-style sticker, decal, label, and vinyl workflows.",
+      "Convert sticker artwork into SVG starting points for Silhouette Studio sticker, decal, label, and vinyl cut workflows.",
     canonicalPath: "/sticker-to-svg-for-silhouette",
   },
 } as const satisfies Readonly<Record<string, RouteMetaEntry>>;

@@ -3,7 +3,8 @@ import Template, { action, loader } from "./image-to-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Image to SVG for Silhouette | iLoveSVG";
-  const description = "Convert images into SVG for Silhouette-style vinyl, sticker, decal, label, and cutting software workflows.";
+  const description =
+    "Convert simple images into SVG starting points for Silhouette Studio, vinyl, sticker, decal, and craft cutting workflows.";
   const canonical = "https://www.ilovesvg.com/image-to-svg-for-silhouette";
 
   return [

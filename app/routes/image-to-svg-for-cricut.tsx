@@ -3533,7 +3533,7 @@ const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
       },
       {
         title: "Inspect before sending to a cutter",
-        body: "Silhouette projects work better with fewer, smoother paths. If a photo has hair, shadows, texture, or gradients, use Photo Edge presets only when you want a stylized outline rather than a perfect full-color recreation.",
+        body: "Silhouette projects work better with fewer, smoother paths. Review before cutting in Silhouette Studio, especially when a photo has hair, shadows, texture, or gradients. Use Photo Edge presets only when you want a stylized outline rather than a perfect full-color recreation.",
       },
     ],
     howToHeading: "How to convert an image to SVG for Silhouette",
@@ -3557,7 +3557,7 @@ const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
       },
       {
         title: "Download and inspect the SVG",
-        body: "Download the SVG, then open it in Silhouette Studio or your design software. Check small holes, thin text, isolated dots, and scale before cutting.",
+        body: "Download the SVG, then open it in Silhouette Studio or your design software. Check small holes, thin text, isolated dots, and scale as a review before cutting material.",
       },
     ],
     formatHeading: "Format guidance for Silhouette projects",
@@ -3682,7 +3682,7 @@ const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
       },
       {
         title: "Download and inspect for laser prep",
-        body: "Download the SVG, then open it in design software before sending it to a Glowforge workflow. Check path complexity, scale, stroke or fill intent, and tiny isolated shapes.",
+        body: "Download the SVG, then open it in design software before sending it to a Glowforge workflow. Treat this as review before laser use: check path complexity, scale, stroke or fill intent, and tiny isolated shapes.",
       },
     ],
     formatHeading: "Format guidance for Glowforge prep",

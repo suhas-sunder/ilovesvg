@@ -192,7 +192,7 @@ async function runDesktopAudit(width) {
     const primary = await evaluate(client, desktopPrimaryStateExpression());
     await evaluate(client, `(() => {
       const button = Array.from(document.querySelectorAll('button'))
-        .find((candidate) => /More/i.test(candidate.innerText || '') && candidate.getAttribute('aria-haspopup') === 'menu');
+        .find((candidate) => /All Tools/i.test(candidate.innerText || '') && candidate.getAttribute('aria-haspopup') === 'menu');
       if (!button) return false;
       button.click();
       return true;
@@ -221,7 +221,7 @@ async function runDesktopAudit(width) {
     const ok =
       primary.hasPrimaryNav &&
       primary.homeLogoHref === "/" &&
-      primary.moreButtonVisible &&
+      primary.allToolsButtonVisible &&
       primary.noPrimaryWrap &&
       primary.noHorizontalOverflow &&
       !primary.hasImageToSvgPrimary &&
@@ -349,7 +349,7 @@ function desktopPrimaryStateExpression() {
       return styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     });
     const buttons = Array.from(nav?.querySelectorAll(':scope > button') || []);
-    const moreButton = buttons.find((button) => /More/i.test(button.innerText || '') && button.getAttribute('aria-haspopup') === 'menu');
+    const allToolsButton = buttons.find((button) => /All Tools/i.test(button.innerText || '') && button.getAttribute('aria-haspopup') === 'menu');
     const visibleNavControls = [
       ...visiblePrimaryLinks,
       ...buttons.filter((button) => {
@@ -369,7 +369,7 @@ function desktopPrimaryStateExpression() {
     });
     const minControlCenter = controlCenters.length ? Math.min(...controlCenters) : 0;
     const maxControlCenter = controlCenters.length ? Math.max(...controlCenters) : 0;
-    const moreRect = moreButton?.getBoundingClientRect();
+    const allToolsRect = allToolsButton?.getBoundingClientRect();
     return {
       hasPrimaryNav: Boolean(nav),
       homeLogoHref: logo?.getAttribute('href') || null,
@@ -382,12 +382,12 @@ function desktopPrimaryStateExpression() {
         const label = (link.textContent || '').trim();
         return href === '/' || label === 'Image to SVG';
       }),
-      moreButtonVisible: Boolean(
-        moreButton &&
-        moreRect &&
-        getComputedStyle(moreButton).display !== 'none' &&
-        moreRect.width > 0 &&
-        moreRect.height > 0
+      allToolsButtonVisible: Boolean(
+        allToolsButton &&
+        allToolsRect &&
+        getComputedStyle(allToolsButton).display !== 'none' &&
+        allToolsRect.width > 0 &&
+        allToolsRect.height > 0
       ),
       noPrimaryWrap: maxControlCenter - minControlCenter <= 4,
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,

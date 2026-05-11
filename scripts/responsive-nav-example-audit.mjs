@@ -68,6 +68,7 @@ function runNavAudit() {
   assertIncludes(nav, "filterNavSections", "shared nav section filtering");
   assertIncludes(nav, "data-nav-menu=\"desktop-more\"", "auditable desktop nav menu");
   assertIncludes(nav, "data-nav-menu=\"mobile-tools\"", "auditable mobile nav menu");
+  assertIncludes(nav, "All Tools <IconChevronDown />", "desktop All Tools nav button");
   assertIncludes(nav, "visibleItems.map", "mobile nav renders direct links");
   assertIncludes(nav, "Show {hiddenCount} more", "large mobile sections expose direct links before show more");
   assertIncludes(nav, "maxHeight", "viewport-aware desktop menu height");

@@ -3,7 +3,8 @@ import Template, { action, loader } from "./image-to-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Image to SVG for Glowforge | iLoveSVG";
-  const description = "Convert images into SVG for Glowforge-style laser prep, simplified outlines, engraving tests, and cleanup workflows.";
+  const description =
+    "Convert simple images into SVG starting points for Glowforge laser cutting or engraving prep, with path review guidance.";
   const canonical = "https://www.ilovesvg.com/image-to-svg-for-glowforge";
 
   return [

@@ -175,8 +175,9 @@ assert(
 assert(
   sectionHrefs.includes("#other-tools") &&
     navBarSource.includes('aria-haspopup="menu"') &&
-    navBarSource.includes("More <IconChevronDown />"),
-  "More / All Tools access must remain available",
+    navBarSource.includes("All Tools <IconChevronDown />") &&
+    !navBarSource.includes("More <IconChevronDown />"),
+  "All Tools access must remain available as the main desktop nav menu button",
 );
 
 const knownAnchors = new Set(["#other-tools"]);

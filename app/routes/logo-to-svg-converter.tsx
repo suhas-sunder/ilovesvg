@@ -1721,7 +1721,7 @@ function prettyBytes(bytes: number) {
 }
 
 /* ===== SEO sections (logo-specific copy) ===== */
-const logoMarketplaceSeoCopyByPath: Record<
+const logoRouteSeoCopyByPath: Record<
   string,
   {
     eyebrow: string;
@@ -1762,11 +1762,43 @@ const logoMarketplaceSeoCopyByPath: Record<
       },
     ],
   },
+  "/logo-to-svg-for-silhouette": {
+    eyebrow: "Silhouette logo to SVG",
+    heading: "Prepare Silhouette logo SVGs for Studio cut projects",
+    intro:
+      "Use this version when a logo, icon, badge, or simple brand mark needs to become an SVG starting point for Silhouette Studio. Clean high-contrast artwork works best for vinyl decals, labels, monograms, and other cut-friendly craft projects. Review before cutting so small lettering, counters, and isolated dots do not become frustrating cut paths.",
+    cards: [
+      {
+        title: "Cut-friendly logo paths",
+        body: "Convert simple logo artwork into SVG paths you can inspect for Silhouette Studio, vinyl decals, labels, icon cuts, and craft layouts before sending material to the cutter.",
+      },
+      {
+        title: "Review before cutting",
+        body: "Open the exported SVG in Silhouette Studio or design software. Check tiny details, path smoothness, scale, and whether the logo will weed cleanly at the final size.",
+      },
+    ],
+  },
+  "/logo-to-svg-for-glowforge": {
+    eyebrow: "Glowforge logo to SVG",
+    heading: "Prepare Glowforge logo SVGs for laser engraving and cutting prep",
+    intro:
+      "Use this version when a logo, mark, icon, or simple brand graphic needs an SVG starting point for Glowforge engraving or laser cutting prep. High-contrast artwork traces better than textured images, and you should inspect complexity before laser use so the file is practical to size, simplify, and assign operations later.",
+    cards: [
+      {
+        title: "Logo outlines",
+        body: "Convert clean logo artwork into SVG paths for engraving tests, sign shapes, product marks, and simple outline prep without claiming the file is automatically production-ready.",
+      },
+      {
+        title: "Inspect complexity",
+        body: "Review nodes, tiny islands, enclosed holes, and stroke or fill intent before using the SVG in a Glowforge workflow or other laser software.",
+      },
+    ],
+  },
 };
 
 function SeoSections() {
   const { pathname } = useLocation();
-  const marketplaceCopy = logoMarketplaceSeoCopyByPath[pathname];
+  const routeCopy = logoRouteSeoCopyByPath[pathname];
 
   return (
     <section className="bg-white border-t border-slate-200">
@@ -1936,19 +1968,19 @@ function SeoSections() {
             </div>
           </section>
 
-          {marketplaceCopy ? (
+          {routeCopy ? (
             <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                {marketplaceCopy.eyebrow}
+                {routeCopy.eyebrow}
               </p>
               <h3 className="mt-2 text-lg font-bold text-slate-900">
-                {marketplaceCopy.heading}
+                {routeCopy.heading}
               </h3>
               <p className="mt-3 text-sm leading-6 text-slate-700">
-                {marketplaceCopy.intro}
+                {routeCopy.intro}
               </p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                {marketplaceCopy.cards.map((card) => (
+                {routeCopy.cards.map((card) => (
                   <div
                     key={card.title}
                     className="rounded-xl border border-slate-200 bg-white p-4"

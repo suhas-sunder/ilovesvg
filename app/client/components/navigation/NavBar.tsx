@@ -448,7 +448,7 @@ export default function NavBar() {
                   setMoreOpen((v) => !v);
                 }}
               >
-                More <IconChevronDown />
+                All Tools <IconChevronDown />
               </button>
             )}
 
