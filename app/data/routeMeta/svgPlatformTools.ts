@@ -46,23 +46,23 @@ const SVG_PLATFORM_TOOLS_ROUTE_META = {
   },
   "/svg-cleaner-for-figma": {
     label: "SVG Cleaner For Figma",
-    title: "SVG Cleaner for Figma | iLoveSVG",
+    title: "SVG Cleaner for Figma Import and Editing | iLoveSVG",
     description:
-      "Clean SVG markup for Figma handoff, removing editor clutter while preserving practical SVG structure.",
+      "Clean SVG markup for Figma import and design handoff. Remove editor clutter, review the preview, and keep output easy to inspect.",
     canonicalPath: "/svg-cleaner-for-figma",
   },
   "/svg-cleaner-for-glowforge": {
     label: "SVG Cleaner For Glowforge",
-    title: "SVG Cleaner for Glowforge | iLoveSVG",
+    title: "SVG Cleaner for Glowforge Laser Review | iLoveSVG",
     description:
-      "Clean SVG markup before Glowforge-style laser workflows, import testing, sizing checks, and path review.",
+      "Clean SVG markup before Glowforge laser cutting or engraving review. Remove clutter, preserve geometry, and inspect paths before material tests.",
     canonicalPath: "/svg-cleaner-for-glowforge",
   },
   "/svg-cleaner-for-silhouette": {
     label: "SVG Cleaner For Silhouette",
-    title: "SVG Cleaner for Silhouette | iLoveSVG",
+    title: "SVG Cleaner for Silhouette Studio | iLoveSVG",
     description:
-      "Clean SVG markup before Silhouette-style import, cutting software prep, sizing checks, and path review.",
+      "Clean SVG markup before Silhouette Studio review. Remove editor clutter, preserve cut paths, and inspect details before sending to a cutter.",
     canonicalPath: "/svg-cleaner-for-silhouette",
   },
 } as const satisfies Readonly<Record<string, RouteMetaEntry>>;

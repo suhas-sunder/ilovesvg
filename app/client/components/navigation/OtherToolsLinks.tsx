@@ -1437,6 +1437,87 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       },
     ],
   },
+  "/svg-cleaner-for-figma": {
+    eyebrow: "Figma SVG cleanup workflow",
+    heading: "SVG cleaner for Figma import, editing workflow, and design handoff",
+    intro:
+      "Use this page when an exported SVG needs metadata, comments, editor namespaces, or unsafe markup removed before Figma import. It helps make the file easier to inspect, but it does not guarantee editable layers.",
+    bestFor: [
+      "Figma import cleanup for SVG icons, logos, UI artwork, and design-system assets.",
+      "Design handoff where previewing the cleaned SVG matters before sharing.",
+      "Users who need safer markup without changing the SVG into a raster image.",
+    ],
+    settings: [
+      "Start with Safe or Normal cleanup before importing into Figma.",
+      "Preserve ids, defs, gradients, masks, groups, fills, and strokes unless preview proves they are unused.",
+      "Use SVG minifier only after the cleaned preview still matches the source.",
+    ],
+    limitations: [
+      "Cleaning does not certify Figma compatibility or guarantee editable layers.",
+      "Fonts, masks, filters, gradients, and grouped artwork can still import differently.",
+      "Confirm final appearance inside Figma before sharing or publishing.",
+    ],
+    related: [
+      { to: "/svg-resizer-for-figma", label: "SVG Resizer for Figma", reason: "Fix width, height, and viewBox before handoff." },
+      { to: "/svg-to-png-for-figma", label: "SVG to PNG for Figma", reason: "Export a flattened preview when editability is not needed." },
+      { to: "/png-to-svg-for-figma", label: "PNG to SVG for Figma", reason: "Trace raster artwork into SVG before cleanup." },
+      { to: "/svg-minifier", label: "SVG Minifier", reason: "Reduce file size after cleanup has been reviewed." },
+    ],
+  },
+  "/svg-cleaner-for-glowforge": {
+    eyebrow: "Glowforge SVG cleanup workflow",
+    heading: "SVG cleaner for Glowforge laser cutting, engraving, and path review",
+    intro:
+      "Use this page when an SVG needs clutter removed before Glowforge laser cutting, engraving, import testing, or path review. Cleaned output is not laser-ready by itself, so inspect it before material tests.",
+    bestFor: [
+      "Glowforge SVG cleanup before laser cutting or engraving review.",
+      "Simple logos, outlines, engraving marks, and cutting artwork with extra editor markup.",
+      "Users who want a cleaner file before checking scale, paths, and operation choices.",
+    ],
+    settings: [
+      "Start with Safe cleanup for SVGs from unknown sources.",
+      "Preserve geometry, viewBox, groups, fills, strokes, ids, and defs until preview confirms they are safe to change.",
+      "Use resize or file-size tools after cleanup if dimensions or complexity still need review.",
+    ],
+    limitations: [
+      "Cleaning does not validate machine settings, materials, or Glowforge upload behavior.",
+      "Path complexity, duplicate shapes, hidden objects, fills, and strokes still need review.",
+      "Run small material tests before any production cut or engraving job.",
+    ],
+    related: [
+      { to: "/svg-resizer-for-glowforge", label: "SVG Resizer for Glowforge", reason: "Check dimensions and viewBox before laser use." },
+      { to: "/png-to-svg-for-glowforge", label: "PNG to SVG for Glowforge", reason: "Trace PNG artwork into SVG before cleanup." },
+      { to: "/logo-to-svg-for-glowforge", label: "Logo to SVG for Glowforge", reason: "Convert logo artwork into SVG starting points." },
+      { to: "/svg-file-size-inspector", label: "SVG File Size Inspector", reason: "Inspect heavy SVGs before simplifying further." },
+    ],
+  },
+  "/svg-cleaner-for-silhouette": {
+    eyebrow: "Silhouette SVG cleanup workflow",
+    heading: "SVG cleaner for Silhouette Studio import and cut path review",
+    intro:
+      "Use this page when an SVG needs cleaner markup before Silhouette Studio import, cut path review, or a vinyl, decal, label, or sticker workflow. Cleaned output is not automatically cut-ready.",
+    bestFor: [
+      "Silhouette Studio SVG cleanup before checking cut paths.",
+      "Vinyl decals, labels, sticker outlines, and simple craft graphics with extra editor markup.",
+      "Users who want cleaner markup before reviewing size, paths, and import behavior.",
+    ],
+    settings: [
+      "Start with Safe or Normal cleanup before opening the SVG in Silhouette Studio.",
+      "Preserve viewBox, geometry, groups, fills, strokes, ids, and defs until preview confirms they are safe to change.",
+      "Use resize or image-to-SVG tools if the problem is project size or raster tracing, not markup cleanup.",
+    ],
+    limitations: [
+      "Cleaning does not validate blade settings, material choices, or cutter behavior.",
+      "Tiny islands, broken outlines, duplicate paths, and unwanted backgrounds still need review.",
+      "Preview in Silhouette Studio before sending the design to a cutter.",
+    ],
+    related: [
+      { to: "/svg-resizer-for-silhouette", label: "SVG Resizer for Silhouette", reason: "Fix dimensions before Studio review." },
+      { to: "/image-to-svg-for-silhouette", label: "Image to SVG for Silhouette", reason: "Trace raster artwork into SVG starting points." },
+      { to: "/logo-to-svg-for-silhouette", label: "Logo to SVG for Silhouette", reason: "Convert logo artwork for craft projects." },
+      { to: "/sticker-to-svg-for-silhouette", label: "Sticker to SVG for Silhouette", reason: "Prepare sticker artwork before cleanup and sizing." },
+    ],
+  },
   "/svg-cleaner": {
     eyebrow: "SVG cleanup workflow",
     heading: "SVG cleaner for safer markup, smaller files, and easier export",

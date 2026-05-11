@@ -59,6 +59,27 @@ const selectedRoutes = [
     headingTerms: ["svg cleaner"],
   },
   {
+    path: "/svg-cleaner-for-figma",
+    label: "svg-cleaner-for-figma",
+    bodyTerms: ["figma import", "editing workflow", "design handoff", "not guarantee editable layers"],
+    headingTerms: ["figma"],
+    forbiddenHeadingTerms: ["glowforge", "silhouette", "laser", "cutting", "engraving"],
+  },
+  {
+    path: "/svg-cleaner-for-glowforge",
+    label: "svg-cleaner-for-glowforge",
+    bodyTerms: ["glowforge", "laser", "cutting", "engraving", "path review", "not laser-ready"],
+    headingTerms: ["glowforge"],
+    forbiddenHeadingTerms: ["figma", "silhouette", "vinyl", "design handoff"],
+  },
+  {
+    path: "/svg-cleaner-for-silhouette",
+    label: "svg-cleaner-for-silhouette",
+    bodyTerms: ["silhouette studio", "cut path", "review before cutting", "not automatically cut-ready"],
+    headingTerms: ["silhouette"],
+    forbiddenHeadingTerms: ["figma", "glowforge", "laser", "engraving"],
+  },
+  {
     path: "/svg-resize-and-scale-editor",
     label: "svg-resize-and-scale-editor",
     bodyTerms: ["resize", "scale", "viewbox", "width", "height", "not a cleaner"],
@@ -288,6 +309,11 @@ checkUnique("title");
 checkUnique("description");
 checkHomepageIntentSeparation();
 checkDistinctH1("/sticker-to-svg-converter", "/sticker-to-svg-for-cricut");
+checkNoDuplicateFaqPageJsonLd([
+  "/svg-cleaner-for-figma",
+  "/svg-cleaner-for-glowforge",
+  "/svg-cleaner-for-silhouette",
+]);
 
 console.log(
   JSON.stringify(
@@ -390,6 +416,7 @@ async function fetchRoute(route) {
       canonical,
       h1,
       h1Count,
+      faqPageJsonLdSignatures: faqPageJsonLdSignatures(html),
       errors,
     };
   } catch (error) {
@@ -405,6 +432,7 @@ async function fetchRoute(route) {
       canonical: "",
       h1: "",
       h1Count: 0,
+      faqPageJsonLdSignatures: [],
       errors: [`${route.path} failed to fetch: ${message}`],
     };
   } finally {
@@ -446,6 +474,22 @@ function checkDistinctH1(firstPath, secondPath) {
 
   if (first.h1.trim().toLowerCase() === second.h1.trim().toLowerCase()) {
     failures.push(`${firstPath} and ${secondPath} share the same H1`);
+  }
+}
+
+function checkNoDuplicateFaqPageJsonLd(paths) {
+  const signatures = new Map();
+  for (const path of paths) {
+    const result = results.find((item) => item.path === path);
+    if (!result) continue;
+
+    for (const signature of result.faqPageJsonLdSignatures || []) {
+      if (signatures.has(signature)) {
+        failures.push(`${path} and ${signatures.get(signature)} share duplicate FAQPage JSON-LD`);
+      } else {
+        signatures.set(signature, path);
+      }
+    }
   }
 }
 
@@ -519,6 +563,51 @@ function headingText(html) {
   return decodeHtml(
     primaryHeadings.join(" "),
   ).toLowerCase();
+}
+
+function faqPageJsonLdSignatures(html) {
+  const scripts = Array.from(
+    html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi),
+  );
+
+  return scripts.flatMap((match) => {
+    const raw = decodeHtml(match[1] || "");
+    try {
+      const parsed = JSON.parse(raw);
+      return collectFaqPageJsonLd(parsed).map((item) => stableJsonStringify(item));
+    } catch {
+      return [];
+    }
+  });
+}
+
+function collectFaqPageJsonLd(value) {
+  if (!value || typeof value !== "object") return [];
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectFaqPageJsonLd(item));
+  }
+
+  const type = value["@type"];
+  if (type === "FAQPage" || (Array.isArray(type) && type.includes("FAQPage"))) {
+    return [value];
+  }
+
+  return Object.values(value).flatMap((item) => collectFaqPageJsonLd(item));
+}
+
+function stableJsonStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJsonStringify(item)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
 }
 
 function decodeHtml(value) {

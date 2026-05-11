@@ -1731,6 +1731,188 @@ function getCleanerBreadcrumbTitle(pathname: string) {
 
 type FaqItem = { q: string; a: string };
 
+type CleanerPlatformSection = {
+  heading: string;
+  intro: string;
+  cards: Array<{ title: string; body: string }>;
+  note: string;
+};
+
+type CleanerSeoContent = {
+  platformSection: CleanerPlatformSection | null;
+  faq: FaqItem[];
+};
+
+const GENERIC_CLEANER_FAQ: FaqItem[] = [
+  {
+    q: "Does cleaning an SVG change how it looks?",
+    a: "Safe and Normal usually preserve rendering. Aggressive cleanup can change output if it removes ids, defs, or styling attributes the SVG relies on.",
+  },
+  {
+    q: "Is this SVG cleaner private?",
+    a: "Yes. Everything runs in your browser. Your SVG content is not uploaded to a server.",
+  },
+  {
+    q: "What's safe to remove for icons and logos?",
+    a: "Comments, metadata, editor namespaces, and XML/DOCTYPE wrappers are usually safe to remove. Be careful removing ids or defs if the SVG uses gradients, masks, clip-paths, masks, symbols, or url(#id) references.",
+  },
+  {
+    q: "Why strip scripts and event handlers?",
+    a: "SVG can include <script> blocks, on* event handlers, and JavaScript URLs. Stripping them reduces risk when previewing or embedding SVGs from unknown sources.",
+  },
+  {
+    q: "Can this remove Inkscape or Illustrator junk?",
+    a: "Yes. It targets common editor prefixes (like inkscape/sodipodi) and metadata blocks that often bloat exported SVG files.",
+  },
+];
+
+const CLEANER_PLATFORM_CONTENT: Record<
+  string,
+  CleanerSeoContent
+> = {
+  "/svg-cleaner-for-figma": {
+    platformSection: {
+      heading: "Clean SVGs for Figma import and editing",
+      intro:
+        "Use this wrapper when an exported logo, icon, UI illustration, or design-system asset has markup clutter before Figma import or design handoff.",
+      cards: [
+        {
+          title: "Before Figma import",
+          body:
+            "Remove metadata, comments, editor namespaces, XML wrappers, and unsafe script behavior before bringing the SVG into a design file.",
+        },
+        {
+          title: "Editing workflow checks",
+          body:
+            "Keep viewBox, fills, strokes, gradients, masks, and useful groups intact, then review the cleaned preview before importing.",
+        },
+        {
+          title: "What cleanup cannot promise",
+          body:
+            "This cleaner does not guarantee editable layers in Figma. Complex masks, filters, fonts, and grouped artwork can still need manual review.",
+        },
+      ],
+      note:
+        "Start with Safe or Normal cleanup for Figma assets. Use Aggressive only after comparing the preview because removing ids or defs can break gradients, masks, or reusable references.",
+    },
+    faq: [
+      {
+        q: "Will this make every SVG editable in Figma?",
+        a: "No. Cleaning removes markup clutter and unsafe behavior, but it does not guarantee editable layers. Inspect the imported result in Figma, especially masks, filters, gradients, fonts, and grouped artwork.",
+      },
+      {
+        q: "What should I clean before Figma import?",
+        a: "Metadata, comments, editor namespaces, XML wrappers, and unsafe script behavior are good cleanup targets. Preserve viewBox, ids, defs, fills, strokes, masks, and gradients unless the preview proves they are unused.",
+      },
+      {
+        q: "Is this Figma SVG cleaner private?",
+        a: "Yes. Cleaning runs in your browser, so SVG markup is not uploaded to a server.",
+      },
+      {
+        q: "Which cleanup mode should I use for Figma assets?",
+        a: "Start with Safe or Normal. Aggressive cleanup can be useful for controlled icon sets, but it can also remove references that affect the imported appearance.",
+      },
+    ],
+  },
+  "/svg-cleaner-for-glowforge": {
+    platformSection: {
+      heading: "Clean SVGs before Glowforge laser review",
+      intro:
+        "Use this wrapper when an SVG needs clutter removed before Glowforge laser cutting, engraving, import testing, or path review.",
+      cards: [
+        {
+          title: "Before laser review",
+          body:
+            "Remove comments, metadata, editor namespaces, XML wrappers, and unsafe script behavior so the file is easier to inspect before material tests.",
+        },
+        {
+          title: "Path and geometry checks",
+          body:
+            "Preserve geometry, viewBox, fills, strokes, groups, and required references, then inspect path complexity, scale, and intended cut or engrave areas.",
+        },
+        {
+          title: "What cleanup cannot promise",
+          body:
+            "Cleaned output is not laser-ready by itself. Review the SVG in your laser workflow and confirm dimensions, paths, material settings, and operation choices.",
+        },
+      ],
+      note:
+        "Start with Safe cleanup for SVGs you did not create. Aggressive id or defs removal can break references, so use it only after the preview still matches the source artwork.",
+    },
+    faq: [
+      {
+        q: "Does cleaning make an SVG ready for Glowforge?",
+        a: "No. Cleaned output is not laser-ready by itself. It can make markup easier to inspect, but final cutting or engraving depends on the SVG geometry, dimensions, material, software setup, and machine settings.",
+      },
+      {
+        q: "What should I inspect before laser use?",
+        a: "Check path complexity, final size, duplicate shapes, hidden objects, unwanted fills or strokes, and whether intended cutting and engraving areas import as expected.",
+      },
+      {
+        q: "Is this Glowforge SVG cleaner private?",
+        a: "Yes. Cleaning runs in your browser, so SVG markup is not uploaded to a server.",
+      },
+      {
+        q: "Can I remove ids and defs for laser files?",
+        a: "Only after previewing. Some SVGs rely on ids and defs for masks, clip paths, gradients, or symbols, and removing them can change the visible result.",
+      },
+    ],
+  },
+  "/svg-cleaner-for-silhouette": {
+    platformSection: {
+      heading: "Clean SVGs before Silhouette Studio review",
+      intro:
+        "Use this wrapper when an SVG needs cleaner markup before Silhouette Studio import, cut path review, or a vinyl, decal, label, or sticker workflow.",
+      cards: [
+        {
+          title: "Before Studio import",
+          body:
+            "Remove metadata, comments, editor namespaces, XML wrappers, and unsafe script behavior before checking the file in Silhouette Studio.",
+        },
+        {
+          title: "Cut path review",
+          body:
+            "Preserve geometry, viewBox, fills, strokes, groups, and required references, then review before cutting for tiny islands, broken outlines, and unexpected shapes.",
+        },
+        {
+          title: "What cleanup cannot promise",
+          body:
+            "Cleaned output is not automatically cut-ready. Review sizing, cut paths, line thickness, and import behavior before sending the design to a cutter.",
+        },
+      ],
+      note:
+        "Start with Safe or Normal cleanup for Silhouette Studio workflows. Use Aggressive only after the cleaned preview still matches the source artwork.",
+    },
+    faq: [
+      {
+        q: "Does cleaning make an SVG cut-ready for Silhouette?",
+        a: "No. Cleaned output is not automatically cut-ready. It can remove markup clutter, but you still need to review size, paths, line thickness, tiny islands, and import behavior before cutting.",
+      },
+      {
+        q: "What should I review before cutting?",
+        a: "Review before cutting for unwanted backgrounds, tiny islands, broken outlines, duplicate paths, final size, and whether Silhouette Studio imports the SVG as expected.",
+      },
+      {
+        q: "Is this Silhouette SVG cleaner private?",
+        a: "Yes. Cleaning runs in your browser, so SVG markup is not uploaded to a server.",
+      },
+      {
+        q: "Which cleanup is useful for Silhouette Studio?",
+        a: "Removing metadata, comments, editor namespaces, XML wrappers, and unsafe script behavior is usually useful. Avoid removing ids or defs until the preview proves the file does not rely on them.",
+      },
+    ],
+  },
+};
+
+function getCleanerSeoContent(pathname: string): CleanerSeoContent {
+  return (
+    CLEANER_PLATFORM_CONTENT[pathname] ?? {
+      platformSection: null,
+      faq: GENERIC_CLEANER_FAQ,
+    }
+  );
+}
+
 function makeFaqJsonLd(faq: Array<{ q: string; a: string }>) {
   return {
     "@context": "https://schema.org",
@@ -1755,30 +1937,50 @@ function safeJsonLd(obj: unknown) {
     .replace(/&/g, "\\u0026");
 }
 
-function SeoSections() {
-  const faq: FaqItem[] = [
-    {
-      q: "Does cleaning an SVG change how it looks?",
-      a: "Safe and Normal usually preserve rendering. Aggressive cleanup can change output if it removes ids, defs, or styling attributes the SVG relies on.",
-    },
-    {
-      q: "Is this SVG cleaner private?",
-      a: "Yes. Everything runs in your browser. Your SVG content is not uploaded to a server.",
-    },
-    {
-      q: "What’s safe to remove for icons and logos?",
-      a: "Comments, metadata, editor namespaces, and XML/DOCTYPE wrappers are usually safe to remove. Be careful removing ids or defs if the SVG uses gradients, masks, clip-paths, masks, symbols, or url(#id) references.",
-    },
-    {
-      q: "Why strip scripts and event handlers?",
-      a: "SVG can include <script> blocks, on* event handlers, and JavaScript URLs. Stripping them reduces risk when previewing or embedding SVGs from unknown sources.",
-    },
-    {
-      q: "Can this remove Inkscape or Illustrator junk?",
-      a: "Yes. It targets common editor prefixes (like inkscape/sodipodi) and metadata blocks that often bloat exported SVG files.",
-    },
-  ];
+function PlatformCleanerSection({
+  section,
+}: {
+  section: CleanerPlatformSection | null;
+}) {
+  if (!section) return null;
 
+  return (
+    <section className="mt-8 rounded-2xl border border-sky-100 bg-sky-50/60 p-6 shadow-sm">
+      <h3 className="m-0 text-lg font-extrabold text-slate-900">
+        {section.heading}
+      </h3>
+      <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+        {section.intro}
+      </p>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {section.cards.map((card) => (
+          <div
+            key={card.title}
+            className="rounded-xl border border-sky-100 bg-white p-4"
+          >
+            <h4 className="m-0 text-sm font-extrabold text-slate-900">
+              {card.title}
+            </h4>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              {card.body}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 rounded-xl border border-white bg-white/80 p-4 text-[13px] leading-relaxed text-slate-700">
+        {section.note}
+      </p>
+    </section>
+  );
+}
+
+function SeoSections() {
+  const { pathname } = useLocation();
+  const cleanerPath = normalizeCleanerPath(pathname);
+  const seoContent = getCleanerSeoContent(cleanerPath);
+  const faq = seoContent.faq;
   const faqJsonLd = makeFaqJsonLd(faq);
 
   return (
@@ -1882,6 +2084,7 @@ function SeoSections() {
               </ol>
             </div>
           </header>
+          <PlatformCleanerSection section={seoContent.platformSection} />
           <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
