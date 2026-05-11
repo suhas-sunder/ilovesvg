@@ -13,6 +13,7 @@ const profileDir = path.join(tmpDir, "profile");
 const mobileWidths = [320, 360, 390, 430, 768];
 const desktopWidths = [1024, 1280, 1440, 1600, 1920];
 const compactPrimaryHrefs = [
+  "#other-tools",
   "/svg-to-png-converter",
   "/png-to-svg-converter",
 ];
@@ -192,7 +193,7 @@ async function runDesktopAudit(width) {
     const primary = await evaluate(client, desktopPrimaryStateExpression());
     await evaluate(client, `(() => {
       const button = Array.from(document.querySelectorAll('button'))
-        .find((candidate) => /All Tools/i.test(candidate.innerText || '') && candidate.getAttribute('aria-haspopup') === 'menu');
+        .find((candidate) => /More/i.test(candidate.innerText || '') && candidate.getAttribute('aria-haspopup') === 'menu');
       if (!button) return false;
       button.click();
       return true;
@@ -221,7 +222,8 @@ async function runDesktopAudit(width) {
     const ok =
       primary.hasPrimaryNav &&
       primary.homeLogoHref === "/" &&
-      primary.allToolsButtonVisible &&
+      primary.allToolsLinkVisible &&
+      primary.moreButtonVisible &&
       primary.noPrimaryWrap &&
       primary.noHorizontalOverflow &&
       !primary.hasImageToSvgPrimary &&
@@ -240,6 +242,7 @@ async function runDesktopAudit(width) {
       state.menuWidth >= Math.min(width - 32, width >= 1840 ? 1600 : width >= 1536 ? 1360 : 960) &&
       state.noHorizontalOverflow &&
       state.duplicateHrefCount === 0 &&
+      !state.searchHrefs.includes("#other-tools") &&
       directionalSearch.searchResultContainerCount === 1 &&
       directionalSearch.sectionCount === 0 &&
       directionalSearch.searchHrefs.includes("/svg-to-png-converter") &&
@@ -349,7 +352,7 @@ function desktopPrimaryStateExpression() {
       return styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     });
     const buttons = Array.from(nav?.querySelectorAll(':scope > button') || []);
-    const allToolsButton = buttons.find((button) => /All Tools/i.test(button.innerText || '') && button.getAttribute('aria-haspopup') === 'menu');
+    const moreButton = buttons.find((button) => /More/i.test(button.innerText || '') && button.getAttribute('aria-haspopup') === 'menu');
     const visibleNavControls = [
       ...visiblePrimaryLinks,
       ...buttons.filter((button) => {
@@ -369,7 +372,9 @@ function desktopPrimaryStateExpression() {
     });
     const minControlCenter = controlCenters.length ? Math.min(...controlCenters) : 0;
     const maxControlCenter = controlCenters.length ? Math.max(...controlCenters) : 0;
-    const allToolsRect = allToolsButton?.getBoundingClientRect();
+    const allToolsLink = topLevelAnchors.find((link) => link.getAttribute('href') === '#other-tools' && (link.textContent || '').trim() === 'All Tools');
+    const allToolsRect = allToolsLink?.getBoundingClientRect();
+    const moreRect = moreButton?.getBoundingClientRect();
     return {
       hasPrimaryNav: Boolean(nav),
       homeLogoHref: logo?.getAttribute('href') || null,
@@ -382,12 +387,19 @@ function desktopPrimaryStateExpression() {
         const label = (link.textContent || '').trim();
         return href === '/' || label === 'Image to SVG';
       }),
-      allToolsButtonVisible: Boolean(
-        allToolsButton &&
+      allToolsLinkVisible: Boolean(
+        allToolsLink &&
         allToolsRect &&
-        getComputedStyle(allToolsButton).display !== 'none' &&
+        getComputedStyle(allToolsLink).display !== 'none' &&
         allToolsRect.width > 0 &&
         allToolsRect.height > 0
+      ),
+      moreButtonVisible: Boolean(
+        moreButton &&
+        moreRect &&
+        getComputedStyle(moreButton).display !== 'none' &&
+        moreRect.width > 0 &&
+        moreRect.height > 0
       ),
       noPrimaryWrap: maxControlCenter - minControlCenter <= 4,
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,

@@ -155,6 +155,7 @@ assert(
 );
 
 const expectedPrimaryOrder = [
+  "#other-tools",
   "/svg-to-png-converter",
   "/png-to-svg-converter",
   "/svg-to-jpg-converter",
@@ -163,7 +164,7 @@ const expectedPrimaryOrder = [
 ];
 
 assert(
-  primaryHrefs.join("|") === expectedPrimaryOrder.join("|"),
+  ["#other-tools", ...primaryHrefs].join("|") === expectedPrimaryOrder.join("|"),
   `Unexpected primary nav order: ${primaryHrefs.join(", ")}`,
 );
 
@@ -173,11 +174,13 @@ assert(
 );
 
 assert(
-  sectionHrefs.includes("#other-tools") &&
+  !sectionHrefs.includes("#other-tools") &&
     navBarSource.includes('aria-haspopup="menu"') &&
-    navBarSource.includes("All Tools <IconChevronDown />") &&
-    !navBarSource.includes("More <IconChevronDown />"),
-  "All Tools access must remain available as the main desktop nav menu button",
+    navBarSource.includes('href="#other-tools"') &&
+    navBarSource.includes("All Tools") &&
+    navBarSource.includes("More <IconChevronDown />") &&
+    !navBarSource.includes("All Tools <IconChevronDown />"),
+  "All Tools must remain a desktop-only primary anchor and More must remain the dropdown button",
 );
 
 const knownAnchors = new Set(["#other-tools"]);

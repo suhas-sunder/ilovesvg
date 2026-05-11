@@ -258,7 +258,6 @@ export const TOOL_NAV_SECTIONS: ToolNavSection[] = [
       { label: "Settings", href: "/how-it-works/settings" },
       { label: "Exporting and Downloads", href: "/how-it-works/exporting-and-downloads" },
       { label: "Troubleshooting", href: "/how-it-works/troubleshooting" },
-      { label: "All Tools", href: "#other-tools" },
     ],
   },
 ];

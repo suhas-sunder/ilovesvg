@@ -424,6 +424,10 @@ export default function NavBar() {
             aria-label="Primary"
             className="hidden min-w-0 flex-nowrap items-center gap-2 whitespace-nowrap text-sm lg:flex"
           >
+            <DesktopLink href="#other-tools" onClick={(e) => handleNavClick(e, "#other-tools")}>
+              All Tools
+            </DesktopLink>
+
             {primaryLinks.map((l) => (
               <DesktopLink
                 key={l.href}
@@ -448,7 +452,7 @@ export default function NavBar() {
                   setMoreOpen((v) => !v);
                 }}
               >
-                All Tools <IconChevronDown />
+                More <IconChevronDown />
               </button>
             )}
 
