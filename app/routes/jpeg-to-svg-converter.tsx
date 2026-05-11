@@ -57,9 +57,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "JPEG to SVG Converter - Convert JPEG Photos to SVG | iLoveSVG";
+  const title = "JPEG to SVG Converter - Vectorize JPEG Images | iLoveSVG";
   const description =
-    "Convert JPEG and JPG camera images to SVG with outline, scan, and cleanup presets. Useful for photos, scans, whiteboards, and simplified vector artwork.";
+    "Convert JPEG photos, scans, screenshots, and whiteboard captures into editable SVG paths with noise cleanup, outline presets, preview, and download.";
   const canonical = "https://www.ilovesvg.com/jpeg-to-svg-converter";
 
   return [
@@ -3279,7 +3279,7 @@ function JpegSeoSections() {
           >
             <div className="flex items-end justify-between gap-4">
               <h3 itemProp="name" className="text-lg font-bold">
-                How to convert JPG to SVG
+                How to convert JPEG to SVG
               </h3>
               <span className="text-xs text-slate-500">
                 Upload → choose workflow → export

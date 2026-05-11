@@ -18,44 +18,44 @@ const FAVICON_EXPORT_ROUTE_META = {
   },
   "/png-to-ico-converter": {
     label: "PNG To ICO Converter",
-    title: "PNG to ICO Converter | iLoveSVG",
+    title: "PNG to ICO Converter - Create favicon.ico Files | iLoveSVG",
     description:
-      "Convert a PNG logo or icon into favicon.ico output and supporting icon sizes with the existing favicon generator.",
+      "Convert a PNG logo or icon into a multi-size favicon.ico with preview, square padding, and supporting PNG icon sizes.",
     canonicalPath: "/png-to-ico-converter",
   },
   "/svg-to-ico-converter": {
     label: "SVG To ICO Converter",
-    title: "SVG to ICO Converter | iLoveSVG",
+    title: "SVG to ICO Converter - Create favicon.ico Files | iLoveSVG",
     description:
-      "Create favicon.ico output from an SVG logo or icon using the existing favicon generator and browser-side icon export workflow.",
+      "Convert an SVG logo or icon into a multi-size favicon.ico with browser-side previews, square padding, and icon-size exports.",
     canonicalPath: "/svg-to-ico-converter",
   },
   "/png-to-favicon-generator": {
     label: "PNG To Favicon Generator",
-    title: "PNG to Favicon Generator | iLoveSVG",
+    title: "PNG to Favicon Generator - Create Website Icons | iLoveSVG",
     description:
-      "Create favicon assets from a PNG logo or app icon, including ICO and PNG icon sizes, using the existing favicon generator.",
+      "Generate favicon.ico and PNG icon sizes from a PNG logo or app icon with square padding, previews, and ZIP download.",
     canonicalPath: "/png-to-favicon-generator",
   },
   "/jpg-to-favicon-generator": {
     label: "JPG To Favicon Generator",
-    title: "JPG to Favicon Generator | iLoveSVG",
+    title: "JPG to Favicon Generator - Create Website Icons | iLoveSVG",
     description:
-      "Create favicon assets from a JPG or JPEG logo image with square padding, background controls, ICO output, and app icon sizes.",
+      "Generate favicon.ico and PNG icon sizes from a JPG or JPEG logo with background controls, previews, and ZIP download.",
     canonicalPath: "/jpg-to-favicon-generator",
   },
   "/logo-to-favicon-generator": {
     label: "Logo To Favicon Generator",
-    title: "Logo to Favicon Generator | iLoveSVG",
+    title: "Logo to Favicon Generator - Create Site Icons | iLoveSVG",
     description:
-      "Turn an SVG, PNG, JPG, or WebP logo into favicon-ready ICO and PNG icon assets with browser-side previews.",
+      "Turn a logo image into favicon.ico and PNG site icons with square padding, browser previews, app icon sizes, and ZIP download.",
     canonicalPath: "/logo-to-favicon-generator",
   },
   "/image-to-favicon-generator": {
     label: "Image To Favicon Generator",
-    title: "Image to Favicon Generator | iLoveSVG",
+    title: "Image to Favicon Generator - Create Website Icons | iLoveSVG",
     description:
-      "Generate favicon assets from SVG, PNG, JPG, or WebP inputs with browser-side icon previews, ICO output, PNG sizes, and app icon snippets.",
+      "Generate favicon.ico and PNG icon sizes from SVG, PNG, JPG, or WebP images with previews, app icon sizes, and ZIP download.",
     canonicalPath: "/image-to-favicon-generator",
   },
 } as const satisfies Readonly<Record<string, RouteMetaEntry>>;

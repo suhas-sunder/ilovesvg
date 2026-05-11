@@ -91,9 +91,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "iLoveSVG | PNG to SVG Converter - Free Online Image to SVG";
+  const title = "iLoveSVG | Free SVG Converter and Image to SVG Tools";
   const description =
-    "Convert PNG, JPG, WebP, GIF, AVIF, BMP, TIFF, and SVG images to scalable SVG with presets, speed tags, advanced trace controls, editable layers, copy, download, and full-screen preview.";
+    "Convert images into editable SVGs, then copy, download, preview, and tune results with presets for logos, icons, scans, sketches, and web graphics.";
   const canonical = "https://www.ilovesvg.com";
 
   return [
@@ -5932,23 +5932,23 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                PNG/JPEG to SVG vectorizer
+                Image to SVG tools
               </p>
               <h2 className="font-display text-2xl md:text-3xl font-[800] tracking-[-0.03em] leading-tight text-sky-950">
-                SVG Converter: Precise, fast, and built for creators
+                SVG converter tools for logos, scans, sketches, and web graphics
               </h2>
               <p className="text-[15px] leading-6 text-slate-700">
-                VTracer-first raster-to-vector conversion with Potrace fallback
-                for legacy line art, scans, diagrams, and compatibility cases.
-                Clean, editable SVG output keeps layer metadata available for
-                recoloring, hiding, copying, and downloading.
+                Use iLoveSVG as a broad image to SVG workspace: vectorize
+                raster artwork, tune trace settings, preview the result, and
+                export editable SVG output for design, craft, web, and document
+                workflows.
               </p>
 
               <p className="text-[15px] leading-6 text-slate-700">
-                Convert your PNG, JPEG, JPG, and WEBP images into crisp vector
-                graphics with route-aware presets, advanced trace controls,
-                local output edits, browser-side tracing where safe, and
-                protected server fallback when needed.
+                For exact format intent, use the dedicated PNG, JPG, JPEG, and
+                WebP converter pages. The homepage is the hub for choosing the
+                right SVG tool, comparing workflows, and finishing common copy,
+                download, preview, and layer-edit tasks.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -6189,10 +6189,10 @@ function SeoSections() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
                 <div className="text-sm font-semibold">Server stability</div>
                 <p className="mt-2 text-sm text-slate-700">
-                  This PNG to SVG conversion page only rate limits backend
-                  raster tracing and server-side conversion work. Preview
-                  rendering, copy, local download generation, and setting
-                  changes that only update React state are not rate limited.
+                  This SVG converter only rate limits backend raster tracing and
+                  server-side conversion work. Preview rendering, copy, local
+                  download generation, and setting changes that only update
+                  React state are not rate limited.
                 </p>
                 <p className="mt-3 text-sm text-slate-700">
                   Backend conversions allow up to 120 conversions per minute,

@@ -57,9 +57,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "JPG to SVG Converter - Turn JPG Images into SVG | iLoveSVG";
+  const title = "JPG to SVG Converter - Vectorize JPG Images | iLoveSVG";
   const description =
-    "Convert JPG images to SVG with photo, outline, scan, and cleanup presets. Server-assisted tracing, editable SVG output, copy, download, and full-screen preview.";
+    "Convert JPG photos, scans, and artwork into editable SVG paths with scan and outline presets, noise cleanup, preview, copy, and download.";
   const canonical = "https://www.ilovesvg.com/jpg-to-svg-converter";
 
   return [
@@ -3230,7 +3230,7 @@ function JpgSeoSections() {
                 },
                 {
                   q: "Do I need this page if I already have a JPEG to SVG converter?",
-                  a: "No, but it helps SEO and user intent. JPG and JPEG are the same format, so the tool behavior can be identical while the guidance is tailored to JPG users.",
+                  a: "JPG and JPEG are the same image format, so either route can process the file. Use this page when your file extension is .jpg and you want JPG-specific guidance.",
                 },
                 {
                   q: "What limits do you enforce?",

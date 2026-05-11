@@ -67,9 +67,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "PNG to SVG Converter - Free Online Image to SVG | iLoveSVG";
+  const title = "PNG to SVG Converter - Vectorize PNG Images | iLoveSVG";
   const description =
-    "Convert PNG to SVG with server-assisted tracing, searchable presets, speed tags, editable layers, copy, download, and full-screen preview. Good for logos, icons, stickers, and web graphics.";
+    "Convert PNG logos, icons, and transparent graphics into editable SVG paths with trace presets, cleanup controls, preview, copy, and download.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-converter";
 
   return [

@@ -15,9 +15,9 @@ import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/compo
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "SVG to JPG Converter - Flatten SVG to JPEG | iLoveSVG";
+  const title = "SVG to JPG Converter - Export SVG as JPEG | iLoveSVG";
   const description =
-    "Convert SVG to JPG in your browser with width, height, aspect ratio, background color, JPEG quality, preview, and download controls.";
+    "Export SVG files as JPG images in your browser with a solid background color, exact pixel size, JPEG quality, preview, and download.";
   const canonical = "https://www.ilovesvg.com/svg-to-jpg-converter";
 
   return [
@@ -1107,7 +1107,7 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
           <h2 className="m-0 font-bold text-2xl">
-            SVG to JPG Converter (Client-Side)
+            Export SVG to JPG with a solid background
           </h2>
 
           <p className="mt-3">

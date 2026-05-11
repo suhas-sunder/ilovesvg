@@ -21,7 +21,7 @@ import {
 export function meta({}: Route.MetaArgs) {
   const title = "SVG to PNG Converter - Export Transparent PNG Files | iLoveSVG";
   const description =
-    "Convert SVG to PNG in your browser with exact size, scale, aspect ratio, transparent background, solid background, preview, and download controls.";
+    "Export SVG files as PNG images in your browser with transparent or solid backgrounds, exact pixel size, scale controls, preview, and download.";
   const canonical = "https://www.ilovesvg.com/svg-to-png-converter";
 
   return [
@@ -1006,7 +1006,7 @@ function SeoSections() {
               Browser SVG raster export
             </p>
             <h2 className="font-display text-2xl font-[800] leading-tight tracking-[-0.03em] text-sky-950 md:text-3xl">
-              SVG to PNG Converter (Free, Instant, Client-Side)
+              Export SVG to PNG with transparency and exact size
             </h2>
 
             <p className="mt-3 text-[15px] leading-6 text-slate-700">

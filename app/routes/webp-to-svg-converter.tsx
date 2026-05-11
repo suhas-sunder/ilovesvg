@@ -58,9 +58,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "WebP to SVG Converter - Convert WebP to Vector | iLoveSVG";
+  const title = "WebP to SVG Converter - Vectorize WebP Images | iLoveSVG";
   const description =
-    "Convert WebP images to SVG with server-assisted tracing, presets, editable layers, copy, download, and full-screen preview for web assets, logos, and graphics.";
+    "Convert WebP logos, icons, and web graphics into editable SVG paths with WebP-specific tracing, cleanup controls, preview, copy, and download.";
   const canonical = "https://www.ilovesvg.com/webp-to-svg-converter";
 
   return [
@@ -1816,13 +1816,14 @@ function SeoSectionsWebp() {
             <p className="text-slate-600 mt-2">
               WebP is great for web delivery, but not great when you need
               scalable paths. This tool decodes WebP, optionally extracts edges,
-              and traces to SVG with hard limits designed for small servers.
+              and traces to SVG with size and resolution limits that keep the
+              conversion stable.
             </p>
 
             <p className="mt-2 text-slate-600">
-              This page is dedicated to WebP inputs only. It keeps the droplet
-              safe with strict size and resolution guards, and it converts in
-              memory.
+              This page is dedicated to WebP inputs only. Use it for downloaded
+              web graphics, compressed logo exports, icons, and simple artwork
+              that needs editable SVG paths.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1986,7 +1987,7 @@ function SeoSectionsWebp() {
                 },
                 {
                   q: "What are the hard limits?",
-                  a: "30 MB upload cap, roughly 30 megapixels, and 8000px max side. These exist to protect a small droplet.",
+                  a: "30 MB upload cap, roughly 30 megapixels, and 8000px max side. These limits keep browser preview and backend tracing responsive.",
                 },
                 {
                   q: "What does 429 Server busy mean?",
