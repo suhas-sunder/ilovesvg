@@ -3,7 +3,8 @@ import Template, { action, loader } from "./png-to-svg-for-laser-cutting";
 
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Glowforge | iLoveSVG";
-  const description = "Convert PNG art into SVG for Glowforge-style laser prep, simplified outlines, engraving tests, and sizing cleanup.";
+  const description =
+    "Convert PNG artwork into SVG starting points for Glowforge laser cutting, engraving prep, and path complexity review.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-glowforge";
 
   return [

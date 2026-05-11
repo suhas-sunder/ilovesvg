@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { type ActionFunctionArgs } from "react-router";
+import { type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -1987,6 +1987,9 @@ function prettyBytes(bytes: number) {
 }
 
 function SeoSections() {
+  const { pathname } = useLocation();
+  const isGlowforgeRoute = pathname === "/png-to-svg-for-glowforge";
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -2065,6 +2068,28 @@ function SeoSections() {
               the design with laser software or real materials.
             </p>
           </section>
+
+          {isGlowforgeRoute ? (
+            <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                Glowforge PNG to SVG
+              </p>
+              <h3 className="mt-2 text-sky-950 text-lg font-bold">
+                Prepare Glowforge PNG artwork for laser cutting and engraving prep
+              </h3>
+              <p className="mt-2 text-sm text-slate-700">
+                Use this page when a PNG logo, sign, ornament, stencil, or simple
+                high-contrast graphic needs an SVG starting point for a Glowforge
+                workflow. Transparent PNGs and flat artwork are easier to inspect
+                than photos with texture, shadows, or soft gradients.
+              </p>
+              <p className="mt-3 text-sm text-slate-700">
+                Check path complexity before use. Tiny islands, enclosed holes,
+                rough outlines, and excessive node counts can make laser cutting
+                or engraving harder to preview, size, and assign operations later.
+              </p>
+            </section>
+          ) : null}
 
           <section className="mt-8">
             <h3 className="text-sky-950 text-lg font-bold">Best laser uses</h3>

@@ -3,7 +3,8 @@ import Template, { action, loader } from "./jpg-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "JPG to SVG for Glowforge | iLoveSVG";
-  const description = "Convert JPG artwork into SVG for Glowforge-style laser prep, outline cleanup, engraving references, and test cuts.";
+  const description =
+    "Convert JPG artwork into SVG starting points for Glowforge laser cutting, engraving prep, and JPG path complexity review.";
   const canonical = "https://www.ilovesvg.com/jpg-to-svg-for-glowforge";
 
   return [

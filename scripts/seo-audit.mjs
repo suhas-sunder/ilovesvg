@@ -139,6 +139,20 @@ const selectedRoutes = [
     forbiddenHeadingTerms: ["cricut", "glowforge", "etsy", "shopify", "printify", "printful"],
   },
   {
+    path: "/png-to-svg-for-silhouette",
+    label: "png-to-svg-for-silhouette",
+    bodyTerms: ["silhouette studio", "starting point", "cut lines", "review before cutting"],
+    headingTerms: ["silhouette"],
+    forbiddenHeadingTerms: ["cricut", "glowforge", "laser", "etsy", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/jpg-to-svg-for-silhouette",
+    label: "jpg-to-svg-for-silhouette",
+    bodyTerms: ["silhouette studio", "jpg compression", "cut paths", "review before cutting"],
+    headingTerms: ["silhouette"],
+    forbiddenHeadingTerms: ["cricut", "glowforge", "laser", "etsy", "shopify", "printify", "printful"],
+  },
+  {
     path: "/image-to-svg-for-glowforge",
     label: "image-to-svg-for-glowforge",
     bodyTerms: ["glowforge", "laser cutting", "engraving", "path complexity", "review before laser use"],
@@ -150,6 +164,20 @@ const selectedRoutes = [
     label: "logo-to-svg-for-glowforge",
     bodyTerms: ["glowforge", "laser", "engraving", "inspect complexity"],
     headingTerms: ["glowforge", "logo"],
+    forbiddenHeadingTerms: ["cricut", "silhouette", "vinyl", "etsy", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/png-to-svg-for-glowforge",
+    label: "png-to-svg-for-glowforge",
+    bodyTerms: ["glowforge", "laser cutting", "engraving", "path complexity", "not every png"],
+    headingTerms: ["glowforge"],
+    forbiddenHeadingTerms: ["cricut", "silhouette", "vinyl", "etsy", "shopify", "printify", "printful"],
+  },
+  {
+    path: "/jpg-to-svg-for-glowforge",
+    label: "jpg-to-svg-for-glowforge",
+    bodyTerms: ["glowforge", "jpg compression", "laser", "engraving", "path complexity"],
+    headingTerms: ["glowforge"],
     forbiddenHeadingTerms: ["cricut", "silhouette", "vinyl", "etsy", "shopify", "printify", "printful"],
   },
   {
