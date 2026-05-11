@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { AdSenseDelayed } from "../ads/AdsenseDelayed";
+import { shouldRenderAdsForPath } from "../../lib/monetization/monetizationPolicy";
 
 type UtilityGroup =
   | "SVG to image/PDF"
@@ -126,6 +127,7 @@ export function OtherToolsLinks({
   const { pathname } = useLocation();
 
   const normalizedPathname = normalizePath(pathname);
+  const shouldRenderAds = shouldRenderAdsForPath(normalizedPathname);
   const currentUtility = React.useMemo(
     () =>
       UTILITIES.find((item) => normalizePath(item.to) === normalizedPathname) ??
@@ -167,19 +169,21 @@ export function OtherToolsLinks({
           </p>
         </div>
 
-        <div className="py-6">
-          <div className="mx-auto w-full max-w-[970px] min-h-[120px] overflow-hidden flex items-center justify-center">
-            <AdSenseDelayed
-              slot="8102088582"
-              delayMs={1500}
-              minHeight={120}
-              maxHeight={120}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[970px]"
-            />
+        {shouldRenderAds ? (
+          <div className="py-6">
+            <div className="mx-auto w-full max-w-[970px] min-h-[120px] overflow-hidden flex items-center justify-center">
+              <AdSenseDelayed
+                slot="8102088582"
+                delayMs={1500}
+                minHeight={120}
+                maxHeight={120}
+                format="horizontal"
+                fullWidth={true}
+                className="mx-auto w-full max-w-[970px]"
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="flex flex-col gap-10">
           {sections.map((section) => (

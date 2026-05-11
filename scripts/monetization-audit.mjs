@@ -17,6 +17,7 @@ const moduleFiles = [
   "affiliateWaterfallStorage",
   "affiliateWaterfallSelection",
   "affiliateVisibility",
+  "monetizationPolicy",
 ];
 
 await fs.rm(tmpDir, { recursive: true, force: true });
@@ -43,7 +44,7 @@ for (const moduleName of moduleFiles) {
 const importAuditModule = (moduleName) =>
   import(pathToFileURL(path.join(tmpDir, `${moduleName}.mjs`)).href);
 
-const [providers, storage, selection, routeIntents, offers, visibility, responsive] =
+const [providers, storage, selection, routeIntents, offers, visibility, responsive, policy] =
   await Promise.all([
     importAuditModule("affiliateProviders"),
     importAuditModule("affiliateWaterfallStorage"),
@@ -52,6 +53,7 @@ const [providers, storage, selection, routeIntents, offers, visibility, responsi
     importAuditModule("affiliateOffers"),
     importAuditModule("affiliateVisibility"),
     importAuditModule("affiliateResponsive"),
+    importAuditModule("monetizationPolicy"),
   ]);
 
 const removedProviderId = "name" + "cheap";
@@ -736,6 +738,49 @@ function runActiveAffiliateTests() {
   );
 }
 
+function runMonetizationPolicyTests() {
+  for (const route of ["/privacy-policy", "/terms-of-service", "/cookies"]) {
+    assert.equal(
+      policy.isMonetizationExcludedRoute(route),
+      true,
+      `${route} is explicitly excluded from monetization`,
+    );
+    assert.deepEqual(
+      policy.getRouteMonetizationPolicy(`${route}?utm_source=test#section`),
+      {
+        ads: false,
+        affiliate: false,
+        exclusionReason: "legal-trust",
+      },
+      `${route} disables ads and affiliate even with query or hash`,
+    );
+    assert.equal(
+      policy.shouldRenderAdsForPath(route),
+      false,
+      `${route} does not render ad placements`,
+    );
+    assert.equal(
+      policy.shouldRenderAffiliateForPath(route),
+      false,
+      `${route} does not render affiliate placements`,
+    );
+  }
+
+  assert.equal(
+    policy.isMonetizationExcludedRoute("/how-it-works"),
+    false,
+    "docs/help monetization policy is not decided by the legal exclusion list",
+  );
+  assert.deepEqual(
+    policy.getRouteMonetizationPolicy("/png-to-svg-converter"),
+    {
+      ads: true,
+      affiliate: true,
+    },
+    "converter routes remain monetization eligible",
+  );
+}
+
 runStorageParserTests();
 runWaterfallSelectionTests();
 runProviderCleanupTests();
@@ -743,5 +788,6 @@ runRouteRelevanceTests();
 runVisibilityTests();
 runClickAndSuppressionTests();
 runActiveAffiliateTests();
+runMonetizationPolicyTests();
 
 console.log("[monetization-audit] all checks passed");

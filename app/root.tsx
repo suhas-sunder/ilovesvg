@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
 } from "react-router";
 import type { LoaderFunction } from "react-router";
 import type { Route } from "./+types/root";
@@ -13,6 +14,7 @@ import "./app.css";
 import { PHProvider } from "./provider";
 import NavBar from "./client/components/navigation/NavBar";
 import { logAppError } from "./client/lib/errorLogging";
+import { shouldRenderAdsForPath } from "./client/lib/monetization/monetizationPolicy";
 
 function createAffiliateVariantSeed() {
   return Math.floor(Math.random() * 1_000_000_000);
@@ -94,12 +96,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <ScrollRestoration />
           <Scripts />
 
-          {/* Load AdSense after app scripts */}
-          <script
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
-            crossOrigin="anonymous"
-          />
+          <AdSenseScript />
         </PHProvider>
       </body>
     </html>
@@ -135,6 +132,19 @@ function ClientRuntimeErrorLogger() {
   }, []);
 
   return null;
+}
+
+function AdSenseScript() {
+  const { pathname } = useLocation();
+  if (!shouldRenderAdsForPath(pathname)) return null;
+
+  return (
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
+      crossOrigin="anonymous"
+    />
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

@@ -12,10 +12,11 @@ import {
   getAffiliateRouteCategories,
   normalizeAffiliatePathname,
 } from "~/client/lib/monetization/affiliateRouteIntents";
+import { getRouteMonetizationPolicy } from "~/client/lib/monetization/monetizationPolicy";
 import { useAffiliateWaterfall } from "~/client/lib/monetization/useAffiliateWaterfall";
 
 const CONTEXTUAL_AFFILIATE_SLOT_ID = "converter-below-tool";
-const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "7336722354";
+const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "8102088582";
 const CONTEXTUAL_AFFILIATE_RESERVE_CLASS = "min-h-[39rem]";
 const CONTEXTUAL_ADSENSE_RESERVE_CLASS = "min-h-[11rem]";
 
@@ -1001,6 +1002,7 @@ export function ContextualAffiliateCard() {
   const location = useLocation();
   const rootData = useRouteLoaderData("root") as RootAffiliateLoaderData;
   const pathname = normalizeAffiliatePathname(location.pathname);
+  const monetizationPolicy = getRouteMonetizationPolicy(pathname);
   const routeCategories = getAffiliateRouteCategories(pathname);
   const {
     selectedOffer,
@@ -1029,20 +1031,32 @@ export function ContextualAffiliateCard() {
       : fallbackSeed,
   );
 
+  if (!monetizationPolicy.ads && !monetizationPolicy.affiliate) {
+    return null;
+  }
+
   if (!isReady) {
+    if (!monetizationPolicy.affiliate) {
+      return monetizationPolicy.ads ? (
+        <ContextualAdsenseFallback reserveMode="compact" />
+      ) : null;
+    }
+
     return hasRelevantOffers ? (
       <ContextualMonetizationPendingReserve />
-    ) : (
+    ) : monetizationPolicy.ads ? (
       <ContextualAdsenseFallback reserveMode="compact" />
-    );
+    ) : null;
   }
 
   if (shouldSuppressAffiliate && shouldSuppressAdsenseFallback) {
     return null;
   }
 
-  if (!selectedOffer || !placement) {
-    return shouldShowAdsense && !shouldSuppressAdsenseFallback ? (
+  if (!selectedOffer || !placement || !monetizationPolicy.affiliate) {
+    return shouldShowAdsense &&
+      monetizationPolicy.ads &&
+      !shouldSuppressAdsenseFallback ? (
       <ContextualAdsenseFallback reserveMode="compact" />
     ) : null;
   }
