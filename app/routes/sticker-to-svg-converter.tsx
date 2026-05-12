@@ -970,7 +970,9 @@ function autoModeDetail(mode: AutoMode): string {
 /* ========================
    FAQ (UI + JSON-LD)
 ======================== */
-const FAQ_ITEMS: Array<{ q: string; a: string }> = [
+type FaqItem = { q: string; a: string };
+
+const BASE_FAQ_ITEMS: FaqItem[] = [
   {
     q: "What is a sticker-to-SVG converter?",
     a: "It turns a sticker image (PNG or JPEG) into a scalable SVG vector that can be used as a starting point for printable or cuttable sticker graphics.",
@@ -993,11 +995,62 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
 ];
 
-function buildFaqJsonLd() {
+const STICKER_FAQ_ITEMS_BY_PATH: Record<string, FaqItem[]> = {
+  "/sticker-to-svg-for-etsy": [
+    {
+      q: "Can I use the SVG for Etsy sticker listings?",
+      a: "Yes. Use the SVG as a starting point for Etsy listing assets, digital sticker products, transparent decal previews, or craft files. Review the paths before publishing or packaging it for buyers.",
+    },
+    {
+      q: "What sticker artwork works best for Etsy sellers?",
+      a: "Transparent PNG sticker art, labels, decals, and badge-style designs usually trace better than soft photos. Simple edges and high contrast make the SVG easier to inspect.",
+    },
+    {
+      q: "Does it make a sell-ready SVG automatically?",
+      a: "No. Treat the result as a reviewable draft. Check cuttable outlines, small holes, stray specks, and whether the file is easy for a buyer or production workflow to use.",
+    },
+    {
+      q: "Should I remove the background first?",
+      a: "Yes when possible. A transparent PNG or tightly cropped source helps the tracer focus on the sticker artwork instead of a page or photo background.",
+    },
+    {
+      q: "What file limits apply?",
+      a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest up to 10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression before manual conversion.",
+    },
+  ],
+  "/sticker-to-svg-for-silhouette": [
+    {
+      q: "Can I use the SVG in Silhouette Studio?",
+      a: "Yes. Use it as an SVG starting point for Silhouette Studio sticker, label, decal, or vinyl projects. Inspect the paths and scale before sending anything to the cutter.",
+    },
+    {
+      q: "What sticker artwork works best for Silhouette?",
+      a: "Transparent PNGs, bold outlines, labels, decals, and simple sticker art usually work better than busy photos or shaded artwork.",
+    },
+    {
+      q: "Does it create cut-ready files automatically?",
+      a: "No. The output still needs review in Silhouette Studio or design software. Check cut lines, outline thickness, tiny islands, and project size before cutting.",
+    },
+    {
+      q: "Should I remove the background first?",
+      a: "Yes. Crop out extra background or start from transparent artwork so the trace does not include the page, photo backdrop, or unwanted edges.",
+    },
+    {
+      q: "What file limits apply?",
+      a: "PNG/JPEG up to 30 MB, about 30 MP. Preview is fastest up to 10 MB and throttled up to 25 MB. Above 25 MB we try on-device compression before manual conversion.",
+    },
+  ],
+};
+
+function getStickerFaqItems(pathname: string) {
+  return STICKER_FAQ_ITEMS_BY_PATH[pathname] ?? BASE_FAQ_ITEMS;
+}
+
+function buildFaqJsonLd(faqItems: FaqItem[]) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: FAQ_ITEMS.map((x) => ({
+    mainEntity: faqItems.map((x) => ({
       "@type": "Question",
       name: x.q,
       acceptedAnswer: {
@@ -1048,6 +1101,8 @@ function JsonLd({ data }: { data: any }) {
 }
 
 export default function StickerToSvgConverter({}: Route.ComponentProps) {
+  const { pathname } = useLocation();
+  const faqItems = React.useMemo(() => getStickerFaqItems(pathname), [pathname]);
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "sticker-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1520,7 +1575,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
   }
 
 
-  const faqJsonLd = React.useMemo(() => buildFaqJsonLd(), []);
+  const faqJsonLd = React.useMemo(() => buildFaqJsonLd(faqItems), [faqItems]);
   const howToJsonLd = React.useMemo(() => buildHowToJsonLd(), []);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
 
@@ -1761,7 +1816,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
       </div>
       <ContextualAffiliateCard />
 
-      <SeoSections />
+      <SeoSections faqItems={faqItems} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1996,7 +2051,7 @@ const stickerRouteSeoCopyByPath: Record<
   },
 };
 
-function SeoSections() {
+function SeoSections({ faqItems }: { faqItems: FaqItem[] }) {
   const { pathname } = useLocation();
   const routeCopy = stickerRouteSeoCopyByPath[pathname];
 
@@ -2323,7 +2378,7 @@ function SeoSections() {
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
-              {FAQ_ITEMS.map((x) => (
+              {faqItems.map((x) => (
                 <article
                   key={x.q}
                   className="rounded-2xl border border-slate-200 bg-white p-5"

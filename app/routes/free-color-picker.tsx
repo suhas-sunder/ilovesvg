@@ -48,44 +48,37 @@ export function meta({}: Route.MetaArgs) {
 /* ========================
    FAQ JSON-LD
 ======================== */
+const COLOR_PICKER_FAQS = [
+  {
+    q: "What formats can I copy?",
+    a: "HEX, RGB, and HSL are available. Alpha is supported with RGBA and HSLA.",
+  },
+  {
+    q: "Can I extract a palette from an SVG or image?",
+    a: "Yes. Upload an SVG (reads fill/stroke/style colors) or an image (PNG/JPG/WebP) to generate swatches.",
+  },
+  {
+    q: "Does this upload my file?",
+    a: "No. Palette extraction runs locally in your browser.",
+  },
+  {
+    q: "Why do SVG colors sometimes look incomplete?",
+    a: "If an SVG uses external CSS, injected filters, or unusual color expressions, extraction may miss some. For most normal SVGs, it works well.",
+  },
+];
+
 function faqJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What formats can I copy?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "You can copy HEX, RGB, and HSL values. Alpha is supported using RGBA and HSLA.",
-        },
+    mainEntity: COLOR_PICKER_FAQS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
       },
-      {
-        "@type": "Question",
-        name: "Can I extract a color palette from an SVG or image?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Upload an SVG or an image (PNG/JPG/WebP) to extract a palette, then click a swatch to preview and copy it.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does this tool upload anything?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. The picker and palette extraction run entirely in your browser and do not upload your files.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How is this useful for SVG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Use it to choose fill and stroke colors quickly, preview them on shapes, and copy values directly into your SVG or CSS.",
-        },
-      },
-    ],
+    })),
   };
 
   return JSON.stringify(data);
@@ -2687,24 +2680,7 @@ function SeoSections() {
             </h3>
 
             <div className="mt-4 grid gap-3">
-              {[
-                {
-                  q: "What formats can I copy?",
-                  a: "HEX, RGB, and HSL are available. Alpha is supported with RGBA and HSLA.",
-                },
-                {
-                  q: "Can I extract a palette from an SVG or image?",
-                  a: "Yes. Upload an SVG (reads fill/stroke/style colors) or an image (PNG/JPG/WebP) to generate swatches.",
-                },
-                {
-                  q: "Does this upload my file?",
-                  a: "No. Palette extraction runs locally in your browser.",
-                },
-                {
-                  q: "Why do SVG colors sometimes look incomplete?",
-                  a: "If an SVG uses external CSS, injected filters, or unusual color expressions, extraction may miss some. For most normal SVGs, it works well.",
-                },
-              ].map((x) => (
+              {COLOR_PICKER_FAQS.map((x) => (
                 <article
                   key={x.q}
                   className="rounded-2xl border border-slate-200 bg-white p-5"

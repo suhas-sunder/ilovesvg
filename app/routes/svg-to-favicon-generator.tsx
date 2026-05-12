@@ -3,7 +3,7 @@ import type { Route } from "./+types/svg-to-favicon-generator";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { zipSync, strToU8 } from "fflate";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
@@ -1105,6 +1105,8 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
    SEO sections + FAQ JSON-LD
 ======================== */
 function SeoSections() {
+  const { pathname } = useLocation();
+  const shouldEmitFaqJsonLd = pathname === "/svg-to-favicon-generator";
   const faqs = [
     {
       q: "Does this favicon generator upload my file?",
@@ -1156,7 +1158,7 @@ function SeoSections() {
 
   return (
     <section className="bg-white border-t border-slate-200">
-      <JsonLdFaq />
+      {shouldEmitFaqJsonLd ? <JsonLdFaq /> : null}
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
           <h2 className="m-0 font-bold">

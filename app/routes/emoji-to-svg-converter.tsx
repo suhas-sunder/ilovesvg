@@ -4335,11 +4335,7 @@ function SeoSections() {
 
             <CurrentRouteGuide />
 
-            <section
-              className="mt-12"
-              itemScope
-              itemType="https://schema.org/FAQPage"
-            >
+            <section className="mt-12">
               <h3 className="m-0 text-xl font-extrabold tracking-tight text-sky-800">
                 FAQ
               </h3>
@@ -4347,21 +4343,13 @@ function SeoSections() {
                 {EMOJI_FAQS.map((item) => (
                   <article
                     key={item.q}
-                    itemScope
-                    itemType="https://schema.org/Question"
-                    itemProp="mainEntity"
                     className="rounded-2xl border border-slate-200 bg-white p-5"
                   >
-                    <h4 itemProp="name" className="m-0 font-semibold">
+                    <h4 className="m-0 font-semibold">
                       {item.q}
                     </h4>
-                    <p
-                      itemScope
-                      itemType="https://schema.org/Answer"
-                      itemProp="acceptedAnswer"
-                      className="mt-2 text-sm leading-relaxed text-slate-700"
-                    >
-                      <span itemProp="text">{item.a}</span>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                      {item.a}
                     </p>
                   </article>
                 ))}

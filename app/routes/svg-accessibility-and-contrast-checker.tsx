@@ -1253,32 +1253,18 @@ function SeoSections() {
 
           <CurrentRouteGuide />
 
-          <section
-            className="mt-12"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-          >
+          <section className="mt-12">
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
               {FAQ.map((x) => (
                 <article
                   key={x.q}
-                  itemScope
-                  itemType="https://schema.org/Question"
-                  itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                  <h4 itemProp="name" className="m-0 font-semibold">
-                    {x.q}
-                  </h4>
-                  <p
-                    itemScope
-                    itemType="https://schema.org/Answer"
-                    itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600"
-                  >
-                    <span itemProp="text">{x.a}</span>
+                  <h4 className="m-0 font-semibold">{x.q}</h4>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {x.a}
                   </p>
                 </article>
               ))}
