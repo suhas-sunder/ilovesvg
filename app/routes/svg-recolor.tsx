@@ -20,7 +20,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Recolor Tool - Replace Fill and Stroke Colors | iLoveSVG`;
   const description =
-    `Recolor SVG files in your browser. Extract the color palette, replace fill and stroke colors, convert icons to currentColor, preview, and download the updated SVG.`;
+    `Recolor SVG fills, strokes, and palette swatches in your browser. Preview vector color changes, convert icons to currentColor, and download.`;
   const canonical = "https://www.ilovesvg.com/svg-recolor";
 
   return [
@@ -1304,8 +1304,9 @@ function SeoSections() {
                 What is skipped (on purpose)
               </h3>
               <p className="mt-2 text-slate-600 leading-relaxed">
-                Some SVG paints are references or effects rather than literal
-                colors. These don’t behave like solid fills, so the tool avoids
+                This is vector color editing, not raster photo recoloring. Some
+                SVG paints are references or effects rather than literal colors.
+                These don’t behave like solid fills, so the tool avoids
                 rewriting them unless you build a dedicated feature for that.
               </p>
 

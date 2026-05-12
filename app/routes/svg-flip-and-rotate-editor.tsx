@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Flip and Rotate Editor - Mirror or Rotate SVG | iLoveSVG`;
   const description =
-    `Flip, mirror, or rotate SVG files in your browser. Preview horizontal and vertical flips, degree rotation, 90-degree steps, then copy or download the updated SVG.`;
+    `Flip, mirror, or rotate SVG artwork in your browser. Preview orientation changes, reduce clipping with viewBox fitting, then copy or download.`;
   const canonical = "https://www.ilovesvg.com/svg-flip-and-rotate-editor";
 
   return [
@@ -1334,7 +1334,9 @@ function SeoSections() {
             . Your file stays on your device, and the tool updates your SVG by
             applying a{" "}
             <span className="font-semibold text-slate-900">transform</span> to
-            vector content (no rasterization, no quality loss).
+            vector content (no rasterization, no quality loss). For complex
+            SVGs, review the output because viewBox and transform handling can
+            vary between apps.
           </p>
 
           <p className="mt-2 text-slate-600">

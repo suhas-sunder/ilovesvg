@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Stroke Width Editor - Adjust SVG Line Thickness | iLoveSVG`;
   const description =
-    `Adjust SVG stroke width in your browser. Multiply line thickness, set exact stroke values, clamp min or max widths, preview, copy, and download.`;
+    `Adjust SVG stroke width and line thickness in your browser. Set, multiply, or add missing strokes, preview outlines, copy, and download.`;
   const canonical = "https://www.ilovesvg.com/svg-stroke-width-editor";
 
   return [
@@ -1839,10 +1839,10 @@ function SeoSections() {
       },
       {
         "@type": "Question",
-        name: "What does “Apply to” mean, and which option should I use?",
+        name: "What’s the difference between Multiply, Set, and Add-missing?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: 'Apply to controls where the tool writes the new stroke width. Attribute writes stroke-width="…" on elements. Inline style writes style="stroke-width: …" which overrides classes and many inherited rules, so it is the most reliable. Both writes both forms. If your SVG uses CSS classes or embedded styles, choose Inline style (most reliable) or Both.',
+          text: "Multiply scales the current thickness. Set forces one thickness everywhere. Add-missing only writes a thickness where none exists, so it may do nothing if your SVG already defines stroke width.",
         },
       },
       {
@@ -1855,18 +1855,18 @@ function SeoSections() {
       },
       {
         "@type": "Question",
-        name: "Why does Multiply sometimes appear to do nothing?",
+        name: "My SVG has no strokes, only fills. Can this still help?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Multiply depends on a base stroke width. If the SVG’s stroke width comes from CSS or inheritance and you are not using CSS-aware base, the tool may not be able to read the effective value correctly. Enable CSS-aware base and/or use Inline style output so the result is not overridden by CSS.",
+          text: "Yes, but stroke width will not be visible unless a stroke exists. Enable Force stroke if missing to add a stroke color, then adjust thickness.",
         },
       },
       {
         "@type": "Question",
-        name: "My SVG is fill-only and has no stroke. How can I make outlines thicker?",
+        name: "Does this upload my SVG?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "If elements have no stroke at all, changing stroke width won’t be visible. Enable Force stroke if missing (if available) to add a stroke color so width changes produce visible outlines.",
+          text: "No. The SVG is processed locally in your browser. Nothing is uploaded.",
         },
       },
     ],
@@ -1887,7 +1887,8 @@ function SeoSections() {
             <strong>set</strong> a single uniform width, or{" "}
             <strong>add missing stroke-width</strong> values. Everything runs{" "}
             <strong>client-side</strong> with a live before/after preview, so
-            your SVG never uploads to a server.
+            your SVG never uploads to a server. It edits stroke styling and
+            outlines, not the geometry of filled paths.
           </p>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">

@@ -7,6 +7,13 @@ const BLOCKER_ROUTES = [
   "/free-color-picker",
 ];
 
+const SVG_EDITOR_UTILITY_ROUTES = [
+  "/svg-background-editor",
+  "/svg-recolor",
+  "/svg-stroke-width-editor",
+  "/svg-flip-and-rotate-editor",
+];
+
 const FAVICON_ICO_ROUTES = [
   "/svg-to-favicon-generator",
   "/svg-to-ico-converter",
@@ -32,12 +39,17 @@ const SVG_TO_JPG_ETSY_ROUTES = ["/svg-to-jpg-converter", "/svg-to-jpg-for-etsy"]
 
 const TARGET_ROUTES = uniqueValues([
   ...BLOCKER_ROUTES,
+  ...SVG_EDITOR_UTILITY_ROUTES,
   ...FAVICON_ICO_ROUTES,
   ...STICKER_ROUTES,
   ...SVG_TO_JPG_ETSY_ROUTES,
 ]);
 
-const REQUIRED_JSON_LD_ROUTES = new Set(BLOCKER_ROUTES);
+const REQUIRED_JSON_LD_ROUTES = new Set([...BLOCKER_ROUTES, ...SVG_EDITOR_UTILITY_ROUTES]);
+const FAQ_QUESTION_ALIGNMENT_ROUTES = new Set([
+  "/free-color-picker",
+  ...SVG_EDITOR_UTILITY_ROUTES,
+]);
 
 const DUPLICATE_SIGNATURE_GROUPS = [
   {
@@ -140,7 +152,7 @@ for (const path of TARGET_ROUTES) {
     failures.push(`${path} FAQPage question is not visible on the page: "${question}"`);
   }
 
-  if (path === "/free-color-picker") {
+  if (FAQ_QUESTION_ALIGNMENT_ROUTES.has(path)) {
     const visibleQuestions = visibleFaqQuestions(html);
     const schemaQuestions = faqQuestions.map((item) => item.name);
     if (!sameStringList(schemaQuestions, visibleQuestions)) {
@@ -231,10 +243,19 @@ function visibleFaqQuestions(html) {
   const sectionMatch = html.match(
     /<section\b[^>]*>[\s\S]*?<h3\b[^>]*>\s*Frequently asked questions\s*<\/h3>([\s\S]*?)<\/section>/i,
   );
-  const source = sectionMatch?.[1] || html;
-  return Array.from(source.matchAll(/<h4\b[^>]*>([\s\S]*?)<\/h4>/gi))
-    .map((match) => htmlToText(match[1]))
-    .filter(Boolean);
+  const faqHeadingMatches = Array.from(html.matchAll(/<h[234]\b[^>]*>[\s\S]*?<\/h[234]>/gi)).filter((match) => {
+    const headingText = normalizeText(htmlToText(match[0]));
+    return /\bfaq\b/.test(headingText) || headingText.includes("frequently asked questions");
+  });
+  const lastFaqHeading = faqHeadingMatches.at(-1);
+  const source = sectionMatch?.[1] || (lastFaqHeading ? html.slice(lastFaqHeading.index) : html);
+  const h4Questions = Array.from(source.matchAll(/<h4\b[^>]*>([\s\S]*?)<\/h4>/gi)).map((match) =>
+    htmlToText(match[1]),
+  );
+  const summaryQuestions = Array.from(source.matchAll(/<summary\b[^>]*>([\s\S]*?)<\/summary>/gi)).map((match) =>
+    htmlToText(match[1]).replace(/\s*\+\s*$/, "").trim(),
+  );
+  return [...h4Questions, ...summaryQuestions].filter(Boolean);
 }
 
 function duplicateValues(values) {

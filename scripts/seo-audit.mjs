@@ -146,6 +146,30 @@ const selectedRoutes = [
     headingTerms: ["dimensions"],
   },
   {
+    path: "/svg-background-editor",
+    label: "svg-background-editor",
+    bodyTerms: ["svg background", "transparent", "background fill", "full-canvas"],
+    headingTerms: ["background"],
+  },
+  {
+    path: "/svg-recolor",
+    label: "svg-recolor",
+    bodyTerms: ["svg", "palette", "fill", "stroke", "currentcolor"],
+    headingTerms: ["recolor"],
+  },
+  {
+    path: "/svg-stroke-width-editor",
+    label: "svg-stroke-width-editor",
+    bodyTerms: ["stroke width", "line thickness", "outline", "fill-only"],
+    headingTerms: ["stroke"],
+  },
+  {
+    path: "/svg-flip-and-rotate-editor",
+    label: "svg-flip-and-rotate-editor",
+    bodyTerms: ["flip", "rotate", "orientation", "preview", "export"],
+    headingTerms: ["rotate"],
+  },
+  {
     path: "/svg-to-ico-converter",
     label: "svg-to-ico",
     bodyTerms: ["favicon.ico", "svg"],

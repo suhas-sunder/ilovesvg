@@ -21,7 +21,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Will this change my artwork colors or strokes?",
-    a: "No. The tool only targets a likely full-canvas background element (when detected) and or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
+    a: "No. The tool only targets a likely full-canvas background element (when detected) or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
   },
   {
     q: "What does Replace background do now?",
@@ -55,7 +55,7 @@ const FAQ_ITEMS = [
 export function meta({}: Route.MetaArgs) {
   const title = "SVG Background Editor - Change or Remove SVG Backgrounds | iLoveSVG";
   const description =
-    "Edit SVG backgrounds in your browser. Remove common full-canvas backgrounds, add transparent or solid backgrounds, replace with SVG underlays, preview, copy, and download.";
+    "Edit SVG background fills in your browser. Remove full-canvas backgrounds, add transparent or solid fills, preview contrast, copy, and download.";
   const canonical = "https://www.ilovesvg.com/svg-background-editor";
 
   return [
@@ -1091,13 +1091,14 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
             </p>
 
             <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
-              The editor is intentionally narrow. It does not try to rewrite
-              your artwork, expand CSS, merge groups, flatten filters, or
-              convert paths. Backgrounds can be intertwined with real artwork in
-              complex SVGs, and aggressive heuristics can delete meaningful
-              shapes. Instead, the tool uses conservative detection, a manual
-              fallback, and a predictable insertion strategy when you add new
-              background layers.
+              The editor is intentionally narrow. It works with SVG background
+              fill elements and SVG underlays. It does not remove raster photo
+              backgrounds, rewrite your artwork, expand CSS, merge groups,
+              flatten filters, or convert paths. Backgrounds can be intertwined
+              with real artwork in complex SVGs, and aggressive heuristics can
+              delete meaningful shapes. Instead, the tool uses conservative
+              detection, a manual fallback, and a predictable insertion strategy
+              when you add new background layers.
             </p>
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
