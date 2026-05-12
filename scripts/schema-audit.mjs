@@ -1,14 +1,62 @@
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
-const TARGET_ROUTES = [
+const BLOCKER_ROUTES = [
   "/svg-preview-viewer",
   "/svg-accessibility-and-contrast-checker",
   "/emoji-to-svg-converter",
   "/free-color-picker",
 ];
 
+const FAVICON_ICO_ROUTES = [
+  "/svg-to-favicon-generator",
+  "/svg-to-ico-converter",
+  "/png-to-favicon-generator",
+  "/png-to-ico-converter",
+  "/jpg-to-favicon-generator",
+  "/image-to-favicon-generator",
+  "/logo-to-favicon-generator",
+  "/svg-to-favicon-for-shopify",
+  "/logo-to-favicon-for-shopify",
+];
+
+const STICKER_ROUTES = [
+  "/sticker-to-svg-converter",
+  "/sticker-to-svg-for-cricut",
+  "/sticker-to-svg-for-etsy",
+  "/sticker-to-svg-for-silhouette",
+  "/png-to-svg-for-cricut-stickers",
+  "/sticker-to-png-for-printing",
+];
+
+const SVG_TO_JPG_ETSY_ROUTES = ["/svg-to-jpg-converter", "/svg-to-jpg-for-etsy"];
+
+const TARGET_ROUTES = uniqueValues([
+  ...BLOCKER_ROUTES,
+  ...FAVICON_ICO_ROUTES,
+  ...STICKER_ROUTES,
+  ...SVG_TO_JPG_ETSY_ROUTES,
+]);
+
+const REQUIRED_JSON_LD_ROUTES = new Set(BLOCKER_ROUTES);
+
+const DUPLICATE_SIGNATURE_GROUPS = [
+  {
+    id: "favicon-ico",
+    routes: FAVICON_ICO_ROUTES,
+  },
+  {
+    id: "sticker",
+    routes: ["/sticker-to-svg-converter", "/sticker-to-svg-for-etsy", "/sticker-to-svg-for-silhouette"],
+  },
+  {
+    id: "svg-to-jpg-etsy",
+    routes: SVG_TO_JPG_ETSY_ROUTES,
+  },
+];
+
 const failures = [];
 const results = [];
+const faqQuestionSignatures = new Map();
 
 for (const path of TARGET_ROUTES) {
   const url = new URL(path, BASE_URL);
@@ -20,10 +68,15 @@ for (const path of TARGET_ROUTES) {
   const parseErrors = jsonLdBlocks.flatMap((block) => block.parseErrors);
   const faqPageMicrodataCount = countFaqPageMicrodata(html);
   const faqQuestions = faqPages.flatMap((faqPage) => collectFaqQuestions(faqPage));
+  const faqQuestionSignature = signatureForQuestions(faqQuestions);
   const duplicateQuestions = duplicateValues(faqQuestions.map((item) => item.name));
   const missingQuestions = faqQuestions
     .map((item) => item.name)
     .filter((question) => !visibleText.includes(normalizeText(question)));
+
+  if (faqQuestionSignature) {
+    faqQuestionSignatures.set(path, faqQuestionSignature);
+  }
 
   results.push({
     path,
@@ -33,6 +86,7 @@ for (const path of TARGET_ROUTES) {
     faqPageMicrodataCount,
     faqPageStructuredDataCount: faqPages.length + faqPageMicrodataCount,
     faqQuestionCount: faqQuestions.length,
+    faqQuestionSignature,
     duplicateQuestions,
     missingQuestions,
     parseErrorCount: parseErrors.length,
@@ -46,8 +100,12 @@ for (const path of TARGET_ROUTES) {
     failures.push(`${path} has invalid JSON-LD: ${error}`);
   }
 
-  if (faqPages.length !== 1) {
+  if (REQUIRED_JSON_LD_ROUTES.has(path) && faqPages.length !== 1) {
     failures.push(`${path} expected exactly one FAQPage JSON-LD object, found ${faqPages.length}`);
+  }
+
+  if (faqPages.length > 1) {
+    failures.push(`${path} renders more than one FAQPage JSON-LD object`);
   }
 
   if (faqPages.length + faqPageMicrodataCount > 1) {
@@ -93,6 +151,15 @@ for (const path of TARGET_ROUTES) {
   }
 }
 
+const duplicateSignatureResults = collectDuplicateSignatureResults();
+for (const group of duplicateSignatureResults) {
+  for (const duplicate of group.duplicates) {
+    failures.push(
+      `${group.id} routes reuse identical FAQPage question set across ${duplicate.routes.join(", ")}`,
+    );
+  }
+}
+
 console.log(
   JSON.stringify(
     {
@@ -100,6 +167,7 @@ console.log(
       checkedAt: new Date().toISOString(),
       routeCount: TARGET_ROUTES.length,
       results,
+      duplicateSignatureResults,
       failures,
     },
     null,
@@ -178,6 +246,37 @@ function duplicateValues(values) {
     seen.add(key);
   }
   return Array.from(duplicates);
+}
+
+function collectDuplicateSignatureResults() {
+  return DUPLICATE_SIGNATURE_GROUPS.map((group) => {
+    const signatures = new Map();
+    for (const route of group.routes) {
+      const signature = faqQuestionSignatures.get(route);
+      if (!signature) continue;
+      const routes = signatures.get(signature) || [];
+      routes.push(route);
+      signatures.set(signature, routes);
+    }
+
+    return {
+      id: group.id,
+      duplicates: Array.from(signatures.entries())
+        .filter(([, routes]) => routes.length > 1)
+        .map(([signature, routes]) => ({ signature, routes })),
+    };
+  });
+}
+
+function signatureForQuestions(questions) {
+  return questions
+    .map((item) => normalizeText(item.name))
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function uniqueValues(values) {
+  return Array.from(new Set(values));
 }
 
 function sameStringList(first, second) {

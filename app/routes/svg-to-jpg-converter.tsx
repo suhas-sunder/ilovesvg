@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-jpg-converter";
+import { useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -77,7 +78,34 @@ const DEFAULTS: Settings = {
 
 const MAX_CANVAS_PIXELS = 80_000_000;
 
+type FaqItem = { q: string; a: string };
+
+const SVG_TO_JPG_FAQS: FaqItem[] = [
+  {
+    q: "Does this SVG to JPG converter upload my file?",
+    a: "No. Conversion runs entirely in your browser using HTML canvas. Your SVG does not get uploaded to any server.",
+  },
+  {
+    q: "Can I set a custom width and height?",
+    a: "Yes. Set output width and height in pixels. Turn on Lock aspect ratio to keep the original proportions.",
+  },
+  {
+    q: "Why do I need a background color?",
+    a: "JPG does not support transparency. The converter fills the canvas with your chosen background color before exporting.",
+  },
+  {
+    q: "How do I reduce JPG file size?",
+    a: "Lower JPEG quality or export at a smaller width and height. Smaller dimensions usually reduce size more than quality changes.",
+  },
+  {
+    q: "Why won’t some SVGs convert?",
+    a: "Some SVGs reference external fonts/images or use unsupported features that the browser can't render to canvas. Embed assets directly in the SVG or simplify filters.",
+  },
+];
+
 export default function SvgToJpgConverter(_: Route.ComponentProps) {
+  const { pathname } = useLocation();
+  const shouldEmitFaqJsonLd = pathname === "/svg-to-jpg-converter";
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -609,7 +637,7 @@ export default function SvgToJpgConverter(_: Route.ComponentProps) {
       <ContextualAffiliateCard />
       <SeoSections />
       <JsonLdBreadcrumbs />
-      <JsonLdFaq />
+      {shouldEmitFaqJsonLd ? <JsonLdFaq faqs={SVG_TO_JPG_FAQS} /> : null}
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
       <RelatedSites />
@@ -1043,52 +1071,18 @@ function JsonLdBreadcrumbs() {
 /* ========================
    FAQ JSON-LD
 ======================== */
-function JsonLdFaq() {
+function JsonLdFaq({ faqs }: { faqs: FaqItem[] }) {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Does this SVG to JPG converter upload my file?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. This converter runs entirely in your browser using HTML canvas. Your SVG is not uploaded to a server.",
-        },
+    mainEntity: faqs.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
       },
-      {
-        "@type": "Question",
-        name: "Can I set a custom width and height?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. You can set output width and height in pixels. Enable Lock aspect ratio to keep the original proportions.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why do I need a background color for JPG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "JPG does not support transparency. The converter fills the canvas with your chosen background color before exporting to JPG.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How do I reduce JPG file size?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Lower the JPEG quality slider or export at a smaller width/height. Lower quality and smaller dimensions produce smaller files.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why won’t some SVGs convert?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Some SVGs reference external images, fonts, or unsupported features that the browser can’t render to canvas. Try embedding assets directly inside the SVG.",
-        },
-      },
-    ],
+    })),
   };
   return (
     <script
