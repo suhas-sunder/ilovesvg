@@ -35,6 +35,7 @@
     "test:route-coverage": "node scripts/route-coverage-audit.mjs",
     "test:route-expansion": "node scripts/route-expansion-audit.mjs",
     "test:routes": "node scripts/route-http-smoke.mjs",
+    "test:schema": "node scripts/schema-audit.mjs",
     "test:seo": "node scripts/seo-audit.mjs",
     "test:trace-engine": "node scripts/trace-engine-audit.mjs",
     "test:trace-quality": "node scripts/trace-quality-smoke.mjs",

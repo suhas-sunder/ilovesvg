@@ -2142,11 +2142,7 @@ function SeoSections() {
 
           <CurrentRouteGuide />
 
-          <section
-            className="mt-12"
-            itemScope
-            itemType="https://schema.org/FAQPage"
-          >
+          <section className="mt-12">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">
               Frequently asked questions
             </h3>
@@ -2155,24 +2151,13 @@ function SeoSections() {
               {FAQ.map((x) => (
                 <article
                   key={x.q}
-                  itemScope
-                  itemType="https://schema.org/Question"
-                  itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
-                  <h4
-                    itemProp="name"
-                    className="m-0 font-semibold text-slate-900"
-                  >
+                  <h4 className="m-0 font-semibold text-slate-900">
                     {x.q}
                   </h4>
-                  <p
-                    itemScope
-                    itemType="https://schema.org/Answer"
-                    itemProp="acceptedAnswer"
-                    className="mt-2 text-sm text-slate-600 leading-relaxed"
-                  >
-                    <span itemProp="text">{x.a}</span>
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                    {x.a}
                   </p>
                 </article>
               ))}
