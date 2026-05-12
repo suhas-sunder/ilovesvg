@@ -26,6 +26,13 @@ const MOBILE_PREVIEW_LIMITS: Record<string, number> = {
   "svg-export": 10,
   "svg-editing": 10,
 };
+const PRIMARY_NAV_VISIBILITY_CLASS_NAMES: Record<string, string> = {
+  "/svg-to-png-converter": "inline-flex",
+  "/png-to-svg-converter": "inline-flex",
+  "/svg-to-jpg-converter": "hidden xl:inline-flex",
+  "/jpg-to-svg-converter": "hidden xl:inline-flex",
+  "/svg-to-pdf-converter": "hidden min-[1536px]:inline-flex",
+};
 
 function useIsClient() {
   const [isClient, setIsClient] = useState(false);
@@ -378,11 +385,11 @@ export default function NavBar() {
       `}</style>
 
       <div className="max-w-[1180px] mx-auto px-4">
-        <div className="flex items-center justify-between py-3">
+        <div className="flex items-center justify-between gap-4 py-3">
           {/* Logo */}
           <a
             href="/"
-            className="group flex items-center gap-3 cursor-pointer select-none"
+            className="group flex shrink-0 items-center gap-3 cursor-pointer select-none"
             onClick={closeAll}
             aria-label="iLoveSVG home"
           >
@@ -415,12 +422,17 @@ export default function NavBar() {
           {/* Desktop nav */}
           <nav
             aria-label="Primary"
-            className="hidden lg:flex items-center gap-2 text-sm"
+            className="hidden min-w-0 flex-nowrap items-center gap-2 whitespace-nowrap text-sm lg:flex"
           >
+            <DesktopLink href="#other-tools" onClick={(e) => handleNavClick(e, "#other-tools")}>
+              All Tools
+            </DesktopLink>
+
             {primaryLinks.map((l) => (
               <DesktopLink
                 key={l.href}
                 href={l.href}
+                className={getPrimaryLinkVisibilityClassName(l.href)}
                 onClick={(e) => handleNavClick(e, l.href)}
               >
                 {l.label}
@@ -763,21 +775,27 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function getPrimaryLinkVisibilityClassName(href: string) {
+  return PRIMARY_NAV_VISIBILITY_CLASS_NAMES[href] ?? "inline-flex";
+}
+
 function DesktopLink({
   href,
   children,
+  className = "inline-flex",
   onClick,
 }: {
   href: string;
   children: React.ReactNode;
+  className?: string;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <a
       href={href}
       onClick={onClick}
-      className="cursor-pointer select-none rounded-md px-3 py-2 text-sm font-semibold
-                 text-slate-200 hover:text-sky-200 hover:bg-sky-900/25 transition-colors"
+      className={`${className} cursor-pointer select-none items-center rounded-md px-3 py-2 text-sm font-semibold
+                 text-slate-200 transition-colors hover:bg-sky-900/25 hover:text-sky-200`}
     >
       {children}
     </a>

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { AdSenseDelayed } from "../ads/AdsenseDelayed";
+import { shouldRenderAdsForPath } from "../../lib/monetization/monetizationPolicy";
 
 type UtilityGroup =
   | "SVG to image/PDF"
@@ -126,6 +127,7 @@ export function OtherToolsLinks({
   const { pathname } = useLocation();
 
   const normalizedPathname = normalizePath(pathname);
+  const shouldRenderAds = shouldRenderAdsForPath(normalizedPathname);
   const currentUtility = React.useMemo(
     () =>
       UTILITIES.find((item) => normalizePath(item.to) === normalizedPathname) ??
@@ -167,19 +169,21 @@ export function OtherToolsLinks({
           </p>
         </div>
 
-        <div className="py-6">
-          <div className="mx-auto w-full max-w-[970px] min-h-[120px] overflow-hidden flex items-center justify-center">
-            <AdSenseDelayed
-              slot="8102088582"
-              delayMs={1500}
-              minHeight={120}
-              maxHeight={120}
-              format="horizontal"
-              fullWidth={true}
-              className="mx-auto w-full max-w-[970px]"
-            />
+        {shouldRenderAds ? (
+          <div className="py-6">
+            <div className="mx-auto w-full max-w-[970px] min-h-[120px] overflow-hidden flex items-center justify-center">
+              <AdSenseDelayed
+                slot="8102088582"
+                delayMs={1500}
+                minHeight={120}
+                maxHeight={120}
+                format="horizontal"
+                fullWidth={true}
+                className="mx-auto w-full max-w-[970px]"
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="flex flex-col gap-10">
           {sections.map((section) => (
@@ -1435,6 +1439,249 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
         q: "Can I decode the result later?",
         a: "Yes. Use Base64 to SVG to decode a Base64 SVG string or data URL back into SVG markup.",
       },
+    ],
+  },
+  "/svg-cleaner-for-figma": {
+    eyebrow: "Figma SVG cleanup workflow",
+    heading: "SVG cleaner for Figma import, editing workflow, and design handoff",
+    intro:
+      "Use this page when an exported SVG needs metadata, comments, editor namespaces, or unsafe markup removed before Figma import. It helps make the file easier to inspect, but it does not guarantee editable layers.",
+    bestFor: [
+      "Figma import cleanup for SVG icons, logos, UI artwork, and design-system assets.",
+      "Design handoff where previewing the cleaned SVG matters before sharing.",
+      "Users who need safer markup without changing the SVG into a raster image.",
+    ],
+    settings: [
+      "Start with Safe or Normal cleanup before importing into Figma.",
+      "Preserve ids, defs, gradients, masks, groups, fills, and strokes unless preview proves they are unused.",
+      "Use SVG minifier only after the cleaned preview still matches the source.",
+    ],
+    limitations: [
+      "Cleaning does not certify Figma compatibility or guarantee editable layers.",
+      "Fonts, masks, filters, gradients, and grouped artwork can still import differently.",
+      "Confirm final appearance inside Figma before sharing or publishing.",
+    ],
+    related: [
+      { to: "/svg-resizer-for-figma", label: "SVG Resizer for Figma", reason: "Fix width, height, and viewBox before handoff." },
+      { to: "/svg-to-png-for-figma", label: "SVG to PNG for Figma", reason: "Export a flattened preview when editability is not needed." },
+      { to: "/png-to-svg-for-figma", label: "PNG to SVG for Figma", reason: "Trace raster artwork into SVG before cleanup." },
+      { to: "/svg-minifier", label: "SVG Minifier", reason: "Reduce file size after cleanup has been reviewed." },
+    ],
+  },
+  "/svg-cleaner-for-glowforge": {
+    eyebrow: "Glowforge SVG cleanup workflow",
+    heading: "SVG cleaner for Glowforge laser cutting, engraving, and path review",
+    intro:
+      "Use this page when an SVG needs clutter removed before Glowforge laser cutting, engraving, import testing, or path review. Cleaned output is not laser-ready by itself, so inspect it before material tests.",
+    bestFor: [
+      "Glowforge SVG cleanup before laser cutting or engraving review.",
+      "Simple logos, outlines, engraving marks, and cutting artwork with extra editor markup.",
+      "Users who want a cleaner file before checking scale, paths, and operation choices.",
+    ],
+    settings: [
+      "Start with Safe cleanup for SVGs from unknown sources.",
+      "Preserve geometry, viewBox, groups, fills, strokes, ids, and defs until preview confirms they are safe to change.",
+      "Use resize or file-size tools after cleanup if dimensions or complexity still need review.",
+    ],
+    limitations: [
+      "Cleaning does not validate machine settings, materials, or Glowforge upload behavior.",
+      "Path complexity, duplicate shapes, hidden objects, fills, and strokes still need review.",
+      "Run small material tests before any production cut or engraving job.",
+    ],
+    related: [
+      { to: "/svg-resizer-for-glowforge", label: "SVG Resizer for Glowforge", reason: "Check dimensions and viewBox before laser use." },
+      { to: "/png-to-svg-for-glowforge", label: "PNG to SVG for Glowforge", reason: "Trace PNG artwork into SVG before cleanup." },
+      { to: "/logo-to-svg-for-glowforge", label: "Logo to SVG for Glowforge", reason: "Convert logo artwork into SVG starting points." },
+      { to: "/svg-file-size-inspector", label: "SVG File Size Inspector", reason: "Inspect heavy SVGs before simplifying further." },
+    ],
+  },
+  "/svg-cleaner-for-silhouette": {
+    eyebrow: "Silhouette SVG cleanup workflow",
+    heading: "SVG cleaner for Silhouette Studio import and cut path review",
+    intro:
+      "Use this page when an SVG needs cleaner markup before Silhouette Studio import, cut path review, or a vinyl, decal, label, or sticker workflow. Cleaned output is not automatically cut-ready.",
+    bestFor: [
+      "Silhouette Studio SVG cleanup before checking cut paths.",
+      "Vinyl decals, labels, sticker outlines, and simple craft graphics with extra editor markup.",
+      "Users who want cleaner markup before reviewing size, paths, and import behavior.",
+    ],
+    settings: [
+      "Start with Safe or Normal cleanup before opening the SVG in Silhouette Studio.",
+      "Preserve viewBox, geometry, groups, fills, strokes, ids, and defs until preview confirms they are safe to change.",
+      "Use resize or image-to-SVG tools if the problem is project size or raster tracing, not markup cleanup.",
+    ],
+    limitations: [
+      "Cleaning does not validate blade settings, material choices, or cutter behavior.",
+      "Tiny islands, broken outlines, duplicate paths, and unwanted backgrounds still need review.",
+      "Preview in Silhouette Studio before sending the design to a cutter.",
+    ],
+    related: [
+      { to: "/svg-resizer-for-silhouette", label: "SVG Resizer for Silhouette", reason: "Fix dimensions before Studio review." },
+      { to: "/image-to-svg-for-silhouette", label: "Image to SVG for Silhouette", reason: "Trace raster artwork into SVG starting points." },
+      { to: "/logo-to-svg-for-silhouette", label: "Logo to SVG for Silhouette", reason: "Convert logo artwork for craft projects." },
+      { to: "/sticker-to-svg-for-silhouette", label: "Sticker to SVG for Silhouette", reason: "Prepare sticker artwork before cleanup and sizing." },
+    ],
+  },
+  "/svg-resizer-for-canva": {
+    eyebrow: "Canva SVG sizing workflow",
+    heading: "SVG resizer for Canva layout sizing and design upload placement",
+    intro:
+      "Use this page when a logo, icon, or transparent SVG needs clearer width, height, and viewBox values before Canva layout work. It adjusts SVG sizing metadata for placement review, but it does not certify every upload or fix artwork that needs cleanup.",
+    bestFor: [
+      "Canva layout sizing for logos, icons, transparent graphics, and reusable design assets.",
+      "Design upload prep when the SVG already looks right but imports at an awkward size.",
+      "Users who want a client-side sizing check before placing assets into a Canva design.",
+    ],
+    settings: [
+      "Set width and height to the target layout size before uploading or placing the SVG.",
+      "Keep aspect ratio locked for logos and icons that should not stretch.",
+      "Review viewBox handling when the canvas appears too large, too tight, or cropped.",
+    ],
+    limitations: [
+      "Resizing changes sizing metadata, not the artwork paths or platform upload rules.",
+      "Complex masks, filters, fonts, and external references can still behave differently after import.",
+      "Preview the result in Canva before using it in a final design.",
+    ],
+    related: [
+      { to: "/svg-to-png-for-canva", label: "SVG to PNG for Canva", reason: "Export a flattened PNG when SVG upload is not needed." },
+      { to: "/png-to-svg-for-canva", label: "PNG to SVG for Canva", reason: "Trace raster design assets before resizing." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Remove markup clutter before sizing difficult SVGs." },
+      { to: "/svg-dimensions-inspector", label: "SVG Dimensions Inspector", reason: "Inspect width, height, and viewBox before editing." },
+    ],
+  },
+  "/svg-resizer-for-etsy": {
+    eyebrow: "Etsy SVG sizing workflow",
+    heading: "SVG resizer for Etsy listing assets and seller file sizing",
+    intro:
+      "Use this page when an Etsy listing graphic, shop asset, digital download, or product preview needs predictable SVG dimensions before publishing. It changes size and viewBox metadata so you can review the file, not a guarantee that a listing or download is sell-ready.",
+    bestFor: [
+      "Etsy listing images, shop graphics, product preview artwork, and digital download assets.",
+      "Seller files that need clearer dimensions before upload, export, or customer delivery.",
+      "Checking whether an SVG displays too large, too small, or cropped in preview tools.",
+    ],
+    settings: [
+      "Set width and height around the intended listing or product preview dimensions.",
+      "Use percentage scaling when a file is proportionally correct but too large or small.",
+      "Review before publishing whenever viewBox changes could affect how the preview crops.",
+    ],
+    limitations: [
+      "Resizing does not make artwork commercially ready or validate Etsy listing requirements.",
+      "Buyers may use different design apps, so include clear file notes when selling downloads.",
+      "Use cleaner or minifier tools separately if the SVG markup itself is messy or heavy.",
+    ],
+    related: [
+      { to: "/svg-to-png-for-etsy", label: "SVG to PNG for Etsy", reason: "Create transparent listing previews from finished SVGs." },
+      { to: "/svg-to-jpg-for-etsy", label: "SVG to JPG for Etsy", reason: "Export flattened previews for product images." },
+      { to: "/sticker-to-svg-for-etsy", label: "Sticker to SVG for Etsy", reason: "Prepare sticker-style artwork before sizing seller files." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean SVG markup before packaging a digital download." },
+    ],
+  },
+  "/svg-resizer-for-figma": {
+    eyebrow: "Figma SVG sizing workflow",
+    heading: "SVG resizer for Figma imports, components, and viewBox review",
+    intro:
+      "Use this page when an SVG needs predictable width, height, and viewBox values before Figma import, component work, icon sizing, or design handoff. It helps with placement and scale review, but it does not guarantee editable layers.",
+    bestFor: [
+      "Figma import checks for icons, logos, UI artwork, and design-system components.",
+      "Component assets that need consistent dimensions before handoff.",
+      "SVGs that display at the wrong size because width, height, or viewBox metadata is missing.",
+    ],
+    settings: [
+      "Set exact width and height for the component, icon, or frame target.",
+      "Use viewBox match output only when you want the coordinate space to match the new size.",
+      "Keep aspect ratio locked unless the design intentionally needs a stretched asset.",
+    ],
+    limitations: [
+      "Resizing does not guarantee Figma layer editability or fix masks, filters, or font differences.",
+      "A viewBox change can alter how artwork fits inside the SVG canvas.",
+      "Inspect the imported result in Figma before using it in a component library.",
+    ],
+    related: [
+      { to: "/svg-cleaner-for-figma", label: "SVG Cleaner for Figma", reason: "Remove editor clutter before import review." },
+      { to: "/svg-to-png-for-figma", label: "SVG to PNG for Figma", reason: "Export a flattened preview or thumbnail." },
+      { to: "/png-to-svg-for-figma", label: "PNG to SVG for Figma", reason: "Trace raster assets before component sizing." },
+      { to: "/svg-dimensions-inspector", label: "SVG Dimensions Inspector", reason: "Inspect sizing metadata before editing." },
+    ],
+  },
+  "/svg-resizer-for-glowforge": {
+    eyebrow: "Glowforge SVG sizing workflow",
+    heading: "SVG resizer for Glowforge laser workspace and material sizing",
+    intro:
+      "Use this page when SVG artwork needs width, height, and viewBox review before Glowforge laser cutting or engraving setup. It helps check workspace scale and material sizing, but resized output is not laser-ready by itself.",
+    bestFor: [
+      "Glowforge artwork that needs workspace size review before laser use.",
+      "Simple logos, outlines, engraving graphics, and cut shapes where scale matters.",
+      "Users checking whether an SVG imports too large, too small, or with extra canvas space.",
+    ],
+    settings: [
+      "Set dimensions around the intended material or workspace size before import review.",
+      "Keep aspect ratio locked unless you intentionally need a stretched design.",
+      "Review viewBox handling when the file has extra whitespace or crops unexpectedly.",
+    ],
+    limitations: [
+      "Resizing does not validate material settings, operation choices, kerf, or machine behavior.",
+      "Path complexity, duplicate shapes, fills, strokes, and hidden objects still need inspection.",
+      "Run material tests before any production cut or engraving job.",
+    ],
+    related: [
+      { to: "/svg-cleaner-for-glowforge", label: "SVG Cleaner for Glowforge", reason: "Remove markup clutter before path review." },
+      { to: "/png-to-svg-for-glowforge", label: "PNG to SVG for Glowforge", reason: "Trace PNG artwork into SVG starting points." },
+      { to: "/logo-to-svg-for-glowforge", label: "Logo to SVG for Glowforge", reason: "Convert logo artwork before sizing and review." },
+      { to: "/svg-file-size-inspector", label: "SVG File Size Inspector", reason: "Inspect heavy SVGs before simplifying further." },
+    ],
+  },
+  "/svg-resizer-for-shopify": {
+    eyebrow: "Shopify SVG sizing workflow",
+    heading: "SVG resizer for Shopify storefront logo, icon, and theme asset sizing",
+    intro:
+      "Use this page when a Shopify logo, icon, badge, or storefront graphic needs predictable SVG dimensions before theme asset review. It adjusts sizing metadata for publishing checks, not storefront design or platform approval.",
+    bestFor: [
+      "Shopify storefront logos, icons, badges, trust graphics, and simple brand assets.",
+      "Theme asset sizing when an SVG appears too large, too small, or cropped.",
+      "Store owners checking width, height, and viewBox before publishing.",
+    ],
+    settings: [
+      "Set width and height around the theme area where the logo or icon will appear.",
+      "Use responsive SVG when CSS should control the displayed size.",
+      "Review viewBox changes before replacing a live theme asset.",
+    ],
+    limitations: [
+      "Resizing does not edit theme code or guarantee a perfect fit in every Shopify theme.",
+      "External fonts, filters, and unsupported SVG features can still render differently.",
+      "Preview the asset in your theme before publishing storefront changes.",
+    ],
+    related: [
+      { to: "/png-to-svg-for-shopify", label: "PNG to SVG for Shopify", reason: "Convert transparent brand graphics into SVG assets." },
+      { to: "/logo-to-svg-for-shopify", label: "Logo to SVG for Shopify", reason: "Trace logo artwork before resizing." },
+      { to: "/svg-to-png-for-shopify", label: "SVG to PNG for Shopify", reason: "Export a raster fallback for store graphics." },
+      { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean markup before adding SVGs to a theme." },
+    ],
+  },
+  "/svg-resizer-for-silhouette": {
+    eyebrow: "Silhouette SVG sizing workflow",
+    heading: "SVG resizer for Silhouette Studio cut project sizing",
+    intro:
+      "Use this page when an SVG needs clearer width, height, and viewBox values before Silhouette Studio review. It helps set cut project scale for decals, labels, stickers, or simple craft artwork, but it does not make the file automatically cut-ready.",
+    bestFor: [
+      "Silhouette Studio SVG sizing before checking cut project dimensions.",
+      "Vinyl decals, labels, sticker outlines, and craft graphics where scale matters.",
+      "Users checking whether extra canvas space or missing size metadata affects import.",
+    ],
+    settings: [
+      "Set width and height around the intended project dimensions.",
+      "Keep aspect ratio locked for logos, decals, and sticker artwork.",
+      "Review before cutting whenever viewBox changes could affect the visible canvas.",
+    ],
+    limitations: [
+      "Resizing does not validate blade settings, material choices, or cutter behavior.",
+      "Tiny islands, broken outlines, line thickness, and unwanted backgrounds still need review.",
+      "Preview in Silhouette Studio before sending the design to a cutter.",
+    ],
+    related: [
+      { to: "/svg-cleaner-for-silhouette", label: "SVG Cleaner for Silhouette", reason: "Clean markup before Studio import review." },
+      { to: "/image-to-svg-for-silhouette", label: "Image to SVG for Silhouette", reason: "Trace raster artwork into SVG starting points." },
+      { to: "/logo-to-svg-for-silhouette", label: "Logo to SVG for Silhouette", reason: "Convert logo artwork for craft projects." },
+      { to: "/sticker-to-svg-for-silhouette", label: "Sticker to SVG for Silhouette", reason: "Prepare sticker artwork before final sizing." },
     ],
   },
   "/svg-cleaner": {

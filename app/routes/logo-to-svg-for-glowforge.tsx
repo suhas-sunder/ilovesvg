@@ -3,7 +3,8 @@ import Template, { action, loader } from "./logo-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Logo to SVG for Glowforge | iLoveSVG";
-  const description = "Convert logo artwork into SVG for Glowforge-style engraving, cutting prep, cleanup, and sizing checks.";
+  const description =
+    "Convert logo artwork into SVG starting points for Glowforge engraving or laser cutting prep, with complexity review.";
   const canonical = "https://www.ilovesvg.com/logo-to-svg-for-glowforge";
 
   return [

@@ -1,22 +1,9 @@
 import type { Route } from "./+types/logo-to-svg-for-etsy";
+import { createMarketplaceCraftMeta } from "~/data/routeMeta/marketplaceCraft";
 import Template, { action, loader } from "./logo-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "Logo to SVG for Etsy | iLoveSVG";
-  const description = "Convert Etsy shop logos and brand marks into SVG for scalable listing graphics, watermarks, and seller assets.";
-  const canonical = "https://www.ilovesvg.com/logo-to-svg-for-etsy";
-
-  return [
-    { title },
-    { name: "description", content: description },
-    { name: "viewport", content: "width=device-width, initial-scale=1" },
-    { name: "theme-color", content: "#0b2dff" },
-    { tagName: "link", rel: "canonical", href: canonical },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:type", content: "website" },
-    { property: "og:url", content: canonical },
-  ];
+  return createMarketplaceCraftMeta("/logo-to-svg-for-etsy");
 }
 
 export { action, loader };

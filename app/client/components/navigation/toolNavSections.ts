@@ -13,14 +13,9 @@ export type ToolNavSection = {
 
 export const PRIMARY_NAV_ITEMS: ToolNavItem[] = [
   {
-    label: "All Tools",
-    href: "#other-tools",
-    keywords: ["all tools", "tools", "navigation", "browse tools"],
-  },
-  {
-    label: "Image to SVG",
-    href: "/",
-    keywords: ["image to svg", "svg converter", "vectorize"],
+    label: "SVG to PNG",
+    href: "/svg-to-png-converter",
+    keywords: ["svg to png", "export png"],
   },
   {
     label: "PNG to SVG",
@@ -28,9 +23,19 @@ export const PRIMARY_NAV_ITEMS: ToolNavItem[] = [
     keywords: ["png to svg", "vectorize png"],
   },
   {
-    label: "SVG to PNG",
-    href: "/svg-to-png-converter",
-    keywords: ["svg to png", "export png"],
+    label: "SVG to JPG",
+    href: "/svg-to-jpg-converter",
+    keywords: ["svg to jpg", "svg to jpeg", "export jpg"],
+  },
+  {
+    label: "JPG to SVG",
+    href: "/jpg-to-svg-converter",
+    keywords: ["jpg to svg", "jpeg", "photo"],
+  },
+  {
+    label: "SVG to PDF",
+    href: "/svg-to-pdf-converter",
+    keywords: ["svg to pdf", "print", "document"],
   },
 ];
 
@@ -253,7 +258,6 @@ export const TOOL_NAV_SECTIONS: ToolNavSection[] = [
       { label: "Settings", href: "/how-it-works/settings" },
       { label: "Exporting and Downloads", href: "/how-it-works/exporting-and-downloads" },
       { label: "Troubleshooting", href: "/how-it-works/troubleshooting" },
-      { label: "All Tools", href: "#other-tools" },
     ],
   },
 ];

@@ -67,7 +67,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     "PNG to SVG for Silhouette | Free Silhouette SVG Converter - iLoveSVG";
   const description =
-    "Convert PNG or JPG artwork into SVG files for Silhouette Studio, Cameo projects, vinyl decals, stickers, labels, and cut-file cleanup.";
+    "Convert PNG or JPG artwork into SVG starting points for Silhouette Studio, Cameo projects, decals, stickers, labels, and cut-path review.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-silhouette";
 
   return [
@@ -1971,7 +1971,7 @@ function SeoSections() {
                 files
               </h2>
               <p className="text-slate-600 ">
-                Convert PNG or JPEG artwork into clean SVG paths for Silhouette
+                Convert PNG or JPEG artwork into SVG path starting points for Silhouette
                 Studio projects, vinyl decals, paper crafts, stickers, stencils,
                 labels, and simple cut-file cleanup. The converter keeps the
                 same fast live preview and advanced tracing controls, but the
@@ -1981,7 +1981,7 @@ function SeoSections() {
               <p className="text-slate-600">
                 Upload a high-contrast PNG or JPG, choose a Silhouette-focused
                 preset, adjust the trace, then download an SVG you can inspect
-                and clean up before cutting.
+                as a starting point, clean up, and review before cutting.
               </p>
 
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -2078,7 +2078,7 @@ function SeoSections() {
               <p className="text-sm text-slate-700">
                 This page traces dark and light areas in a PNG or JPEG and turns
                 them into SVG path data. That makes it useful for simple
-                cut-file preparation, but it is not the same as a hand-built
+                cut-file preparation and path review, but it is not the same as a hand-built
                 layered SVG. After downloading, open the SVG in your design
                 software, check the cut lines, remove unwanted islands, and
                 resize the design for your mat or material.

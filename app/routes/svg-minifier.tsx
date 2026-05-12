@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Minifier - Compress SVG Markup in Your Browser | iLoveSVG`;
   const description =
-    `Minify SVG files in your browser by removing comments, extra whitespace, optional XML or DOCTYPE markup, metadata, and safe spacing bloat before download.`;
+    `Minify SVG markup in your browser to reduce file size by removing comments, whitespace, metadata, and safe spacing bloat before download.`;
   const canonical = "https://www.ilovesvg.com/svg-minifier";
 
   return [
@@ -1302,6 +1302,11 @@ function SeoSections() {
             preserve rendering while still producing meaningful savings for
             typical exports from design tools.
           </p>
+          <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+            This is not a resizer. Use the minifier when the SVG already has the
+            right dimensions and your goal is smaller markup for a site, icon
+            set, component library, or downloadable asset.
+          </p>
 
           {/* What it does (practical, not bloggy) */}
           <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -1434,6 +1439,20 @@ function SeoSections() {
               content, keep “Trim text nodes” and “Remove xml:space” off unless
               you have verified spacing remains correct.
             </div>
+          </section>
+
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              Minifier vs cleaner vs resizer
+            </h3>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              The SVG minifier focuses on file size and compact markup. The SVG
+              cleaner focuses on removing metadata, editor clutter, and unsafe
+              behavior before reuse. The resize and scale editor changes width,
+              height, scale, and viewBox values. Keeping those jobs separate
+              makes it easier to choose the least risky tool for the file in
+              front of you.
+            </p>
           </section>
 
           {/* Options (dense, relevant, not educational fluff) */}

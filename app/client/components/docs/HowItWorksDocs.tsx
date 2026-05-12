@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router";
+import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import {
@@ -7,6 +8,7 @@ import {
   type PresetBackendIntensity,
 } from "~/client/lib/converter/presetIntensity";
 import { DOCS_PAGES, SITE_URL, type DocsPage } from "~/client/lib/docs/howItWorksContent";
+import { getRouteMonetizationPolicy } from "~/client/lib/monetization/monetizationPolicy";
 
 type DocsTone = "sky" | "emerald" | "violet" | "amber" | "rose" | "cyan";
 
@@ -74,6 +76,7 @@ const HERO_SPEEDS: PresetBackendIntensity[] = [
   "very-slow",
   "insanely-slow",
 ];
+const DOCS_COMPACT_AD_SLOT = "8102088582";
 
 export function DocsPageShell({
   children,
@@ -86,11 +89,45 @@ export function DocsPageShell({
     <>
       <main className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7fbff_0%,#f8fafc_46%,#ffffff_100%)] text-slate-900">
         {children}
+        <DocsCompactAd currentPath={currentPath} />
         <DocsRelatedReads currentPath={currentPath} />
       </main>
       <SocialLinks />
       <SiteFooter />
     </>
+  );
+}
+
+function DocsCompactAd({ currentPath }: { currentPath: string }) {
+  const monetizationPolicy = getRouteMonetizationPolicy(currentPath);
+  if (
+    !monetizationPolicy.ads ||
+    monetizationPolicy.placement !== "docs-compact-ad"
+  ) {
+    return null;
+  }
+
+  return (
+    <section
+      aria-label="Sponsored advertisement"
+      className="mx-auto max-w-6xl overflow-hidden px-4 pb-8 sm:px-6 sm:pb-10 lg:px-8"
+      style={{ maxHeight: 180, overflow: "hidden" }}
+      data-monetization-kind="adsense"
+      data-monetization-slot="docs-help-compact"
+      data-monetization-reserve="compact"
+    >
+      <div className="mx-auto flex min-h-[120px] w-full max-w-[970px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white/85 p-2 shadow-sm">
+        <AdSenseDelayed
+          slot={DOCS_COMPACT_AD_SLOT}
+          delayMs={1500}
+          minHeight={120}
+          maxHeight={120}
+          format="horizontal"
+          fullWidth={false}
+          className="mx-auto w-full max-w-[970px]"
+        />
+      </div>
+    </section>
   );
 }
 

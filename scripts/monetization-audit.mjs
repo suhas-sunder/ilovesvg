@@ -17,6 +17,7 @@ const moduleFiles = [
   "affiliateWaterfallStorage",
   "affiliateWaterfallSelection",
   "affiliateVisibility",
+  "monetizationPolicy",
 ];
 
 await fs.rm(tmpDir, { recursive: true, force: true });
@@ -40,10 +41,38 @@ for (const moduleName of moduleFiles) {
   await fs.writeFile(path.join(tmpDir, `${moduleName}.mjs`), transpiled);
 }
 
+const routeManifestSource = await fs.readFile(
+  path.join(rootDir, "app", "data", "routeManifest.ts"),
+  "utf8",
+);
+const routeManifestOutput = ts.transpileModule(routeManifestSource, {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ES2022,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.ReactJSX,
+  },
+  fileName: "routeManifest.ts",
+});
+await fs.writeFile(
+  path.join(tmpDir, "routeManifest.mjs"),
+  routeManifestOutput.outputText,
+);
+
 const importAuditModule = (moduleName) =>
   import(pathToFileURL(path.join(tmpDir, `${moduleName}.mjs`)).href);
 
-const [providers, storage, selection, routeIntents, offers, visibility, responsive] =
+const [
+  providers,
+  storage,
+  selection,
+  routeIntents,
+  offers,
+  visibility,
+  responsive,
+  policy,
+  routeManifest,
+] =
   await Promise.all([
     importAuditModule("affiliateProviders"),
     importAuditModule("affiliateWaterfallStorage"),
@@ -52,6 +81,8 @@ const [providers, storage, selection, routeIntents, offers, visibility, responsi
     importAuditModule("affiliateOffers"),
     importAuditModule("affiliateVisibility"),
     importAuditModule("affiliateResponsive"),
+    importAuditModule("monetizationPolicy"),
+    importAuditModule("routeManifest"),
   ]);
 
 const removedProviderId = "name" + "cheap";
@@ -736,6 +767,180 @@ function runActiveAffiliateTests() {
   );
 }
 
+function runMonetizationPolicyTests() {
+  for (const route of ["/privacy-policy", "/terms-of-service", "/cookies"]) {
+    assert.equal(
+      policy.isMonetizationExcludedRoute(route),
+      true,
+      `${route} is explicitly excluded from monetization`,
+    );
+    assert.deepEqual(
+      policy.getRouteMonetizationPolicy(`${route}?utm_source=test#section`),
+      {
+        mode: "excluded",
+        ads: false,
+        affiliate: false,
+        placement: "none",
+        exclusionReason: "legal-trust",
+      },
+      `${route} disables ads and affiliate even with query or hash`,
+    );
+    assert.equal(
+      policy.shouldRenderAdsForPath(route),
+      false,
+      `${route} does not render ad placements`,
+    );
+    assert.equal(
+      policy.shouldRenderAffiliateForPath(route),
+      false,
+      `${route} does not render affiliate placements`,
+    );
+  }
+
+  for (const route of [
+    "/how-it-works",
+    "/how-it-works/conversion-workflow",
+    "/how-it-works/exporting-and-downloads",
+    "/how-it-works/presets",
+    "/how-it-works/settings",
+    "/how-it-works/troubleshooting",
+  ]) {
+    assert.deepEqual(
+      policy.getRouteMonetizationPolicy(`${route}/?utm_source=test#section`),
+      {
+        mode: "compact-ad",
+        ads: true,
+        affiliate: false,
+        placement: "docs-compact-ad",
+      },
+      `${route} uses compact ads without affiliate cards`,
+    );
+    assert.equal(
+      policy.shouldRenderAdsForPath(route),
+      true,
+      `${route} can render compact ad placements`,
+    );
+    assert.equal(
+      policy.shouldRenderAffiliateForPath(route),
+      false,
+      `${route} does not render affiliate placements`,
+    );
+  }
+
+  for (const route of [
+    "/svg-cleaner",
+    "/svg-resize-and-scale-editor",
+    "/svg-to-base64",
+    "/text-to-svg-converter",
+  ]) {
+    assert.deepEqual(
+      policy.getRouteMonetizationPolicy(route),
+      {
+        mode: "compact-ad",
+        ads: true,
+        affiliate: false,
+        placement: "contextual-compact-ad",
+      },
+      `${route} uses compact ads without affiliate cards`,
+    );
+  }
+
+  for (const route of ["/pro-waitlist", "/sitemap", "/api/batch-svg"]) {
+    const expectedReason =
+      route === "/pro-waitlist"
+        ? "owned-funnel"
+        : route === "/sitemap"
+          ? "sitemap-meta"
+          : "api";
+    const expectedMode =
+      route === "/pro-waitlist" ? "focused-no-monetization" : "excluded";
+    assert.deepEqual(
+      policy.getRouteMonetizationPolicy(route),
+      {
+        mode: expectedMode,
+        ads: false,
+        affiliate: false,
+        placement: "none",
+        exclusionReason: expectedReason,
+      },
+      `${route} has an explicit no-monetization policy`,
+    );
+  }
+
+  assert.deepEqual(
+    policy.getRouteMonetizationPolicy("/png-to-svg-converter"),
+    {
+      mode: "affiliate-with-fallback",
+      ads: true,
+      affiliate: true,
+      placement: "contextual-affiliate-with-compact-fallback",
+    },
+    "converter routes remain monetization eligible",
+  );
+
+  for (const entry of routeManifest.ROUTE_MANIFEST) {
+    const routePolicy = policy.getRouteMonetizationPolicy(entry.path);
+    assert.ok(routePolicy.mode, `${entry.path} has a monetization mode`);
+    assert.equal(
+      typeof routePolicy.ads,
+      "boolean",
+      `${entry.path} has an explicit ads decision`,
+    );
+    assert.equal(
+      typeof routePolicy.affiliate,
+      "boolean",
+      `${entry.path} has an explicit affiliate decision`,
+    );
+    assert.ok(routePolicy.placement, `${entry.path} has a placement decision`);
+
+    if (!entry.publicRoute || entry.family === "api") {
+      assert.equal(routePolicy.mode, "excluded", `${entry.path} excludes API/non-public routes`);
+      assert.equal(routePolicy.exclusionReason, "api", `${entry.path} records API exclusion`);
+      continue;
+    }
+
+    if (entry.family === "redirect") {
+      assert.equal(routePolicy.mode, "excluded", `${entry.path} excludes redirect aliases`);
+      assert.equal(routePolicy.exclusionReason, "redirect", `${entry.path} records redirect exclusion`);
+      continue;
+    }
+
+    if (entry.family === "legal") {
+      assert.equal(routePolicy.mode, "excluded", `${entry.path} excludes legal/trust routes`);
+      assert.equal(routePolicy.exclusionReason, "legal-trust", `${entry.path} records legal exclusion`);
+      continue;
+    }
+
+    if (entry.family === "sitemap-meta") {
+      assert.equal(routePolicy.mode, "excluded", `${entry.path} excludes sitemap/meta routes`);
+      assert.equal(routePolicy.exclusionReason, "sitemap-meta", `${entry.path} records sitemap/meta exclusion`);
+      continue;
+    }
+
+    if (entry.path === "/pro-waitlist") {
+      assert.equal(
+        routePolicy.mode,
+        "focused-no-monetization",
+        "/pro-waitlist keeps the owned-funnel page ad-free",
+      );
+      assert.equal(routePolicy.exclusionReason, "owned-funnel");
+      continue;
+    }
+
+    if (entry.family === "documentation") {
+      assert.equal(routePolicy.mode, "compact-ad", `${entry.path} uses docs compact ads`);
+      assert.equal(routePolicy.affiliate, false, `${entry.path} does not show affiliate cards`);
+      continue;
+    }
+
+    assert.ok(
+      ["affiliate-with-fallback", "compact-ad"].includes(routePolicy.mode),
+      `${entry.path} has a monetized route policy`,
+    );
+    assert.equal(routePolicy.ads, true, `${entry.path} remains ad eligible`);
+  }
+}
+
 runStorageParserTests();
 runWaterfallSelectionTests();
 runProviderCleanupTests();
@@ -743,5 +948,6 @@ runRouteRelevanceTests();
 runVisibilityTests();
 runClickAndSuppressionTests();
 runActiveAffiliateTests();
+runMonetizationPolicyTests();
 
 console.log("[monetization-audit] all checks passed");

@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-resize-and-scale-editor";
+import { useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -15,9 +16,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    `SVG Resize and Scale Tool - Change Width, Height and ViewBox | iLoveSVG`;
+    `SVG Resize and Scale Editor - Width, Height, ViewBox | iLoveSVG`;
   const description =
-    `Resize and scale SVG files in your browser. Change width, height, aspect ratio, scale percentage, and viewBox behavior before copying or downloading.`;
+    `Resize SVG width, height, scale percentage, and viewBox in your browser. Preview layout changes before copying or downloading.`;
   const canonical = "https://www.ilovesvg.com/svg-resize-and-scale-editor";
 
   return [
@@ -1158,7 +1159,307 @@ function JsonLdBreadcrumbs() {
 /* ========================
    SEO sections
 ======================== */
+type FaqItem = {
+  q: string;
+  a: React.ReactNode;
+};
+
+type PlatformResizerSection = {
+  heading: string;
+  intro: string;
+  cards: ReadonlyArray<{
+    title: string;
+    body: string;
+  }>;
+  note: string;
+};
+
+type ResizerSeoContent = {
+  platform: PlatformResizerSection;
+  faq: ReadonlyArray<FaqItem>;
+};
+
+const GENERIC_RESIZER_FAQ: ReadonlyArray<FaqItem> = [
+  {
+    q: "Does this tool upload my SVG?",
+    a: "No. Everything runs locally in your browser. Your SVG is not sent to a server.",
+  },
+  {
+    q: "What is the difference between width/height and viewBox?",
+    a: "Width and height control how large the SVG displays. The viewBox controls the internal coordinate system. Changing viewBox can change how content scales inside the SVG.",
+  },
+  {
+    q: "Should I update viewBox when resizing?",
+    a: "If you only want the SVG to display larger or smaller, keep the viewBox. If you want the coordinate system to match the new size, set viewBox to 0 0 width height (Match output).",
+  },
+  {
+    q: "How do I make an SVG responsive?",
+    a: "Enable Responsive SVG to remove width and height while keeping a viewBox. Then the SVG scales to its container using CSS.",
+  },
+  {
+    q: "Can I scale an SVG by percentage?",
+    a: "Yes. Use Scale (%) to resize proportionally based on detected width/height or viewBox.",
+  },
+  {
+    q: "Why does my SVG crop when I resize it?",
+    a: "Cropping usually means the viewBox does not match the artwork bounds or the SVG is being fit using preserveAspectRatio settings. Try Match output for viewBox and keep preserveAspectRatio on meet.",
+  },
+];
+
+const PLATFORM_RESIZER_CONTENT = {
+  "/svg-resizer-for-canva": {
+    platform: {
+      heading: "Canva layout sizing for uploaded SVG assets",
+      intro:
+        "Canva placement issues often come from missing dimensions, oversized canvas space, or a viewBox that does not match the visible artwork. Use the resizer to set a practical size before design upload, then review the result inside Canva.",
+      cards: [
+        {
+          title: "Design upload prep",
+          body: "Set width and height around the layout size you expect before placing logos, icons, or transparent graphics.",
+        },
+        {
+          title: "ViewBox review",
+          body: "Keep the viewBox when the SVG already fits correctly, or match output when the coordinate space should follow the new size.",
+        },
+        {
+          title: "Honest limits",
+          body: "Resizing does not fix masks, fonts, filters, or platform import differences. Preview before using the asset in final artwork.",
+        },
+      ],
+      note:
+        "Use this route for Canva layout sizing and placement review, not Etsy listing prep, Shopify theme assets, or laser and cutter workflows.",
+    },
+    faq: [
+      {
+        q: "Does this make every SVG work in Canva?",
+        a: "No. It adjusts SVG size metadata and viewBox handling. Canva import behavior can still depend on masks, filters, fonts, and the original markup.",
+      },
+      {
+        q: "What should I check before Canva upload?",
+        a: "Check width, height, viewBox, transparent canvas space, and whether the preview matches the intended layout size.",
+      },
+      {
+        q: "Should I remove width and height for Canva?",
+        a: "Only if CSS or the design container should control the rendered size. For predictable upload placement, explicit width and height can be easier to review.",
+      },
+    ],
+  },
+  "/svg-resizer-for-etsy": {
+    platform: {
+      heading: "Etsy seller asset sizing for listings and downloads",
+      intro:
+        "Etsy sellers often need SVGs that preview clearly for listing images, product preview graphics, shop assets, or digital download files. Resize the SVG, check the viewBox, and review before publishing so the file opens at a sensible size.",
+      cards: [
+        {
+          title: "Listing assets",
+          body: "Set dimensions around the preview or product graphic size you plan to show in the listing.",
+        },
+        {
+          title: "Digital downloads",
+          body: "Use consistent sizing for seller files so customers do not receive an SVG with unexpected canvas space or scale.",
+        },
+        {
+          title: "Review before publishing",
+          body: "Confirm the output in your preview workflow before packaging, uploading, or selling the asset.",
+        },
+      ],
+      note:
+        "This page helps with sizing and product preview review. It does not certify listing quality or make artwork commercially ready.",
+    },
+    faq: [
+      {
+        q: "Can I resize SVG files for Etsy listings?",
+        a: "Yes. Set width, height, scale, and viewBox options, then review the preview before publishing listing graphics or digital download files.",
+      },
+      {
+        q: "Does resizing make an Etsy file ready to sell?",
+        a: "No. It only changes sizing metadata. You still need to review artwork quality, license rights, file notes, and buyer workflow expectations.",
+      },
+      {
+        q: "Should Etsy downloads use a fixed size?",
+        a: "Often yes. Predictable dimensions can make seller files easier to preview, but the right size depends on the product and the design app your buyers use.",
+      },
+    ],
+  },
+  "/svg-resizer-for-figma": {
+    platform: {
+      heading: "Figma import sizing for components, icons, and handoff",
+      intro:
+        "Figma assets are easier to place when width, height, and viewBox values are predictable. Use this resizer before importing icons, logos, UI artwork, or component assets that appear too large, too small, or cropped.",
+      cards: [
+        {
+          title: "Component sizing",
+          body: "Set exact dimensions for icons, component artwork, or design-system assets before import review.",
+        },
+        {
+          title: "Import checks",
+          body: "Inspect the viewBox when an SVG lands with extra canvas space or does not align with a frame.",
+        },
+        {
+          title: "Handoff limits",
+          body: "Resizing does not guarantee editable layers, font parity, or identical rendering of masks and filters.",
+        },
+      ],
+      note:
+        "Use this route for Figma import and sizing review. Use the cleaner first if the SVG has editor markup or unsafe content.",
+    },
+    faq: [
+      {
+        q: "Will this make an SVG editable in Figma?",
+        a: "No. It can make size and viewBox values more predictable, but Figma editability depends on the SVG structure, fonts, masks, filters, and groups.",
+      },
+      {
+        q: "What Figma assets should I resize here?",
+        a: "Icons, logos, component artwork, UI graphics, and design handoff assets that already look right but need better dimensions.",
+      },
+      {
+        q: "Should I match viewBox to the new output size?",
+        a: "Use Match output when you want the coordinate space to follow the new width and height. Keep the existing viewBox when the artwork already fits correctly.",
+      },
+    ],
+  },
+  "/svg-resizer-for-glowforge": {
+    platform: {
+      heading: "Glowforge workspace scale and material sizing review",
+      intro:
+        "For Glowforge laser cutting or engraving prep, SVG size and viewBox values affect how artwork appears in the workspace. Use this page to review dimensions before import, but remember that resized output is not laser-ready by itself.",
+      cards: [
+        {
+          title: "Workspace scale",
+          body: "Set dimensions around the intended material or project area before checking the artwork in laser software.",
+        },
+        {
+          title: "Material sizing",
+          body: "Use locked aspect ratio for logos, outlines, and engraving graphics where real-world scale matters.",
+        },
+        {
+          title: "Not laser-ready",
+          body: "Resizing does not validate kerf, operation choices, path complexity, fills, strokes, or machine settings.",
+        },
+      ],
+      note:
+        "Inspect paths and run material tests before production cutting or engraving. This tool only changes SVG sizing metadata.",
+    },
+    faq: [
+      {
+        q: "Does resizing make a Glowforge file laser-ready?",
+        a: "No. Resizing helps with workspace scale and material sizing review, but the SVG still needs path, material, and operation checks before laser use.",
+      },
+      {
+        q: "What should I inspect after resizing?",
+        a: "Check final dimensions, viewBox fit, duplicate shapes, hidden objects, fills, strokes, and whether cutting or engraving areas import as expected.",
+      },
+      {
+        q: "Should I change the viewBox for laser artwork?",
+        a: "Only when the visible artwork and canvas need to align. A wrong viewBox can cause extra canvas space or cropping, so preview carefully.",
+      },
+    ],
+  },
+  "/svg-resizer-for-shopify": {
+    platform: {
+      heading: "Shopify storefront sizing for logos, icons, and theme assets",
+      intro:
+        "Shopify theme assets should have predictable SVG dimensions before publishing. Use this page to resize logos, icons, badges, and storefront graphics, then review how the theme displays the file.",
+      cards: [
+        {
+          title: "Theme asset sizing",
+          body: "Set width and height around the header, badge, icon, or section where the SVG will appear.",
+        },
+        {
+          title: "Storefront review",
+          body: "Check whether the file has extra canvas space, a missing viewBox, or dimensions that fight the theme layout.",
+        },
+        {
+          title: "Publish limits",
+          body: "Resizing does not edit Shopify theme code or guarantee a perfect fit across every theme and breakpoint.",
+        },
+      ],
+      note:
+        "Use this route for Shopify storefront graphics and theme asset review, not Etsy downloads or print-on-demand artwork prep.",
+    },
+    faq: [
+      {
+        q: "Can I resize Shopify SVG logos here?",
+        a: "Yes. Set width, height, scale, and viewBox options, then review the asset before publishing it in your theme.",
+      },
+      {
+        q: "Will this fix my Shopify theme layout?",
+        a: "No. It changes SVG sizing metadata only. Theme CSS, section settings, and responsive behavior can still affect display.",
+      },
+      {
+        q: "Should Shopify SVGs be responsive?",
+        a: "Sometimes. Removing width and height can let CSS control size, but fixed dimensions can be easier to review for logos and icons.",
+      },
+    ],
+  },
+  "/svg-resizer-for-silhouette": {
+    platform: {
+      heading: "Silhouette Studio cut project sizing and viewBox review",
+      intro:
+        "Silhouette Studio workflows need predictable scale before cutting. Use this page to resize SVG artwork for decals, labels, stickers, and simple craft projects, then review before cutting inside Studio.",
+      cards: [
+        {
+          title: "Cut project size",
+          body: "Set width and height around the intended decal, label, sticker, or craft project dimensions.",
+        },
+        {
+          title: "ViewBox checks",
+          body: "Review the viewBox when an SVG imports with extra canvas space, cropped artwork, or unexpected scale.",
+        },
+        {
+          title: "Before cutting",
+          body: "Resizing does not validate blade settings, material choices, tiny islands, or cut path quality.",
+        },
+      ],
+      note:
+        "Use this route for Silhouette Studio sizing review. Clean or trace artwork separately if the paths themselves need repair.",
+    },
+    faq: [
+      {
+        q: "Does resizing make an SVG cut-ready for Silhouette?",
+        a: "No. It helps with cut project sizing, but you still need to review paths, line thickness, tiny islands, material settings, and import behavior before cutting.",
+      },
+      {
+        q: "What should I check in Silhouette Studio?",
+        a: "Check final size, viewBox fit, unwanted canvas space, outlines, and whether the design imports at the expected scale.",
+      },
+      {
+        q: "Should I keep aspect ratio locked?",
+        a: "Yes for most logos, decals, labels, and sticker artwork. Unlock it only when you intentionally want to stretch the design.",
+      },
+    ],
+  },
+} as const satisfies Record<string, ResizerSeoContent>;
+
+function normalizeSeoPath(pathname: string) {
+  if (!pathname || pathname === "/") return "/";
+  return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
+function PlatformResizerSeoSection({ content }: { content: PlatformResizerSection }) {
+  return (
+    <section className="mt-10">
+      <h3 className="m-0 font-bold">{content.heading}</h3>
+      <p className="mt-3 text-slate-700">{content.intro}</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-3 not-prose">
+        {content.cards.map((card) => (
+          <div key={card.title} className="rounded-2xl border border-slate-200 p-4 bg-white">
+            <div className="text-sm font-semibold text-slate-900">{card.title}</div>
+            <div className="mt-1 text-sm text-slate-700">{card.body}</div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-sm leading-6 text-slate-600">{content.note}</p>
+    </section>
+  );
+}
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const routeContent =
+    PLATFORM_RESIZER_CONTENT[normalizeSeoPath(pathname) as keyof typeof PLATFORM_RESIZER_CONTENT];
+  const faqItems = routeContent?.faq ?? GENERIC_RESIZER_FAQ;
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
@@ -1183,6 +1484,11 @@ function SeoSections() {
             Resize an SVG by changing <b>width</b>/<b>height</b>, scaling by
             percentage, and optionally updating <b>viewBox</b> and{" "}
             <b>preserveAspectRatio</b>. This runs fully client-side.
+          </p>
+          <p className="mt-2 text-slate-600">
+            This is not a cleaner or minifier. Use it when the problem is
+            displayed size, coordinate space, responsive behavior, or how the
+            SVG fits into a layout.
           </p>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3 not-prose">
@@ -1287,95 +1593,44 @@ function SeoSections() {
             </div>
           </section>
 
+          <section>
+            <h3 className="mt-8 font-bold">
+              When to use the resizer instead of other SVG tools
+            </h3>
+            <p>
+              Choose the resize and scale editor when your SVG already looks
+              correct but displays at the wrong size, crops unexpectedly, or
+              needs predictable width, height, and viewBox values. Choose the
+              SVG cleaner for metadata, comments, scripts, or editor junk.
+              Choose the SVG minifier when the markup is already good and file
+              size is the main problem.
+            </p>
+          </section>
+
+          {routeContent ? <PlatformResizerSeoSection content={routeContent.platform} /> : null}
+
           <CurrentRouteGuide />
 
           <section>
             <h3 className="mt-8 font-bold">FAQ</h3>
 
             <div className="not-prose mt-3 grid gap-3">
-              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
-                  <span>Does this tool upload my SVG?</span>
-                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
-                    +
-                  </span>
-                </summary>
-                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
-                  No. Everything runs locally in your browser. Your SVG is not
-                  sent to a server.
-                </div>
-              </details>
-
-              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
-                  <span>
-                    What is the difference between width/height and viewBox?
-                  </span>
-                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
-                    +
-                  </span>
-                </summary>
-                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
-                  Width and height control how large the SVG displays. The
-                  viewBox controls the internal coordinate system. Changing
-                  viewBox can change how content scales inside the SVG.
-                </div>
-              </details>
-
-              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
-                  <span>Should I update viewBox when resizing?</span>
-                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
-                    +
-                  </span>
-                </summary>
-                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
-                  If you only want the SVG to display larger or smaller, keep
-                  the viewBox. If you want the coordinate system to match the
-                  new size, set viewBox to 0 0 width height (Match output).
-                </div>
-              </details>
-
-              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
-                  <span>How do I make an SVG responsive?</span>
-                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
-                    +
-                  </span>
-                </summary>
-                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
-                  Enable Responsive SVG to remove width and height while keeping
-                  a viewBox. Then the SVG scales to its container using CSS.
-                </div>
-              </details>
-
-              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
-                  <span>Can I scale an SVG by percentage?</span>
-                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
-                    +
-                  </span>
-                </summary>
-                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
-                  Yes. Use Scale (%) to resize proportionally based on detected
-                  width/height or viewBox.
-                </div>
-              </details>
-
-              <details className="group rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
-                  <span>Why does my SVG crop when I resize it?</span>
-                  <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
-                    +
-                  </span>
-                </summary>
-                <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
-                  Cropping usually means the viewBox does not match the artwork
-                  bounds or the SVG is being fit using preserveAspectRatio
-                  settings. Try Match output for viewBox and keep
-                  preserveAspectRatio on meet.
-                </div>
-              </details>
+              {faqItems.map((item) => (
+                <details
+                  key={item.q}
+                  className="group rounded-xl border border-slate-200 bg-white px-4 py-3"
+                >
+                  <summary className="cursor-pointer list-none font-semibold text-slate-900 flex items-center justify-between gap-3">
+                    <span>{item.q}</span>
+                    <span className="text-slate-400 group-open:rotate-45 transition-transform select-none">
+                      +
+                    </span>
+                  </summary>
+                  <div className="pt-2 text-slate-700 text-[14px] leading-relaxed">
+                    {item.a}
+                  </div>
+                </details>
+              ))}
             </div>
           </section>
         </article>

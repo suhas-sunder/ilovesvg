@@ -9,6 +9,7 @@ import {
   SimpleCard,
 } from "~/client/components/docs/HowItWorksDocs";
 import { SETTING_GROUPS, SITE_URL } from "~/client/lib/docs/howItWorksContent";
+import { SETTINGS_GUIDE_COPY } from "~/content/docs/howItWorksRouteContent";
 
 const title = "SVG Converter Settings Guide | iLoveSVG";
 const description =
@@ -30,21 +31,21 @@ export function meta() {
 }
 
 export default function SettingsGuideDocs() {
+  const copy = SETTINGS_GUIDE_COPY;
   return (
     <DocsPageShell currentPath="/how-it-works/settings">
       <DocsHero
-        eyebrow="Settings Guide"
-        title="Know which settings edit now and which settings retrace"
-        description="The output editor separates Live preview edits from Click to convert settings. Live edits adjust the selected output card. Click-to-convert settings retrace the original source when you click Convert or Update preview."
-        highlights={[
-          "Live preview edits stay card-specific.",
-          "Click-to-convert settings retrace from the original source.",
-          "Stroke output mode, line weight, and fill spread are documented with limits.",
-        ]}
+        eyebrow={copy.hero.eyebrow}
+        title={copy.hero.title}
+        description={copy.hero.description}
+        highlights={copy.hero.highlights}
         actions={
           <>
-            <PillLink to="/how-it-works/conversion-workflow">Workflow first</PillLink>
-            <PillLink to="/how-it-works/troubleshooting">Fix a bad result</PillLink>
+            {copy.hero.actions.map((action) => (
+              <PillLink key={action.to} to={action.to}>
+                {action.label}
+              </PillLink>
+            ))}
           </>
         }
       />
@@ -52,7 +53,7 @@ export default function SettingsGuideDocs() {
       <DocsContent>
         <SectionBlock
           title="Settings inventory"
-          intro="Visible settings are route-aware. Unsupported settings are hidden instead of pretending to work."
+          intro={copy.settingsInventoryIntro}
         >
           <div className="space-y-4">
             {SETTING_GROUPS.map((group) => (
@@ -71,43 +72,17 @@ export default function SettingsGuideDocs() {
 
         <SectionBlock title="Stroke and fill / output appearance">
           <CardGrid>
-            <SimpleCard
-              title="Stroke output mode"
-              body="Compatible line-art outputs can retrace the original source as Filled shapes or Centerline strokes. Centerline strokes are best for simple sketches, handwriting, and diagrams; filled shapes remain best for logos, cut files, and most conversions."
-            />
-            <SimpleCard
-              title="Line weight"
-              body="Line weight changes stroke width only when the SVG contains actual stroke attributes. Many image-to-SVG conversions produce filled paths instead, so the control can be hidden or disabled for those outputs."
-            />
-            <SimpleCard
-              title="Fill spread"
-              body="Fill spread expands filled regions by adding a same-color under-stroke where safe. It is manual, off by default, disabled for precision cut outputs, and can increase file size or make tight details heavier."
-            />
-            <SimpleCard
-              title="File size and parity"
-              body="Preview, Copy SVG, Download SVG, fullscreen review, and file size display should use the same finalized SVG for the selected output card."
-            />
+            {copy.strokeAndFillCards.map((card) => (
+              <SimpleCard key={card.title} title={card.title} body={card.body} />
+            ))}
           </CardGrid>
         </SectionBlock>
 
         <SectionBlock title="Recommended settings by goal">
           <CardGrid>
-            <SimpleCard
-              title="Cricut/cut files"
-              body="Favor simpler filled paths, higher cleanup, fewer tiny islands, transparent output when appropriate, and fewer layers unless the project needs color separation."
-            />
-            <SimpleCard
-              title="Layered color SVGs"
-              body="Tune color layer count, requested palette count, min region percent, layer max trace side, min island px, hole fill px, and remove transparent."
-            />
-            <SimpleCard
-              title="Noisy images"
-              body="Try scan or cleanup presets, increase turd size or min island px, use noise reduction, and consider resizing the source before converting."
-            />
-            <SimpleCard
-              title="Centerline stroke drawings"
-              body="Use Stroke Trace or Centerline presets on clean line art. Increase centerline stroke width for heavier lines, or simplify more when a plotter-style SVG should have fewer segments."
-            />
+            {copy.recommendedGoalCards.map((card) => (
+              <SimpleCard key={card.title} title={card.title} body={card.body} />
+            ))}
           </CardGrid>
         </SectionBlock>
       </DocsContent>

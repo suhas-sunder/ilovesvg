@@ -47,6 +47,13 @@ function runResponsiveAudit() {
 function runNavAudit() {
   const nav = read("app/client/components/navigation/NavBar.tsx");
   const navData = read("app/client/components/navigation/toolNavSections.ts");
+  const primaryBlockStart = navData.indexOf("export const PRIMARY_NAV_ITEMS");
+  const primaryBlockEnd = navData.indexOf("export const TOOL_NAV_SECTIONS");
+  assert(primaryBlockStart >= 0 && primaryBlockEnd > primaryBlockStart, "missing primary nav block");
+  const primaryBlock = navData.slice(primaryBlockStart, primaryBlockEnd);
+  const primaryHrefs = Array.from(primaryBlock.matchAll(/href:\s*"([^"]+)"/g)).map(
+    (match) => match[1],
+  );
 
   assertIncludes(nav, "TOOL_NAV_SECTIONS", "shared nav sections");
   assertIncludes(navData, "label: \"Most Popular\"", "most popular section");
@@ -61,6 +68,8 @@ function runNavAudit() {
   assertIncludes(nav, "filterNavSections", "shared nav section filtering");
   assertIncludes(nav, "data-nav-menu=\"desktop-more\"", "auditable desktop nav menu");
   assertIncludes(nav, "data-nav-menu=\"mobile-tools\"", "auditable mobile nav menu");
+  assertIncludes(nav, "href=\"#other-tools\"", "desktop All Tools section anchor");
+  assertIncludes(nav, "More <IconChevronDown />", "desktop More nav button");
   assertIncludes(nav, "visibleItems.map", "mobile nav renders direct links");
   assertIncludes(nav, "Show {hiddenCount} more", "large mobile sections expose direct links before show more");
   assertIncludes(nav, "maxHeight", "viewport-aware desktop menu height");
@@ -82,6 +91,17 @@ function runNavAudit() {
   assertIncludes(nav, "!isMobileNavMode && moreOpen", "desktop menu hidden in mobile nav mode");
   assertIncludes(nav, "isMobileNavMode && mobileOpen", "mobile drawer hidden outside mobile nav mode");
   assert(!nav.includes("<details") && !nav.includes("<summary"), "mobile nav should not use category-only details blocks");
+  assert(
+    primaryHrefs.join(",") ===
+      "/svg-to-png-converter,/png-to-svg-converter,/svg-to-jpg-converter,/jpg-to-svg-converter,/svg-to-pdf-converter",
+    `unexpected primary nav href order: ${primaryHrefs.join(",")}`,
+  );
+  assert(!primaryBlock.includes('href: "/"'), "home href should not be in primary nav");
+  assert(!primaryBlock.includes('label: "Image to SVG"'), "Image to SVG should not be in primary nav");
+  assertIncludes(nav, "getPrimaryLinkVisibilityClassName", "primary nav responsive priority helper");
+  assertIncludes(nav, "hidden xl:inline-flex", "secondary primary links hide before xl");
+  assertIncludes(nav, "hidden min-[1536px]:inline-flex", "SVG to PDF hides until wide desktop");
+  assertIncludes(nav, "whitespace-nowrap", "primary nav prevents label wrapping");
 
   const categoryOrder = Array.from(
     navData.matchAll(/id:\s*"([^"]+)"[\s\S]*?label:\s*"([^"]+)"/g),
@@ -117,7 +137,15 @@ function runLinksAudit() {
   const hrefs = Array.from(nav.matchAll(/href:\s*"([^"]+)"/g)).map((match) => match[1]);
   const duplicates = hrefs.filter((href, index) => hrefs.indexOf(href) !== index);
 
-  const allowedRepeatedHrefs = new Set(["/", "/png-to-svg-converter", "/svg-to-png-converter", "#other-tools"]);
+  const allowedRepeatedHrefs = new Set([
+    "/",
+    "/svg-to-png-converter",
+    "/png-to-svg-converter",
+    "/svg-to-jpg-converter",
+    "/jpg-to-svg-converter",
+    "/svg-to-pdf-converter",
+    "#other-tools",
+  ]);
   const unexpectedDuplicates = duplicates.filter((href) => !allowedRepeatedHrefs.has(href));
   assert(unexpectedDuplicates.length === 0, `duplicate nav hrefs: ${unexpectedDuplicates.join(", ")}`);
 

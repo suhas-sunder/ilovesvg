@@ -3,7 +3,8 @@ import Template, { action, loader } from "./png-to-svg-for-etsy";
 
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Shopify | iLoveSVG";
-  const description = "Convert PNG store graphics into SVG for scalable Shopify brand assets, theme graphics, badges, logos, and cleanup before export.";
+  const description =
+    "Convert transparent PNG logos, icons, and store graphics into SVG assets for Shopify themes, storefront branding, and review before publishing.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-shopify";
 
   return [

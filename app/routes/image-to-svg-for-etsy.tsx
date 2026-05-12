@@ -3,7 +3,8 @@ import Template, { action, loader } from "./image-to-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Image to SVG for Etsy | iLoveSVG";
-  const description = "Convert images into SVG for Etsy seller workflows, listing assets, digital downloads, mockup prep, and reusable graphics.";
+  const description =
+    "Convert simple images into SVG starting points for Etsy sellers, listing assets, digital downloads, craft graphics, and review before publishing.";
   const canonical = "https://www.ilovesvg.com/image-to-svg-for-etsy";
 
   return [

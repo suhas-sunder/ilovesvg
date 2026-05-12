@@ -20,7 +20,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -1721,7 +1721,85 @@ function prettyBytes(bytes: number) {
 }
 
 /* ===== SEO sections (logo-specific copy) ===== */
+const logoRouteSeoCopyByPath: Record<
+  string,
+  {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    cards: Array<{ title: string; body: string }>;
+  }
+> = {
+  "/logo-to-svg-for-etsy": {
+    eyebrow: "Etsy logo to SVG",
+    heading: "Prepare Etsy logo SVGs for shop branding and listings",
+    intro:
+      "Use this version when a shop logo, watermark, badge, or simple brand mark needs to become an SVG starting point for Etsy listing graphics, digital downloads, packaging files, or seller asset review. Clean source artwork works best, and every SVG should be inspected before publishing or selling.",
+    cards: [
+      {
+        title: "Shop branding",
+        body: "Convert a high-contrast logo or brand mark into scalable SVG paths you can review for Etsy shop branding, listing images, watermarks, or digital product files.",
+      },
+      {
+        title: "Seller review",
+        body: "Open the exported SVG in design software before publishing. Check small text, counters, isolated dots, and scale so the logo behaves like a useful seller asset.",
+      },
+    ],
+  },
+  "/logo-to-svg-for-shopify": {
+    eyebrow: "Shopify logo to SVG",
+    heading: "Prepare Shopify logo SVGs for storefront theme assets",
+    intro:
+      "Use this version for Shopify logos, icons, badges, trust marks, and simple brand graphics that need a scalable SVG starting point. Transparent sources and high-contrast marks usually trace best, and the exported SVG should be reviewed before placing it in a theme or storefront workflow.",
+    cards: [
+      {
+        title: "Storefront branding",
+        body: "Convert clean logo artwork into SVG paths for Shopify storefront graphics, theme assets, icons, badges, and brand marks that need to scale without soft raster edges.",
+      },
+      {
+        title: "Theme review",
+        body: "Inspect the exported SVG before publishing. Check transparency, path complexity, small lettering, and whether the mark still reads clearly at header, footer, or badge sizes.",
+      },
+    ],
+  },
+  "/logo-to-svg-for-silhouette": {
+    eyebrow: "Silhouette logo to SVG",
+    heading: "Prepare Silhouette logo SVGs for Studio cut projects",
+    intro:
+      "Use this version when a logo, icon, badge, or simple brand mark needs to become an SVG starting point for Silhouette Studio. Clean high-contrast artwork works best for vinyl decals, labels, monograms, and other cut-friendly craft projects. Review before cutting so small lettering, counters, and isolated dots do not become frustrating cut paths.",
+    cards: [
+      {
+        title: "Cut-friendly logo paths",
+        body: "Convert simple logo artwork into SVG paths you can inspect for Silhouette Studio, vinyl decals, labels, icon cuts, and craft layouts before sending material to the cutter.",
+      },
+      {
+        title: "Review before cutting",
+        body: "Open the exported SVG in Silhouette Studio or design software. Check tiny details, path smoothness, scale, and whether the logo will weed cleanly at the final size.",
+      },
+    ],
+  },
+  "/logo-to-svg-for-glowforge": {
+    eyebrow: "Glowforge logo to SVG",
+    heading: "Prepare Glowforge logo SVGs for laser engraving and cutting prep",
+    intro:
+      "Use this version when a logo, mark, icon, or simple brand graphic needs an SVG starting point for Glowforge engraving or laser cutting prep. High-contrast artwork traces better than textured images, and you should inspect complexity before laser use so the file is practical to size, simplify, and assign operations later.",
+    cards: [
+      {
+        title: "Logo outlines",
+        body: "Convert clean logo artwork into SVG paths for engraving tests, sign shapes, product marks, and simple outline prep without claiming the file is automatically production-ready.",
+      },
+      {
+        title: "Inspect complexity",
+        body: "Review nodes, tiny islands, enclosed holes, and stroke or fill intent before using the SVG in a Glowforge workflow or other laser software.",
+      },
+    ],
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const routeCopy = logoRouteSeoCopyByPath[pathname];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -1889,6 +1967,35 @@ function SeoSections() {
               ))}
             </div>
           </section>
+
+          {routeCopy ? (
+            <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                {routeCopy.eyebrow}
+              </p>
+              <h3 className="mt-2 text-lg font-bold text-slate-900">
+                {routeCopy.heading}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {routeCopy.intro}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {routeCopy.cards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold text-slate-900">
+                      {card.title}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      {card.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* FAQ unchanged */}
           <CurrentRouteGuide />

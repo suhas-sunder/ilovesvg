@@ -1,22 +1,9 @@
 import type { Route } from "./+types/svg-resizer-for-canva";
+import { createSvgPlatformToolsMeta } from "~/data/routeMeta/svgPlatformTools";
 import Template from "./svg-resize-and-scale-editor";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "SVG Resizer for Canva | iLoveSVG";
-  const description = "Resize SVG logos and design assets before Canva handoff while keeping dimensions and viewBox predictable.";
-  const canonical = "https://www.ilovesvg.com/svg-resizer-for-canva";
-
-  return [
-    { title },
-    { name: "description", content: description },
-    { name: "viewport", content: "width=device-width, initial-scale=1" },
-    { name: "theme-color", content: "#0b2dff" },
-    { tagName: "link", rel: "canonical", href: canonical },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:type", content: "website" },
-    { property: "og:url", content: canonical },
-  ];
+  return createSvgPlatformToolsMeta("/svg-resizer-for-canva");
 }
 
 

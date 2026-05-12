@@ -16,9 +16,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    `SVG File Size Inspector - Check KB and Compression | iLoveSVG`;
+    `SVG File Size Inspector - Check SVG Weight | iLoveSVG`;
   const description =
-    `Inspect SVG file size in your browser. See bytes, KB, estimated compression savings, heavy elements, and cleanup opportunities before publishing or embedding.`;
+    `Inspect SVG file size, heavy markup, estimated compression, and cleanup opportunities in your browser before publishing or embedding.`;
   const canonical = "https://www.ilovesvg.com/svg-file-size-inspector";
 
   return [
@@ -1164,6 +1164,11 @@ function SeoSections() {
             <b>computed pixel size</b>, and a <b>minified size estimate</b>.
             Upload or paste an SVG. Runs fully client-side.
           </p>
+          <p className="mt-2 text-slate-600">
+            This page is inspection only: it shows file size signals and cleanup
+            opportunities so you can decide whether to use the SVG cleaner, SVG
+            minifier, or a simplification workflow next.
+          </p>
           <ExampleSvgConversion />
           <div className="block py-6">
             <AdSenseDelayed
@@ -1375,6 +1380,20 @@ function SeoSections() {
               viewBox and preserveAspectRatio first. Those two explain most
               cases.
             </div>
+          </section>
+
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="m-0 text-lg font-extrabold text-slate-900">
+              What to do after inspecting file size
+            </h3>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
+              If comments, metadata, or editor namespaces are the issue, clean
+              the SVG first. If whitespace and attribute spacing dominate, use
+              the minifier. If the file is heavy because it contains thousands
+              of path commands, file-size inspection can identify the problem,
+              but reducing complexity may require redesigning or simplifying
+              the artwork.
+            </p>
           </section>
 
           <CurrentRouteGuide />

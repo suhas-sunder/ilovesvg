@@ -3,7 +3,8 @@ import Template, { action, loader } from "./jpg-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "JPG to SVG for Silhouette | iLoveSVG";
-  const description = "Convert JPG artwork into SVG for Silhouette-style cutting, sticker prep, vinyl designs, and import testing.";
+  const description =
+    "Convert JPG artwork into SVG starting points for Silhouette Studio cut paths, vinyl decals, stickers, and review before cutting.";
   const canonical = "https://www.ilovesvg.com/jpg-to-svg-for-silhouette";
 
   return [

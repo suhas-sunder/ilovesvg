@@ -38,7 +38,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -57,9 +57,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "JPG to SVG Converter - Turn JPG Images into SVG | iLoveSVG";
+  const title = "JPG to SVG Converter - Vectorize JPG Images | iLoveSVG";
   const description =
-    "Convert JPG images to SVG with photo, outline, scan, and cleanup presets. Server-assisted tracing, editable SVG output, copy, download, and full-screen preview.";
+    "Convert JPG photos, scans, and artwork into editable SVG paths with scan and outline presets, noise cleanup, preview, copy, and download.";
   const canonical = "https://www.ilovesvg.com/jpg-to-svg-converter";
 
   return [
@@ -3123,6 +3123,84 @@ function prettyBytes(bytes: number) {
 /* ========================
    JPG-specific SEO (unique)
 ======================== */
+const jpgRouteSeoCopyByPath: Record<
+  string,
+  {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    cards: Array<{ title: string; body: string }>;
+  }
+> = {
+  "/jpg-to-svg-for-silhouette": {
+    eyebrow: "JPG to SVG for Silhouette",
+    heading: "Prepare JPG artwork for Silhouette Studio cut paths",
+    intro:
+      "Use this route when a JPG photo, scan, logo, decal, or craft graphic needs an SVG starting point for Silhouette Studio. JPG compression can create speckles and softened edges, so simple high-contrast artwork works best and should be inspected before material goes to the cutter.",
+    cards: [
+      {
+        title: "Cut paths from compressed JPGs",
+        body: "Trace clean JPG artwork into SVG cut paths for decals, labels, stencils, and simple craft layouts while watching for compression noise and tiny islands.",
+      },
+      {
+        title: "Review before cutting",
+        body: "Open the SVG in Silhouette Studio or design software, check scale and cut paths, then remove stray dots, filled-in letters, or rough edges before cutting.",
+      },
+    ],
+  },
+  "/jpg-to-svg-for-glowforge": {
+    eyebrow: "JPG to SVG for Glowforge",
+    heading: "Prepare JPG artwork for Glowforge laser engraving prep",
+    intro:
+      "Use this route when JPG artwork needs an SVG starting point for Glowforge laser cutting or engraving prep. JPG compression can add blocks, texture, and soft gradients that trace into extra paths, so clean high-contrast artwork is easier to review than busy photos.",
+    cards: [
+      {
+        title: "Laser path review",
+        body: "Check path complexity, tiny islands, enclosed holes, and rough outlines before assigning cut, score, or engraving operations in laser software.",
+      },
+      {
+        title: "Engraving references",
+        body: "For marks, logos, and simple illustrations, use the SVG as a starting point and simplify anything that looks too dense for the final material and size.",
+      },
+    ],
+  },
+};
+
+function JpgRouteIntentSection() {
+  const { pathname } = useLocation();
+  const routeCopy = jpgRouteSeoCopyByPath[pathname];
+  if (!routeCopy) return null;
+
+  return (
+    <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        {routeCopy.eyebrow}
+      </p>
+      <h3 className="mt-2 text-lg font-bold text-slate-900">
+        {routeCopy.heading}
+      </h3>
+      <p className="mt-3 text-sm leading-6 text-slate-700">
+        {routeCopy.intro}
+      </p>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {routeCopy.cards.map((card) => (
+          <div
+            key={card.title}
+            className="rounded-xl border border-slate-200 bg-white p-4"
+          >
+            <h4 className="text-sm font-semibold text-slate-900">
+              {card.title}
+            </h4>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {card.body}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function JpgSeoSections() {
   return (
     <section className="bg-white border-t border-slate-200">
@@ -3214,6 +3292,8 @@ function JpgSeoSections() {
             </div>
           </section>
 
+          <JpgRouteIntentSection />
+
           <CurrentRouteGuide />
 
           <section
@@ -3230,7 +3310,7 @@ function JpgSeoSections() {
                 },
                 {
                   q: "Do I need this page if I already have a JPEG to SVG converter?",
-                  a: "No, but it helps SEO and user intent. JPG and JPEG are the same format, so the tool behavior can be identical while the guidance is tailored to JPG users.",
+                  a: "JPG and JPEG are the same image format, so either route can process the file. Use this page when your file extension is .jpg and you want JPG-specific guidance.",
                 },
                 {
                   q: "What limits do you enforce?",

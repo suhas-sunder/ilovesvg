@@ -15,9 +15,21 @@ const storageKey = "ilovesvg:affiliate-waterfall:v1";
 const suppressionStorageKey = "ilovesvg:affiliate-suppression:v1";
 const stickerRoute = "/png-to-svg-for-cricut-stickers";
 const routeAfterSuppression = "/png-to-svg-converter";
+const legacyCompactFallbackSlot = "7336722354";
+const legalTrustRoutes = ["/privacy-policy", "/terms-of-service", "/cookies"];
+const docsHelpRoutes = ["/how-it-works", "/how-it-works/troubleshooting"];
+const compactPolicyRoutes = [
+  "/svg-cleaner",
+  "/svg-resize-and-scale-editor",
+  "/svg-to-base64",
+  "/text-to-svg-converter",
+];
 
 const mobileWidths = [320, 360, 390, 430, 768];
 const desktopWidths = [1024, 1280, 1440, 1920];
+const legalTrustWidths = [320, 390, 768, 1024, 1440];
+const docsHelpWidths = [320, 390, 768, 1024, 1440];
+const compactPolicyWidths = [320, 390, 768, 1024, 1440];
 
 async function main() {
   await assertServerReachable();
@@ -45,6 +57,9 @@ async function main() {
     checkedAt: new Date().toISOString(),
     browserPath,
     serverReserve: null,
+    legalTrust: [],
+    docsHelp: [],
+    compactPolicy: [],
     mobile: [],
     desktop: [],
     tracking: {},
@@ -54,6 +69,42 @@ async function main() {
   try {
     await waitForCdp();
     results.serverReserve = await checkServerReservedShell();
+
+    for (const route of legalTrustRoutes) {
+      for (const width of legalTrustWidths) {
+        const client = await openPage(route, width, 900);
+        try {
+          const result = await checkLegalTrustRoute(client, route, width);
+          results.legalTrust.push(result);
+        } finally {
+          await client.close().catch(() => {});
+        }
+      }
+    }
+
+    for (const route of docsHelpRoutes) {
+      for (const width of docsHelpWidths) {
+        const client = await openPage(route, width, 900);
+        try {
+          const result = await checkDocsHelpRoute(client, route, width);
+          results.docsHelp.push(result);
+        } finally {
+          await client.close().catch(() => {});
+        }
+      }
+    }
+
+    for (const route of compactPolicyRoutes) {
+      for (const width of compactPolicyWidths) {
+        const client = await openPage(route, width, 900);
+        try {
+          const result = await checkContextualCompactAdRoute(client, route, width);
+          results.compactPolicy.push(result);
+        } finally {
+          await client.close().catch(() => {});
+        }
+      }
+    }
 
     for (const width of mobileWidths) {
       const client = await openPage(stickerRoute, width, 900);
@@ -103,6 +154,9 @@ async function main() {
 
   const failures = [
     ...(results.serverReserve?.ok === false ? [results.serverReserve] : []),
+    ...results.legalTrust.filter((result) => !result.ok),
+    ...results.docsHelp.filter((result) => !result.ok),
+    ...results.compactPolicy.filter((result) => !result.ok),
     ...results.mobile.filter((result) => !result.ok),
     ...results.desktop.filter((result) => !result.ok),
   ];
@@ -111,7 +165,9 @@ async function main() {
     failures.push(results.crossRouteSuppression);
   }
   const badConsoleMessages = results.consoleMessages.filter(
-    (message) => /hydration|did not match|error|exception/i.test(message),
+    (message) =>
+      /hydration|did not match|error|exception/i.test(message) &&
+      !/\[vite\] failed to connect to websocket/i.test(message),
   );
   if (badConsoleMessages.length) {
     failures.push({
@@ -127,6 +183,176 @@ async function main() {
     console.error(JSON.stringify({ failures }, null, 2));
     process.exit(1);
   }
+}
+
+async function checkLegalTrustRoute(client, route, width) {
+  await clearAffiliateStorage(client);
+  await reload(client);
+  await delay(1600);
+
+  const state = await evaluate(client, `(() => {
+    const ads = Array.from(document.querySelectorAll('[aria-label="Advertisement"]'));
+    const monetization = Array.from(document.querySelectorAll('[data-monetization-kind]'));
+    const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+    const fallback = document.querySelector('[data-monetization-kind="adsense"]');
+    const allToolsAd = document.querySelector('ins.adsbygoogle[data-ad-slot="8102088582"]');
+    const adsenseScripts = Array.from(document.querySelectorAll('script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]'));
+    const visibleAdSlots = ${visibleAdSlotsExpression()};
+    const visibleAdElements = Array.from(document.querySelectorAll('ins.adsbygoogle[data-ad-slot]'))
+      .filter((node) => {
+        const rect = node.getBoundingClientRect();
+        const style = window.getComputedStyle(node);
+        return rect.width > 0 &&
+          rect.height > 0 &&
+          rect.bottom > 0 &&
+          rect.top < window.innerHeight &&
+          rect.right > 0 &&
+          rect.left < window.innerWidth &&
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          style.opacity !== "0";
+      });
+    return {
+      route: window.location.pathname,
+      width: window.innerWidth,
+      adCount: ads.length,
+      monetizationCount: monetization.length,
+      affiliateCount: affiliate ? 1 : 0,
+      fallbackCount: fallback ? 1 : 0,
+      allToolsAdCount: allToolsAd ? 1 : 0,
+      adsenseScriptCount: adsenseScripts.length,
+      visibleAdSlots,
+      visibleAdCount: visibleAdElements.length,
+      duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+    };
+  })()`);
+
+  return {
+    scenario: "legal-trust-exclusion",
+    route,
+    width,
+    ...state,
+    ok:
+      state.route === route &&
+      state.adCount === 0 &&
+      state.monetizationCount === 0 &&
+      state.affiliateCount === 0 &&
+      state.fallbackCount === 0 &&
+      state.allToolsAdCount === 0 &&
+      state.adsenseScriptCount === 0 &&
+      state.visibleAdCount === 0 &&
+      state.duplicateVisibleAdSlots.length === 0 &&
+      !state.overflow,
+  };
+}
+
+async function checkDocsHelpRoute(client, route, width) {
+  await clearAffiliateStorage(client);
+  await reload(client);
+  await delay(1700);
+  await evaluate(
+    client,
+    `document.querySelector('[data-monetization-slot="docs-help-compact"]')?.scrollIntoView({ block: "center" })`,
+  );
+  await delay(300);
+
+  const state = await evaluate(client, `(() => {
+    const docsAd = document.querySelector('[data-monetization-slot="docs-help-compact"][data-monetization-kind="adsense"]');
+    const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+    const pending = document.querySelector('[data-monetization-kind="pending"]');
+    const contextualFallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+    const docsIns = docsAd?.querySelector('ins.adsbygoogle[data-ad-slot]');
+    const rect = docsAd?.getBoundingClientRect?.();
+    const visibleAdSlots = ${visibleAdSlotsExpression()};
+    return {
+      route: window.location.pathname,
+      width: window.innerWidth,
+      docsAdCount: docsAd ? 1 : 0,
+      docsSlot: docsIns?.getAttribute('data-ad-slot') || null,
+      docsReserve: docsAd?.getAttribute('data-monetization-reserve') || null,
+      affiliateCount: affiliate ? 1 : 0,
+      pendingCount: pending ? 1 : 0,
+      contextualFallbackCount: contextualFallback ? 1 : 0,
+      height: rect?.height || 0,
+      visibleAdSlots,
+      duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+    };
+  })()`);
+
+  return {
+    scenario: "docs-help-compact-ad-policy",
+    route,
+    width,
+    ...state,
+    ok:
+      state.route === route &&
+      state.docsAdCount === 1 &&
+      state.docsSlot === "8102088582" &&
+      state.docsReserve === "compact" &&
+      state.affiliateCount === 0 &&
+      state.pendingCount === 0 &&
+      state.contextualFallbackCount === 0 &&
+      state.height <= 220 &&
+      state.duplicateVisibleAdSlots.length === 0 &&
+      !state.overflow,
+  };
+}
+
+async function checkContextualCompactAdRoute(client, route, width) {
+  await clearAffiliateStorage(client);
+  await reload(client);
+  await delay(1700);
+  await evaluate(
+    client,
+    `document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]')?.scrollIntoView({ block: "center" })`,
+  );
+  await delay(300);
+
+  const state = await evaluate(client, `(() => {
+    const fallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+    const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+    const pending = document.querySelector('[data-monetization-kind="pending"]');
+    const rect = fallback?.getBoundingClientRect?.();
+    const fallbackVisible = Boolean(rect && rect.width > 0 && rect.height > 0);
+    const visibleAdSlots = ${visibleAdSlotsExpression()};
+    return {
+      route: window.location.pathname,
+      width: window.innerWidth,
+      fallbackCount: fallback ? 1 : 0,
+      fallbackReserve: fallback?.getAttribute('data-monetization-reserve') || null,
+      affiliateCount: affiliate ? 1 : 0,
+      pendingCount: pending ? 1 : 0,
+      fallbackVisible,
+      fallbackHeight: rect?.height || 0,
+      visibleAdSlots,
+      duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+    };
+  })()`);
+  const expectsVisibleFallback = width >= 1024;
+  const fallbackPolicyOk = expectsVisibleFallback
+    ? (state.fallbackCount === 1 &&
+        state.fallbackReserve === "compact" &&
+        state.fallbackVisible &&
+        state.fallbackHeight <= 220) ||
+      state.visibleAdSlots.length >= 1
+    : state.fallbackCount === 0 || state.fallbackReserve === "compact";
+
+  return {
+    scenario: "contextual-compact-ad-policy",
+    route,
+    width,
+    ...state,
+    ok:
+      state.route === route &&
+      state.affiliateCount === 0 &&
+      state.pendingCount === 0 &&
+      fallbackPolicyOk &&
+      state.duplicateVisibleAdSlots.length === 0 &&
+      !state.overflow,
+  };
 }
 
 async function checkServerReservedShell() {
@@ -286,10 +512,12 @@ async function checkTrackingAndFallback(client) {
       const rect = adsense?.getBoundingClientRect?.();
       const visibleAdSlots = ${visibleAdSlotsExpression()};
       const storedSuppression = window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)});
+      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
       return {
         adsense: Boolean(adsense),
         affiliate: Boolean(affiliate),
         reserve: adsense?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
         height: rect?.height || 0,
         visibleAdSlots,
         duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
@@ -312,6 +540,7 @@ async function checkTrackingAndFallback(client) {
       fallback.adsense === true &&
       fallback.affiliate === false &&
       fallback.reserve === "compact" &&
+      fallback.fallbackSlot !== legacyCompactFallbackSlot &&
       fallback.height <= 260 &&
       Boolean(fallback.storedSuppression) &&
       fallback.duplicateVisibleAdSlots.length === 0,
@@ -330,10 +559,12 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
       const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
       const rect = fallback?.getBoundingClientRect?.();
       const storedSuppression = window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)});
+      const fallbackSlot = fallback?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
       return {
         adsense: Boolean(fallback),
         affiliate: Boolean(affiliate),
         reserve: fallback?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
         height: rect?.height || 0,
         storedSuppression,
       };
@@ -350,11 +581,13 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
       const fallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
       const rect = fallback?.getBoundingClientRect?.();
       const storedSuppression = window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)});
+      const fallbackSlot = fallback?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
       return {
         route: window.location.pathname,
         affiliate: Boolean(affiliate),
         adsense: Boolean(fallback),
         reserve: fallback?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
         height: rect?.height || 0,
         storedSuppression,
         overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
@@ -374,12 +607,14 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
       fallback.adsense === true &&
       fallback.affiliate === false &&
       fallback.reserve === "compact" &&
+      fallback.fallbackSlot !== legacyCompactFallbackSlot &&
       fallback.height <= 260 &&
       Boolean(fallback.storedSuppression) &&
       afterNavigation.route === routeAfterSuppression &&
       afterNavigation.adsense === true &&
       afterNavigation.affiliate === false &&
       afterNavigation.reserve === "compact" &&
+      afterNavigation.fallbackSlot !== legacyCompactFallbackSlot &&
       afterNavigation.height <= 260 &&
       Boolean(afterNavigation.storedSuppression) &&
       !afterNavigation.overflow,

@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Dimensions Inspector - ViewBox, Width and Height | iLoveSVG`;
   const description =
-    `Inspect SVG width, height, viewBox, aspect ratio, and computed pixel size in your browser. Paste or upload SVG, preview sizing, and apply dimension fixes.`;
+    `Inspect SVG dimensions, width, height, viewBox, and pixel size in your browser. Apply sizing fixes without rewriting paths.`;
   const canonical = "https://www.ilovesvg.com/svg-dimensions-inspector";
 
   return [
@@ -1566,6 +1566,11 @@ function SeoSections() {
             Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>, and the
             computed pixel size. Apply common fixes and preview instantly. Runs
             fully client-side.
+          </p>
+          <p className="mt-2 text-slate-600">
+            Use this route to inspect sizing signals and apply fixes for
+            width, height, or viewBox issues. It does not rewrite paths,
+            rasterize artwork, or change vector detail.
           </p>
 
           {/* Quick workflow */}

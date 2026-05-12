@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs } from "react-router";
+import { Link, type ActionFunctionArgs, useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -70,7 +70,7 @@ const ROUTE_LABEL = "Sticker to SVG Converter";
 export function meta({}: Route.MetaArgs) {
   const title = "Sticker to SVG Converter - Clean Sticker Vectors | iLoveSVG";
   const description =
-    "Convert sticker PNG or JPG artwork into SVG vectors for decals, labels, printable stickers, and cut-style graphics with cleanup presets and preview.";
+    "Convert sticker PNG or JPG artwork into clean SVG vectors for transparent decals, labels, printable stickers, and cuttable graphics with preview.";
   const canonical = "https://www.ilovesvg.com/sticker-to-svg-converter";
 
   return [
@@ -973,7 +973,7 @@ function autoModeDetail(mode: AutoMode): string {
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   {
     q: "What is a sticker-to-SVG converter?",
-    a: "It turns a sticker image (PNG or JPEG) into a scalable SVG vector. SVG stays crisp at any size and is easy to recolor.",
+    a: "It turns a sticker image (PNG or JPEG) into a scalable SVG vector that can be used as a starting point for printable or cuttable sticker graphics.",
   },
   {
     q: "What works best for sticker designs?",
@@ -1953,7 +1953,53 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
+const stickerRouteSeoCopyByPath: Record<
+  string,
+  {
+    eyebrow: string;
+    heading: string;
+    intro: string;
+    cards: Array<{ title: string; body: string }>;
+  }
+> = {
+  "/sticker-to-svg-for-etsy": {
+    eyebrow: "Sticker SVG for Etsy",
+    heading: "Prepare sticker SVG files for Etsy seller listings",
+    intro:
+      "Use this version for sticker artwork that needs an SVG starting point for Etsy listing assets, digital sticker products, transparent decal previews, or craft files. Keep the workflow seller-focused: inspect the result, clean up rough paths, and review before publishing or packaging it for buyers.",
+    cards: [
+      {
+        title: "Sticker product assets",
+        body: "Transparent PNG sticker art, labels, decals, and badge-style designs usually trace better than soft photos. Use the output as a reviewable SVG, not an automatically sell-ready product.",
+      },
+      {
+        title: "Seller review before publishing",
+        body: "Open the SVG in design software before listing it. Check cuttable outlines, small holes, stray specks, transparent edges, and whether the file is easy for a buyer or workflow to use.",
+      },
+    ],
+  },
+  "/sticker-to-svg-for-silhouette": {
+    eyebrow: "Sticker SVG for Silhouette",
+    heading: "Prepare Silhouette sticker SVGs for Studio cut lines",
+    intro:
+      "Use this version for sticker-style artwork that needs an SVG starting point for Silhouette Studio. Transparent PNGs, bold outlines, labels, decals, and simple sticker art usually work best. Review before cutting so cut lines, small holes, stray specks, and printable sticker edges behave the way you expect.",
+    cards: [
+      {
+        title: "Sticker and decal prep",
+        body: "Trace transparent sticker art, labels, decal graphics, and badge-style designs into SVG paths that can be inspected before a Silhouette workflow.",
+      },
+      {
+        title: "Review before cutting",
+        body: "Open the SVG in Silhouette Studio or design software. Check cut lines, outline thickness, tiny islands, and whether the artwork still fits the printable or cuttable project size.",
+      },
+    ],
+  },
+};
+
 function SeoSections() {
+  const { pathname } = useLocation();
+  const routeCopy = stickerRouteSeoCopyByPath[pathname];
+
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -1965,14 +2011,14 @@ function SeoSections() {
                 Sticker image to SVG vectorizer
               </p>
               <h2 className="text-2xl md:text-3xl font-bold leading-tight">
-                Sticker to SVG converter for clean, cut-friendly vectors
+                Sticker to SVG converter for clean, cuttable vectors
               </h2>
               <p className="text-slate-600">
                 Turn sticker art into crisp SVG paths using Potrace. This page
                 is tuned for sticker-style graphics like bold outlines, flat
-                colors, and logo-like shapes. Live preview stays fast with
-                device-side compression when possible and a server concurrency
-                gate to keep the droplet stable.
+                colors, transparent PNG artwork, and logo-like shapes. It is
+                not Cricut-only; use it for broad sticker prep, decal artwork,
+                labels, and simple graphics that need editable SVG paths.
               </p>
               <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
@@ -1984,7 +2030,7 @@ function SeoSections() {
                     k: "Transparent-friendly",
                     v: "Keep alpha or add background",
                   },
-                  { k: "Fast preview", v: "≤10 MB live updates" },
+                  { k: "Fast preview", v: "Live updates for smaller files" },
                   { k: "In-memory", v: "No accounts, no saved uploads" },
                 ].map((x) => (
                   <div
@@ -2023,8 +2069,8 @@ function SeoSections() {
                 "Badge designs",
                 "Decals",
                 "Simple icons",
-                "Print-ready vectors",
-                "Cricut-style imports",
+                "Cuttable graphics",
+                "Design-app imports",
               ].map((t) => (
                 <span
                   key={t}
@@ -2041,7 +2087,7 @@ function SeoSections() {
                 <p className="mt-1 text-sm text-slate-600">
                   Start with “Sticker - Clean cut”. Increase curve tolerance a
                   little for smoother edges. Raise turd size if you see tiny
-                  specks.
+                  specks before exporting for decals, labels, or cuttable art.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 p-5">
@@ -2088,7 +2134,7 @@ function SeoSections() {
                 },
                 {
                   title: "Download or copy SVG",
-                  body: "Export an SVG you can edit, recolor, and scale for print or web.",
+                  body: "Export an SVG you can edit, recolor, and scale for print, web, decals, or cutter workflows.",
                 },
               ].map((s, i) => (
                 <li
@@ -2242,6 +2288,33 @@ function SeoSections() {
               ))}
             </div>
           </section>
+
+          {routeCopy ? (
+            <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                {routeCopy.eyebrow}
+              </p>
+              <h3 className="mt-2 text-lg font-bold">
+                {routeCopy.heading}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-slate-700">
+                {routeCopy.intro}
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {routeCopy.cards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="text-sm font-semibold">{card.title}</div>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {card.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {/* FAQ (UI only; JSON-LD is emitted above) */}
           <CurrentRouteGuide />

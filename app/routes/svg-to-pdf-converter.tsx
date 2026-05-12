@@ -17,9 +17,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "SVG to PDF Converter - Save SVG as PDF Online | iLoveSVG";
+  const title = "SVG to PDF Converter - Export SVG for Print | iLoveSVG";
   const description =
-    "Convert SVG to PDF in your browser with paper size, orientation, margin, DPI, preview, and download controls for print, documents, and design handoff.";
+    "Export SVG files as PDFs in your browser with paper size, margins, orientation, DPI, preview, and download controls for print or sharing.";
   const canonical = "https://www.ilovesvg.com/svg-to-pdf-converter";
 
   return [
@@ -1439,7 +1439,7 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <article className="prose prose-slate max-w-none">
           <h2 className="m-0 font-bold">
-            SVG to PDF Converter (Free, Client-Side)
+            Export SVG to PDF for print, sharing, and documents
           </h2>
 
           <p className="mt-3">

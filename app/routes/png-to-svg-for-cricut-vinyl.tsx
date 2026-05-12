@@ -66,7 +66,7 @@ const isServer = typeof document === "undefined";
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Cricut Vinyl | Free Vinyl Cut File Converter";
   const description =
-    "Convert PNG or JPG artwork into single-color SVG cut files for Cricut vinyl decals, HTV shirts, labels, signs, stencils, and easier weeding.";
+    "Convert PNG or JPG artwork into single-color SVG starting points for Cricut vinyl decals, HTV, labels, signs, stencils, and easier weeding.";
   const canonical = "https://www.ilovesvg.com/png-to-svg-for-cricut-vinyl";
 
   return [

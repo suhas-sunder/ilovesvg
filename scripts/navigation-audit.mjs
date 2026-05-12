@@ -38,6 +38,12 @@ const parseRegisteredRoutes = () => {
 const parseHrefList = (source) =>
   Array.from(source.matchAll(/href:\s*"([^"]+)"/g), (match) => match[1]);
 
+const parseNavEntries = (source) =>
+  Array.from(
+    source.matchAll(/label:\s*"([^"]+)"[\s\S]*?href:\s*"([^"]+)"/g),
+    (match) => ({ label: match[1], href: match[2] }),
+  );
+
 const parseRouteManifestPaths = () => {
   const source = read("app/data/routeManifest.ts");
   const blockMatch = source.match(
@@ -137,13 +143,44 @@ const primaryBlockStart = navDataSource.indexOf("export const PRIMARY_NAV_ITEMS"
 const primaryBlockEnd = navDataSource.indexOf("export const TOOL_NAV_SECTIONS");
 assert(primaryBlockStart >= 0 && primaryBlockEnd > primaryBlockStart, "Could not find PRIMARY_NAV_ITEMS block");
 
-const primaryHrefs = parseHrefList(navDataSource.slice(primaryBlockStart, primaryBlockEnd));
+const primaryBlock = navDataSource.slice(primaryBlockStart, primaryBlockEnd);
+const primaryItems = parseNavEntries(primaryBlock);
+const primaryHrefs = primaryItems.map((item) => item.href);
 const duplicatePrimaryHrefs = primaryHrefs.filter(
   (href, index) => primaryHrefs.indexOf(href) !== index,
 );
 assert(
   duplicatePrimaryHrefs.length === 0,
   `Duplicate hrefs inside primary nav items: ${duplicatePrimaryHrefs.join(", ")}`,
+);
+
+const expectedPrimaryOrder = [
+  "#other-tools",
+  "/svg-to-png-converter",
+  "/png-to-svg-converter",
+  "/svg-to-jpg-converter",
+  "/jpg-to-svg-converter",
+  "/svg-to-pdf-converter",
+];
+
+assert(
+  ["#other-tools", ...primaryHrefs].join("|") === expectedPrimaryOrder.join("|"),
+  `Unexpected primary nav order: ${primaryHrefs.join(", ")}`,
+);
+
+assert(
+  !primaryItems.some((item) => item.href === "/" || item.label === "Image to SVG"),
+  "Image to SVG/home must not be a primary top-level nav link",
+);
+
+assert(
+  !sectionHrefs.includes("#other-tools") &&
+    navBarSource.includes('aria-haspopup="menu"') &&
+    navBarSource.includes('href="#other-tools"') &&
+    navBarSource.includes("All Tools") &&
+    navBarSource.includes("More <IconChevronDown />") &&
+    !navBarSource.includes("All Tools <IconChevronDown />"),
+  "All Tools must remain a desktop-only primary anchor and More must remain the dropdown button",
 );
 
 const knownAnchors = new Set(["#other-tools"]);
