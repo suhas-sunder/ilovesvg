@@ -17,7 +17,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Viewer - Preview, Zoom, Pan and Inspect | iLoveSVG`;
   const description =
-    `Preview SVG files in your browser with zoom, pan, fit-to-view, source inspection, and metadata checks before using the artwork in web, app, or design workflows.`;
+    `Preview SVG rendering in your browser with zoom, pan, fit-to-view, source inspection, and safety checks before using or downloading the file.`;
   const canonical = "https://www.ilovesvg.com/svg-preview-viewer";
 
   return [
@@ -2051,10 +2051,18 @@ function SeoSections() {
             </h2>
 
             <p className="mt-3 m-0 text-[15px] leading-relaxed text-slate-700">
-              Open an SVG and inspect it fast. Zoom and pan for detailed
-              checking, pick elements to see attributes, review basic stats like
-              viewBox and dimensions, and copy the source. Everything runs
-              client-side.
+              Open an SVG and inspect its rendering before you use it in a
+              site, app, design file, or export workflow. Zoom and pan for
+              detailed checking, pick elements to see attributes, review basic
+              stats like viewBox and dimensions, and copy the source.
+              Everything runs client-side.
+            </p>
+            <p className="mt-2 m-0 text-[15px] leading-relaxed text-slate-700">
+              Use this route to catch display issues, missing assets, external
+              font differences, script behavior, or viewBox surprises before the
+              SVG moves downstream. It is not a full editor: it previews and
+              inspects the file while keeping editing-specific work on the
+              dedicated SVG tools.
             </p>
 
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">

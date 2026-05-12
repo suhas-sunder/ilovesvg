@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Contrast Checker - WCAG Color Accessibility | iLoveSVG`;
   const description =
-    `Check SVG color contrast against WCAG AA and AAA, preview color blindness modes, test higher-contrast options, and download an updated SVG.`;
+    `Review SVG color contrast with WCAG-style AA and AAA targets, preview color blindness modes, test higher-contrast options, and download an updated SVG.`;
   const canonical =
     "https://www.ilovesvg.com/svg-accessibility-and-contrast-checker";
 
@@ -1154,15 +1154,17 @@ function SeoSections() {
             </h2>
             <p className="mt-2 text-slate-600 ">
               This tool checks color contrast for foreground and background
-              pairs against common WCAG targets (AA and AAA). It also previews
-              how your chosen colors may appear under common color blindness
-              modes, and generates higher-contrast alternatives you can apply to
-              your SVG and download.
+              pairs against common WCAG-style targets (AA and AAA). It also
+              previews how your chosen colors may appear under common color
+              blindness modes, and generates higher-contrast alternatives you
+              can apply to your SVG and download.
             </p>
             <p className="mt-2 text-slate-600 mx-auto">
-              Check WCAG contrast (AA/AAA), preview common color blindness
-              modes, generate higher-contrast options, apply them to your SVG,
-              and download the updated file.
+              Use it as a practical accessibility and readability review before
+              publishing an icon, badge, label, UI graphic, or SVG illustration.
+              It is not a certification or full accessibility audit; final
+              compliance still depends on surrounding text, context, and how the
+              SVG is used.
             </p>
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[

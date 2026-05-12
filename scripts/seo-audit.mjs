@@ -136,14 +136,28 @@ const selectedRoutes = [
   {
     path: "/svg-file-size-inspector",
     label: "svg-file-size-inspector",
-    bodyTerms: ["file size", "inspect", "cleanup opportunities", "inspection only"],
-    headingTerms: ["size"],
+    bodyTerms: ["file weight", "markup weight", "embedded images", "not a dimensions editor"],
+    headingTerms: ["file size"],
   },
   {
     path: "/svg-dimensions-inspector",
     label: "svg-dimensions-inspector",
-    bodyTerms: ["dimensions", "viewbox", "inspect", "apply fixes", "does not rewrite paths"],
+    bodyTerms: ["dimensions", "viewbox", "rendered size", "layout debugging", "not a file-size optimizer"],
     headingTerms: ["dimensions"],
+  },
+  {
+    path: "/svg-preview-viewer",
+    label: "svg-preview-viewer",
+    bodyTerms: ["preview", "rendering", "display issues", "not a full editor"],
+    headingTerms: ["viewer"],
+    forbiddenHeadingTerms: ["cleaner", "minifier"],
+  },
+  {
+    path: "/svg-accessibility-and-contrast-checker",
+    label: "svg-accessibility-and-contrast-checker",
+    bodyTerms: ["contrast", "accessibility", "readability", "not a certification"],
+    headingTerms: ["contrast"],
+    forbiddenHeadingTerms: ["preview viewer"],
   },
   {
     path: "/svg-background-editor",

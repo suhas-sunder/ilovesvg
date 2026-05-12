@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG File Size Inspector - Check SVG Weight | iLoveSVG`;
   const description =
-    `Inspect SVG file size, heavy markup, estimated compression, and cleanup opportunities in your browser before publishing or embedding.`;
+    `Inspect SVG file weight, markup weight, embedded images, and minified-size estimates before cleaning, minifying, publishing, or embedding.`;
   const canonical = "https://www.ilovesvg.com/svg-file-size-inspector";
 
   return [
@@ -179,7 +179,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
     <rect x="290" y="210" width="190" height="120" rx="18"/>
   </g>
   <text x="320" y="370" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18"
-    text-anchor="middle" fill="#334155">SVG Size Inspector (example)</text>
+    text-anchor="middle" fill="#334155">SVG File Size Inspector (example)</text>
 </svg>`;
     setFile(null);
     setErr(null);
@@ -270,7 +270,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG Size Inspector", href: "/svg-file-size-inspector" },
+    { name: "SVG File Size Inspector", href: "/svg-file-size-inspector" },
   ];
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -296,7 +296,7 @@ export default function SvgSizeInspector(_: Route.ComponentProps) {
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="inline-flex mb-1 text-center text-sky-800 items-center gap-2 text-xl sm:text-3xl w-full justify-center font-extrabold leading-none m-0">
-                  SVG Size Inspector
+                  SVG File Size Inspector
                 </h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
@@ -1054,7 +1054,7 @@ function JsonLdBreadcrumbs() {
       {
         "@type": "ListItem",
         position: 2,
-        name: "SVG Size Inspector",
+        name: "SVG File Size Inspector",
         item: `${baseUrl}/svg-file-size-inspector`,
       },
     ],
@@ -1076,24 +1076,24 @@ function JsonLdBreadcrumbs() {
 function SeoSections() {
   const faqs = [
     {
-      q: "Does this SVG size inspector upload my file?",
+      q: "Does this SVG file size inspector upload my file?",
       a: "No. Everything runs in your browser. Your SVG is not uploaded to a server.",
     },
     {
-      q: "What is the difference between width/height and viewBox in an SVG?",
-      a: "width and height describe a preferred display size. viewBox defines the internal coordinate system. viewBox is what makes SVG scale cleanly and predictably across browsers and design tools.",
+      q: "What does file weight mean for an SVG?",
+      a: "File weight is the number of bytes in the SVG text and any embedded data. Markup weight can come from long paths, repeated attributes, metadata, comments, styles, or embedded images.",
     },
     {
-      q: "Why does my SVG look huge or tiny in different apps?",
-      a: "Different apps and frameworks interpret SVG sizing differently. Percent sizes depend on the container. em/rem depend on font size. Missing viewBox often causes inconsistent scaling. This tool shows what is actually present and estimates the rendered pixel size.",
+      q: "Why can a simple-looking SVG still be large?",
+      a: "A file can look simple while containing thousands of path commands, hidden groups, editor metadata, duplicated styles, or base64 image data. The inspector helps you compare raw bytes with a conservative minified estimate.",
     },
     {
-      q: "Why is the pixel size only an estimate?",
-      a: "If width/height are percentages or em/rem, the actual pixel size depends on where the SVG is placed. If width/height are physical units like mm/in/pt, the px conversion depends on DPI assumptions. This tool lets you use CSS default (96 DPI) or a custom DPI.",
+      q: "Does this tool compress or edit the SVG?",
+      a: "No. This route is inspection only. It is not a dimensions editor, minifier, or path simplifier, so it reports size signals and leaves the SVG content unchanged unless you download the original.",
     },
     {
-      q: "What is the safest fix for sizing issues?",
-      a: "In most workflows, adding or correcting viewBox is the safest fix because it defines the coordinate system for scaling. Width and height can be treated as display hints, but viewBox is what prevents cropping and weird scaling.",
+      q: "What should I do after inspecting file size?",
+      a: "Use the SVG cleaner for metadata and editor clutter, the SVG minifier for whitespace and comment cleanup, or simplify artwork manually if path complexity or embedded images are the main source of weight.",
     },
   ];
 
@@ -1122,52 +1122,38 @@ function SeoSections() {
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-900">
         <article>
           <h2 className="m-0 text-2xl md:text-3xl font-extrabold tracking-tight">
-            SVG Size Inspector (Width, Height, viewBox, Rendered Pixels)
+            SVG File Size Inspector (File Weight, Markup Weight, Embedded
+            Images)
           </h2>
 
           <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
             Use this{" "}
             <span className="font-semibold text-slate-900">
-              SVG size inspector
+              SVG file size inspector
             </span>{" "}
             to quickly answer the question:{" "}
             <span className="font-semibold text-slate-900">
-              "How big is this SVG?"
+              "Why is this SVG file heavy?"
             </span>{" "}
-            It shows the raw{" "}
-            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              width
-            </code>
-            ,{" "}
-            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              height
-            </code>
-            ,{" "}
-            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              viewBox
-            </code>
-            , and{" "}
-            <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-              preserveAspectRatio
-            </code>{" "}
-            attributes, plus an estimated{" "}
-            <span className="font-semibold text-slate-900">
-              rendered pixel size
-            </span>
-            . Upload a file or paste SVG source, preview it instantly, then copy
-            the sizing details for debugging or documentation. Everything runs
-            locally in your browser.
+            It reports raw file weight, a conservative minified-size estimate,
+            cleanup opportunities, and the sizing metadata that can explain
+            surprising output. It is useful before embedding an SVG in a page,
+            uploading it to another tool, or deciding whether cleanup is worth
+            doing. Everything runs locally in your browser.
           </p>
 
           <p className="mt-2 text-slate-600">
-            Inspect <b>width</b>, <b>height</b>, <b>viewBox</b>,{" "}
-            <b>computed pixel size</b>, and a <b>minified size estimate</b>.
-            Upload or paste an SVG. Runs fully client-side.
+            Inspect <b>file weight</b>, <b>markup weight</b>,{" "}
+            <b>embedded images</b> when they contribute to the source, and a{" "}
+            <b>minified size estimate</b>. This is not a dimensions editor or a
+            compressor; it shows size signals so you can choose the right next
+            step.
           </p>
           <p className="mt-2 text-slate-600">
-            This page is inspection only: it shows file size signals and cleanup
-            opportunities so you can decide whether to use the SVG cleaner, SVG
-            minifier, or a simplification workflow next.
+            Width, height, and viewBox still appear in the tool because they are
+            useful context, but the main purpose of this route is file-size
+            inspection. Use the dimensions inspector when you need layout or
+            viewBox fixes.
           </p>
           <ExampleSvgConversion />
           <div className="block py-6">
@@ -1190,8 +1176,8 @@ function SeoSections() {
                   Quick workflow
                 </h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
-                  If your SVG looks huge, tiny, clipped, or inconsistent between
-                  apps, start here.
+                  Start here when an SVG is slow to load, too large for a CMS,
+                  or unexpectedly heavy for an icon, logo, badge, or web graphic.
                 </p>
               </div>
 
@@ -1200,13 +1186,13 @@ function SeoSections() {
                   Upload/paste
                 </span>
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Read viewBox
+                  Check bytes
                 </span>
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Check units
+                  Compare estimate
                 </span>
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[12px] font-semibold text-slate-700">
-                  Copy stats
+                  Choose cleanup
                 </span>
               </div>
             </div>
@@ -1214,40 +1200,41 @@ function SeoSections() {
             <ol className="mt-4 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <li className="rounded-xl border border-slate-200 bg-white p-4">
                 <span className="font-semibold text-slate-900">
-                  1) Look at viewBox
+                  1) Check raw file weight
                 </span>
                 <div className="mt-1 leading-relaxed">
-                  Missing or overly tight viewBox is the most common cause of
-                  clipping and odd scaling.
+                  The raw byte count tells you whether the SVG itself is heavy
+                  before gzip, CDN compression, or app-specific processing.
                 </div>
               </li>
               <li className="rounded-xl border border-slate-200 bg-white p-4">
                 <span className="font-semibold text-slate-900">
-                  2) Check width/height units
+                  2) Compare the minified estimate
                 </span>
                 <div className="mt-1 leading-relaxed">
-                  <span className="font-semibold">%</span>,{" "}
-                  <span className="font-semibold">em/rem</span>, and{" "}
-                  <span className="font-semibold">mm/in/pt</span> often explain
-                  why apps disagree.
+                  A small savings estimate usually means whitespace is not the
+                  main issue. A large estimate points toward comments, metadata,
+                  or repeated formatting.
                 </div>
               </li>
               <li className="rounded-xl border border-slate-200 bg-white p-4">
                 <span className="font-semibold text-slate-900">
-                  3) Review preserveAspectRatio
+                  3) Review embedded assets and dense markup
                 </span>
                 <div className="mt-1 leading-relaxed">
-                  Alignment and "meet vs slice" can letterbox or crop content
-                  inside a container.
+                  Embedded images, long path data, duplicate groups, and
+                  generated editor markup can add weight even when the preview
+                  looks simple.
                 </div>
               </li>
               <li className="rounded-xl border border-slate-200 bg-white p-4">
                 <span className="font-semibold text-slate-900">
-                  4) Use the pixel estimate
+                  4) Pick the right next tool
                 </span>
                 <div className="mt-1 leading-relaxed">
-                  It’s a practical "what you’ll likely get" number for
-                  screenshots, exports, and docs.
+                  Use cleaner for metadata and editor clutter, minifier for
+                  whitespace, or manual simplification when the geometry itself
+                  is too complex.
                 </div>
               </li>
             </ol>
@@ -1255,108 +1242,96 @@ function SeoSections() {
 
           <section className="mt-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-              <span className="text-base">📏</span>
+              <span className="text-base">i</span>
               Size model
             </div>
             <h3 className="mt-3 m-0 text-lg font-extrabold text-slate-900">
-              What "SVG size" really means
+              What SVG file size really means
             </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
-              SVGs are confusing because they have two layers of sizing: a{" "}
-              <span className="font-semibold text-slate-900">display size</span>{" "}
-              (
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                width
-              </code>{" "}
-              and{" "}
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                height
-              </code>
-              ) and an internal{" "}
-              <span className="font-semibold text-slate-900">
-                coordinate system
-              </span>{" "}
-              (
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                viewBox
-              </code>
-              ). The viewBox tells renderers how to map your internal drawing
-              space into the displayed box. When viewBox is missing or too
-              tight, SVGs often scale poorly or get clipped.
+              SVG file size is the weight of the markup and any embedded data,
+              not just the visual footprint of the artwork. A small icon can be
+              large if it includes editor metadata, repeated inline styles,
+              dense path coordinates, filters, masks, or base64-encoded raster
+              content.
             </p>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2 text-[13px] text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="font-semibold text-slate-900">
-                  Display size (width/height)
+                  Markup weight
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Controls the default rendered box. Units matter: px is
-                  straightforward, % depends on the container, em/rem depends on
-                  font-size, and mm/in/pt require a DPI assumption.
+                  Long path data, duplicated groups, inline styles, comments,
+                  metadata, and editor namespaces increase the SVG text before
+                  the browser even renders it.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="font-semibold text-slate-900">
-                  Internal size (viewBox)
+                  Embedded content
                 </div>
                 <p className="mt-2 leading-relaxed">
-                  Defines the coordinate space of the drawing. A stable viewBox
-                  is what makes responsive SVG possible without distortion or
-                  clipping.
+                  Embedded images or data URLs can make an SVG much heavier than
+                  its visible vector shapes suggest. If the byte count is high,
+                  inspect the source before assuming paths are the problem.
                 </p>
               </div>
             </div>
 
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
               <span className="font-semibold text-slate-900">
-                Most common failure:
+                Important:
               </span>{" "}
-              width/height exist but viewBox is missing, so different tools
-              "guess" differently when scaling.
+              this route reports size signals and conservative cleanup
+              estimates. It does not rewrite paths, resize the artwork, or
+              promise that every optimization is visually safe.
             </div>
           </section>
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="m-0 text-lg font-extrabold text-slate-900">
-              Why your SVG size changes across apps
+              Why SVG files get heavy
             </h3>
 
             <ul className="mt-4 space-y-3 text-[13px] leading-relaxed text-slate-700">
               <li className="flex gap-3">
                 <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
+                  i
                 </span>
                 <span>
                   <span className="font-semibold text-slate-900">
-                    Percent sizing
+                    Editor metadata
                   </span>{" "}
-                  depends on the container size and layout rules.
+                  can add comments, namespaces, hidden groups, and private
+                  attributes that are not needed for the visible result.
                 </span>
               </li>
 
               <li className="flex gap-3">
                 <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
+                  i
                 </span>
                 <span>
                   <span className="font-semibold text-slate-900">
-                    em/rem sizing
+                    Path complexity
                   </span>{" "}
-                  depends on font-size context, which changes between apps and
-                  pages.
+                  can dominate the file when traced artwork contains thousands
+                  of coordinates, tiny islands, or repeated detail.
                 </span>
               </li>
 
               <li className="flex gap-3">
                 <span className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-md bg-sky-50 text-sky-700 border border-sky-100">
-                  ✓
+                  i
                 </span>
                 <span>
-                  <span className="font-semibold text-slate-900">mm/in/pt</span>{" "}
-                  require a DPI assumption for px conversion, so exports may
-                  differ.
+                  <span className="font-semibold text-slate-900">
+                    Embedded images
+                  </span>{" "}
+                  and data URLs can carry raster weight inside an SVG even when
+                  the file extension looks like pure vector.
                 </span>
               </li>
 
@@ -1366,20 +1341,13 @@ function SeoSections() {
                 </span>
                 <span>
                   <span className="font-semibold text-slate-900">
-                    Missing viewBox
+                    Repeated styles
                   </span>{" "}
-                  leads to inconsistent scaling and cropping because the
-                  renderer can’t map coordinates reliably.
+                  and verbose attribute formatting often shrink with minifying,
+                  but they are different from simplifying the artwork itself.
                 </span>
               </li>
             </ul>
-
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
-              <span className="font-semibold text-slate-900">Tip:</span> If your
-              SVG "looks fine" in one editor but breaks in a browser, compare
-              viewBox and preserveAspectRatio first. Those two explain most
-              cases.
-            </div>
           </section>
 
           <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

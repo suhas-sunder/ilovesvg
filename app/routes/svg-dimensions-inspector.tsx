@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
   const title =
     `SVG Dimensions Inspector - ViewBox, Width and Height | iLoveSVG`;
   const description =
-    `Inspect SVG dimensions, width, height, viewBox, and pixel size in your browser. Apply sizing fixes without rewriting paths.`;
+    `Inspect SVG dimensions, width, height, viewBox, and rendered size for layout debugging. Apply sizing fixes without rewriting paths.`;
   const canonical = "https://www.ilovesvg.com/svg-dimensions-inspector";
 
   return [
@@ -1555,7 +1555,7 @@ function SeoSections() {
             </span>
             , and a practical{" "}
             <span className="font-semibold text-slate-900">
-              pixel-size estimate
+              rendered size estimate
             </span>
             . Then apply common fixes like adding a missing viewBox or
             normalizing width/height. Everything runs{" "}
@@ -1571,6 +1571,12 @@ function SeoSections() {
             Use this route to inspect sizing signals and apply fixes for
             width, height, or viewBox issues. It does not rewrite paths,
             rasterize artwork, or change vector detail.
+          </p>
+          <p className="mt-2 text-slate-600">
+            This is a layout debugging tool, not a file-size optimizer. Use the
+            file-size inspector when the question is markup weight or bytes on
+            disk, and use this route when the problem is rendered size, viewBox,
+            or inconsistent scaling.
           </p>
 
           {/* Quick workflow */}

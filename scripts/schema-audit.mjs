@@ -14,6 +14,13 @@ const SVG_EDITOR_UTILITY_ROUTES = [
   "/svg-flip-and-rotate-editor",
 ];
 
+const SVG_INSPECTION_UTILITY_ROUTES = [
+  "/svg-preview-viewer",
+  "/svg-accessibility-and-contrast-checker",
+  "/svg-file-size-inspector",
+  "/svg-dimensions-inspector",
+];
+
 const FAVICON_ICO_ROUTES = [
   "/svg-to-favicon-generator",
   "/svg-to-ico-converter",
@@ -40,15 +47,21 @@ const SVG_TO_JPG_ETSY_ROUTES = ["/svg-to-jpg-converter", "/svg-to-jpg-for-etsy"]
 const TARGET_ROUTES = uniqueValues([
   ...BLOCKER_ROUTES,
   ...SVG_EDITOR_UTILITY_ROUTES,
+  ...SVG_INSPECTION_UTILITY_ROUTES,
   ...FAVICON_ICO_ROUTES,
   ...STICKER_ROUTES,
   ...SVG_TO_JPG_ETSY_ROUTES,
 ]);
 
-const REQUIRED_JSON_LD_ROUTES = new Set([...BLOCKER_ROUTES, ...SVG_EDITOR_UTILITY_ROUTES]);
+const REQUIRED_JSON_LD_ROUTES = new Set([
+  ...BLOCKER_ROUTES,
+  ...SVG_EDITOR_UTILITY_ROUTES,
+  ...SVG_INSPECTION_UTILITY_ROUTES,
+]);
 const FAQ_QUESTION_ALIGNMENT_ROUTES = new Set([
   "/free-color-picker",
   ...SVG_EDITOR_UTILITY_ROUTES,
+  ...SVG_INSPECTION_UTILITY_ROUTES,
 ]);
 
 const DUPLICATE_SIGNATURE_GROUPS = [
