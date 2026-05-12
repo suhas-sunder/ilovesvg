@@ -2916,7 +2916,7 @@ async function waitForConvertButtonEnabled(client, timeoutMs) {
 async function waitForOutput(client, timeoutMs, expectedEngine = null) {
   return waitForValue(
     client,
-    () => `(() => {
+    () => `(async () => {
       const outputs = Array.from(document.querySelectorAll("[data-engine-used]"))
         .filter((candidate) => {
           const engine = candidate.getAttribute("data-engine-used");
@@ -2952,12 +2952,48 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
       let previewParseError = "";
       let previewParseExcerpt = "";
       let decodedPreviewSvg = "";
+      let previewVisibleDrawableCount = 0;
+      let previewPathCount = 0;
+      let previewViewBoxOk = false;
       const previewSrc = previewImages[0]?.getAttribute("src") || "";
       if (previewSrc.startsWith("data:image/svg+xml")) {
         const encoded = previewSrc.slice(previewSrc.indexOf(",") + 1);
         decodedPreviewSvg = decodeURIComponent(encoded);
+      } else if (previewSrc.startsWith("blob:")) {
+        decodedPreviewSvg = await fetch(previewSrc).then((response) => response.text()).catch(() => "");
+      }
+      if (decodedPreviewSvg) {
         const parsed = new DOMParser().parseFromString(decodedPreviewSvg, "image/svg+xml");
         previewParseError = parsed.querySelector("parsererror")?.textContent?.slice(0, 400) || "";
+        previewPathCount = parsed.querySelectorAll("path").length;
+        const svgRoot = parsed.querySelector("svg");
+        const viewBox = svgRoot?.getAttribute("viewBox") || "";
+        const viewBoxParts = viewBox.trim().split(/[\\s,]+/).map(Number);
+        const width = Number.parseFloat(svgRoot?.getAttribute("width") || "");
+        const height = Number.parseFloat(svgRoot?.getAttribute("height") || "");
+        previewViewBoxOk =
+          (viewBoxParts.length === 4 &&
+            viewBoxParts.every(Number.isFinite) &&
+            viewBoxParts[2] > 0 &&
+            viewBoxParts[3] > 0) ||
+          (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
+        const isVisibleDrawable = (element) => {
+          const tag = element.tagName.toLowerCase();
+          const attrs = element.getAttributeNames()
+            .map((name) => name + '="' + (element.getAttribute(name) || "") + '"')
+            .join(" ");
+          if (/display\\s*=\\s*["']none["']/i.test(attrs)) return false;
+          if (/visibility\\s*=\\s*["']hidden["']/i.test(attrs)) return false;
+          if (/opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+          if (/fill-opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+          if (/stroke-opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+          if (/style\\s*=\\s*["'][^"']*(?:display\\s*:\\s*none|visibility\\s*:\\s*hidden|opacity\\s*:\\s*0)(?:\\D|$)/i.test(attrs)) return false;
+          if (tag === "path" && !(element.getAttribute("d") || "").trim()) return false;
+          if (tag === "image" && !(element.getAttribute("href") || element.getAttribute("xlink:href") || "").trim()) return false;
+          return true;
+        };
+        previewVisibleDrawableCount = Array.from(parsed.querySelectorAll("path,polygon,polyline,rect,circle,ellipse,line,text,image"))
+          .filter(isVisibleDrawable).length;
         if (previewParseError) {
           const line = decodedPreviewSvg.split(/\\r?\\n/)[3] || decodedPreviewSvg;
           previewParseExcerpt = line.slice(3800, 4100);
@@ -2973,6 +3009,15 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
         previewSrcPrefix: previewSrc.slice(0, 600),
         previewParseError,
         previewParseExcerpt,
+        previewVisibleDrawableCount,
+        previewPathCount,
+        previewViewBoxOk,
+        previewHasMeaningfulSvg: Boolean(
+          decodedPreviewSvg &&
+            !previewParseError &&
+            previewViewBoxOk &&
+            previewVisibleDrawableCount > 0
+        ),
         hasCenterlineStrokes: /fill=["']none["']/i.test(decodedPreviewSvg) && /stroke-width=["']?\\d/i.test(decodedPreviewSvg),
         hasDerivedLabel: /Derived from Output/i.test(outputText),
         outputTitle: outputText.split(/\\r?\\n/).find((line) => /Output \\d+/i.test(line)) || "",
@@ -3001,8 +3046,8 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
     (value) =>
       value?.hasGenericFailure ||
       (expectedEngine
-        ? value?.hasOutput && value.engineUsed === expectedEngine && value.previewDecoded && !value.hasBrokenPreview && !value.hasDerivedLabel
-        : value?.hasOutput && value.previewDecoded && !value.hasBrokenPreview && !value.hasDerivedLabel),
+        ? value?.hasOutput && value.engineUsed === expectedEngine && value.previewDecoded && value.previewHasMeaningfulSvg && !value.hasBrokenPreview && !value.hasDerivedLabel
+        : value?.hasOutput && value.previewDecoded && value.previewHasMeaningfulSvg && !value.hasBrokenPreview && !value.hasDerivedLabel),
   );
 }
 

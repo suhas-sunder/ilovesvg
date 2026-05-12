@@ -92,6 +92,7 @@ type SvgLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  pathTags?: string;
   kind?: SvgLayerKind;
 };
 
@@ -653,6 +654,7 @@ async function traceLayeredColorSvg(
     color: layer.color,
     originalColor: layer.color,
     visible: true,
+    pathTags: layer.pathMarkup,
     kind: "fill",
   }));
 

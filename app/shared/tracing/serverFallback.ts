@@ -6,6 +6,7 @@ export type SharedLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  pathTags?: string;
   opacity?: number;
   originalOpacity?: number;
   kind?: "fill" | "stroke";

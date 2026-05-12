@@ -86,6 +86,7 @@ export type TraceLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  pathTags?: string;
   opacity?: number;
   originalOpacity?: number;
   kind?: TraceLayerKind;

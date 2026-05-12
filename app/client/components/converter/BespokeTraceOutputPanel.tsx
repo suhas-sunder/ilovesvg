@@ -18,6 +18,7 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
 import type { TraceResult } from "~/shared/tracing/types";
 
 export type BespokeTraceOutputItem = {
@@ -296,14 +297,25 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
               rawSvg && !active && !failed
                 ? detectOutputAppearanceSupport(rawSvg, { precisionOutput })
                 : null;
-            const displaySvg = getBespokeTraceOutputSvg(
+            const candidateDisplaySvg = getBespokeTraceOutputSvg(
               item,
               getSvg,
               precisionOutput,
             );
-            const displaySvgBytes = displaySvg
-              ? getSvgByteSize(displaySvg)
-              : item.svgBytes;
+            const outputValidation =
+              candidateDisplaySvg && !active && !failed
+                ? validateMeaningfulSvgOutput(candidateDisplaySvg)
+                : null;
+            const outputInvalidMessage =
+              outputValidation && !outputValidation.ok
+                ? outputValidation.reasons[0] || "SVG output is not visibly renderable."
+                : null;
+            const displaySvg = outputInvalidMessage ? "" : candidateDisplaySvg;
+            const displaySvgBytes = outputInvalidMessage
+              ? undefined
+              : displaySvg
+                ? getSvgByteSize(displaySvg)
+                : item.svgBytes;
             const elapsedMs = getElapsedMs(item, nowMs);
             const sourceAvailableForOutput =
               !item.sourceFileName || file?.name === item.sourceFileName;
@@ -441,6 +453,8 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                     onCancelOutputJob={onCancelOutputJob}
                     onRetryOutputJob={onRetryOutputJob}
                   />
+                ) : outputInvalidMessage ? (
+                  <BespokeInvalidOutputCard message={outputInvalidMessage} />
                 ) : (
                   <>
                     {!focused ? (
@@ -574,6 +588,17 @@ function OutputMetadataLine({
         </span>
       ) : null}
     </p>
+  );
+}
+
+function BespokeInvalidOutputCard({ message }: { message: string }) {
+  return (
+    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <p className="m-0 font-bold">No visible vector output found</p>
+      <p className="m-0 mt-1 text-[13px] leading-5">
+        {message} Conversion needs a visible SVG before preview, copy, download, or editing is enabled.
+      </p>
+    </div>
   );
 }
 
