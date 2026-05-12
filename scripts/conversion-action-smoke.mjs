@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import sharp from "sharp";
+import { validateMeaningfulSvgOutput } from "./meaningful-output.mjs";
 import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 
 const baseUrl = getSmokeBaseUrl();
@@ -337,19 +338,14 @@ async function expectSvgResponse({
   if (!response.ok) {
     throw new Error(`${route} returned ${response.status}: ${text.slice(0, 240)}`);
   }
-  if (!/<svg\b/i.test(text)) {
-    throw new Error(`${route} did not return SVG output.`);
-  }
   for (const pattern of forbiddenTextPatterns) {
     if (pattern.test(text)) {
       throw new Error(`${route} leaked unsafe filename text in the response.`);
     }
   }
-  if (!/<(?:path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b/i.test(text)) {
-    throw new Error(`${route} returned SVG with no drawable content.`);
-  }
-  if (/<script\b|on\w+=|javascript:/i.test(text)) {
-    throw new Error(`${route} returned unsafe SVG text.`);
+  const validation = validateMeaningfulSvgOutput(text, { expectLayers });
+  if (!validation.ok) {
+    throw new Error(`${route} returned non-renderable SVG output: ${validation.reasons.join("; ")}`);
   }
   if (expectedWidth && !text.includes(`viewBox=\\\"0 0 ${expectedWidth} ${expectedHeight}\\\"`)) {
     throw new Error(`${route} did not preserve expected ${expectedWidth}x${expectedHeight} dimensions.`);
@@ -362,18 +358,15 @@ async function expectSvgResponse({
   if (expectedEngine && engineUsed !== expectedEngine) {
     throw new Error(`${route} used ${engineUsed || "unknown engine"} instead of ${expectedEngine}.`);
   }
-  if (expectLayers && !/"layers"/.test(text)) {
-    throw new Error(`${route} did not include layered metadata.`);
-  }
-
   return {
     label,
     route,
     routePath,
     status: response.status,
     bytes: Buffer.byteLength(text),
-    paths: (text.match(/<path\b/gi) || []).length,
+    paths: validation.stats.pathCount,
     layersMentioned: /"layers"/.test(text),
+    layerPathTags: validation.stats.layerPathTagsWithPaths,
     engineUsed,
   };
 }

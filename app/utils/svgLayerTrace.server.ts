@@ -26,6 +26,7 @@ export type SvgLayerMeta = {
   color: string;
   originalColor: string;
   visible: boolean;
+  pathTags?: string;
   opacity?: number;
   originalOpacity?: number;
   kind?: SvgLayerKind;
@@ -368,6 +369,7 @@ export async function createLayeredColorSvg(
           color: layer.color,
           originalColor: layer.color,
           visible: true,
+          pathTags: layer.pathTags,
           opacity: safeOptions.layerAlpha,
           originalOpacity: safeOptions.layerAlpha,
           kind: "fill" as const,
@@ -380,6 +382,14 @@ export async function createLayeredColorSvg(
                 color: safeOptions.fillStrokeColor,
                 originalColor: safeOptions.fillStrokeColor,
                 visible: true,
+                pathTags: builtLayers
+                  .map((layer) =>
+                    filterFillStrokePathTags(extractPathTags(layer.pathTags), {
+                      width,
+                      height,
+                    }),
+                  )
+                  .join(""),
                 opacity: safeOptions.layerAlpha,
                 originalOpacity: safeOptions.layerAlpha,
                 kind: "stroke" as const,
