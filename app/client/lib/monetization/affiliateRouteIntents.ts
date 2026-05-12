@@ -4,6 +4,11 @@ export type AffiliateCategory =
   | "cricut-cut"
   | "silhouette-vinyl"
   | "print-on-demand"
+  | "printify-pod"
+  | "printful-pod"
+  | "shopify-storefront"
+  | "canva-design"
+  | "figma-design"
   | "ecommerce-selling"
   | "logo-icon"
   | "web-design"
@@ -131,9 +136,9 @@ export const ROUTE_AFFILIATE_INTENTS: Record<string, AffiliateCategory[]> = {
   "/svg-to-webp-converter": ["print-on-demand", "general-svg-conversion"],
   "/svg-to-pdf-converter": ["technical-utility"],
 
-  "/svg-background-editor": ["print-on-demand", "logo-icon"],
-  "/svg-resize-and-scale-editor": ["print-on-demand", "logo-icon"],
-  "/svg-recolor": ["print-on-demand", "logo-icon"],
+  "/svg-background-editor": ["technical-utility"],
+  "/svg-resize-and-scale-editor": ["technical-utility"],
+  "/svg-recolor": ["technical-utility"],
   "/svg-minifier": ["technical-utility"],
   "/svg-cleaner": ["technical-utility"],
   "/svg-preview-viewer": ["technical-utility"],
@@ -143,13 +148,10 @@ export const ROUTE_AFFILIATE_INTENTS: Record<string, AffiliateCategory[]> = {
   "/svg-dimensions-inspector": ["technical-utility"],
   "/svg-file-size-inspector": ["technical-utility"],
   "/svg-embed-code-generator": ["web-design"],
-  "/svg-accessibility-and-contrast-checker": [
-    "web-design",
-    "technical-utility",
-  ],
+  "/svg-accessibility-and-contrast-checker": ["technical-utility"],
 
-  "/text-to-svg-converter": ["logo-icon", "web-design", "ecommerce-selling"],
-  "/emoji-to-svg-converter": ["logo-icon", "ecommerce-selling"],
+  "/text-to-svg-converter": ["technical-utility"],
+  "/emoji-to-svg-converter": ["technical-utility"],
   "/code-to-svg-for-cricut": ["cricut-cut", "technical-utility"],
   "/svg-to-base64": ["technical-utility"],
   "/base64-to-svg": ["technical-utility"],
@@ -167,12 +169,12 @@ export const ROUTE_AFFILIATE_INTENTS: Record<string, AffiliateCategory[]> = {
   "/jpg-to-favicon-generator": ["web-design", "logo-icon"],
   "/logo-to-favicon-generator": ["web-design", "logo-icon"],
   "/png-to-ico-converter": ["web-design", "logo-icon"],
-  "/png-to-svg-for-shopify": ["general-svg-conversion"],
-  "/logo-to-svg-for-shopify": ["web-design", "logo-icon"],
-  "/svg-to-png-for-shopify": ["web-design"],
-  "/svg-to-favicon-for-shopify": ["web-design", "logo-icon"],
-  "/svg-resizer-for-shopify": ["technical-utility"],
-  "/logo-to-favicon-for-shopify": ["web-design", "logo-icon"],
+  "/png-to-svg-for-shopify": ["shopify-storefront"],
+  "/logo-to-svg-for-shopify": ["shopify-storefront"],
+  "/svg-to-png-for-shopify": ["shopify-storefront"],
+  "/svg-to-favicon-for-shopify": ["shopify-storefront"],
+  "/svg-resizer-for-shopify": ["shopify-storefront"],
+  "/logo-to-favicon-for-shopify": ["shopify-storefront"],
   "/svg-to-png-for-etsy": ["ecommerce-selling", "print-on-demand"],
   "/svg-to-jpg-for-etsy": ["ecommerce-selling"],
   "/logo-to-svg-for-etsy": ["ecommerce-selling", "logo-icon"],
@@ -180,8 +182,12 @@ export const ROUTE_AFFILIATE_INTENTS: Record<string, AffiliateCategory[]> = {
   "/image-to-svg-for-etsy": ["ecommerce-selling", "print-on-demand", "general-svg-conversion"],
   "/jpg-to-svg-for-etsy": ["ecommerce-selling", "general-svg-conversion"],
   "/svg-resizer-for-etsy": ["ecommerce-selling"],
-  "/svg-to-png-for-printify": ["print-on-demand", "ecommerce-selling"],
-  "/svg-to-png-for-printful": ["technical-utility"],
+  "/svg-to-png-for-printify": [
+    "printify-pod",
+    "print-on-demand",
+    "ecommerce-selling",
+  ],
+  "/svg-to-png-for-printful": ["printful-pod"],
   "/sticker-to-png-for-printing": ["stickers", "print-on-demand"],
   "/svg-to-transparent-png-for-printing": ["stickers", "print-on-demand"],
   "/png-to-svg-for-glowforge": ["technical-utility"],
@@ -196,15 +202,15 @@ export const ROUTE_AFFILIATE_INTENTS: Record<string, AffiliateCategory[]> = {
   "/sticker-to-svg-for-silhouette": ["technical-utility"],
   "/svg-cleaner-for-silhouette": ["technical-utility"],
   "/svg-resizer-for-silhouette": ["technical-utility"],
-  "/png-to-svg-for-canva": ["technical-utility"],
-  "/jpg-to-svg-for-canva": ["technical-utility"],
-  "/svg-to-png-for-canva": ["technical-utility"],
-  "/logo-to-svg-for-canva": ["technical-utility"],
-  "/svg-resizer-for-canva": ["technical-utility"],
-  "/svg-cleaner-for-figma": ["technical-utility"],
-  "/svg-resizer-for-figma": ["technical-utility"],
-  "/svg-to-png-for-figma": ["technical-utility"],
-  "/png-to-svg-for-figma": ["technical-utility"],
+  "/png-to-svg-for-canva": ["canva-design"],
+  "/jpg-to-svg-for-canva": ["canva-design"],
+  "/svg-to-png-for-canva": ["canva-design"],
+  "/logo-to-svg-for-canva": ["canva-design"],
+  "/svg-resizer-for-canva": ["canva-design"],
+  "/svg-cleaner-for-figma": ["figma-design"],
+  "/svg-resizer-for-figma": ["figma-design"],
+  "/svg-to-png-for-figma": ["figma-design"],
+  "/png-to-svg-for-figma": ["figma-design"],
   "/svg-to-jsx-converter": ["technical-utility"],
   "/image-to-layered-svg-converter": ["layered-svg", "general-svg-conversion"],
   "/jpg-to-layered-svg-converter": ["layered-svg", "general-svg-conversion"],

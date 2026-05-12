@@ -24,12 +24,32 @@ const compactPolicyRoutes = [
   "/svg-to-base64",
   "/text-to-svg-converter",
 ];
+const affiliateIntentRoutes = [
+  {
+    route: "/png-to-svg-for-shopify",
+    expected: "fallback",
+  },
+  {
+    route: "/logo-to-svg-for-shopify",
+    expected: "fallback",
+  },
+  {
+    route: "/svg-to-png-for-printify",
+    expected: "affiliate",
+    offerId: "printify-product-mockups",
+  },
+  {
+    route: "/svg-to-png-for-printful",
+    expected: "fallback",
+  },
+];
 
 const mobileWidths = [320, 360, 390, 430, 768];
 const desktopWidths = [1024, 1280, 1440, 1920];
 const legalTrustWidths = [320, 390, 768, 1024, 1440];
 const docsHelpWidths = [320, 390, 768, 1024, 1440];
 const compactPolicyWidths = [320, 390, 768, 1024, 1440];
+const affiliateIntentWidths = [1280];
 
 async function main() {
   await assertServerReachable();
@@ -60,6 +80,7 @@ async function main() {
     legalTrust: [],
     docsHelp: [],
     compactPolicy: [],
+    affiliateIntent: [],
     mobile: [],
     desktop: [],
     tracking: {},
@@ -100,6 +121,22 @@ async function main() {
         try {
           const result = await checkContextualCompactAdRoute(client, route, width);
           results.compactPolicy.push(result);
+        } finally {
+          await client.close().catch(() => {});
+        }
+      }
+    }
+
+    for (const routeConfig of affiliateIntentRoutes) {
+      for (const width of affiliateIntentWidths) {
+        const client = await openPage(routeConfig.route, width, 900);
+        try {
+          const result = await checkAffiliateIntentRoute(
+            client,
+            routeConfig,
+            width,
+          );
+          results.affiliateIntent.push(result);
         } finally {
           await client.close().catch(() => {});
         }
@@ -157,6 +194,7 @@ async function main() {
     ...results.legalTrust.filter((result) => !result.ok),
     ...results.docsHelp.filter((result) => !result.ok),
     ...results.compactPolicy.filter((result) => !result.ok),
+    ...results.affiliateIntent.filter((result) => !result.ok),
     ...results.mobile.filter((result) => !result.ok),
     ...results.desktop.filter((result) => !result.ok),
   ];
@@ -352,6 +390,74 @@ async function checkContextualCompactAdRoute(client, route, width) {
       fallbackPolicyOk &&
       state.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
+  };
+}
+
+async function checkAffiliateIntentRoute(client, routeConfig, width) {
+  await clearAffiliateStorage(client);
+  await reload(client);
+  await delay(1700);
+
+  const selector =
+    routeConfig.expected === "affiliate"
+      ? '[data-monetization-slot="converter-below-tool"][data-monetization-kind="affiliate"]'
+      : '[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]';
+  await waitForValue(
+    client,
+    () => `(() => Boolean(document.querySelector(${JSON.stringify(selector)})))()`,
+    8000,
+  );
+  await evaluate(
+    client,
+    `document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: "center" })`,
+  );
+  await delay(300);
+
+  const state = await evaluate(client, `(() => {
+    const affiliate = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="affiliate"]');
+    const fallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+    const activeNode = affiliate || fallback;
+    const rect = activeNode?.getBoundingClientRect?.();
+    const fallbackSlot = fallback?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
+    const visibleAdSlots = ${visibleAdSlotsExpression()};
+    return {
+      route: window.location.pathname,
+      width: window.innerWidth,
+      affiliateCount: affiliate ? 1 : 0,
+      fallbackCount: fallback ? 1 : 0,
+      offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
+      fallbackReserve: fallback?.getAttribute('data-monetization-reserve') || null,
+      fallbackSlot,
+      height: rect?.height || 0,
+      visible: Boolean(rect && rect.width > 0 && rect.height > 0),
+      visibleAdSlots,
+      duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+    };
+  })()`);
+
+  const expectsAffiliate = routeConfig.expected === "affiliate";
+
+  return {
+    scenario: "affiliate-intent-match",
+    route: routeConfig.route,
+    expected: routeConfig.expected,
+    width,
+    ...state,
+    ok:
+      state.route === routeConfig.route &&
+      state.visible &&
+      state.duplicateVisibleAdSlots.length === 0 &&
+      !state.overflow &&
+      (expectsAffiliate
+        ? state.affiliateCount === 1 &&
+          state.fallbackCount === 0 &&
+          state.offerId === routeConfig.offerId
+        : state.affiliateCount === 0 &&
+          state.fallbackCount === 1 &&
+          state.fallbackReserve === "compact" &&
+          state.fallbackSlot !== legacyCompactFallbackSlot &&
+          state.height <= 220),
   };
 }
 

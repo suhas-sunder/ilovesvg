@@ -156,6 +156,15 @@ function activeOfferRefs() {
   }));
 }
 
+function offerIdsForRoute(route) {
+  return offers
+    .getRelevantAffiliateOffers({
+      offers: offers.AFFILIATE_OFFERS,
+      routeCategories: routeIntents.getAffiliateRouteCategories(route),
+    })
+    .map((offer) => offer.id);
+}
+
 function runStorageParserTests() {
   assert.deepEqual(
     storage.readAffiliateWaterfallState(new MemoryStorage()),
@@ -531,14 +540,7 @@ function runRouteRelevanceTests() {
   );
 
   assert.deepEqual(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
-          "/sticker-to-png-for-printing",
-        ),
-      })
-      .map((offer) => offer.id),
+    offerIdsForRoute("/sticker-to-png-for-printing"),
     ["sticker-mule-custom-stickers", "printify-product-mockups"],
     "sticker printing routes prioritize Sticker Mule before Printify",
   );
@@ -557,72 +559,59 @@ function runRouteRelevanceTests() {
   );
 
   assert.deepEqual(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories:
-          routeIntents.getAffiliateRouteCategories("/png-to-svg-converter"),
-      })
-      .map((offer) => offer.id),
+    offerIdsForRoute("/png-to-svg-converter"),
     ["printify-product-mockups"],
     "general PNG conversion can show Printify first",
   );
 
   assert.deepEqual(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
-          "/svg-to-png-for-printify",
-        ),
-      })
-      .map((offer) => offer.id),
+    offerIdsForRoute("/svg-to-png-for-printify"),
     ["printify-product-mockups"],
     "Printify-specific routes can show the Printify offer",
   );
 
-  assert.deepEqual(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
-          "/svg-background-editor",
-        ),
-      })
-      .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "creator-focused SVG background editor route can show Printify",
-  );
-
-  assert.deepEqual(
-    offers
-      .getRelevantAffiliateOffers({
-        offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
-          "/svg-recolor",
-        ),
-      })
-      .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "creator-focused SVG recolor route can show Printify",
-  );
-
   for (const route of [
+    "/png-to-svg-for-shopify",
+    "/logo-to-svg-for-shopify",
+    "/svg-to-png-for-shopify",
+    "/svg-resizer-for-shopify",
+    "/svg-to-favicon-for-shopify",
+    "/logo-to-favicon-for-shopify",
     "/svg-to-png-for-printful",
+    "/png-to-svg-for-canva",
+    "/jpg-to-svg-for-canva",
+    "/logo-to-svg-for-canva",
+    "/svg-to-png-for-canva",
+    "/svg-resizer-for-canva",
+    "/png-to-svg-for-figma",
+    "/svg-to-png-for-figma",
+    "/svg-resizer-for-figma",
+    "/svg-cleaner-for-figma",
     "/png-to-svg-for-glowforge",
     "/jpg-to-svg-for-silhouette",
-    "/svg-cleaner-for-figma",
     "/svg-to-jsx-converter",
   ]) {
     assert.deepEqual(
-      offers
-        .getRelevantAffiliateOffers({
-          offers: offers.AFFILIATE_OFFERS,
-          routeCategories: routeIntents.getAffiliateRouteCategories(route),
-        })
-        .map((offer) => offer.id),
+      offerIdsForRoute(route),
       [],
       `${route} does not show irrelevant affiliate offers`,
+    );
+  }
+
+  for (const route of [
+    "/svg-cleaner",
+    "/svg-resize-and-scale-editor",
+    "/svg-to-base64",
+    "/base64-to-svg",
+    "/svg-to-jsx-converter",
+    "/text-to-svg-converter",
+    "/svg-preview-viewer",
+    "/svg-accessibility-and-contrast-checker",
+  ]) {
+    assert.deepEqual(
+      offerIdsForRoute(route),
+      [],
+      `${route} has no weak technical-utility affiliate offer match`,
     );
   }
 }

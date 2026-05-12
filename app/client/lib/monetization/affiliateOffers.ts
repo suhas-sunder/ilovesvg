@@ -31,6 +31,7 @@ export const AFFILIATE_OFFERS: AffiliateOffer[] = [
     categories: [
       "stickers",
       "print-then-cut",
+      "printify-pod",
       "print-on-demand",
       "ecommerce-selling",
       "logo-icon",
