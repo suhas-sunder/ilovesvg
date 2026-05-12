@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import ts from "typescript";
+import { validateMeaningfulSvgOutput } from "./meaningful-output.mjs";
 import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -421,9 +422,15 @@ function expectedPolicy(routePath, routeGroup) {
   return "vtracer-capable";
 }
 
+function allowsWhiteOnlyOutput(preset) {
+  const intent = `${preset?.id || ""} ${preset?.label || ""}`.toLowerCase();
+  return /white[-\s]?on[-\s]?black|dark[-\s]?bg|dark\s+background|invert[-\s]?white/.test(intent);
+}
+
 async function runPresetSmoke(routePath, routeGroup, preset) {
   const routePathForPost = routePath === "/" ? "/_root.data?index" : `${routePath}.data`;
   const smokeIdentity = createSmokeIdentity(routePath, preset.id);
+  const fields = fieldsForPreset(routeGroup, preset);
   let rateLimitedRetries = 0;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -451,22 +458,30 @@ async function runPresetSmoke(routePath, routeGroup, preset) {
         continue;
       }
 
-      const svgPresent = /<svg\b/i.test(text);
-      const drawablePresent = /<(?:path|rect|circle|ellipse|polygon|polyline|line|text|image|use)\b/i.test(text);
+      const expectLayers = routeGroup === "layered" || fields.traceMode === "layered";
+      const validation = validateMeaningfulSvgOutput(text, {
+        allowWhiteOnly: allowsWhiteOnlyOutput(preset),
+        expectLayers,
+      });
+      const svgPresent = Boolean(validation.svg);
+      const drawablePresent = validation.stats.drawableCount > 0;
       const engineUsed = extractEngineUsed(text);
-      const safe = !/<script\b|on\w+=|javascript:/i.test(text);
-      const ok = response.ok && svgPresent && drawablePresent && safe;
+      const ok = response.ok && validation.ok;
       return {
         ok,
         status: response.status,
         routePath: routePathForPost,
         bytes: Buffer.byteLength(text),
-        paths: (text.match(/<path\b/gi) || []).length,
+        svgBytes: validation.stats.svgBytes,
+        paths: validation.stats.pathCount,
+        layerPathTags: validation.stats.layerPathTagsWithPaths,
         svgPresent,
         drawablePresent,
         engineUsed,
         rateLimitedRetries,
-        error: ok ? null : `${response.status} ${text.slice(0, 180)}`,
+        error: ok
+          ? null
+          : `${response.status} ${validation.reasons.join("; ") || text.slice(0, 180)}`,
       };
     } catch (error) {
       return {

@@ -53,6 +53,7 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
 import {
   cleanupUnusedSourceSnapshots,
   createOutputSourceSnapshot,
@@ -2439,7 +2440,7 @@ export default function PngToLayeredSvgForCricut({
                             layerAlpha: itemSettings.layerAlpha ?? 1,
                           });
                     const appearance = normalizeOutputAppearance(item.appearance);
-                    const displaySvg =
+                    const candidateDisplaySvg =
                       !isActiveJob &&
                       !isFailedJob &&
                       hasOutputAppearanceChanges(appearance)
@@ -2452,7 +2453,19 @@ export default function PngToLayeredSvgForCricut({
                             { idPrefix: `output-${item.jobId || item.stamp}` },
                           )
                         : editedSvg;
-                    const displaySvgBytes = displaySvg
+                    const outputValidation =
+                      !isActiveJob && !isFailedJob
+                        ? validateMeaningfulSvgOutput(candidateDisplaySvg)
+                        : null;
+                    const outputInvalidMessage =
+                      outputValidation && !outputValidation.ok
+                        ? outputValidation.reasons[0] || "SVG output is not visibly renderable."
+                        : null;
+                    const displaySvg = outputInvalidMessage ? "" : candidateDisplaySvg;
+                    const canUseOutput = Boolean(displaySvg) && !isActiveJob && !isFailedJob;
+                    const displaySvgBytes = outputInvalidMessage
+                      ? undefined
+                      : displaySvg
                       ? getSvgByteSize(displaySvg)
                       : item.svgBytes;
                     const focused = focusedOutputStamp === item.stamp;
@@ -2715,7 +2728,7 @@ export default function PngToLayeredSvgForCricut({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (!item.svg) return;
+                                  if (!canUseOutput) return;
                                   const b = new Blob([displaySvg], {
                                     type: "image/svg+xml;charset=utf-8",
                                   });
@@ -2729,7 +2742,7 @@ export default function PngToLayeredSvgForCricut({
                                   a.remove();
                                   URL.revokeObjectURL(u);
                                 }}
-                                disabled={!item.svg}
+                                disabled={!canUseOutput}
                                 className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
                               >
                                 Download SVG
@@ -2737,10 +2750,10 @@ export default function PngToLayeredSvgForCricut({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (!item.svg) return;
+                                  if (!canUseOutput) return;
                                   handleCopySvg(displaySvg);
                                 }}
-                                disabled={!item.svg}
+                                disabled={!canUseOutput}
                                 className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
                               >
                                 Copy SVG
@@ -2873,18 +2886,21 @@ export default function PngToLayeredSvgForCricut({
                             </div>
                           </div>
                         )}
-                        {!focused ? (
+                        {outputInvalidMessage && !isActiveJob && !isFailedJob ? (
+                          <LayeredInvalidOutputCard message={outputInvalidMessage} />
+                        ) : null}
+                        {!focused && !outputInvalidMessage ? (
                           <p className="m-0 mt-1 text-[12px] text-slate-500">
                             Open Settings on an output to edit that preview.
                           </p>
                         ) : null}
 
-                        {!focused && (
+                        {!focused && !outputInvalidMessage && (
                         <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
                           <button
                             type="button"
                             onClick={() => {
-                              if (!item.svg) return;
+                              if (!canUseOutput) return;
                               const b = new Blob([displaySvg], {
                                 type: "image/svg+xml;charset=utf-8",
                               });
@@ -2897,7 +2913,7 @@ export default function PngToLayeredSvgForCricut({
                               a.remove();
                               URL.revokeObjectURL(u);
                             }}
-                            disabled={!item.svg}
+                            disabled={!canUseOutput}
                             className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                           >
                             <Icons
@@ -2911,10 +2927,10 @@ export default function PngToLayeredSvgForCricut({
                           <button
                             type="button"
                             onClick={() => {
-                              if (!item.svg) return;
+                              if (!canUseOutput) return;
                               handleCopySvg(displaySvg);
                             }}
-                            disabled={!item.svg}
+                            disabled={!canUseOutput}
                             className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                           >
                             <Icons
@@ -2928,10 +2944,10 @@ export default function PngToLayeredSvgForCricut({
                           <button
                             type="button"
                             onClick={() => {
-                              if (!item.svg) return;
+                              if (!canUseOutput) return;
                               openFocusedEditor(item.stamp);
                             }}
-                            disabled={!item.svg}
+                            disabled={!canUseOutput}
                             data-output-primary-action="true"
                             aria-expanded={focused || openSettingsStamp === item.stamp}
                             aria-controls={`output-settings-${item.stamp}`}
@@ -2947,7 +2963,7 @@ export default function PngToLayeredSvgForCricut({
                         </div>
                         )}
 
-                        {focused && (
+                        {focused && !outputInvalidMessage && (
                           <div
                             data-focused-editor-workspace="true"
                             className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(300px,390px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)]"
@@ -2970,7 +2986,7 @@ export default function PngToLayeredSvgForCricut({
                           </div>
                         )}
 
-                        {!focused && openSettingsStamp === item.stamp && (
+                        {!focused && openSettingsStamp === item.stamp && !outputInvalidMessage && (
                           <div
                             id={`output-settings-${item.stamp}`}
                             className={[
@@ -3074,7 +3090,7 @@ export default function PngToLayeredSvgForCricut({
                           </div>
                         )}
 
-                        {!focused && (
+                        {!focused && !outputInvalidMessage && (
                         <div
                           className={[
                             "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",
@@ -3083,7 +3099,9 @@ export default function PngToLayeredSvgForCricut({
                               : "min-h-[240px]",
                           ].join(" ")}
                         >
-                          <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
+                          {canUseOutput ? (
+                            <FullscreenPreviewButton onOpen={() => setFullscreenPreviewIndex(index)} />
+                          ) : null}
                           <EditedSvgPreviewImage
                             svg={displaySvg}
                             alt="Layered SVG result from PNG"
@@ -3149,10 +3167,11 @@ export default function PngToLayeredSvgForCricut({
                   { idPrefix: `output-${item.jobId || item.stamp}` },
                 )
               : baseSvg;
+            const validation = validateMeaningfulSvgOutput(svg);
             return {
               id: String(item.stamp),
               label: `Output ${index + 1}`,
-              svg,
+              svg: validation.ok ? svg : "",
               width: item.width,
               height: item.height,
               kind: "SVG",
@@ -3187,6 +3206,17 @@ export default function PngToLayeredSvgForCricut({
       <SocialLinks />
       <SiteFooter />
     </>
+  );
+}
+
+function LayeredInvalidOutputCard({ message }: { message: string }) {
+  return (
+    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <p className="m-0 font-bold">No visible vector output found</p>
+      <p className="m-0 mt-1 text-[13px] leading-5">
+        {message} Conversion needs a visible layered SVG before preview, copy, download, fullscreen, or editing is enabled.
+      </p>
+    </div>
   );
 }
 

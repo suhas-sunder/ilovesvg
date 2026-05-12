@@ -22,6 +22,7 @@
     "test:production-logging": "node scripts/production-logging-audit.mjs",
     "test:responsive": "node scripts/responsive-nav-example-audit.mjs responsive",
     "test:stage1-route-presets": "node scripts/stage1-route-preset-smoke.mjs",
+    "test:tool-output": "cross-env STAGE1_FULL_PRESET_SMOKE=1 node scripts/stage1-route-preset-smoke.mjs",
     "test:nav": "node scripts/navigation-audit.mjs",
     "test:navigation": "node scripts/navigation-audit.mjs",
     "test:navigation-browser": "node scripts/navigation-browser-audit.mjs",

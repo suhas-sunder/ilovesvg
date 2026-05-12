@@ -425,7 +425,7 @@ function extractEditableLayers(
 ): TraceLayerMeta[] {
   const seen = new Map<string, TraceLayerMeta>();
   let count = 0;
-  const groupPattern = /<g\b([^>]*)>/gi;
+  const groupPattern = /<g\b([^>]*)>([\s\S]*?)<\/g>/gi;
   let groupMatch: RegExpExecArray | null;
   while ((groupMatch = groupPattern.exec(svg))) {
     const attrs = groupMatch[1] || "";
@@ -442,6 +442,7 @@ function extractEditableLayers(
       color: stroke,
       originalColor: stroke,
       visible: true,
+      pathTags: extractLayerPathTags(groupMatch[2] || ""),
       opacity: Number(settings.layerAlpha ?? 1),
       originalOpacity: Number(settings.layerAlpha ?? 1),
       kind: "stroke",
@@ -457,7 +458,12 @@ function extractEditableLayers(
     if (!color) continue;
     if (isBackgroundColor(color, settings)) continue;
     const key = `fill:${color}`;
-    if (seen.has(key)) continue;
+    const pathTags = normalizeLayerPathTag(match[0] || "");
+    const existing = seen.get(key);
+    if (existing) {
+      existing.pathTags = `${existing.pathTags || ""}${pathTags}`;
+      continue;
+    }
     count += 1;
     const id = `vtracer-fill-${count}-${color.slice(1)}`;
     seen.set(key, {
@@ -466,6 +472,7 @@ function extractEditableLayers(
       color,
       originalColor: color,
       visible: true,
+      pathTags,
       opacity: Number(settings.layerAlpha ?? 1),
       originalOpacity: Number(settings.layerAlpha ?? 1),
       kind: "fill",
@@ -481,6 +488,18 @@ function extractEditableLayers(
         )
       : 24;
   return Array.from(seen.values()).slice(0, cap);
+}
+
+function extractLayerPathTags(svg: string) {
+  const matches = String(svg || "").match(/<path\b[^>]*>/gi) || [];
+  return matches.map(normalizeLayerPathTag).join("");
+}
+
+function normalizeLayerPathTag(tag: string) {
+  return String(tag || "")
+    .replace(/\sfill\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\s\/?>$/i, " />");
 }
 
 function annotateSvgLayerIds(svg: string, settings: NormalizedTraceSettings) {
