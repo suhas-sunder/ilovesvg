@@ -30,6 +30,10 @@ import {
   useNativeColorFinalCommit,
   useThrottledCommit,
 } from "~/client/hooks/useThrottledCommit";
+import {
+  getOutputComplexityWarnings,
+  mergeOutputWarnings,
+} from "~/shared/tracing/outputComplexity";
 
 type OutputVersion<TSettings extends MixedTraceSettings> = {
   svg: string;
@@ -576,6 +580,24 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             const displaySvgBytes = previewSvg
               ? getSvgByteSize(previewSvg)
               : item.svgBytes;
+            const outputWarnings =
+              !isActiveJob && !isFailedJob
+                ? mergeOutputWarnings(
+                    item.warnings,
+                    getOutputComplexityWarnings({
+                      svg: previewSvg,
+                      svgBytes: displaySvgBytes,
+                      pathCount: item.pathCount,
+                      layerCount: item.layers?.length,
+                      traceMode: outputSettings.traceMode,
+                      routeId: routeCapabilities.routeId,
+                      routeGroup: routeCapabilities.group,
+                      precisionOutput:
+                        routeCapabilities.supportsCutFriendlyOutput ||
+                        isPrecisionOutputItem(item),
+                    }),
+                  )
+                : item.warnings || [];
             const label = getOutputLabel(item, index);
             const elapsedMs = getTraceJobElapsedMs(item, nowMs);
             const focused = focusedOutputStamp === item.stamp;
@@ -750,6 +772,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 data-engine-used={item.engineUsed || "unknown"}
                 data-source-kind={item.sourceKind || "unknown"}
                 data-engine-warnings={(item.warnings || []).join(" | ")}
+                data-output-warnings={outputWarnings.join(" | ")}
                 data-layer-build-mode={item.layerBuildMode || ""}
                 data-requested-palette-count={item.requestedPaletteCount ?? ""}
                 data-actual-palette-count={item.actualPaletteCount ?? ""}
@@ -863,6 +886,10 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       Minimize
                     </button>
                   </div>
+                ) : null}
+
+                {!isActiveJob && !isFailedJob && outputWarnings.length > 0 ? (
+                  <OutputWarningList warnings={outputWarnings} />
                 ) : null}
 
                 {isActiveJob || isFailedJob ? (
@@ -2254,6 +2281,32 @@ function applySvgSizeAttributes(svg: string, width: number, height: number): str
       `<svg${nextAttrs} width="${safeWidth}" height="${safeHeight}">`,
     );
   });
+}
+
+export function OutputWarningList({
+  warnings,
+}: {
+  warnings: ReadonlyArray<string>;
+}) {
+  const visible = Array.from(
+    new Set(
+      warnings.map((warning) => String(warning || "").trim()).filter(Boolean),
+    ),
+  ).slice(0, 3);
+  if (visible.length === 0) return null;
+  return (
+    <div
+      data-output-warning-list="true"
+      aria-live="polite"
+      className="my-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-5 text-amber-900"
+    >
+      {visible.map((warning) => (
+        <p key={warning} data-output-warning="true" className="m-0">
+          {warning}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 function SettingsGearIcon() {

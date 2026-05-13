@@ -628,6 +628,7 @@ async function traceLayeredColorSvg(
       turnPolicy: opts.layerTurnPolicy,
       invert: false,
       blackOnWhite: true,
+      validateMeaningfulOutput: false,
     });
     const ensured = ensureViewBoxResponsive(coerceSvg(svgRaw));
     const noBackground = stripFullWhiteBackgroundRect(

@@ -1115,6 +1115,7 @@ async function traceMaskToPathTags(
     turnPolicy: opts.turnPolicy,
     invert: false,
     blackOnWhite: true,
+    validateMeaningfulOutput: false,
   });
 
   return extractPathTags(traced)
