@@ -453,7 +453,7 @@ async function assertIloveSvgApp(client) {
 function renderConsoleMessage(message) {
   if (message.method === "Runtime.exceptionThrown") {
     const details = message.params?.exceptionDetails;
-    return details?.text || details?.exception?.description || "Runtime exception";
+    return details?.exception?.description || details?.text || "Runtime exception";
   }
   if (message.method === "Log.entryAdded" && message.params?.entry?.level === "error") {
     return message.params.entry.text || "Log error";
