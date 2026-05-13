@@ -1,3 +1,15 @@
+import { validateMeaningfulSvgOutput } from "../../../shared/tracing/meaningfulOutput.ts";
+import {
+  analyzeSvgEditingModel,
+  createSvgPaintTargetMatcher,
+  resolveSvgPaintTargetId,
+  rewriteSvgEditablePaintTargets,
+  type SvgEditableTarget,
+  type SvgEditingLayerInput,
+  type SvgEditingModel,
+  type SvgPaintKind,
+} from "./svgEditingModel.ts";
+
 export type StickerBorderJoin = "round" | "bevel" | "miter";
 export type StickerBorderPlacement = "top" | "behind";
 export type GradientFillType = "linear" | "radial";
@@ -9,6 +21,14 @@ export type PatternFillType =
 export type ShadowEffectType = "shadow" | "glow";
 
 export type OutputAppearanceSettings = {
+  fillTargetId: string;
+  strokeTargetId: string;
+  fillColorEnabled: boolean;
+  fillColor: string;
+  fillOpacity: number;
+  strokeColorEnabled: boolean;
+  strokeColor: string;
+  strokeOpacity: number;
   lineWeight: number;
   fillSpread: number;
   nonScalingStroke: boolean;
@@ -42,7 +62,13 @@ export type OutputAppearanceSettings = {
 };
 
 export type OutputAppearanceSupport = {
+  editingModel: SvgEditingModel;
+  fillTargets: SvgEditableTarget[];
+  strokeTargets: SvgEditableTarget[];
+  stickerTargetIds: string[];
   supportsLineWeight: boolean;
+  supportsFillColor: boolean;
+  supportsStrokeColor: boolean;
   supportsFillSpread: boolean;
   supportsStickerBorder: boolean;
   supportsInternalGapFill: boolean;
@@ -56,13 +82,32 @@ export type OutputAppearanceSupport = {
   internalGapFillDisabledReason?: string;
   fillStyleDisabledReason?: string;
   shadowEffectDisabledReason?: string;
+  centerlineDisabledReason?: string;
+  capabilitySummary?: string;
+  layerUnavailableMessage?: string;
 };
 
 export type OutputAppearanceApplyOptions = {
   idPrefix?: string;
 };
 
+export type OutputAppearanceSupportOptions = {
+  precisionOutput?: boolean;
+  sourceKind?: "svg" | "raster";
+  engineUsed?: string;
+  layers?: ReadonlyArray<SvgEditingLayerInput> | null;
+  supportsRetrace?: boolean;
+};
+
 export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
+  fillTargetId: "all-fills",
+  strokeTargetId: "all-strokes",
+  fillColorEnabled: false,
+  fillColor: "#0b2dff",
+  fillOpacity: 1,
+  strokeColorEnabled: false,
+  strokeColor: "#0b2dff",
+  strokeOpacity: 1,
   lineWeight: 1,
   fillSpread: 0,
   nonScalingStroke: false,
@@ -95,8 +140,6 @@ export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
   shadowOpacity: 0.35,
 };
 
-const PAINTABLE_TAG_PATTERN =
-  /<(path|line|polyline|polygon|rect|circle|ellipse|g)\b([^>]*?)(\/?)>/gi;
 const FILL_SHAPE_TAG_PATTERN =
   /<(path|polygon|rect|circle|ellipse)\b([^>]*?)(\/?)>/gi;
 const PATH_TAG_PATTERN = /<path\b([^>]*?)(\/?)>/gi;
@@ -122,12 +165,42 @@ const SHADOW_OPACITY_MAX = 1;
 export function normalizeOutputAppearance(
   settings?: Partial<OutputAppearanceSettings> | null,
 ): OutputAppearanceSettings {
+  const fillColor = normalizeOutputPaintColor(
+    settings?.fillColor,
+    DEFAULT_OUTPUT_APPEARANCE.fillColor,
+  );
+  const strokeColor = normalizeOutputPaintColor(
+    settings?.strokeColor,
+    DEFAULT_OUTPUT_APPEARANCE.strokeColor,
+  );
   const stickerBorderColor = normalizeHexColor(
     settings?.stickerBorderColor,
     DEFAULT_OUTPUT_APPEARANCE.stickerBorderColor,
   );
 
   return {
+    fillTargetId: normalizeTargetId(
+      settings?.fillTargetId,
+      DEFAULT_OUTPUT_APPEARANCE.fillTargetId,
+    ),
+    strokeTargetId: normalizeTargetId(
+      settings?.strokeTargetId,
+      DEFAULT_OUTPUT_APPEARANCE.strokeTargetId,
+    ),
+    fillColorEnabled: Boolean(settings?.fillColorEnabled),
+    fillColor,
+    fillOpacity: clampNumber(
+      settings?.fillOpacity ?? DEFAULT_OUTPUT_APPEARANCE.fillOpacity,
+      OUTPUT_OPACITY_MIN,
+      OUTPUT_OPACITY_MAX,
+    ),
+    strokeColorEnabled: Boolean(settings?.strokeColorEnabled),
+    strokeColor,
+    strokeOpacity: clampNumber(
+      settings?.strokeOpacity ?? DEFAULT_OUTPUT_APPEARANCE.strokeOpacity,
+      OUTPUT_OPACITY_MIN,
+      OUTPUT_OPACITY_MAX,
+    ),
     lineWeight: clampNumber(
       settings?.lineWeight ?? DEFAULT_OUTPUT_APPEARANCE.lineWeight,
       LINE_WEIGHT_MIN,
@@ -250,6 +323,10 @@ export function hasOutputAppearanceChanges(
 ): boolean {
   const normalized = normalizeOutputAppearance(settings);
   return (
+    normalized.fillColorEnabled ||
+    Math.abs(normalized.fillOpacity - 1) > 0.001 ||
+    normalized.strokeColorEnabled ||
+    Math.abs(normalized.strokeOpacity - 1) > 0.001 ||
     Math.abs(normalized.lineWeight - 1) > 0.001 ||
     normalized.fillSpread > 0.001 ||
     normalized.nonScalingStroke ||
@@ -263,25 +340,30 @@ export function hasOutputAppearanceChanges(
 
 export function detectOutputAppearanceSupport(
   svg: string,
-  options?: { precisionOutput?: boolean },
+  options?: OutputAppearanceSupportOptions,
 ): OutputAppearanceSupport {
   const source = String(svg || "");
-  const hasStroke =
-    /\bstroke\s*=\s*["'](?!none\b|transparent\b)[^"']+["']/i.test(source) ||
-    /\bstroke-width\s*=\s*["'][^"']+["']/i.test(source) ||
-    /\bstroke\s*:\s*(?!none\b|transparent\b)[^;"']+/i.test(source);
-  const hasFill =
-    /\bfill\s*=\s*["'](?!none\b|transparent\b)[^"']+["']/i.test(source) ||
-    /\bfill\s*:\s*(?!none\b|transparent\b)[^;"']+/i.test(source);
+  const editingModel = analyzeSvgEditingModel(source, options);
+  const hasStroke = editingModel.capabilities.hasEditableStrokeTargets;
+  const hasFill = editingModel.capabilities.hasEditableFillTargets;
   const precisionOutput = Boolean(options?.precisionOutput);
   const fillUnavailableReason = hasFill
     ? undefined
     : "This effect needs filled SVG regions.";
-  const supportsStickerBorder = hasForegroundFilledShape(source);
+  const stickerTargetIds = editingModel.fillTargets
+    .filter((target) => hasForegroundFilledShape(source, target.id))
+    .map((target) => target.id);
+  const supportsStickerBorder = stickerTargetIds.length > 0;
   const supportsInternalGapFill = hasForegroundFilledPath(source);
 
   return {
+    editingModel,
+    fillTargets: editingModel.fillTargets,
+    strokeTargets: editingModel.strokeTargets,
+    stickerTargetIds,
     supportsLineWeight: hasStroke,
+    supportsFillColor: hasFill,
+    supportsStrokeColor: hasStroke,
     supportsFillSpread: hasFill && !precisionOutput,
     supportsStickerBorder,
     supportsInternalGapFill,
@@ -311,6 +393,15 @@ export function detectOutputAppearanceSupport(
       : hasFill || hasStroke
         ? undefined
         : "Shadow and glow need visible SVG artwork.",
+    centerlineDisabledReason: editingModel.capabilities.isSvgCleanupOutput
+      ? "Centerline mode is for raster retracing. SVG cleanup outputs keep the uploaded vector artwork."
+      : editingModel.capabilities.supportsRetrace
+        ? undefined
+        : "Centerline mode needs a raster source that can be retraced.",
+    capabilitySummary: editingModel.summary.length
+      ? `Detected: ${editingModel.summary.join(", ")}`
+      : undefined,
+    layerUnavailableMessage: editingModel.layerUnavailableMessage,
   };
 }
 
@@ -322,37 +413,65 @@ export function applyOutputAppearanceToSvg(
 ): string {
   const normalized = normalizeOutputAppearance(settings);
   const detected = support ?? detectOutputAppearanceSupport(svg);
-  let out = String(svg || "");
+  const original = String(svg || "");
+  let out = original;
+  const fillTargetId = resolveSvgPaintTargetId(
+    detected.editingModel,
+    normalized.fillTargetId,
+    "fill",
+  );
+  const strokeTargetId = resolveSvgPaintTargetId(
+    detected.editingModel,
+    normalized.strokeTargetId,
+    "stroke",
+  );
+
+  if (detected.supportsFillColor && normalized.fillColorEnabled) {
+    out = applyPaintColor(out, "fill", fillTargetId, normalized.fillColor);
+  }
+
+  if (detected.supportsStrokeColor && normalized.strokeColorEnabled) {
+    out = applyPaintColor(out, "stroke", strokeTargetId, normalized.strokeColor);
+  }
+
+  if (detected.supportsFillColor && normalized.fillOpacity < 0.999) {
+    out = applyPaintOpacity(out, "fill", fillTargetId, normalized.fillOpacity);
+  }
+
+  if (detected.supportsStrokeColor && normalized.strokeOpacity < 0.999) {
+    out = applyPaintOpacity(out, "stroke", strokeTargetId, normalized.strokeOpacity);
+  }
 
   if (
     detected.supportsLineWeight &&
     (Math.abs(normalized.lineWeight - 1) > 0.001 ||
       normalized.nonScalingStroke)
   ) {
-    out = applyLineWeight(out, normalized);
+    out = applyLineWeight(out, normalized, strokeTargetId);
   }
 
   if (detected.supportsFillSpread && normalized.fillSpread > 0.001) {
-    out = applyFillSpread(out, normalized.fillSpread);
+    out = applyFillSpread(out, normalized.fillSpread, fillTargetId);
   }
 
   const idPrefix = buildSvgIdPrefix(options?.idPrefix, out);
   const stickerSource = out;
 
   if (detected.supportsGradientFill && normalized.gradientEnabled) {
-    out = applyGradientFill(out, normalized, idPrefix);
+    out = applyGradientFill(out, normalized, idPrefix, fillTargetId);
   }
 
   if (detected.supportsPatternFill && normalized.patternEnabled) {
-    out = applyPatternFill(out, normalized, idPrefix);
+    out = applyPatternFill(out, normalized, idPrefix, fillTargetId);
   }
 
   if (
     detected.supportsStickerBorder &&
+    detected.stickerTargetIds.includes(fillTargetId) &&
     normalized.stickerBorderEnabled &&
     normalized.stickerBorderWidth > 0.001
   ) {
-    out = applyStickerBorder(out, stickerSource, normalized, idPrefix);
+    out = applyStickerBorder(out, stickerSource, normalized, idPrefix, fillTargetId);
   }
 
   if (
@@ -366,25 +485,24 @@ export function applyOutputAppearanceToSvg(
     out = applyShadowEffect(out, normalized, idPrefix);
   }
 
-  return out;
+  return rejectInvisibleSvgEdit(original, out);
+}
+
+function rejectInvisibleSvgEdit(original: string, edited: string): string {
+  if (edited === original) return original;
+  const validation = validateMeaningfulSvgOutput(edited);
+  return validation.ok ? edited : original;
 }
 
 function applyLineWeight(
   svg: string,
   settings: OutputAppearanceSettings,
+  targetId: string,
 ): string {
-  return svg.replace(PAINTABLE_TAG_PATTERN, (match, tagName, attrs, slash) => {
-    const rawAttrs = String(attrs || "");
-    const stroke = readPaint(rawAttrs, "stroke");
-    const hasStroke =
-      (stroke != null && isPaintEnabled(stroke)) ||
-      readStyleProperty(rawAttrs, "stroke") != null ||
-      readNumericPaintWidth(rawAttrs) != null;
-    if (!hasStroke) return match;
-
-    const baseWidth = readNumericPaintWidth(rawAttrs) ?? 1;
+  return rewriteSvgEditablePaintTargets(svg, { targetId, paint: "stroke" }, (context) => {
+    const baseWidth = readNumericPaintWidth(context.attrs) ?? 1;
     const width = Math.max(0.01, baseWidth * settings.lineWeight);
-    let nextAttrs = removeAttribute(rawAttrs, "stroke-width");
+    let nextAttrs = removeAttribute(context.attrs, "stroke-width");
     nextAttrs = rewriteStyleProperty(nextAttrs, "stroke-width", null);
     nextAttrs = `${nextAttrs} stroke-width="${formatNumber(width)}"`;
 
@@ -393,24 +511,47 @@ function applyLineWeight(
       nextAttrs = `${nextAttrs} vector-effect="non-scaling-stroke"`;
     }
 
-    return `<${tagName}${nextAttrs}${slash || ""}>`;
+    return nextAttrs;
   });
 }
 
-function applyFillSpread(svg: string, spreadPx: number): string {
-  const spread = formatNumber(spreadPx);
-  return svg.replace(PAINTABLE_TAG_PATTERN, (match, tagName, attrs, slash) => {
-    const rawAttrs = String(attrs || "");
-    const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
-    if (!fill || !isPaintEnabled(fill)) return match;
+function applyPaintColor(
+  svg: string,
+  paint: SvgPaintKind,
+  targetId: string,
+  color: string,
+): string {
+  return rewriteSvgEditablePaintTargets(svg, { targetId, paint }, (context) =>
+    writePaint(context.attrs, paint, color),
+  );
+}
 
+function applyPaintOpacity(
+  svg: string,
+  paint: SvgPaintKind,
+  targetId: string,
+  opacity: number,
+): string {
+  const value = formatNumber(opacity);
+  const property = paint === "fill" ? "fill-opacity" : "stroke-opacity";
+  return rewriteSvgEditablePaintTargets(svg, { targetId, paint }, (context) => {
+    let nextAttrs = removeAttribute(context.attrs, property);
+    nextAttrs = rewriteStyleProperty(nextAttrs, property, null);
+    return `${nextAttrs} ${property}="${value}"`;
+  });
+}
+
+function applyFillSpread(svg: string, spreadPx: number, targetId: string): string {
+  const spread = formatNumber(spreadPx);
+  return rewriteSvgEditablePaintTargets(svg, { targetId, paint: "fill" }, (context) => {
+    const fill = context.paintValue;
     const stroke =
-      readPaint(rawAttrs, "stroke") ?? readStyleProperty(rawAttrs, "stroke");
+      readPaint(context.attrs, "stroke") ?? readStyleProperty(context.attrs, "stroke");
     if (stroke && isPaintEnabled(stroke) && !samePaint(stroke, fill)) {
-      return match;
+      return context.attrs;
     }
 
-    let nextAttrs = removeAttribute(rawAttrs, "stroke");
+    let nextAttrs = removeAttribute(context.attrs, "stroke");
     nextAttrs = removeAttribute(nextAttrs, "stroke-width");
     nextAttrs = removeAttribute(nextAttrs, "stroke-linejoin");
     nextAttrs = removeAttribute(nextAttrs, "stroke-linecap");
@@ -423,7 +564,7 @@ function applyFillSpread(svg: string, spreadPx: number): string {
     nextAttrs = rewriteStyleProperty(nextAttrs, "paint-order", null);
 
     nextAttrs = `${nextAttrs} stroke="${escapeSvgAttribute(fill)}" stroke-width="${spread}" stroke-linejoin="round" stroke-linecap="round" paint-order="stroke fill markers" data-fill-spread="${spread}"`;
-    return `<${tagName}${nextAttrs}${slash || ""}>`;
+    return nextAttrs;
   });
 }
 
@@ -432,8 +573,9 @@ function applyStickerBorder(
   sourceSvg: string,
   settings: OutputAppearanceSettings,
   idPrefix: string,
+  targetId: string,
 ): string {
-  const paths = buildForegroundShapeClones(sourceSvg);
+  const paths = buildForegroundShapeClones(sourceSvg, targetId);
   if (!paths.length) return targetSvg;
   const groupId = makeUniqueSvgId(targetSvg, `${idPrefix}-sticker-border`);
   const opacity =
@@ -517,18 +659,20 @@ function splitClosedPathSubpaths(pathData: string): string[] {
     .filter((chunk) => /[zZ]\s*$/.test(chunk));
 }
 
-function buildForegroundShapeClones(svg: string): string[] {
+function buildForegroundShapeClones(svg: string, targetId = "all-fills"): string[] {
   const viewport = readSvgViewport(svg);
   const clones: string[] = [];
+  const matchesTarget = createSvgPaintTargetMatcher(svg, {
+    targetId,
+    paint: "fill",
+  });
   for (const match of String(svg).matchAll(FILL_SHAPE_TAG_PATTERN)) {
     const tagName = String(match[1] || "").toLowerCase();
     const rawAttrs = String(match[2] || "");
     if (rawAttrs.includes("data-post-processing=")) continue;
+    if (!matchesTarget(tagName, rawAttrs)) continue;
     if (isCanvasBackgroundElement(tagName, rawAttrs, viewport)) continue;
     if (isTinyForegroundArtifact(readElementGeometry(tagName, rawAttrs), viewport)) continue;
-    const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
-    if (!fill || !isPaintEnabled(fill)) continue;
-
     const preserved = buildShapeCloneAttributes(tagName, rawAttrs);
     if (!preserved) continue;
     clones.push(`<${tagName}${preserved}/>`);
@@ -536,8 +680,8 @@ function buildForegroundShapeClones(svg: string): string[] {
   return clones;
 }
 
-function hasForegroundFilledShape(svg: string): boolean {
-  return buildForegroundShapeClones(svg).length > 0;
+function hasForegroundFilledShape(svg: string, targetId = "all-fills"): boolean {
+  return buildForegroundShapeClones(svg, targetId).length > 0;
 }
 
 function hasForegroundFilledPath(svg: string): boolean {
@@ -697,13 +841,14 @@ function applyGradientFill(
   svg: string,
   settings: OutputAppearanceSettings,
   idPrefix: string,
+  targetId: string,
 ): string {
   const gradientId = makeUniqueSvgId(svg, `${idPrefix}-gradient-fill`);
   const defs =
     settings.gradientType === "radial"
       ? `<radialGradient id="${gradientId}" cx="50%" cy="50%" r="65%"><stop offset="0%" stop-color="${escapeSvgAttribute(settings.gradientStartColor)}"/><stop offset="100%" stop-color="${escapeSvgAttribute(settings.gradientEndColor)}"/></radialGradient>`
       : buildLinearGradientDef(gradientId, settings);
-  return applyFillDefinition(svg, defs, `url(#${gradientId})`);
+  return applyFillDefinition(svg, defs, `url(#${gradientId})`, targetId);
 }
 
 function buildLinearGradientDef(
@@ -724,6 +869,7 @@ function applyPatternFill(
   svg: string,
   settings: OutputAppearanceSettings,
   idPrefix: string,
+  targetId: string,
 ): string {
   const patternId = makeUniqueSvgId(svg, `${idPrefix}-pattern-fill`);
   const scale = formatNumber(settings.patternScale);
@@ -732,7 +878,7 @@ function applyPatternFill(
     : `<rect width="100%" height="100%" fill="${escapeSvgAttribute(settings.patternBackgroundColor)}"/>`;
   const patternContent = buildPatternContent(settings);
   const defs = `<pattern id="${patternId}" patternUnits="userSpaceOnUse" width="${scale}" height="${scale}">${background}${patternContent}</pattern>`;
-  return applyFillDefinition(svg, defs, `url(#${patternId})`);
+  return applyFillDefinition(svg, defs, `url(#${patternId})`, targetId);
 }
 
 function buildPatternContent(settings: OutputAppearanceSettings): string {
@@ -751,20 +897,21 @@ function buildPatternContent(settings: OutputAppearanceSettings): string {
   return `<circle cx="${formatNumber(scale / 2)}" cy="${formatNumber(scale / 2)}" r="${formatNumber(Math.max(0.8, scale * 0.16))}" fill="${color}"/>`;
 }
 
-function applyFillDefinition(svg: string, definition: string, paint: string): string {
+function applyFillDefinition(
+  svg: string,
+  definition: string,
+  paint: string,
+  targetId: string,
+): string {
   const withDefs = injectDefs(svg, definition);
   const { source, defs } = protectDefs(withDefs);
-  const rewritten = source.replace(
-    FILL_SHAPE_TAG_PATTERN,
-    (match, tagName, attrs, slash) => {
-      const rawAttrs = String(attrs || "");
-      if (rawAttrs.includes("data-post-processing=")) return match;
-      const fill = readPaint(rawAttrs, "fill") ?? readStyleProperty(rawAttrs, "fill");
-      if (!fill || !isPaintEnabled(fill) || /^url\(/i.test(fill.trim())) {
-        return match;
-      }
-      const nextAttrs = writeFillPaint(rawAttrs, paint);
-      return `<${tagName}${nextAttrs}${slash || ""}>`;
+  const rewritten = rewriteSvgEditablePaintTargets(
+    source,
+    { targetId, paint: "fill" },
+    (context) => {
+      if (context.attrs.includes("data-post-processing=")) return context.attrs;
+      if (/^url\(/i.test(context.paintValue.trim())) return context.attrs;
+      return writePaint(context.attrs, "fill", paint);
     },
   );
   return restoreDefs(rewritten, defs);
@@ -868,16 +1015,16 @@ function restoreDefs(svg: string, defs: string[]): string {
   );
 }
 
-function writeFillPaint(attrs: string, paint: string): string {
-  const directFill = readPaint(attrs, "fill");
-  if (directFill && isPaintEnabled(directFill)) {
-    return writeAttribute(attrs, "fill", paint);
+function writePaint(attrs: string, property: SvgPaintKind, paint: string): string {
+  const directPaint = readPaint(attrs, property);
+  if (directPaint && isPaintEnabled(directPaint)) {
+    return writeAttribute(attrs, property, paint);
   }
-  const styledFill = readStyleProperty(attrs, "fill");
-  if (styledFill && isPaintEnabled(styledFill)) {
-    return rewriteStyleProperty(attrs, "fill", paint);
+  const styledPaint = readStyleProperty(attrs, property);
+  if (styledPaint && isPaintEnabled(styledPaint)) {
+    return rewriteStyleProperty(attrs, property, paint);
   }
-  return attrs;
+  return writeAttribute(attrs, property, paint);
 }
 
 function readPaint(attrs: string, property: "fill" | "stroke"): string | null {
@@ -985,6 +1132,23 @@ function normalizeHexColor(value: string | undefined, fallback: string): string 
     return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
   }
   if (/^#[0-9a-f]{6}$/i.test(input)) return input.toLowerCase();
+  return fallback;
+}
+
+function normalizeOutputPaintColor(
+  value: string | undefined,
+  fallback: string,
+): string {
+  const input = String(value || "").trim();
+  if (input.toLowerCase() === "transparent") return "transparent";
+  return normalizeHexColor(input, fallback);
+}
+
+function normalizeTargetId(value: string | undefined, fallback: string): string {
+  const input = String(value || "").trim();
+  if (/^(?:all-fills|all-strokes)$/.test(input)) return input;
+  if (/^color:#[0-9a-f]{6}$/i.test(input)) return input.toLowerCase();
+  if (/^layer:[A-Za-z0-9_.:-]+$/.test(input)) return input;
   return fallback;
 }
 

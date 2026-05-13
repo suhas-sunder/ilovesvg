@@ -4069,7 +4069,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return applyOutputAppearanceToSvg(
       sized,
       appearance,
-      detectOutputAppearanceSupport(sized, { precisionOutput: false }),
+      detectOutputAppearanceSupport(sized, {
+        precisionOutput: false,
+        sourceKind: item.sourceKind,
+        engineUsed: item.engineUsed,
+        layers: item.layers,
+        supportsRetrace: routeCapabilities.supportsStrokeTrace,
+      }),
       { idPrefix: `output-${item.jobId || item.stamp}` },
     );
   }
@@ -4509,7 +4515,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               item.width,
                               item.height,
                             ),
-                            { precisionOutput: false },
+                            {
+                              precisionOutput: false,
+                              sourceKind: item.sourceKind,
+                              engineUsed: item.engineUsed,
+                              layers: item.layers,
+                              supportsRetrace: routeCapabilities.supportsStrokeTrace,
+                            },
                           )
                         : null;
                     const appearanceControls =
@@ -4521,7 +4533,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           strokeOutputMode={outputSettings.strokeOutputMode || "filled"}
                           strokeOutputModeAvailable={routeCapabilities.supportsStrokeTrace}
                           strokeOutputModeDisabledReason={
-                            outputSettings.traceMode === "layered" || item.layers?.length
+                            item.sourceKind === "svg"
+                              ? appearanceSupport.centerlineDisabledReason ||
+                                "Centerline mode is for raster retracing."
+                              : outputSettings.traceMode === "layered" || item.layers?.length
                               ? "Centerline strokes are for single line-art outputs, not layered color results."
                               : !sourceAvailableForOutput
                                 ? item.sourceFileName
@@ -4574,6 +4589,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             )
                           }
                           outputLayerItems={item.layers}
+                          outputLayerUnavailableMessage={
+                            appearanceSupport?.layerUnavailableMessage
+                          }
                           outputSize={{
                             width: item.width,
                             height: item.height,
@@ -5245,6 +5263,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               )
                             }
                             outputLayerItems={item.layers}
+                            outputLayerUnavailableMessage={
+                              appearanceSupport?.layerUnavailableMessage
+                            }
                             outputSize={{
                               width: item.width,
                               height: item.height,
