@@ -4,6 +4,7 @@ import {
   MAX_SVG_ELEMENTS,
   MAX_SVG_PATH_COMMANDS,
 } from "./backendSecurity.server";
+import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
 
 export type SvgSanitizeResult =
   | { ok: true; svg: string; elementCount: number; pathCommandCount: number }
@@ -19,6 +20,9 @@ const SAFE_ELEMENTS = new Set([
   "line",
   "polyline",
   "polygon",
+  "text",
+  "tspan",
+  "textpath",
   "defs",
   "lineargradient",
   "radialgradient",
@@ -53,10 +57,27 @@ const SAFE_ATTRS = new Set([
   "stroke-linecap",
   "stroke-linejoin",
   "stroke-miterlimit",
+  "stroke-dasharray",
+  "stroke-dashoffset",
   "opacity",
   "fill-opacity",
   "stroke-opacity",
   "transform",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-weight",
+  "text-anchor",
+  "dominant-baseline",
+  "baseline-shift",
+  "letter-spacing",
+  "word-spacing",
+  "dx",
+  "dy",
+  "rotate",
+  "textlength",
+  "lengthadjust",
+  "xml:space",
   "id",
   "class",
   "offset",
@@ -139,6 +160,32 @@ export function sanitizeSvgMarkup(svg: string, maxBytes = MAX_SVG_BYTES): SvgSan
   return { ok: true, svg: next, elementCount, pathCommandCount };
 }
 
+export function sanitizeVisibleSvgMarkup(
+  svg: string,
+  options: {
+    maxBytes?: number;
+    allowWhiteOnly?: boolean;
+  } = {},
+): SvgSanitizeResult {
+  const sanitized = sanitizeSvgMarkup(svg, options.maxBytes ?? MAX_SVG_BYTES);
+  if (!sanitized.ok) return sanitized;
+
+  const validation = validateMeaningfulSvgOutput(sanitized.svg, {
+    minBytes: 64,
+    allowWhiteOnly: options.allowWhiteOnly ?? true,
+  });
+  if (!validation.ok) {
+    return {
+      ok: false,
+      code: "SVG_UNSAFE",
+      message:
+        "SVG has no visible artwork after sanitizing. Upload an SVG with visible paths, shapes, or text.",
+    };
+  }
+
+  return sanitized;
+}
+
 function sanitizeAttributes(
   rawAttrs: string,
   tagName: string,
@@ -175,14 +222,22 @@ function sanitizeAttributes(
       if (classes) out.push(` class="${escapeAttr(classes)}"`);
       return "";
     }
+    const serializedName = serializeSvgAttrName(attrName);
     if (tagName === "svg" && (attrName === "width" || attrName === "height")) {
-      out.push(` ${attrName}="${escapeAttr(clampSvgLength(value))}"`);
+      out.push(` ${serializedName}="${escapeAttr(clampSvgLength(value))}"`);
       return "";
     }
-    out.push(` ${attrName}="${escapeAttr(value)}"`);
+    out.push(` ${serializedName}="${escapeAttr(value)}"`);
     return "";
   });
   return out.join("");
+}
+
+function serializeSvgAttrName(attrName: string): string {
+  if (attrName === "viewbox") return "viewBox";
+  if (attrName === "textlength") return "textLength";
+  if (attrName === "lengthadjust") return "lengthAdjust";
+  return attrName;
 }
 
 function sanitizeStyleBlock(block: string): string {

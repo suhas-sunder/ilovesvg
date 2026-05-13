@@ -185,8 +185,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (isSvgFile(webFile)) {
       const svgText = await webFile.text();
-      const { sanitizeSvgMarkup } = await import("~/utils/svgSanitize.server");
-      const sanitizedSvg = sanitizeSvgMarkup(svgText);
+      const { sanitizeVisibleSvgMarkup } = await import("~/utils/svgSanitize.server");
+      const sanitizedSvg = sanitizeVisibleSvgMarkup(svgText);
       if (!sanitizedSvg.ok) {
         return json(
           { error: sanitizedSvg.message, code: sanitizedSvg.code },
