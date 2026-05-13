@@ -15,6 +15,26 @@ for (const fixture of [
   fixtures.visibleSvg,
   fixtures.styledSvg,
   fixtures.embeddedImageSvg,
+  fixtures.longPathSvg,
+]) {
+  results.push(
+    await expectHomeSvgCleanup({
+      route: "/",
+      fixture,
+      label: `home-${fixture.id}`,
+    }),
+  );
+}
+
+results.push(
+  await expectNoBlankSuccess({
+    route: "/",
+    fixture: fixtures.emptySvg,
+    label: "home-empty-svg-clear-error",
+  }),
+);
+
+for (const fixture of [
   fixtures.png,
   fixtures.jpg,
   fixtures.jpeg,
@@ -180,6 +200,24 @@ async function expectMeaningfulSvg({
     drawableCount: validation.stats.drawableCount,
     sourceKind: extractJsonString(text, "sourceKind"),
     engineUsed: extractJsonString(text, "engineUsed"),
+    enginePathLabel: extractJsonString(text, "enginePathLabel"),
+  };
+}
+
+async function expectHomeSvgCleanup({ route, fixture, label }) {
+  const result = await expectMeaningfulSvg({ route, fixture, label });
+  if (result.sourceKind !== "svg") {
+    throw new Error(`${label} did not preserve SVG sourceKind: ${JSON.stringify(result)}`);
+  }
+  if (/^(?:vtracer|potrace|centerline)$/.test(result.engineUsed || "")) {
+    throw new Error(`${label} routed SVG input through raster engine ${result.engineUsed}.`);
+  }
+  if (!/svg (?:cleanup|sanitize)|sanitized svg|svg passthrough/i.test(result.enginePathLabel || "")) {
+    throw new Error(`${label} did not report a truthful SVG cleanup path: ${JSON.stringify(result)}`);
+  }
+  return {
+    ...result,
+    outcome: "svg-cleanup-output",
   };
 }
 
@@ -359,7 +397,61 @@ function sameOriginHeaders(route, routePath) {
 }
 
 function extractJsonString(text, key) {
-  return String(text || "").match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`))?.[1] || "";
+  const source = String(text || "");
+  try {
+    const table = JSON.parse(source);
+    if (Array.isArray(table)) {
+      const decoded = decodeReactRouterPayload(table[0], table);
+      const value = findPayloadValue(decoded, key);
+      if (typeof value === "string") {
+        return value;
+      }
+    }
+  } catch {
+    // Fall through to the plain JSON/substring parser below.
+  }
+  return (
+    source.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`))?.[1] ||
+    source.match(new RegExp(`"${key}"\\s*,\\s*"([^"]+)"`))?.[1] ||
+    ""
+  );
+}
+
+function decodeReactRouterPayload(value, table) {
+  if (typeof value === "number") {
+    return decodeReactRouterPayload(table[value], table);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => decodeReactRouterPayload(item, table));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const decoded = {};
+  for (const [encodedKey, encodedValue] of Object.entries(value)) {
+    const key = encodedKey.startsWith("_")
+      ? table[Number(encodedKey.slice(1))]
+      : encodedKey;
+    decoded[key] = decodeReactRouterPayload(encodedValue, table);
+  }
+  return decoded;
+}
+
+function findPayloadValue(value, key) {
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+  if (Object.prototype.hasOwnProperty.call(value, key)) {
+    return value[key];
+  }
+  for (const child of Object.values(value)) {
+    const found = findPayloadValue(child, key);
+    if (found !== "") {
+      return found;
+    }
+  }
+  return "";
 }
 
 function safeSnippet(text) {
@@ -390,12 +482,22 @@ async function createFixtures() {
     `<path class="outline" d="M24 122 H216 M52 42 L188 42"/>` +
     `<text class="label" x="58" y="94">SVG</text>` +
     `</svg>`;
+  const longPathCommands = Array.from(
+    { length: 2600 },
+    (_item, index) => `L ${10 + (index % 220)} ${18 + (index % 124)}`,
+  ).join(" ");
+  const longPathSvg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">` +
+    `<path d="M 8 8 ${longPathCommands} Z"/>` +
+    `</svg>`;
   const unsafeSvg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80" onload="alert(1)">` +
     `<script>alert(1)</script>` +
     `<rect x="10" y="10" width="80" height="48" fill="#16a34a"/>` +
     `<path d="M20 65 L100 65" stroke="#111827" stroke-width="6"/>` +
     `</svg>`;
+  const emptySvg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80"></svg>`;
   const png = await sharp({
     create: {
       width: 180,
@@ -442,11 +544,23 @@ async function createFixtures() {
       mimeType: "image/svg+xml",
       buffer: Buffer.from(embeddedImageSvg, "utf8"),
     },
+    longPathSvg: {
+      id: "long-path-svg",
+      fileName: "png-to-svg-converter.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(longPathSvg, "utf8"),
+    },
     unsafeSvg: {
       id: "unsafe-svg",
       fileName: "unsafe-logo.svg",
       mimeType: "image/svg+xml",
       buffer: Buffer.from(unsafeSvg, "utf8"),
+    },
+    emptySvg: {
+      id: "empty-svg",
+      fileName: "empty-logo.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(emptySvg, "utf8"),
     },
     png: { id: "png", fileName: "visible-logo.png", mimeType: "image/png", buffer: png },
     jpg: { id: "jpg", fileName: "visible-logo.jpg", mimeType: "image/jpeg", buffer: jpg },

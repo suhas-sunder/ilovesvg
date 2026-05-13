@@ -13,6 +13,7 @@ const regressionMeta = await sharp(regressionPng).metadata();
 const regressionJpg = await sharp(regressionPng).jpeg({ quality: 92 }).toBuffer();
 const regressionWebp = await sharp(regressionPng).webp({ quality: 90 }).toBuffer();
 const basicPng = await makePng();
+const homeSvgCleanup = Buffer.from(makeHomeSvgCleanupFixture());
 const longSafePngFileName = `long-${"a".repeat(120)}.png`;
 const truncatedPng = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
@@ -88,6 +89,24 @@ for (const { route, label, fields } of [
     }),
   );
 }
+
+results.push(
+  await expectSvgResponse({
+    route: "/",
+    fileName: "png-to-svg-converter.svg",
+    mimeType: "image/svg+xml",
+    buffer: homeSvgCleanup,
+    fields: lineartAccurateFields({
+      clientRunId: `home-svg-cleanup-${Date.now()}`,
+    }),
+    expectEngineUsed: false,
+    forbidEngineUsed: true,
+    expectedSourceKind: "svg",
+    expectedEnginePathPattern: /svg (?:cleanup|sanitize)|sanitized svg|svg passthrough/i,
+    forbiddenTextPatterns: [/<script\b/i, /onload\s*=/i, /javascript:/i],
+    label: "home-svg-input-cleanup-action",
+  }),
+);
 
 results.push(
   await expectSvgResponse({
@@ -314,7 +333,10 @@ async function expectSvgResponse({
   buffer,
   fields,
   expectEngineUsed = true,
+  forbidEngineUsed = false,
   expectedEngine = null,
+  expectedSourceKind = null,
+  expectedEnginePathPattern = null,
   expectLayers = false,
   expectedWidth = null,
   expectedHeight = null,
@@ -352,11 +374,22 @@ async function expectSvgResponse({
   }
 
   const engineUsed = extractEngineUsed(text);
+  const sourceKind = extractJsonString(text, "sourceKind");
+  const enginePathLabel = extractJsonString(text, "enginePathLabel");
   if (expectEngineUsed && !engineUsed) {
     throw new Error(`${route} did not include engineUsed in the normalized response.`);
   }
+  if (forbidEngineUsed && engineUsed) {
+    throw new Error(`${route} unexpectedly included raster engineUsed=${engineUsed}.`);
+  }
   if (expectedEngine && engineUsed !== expectedEngine) {
     throw new Error(`${route} used ${engineUsed || "unknown engine"} instead of ${expectedEngine}.`);
+  }
+  if (expectedSourceKind && sourceKind !== expectedSourceKind) {
+    throw new Error(`${route} returned sourceKind=${sourceKind || "unknown"} instead of ${expectedSourceKind}.`);
+  }
+  if (expectedEnginePathPattern && !expectedEnginePathPattern.test(enginePathLabel || "")) {
+    throw new Error(`${route} did not report an SVG cleanup engine path; got ${enginePathLabel || "none"}.`);
   }
   return {
     label,
@@ -368,6 +401,8 @@ async function expectSvgResponse({
     layersMentioned: /"layers"/.test(text),
     layerPathTags: validation.stats.layerPathTagsWithPaths,
     engineUsed,
+    sourceKind,
+    enginePathLabel,
   };
 }
 
@@ -527,6 +562,64 @@ function extractEngineUsed(text) {
   );
 }
 
+function extractJsonString(text, key) {
+  const source = String(text || "");
+  try {
+    const table = JSON.parse(source);
+    if (Array.isArray(table)) {
+      const decoded = decodeReactRouterPayload(table[0], table);
+      const value = findPayloadValue(decoded, key);
+      if (typeof value === "string") {
+        return value;
+      }
+    }
+  } catch {
+    // Fall through to plain JSON/substring matching.
+  }
+  return (
+    source.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`))?.[1] ||
+    source.match(new RegExp(`"${key}"\\s*,\\s*"([^"]+)"`))?.[1] ||
+    ""
+  );
+}
+
+function decodeReactRouterPayload(value, table) {
+  if (typeof value === "number") {
+    return decodeReactRouterPayload(table[value], table);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => decodeReactRouterPayload(item, table));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const decoded = {};
+  for (const [encodedKey, encodedValue] of Object.entries(value)) {
+    const key = encodedKey.startsWith("_")
+      ? table[Number(encodedKey.slice(1))]
+      : encodedKey;
+    decoded[key] = decodeReactRouterPayload(encodedValue, table);
+  }
+  return decoded;
+}
+
+function findPayloadValue(value, key) {
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+  if (Object.prototype.hasOwnProperty.call(value, key)) {
+    return value[key];
+  }
+  for (const child of Object.values(value)) {
+    const found = findPayloadValue(child, key);
+    if (found !== "") {
+      return found;
+    }
+  }
+  return "";
+}
+
 async function loadRegressionPng() {
   if (await fileExists(exactRegressionPath)) {
     return fs.readFile(exactRegressionPath);
@@ -570,6 +663,22 @@ async function makeRegressionPng() {
     </svg>
   `;
   return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+function makeHomeSvgCleanupFixture() {
+  const commands = Array.from(
+    { length: 2600 },
+    (_item, index) => `L ${12 + (index % 216)} ${18 + (index % 124)}`,
+  ).join(" ");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160" onload="alert(1)">` +
+    `<style>.primary{fill:#111827}.accent{fill:none;stroke:#2563eb;stroke-width:6;stroke-linecap:round}</style>` +
+    `<script>alert(1)</script>` +
+    `<path class="primary" d="M 8 8 ${commands} Z"/>` +
+    `<path class="accent" d="M28 132 C58 102, 94 150, 126 118 S190 126, 210 78"/>` +
+    `<text x="42" y="82" font-family="Arial" font-size="28" font-weight="700" fill="#ffffff">SVG</text>` +
+    `</svg>`
+  );
 }
 
 async function makePng() {

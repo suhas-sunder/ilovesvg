@@ -638,6 +638,7 @@ export async function action({ request }: ActionFunctionArgs) {
         width: layeredSvg.width,
         height: layeredSvg.height,
         sourceKind: "svg",
+        enginePathLabel: "SVG cleanup",
         clientRunId,
       });
     }
@@ -2342,6 +2343,7 @@ type ServerResult = {
   clientRunId?: string;
   engineUsed?: "vtracer" | "potrace" | "centerline";
   sourceKind?: "svg" | "raster";
+  enginePathLabel?: string;
   warnings?: string[];
   timings?: Record<string, number>;
   layerBuildMode?: string;
@@ -2674,6 +2676,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fileName?: string;
     sourceSnapshot?: OutputSourceSnapshot;
     conversionCacheKey?: string | null;
+    presetLabel?: string;
+    enginePathLabel?: string;
+    sourceKind?: "svg" | "raster";
   }>({
     settings: DEFAULTS,
     presetId: DEFAULT_PRESET_ID,
@@ -2695,6 +2700,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         fileName?: string;
         sourceSnapshot?: OutputSourceSnapshot;
         conversionCacheKey?: string | null;
+        presetLabel?: string;
+        enginePathLabel?: string;
+        sourceKind?: "svg" | "raster";
       }
     >(),
   );
@@ -2776,11 +2784,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       const parentStamp = submitted.parentStamp;
       const presetLabel =
+        submitted.presetLabel ||
         DISPLAY_PRESETS.find((preset) => preset.id === submitted.presetId)?.label ||
         "Custom settings";
       const presetBackendIntensity = getPresetBackendIntensityById(
         submitted.presetId,
       );
+      const resultSourceKind = data.sourceKind || submitted.sourceKind || "raster";
+      const resultEngineUsed =
+        data.engineUsed || (resultSourceKind === "svg" ? undefined : "potrace");
+      const resultEnginePathLabel =
+        data.enginePathLabel ||
+        submitted.enginePathLabel ||
+        (resultSourceKind === "svg" ? "SVG cleanup" : undefined);
       const resultLayers = mergeLayerEditsIntoResultLayers(
         data.layers,
         submitted.sourceLayerEdits,
@@ -2795,7 +2811,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           width: resultWidth,
           height: resultHeight,
           engineUsed: data.engineUsed || "potrace",
-          sourceKind: data.sourceKind || "raster",
+          sourceKind: resultSourceKind,
           warnings: data.warnings,
           timings: data.timings,
           layerBuildMode:
@@ -2827,8 +2843,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               presetBackendIntensity,
               settingsSnapshot: submitted.settings,
               draftSettings: submitted.settings,
-              engineUsed: data.engineUsed || "potrace",
-              sourceKind: data.sourceKind || "raster",
+              engineUsed: resultEngineUsed,
+              sourceKind: resultSourceKind,
+              enginePathLabel: resultEnginePathLabel,
               warnings: data.warnings,
               timings: data.timings,
               layerBuildMode: data.layerBuildMode,
@@ -2896,8 +2913,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         presetBackendIntensity,
         settingsSnapshot: submitted.settings,
         draftSettings: submitted.settings,
-        engineUsed: data.engineUsed || "potrace",
-        sourceKind: data.sourceKind || "raster",
+        engineUsed: resultEngineUsed,
+        sourceKind: resultSourceKind,
+        enginePathLabel: resultEnginePathLabel,
         warnings: data.warnings,
         timings: data.timings,
         layerBuildMode: data.layerBuildMode,
@@ -3227,22 +3245,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return false;
     }
 
+    const svgInput = isSvgFile(targetFile);
+
     // Ensure invert always produces visible output (white on dark)
     const effective = getEffectiveSubmitSettings(targetSettings);
 
     const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
     latestSubmittedRunIdRef.current = clientRunId;
     setErr(null);
-    const submittedPresetId = resolveSubmittedPresetId(
-      meta?.presetId ?? activePreset,
-      effective,
-    );
+    const submittedPresetId = svgInput
+      ? null
+      : resolveSubmittedPresetId(meta?.presetId ?? activePreset, effective);
     const startedAt = Date.now();
     const replaceStamp = meta?.replaceStamp ?? null;
-    const presetLabel =
-      DISPLAY_PRESETS.find((preset) => preset.id === submittedPresetId)?.label ||
-      "Custom settings";
-    const cacheKeyInfo = isSvgFile(targetFile)
+    const presetLabel = svgInput
+      ? "Sanitized SVG"
+      : DISPLAY_PRESETS.find((preset) => preset.id === submittedPresetId)?.label ||
+        "Custom settings";
+    const svgEnginePathLabel = svgInput ? "SVG cleanup" : undefined;
+    const submittedSourceKind: "svg" | "raster" = svgInput ? "svg" : "raster";
+    const cacheKeyInfo = svgInput
       ? null
       : await buildConversionCacheKeyForFile(targetFile, {
           routeId: "home",
@@ -3270,6 +3292,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         fileName: targetFile.name,
         sourceSnapshot,
         conversionCacheKey,
+        presetLabel,
+        enginePathLabel: svgEnginePathLabel,
+        sourceKind: submittedSourceKind,
       };
       lastSubmittedRef.current = submittedMeta;
       submittedByRunIdRef.current.set(clientRunId, submittedMeta);
@@ -3285,7 +3310,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     const fd = new FormData();
     fd.append("file", targetFile);
-    appendTraceSettingsPayload(fd, effective);
+    if (!svgInput) {
+      appendTraceSettingsPayload(fd, effective);
+    }
     fd.append("clientRunId", clientRunId);
     const pendingStamp = replaceStamp ? null : startedAt;
     const sourceSnapshot = createOutputSourceSnapshot(targetFile);
@@ -3301,6 +3328,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       fileName: targetFile.name,
       sourceSnapshot,
       conversionCacheKey,
+      presetLabel,
+      enginePathLabel: svgEnginePathLabel,
+      sourceKind: submittedSourceKind,
     };
     lastSubmittedRef.current = submittedMeta;
     submittedByRunIdRef.current.set(clientRunId, submittedMeta);
@@ -3329,15 +3359,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         sourceMimeType: sourceSnapshot.sourceMimeType,
         sourceFileSize: sourceSnapshot.sourceFileSize,
         sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
+        sourceKind: svgInput ? "svg" : undefined,
         enginePathLabel:
-          effective.strokeOutputMode === "centerline"
+          svgEnginePathLabel ||
+          (effective.strokeOutputMode === "centerline"
             ? "Centerline stroke trace"
             : effective.traceMode === "layered"
             ? "Hybrid layered trace"
-            : "Hybrid trace",
+            : "Hybrid trace"),
         canCancel:
-          effective.traceMode === "layered" ||
-          effective.strokeOutputMode === "centerline",
+          !svgInput &&
+          (effective.traceMode === "layered" ||
+            effective.strokeOutputMode === "centerline"),
       };
       setHistory((prev) =>
         trimOutputHistoryWithSourceCleanup([pendingItem, ...prev], prev),
@@ -3345,6 +3378,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setActiveHistoryStamp((current) =>
         current === pendingStamp ? current : pendingStamp,
       );
+    }
+
+    if (svgInput) {
+      fetcher.submit(fd, {
+        method: "POST",
+        encType: "multipart/form-data",
+        action: `${window.location.pathname}?index`,
+      });
+      return true;
     }
 
     setActiveClientTraceCount((count) => count + 1);
@@ -4436,6 +4478,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const displaySvgBytes = previewData.svg
                       ? getSvgByteSize(previewData.svg)
                       : item.svgBytes;
+                    const hasUsableOutput = Boolean(
+                      item.svg && previewData.svg && !isActiveJob && !isFailedJob,
+                    );
                     const outputSettings =
                       item.draftSettings || item.settingsSnapshot || settings;
                     const isUpdating = updatingOutputStamp === item.stamp;
@@ -4455,7 +4500,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       !focused && collapsedOutputStamps.has(item.stamp);
                     const appearance = normalizeOutputAppearance(item.appearance);
                     const appearanceSupport =
-                      (focused || item.settingsOpen) && item.svg
+                      (focused || item.settingsOpen) && hasUsableOutput
                         ? detectOutputAppearanceSupport(
                             applySvgSizeAttributes(
                               item.layers?.length
@@ -4901,38 +4946,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!item.svg) return;
-                                const b = new Blob([previewData.svg], {
-                                  type: "image/svg+xml;charset=utf-8",
-                                });
-                                const u = URL.createObjectURL(b);
-                                const a = document.createElement("a");
-                                a.href = u;
-                                a.download = "converted.svg";
-                                document.body.appendChild(a);
-                                a.click();
-                                a.remove();
-                                URL.revokeObjectURL(u);
-                              }}
-                              disabled={!item.svg}
-                              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              Download SVG
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!item.svg) return;
-                                handleCopySvg(previewData.svg);
-                              }}
-                              disabled={!item.svg}
-                              className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              Copy SVG
-                            </button>
+                            {hasUsableOutput ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const b = new Blob([previewData.svg], {
+                                      type: "image/svg+xml;charset=utf-8",
+                                    });
+                                    const u = URL.createObjectURL(b);
+                                    const a = document.createElement("a");
+                                    a.href = u;
+                                    a.download = "converted.svg";
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    a.remove();
+                                    URL.revokeObjectURL(u);
+                                  }}
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                >
+                                  Download SVG
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleCopySvg(previewData.svg);
+                                  }}
+                                  className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                >
+                                  Copy SVG
+                                </button>
+                              </>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => {
@@ -5057,7 +5102,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           </div>
                         </div>
                       )}
-                      {!focused && (
+                      {!focused && hasUsableOutput && (
                       <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
                         <button
                           type="button"
@@ -5075,7 +5120,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             a.remove();
                             URL.revokeObjectURL(u);
                           }}
-                          disabled={!item.svg}
+                          disabled={!hasUsableOutput}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
                         >
                           <Icons
@@ -5091,7 +5136,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             if (!item.svg) return;
                             handleCopySvg(previewData.svg);
                           }}
-                          disabled={!item.svg}
+                          disabled={!hasUsableOutput}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
                         >
                           <Icons
@@ -5104,7 +5149,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <button
                           type="button"
                           onClick={() => openOutputBatchSettings(item.stamp)}
-                          disabled={!item.svg}
+                          disabled={!hasUsableOutput}
                           data-output-batch-shortcut="true"
                           aria-controls={`output-batch-${item.stamp}`}
                           className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
@@ -5116,7 +5161,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onClick={() => {
                             openFocusedEditor(item.stamp);
                           }}
-                          disabled={!item.svg}
+                          disabled={!hasUsableOutput}
                           data-output-primary-action="true"
                           aria-expanded={focused || !!item.settingsOpen}
                           aria-controls={`output-settings-${item.stamp}`}
@@ -5134,7 +5179,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </p>
                       )}
 
-                      {focused && (
+                      {focused && hasUsableOutput && (
                         <div
                           data-focused-editor-workspace="true"
                           className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(300px,390px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)]"
@@ -5173,7 +5218,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </div>
                       )}
 
-                      {!focused && item.settingsOpen && (
+                      {!focused && item.settingsOpen && hasUsableOutput && (
                         <div
                           id={`output-settings-${item.stamp}`}
                           className={[
@@ -5392,7 +5437,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </div>
                       )}
 
-                      {!focused && (
+                      {!focused && hasUsableOutput && (
                       <div
                         className={[
                           "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",

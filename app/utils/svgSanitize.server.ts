@@ -99,6 +99,8 @@ const SAFE_ATTRS = new Set([
 ]);
 
 const URL_ATTRS = new Set(["href", "xlink:href", "src"]);
+const MAX_SAFE_ATTR_VALUE_LENGTH = 20000;
+const LONG_DRAWABLE_ATTRS = new Set(["d", "points"]);
 const EXCLUDED_BLOCKS =
   /<\s*(script|foreignObject|iframe|object|embed|audio|video|canvas|animate|animateTransform|animateMotion|set)\b[\s\S]*?<\s*\/\s*\1\s*>/gi;
 
@@ -256,7 +258,10 @@ function isSafeAttributeValue(attrName: string, value: string): boolean {
   }
   if (attrName === "style") return false;
   if (/[\u0000-\u001f\u007f]/.test(value)) return false;
-  return value.length <= 20000;
+  const maxLength = LONG_DRAWABLE_ATTRS.has(attrName)
+    ? MAX_SVG_BYTES
+    : MAX_SAFE_ATTR_VALUE_LENGTH;
+  return value.length <= maxLength;
 }
 
 function isSafeReferenceValue(value: string, tagName: string): boolean {

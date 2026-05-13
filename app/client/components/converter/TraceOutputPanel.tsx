@@ -577,6 +577,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             const isFailedJob = jobStatus === "failed" || jobStatus === "canceled";
             const previewSvg =
               isActiveJob || isFailedJob || !item.svg ? "" : getTraceOutputSvg(item);
+            const hasUsableOutput = Boolean(previewSvg && !isActiveJob && !isFailedJob);
             const displaySvgBytes = previewSvg
               ? getSvgByteSize(previewSvg)
               : item.svgBytes;
@@ -610,7 +611,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
               !focused && collapsedOutputStamps.has(item.stamp);
             const appearance = getStoredOutputAppearance(item);
             const appearanceSupport =
-              (focused || item.settingsOpen) && item.svg
+              (focused || item.settingsOpen) && hasUsableOutput
                 ? detectOutputAppearanceSupport(getTraceOutputBaseSvg(item), {
                     precisionOutput:
                       routeCapabilities.group === "cricut" ||
@@ -820,20 +821,24 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => downloadSvg(previewSvg, downloadFileName)}
-                        className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                      >
-                        Download SVG
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void onCopySvg(previewSvg)}
-                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                      >
-                        Copy SVG
-                      </button>
+                      {hasUsableOutput ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => downloadSvg(previewSvg, downloadFileName)}
+                            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            Download SVG
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void onCopySvg(previewSvg)}
+                            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            Copy SVG
+                          </button>
+                        </>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => {

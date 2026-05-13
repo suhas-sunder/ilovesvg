@@ -104,6 +104,7 @@ async function main() {
   let queue = null;
   let outputUx = null;
   let utilityLayout = null;
+  let svgInput = null;
   try {
     await waitForCdp();
     if (process.env.LAYOUT_SMOKE === "1") {
@@ -114,6 +115,10 @@ async function main() {
       console.error("[hybrid-browser] output card UX");
       outputUx = await runOutputUxSmoke(fixtures);
       console.error(`[hybrid-browser] output card UX -> ${outputUx.ok ? "ok" : "failed"}`);
+    } else if (process.env.SVG_INPUT_SMOKE === "1") {
+      console.error("[hybrid-browser] home SVG input");
+      svgInput = await runHomeSvgInputSmoke(fixtures);
+      console.error(`[hybrid-browser] home SVG input -> ${svgInput.ok ? "ok" : "failed"}`);
     } else if (process.env.QUEUE_SMOKE === "1") {
       console.error("[hybrid-browser] conversion queue");
       queue = await runQueueSmoke(fixtures);
@@ -154,6 +159,7 @@ async function main() {
     queue,
     outputUx,
     utilityLayout,
+    svgInput,
   };
 
   console.log(JSON.stringify(report, null, 2));
@@ -163,6 +169,7 @@ async function main() {
   if (queue && !queue.ok) failures.push(queue);
   if (outputUx && !outputUx.ok) failures.push(outputUx);
   if (utilityLayout && !utilityLayout.ok) failures.push(utilityLayout);
+  if (svgInput && !svgInput.ok) failures.push(svgInput);
   if (failures.length > 0) {
     process.exit(1);
   }
@@ -396,6 +403,157 @@ async function runRouteSmoke(route, fixturePath) {
   } finally {
     await client.close().catch(() => {});
   }
+}
+
+async function runHomeSvgInputSmoke(fixtures) {
+  const svgFixture = fixtures.svg;
+  const client = await openTab(`${baseUrl}/`);
+  await client.send("Runtime.enable");
+  await client.send("Page.enable");
+  await client.send("DOM.enable");
+  await client.send("Network.enable");
+  await waitForDocumentReady(client);
+  await evaluate(client, `(() => { window.__ILOVESVG_HYBRID_TRACE_DEBUG__ = []; return true; })()`);
+  await delay(3_000);
+
+  await setFileInput(client, svgFixture);
+  await delay(500);
+
+  const selectedPreset = await evaluate(client, `(() => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const active = buttons.find((button) => {
+      const aria = button.getAttribute("aria-pressed");
+      const text = button.innerText || "";
+      return aria === "true" && /Lineart|Cricut|Photo|Logo|Sketch|Centerline/i.test(text);
+    });
+    return active ? active.innerText.trim() : "";
+  })()`);
+
+  let convertButton = "auto-submit";
+  let output = await waitForValue(
+    client,
+    homeSvgOutputExpression,
+    30_000,
+    (value) => value?.done,
+  ).catch(() => null);
+  if (!output) {
+    await waitForConvertButtonEnabled(client, 8_000);
+    convertButton = await clickConvertButton(client);
+    output = await waitForValue(
+      client,
+      homeSvgOutputExpression,
+      30_000,
+      (value) => value?.done,
+    );
+  }
+
+  const ok = Boolean(
+    output.hasOutput &&
+      output.sourceKind === "svg" &&
+      (/svg (?:cleanup|sanitize)|sanitized svg|svg passthrough/i.test(output.enginePathLabel) ||
+        output.hasSvgCleanupLabel) &&
+      !output.hasHybridTrace &&
+      !/^(?:vtracer|potrace|centerline)$/.test(output.engineUsed || "") &&
+      !output.hasFailure &&
+      output.previewHasMeaningfulSvg &&
+      output.copy.enabled &&
+      output.download.enabled,
+  );
+
+  return {
+    ok,
+    route: "/",
+    scenario: "svg-input-cleanup",
+    selectedPreset,
+    convertButton,
+    ...output,
+    failure: ok ? null : "Homepage SVG input did not produce a visible SVG cleanup output with enabled copy/download and no Hybrid trace label.",
+  };
+}
+
+function homeSvgOutputExpression() {
+  return `(async () => {
+    const body = document.body.innerText || "";
+    const output = Array.from(document.querySelectorAll("[data-source-kind], [data-engine-used]"))
+      .find((candidate) => /Output|Conversion did not finish|Engine path/i.test(candidate.innerText || ""));
+    const outputText = output?.innerText || "";
+    const lines = outputText.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+    const enginePathIndex = lines.findIndex((line) => /^Engine path$/i.test(line));
+    const enginePathLabel = enginePathIndex >= 0 ? lines[enginePathIndex + 1] || "" : "";
+    const buttonState = (pattern) => {
+      const buttons = Array.from((output || document).querySelectorAll("button, a"))
+        .filter((element) => {
+          const text = element.innerText || element.getAttribute("aria-label") || element.getAttribute("title") || "";
+          const rect = element.getBoundingClientRect();
+          const visible =
+            rect.width > 0 &&
+            rect.height > 0 &&
+            getComputedStyle(element).visibility !== "hidden" &&
+            getComputedStyle(element).display !== "none";
+          return pattern.test(text) && visible;
+        });
+      return {
+        visible: buttons.length > 0,
+        enabled: buttons.some((element) =>
+          !element.disabled &&
+            element.getAttribute("aria-disabled") !== "true" &&
+            !element.hasAttribute("disabled")
+        ),
+      };
+    };
+    const previewImages = output ? Array.from(output.querySelectorAll("img")) : [];
+    const previewSrc = previewImages[0]?.getAttribute("src") || "";
+    let decodedPreviewSvg = "";
+    if (previewSrc.startsWith("data:image/svg+xml")) {
+      decodedPreviewSvg = decodeURIComponent(previewSrc.slice(previewSrc.indexOf(",") + 1));
+    } else if (previewSrc.startsWith("blob:")) {
+      decodedPreviewSvg = await fetch(previewSrc).then((response) => response.text()).catch(() => "");
+    }
+    let previewParseError = "";
+    let previewVisibleDrawableCount = 0;
+    if (decodedPreviewSvg) {
+      const parsed = new DOMParser().parseFromString(decodedPreviewSvg, "image/svg+xml");
+      previewParseError = parsed.querySelector("parsererror")?.textContent || "";
+      previewVisibleDrawableCount = Array.from(parsed.querySelectorAll("path,polygon,polyline,rect,circle,ellipse,line,text,image"))
+        .filter((element) => {
+          const tag = element.tagName.toLowerCase();
+          const attrs = element.getAttributeNames().map((name) => name + '="' + (element.getAttribute(name) || "") + '"').join(" ");
+          if (/display\\s*=\\s*["']none["']/i.test(attrs)) return false;
+          if (/visibility\\s*=\\s*["']hidden["']/i.test(attrs)) return false;
+          if (/opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+          if (tag === "path" && !(element.getAttribute("d") || "").trim()) return false;
+          return true;
+        }).length;
+    }
+    const copy = buttonState(/Copy SVG/i);
+    const download = buttonState(/Download SVG/i);
+    const batch = buttonState(/Batch/i);
+    const settings = buttonState(/Settings|Edit/i);
+    const fullscreen = buttonState(/fullscreen|full screen|preview/i);
+    const hasFailure = /Conversion did not finish|no visible artwork after sanitizing/i.test(outputText || body);
+    const isRunning = /\\bConverting\\b|\\bRunning\\b/i.test(outputText);
+    const hasOutput = Boolean(output);
+    const previewHasMeaningfulSvg = Boolean(decodedPreviewSvg && !previewParseError && previewVisibleDrawableCount > 0);
+    return {
+      done: Boolean(hasFailure || (hasOutput && previewHasMeaningfulSvg && !isRunning)),
+      hasOutput,
+      isRunning,
+      sourceKind: output?.getAttribute("data-source-kind") || "",
+      engineUsed: output?.getAttribute("data-engine-used") || "",
+      enginePathLabel,
+      hasHybridTrace: /Engine path\\s+Hybrid trace/i.test(outputText) || /\\bHybrid trace\\b/i.test(outputText),
+      hasSvgCleanupLabel: /svg (?:cleanup|sanitize)|sanitized svg|svg passthrough/i.test(outputText),
+      hasFailure,
+      previewHasMeaningfulSvg,
+      previewVisibleDrawableCount,
+      copy,
+      download,
+      batch,
+      settings,
+      fullscreen,
+      outputText: outputText.slice(0, 800),
+    };
+  })()`;
 }
 
 async function runBatchZipSmoke(fixtures) {
@@ -3149,11 +3307,13 @@ async function createFixtures() {
     const jpg = await sharp(png).jpeg({ quality: 92 }).toBuffer();
     const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
   const files = {
+    homeSvg: path.join(fixturesDir, "png-to-svg-converter.svg"),
     svg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.svg`),
     png: path.join(fixturesDir, path.basename(sourcePng)),
     jpg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.jpg`),
     webp: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.webp`),
   };
+  await fs.writeFile(files.homeSvg, buildHomeSvgInputFixture());
   await fs.writeFile(files.svg, `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><circle cx="72" cy="78" r="38" fill="#0ea5e9"/><path d="M32 132 C58 102, 94 150, 126 118 S190 126, 210 78" fill="none" stroke="#111827" stroke-width="9" stroke-linecap="round"/></svg>`);
   await fs.writeFile(files.png, png);
   await fs.writeFile(files.jpg, jpg);
@@ -3174,16 +3334,33 @@ async function createFixtures() {
   const jpg = await sharp(png).jpeg({ quality: 92 }).toBuffer();
   const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
   const files = {
+    homeSvg: path.join(fixturesDir, "png-to-svg-converter.svg"),
     svg: path.join(fixturesDir, "hybrid-smoke.svg"),
     png: path.join(fixturesDir, "hybrid-smoke.png"),
     jpg: path.join(fixturesDir, "hybrid-smoke.jpg"),
     webp: path.join(fixturesDir, "hybrid-smoke.webp"),
   };
+  await fs.writeFile(files.homeSvg, buildHomeSvgInputFixture());
   await fs.writeFile(files.svg, svg);
   await fs.writeFile(files.png, png);
   await fs.writeFile(files.jpg, jpg);
   await fs.writeFile(files.webp, webp);
   return files;
+}
+
+function buildHomeSvgInputFixture() {
+  const commands = Array.from(
+    { length: 2600 },
+    (_item, index) => `L ${12 + (index % 216)} ${18 + (index % 124)}`,
+  ).join(" ");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">` +
+    `<style>.primary{fill:#111827}.accent{fill:none;stroke:#2563eb;stroke-width:6;stroke-linecap:round}</style>` +
+    `<path class="primary" d="M 8 8 ${commands} Z"/>` +
+    `<path class="accent" d="M28 132 C58 102, 94 150, 126 118 S190 126, 210 78"/>` +
+    `<text x="42" y="82" font-family="Arial" font-size="28" font-weight="700" fill="#ffffff">SVG</text>` +
+    `</svg>`
+  );
 }
 
 async function findBrowserExecutable() {
