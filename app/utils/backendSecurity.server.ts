@@ -471,14 +471,16 @@ export function isInvalidUploadDecodeError(error: unknown): boolean {
     message.includes("could not prepare the uploaded image") ||
     message.includes("unsupported trace image type") ||
     message.includes("input buffer contains unsupported image format") ||
-    message.includes("corrupt")
+    message.includes("corrupt") ||
+    message.includes("no visible vector output found") ||
+    message.includes("svg has no visible drawable elements")
   );
 }
 
 export function createInvalidUploadDecodeResponse(): Response {
   return createSafeErrorResponse(
     "INVALID_FILE",
-    "Could not read the uploaded file. Try a different file.",
+    "Could not read visible artwork from the uploaded file. Try a different image with visible content.",
     415,
   );
 }

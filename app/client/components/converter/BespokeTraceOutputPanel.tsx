@@ -6,6 +6,7 @@ import {
 import {
   FocusedEditorPreviewComparison,
   OutputAppearanceControls,
+  OutputWarningList,
   getSvgByteSize,
   prettyBytes,
 } from "~/client/components/converter/TraceOutputPanel";
@@ -19,6 +20,10 @@ import {
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
 import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
+import {
+  getOutputComplexityWarnings,
+  mergeOutputWarnings,
+} from "~/shared/tracing/outputComplexity";
 import type { TraceResult } from "~/shared/tracing/types";
 
 export type BespokeTraceOutputItem = {
@@ -32,6 +37,7 @@ export type BespokeTraceOutputItem = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   svgBytes?: number;
+  pathCount?: number;
   layers?: ReadonlyArray<unknown>;
   jobId?: string;
   jobStatus?: "queued" | "running" | "succeeded" | "failed" | "canceled";
@@ -316,6 +322,20 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
               : displaySvg
                 ? getSvgByteSize(displaySvg)
                 : item.svgBytes;
+            const outputWarnings =
+              !active && !failed && !outputInvalidMessage
+                ? mergeOutputWarnings(
+                    item.warnings,
+                    getOutputComplexityWarnings({
+                      svg: displaySvg,
+                      svgBytes: displaySvgBytes,
+                      pathCount: item.pathCount,
+                      layerCount: item.layers?.length,
+                      routeGroup: item.layers?.length ? "layered" : undefined,
+                      precisionOutput,
+                    }),
+                  )
+                : item.warnings || [];
             const elapsedMs = getElapsedMs(item, nowMs);
             const sourceAvailableForOutput =
               !item.sourceFileName || file?.name === item.sourceFileName;
@@ -378,6 +398,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                 data-engine-used={item.engineUsed || "unknown"}
                 data-source-kind={item.sourceKind || "unknown"}
                 data-engine-warnings={(item.warnings || []).join(" | ")}
+                data-output-warnings={outputWarnings.join(" | ")}
                 data-svg-bytes={displaySvgBytes ?? ""}
                 className={[
                   "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
@@ -444,6 +465,10 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                     </button>
                   </div>
                 )}
+
+                {!active && !failed && outputWarnings.length > 0 ? (
+                  <OutputWarningList warnings={outputWarnings} />
+                ) : null}
 
                 {active || failed ? (
                   <BespokeJobStateCard

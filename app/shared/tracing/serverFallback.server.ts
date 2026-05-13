@@ -14,8 +14,11 @@ import {
   createLayeredColorSvg,
 } from "~/utils/svgLayerTrace.server";
 import { traceBitmapToSvg } from "~/utils/potraceCompat";
+import { validateMeaningfulSvgOutput } from "./meaningfulOutput";
 
-export type SharedPotraceOptions = Record<string, unknown>;
+export type SharedPotraceOptions = Record<string, unknown> & {
+  validateMeaningfulOutput?: boolean;
+};
 
 export type SharedLayeredTraceResult = {
   svg: string;
@@ -44,13 +47,24 @@ export async function runSharedPotraceSvgTrace(
   input: Buffer,
   options: SharedPotraceOptions,
 ): Promise<string> {
-  return traceBitmapToSvg(input, {
+  const { validateMeaningfulOutput = true, ...traceOptions } = options;
+  const svg = await traceBitmapToSvg(input, {
     color: "#000000",
     threshold: 128,
     invert: false,
     blackOnWhite: true,
-    ...options,
+    ...traceOptions,
   });
+  if (!validateMeaningfulOutput) return svg;
+  const validation = validateMeaningfulSvgOutput(svg, {
+    allowWhiteOnly: true,
+  });
+  if (!validation.ok) {
+    throw new Error(
+      `No visible vector output found. ${validation.reasons.join("; ")}`,
+    );
+  }
+  return svg;
 }
 
 export async function runSharedLayeredColorTrace(
