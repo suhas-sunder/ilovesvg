@@ -378,7 +378,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
               </h1>
 
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea onPick={onPick} onDrop={onDrop} accept="image/svg+xml,.svg" />
               ) : (
                 <>
                   <div className="mt-0 flex items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-slate-900">

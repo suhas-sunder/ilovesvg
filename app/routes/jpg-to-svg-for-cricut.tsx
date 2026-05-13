@@ -92,10 +92,11 @@ const ALLOWED_MIME = new Set([
   "image/png",
   "image/jpeg",
   "image/jpg",
+  "image/webp",
   "image/svg+xml",
 ]);
-const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "svg"]);
-const ACCEPTED_IMAGE_LABEL = "PNG, JPG, JPEG, or SVG";
+const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "svg"]);
+const ACCEPTED_IMAGE_LABEL = "PNG, JPG, JPEG, WebP, or SVG";
 
 // Dark background default for invert "white on dark"
 const DARK_BG_DEFAULT = "#0b1020";
@@ -379,8 +380,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (isSvgFile(webFile)) {
       const svgText = await webFile.text();
-      const { sanitizeSvgMarkup } = await import("~/utils/svgSanitize.server");
-      const sanitizedSvg = sanitizeSvgMarkup(svgText);
+      const { sanitizeVisibleSvgMarkup } = await import("~/utils/svgSanitize.server");
+      const sanitizedSvg = sanitizeVisibleSvgMarkup(svgText);
       if (!sanitizedSvg.ok) {
         return json(
           { error: sanitizedSvg.message, code: sanitizedSvg.code },

@@ -404,7 +404,15 @@ export async function action({ request }: ActionFunctionArgs) {
 
       if (webFile.type === "image/svg+xml") {
         const svgText = new TextDecoder().decode(input);
-        const annotated = annotateEditableSvgLayers(svgText);
+        const { sanitizeVisibleSvgMarkup } = await import("~/utils/svgSanitize.server");
+        const sanitizedSvg = sanitizeVisibleSvgMarkup(svgText);
+        if (!sanitizedSvg.ok) {
+          return json(
+            { error: sanitizedSvg.message, code: sanitizedSvg.code },
+            { status: 415 },
+          );
+        }
+        const annotated = annotateEditableSvgLayers(sanitizedSvg.svg);
         const ensured = ensureViewBoxResponsive(coerceSvg(annotated.svg));
         return json({
           svg: ensured.svg,

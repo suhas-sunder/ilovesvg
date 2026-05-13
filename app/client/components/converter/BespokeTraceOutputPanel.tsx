@@ -317,6 +317,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                 ? outputValidation.reasons[0] || "SVG output is not visibly renderable."
                 : null;
             const displaySvg = outputInvalidMessage ? "" : candidateDisplaySvg;
+            const hasUsableOutput = Boolean(displaySvg && !active && !failed);
             const displaySvgBytes = outputInvalidMessage
               ? undefined
               : displaySvg
@@ -370,7 +371,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
             }
 
             const settingsPanel =
-              focused && renderSettings ? (
+              focused && renderSettings && hasUsableOutput ? (
                 <div
                   id={`output-settings-${item.stamp}`}
                   data-editor-settings-panel="true"
@@ -418,22 +419,24 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                       />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => downloadSvg(displaySvg, downloadFileName)}
-                        disabled={!displaySvg}
-                        className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                      >
-                        Download SVG
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void onCopySvg(displaySvg)}
-                        disabled={!displaySvg}
-                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                      >
-                        Copy SVG
-                      </button>
+                      {hasUsableOutput ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => downloadSvg(displaySvg, downloadFileName)}
+                            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            Download SVG
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void onCopySvg(displaySvg)}
+                            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          >
+                            Copy SVG
+                          </button>
+                        </>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => closeFocusedEditor(item.stamp)}

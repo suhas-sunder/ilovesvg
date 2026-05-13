@@ -4,6 +4,7 @@ import {
   MAX_SVG_ELEMENTS,
   MAX_SVG_PATH_COMMANDS,
 } from "./backendSecurity.server";
+import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
 
 export type SvgSanitizeResult =
   | { ok: true; svg: string; elementCount: number; pathCommandCount: number }
@@ -19,6 +20,11 @@ const SAFE_ELEMENTS = new Set([
   "line",
   "polyline",
   "polygon",
+  "text",
+  "tspan",
+  "textpath",
+  "image",
+  "style",
   "defs",
   "lineargradient",
   "radialgradient",
@@ -31,6 +37,7 @@ const SAFE_ELEMENTS = new Set([
 
 const SAFE_ATTRS = new Set([
   "xmlns",
+  "xmlns:xlink",
   "viewbox",
   "width",
   "height",
@@ -53,10 +60,28 @@ const SAFE_ATTRS = new Set([
   "stroke-linecap",
   "stroke-linejoin",
   "stroke-miterlimit",
+  "stroke-dasharray",
+  "stroke-dashoffset",
   "opacity",
   "fill-opacity",
   "stroke-opacity",
   "transform",
+  "font-family",
+  "font-size",
+  "font-style",
+  "font-weight",
+  "text-anchor",
+  "dominant-baseline",
+  "baseline-shift",
+  "letter-spacing",
+  "word-spacing",
+  "dx",
+  "dy",
+  "rotate",
+  "textlength",
+  "lengthadjust",
+  "preserveaspectratio",
+  "xml:space",
   "id",
   "class",
   "offset",
@@ -74,6 +99,8 @@ const SAFE_ATTRS = new Set([
 ]);
 
 const URL_ATTRS = new Set(["href", "xlink:href", "src"]);
+const MAX_SAFE_ATTR_VALUE_LENGTH = 20000;
+const LONG_DRAWABLE_ATTRS = new Set(["d", "points"]);
 const EXCLUDED_BLOCKS =
   /<\s*(script|foreignObject|iframe|object|embed|audio|video|canvas|animate|animateTransform|animateMotion|set)\b[\s\S]*?<\s*\/\s*\1\s*>/gi;
 
@@ -139,6 +166,32 @@ export function sanitizeSvgMarkup(svg: string, maxBytes = MAX_SVG_BYTES): SvgSan
   return { ok: true, svg: next, elementCount, pathCommandCount };
 }
 
+export function sanitizeVisibleSvgMarkup(
+  svg: string,
+  options: {
+    maxBytes?: number;
+    allowWhiteOnly?: boolean;
+  } = {},
+): SvgSanitizeResult {
+  const sanitized = sanitizeSvgMarkup(svg, options.maxBytes ?? MAX_SVG_BYTES);
+  if (!sanitized.ok) return sanitized;
+
+  const validation = validateMeaningfulSvgOutput(sanitized.svg, {
+    minBytes: 64,
+    allowWhiteOnly: options.allowWhiteOnly ?? true,
+  });
+  if (!validation.ok) {
+    return {
+      ok: false,
+      code: "SVG_UNSAFE",
+      message:
+        "SVG has no visible artwork after sanitizing. Upload an SVG with visible paths, shapes, or text.",
+    };
+  }
+
+  return sanitized;
+}
+
 function sanitizeAttributes(
   rawAttrs: string,
   tagName: string,
@@ -153,8 +206,8 @@ function sanitizeAttributes(
 
     const value = stripAttrQuotes(String(rawValue || ""));
     if (URL_ATTRS.has(attrName)) {
-      if (!isSafeLocalReference(value)) return "";
-      out.push(` ${attrName}="${escapeAttr(value)}"`);
+      if (!isSafeReferenceValue(value, tagName)) return "";
+      out.push(` ${serializeSvgAttrName(attrName)}="${escapeAttr(value)}"`);
       return "";
     }
     if (!isSafeAttributeValue(attrName, value)) return "";
@@ -175,14 +228,23 @@ function sanitizeAttributes(
       if (classes) out.push(` class="${escapeAttr(classes)}"`);
       return "";
     }
+    const serializedName = serializeSvgAttrName(attrName);
     if (tagName === "svg" && (attrName === "width" || attrName === "height")) {
-      out.push(` ${attrName}="${escapeAttr(clampSvgLength(value))}"`);
+      out.push(` ${serializedName}="${escapeAttr(clampSvgLength(value))}"`);
       return "";
     }
-    out.push(` ${attrName}="${escapeAttr(value)}"`);
+    out.push(` ${serializedName}="${escapeAttr(value)}"`);
     return "";
   });
   return out.join("");
+}
+
+function serializeSvgAttrName(attrName: string): string {
+  if (attrName === "viewbox") return "viewBox";
+  if (attrName === "textlength") return "textLength";
+  if (attrName === "lengthadjust") return "lengthAdjust";
+  if (attrName === "preserveaspectratio") return "preserveAspectRatio";
+  return attrName;
 }
 
 function sanitizeStyleBlock(block: string): string {
@@ -196,12 +258,21 @@ function isSafeAttributeValue(attrName: string, value: string): boolean {
   }
   if (attrName === "style") return false;
   if (/[\u0000-\u001f\u007f]/.test(value)) return false;
-  return value.length <= 20000;
+  const maxLength = LONG_DRAWABLE_ATTRS.has(attrName)
+    ? MAX_SVG_BYTES
+    : MAX_SAFE_ATTR_VALUE_LENGTH;
+  return value.length <= maxLength;
 }
 
-function isSafeLocalReference(value: string): boolean {
+function isSafeReferenceValue(value: string, tagName: string): boolean {
   const trimmed = value.trim();
+  if (tagName === "image" && isSafeEmbeddedRasterImage(trimmed)) return true;
   return /^#[A-Za-z_][\w:.-]*$/.test(trimmed);
+}
+
+function isSafeEmbeddedRasterImage(value: string): boolean {
+  if (value.length > MAX_SVG_BYTES) return false;
+  return /^data:image\/(?:png|jpe?g|webp|gif|avif|bmp);base64,[a-z0-9+/=\s]+$/i.test(value);
 }
 
 function ensureSvgViewBox(svg: string): string {

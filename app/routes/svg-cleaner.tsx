@@ -500,7 +500,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
               </div>
 
               {!file && !svgText.trim() ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea onPick={onPick} onDrop={onDrop} accept="image/svg+xml,.svg" />
               ) : (
                 <>
                   {file ? (

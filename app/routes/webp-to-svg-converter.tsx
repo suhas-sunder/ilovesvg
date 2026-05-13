@@ -90,8 +90,8 @@ const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
 
-// Target page: accept WebP only.
-const ALLOWED_MIME = new Set(["image/webp"]);
+// Target page: prefer WebP, but accept common raster inputs the shared tracer supports safely.
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
 
 // -------- Live preview tiers (client) --------
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
@@ -181,7 +181,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
-        { error: "Only WebP images are allowed on this page." },
+        { error: "Only PNG, JPG, JPEG, or WebP images are allowed on this page." },
         { status: 415 },
       );
     }
@@ -1084,7 +1084,7 @@ export default function WebpToSvgConverter({
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a WebP image (image/webp).");
+      setErr("Please choose a PNG, JPG, JPEG, or WebP image.");
       return;
     }
 
@@ -1645,7 +1645,7 @@ async function validateBeforeSubmit(
   knownSize?: { w: number; h: number } | null,
 ) {
   if (!ALLOWED_MIME.has(file.type))
-    throw new Error("Only WebP images are allowed.");
+    throw new Error("Only PNG, JPG, JPEG, or WebP images are allowed.");
   if (file.size > MAX_UPLOAD_BYTES)
     throw new Error("File too large. Max 30 MB.");
   const { w, h } = knownSize ?? (await getImageSize(file));

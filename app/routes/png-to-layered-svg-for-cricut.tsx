@@ -2725,39 +2725,39 @@ export default function PngToLayeredSvgForCricut({
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!canUseOutput) return;
-                                  const b = new Blob([displaySvg], {
-                                    type: "image/svg+xml;charset=utf-8",
-                                  });
-                                  const u = URL.createObjectURL(b);
-                                  const a = document.createElement("a");
-                                  a.href = u;
-                                  a.download =
-                                    "png-to-layered-svg-for-cricut.svg";
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  a.remove();
-                                  URL.revokeObjectURL(u);
-                                }}
-                                disabled={!canUseOutput}
-                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
-                              >
-                                Download SVG
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!canUseOutput) return;
-                                  handleCopySvg(displaySvg);
-                                }}
-                                disabled={!canUseOutput}
-                                className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
-                              >
-                                Copy SVG
-                              </button>
+                              {canUseOutput ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const b = new Blob([displaySvg], {
+                                        type: "image/svg+xml;charset=utf-8",
+                                      });
+                                      const u = URL.createObjectURL(b);
+                                      const a = document.createElement("a");
+                                      a.href = u;
+                                      a.download =
+                                        "png-to-layered-svg-for-cricut.svg";
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      a.remove();
+                                      URL.revokeObjectURL(u);
+                                    }}
+                                    className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                  >
+                                    Download SVG
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleCopySvg(displaySvg);
+                                    }}
+                                    className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                  >
+                                    Copy SVG
+                                  </button>
+                                </>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2889,13 +2889,13 @@ export default function PngToLayeredSvgForCricut({
                         {outputInvalidMessage && !isActiveJob && !isFailedJob ? (
                           <LayeredInvalidOutputCard message={outputInvalidMessage} />
                         ) : null}
-                        {!focused && !outputInvalidMessage ? (
+                        {!focused && !outputInvalidMessage && canUseOutput ? (
                           <p className="m-0 mt-1 text-[12px] text-slate-500">
                             Open Settings on an output to edit that preview.
                           </p>
                         ) : null}
 
-                        {!focused && !outputInvalidMessage && (
+                        {!focused && !outputInvalidMessage && canUseOutput && (
                         <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
                           <button
                             type="button"
@@ -2963,7 +2963,7 @@ export default function PngToLayeredSvgForCricut({
                         </div>
                         )}
 
-                        {focused && !outputInvalidMessage && (
+                        {focused && !outputInvalidMessage && canUseOutput && (
                           <div
                             data-focused-editor-workspace="true"
                             className="mt-3 grid min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-[minmax(0,1fr)_minmax(300px,390px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_minmax(340px,430px)]"
@@ -2986,7 +2986,7 @@ export default function PngToLayeredSvgForCricut({
                           </div>
                         )}
 
-                        {!focused && openSettingsStamp === item.stamp && !outputInvalidMessage && (
+                        {!focused && openSettingsStamp === item.stamp && !outputInvalidMessage && canUseOutput && (
                           <div
                             id={`output-settings-${item.stamp}`}
                             className={[
@@ -3090,7 +3090,7 @@ export default function PngToLayeredSvgForCricut({
                           </div>
                         )}
 
-                        {!focused && !outputInvalidMessage && (
+                        {!focused && !outputInvalidMessage && canUseOutput && (
                         <div
                           className={[
                             "relative rounded-xl border border-slate-200 bg-white transparent-checkerboard flex items-center justify-center p-2",
