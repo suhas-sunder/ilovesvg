@@ -23,6 +23,8 @@ const SAFE_ELEMENTS = new Set([
   "text",
   "tspan",
   "textpath",
+  "image",
+  "style",
   "defs",
   "lineargradient",
   "radialgradient",
@@ -35,6 +37,7 @@ const SAFE_ELEMENTS = new Set([
 
 const SAFE_ATTRS = new Set([
   "xmlns",
+  "xmlns:xlink",
   "viewbox",
   "width",
   "height",
@@ -77,6 +80,7 @@ const SAFE_ATTRS = new Set([
   "rotate",
   "textlength",
   "lengthadjust",
+  "preserveaspectratio",
   "xml:space",
   "id",
   "class",
@@ -200,8 +204,8 @@ function sanitizeAttributes(
 
     const value = stripAttrQuotes(String(rawValue || ""));
     if (URL_ATTRS.has(attrName)) {
-      if (!isSafeLocalReference(value)) return "";
-      out.push(` ${attrName}="${escapeAttr(value)}"`);
+      if (!isSafeReferenceValue(value, tagName)) return "";
+      out.push(` ${serializeSvgAttrName(attrName)}="${escapeAttr(value)}"`);
       return "";
     }
     if (!isSafeAttributeValue(attrName, value)) return "";
@@ -237,6 +241,7 @@ function serializeSvgAttrName(attrName: string): string {
   if (attrName === "viewbox") return "viewBox";
   if (attrName === "textlength") return "textLength";
   if (attrName === "lengthadjust") return "lengthAdjust";
+  if (attrName === "preserveaspectratio") return "preserveAspectRatio";
   return attrName;
 }
 
@@ -254,9 +259,15 @@ function isSafeAttributeValue(attrName: string, value: string): boolean {
   return value.length <= 20000;
 }
 
-function isSafeLocalReference(value: string): boolean {
+function isSafeReferenceValue(value: string, tagName: string): boolean {
   const trimmed = value.trim();
+  if (tagName === "image" && isSafeEmbeddedRasterImage(trimmed)) return true;
   return /^#[A-Za-z_][\w:.-]*$/.test(trimmed);
+}
+
+function isSafeEmbeddedRasterImage(value: string): boolean {
+  if (value.length > MAX_SVG_BYTES) return false;
+  return /^data:image\/(?:png|jpe?g|webp|gif|avif|bmp);base64,[a-z0-9+/=\s]+$/i.test(value);
 }
 
 function ensureSvgViewBox(svg: string): string {

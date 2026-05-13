@@ -13,6 +13,8 @@ const results = [];
 
 for (const fixture of [
   fixtures.visibleSvg,
+  fixtures.styledSvg,
+  fixtures.embeddedImageSvg,
   fixtures.png,
   fixtures.jpg,
   fixtures.jpeg,
@@ -50,6 +52,51 @@ for (const route of [
       label: `${route}-svg-input`,
     }),
   );
+}
+
+for (const { route, acceptedFixtures } of [
+  {
+    route: "/png-to-svg-converter",
+    acceptedFixtures: [fixtures.jpg, fixtures.jpeg, fixtures.webp],
+  },
+  {
+    route: "/jpg-to-svg-converter",
+    acceptedFixtures: [fixtures.png, fixtures.jpeg, fixtures.webp],
+  },
+  {
+    route: "/jpeg-to-svg-converter",
+    acceptedFixtures: [fixtures.png, fixtures.jpg, fixtures.webp],
+  },
+  {
+    route: "/webp-to-svg-converter",
+    acceptedFixtures: [fixtures.png, fixtures.jpg, fixtures.jpeg],
+  },
+  {
+    route: "/png-to-svg-for-cricut",
+    acceptedFixtures: [fixtures.jpg, fixtures.jpeg, fixtures.webp],
+  },
+  {
+    route: "/jpg-to-svg-for-cricut",
+    acceptedFixtures: [fixtures.png, fixtures.jpeg, fixtures.webp],
+  },
+  {
+    route: "/jpg-to-layered-svg-for-cricut",
+    acceptedFixtures: [fixtures.png, fixtures.jpeg, fixtures.webp],
+  },
+  {
+    route: "/image-to-layered-svg-for-cricut",
+    acceptedFixtures: [fixtures.webp],
+  },
+]) {
+  for (const fixture of acceptedFixtures) {
+    results.push(
+      await expectMeaningfulSvg({
+        route,
+        fixture,
+        label: `${route}-${fixture.id}-common-raster-input`,
+      }),
+    );
+  }
 }
 
 for (const route of [
@@ -337,6 +384,12 @@ async function createFixtures() {
     `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">` +
     `<text x="24" y="92" font-size="64" font-family="Arial" fill="#111827">SVG</text>` +
     `</svg>`;
+  const styledSvg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">` +
+    `<style>.outline{fill:none;stroke:#1d4ed8;stroke-width:14;stroke-linecap:round}.label{fill:#dc2626;font:700 42px Arial}</style>` +
+    `<path class="outline" d="M24 122 H216 M52 42 L188 42"/>` +
+    `<text class="label" x="58" y="94">SVG</text>` +
+    `</svg>`;
   const unsafeSvg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80" onload="alert(1)">` +
     `<script>alert(1)</script>` +
@@ -364,6 +417,10 @@ async function createFixtures() {
     ])
     .png()
     .toBuffer();
+  const embeddedImageSvg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="120" viewBox="0 0 180 120">` +
+    `<image x="0" y="0" width="180" height="120" href="data:image/png;base64,${png.toString("base64")}"/>` +
+    `</svg>`;
   const jpg = await sharp(png).flatten({ background: "#ffffff" }).jpeg({ quality: 92 }).toBuffer();
   const webp = await sharp(png).webp({ quality: 90 }).toBuffer();
   return {
@@ -372,6 +429,18 @@ async function createFixtures() {
       fileName: "visible-logo.svg",
       mimeType: "image/svg+xml",
       buffer: Buffer.from(svg, "utf8"),
+    },
+    styledSvg: {
+      id: "styled-svg",
+      fileName: "styled-logo.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(styledSvg, "utf8"),
+    },
+    embeddedImageSvg: {
+      id: "embedded-image-svg",
+      fileName: "embedded-image-logo.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(embeddedImageSvg, "utf8"),
     },
     unsafeSvg: {
       id: "unsafe-svg",

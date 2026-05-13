@@ -100,7 +100,7 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_MP = 30; // ~30 megapixels
 const MAX_SIDE = 8000; // max width or height in pixels
-const ALLOWED_MIME = new Set(["image/png", "image/jpeg"]);
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
 
 // Dark background default for invert "white on dark"
 const DARK_BG_DEFAULT = "#0b1020";
@@ -200,7 +200,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
-        { error: "Only PNG or JPEG images are allowed." },
+        { error: "Only PNG, JPG, JPEG, or WebP images are allowed." },
         { status: 415 },
       );
     }
@@ -1203,7 +1203,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG or JPEG.");
+      setErr("Please choose a PNG, JPG, JPEG, or WebP image.");
       return;
     }
 
@@ -1763,7 +1763,7 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 
 async function validateBeforeSubmit(file: File) {
   if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Only PNG or JPEG images are allowed.");
+    throw new Error("Only PNG, JPG, JPEG, or WebP images are allowed.");
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("File too large. Max 30 MB per image.");

@@ -87,7 +87,7 @@ export function loader({ context }: Route.LoaderArgs) {
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const MAX_MP = 30;
 const MAX_SIDE = 8000;
-const ALLOWED_MIME = new Set(["image/jpeg"]);
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
 
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
@@ -369,7 +369,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (!ALLOWED_MIME.has(webFile.type)) {
       return json(
-        { error: "Only JPG or JPEG images are allowed on this page." },
+        { error: "Only PNG, JPG, JPEG, or WebP images are allowed on this page." },
         { status: 415 },
       );
     }
@@ -1653,7 +1653,7 @@ export default function JpgToLayeredSvgForCricut({
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a JPG or JPEG image.");
+      setErr("Please choose a PNG, JPG, JPEG, or WebP image.");
       return;
     }
 
@@ -2131,7 +2131,7 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
 
 async function validateBeforeSubmit(file: File) {
   if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error("Only JPG or JPEG images are allowed on this page.");
+    throw new Error("Only PNG, JPG, JPEG, or WebP images are allowed on this page.");
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {

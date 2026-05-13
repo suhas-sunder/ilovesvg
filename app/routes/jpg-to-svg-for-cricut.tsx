@@ -92,10 +92,11 @@ const ALLOWED_MIME = new Set([
   "image/png",
   "image/jpeg",
   "image/jpg",
+  "image/webp",
   "image/svg+xml",
 ]);
-const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "svg"]);
-const ACCEPTED_IMAGE_LABEL = "PNG, JPG, JPEG, or SVG";
+const ALLOWED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "svg"]);
+const ACCEPTED_IMAGE_LABEL = "PNG, JPG, JPEG, WebP, or SVG";
 
 // Dark background default for invert "white on dark"
 const DARK_BG_DEFAULT = "#0b1020";
