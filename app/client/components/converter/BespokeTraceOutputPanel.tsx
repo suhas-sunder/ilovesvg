@@ -19,6 +19,7 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import type { SvgEditingLayerInput } from "~/client/lib/converter/svgEditingModel";
 import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
 import {
   getOutputComplexityWarnings,
@@ -113,7 +114,12 @@ export function getBespokeTraceOutputSvg<TItem extends BespokeTraceOutputItem>(
   ) {
     return cached.svg;
   }
-  const support = detectOutputAppearanceSupport(rawSvg, { precisionOutput });
+  const support = detectOutputAppearanceSupport(rawSvg, {
+    precisionOutput,
+    sourceKind: item.sourceKind,
+    engineUsed: item.engineUsed,
+    layers: item.layers as SvgEditingLayerInput[] | undefined,
+  });
   const svg = applyOutputAppearanceToSvg(rawSvg, appearance, support, {
     idPrefix: `output-${getAppearanceKey(item)}`,
   });
@@ -301,7 +307,12 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
             const appearance = getStoredAppearance(item);
             const support =
               rawSvg && !active && !failed
-                ? detectOutputAppearanceSupport(rawSvg, { precisionOutput })
+                ? detectOutputAppearanceSupport(rawSvg, {
+                    precisionOutput,
+                    sourceKind: item.sourceKind,
+                    engineUsed: item.engineUsed,
+                    layers: item.layers as SvgEditingLayerInput[] | undefined,
+                  })
                 : null;
             const candidateDisplaySvg = getBespokeTraceOutputSvg(
               item,
