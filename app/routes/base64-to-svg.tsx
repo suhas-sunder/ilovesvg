@@ -24,9 +24,9 @@ import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/Pre
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Base64 to SVG Converter - Decode SVG Data URLs | iLoveSVG";
+  const title = "Base64 to SVG Decoder - Preview SVG Data URIs | iLoveSVG";
   const description =
-    "Decode Base64 SVG strings, SVG data URLs, and encoded snippets into previewable SVG. Sanitize, clean, copy, download, and inspect output safely.";
+    "Decode Base64 SVG strings and SVG data URIs into readable, previewable SVG markup. Clean unsafe code, inspect viewBox details, copy, and download.";
   const canonical = "https://www.ilovesvg.com/base64-to-svg";
 
   return [
@@ -4727,11 +4727,12 @@ function SeoSections() {
                 "SVG data URLs",
                 "Base64 SVG strings",
                 "Decoded SVG files",
+                "Readable SVG markup",
                 "SVG cleanup",
                 "HTML embedded SVG",
                 "CSS background SVG",
                 "Embedded image checks",
-                "Vinyl SVG file checks",
+                "Malformed input checks",
                 "Copy SVG",
                 "Download SVG",
                 "SVG safety cleanup",
@@ -4749,24 +4750,24 @@ function SeoSections() {
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold text-sky-950">
-                  Supports SVG Base64 and raster Base64
+                  Built first for SVG data URI debugging
                 </div>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  This page decodes SVG Base64 directly. If the Base64 string is
-                  a PNG, JPG, or WEBP, the tool traces it into simplified
-                  layered SVG paths for layered SVG projects.
+                  This page decodes Base64 SVG strings and data:image/svg+xml
+                  URLs into readable SVG markup. Use it when you need to inspect
+                  what an encoded icon, CSS background, or embedded SVG really
+                  contains.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="text-sm font-semibold text-sky-950">
-                  Useful before SVG export
+                  Not every Base64 string is SVG
                 </div>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Use the report to check whether the decoded file contains
-                  paths, embedded raster images, live text, or scripts. Paths
-                  are usually better for SVG files than live text or embedded
-                  images.
+                  If the decoded payload is not SVG, the tool reports what it
+                  found and only uses raster tracing for supported image data.
+                  Malformed or unsafe input should be reviewed before export.
                 </p>
               </div>
             </div>
@@ -4905,8 +4906,8 @@ function SeoSections() {
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {[
                 [
-                  "Base64 PNG/JPG needs layers",
-                  "When the Base64 content is PNG, JPG, or WEBP, the tool traces the image into layered SVG paths for a more useful layered SVG result.",
+                  "The Base64 payload is not SVG",
+                  "If the decoded content is PNG, JPG, JPEG, or WEBP image data, the tool can trace supported raster inputs into SVG paths instead of pretending the payload was SVG.",
                 ],
                 [
                   "The SVG has no paths",
@@ -4989,12 +4990,12 @@ function SeoSections() {
                   a: "Yes. If the Base64 content is encoded SVG, this tool decodes it, cleans it, previews it, and lets you download a normal SVG file.",
                 },
                 {
-                  q: "Does this convert Base64 PNG or JPG into layered SVG paths?",
-                  a: "Yes. When the input is a Base64 PNG, JPG, JPEG, or WEBP image, the tool traces the image into simplified color-separated SVG layers for layered SVG workflows. Very detailed photos may still need simpler settings or a cleaner source image.",
+                  q: "What if the Base64 is PNG or JPG instead of SVG?",
+                  a: "If the input is supported raster image data, the tool can trace it into SVG paths. The primary workflow is still decoding and inspecting Base64 SVG data.",
                 },
                 {
                   q: "What input formats does this accept?",
-                  a: "It accepts raw SVG markup, SVG data URLs, Base64-encoded SVG strings, and common Base64 raster image data URLs that can be traced into layered SVG paths.",
+                  a: "It accepts raw SVG markup, SVG data URLs, Base64-encoded SVG strings, and supported Base64 raster image data URLs for tracing when the payload is not SVG.",
                 },
                 {
                   q: "Why does the font change?",

@@ -20,9 +20,9 @@ import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/compo
 const isServer = typeof document === "undefined";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "Text to SVG Converter - Create SVG Text Online | iLoveSVG";
+  const title = "Text to SVG Converter - Typography Artwork Paths | iLoveSVG";
   const description =
-    "Convert text to SVG paths for logos, labels, craft files, and typography graphics. Control fonts, spacing, alignment, stroke, fill, background, and split exports.";
+    "Create SVG text artwork with real outline paths. Upload fonts, adjust typography, preview labels or logos, and export one SVG or split path files.";
   const canonical = "https://www.ilovesvg.com/text-to-svg-converter";
 
   return [
@@ -1725,6 +1725,11 @@ function SeoSections() {
               Exports true SVG outline paths using your selected font file.
               Upload TTF, OTF, or WOFF for best results.
             </p>
+            <p className="mt-2 text-slate-600 mx-auto">
+              Use it for typography artwork such as labels, headings, wordmark
+              drafts, sticker text, and SVG assets that need predictable
+              rendering outside your own machine.
+            </p>
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="text-sm font-semibold text-slate-900">
@@ -1974,7 +1979,7 @@ function SeoSections() {
                 a="Yes. Set Output to Individual SVGs and select Split by: Line, Word, or Character."
               />
               <FaqItem
-                q="What settings are best for Cricut or laser cutters?"
+                q="What settings are best for Cricut, Glowforge, or laser cutters?"
                 a="Use a TTF/OTF font, keep Stroke set to None, and export the SVG. Cutter apps handle fills as cut paths."
               />
             </div>

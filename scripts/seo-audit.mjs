@@ -146,6 +146,60 @@ const selectedRoutes = [
     headingTerms: ["dimensions"],
   },
   {
+    path: "/svg-to-base64",
+    label: "svg-to-base64",
+    bodyTerms: ["svg to base64", "svg data uri", "encode", "when to use this instead of"],
+    descriptionTerms: ["svg", "base64", "data uri"],
+    forbiddenBodyTerms: ["convert png to svg", "convert jpg to svg"],
+    headingTerms: ["base64"],
+  },
+  {
+    path: "/base64-to-svg",
+    label: "base64-to-svg",
+    bodyTerms: ["base64 to svg", "decode", "preview", "not every base64 string"],
+    descriptionTerms: ["base64", "svg", "preview"],
+    forbiddenDescriptionTerms: ["all base64", "any base64"],
+    headingTerms: ["base64"],
+  },
+  {
+    path: "/svg-to-jsx-converter",
+    label: "svg-to-jsx-converter",
+    bodyTerms: ["react", "jsx", "component", "camelcase", "embed code generator"],
+    descriptionTerms: ["svg", "jsx", "react"],
+    headingTerms: ["jsx"],
+    forbiddenBodyTerms: ["html img is the main output"],
+  },
+  {
+    path: "/svg-embed-code-generator",
+    label: "svg-embed-code-generator",
+    bodyTerms: ["embed snippets", "html", "css", "inline svg", "not the same as"],
+    descriptionTerms: ["html", "css", "svg", "embed"],
+    headingTerms: ["embed"],
+  },
+  {
+    path: "/text-to-svg-converter",
+    label: "text-to-svg-converter",
+    bodyTerms: ["text to svg", "typography", "outline paths", "font"],
+    descriptionTerms: ["text", "svg", "outline"],
+    headingTerms: ["text"],
+  },
+  {
+    path: "/emoji-to-svg-converter",
+    label: "emoji-to-svg-converter",
+    bodyTerms: ["emoji to svg", "twemoji", "artwork", "device emoji"],
+    descriptionTerms: ["emoji", "svg", "artwork"],
+    headingTerms: ["emoji"],
+    forbiddenBodyTerms: ["same as text to svg"],
+  },
+  {
+    path: "/code-to-svg-for-cricut",
+    label: "code-to-svg-for-cricut",
+    bodyTerms: ["code to svg for cricut", "not executable code", "visual svg artwork", "cricut"],
+    descriptionTerms: ["svg", "data", "cricut"],
+    headingTerms: ["cricut"],
+    forbiddenDescriptionTerms: ["compile", "compiler", "execute", "executable"],
+  },
+  {
     path: "/svg-to-ico-converter",
     label: "svg-to-ico",
     bodyTerms: ["favicon.ico", "svg"],
@@ -443,6 +497,29 @@ async function fetchRoute(route) {
       }
     }
 
+    for (const term of route.forbiddenBodyTerms || []) {
+      if (bodyText.includes(term.toLowerCase())) {
+        errors.push(`${route.path} body text should not include "${term}"`);
+      }
+    }
+
+    for (const term of route.descriptionTerms || []) {
+      if (!description.toLowerCase().includes(term.toLowerCase())) {
+        errors.push(`${route.path} description should include "${term}"`);
+      }
+    }
+
+    for (const term of route.forbiddenDescriptionTerms || []) {
+      if (description.toLowerCase().includes(term.toLowerCase())) {
+        errors.push(`${route.path} description should not include "${term}"`);
+      }
+    }
+
+    const repeatedTitleTerms = repeatedImportantTitleTerms(title);
+    if (repeatedTitleTerms.length) {
+      errors.push(`${route.path} title repeats important terms too often: ${repeatedTitleTerms.join(", ")}`);
+    }
+
     for (const term of route.headingTerms || []) {
       if (!headings.includes(term.toLowerCase())) {
         errors.push(`${route.path} headings should include "${term}"`);
@@ -658,6 +735,24 @@ function stableJsonStringify(value) {
   }
 
   return JSON.stringify(value);
+}
+
+function repeatedImportantTitleTerms(title) {
+  const counts = new Map();
+  const ignored = new Set(["to", "for", "and", "or", "the", "a", "an", "online", "free", "ilovesvg"]);
+  const words = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !ignored.has(word));
+
+  for (const word of words) {
+    counts.set(word, (counts.get(word) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .filter(([, count]) => count > 2)
+    .map(([word]) => word);
 }
 
 function decodeHtml(value) {

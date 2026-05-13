@@ -45,9 +45,9 @@ const isServer = typeof document === "undefined";
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    "Code to SVG for Cricut - Convert Base64, Data URI, CSS, Markdown";
+    "Code to SVG for Cricut - Visual Snippet Artwork | iLoveSVG";
   const description =
-    "Extract images and SVG code from Base64, data URI strings, CSS url(...) values, Markdown image links, HTML snippets, JSON fields, and raw SVG markup. Convert raster data to SVG and style SVG output for Cricut.";
+    "Turn SVG code, data URIs, and design snippets into visual Cricut SVG artwork. Extract supported image data, trace raster input, and review before cutting.";
   const canonical = "https://www.ilovesvg.com/code-to-svg-for-cricut";
 
   return [
@@ -4385,15 +4385,15 @@ function SeoSections() {
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Convert pasted code and image data to SVG
+                Turn pasted SVG and image snippets into visual artwork
               </p>
 
               <h2 className="text-2xl font-bold leading-tight text-sky-950 md:text-3xl">
-                Extract and convert code-based images into Cricut SVG files
+                Convert code snippets into Cricut SVG artwork
               </h2>
 
               <p className="text-slate-600">
-                This tool is for users who have image data hidden inside code.
+                This tool is for visual design snippets, not executable code.
                 It can extract SVG or raster image data from Base64 strings,
                 data URIs, CSS url(...) values, Markdown image links, HTML
                 snippets, JSON fields, and raw SVG markup.
@@ -4403,19 +4403,19 @@ function SeoSections() {
                 If the extracted content is already SVG, the tool cleans and
                 styles the SVG directly. If the extracted content is PNG, JPEG,
                 WebP, or GIF data, it traces the image into SVG paths so the
-                output behaves like a real converted SVG rather than a simple
-                image wrapper.
+                output is visual SVG artwork you can inspect before using it in
+                Cricut Design Space.
               </p>
 
               <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {[
                   {
                     k: "Base64 support",
-                    v: "Decode SVG and raster Base64",
+                    v: "Decode visual SVG and image data",
                   },
                   {
                     k: "Data URI support",
-                    v: "Extract from CSS, HTML, Markdown, JSON",
+                    v: "Extract design snippets from code",
                   },
                   {
                     k: "Raster tracing",
@@ -4468,9 +4468,10 @@ function SeoSections() {
                 "Markdown image links",
                 "HTML img src",
                 "JSON fields",
-                "App export code",
-                "Cricut SVG conversion",
+                "Exported design snippets",
+                "Visual SVG artwork",
                 "Photo edge tracing",
+                "Not executable code",
               ].map((text) => (
                 <span
                   key={text}
@@ -4500,8 +4501,8 @@ function SeoSections() {
             <ol className="mt-4 grid gap-3">
               {[
                 {
-                  title: "Paste your code",
-                  body: "Paste Base64, data URI, CSS, Markdown, HTML, JSON, or raw SVG into the input box.",
+                  title: "Paste your design snippet",
+                  body: "Paste Base64, data URI, CSS, Markdown, HTML, JSON, or raw SVG that contains visual SVG or image data.",
                 },
                 {
                   title: "Choose a style preset",
@@ -4613,6 +4614,14 @@ function SeoSections() {
 
             <div className="mt-4 grid gap-3">
               {[
+                {
+                  q: "Does this run or compile code?",
+                  a: "No. Code means pasted markup or encoded design data on this page. The tool extracts visual SVG or supported image data and converts that artwork; it does not execute programs.",
+                },
+                {
+                  q: "What does code to SVG mean here?",
+                  a: "It means turning SVG markup, Base64 data URIs, CSS image snippets, Markdown image links, HTML img sources, or JSON-held artwork into a downloadable SVG.",
+                },
                 {
                   q: "Can this convert Base64 image data to SVG?",
                   a: "Yes. If the Base64 is PNG, JPEG, WebP, or GIF image data, the tool extracts it and traces it into SVG paths.",
