@@ -7,9 +7,9 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "SVG to JSX Converter | iLoveSVG";
+  const title = "SVG to JSX Converter - React SVG Component Markup | iLoveSVG";
   const description =
-    "Convert SVG markup into JSX for React components by removing XML wrappers, preserving viewBox, and translating common SVG attributes to React-friendly names.";
+    "Convert SVG markup into JSX for React components. Translate common SVG attributes, preserve viewBox, copy JSX, and review component output before pasting.";
   const canonical = "https://www.ilovesvg.com/svg-to-jsx-converter";
 
   return [
@@ -308,6 +308,8 @@ export default function SvgToJsxConverter(_: Route.ComponentProps) {
           </section>
         </div>
 
+        <SeoSections />
+
         <div className="mx-auto max-w-[1180px] px-4 pb-10">
           <CurrentRouteGuide />
         </div>
@@ -317,6 +319,127 @@ export default function SvgToJsxConverter(_: Route.ComponentProps) {
       <SocialLinks />
       <SiteFooter />
     </>
+  );
+}
+
+function SeoSections() {
+  return (
+    <section className="border-t border-slate-200 bg-white">
+      <div className="mx-auto max-w-[1180px] px-4 py-10 text-slate-800">
+        <article className="grid gap-8">
+          <section className="rounded-2xl border border-slate-200 bg-slate-50 p-6 md:p-8">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              React SVG workflow
+            </p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-sky-950 md:text-3xl">
+              Convert SVG markup into JSX you can review
+            </h2>
+            <p className="mt-3 max-w-[80ch] text-[15px] leading-7 text-slate-700">
+              This route is for developers who already have SVG markup and need
+              React-compatible JSX. It changes markup syntax, not the artwork:
+              paths, groups, fills, strokes, and the viewBox stay readable while
+              common attributes are translated for React.
+            </p>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="m-0 text-lg font-bold text-sky-950">
+                What the converter changes
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                XML wrappers and comments are removed, common SVG attributes are
+                camelCase converted, inline style strings become JSX style
+                objects, and reserved words such as class are changed to
+                className.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="m-0 text-lg font-bold text-sky-950">
+                What the converter does not do
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                It does not optimize paths, redesign the SVG, or guarantee that
+                every custom attribute is framework-perfect. Review the JSX
+                before committing it to a component library.
+              </p>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="m-0 text-lg font-bold text-sky-950">
+              When to use this instead of related tools
+            </h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Use SVG to JSX
+                </div>
+                <p className="mt-1 text-sm leading-6 text-slate-700">
+                  When the target is a React or Remix component and you want
+                  copyable JSX markup.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Use embed code generator
+                </div>
+                <p className="mt-1 text-sm leading-6 text-slate-700">
+                  When you need HTML img, inline SVG, CSS background, mask, or
+                  object/embed snippets.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm font-semibold text-slate-900">
+                  Use SVG to Base64
+                </div>
+                <p className="mt-1 text-sm leading-6 text-slate-700">
+                  When you need an encoded data URI or Base64 payload for CSS,
+                  config files, or single-file demos.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6">
+            <h3 className="m-0 text-lg font-bold text-sky-950">FAQ</h3>
+            <div className="mt-4 grid gap-3">
+              {[
+                {
+                  q: "Does this create a full React component?",
+                  a: "Yes, when Wrap component is enabled. You can also output plain JSX if you only need the SVG element markup.",
+                },
+                {
+                  q: "Does this optimize SVG paths?",
+                  a: "No. This is a JSX conversion tool. Use an SVG cleaner or minifier when you want markup cleanup or file-size reduction.",
+                },
+                {
+                  q: "Are attributes converted to React names?",
+                  a: "Common attributes such as stroke-width, fill-rule, clip-path, and class are converted to React-friendly names.",
+                },
+                {
+                  q: "Should I review the output before pasting it into an app?",
+                  a: "Yes. Complex SVGs can contain unusual attributes, IDs, filters, or external references that should be reviewed in your codebase.",
+                },
+              ].map((item) => (
+                <details
+                  key={item.q}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <summary className="cursor-pointer list-none font-semibold text-slate-900">
+                    {item.q}
+                  </summary>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    {item.a}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </section>
+        </article>
+      </div>
+    </section>
   );
 }
 

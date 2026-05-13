@@ -17,7 +17,7 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 export function meta({}: Route.MetaArgs) {
   const title = "SVG to Base64 Converter - Encode SVG Data URLs | iLoveSVG";
   const description =
-    "Encode SVG as Base64 or UTF-8 data URLs in your browser. Sanitize, minify, choose quote options, copy snippets, and download encoded output.";
+    "Encode SVG as Base64 or UTF-8 data URI output in your browser. Sanitize, minify, choose quote options, copy snippets, and download encoded output.";
   const canonical = "https://www.ilovesvg.com/svg-to-base64";
 
   return [
@@ -1497,6 +1497,43 @@ function SeoSections() {
                     and prefer UTF-8 CSS-safe or Base64 if your pipeline is
                     strict.
                   </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-10">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="m-0 text-xl sm:text-2xl font-extrabold tracking-tight text-sky-800">
+                When to use this instead of the embed code generator
+              </h3>
+
+              <p className="mt-3 text-sm sm:text-base leading-relaxed text-slate-700">
+                Use this SVG to Base64 route when the output you need is the
+                encoded string itself: a Base64 payload, a UTF-8 SVG data URI,
+                or a quoted snippet for HTML and CSS. It is an encoding tool,
+                not raster conversion or image compression.
+              </p>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Use SVG to Base64
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    When a config, CSS rule, test fixture, JSON value, or
+                    single-file demo needs an encoded SVG string.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">
+                    Use embed code generator
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    When you want complete HTML, inline SVG, CSS mask, object,
+                    iframe, or framework-oriented embed snippets.
+                  </p>
                 </div>
               </div>
             </div>

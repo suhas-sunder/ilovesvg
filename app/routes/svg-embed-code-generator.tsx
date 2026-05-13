@@ -15,9 +15,9 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 ======================== */
 export function meta({}: Route.MetaArgs) {
   const title =
-    `SVG Embed Code Generator - IMG, Inline, CSS and React | iLoveSVG`;
+    "SVG Embed Code Generator - HTML and CSS Snippets | iLoveSVG";
   const description =
-    `Generate SVG embed snippets in your browser for img tags, inline SVG, CSS background or mask, data URLs, React JSX, object, and iframe usage.`;
+    "Generate copy-ready HTML and CSS SVG embed snippets for img, inline SVG, object, iframe, background, mask, and data URI use.";
   const canonical = "https://www.ilovesvg.com/svg-embed-code-generator";
 
   return [
@@ -2269,52 +2269,45 @@ function JsonLdBreadcrumbs() {
 /* ========================
    FAQ JSON-LD
 ======================== */
+const SVG_EMBED_FAQS = [
+  {
+    q: "How do I embed an SVG in HTML?",
+    a: "Use an img tag for a simple file reference, or inline the SVG when you need CSS styling, hover states, ARIA labels, or per-path control.",
+  },
+  {
+    q: "Inline SVG vs img, which should I use?",
+    a: "Use inline SVG when you need to style internal paths or make the graphic part of your component markup. Use img when you only need to display the asset.",
+  },
+  {
+    q: "How do I embed SVG as a CSS background or mask?",
+    a: "Use background-image for decorative SVGs. Use mask-image for single-color icons that should inherit a CSS color from the element.",
+  },
+  {
+    q: "Should I use Base64 or UTF-8 for SVG data URIs?",
+    a: "UTF-8 percent-encoding is often smaller and readable for SVG text. Base64 can be useful when a pipeline breaks on special characters.",
+  },
+  {
+    q: "Is it safe to inline SVG from the internet?",
+    a: "Not by default. SVG can contain scripts, event handlers, foreignObject, and unsafe links. Keep sanitization enabled for untrusted SVG.",
+  },
+  {
+    q: "Why is my SVG not scaling correctly?",
+    a: "Most scaling issues come from a missing viewBox or hard-coded width and height. Add or preserve the viewBox and control display size with CSS.",
+  },
+];
+
 function JsonLdFaq() {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What is the best way to embed an SVG?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Inline SVG is best when you want full styling control and accessibility. Use <img> for the simplest file reference. Use Data URIs for CSS backgrounds or quick embeds without extra files. Use React when you want reusable components.",
-        },
+    mainEntity: SVG_EMBED_FAQS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
       },
-      {
-        "@type": "Question",
-        name: "Should I use Base64 or UTF-8 for SVG data URIs?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "UTF-8 (percent-encoded) is often smaller for SVG text. Base64 can be more compatible in some pipelines, but is usually larger for SVG.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Why does my file URL not load in preview?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "If the URL points to a path your site does not serve, the browser will show a broken image. Keep input preview set to use the uploaded SVG when you want reliable preview, and switch to File URL preview when you want to test production paths.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can SVG contain unsafe scripts?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. SVG can contain scripts, event handlers, and foreignObject. Keep sanitization enabled before inlining or generating data URIs from untrusted SVG.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How do I make an embedded SVG responsive?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Ensure the SVG has a viewBox, then avoid hard-coded width and height and control size with CSS. For <img>, use CSS like width:100% and height:auto while keeping the SVG viewBox.",
-        },
-      },
-    ],
+    })),
   };
 
   return (
@@ -2331,40 +2324,13 @@ function JsonLdFaq() {
    Visible FAQ
 ======================== */
 function FaqSection() {
-  const faqs = [
-    {
-      q: "How do I embed an SVG in HTML?",
-      a: "Use <img> for a simple file reference. Use inline SVG when you need CSS styling, hover states, or accessibility tweaks. This tool generates both.",
-    },
-    {
-      q: "Inline SVG vs img, which should I use?",
-      a: "Use inline SVG when you need to target internal paths with CSS or add ARIA labels. Use <img> when you just need to display the asset and do not need internal styling.",
-    },
-    {
-      q: "How do I embed SVG as a CSS background or mask?",
-      a: "Use background-image for decorative SVGs. Use mask-image for monochrome icons that should inherit color (currentColor). This tool generates both, including -webkit-mask for better support.",
-    },
-    {
-      q: "What is an SVG data URI?",
-      a: "A data URI embeds the SVG content directly into a URL string. You can use UTF-8 percent-encoding or Base64. UTF-8 is often smaller for SVG text.",
-    },
-    {
-      q: "Is it safe to inline SVG from the internet?",
-      a: "Not by default. SVG can contain scripts and event handlers. Keep sanitization enabled unless you fully trust the SVG.",
-    },
-    {
-      q: "Why is my SVG not scaling correctly?",
-      a: "Most scaling issues come from missing viewBox or hard-coded width and height. This tool can add a viewBox if missing and lets you control preserveAspectRatio.",
-    },
-  ];
-
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-10 text-slate-800">
         <div className="max-w-[900px]">
           <h2 className="m-0 text-2xl font-extrabold text-slate-900">FAQ</h2>
           <div className="mt-4 grid gap-3">
-            {faqs.map((f) => (
+            {SVG_EMBED_FAQS.map((f) => (
               <details
                 key={f.q}
                 className="rounded-2xl border border-slate-200 bg-white overflow-hidden"
@@ -2419,7 +2385,9 @@ function SeoSections() {
 
           <p className="mt-2 text-slate-600">
             Upload or paste an SVG and generate embed snippets for HTML, CSS,
-            React/JSX, and Data URIs.
+            optional React JSX, and Data URIs. Use the dedicated SVG to JSX
+            converter when the main output you need is a reusable React
+            component.
           </p>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -2576,8 +2544,10 @@ function SeoSections() {
 
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-[13px] text-slate-700">
               <span className="font-semibold text-slate-900">Tip:</span> If you
-              want styling control, choose Inline SVG or React. If you want the
-              simplest embed, choose HTML img.
+              want styling control, choose Inline SVG. If you want the simplest
+              embed, choose HTML img. This route is not the same as the SVG to
+              Base64 or SVG to JSX converters because it focuses on complete
+              paste-ready embed snippets.
             </div>
           </section>
         </article>

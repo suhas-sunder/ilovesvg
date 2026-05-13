@@ -30,11 +30,22 @@ const STICKER_ROUTES = [
 
 const SVG_TO_JPG_ETSY_ROUTES = ["/svg-to-jpg-converter", "/svg-to-jpg-for-etsy"];
 
+const DEVELOPER_CODE_ROUTES = [
+  "/svg-to-base64",
+  "/base64-to-svg",
+  "/svg-to-jsx-converter",
+  "/svg-embed-code-generator",
+  "/text-to-svg-converter",
+  "/emoji-to-svg-converter",
+  "/code-to-svg-for-cricut",
+];
+
 const TARGET_ROUTES = uniqueValues([
   ...BLOCKER_ROUTES,
   ...FAVICON_ICO_ROUTES,
   ...STICKER_ROUTES,
   ...SVG_TO_JPG_ETSY_ROUTES,
+  ...DEVELOPER_CODE_ROUTES,
 ]);
 
 const REQUIRED_JSON_LD_ROUTES = new Set(BLOCKER_ROUTES);
@@ -51,6 +62,10 @@ const DUPLICATE_SIGNATURE_GROUPS = [
   {
     id: "svg-to-jpg-etsy",
     routes: SVG_TO_JPG_ETSY_ROUTES,
+  },
+  {
+    id: "developer-code-jsonld",
+    routes: DEVELOPER_CODE_ROUTES,
   },
 ];
 

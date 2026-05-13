@@ -32,9 +32,9 @@ const isServer = typeof document === "undefined";
    Meta
 ======================== */
 export function meta({}: Route.MetaArgs) {
-  const title = "Emoji to SVG Converter - Convert Emoji to Vector SVG | iLoveSVG";
+  const title = "Emoji to SVG Converter - Create Emoji SVG Artwork | iLoveSVG";
   const description =
-    "Convert emoji text or emoji images to SVG for icons, stickers, overlays, and graphics. Text emoji uses clean SVG output; image emoji can be traced into vector paths.";
+    "Create emoji SVG artwork from typed emoji or uploaded emoji images. Use Twemoji-style vectors, trace raster emoji, preview, edit layers, and export SVG.";
   const canonical = "https://www.ilovesvg.com/emoji-to-svg-converter";
 
   return [
@@ -4044,6 +4044,10 @@ const EMOJI_FAQS = [
   {
     q: "Does emoji to SVG upload images?",
     a: "Text emoji conversion uses vector emoji sources. Uploaded emoji images are processed for tracing when you choose image mode, and files are not stored after conversion.",
+  },
+  {
+    q: "Will the SVG match my device emoji exactly?",
+    a: "Text emoji output uses Twemoji-style vector artwork for consistency, so it may differ from Apple, Google, Microsoft, or Samsung emoji fonts. Upload image mode when you need to trace a specific raster emoji style.",
   },
   {
     q: "When should I use text emoji instead of image tracing?",
