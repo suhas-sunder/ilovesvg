@@ -1517,9 +1517,35 @@ async function runOutputUxRouteSmoke(testCase) {
       };
       const lineInput = findLabeledRange(/Line weight/i);
       const fillInput = findLabeledRange(/Fill spread/i);
+      const hasFillColor = /Fill color/i.test(text);
+      const hasStrokeColor = /Stroke color/i.test(text);
+      const hasGradientFill = /Gradient fill/i.test(text);
+      const hasPatternFill = /Pattern fill/i.test(text);
+      const hasStickerBorder = /Enable border/i.test(text);
+      const hasStrokeOutputMode = /Stroke output mode/i.test(text);
+      const hasShadowEffect = /Shadow and glow/i.test(text);
+      const hasAnyAppearanceControl = [
+        lineInput,
+        fillInput,
+        hasFillColor,
+        hasStrokeColor,
+        hasGradientFill,
+        hasPatternFill,
+        hasStickerBorder,
+        hasStrokeOutputMode,
+        hasShadowEffect,
+      ].some(Boolean);
       return {
         hasLineWeight: /Line weight/i.test(text),
         hasFillSpread: /Fill spread/i.test(text),
+        hasFillColor,
+        hasStrokeColor,
+        hasGradientFill,
+        hasPatternFill,
+        hasStickerBorder,
+        hasStrokeOutputMode,
+        hasShadowEffect,
+        hasAnyAppearanceControl,
         lineWeightDisabled: Boolean(lineInput?.disabled),
         fillSpreadDisabled: Boolean(fillInput?.disabled),
       };
@@ -1596,8 +1622,9 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
       focused.openSettingsSectionCount === 0 &&
-      focused.appearanceRanges.lineWeightMax >= 30 &&
-      focused.appearanceRanges.fillSpreadMax >= 30 &&
+      controls.hasAnyAppearanceControl &&
+      (!controls.hasLineWeight || focused.appearanceRanges.lineWeightMax >= 30) &&
+      (!controls.hasFillSpread || focused.appearanceRanges.fillSpreadMax >= 30) &&
       Math.max(
         focused.transitionSample.outputPanelMs,
         focused.transitionSample.workspaceMs,
@@ -1609,8 +1636,6 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.layoutShift.ok &&
       accordionShift.ok &&
       focused.cursorViolations.length === 0 &&
-      controls.hasLineWeight &&
-      controls.hasFillSpread &&
       (!appearance.applied ||
         (Number(appearance.value) >= 20 && copy.hasFillSpread && download.hasFillSpread)) &&
       copy.ok &&
@@ -2028,8 +2053,16 @@ async function runOutputUxResponsiveChecks(client) {
       focusedHasFileSize: focused.hasFileSize,
       noFocusedRedundantActions: !focused.hasFocusedRedundantActions,
       noSettingsSectionsOpen: focused.openSettingsSectionCount === 0,
-      lineWeightRange: focused.appearanceRanges.lineWeightMax >= 30,
-      fillSpreadRange: focused.appearanceRanges.fillSpreadMax >= 30,
+      appearanceControlsAvailable:
+        focused.appearanceControlCount > 0 ||
+        focused.appearanceRanges.lineWeightMax >= 30 ||
+        focused.appearanceRanges.fillSpreadMax >= 30,
+      lineWeightRange:
+        focused.appearanceRanges.lineWeightMax === 0 ||
+        focused.appearanceRanges.lineWeightMax >= 30,
+      fillSpreadRange:
+        focused.appearanceRanges.fillSpreadMax === 0 ||
+        focused.appearanceRanges.fillSpreadMax >= 30,
       noMinimizeInActionRow: !focused.minimizeInActionRow,
       leftPaneCollapsed: focused.leftPaneCollapsed,
       editorNearTop: focused.editorNearTop,
@@ -2236,6 +2269,9 @@ function outputUxSnapshotExpression() {
       if (/Fill spread/i.test(text)) acc.fillSpreadMax = Number(input.max || 0);
       return acc;
     }, { lineWeightMax: 0, fillSpreadMax: 0 });
+    const appearanceControlCount = Array.from(document.querySelectorAll('[data-output-polish-group] button, [data-output-polish-group] input, [data-output-polish-group] select'))
+      .filter((element) => visible(element) && !element.disabled && element.getAttribute("aria-disabled") !== "true")
+      .length;
     const transitionSample = (() => {
       const outputPanel = document.querySelector('[data-output-panel-focused="true"]');
       const workspace = document.querySelector('[data-focused-editor-workspace="true"]');
@@ -2282,6 +2318,7 @@ function outputUxSnapshotExpression() {
       cursorViolations,
       sourceFileNames,
       appearanceRanges,
+      appearanceControlCount,
       transitionSample,
       layoutShift: {
         ok: doc.scrollWidth <= window.innerWidth + 2,

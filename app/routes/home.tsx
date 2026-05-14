@@ -52,6 +52,7 @@ import { TraceAdvancedSettingsPanel } from "~/client/components/converter/Advanc
 import {
   FocusedEditorPreviewComparison,
   getSvgByteSize,
+  hasVisibleOutputAppearanceControls,
   OutputAppearanceControls,
 } from "~/client/components/converter/TraceOutputPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
@@ -4524,26 +4525,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             },
                           )
                         : null;
+                    const strokeOutputModeDisabledReason = appearanceSupport
+                      ? item.sourceKind === "svg"
+                        ? appearanceSupport.centerlineDisabledReason ||
+                          "Centerline unavailable."
+                        : outputSettings.traceMode === "layered" || item.layers?.length
+                          ? "Centerline unavailable."
+                          : !sourceAvailableForOutput
+                            ? "Centerline unavailable."
+                            : null
+                      : null;
                     const appearanceControls =
-                      appearanceSupport && !isActiveJob && !isFailedJob ? (
+                      appearanceSupport &&
+                      !isActiveJob &&
+                      !isFailedJob &&
+                      hasVisibleOutputAppearanceControls(
+                        appearance,
+                        appearanceSupport,
+                        routeCapabilities.supportsStrokeTrace,
+                        strokeOutputModeDisabledReason,
+                        true,
+                      ) ? (
                         <OutputAppearanceControls
                           settings={appearance}
                           support={appearanceSupport}
                           controlId={`home-output-${item.stamp}`}
                           strokeOutputMode={outputSettings.strokeOutputMode || "filled"}
                           strokeOutputModeAvailable={routeCapabilities.supportsStrokeTrace}
-                          strokeOutputModeDisabledReason={
-                            item.sourceKind === "svg"
-                              ? appearanceSupport.centerlineDisabledReason ||
-                                "Centerline mode is for raster retracing."
-                              : outputSettings.traceMode === "layered" || item.layers?.length
-                              ? "Centerline strokes are for single line-art outputs, not layered color results."
-                              : !sourceAvailableForOutput
-                                ? item.sourceFileName
-                                  ? `Choose the original source image (${item.sourceFileName}) to retrace this output.`
-                                  : "Choose the original source image to retrace this output."
-                                : null
-                          }
+                          strokeOutputModeDisabledReason={strokeOutputModeDisabledReason}
                           onStrokeOutputModeChange={(mode) => {
                             const nextSettings = {
                               ...outputSettings,
@@ -4589,9 +4598,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             )
                           }
                           outputLayerItems={item.layers}
-                          outputLayerUnavailableMessage={
-                            appearanceSupport?.layerUnavailableMessage
-                          }
                           outputSize={{
                             width: item.width,
                             height: item.height,
@@ -5263,9 +5269,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               )
                             }
                             outputLayerItems={item.layers}
-                            outputLayerUnavailableMessage={
-                              appearanceSupport?.layerUnavailableMessage
-                            }
                             outputSize={{
                               width: item.width,
                               height: item.height,

@@ -625,30 +625,38 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     supportsRetrace: routeCapabilities.supportsStrokeTrace,
                   })
                 : null;
+            const strokeOutputModeDisabledReason = appearanceSupport
+              ? !routeCapabilities.supportsStrokeTrace
+                ? "Centerline unavailable."
+                : item.sourceKind === "svg"
+                  ? appearanceSupport.centerlineDisabledReason ||
+                    "Centerline unavailable."
+                  : outputSettings.traceMode === "layered" || item.layers?.length
+                    ? "Centerline unavailable."
+                    : routeCapabilities.group === "cricut" || isPrecisionOutputItem(item)
+                      ? "Centerline unavailable."
+                      : !sourceAvailableForOutput
+                        ? "Centerline unavailable."
+                        : null
+              : null;
             const appearanceControls =
-              appearanceSupport && !isActiveJob && !isFailedJob ? (
+              appearanceSupport &&
+              !isActiveJob &&
+              !isFailedJob &&
+              hasVisibleOutputAppearanceControls(
+                appearance,
+                appearanceSupport,
+                routeCapabilities.supportsStrokeTrace,
+                strokeOutputModeDisabledReason,
+                Boolean(routeCapabilities.supportsStrokeTrace),
+              ) ? (
                 <OutputAppearanceControls
                   settings={appearance}
                   support={appearanceSupport}
                   controlId={`output-${item.stamp}`}
                   strokeOutputMode={outputSettings.strokeOutputMode || "filled"}
                   strokeOutputModeAvailable={routeCapabilities.supportsStrokeTrace}
-                  strokeOutputModeDisabledReason={
-                    !routeCapabilities.supportsStrokeTrace
-                      ? "Centerline stroke retracing is not available on this route."
-                      : item.sourceKind === "svg"
-                        ? appearanceSupport.centerlineDisabledReason ||
-                          "Centerline mode is for raster retracing."
-                      : outputSettings.traceMode === "layered" || item.layers?.length
-                        ? "Centerline strokes are for single line-art outputs, not layered color results."
-                        : routeCapabilities.group === "cricut" || isPrecisionOutputItem(item)
-                          ? "Centerline mode is hidden for precision cut-file outputs."
-                          : !sourceAvailableForOutput
-                            ? item.sourceFileName
-                              ? `Choose the original source image (${item.sourceFileName}) to retrace this output.`
-                              : "Choose the original source image to retrace this output."
-                            : null
-                  }
+                  strokeOutputModeDisabledReason={strokeOutputModeDisabledReason}
                   onStrokeOutputModeChange={
                     routeCapabilities.supportsStrokeTrace
                       ? (mode) => {
@@ -697,9 +705,6 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       )
                     }
                     outputLayerItems={item.layers}
-                    outputLayerUnavailableMessage={
-                      appearanceSupport?.layerUnavailableMessage
-                    }
                     outputSize={{
                       width: item.width,
                       height: item.height,
@@ -1268,6 +1273,37 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
   );
 }
 
+export function hasVisibleOutputAppearanceControls(
+  settings: OutputAppearanceSettings,
+  support: ReturnType<typeof detectOutputAppearanceSupport>,
+  strokeOutputModeAvailable: boolean,
+  strokeOutputModeDisabledReason: string | null,
+  hasStrokeOutputModeHandler: boolean,
+) {
+  const fillTargetId = support.fillTargets.some(
+    (target) => target.id === settings.fillTargetId,
+  )
+    ? settings.fillTargetId
+    : "all-fills";
+  const stickerSupported =
+    support.supportsStickerBorder && support.stickerTargetIds.includes(fillTargetId);
+  const strokeModeDisabled = Boolean(strokeOutputModeDisabledReason);
+  const showStrokeOutputMode =
+    strokeOutputModeAvailable && !strokeModeDisabled && hasStrokeOutputModeHandler;
+  const fillStyleSupported = support.supportsGradientFill || support.supportsPatternFill;
+
+  return (
+    showStrokeOutputMode ||
+    stickerSupported ||
+    support.supportsLineWeight ||
+    support.supportsStrokeColor ||
+    support.supportsFillColor ||
+    support.supportsFillSpread ||
+    fillStyleSupported ||
+    support.supportsShadowEffect
+  );
+}
+
 export function OutputAppearanceControls({
   settings,
   support,
@@ -1311,8 +1347,11 @@ export function OutputAppearanceControls({
   const strokeModeDisabled = Boolean(strokeOutputModeDisabledReason);
   const showStrokeOutputMode =
     strokeOutputModeAvailable && !strokeModeDisabled && Boolean(onStrokeOutputModeChange);
-  const showStrokeOutputModeReason =
-    strokeOutputModeAvailable && strokeModeDisabled && Boolean(onStrokeOutputModeChange);
+  const showStickerBorderControls = stickerSupported;
+  const showStrokeControls = lineSupported || strokeColorSupported;
+  const showFillControls = fillColorSupported || fillSupported || fillStyleSupported;
+  const showFillStyleControls = fillStyleSupported;
+  const showShadowControls = shadowSupported;
   const resetFillColor = () =>
     onChange({
       fillColorEnabled: false,
@@ -1385,19 +1424,6 @@ export function OutputAppearanceControls({
         </button>
       </div>
 
-      {support.capabilitySummary || support.layerUnavailableMessage ? (
-        <div className="mt-3 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[12px] leading-5 text-slate-600">
-          {support.capabilitySummary ? (
-            <p className="m-0 font-semibold text-slate-700">
-              {support.capabilitySummary}
-            </p>
-          ) : null}
-          {support.layerUnavailableMessage ? (
-            <p className="m-0 mt-1">{support.layerUnavailableMessage}</p>
-          ) : null}
-        </div>
-      ) : null}
-
       {showStrokeOutputMode ? (
         <div
           className="mt-3 border-t border-slate-100 pt-3"
@@ -1436,20 +1462,9 @@ export function OutputAppearanceControls({
               "Filled shapes are best for logos, cut files, and most SVG conversions. Centerline strokes are best for simple line drawings, sketches, handwriting, and diagrams. Changing this retraces the original image."}
           </p>
         </div>
-      ) : showStrokeOutputModeReason ? (
-        <div
-          className="mt-3 border-t border-slate-100 pt-3"
-          data-output-polish-group="stroke-output-mode"
-        >
-          <span className="block text-[12px] font-semibold text-slate-700">
-            Stroke output mode
-          </span>
-          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
-            {strokeOutputModeDisabledReason || support.centerlineDisabledReason}
-          </p>
-        </div>
       ) : null}
 
+      {showStickerBorderControls ? (
       <div
         className="mt-3 border-t border-slate-100 pt-3"
         data-output-polish-group="sticker-border"
@@ -1476,26 +1491,17 @@ export function OutputAppearanceControls({
         <ToggleRow
           label="Enable border"
           checked={settings.stickerBorderEnabled}
-          disabled={!stickerSupported}
           onChange={(checked) =>
             onChange({
               stickerBorderEnabled: checked,
               stickerBorderWidth:
                 checked && settings.stickerBorderWidth <= 0.001
                   ? 8
-                  : settings.stickerBorderWidth,
+              : settings.stickerBorderWidth,
             })
           }
         />
-        {!stickerSupported ? (
-          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
-            {support.stickerBorderDisabledReason ||
-              (support.supportsStickerBorder
-                ? "Sticker border needs foreground filled shapes for the selected fill target."
-                : null) ||
-              "Sticker border needs filled SVG artwork."}
-          </p>
-        ) : settings.stickerBorderEnabled ? (
+        {settings.stickerBorderEnabled ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <ColorInput
               label="Border color"
@@ -1549,6 +1555,7 @@ export function OutputAppearanceControls({
               suffix=""
               onChange={(value) => onChange({ stickerBorderOpacity: value })}
             />
+            {support.supportsInternalGapFill ? (
             <div
               className="sm:col-span-2 border-t border-slate-100 pt-3"
               data-output-polish-subcontrols="internal-gap-fill"
@@ -1558,7 +1565,6 @@ export function OutputAppearanceControls({
                   <ToggleRow
                     label="Fill internal gaps"
                     checked={settings.internalGapFillEnabled}
-                    disabled={!support.supportsInternalGapFill}
                     onChange={(checked) => onChange({ internalGapFillEnabled: checked })}
                   />
                 </div>
@@ -1574,12 +1580,6 @@ export function OutputAppearanceControls({
               <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
                 Adds the chosen color behind compound line-art interiors. Keep off for designs where transparent holes matter.
               </p>
-              {!support.supportsInternalGapFill ? (
-                <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-                  {support.internalGapFillDisabledReason ||
-                    "Gap fill needs foreground filled path regions."}
-                </p>
-              ) : null}
               {settings.internalGapFillEnabled ? (
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <ColorInput
@@ -1599,10 +1599,13 @@ export function OutputAppearanceControls({
                 </div>
               ) : null}
             </div>
+            ) : null}
           </div>
         ) : null}
       </div>
+      ) : null}
 
+      {showStrokeControls ? (
       <div
         className="mt-4 border-t border-slate-100 pt-3"
         data-output-polish-group="stroke-effects"
@@ -1611,9 +1614,6 @@ export function OutputAppearanceControls({
           <div>
             <p className="m-0 text-[12px] font-bold text-slate-800">
               Stroke effects
-            </p>
-            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-              Applies only to SVG elements with real editable strokes.
             </p>
           </div>
           <EffectResetButton
@@ -1633,17 +1633,14 @@ export function OutputAppearanceControls({
             onChange={(value) => onChange({ strokeTargetId: value })}
           />
         ) : null}
-        <ToggleRow
-          label="Stroke color"
-          checked={settings.strokeColorEnabled}
-          disabled={!strokeColorSupported}
-          onChange={(checked) => onChange({ strokeColorEnabled: checked })}
-        />
-        {!strokeColorSupported ? (
-          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
-            No editable strokes were detected in this SVG.
-          </p>
-        ) : settings.strokeColorEnabled ? (
+        {strokeColorSupported ? (
+          <ToggleRow
+            label="Stroke color"
+            checked={settings.strokeColorEnabled}
+            onChange={(checked) => onChange({ strokeColorEnabled: checked })}
+          />
+        ) : null}
+        {strokeColorSupported && settings.strokeColorEnabled ? (
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <ColorInput
               label="Color"
@@ -1661,6 +1658,7 @@ export function OutputAppearanceControls({
             />
           </div>
         ) : null}
+        {lineSupported ? (
         <label className="mt-3 block">
           <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">
             <span>Line weight</span>
@@ -1671,23 +1669,21 @@ export function OutputAppearanceControls({
             max={30}
             step={0.05}
             value={settings.lineWeight}
-            disabled={!lineSupported}
             onChange={(value) => onChange({ lineWeight: value })}
           />
           <span className="text-[12px] text-slate-500">
-            {lineSupported
-              ? settings.lineWeight > 12
+            {settings.lineWeight > 12
                 ? "Very high line weights are manual visual boosts and can overpower delicate paths or increase file size."
-                : "Make stroked lines thinner or thicker."
-              : "No stroked lines were detected in this SVG."}
+                : "Make stroked lines thinner or thicker."}
           </span>
         </label>
+        ) : null}
 
+        {lineSupported ? (
         <label className="mt-3 flex items-center gap-2 text-[12px] text-slate-700">
           <input
             type="checkbox"
             checked={settings.nonScalingStroke}
-            disabled={!lineSupported}
             onChange={(event) =>
               onChange({ nonScalingStroke: event.currentTarget.checked })
             }
@@ -1695,8 +1691,11 @@ export function OutputAppearanceControls({
           />
           Keep stroke width consistent when resized
         </label>
+        ) : null}
       </div>
+      ) : null}
 
+      {showFillControls ? (
       <div
         className="mt-4 border-t border-slate-100 pt-3"
         data-output-polish-group="fill-effects"
@@ -1705,9 +1704,6 @@ export function OutputAppearanceControls({
           <div>
             <p className="m-0 text-[12px] font-bold text-slate-800">
               Fill effects
-            </p>
-            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-              Applies only to editable filled shapes. Fill effects never target strokes.
             </p>
           </div>
           <EffectResetButton
@@ -1727,17 +1723,14 @@ export function OutputAppearanceControls({
             onChange={(value) => onChange({ fillTargetId: value })}
           />
         ) : null}
-        <ToggleRow
-          label="Fill color"
-          checked={settings.fillColorEnabled}
-          disabled={!fillColorSupported}
-          onChange={(checked) => onChange({ fillColorEnabled: checked })}
-        />
-        {!fillColorSupported ? (
-          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
-            No editable filled shapes were detected in this SVG.
-          </p>
-        ) : settings.fillColorEnabled ? (
+        {fillColorSupported ? (
+          <ToggleRow
+            label="Fill color"
+            checked={settings.fillColorEnabled}
+            onChange={(checked) => onChange({ fillColorEnabled: checked })}
+          />
+        ) : null}
+        {fillColorSupported && settings.fillColorEnabled ? (
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <ColorInput
               label="Color"
@@ -1755,6 +1748,7 @@ export function OutputAppearanceControls({
             />
           </div>
         ) : null}
+        {fillSupported ? (
         <label className="mt-3 block">
           <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-slate-700">
             <span>Fill spread</span>
@@ -1765,18 +1759,17 @@ export function OutputAppearanceControls({
             max={30}
             step={0.1}
             value={settings.fillSpread}
-            disabled={!fillSupported}
             onChange={(value) => onChange({ fillSpread: value })}
           />
           <span className="text-[12px] text-slate-500">
-            {fillSupported
-              ? settings.fillSpread > 12
+            {settings.fillSpread > 12
                 ? "High fill spread values are manual visual boosts and may make tight details heavier or increase file size."
-                : "Expand filled regions with a same-color under-stroke."
-              : support.fillSpreadDisabledReason || "Fill spread is not safe for this output."}
+                : "Expand filled regions with a same-color under-stroke."}
           </span>
         </label>
+        ) : null}
 
+        {showFillStyleControls ? (
         <div
           className="mt-4 border-t border-slate-100 pt-3"
           data-output-polish-group="fill-style"
@@ -1786,26 +1779,16 @@ export function OutputAppearanceControls({
             <p className="m-0 text-[12px] font-bold text-slate-800">
               Fill style
             </p>
-            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-              Applies simple SVG defs to filled shapes. Pattern replaces gradient when both are enabled.
-            </p>
           </div>
           <div className="flex gap-2">
             <EffectResetButton disabled={!settings.gradientEnabled} onClick={resetGradient} label="Reset gradient" />
             <EffectResetButton disabled={!settings.patternEnabled} onClick={resetPattern} label="Reset pattern" />
           </div>
         </div>
-        {!fillStyleSupported ? (
-          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
-            {support.fillStyleDisabledReason ||
-              "Gradient and pattern fills need filled SVG regions."}
-          </p>
-        ) : (
           <div className="mt-2 grid gap-3">
             <ToggleRow
               label="Gradient fill"
               checked={settings.gradientEnabled}
-              disabled={!support.supportsGradientFill}
               onChange={(checked) =>
                 onChange({ gradientEnabled: checked, patternEnabled: checked ? false : settings.patternEnabled })
               }
@@ -1852,7 +1835,6 @@ export function OutputAppearanceControls({
             <ToggleRow
               label="Pattern fill"
               checked={settings.patternEnabled}
-              disabled={!support.supportsPatternFill}
               onChange={(checked) =>
                 onChange({ patternEnabled: checked, gradientEnabled: checked ? false : settings.gradientEnabled })
               }
@@ -1912,10 +1894,12 @@ export function OutputAppearanceControls({
               </div>
             ) : null}
           </div>
-        )}
       </div>
+        ) : null}
       </div>
+      ) : null}
 
+      {showShadowControls ? (
       <div
         className="mt-4 border-t border-slate-100 pt-3"
         data-output-polish-group="shadow-glow"
@@ -1925,24 +1909,15 @@ export function OutputAppearanceControls({
             <p className="m-0 text-[12px] font-bold text-slate-800">
               Shadow and glow
             </p>
-            <p className="m-0 mt-1 text-[12px] leading-5 text-slate-500">
-              Visual SVG filter for previews and graphic exports. Disabled for precision cut outputs.
-            </p>
           </div>
           <EffectResetButton disabled={!settings.shadowEnabled} onClick={resetShadow} />
         </div>
         <ToggleRow
           label="Enable effect"
           checked={settings.shadowEnabled}
-          disabled={!shadowSupported}
           onChange={(checked) => onChange({ shadowEnabled: checked })}
         />
-        {!shadowSupported ? (
-          <p className="m-0 mt-2 text-[12px] leading-5 text-slate-500">
-            {support.shadowEffectDisabledReason ||
-              "Shadow and glow need visible SVG artwork."}
-          </p>
-        ) : settings.shadowEnabled ? (
+        {settings.shadowEnabled ? (
           <div
             className="mt-3 grid gap-3 border-l-2 border-violet-100 pl-3 sm:grid-cols-2"
             data-output-polish-subcontrols="shadow-glow"
@@ -2006,6 +1981,7 @@ export function OutputAppearanceControls({
           </div>
         ) : null}
       </div>
+      ) : null}
     </div>
   );
 }

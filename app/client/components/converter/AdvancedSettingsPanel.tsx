@@ -58,7 +58,6 @@ type Props<TSettings extends MixedTraceSettings> = {
   sourceFile?: File | null;
   removeColorsEnabled?: boolean;
   outputLayerItems?: OutputLayerControlItem[];
-  outputLayerUnavailableMessage?: string;
   outputSize?: OutputSizeInfo | null;
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
   onResetOutputLayer?: (layerId: string) => void;
@@ -116,7 +115,6 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   sourceFile?: File | null;
   removeColorsEnabled?: boolean;
   outputLayerItems?: OutputLayerControlItem[];
-  outputLayerUnavailableMessage?: string;
   outputSize?: OutputSizeInfo | null;
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
   onResetOutputLayer?: (layerId: string) => void;
@@ -198,7 +196,6 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   sourceFile,
   removeColorsEnabled = true,
   outputLayerItems,
-  outputLayerUnavailableMessage,
   outputSize,
   onOutputLayerChange,
   onResetOutputLayer,
@@ -256,6 +253,8 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
         : [],
     [outputLayerItems, detectedColorItems, onOutputLayerChange],
   );
+  const showOutputLayerControls =
+    capabilities.supportsLayerEditing && outputLayers.length > 0;
   const focusedOpenSection =
     openSection !== undefined ? openSection : localFocusedSection;
 
@@ -381,7 +380,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
           )
         ) : null}
 
-        {capabilities.supportsLayerEditing && (
+        {showOutputLayerControls && (
           <>
             <OutputColorRemovalSection
               layers={outputLayers}
@@ -396,7 +395,6 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
             {!hideOutputLayerStyling && (
               <OutputLayerStylingSection
                 layers={outputLayers}
-                emptyMessage={outputLayerUnavailableMessage}
                 onOutputLayerChange={onOutputLayerChange}
                 onResetOutputLayer={onResetOutputLayer}
                 onResetAllOutputLayers={onResetAllOutputLayers}
@@ -1005,7 +1003,6 @@ export function LayeredAdvancedSettingsPanel<
   sourceFile,
   removeColorsEnabled = true,
   outputLayerItems,
-  outputLayerUnavailableMessage,
   outputSize,
   onOutputLayerChange,
   onResetOutputLayer,
@@ -1063,6 +1060,8 @@ export function LayeredAdvancedSettingsPanel<
         : [],
     [outputLayerItems, detectedColorItems, onOutputLayerChange],
   );
+  const showOutputLayerControls =
+    capabilities.supportsLayerEditing && outputLayers.length > 0;
   const focusedOpenSection =
     openSection !== undefined ? openSection : localFocusedSection;
 
@@ -1184,7 +1183,7 @@ export function LayeredAdvancedSettingsPanel<
           )
         ) : null}
 
-        {capabilities.supportsLayerEditing && (
+        {showOutputLayerControls && (
           <>
             <OutputColorRemovalSection
               layers={outputLayers}
@@ -1199,7 +1198,6 @@ export function LayeredAdvancedSettingsPanel<
             {!hideOutputLayerStyling && (
               <OutputLayerStylingSection
                 layers={outputLayers}
-                emptyMessage={outputLayerUnavailableMessage}
                 onOutputLayerChange={onOutputLayerChange}
                 onResetOutputLayer={onResetOutputLayer}
                 onResetAllOutputLayers={onResetAllOutputLayers}
@@ -1962,7 +1960,6 @@ function OutputColorRemovalSection({
 
 function OutputLayerStylingSection({
   layers,
-  emptyMessage,
   onOutputLayerChange,
   onResetOutputLayer,
   onResetAllOutputLayers,
@@ -1971,7 +1968,6 @@ function OutputLayerStylingSection({
   onToggle,
 }: {
   layers: OutputLayerControlItem[];
-  emptyMessage?: string;
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
@@ -1991,12 +1987,7 @@ function OutputLayerStylingSection({
         Edit visible SVG layers for this output only. Copy and download use the
         current layer state.
       </p>
-      {layers.length === 0 ? (
-        <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
-          {emptyMessage || "Generate an SVG to edit output layer colors and opacity."}
-        </div>
-      ) : (
-        <>
+      <>
           <div className="flex justify-end">
             <button
               type="button"
@@ -2017,8 +2008,7 @@ function OutputLayerStylingSection({
               />
             ))}
           </div>
-        </>
-      )}
+      </>
     </SettingSection>
   );
 }
