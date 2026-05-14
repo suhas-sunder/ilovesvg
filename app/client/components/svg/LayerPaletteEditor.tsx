@@ -452,13 +452,14 @@ function LayerPaletteRow({
           onTouchEnd={flushColor}
           onBlur={flushColor}
           title={`Change ${layer.label} color`}
+          aria-label={`${layer.label} color ${colorCommit.draft}`}
           className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
 
         <span className="grid min-w-0 gap-0.5 text-[12px] text-slate-700">
           <span className="min-w-0 truncate font-semibold">{layer.label}</span>
           <span className="min-w-0 truncate text-[11px] text-slate-400">
-            Original {layer.originalColor}
+            Original color {layer.originalColor}
           </span>
         </span>
         <button

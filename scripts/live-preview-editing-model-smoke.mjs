@@ -109,6 +109,18 @@ const layeredSvg =
   assert(support.supportsStrokeColor, "simple class-style strokes should be editable");
   const colorTarget = getSvgEditTargetById(support.editingModel, "color:#0ea5e9");
   assert(colorTarget?.count === 1, "class-style fill color target should be detected");
+  assert(
+    colorTarget?.label === "Matching fill color",
+    "fill color target should use a human-readable label instead of hex-first copy",
+  );
+  assert(
+    !/^Color:\s*#/i.test(colorTarget?.label || ""),
+    "fill color target should not use Color: # as the primary label",
+  );
+  assert(
+    getSvgEditTargetById(support.editingModel, "all-fills")?.label === "All filled areas",
+    "all-fills target should use a user-friendly label",
+  );
 
   const edited = applyOutputAppearanceToSvg(
     classStyleCleanupSvg,
@@ -152,7 +164,12 @@ const layeredSvg =
     ],
   });
   assert(support.editingModel.capabilities.hasEditableLayerTargets, "layered output should expose real layer targets");
-  assert(getSvgEditTargetById(support.editingModel, "layer:layer-orange"), "fill layer target should exist");
+  const layerTarget = getSvgEditTargetById(support.editingModel, "layer:layer-orange");
+  assert(layerTarget, "fill layer target should exist");
+  assert(
+    layerTarget?.label === "Orange layer",
+    "layer target should use the layer name without a technical prefix",
+  );
 
   const edited = applyOutputAppearanceToSvg(
     layeredSvg,
