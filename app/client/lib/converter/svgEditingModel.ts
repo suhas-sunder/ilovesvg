@@ -371,7 +371,7 @@ function buildFillTargets(
   if (fillElements.length) {
     targets.push({
       id: DEFAULT_FILL_TARGET_ID,
-      label: `All fills (${fillElements.length})`,
+      label: "All filled areas",
       type: "allFills",
       count: fillElements.length,
       paint: "fill",
@@ -390,7 +390,7 @@ function buildFillTargets(
       .filter((target) => target.supportedOperations.includes("recolor-fill"))
       .map((target) => ({
         ...target,
-        label: `Color: ${target.color} (${target.count})`,
+        label: "Matching fill color",
         paint: "fill" as const,
         supportedOperations: target.supportedOperations.filter((operation) =>
           [
@@ -421,7 +421,7 @@ function buildStrokeTargets(
   if (strokeElements.length) {
     targets.push({
       id: DEFAULT_STROKE_TARGET_ID,
-      label: `All strokes (${strokeElements.length})`,
+      label: "All strokes",
       type: "allStrokes",
       count: strokeElements.length,
       paint: "stroke",
@@ -437,7 +437,7 @@ function buildStrokeTargets(
       .filter((target) => target.supportedOperations.includes("recolor-stroke"))
       .map((target) => ({
         ...target,
-        label: `Color: ${target.color} (${target.count})`,
+        label: "Matching stroke color",
         paint: "stroke" as const,
         supportedOperations: target.supportedOperations.filter((operation) =>
           ["recolor-stroke", "opacity", "stroke-width"].includes(operation),
@@ -501,7 +501,12 @@ function buildColorTargets(
       }
       return {
         id: `color:${color}`,
-        label: `Color: ${color}`,
+        label:
+          counts.fillCount && counts.strokeCount
+            ? "Matching color"
+            : counts.fillCount
+              ? "Matching fill color"
+              : "Matching stroke color",
         type: "color" as const,
         count: counts.fillCount + counts.strokeCount,
         paint:
@@ -537,6 +542,11 @@ function buildLayerTargets(
     if (!matched.length) continue;
     const fillCount = matched.filter((element) => element.fill).length;
     const strokeCount = matched.filter((element) => element.stroke).length;
+    const representativeColor =
+      matched.find((element) => element.fill?.normalizedColor)?.fill
+        ?.normalizedColor ||
+      matched.find((element) => element.stroke?.normalizedColor)?.stroke
+        ?.normalizedColor;
     const supportedOperations: SvgEditOperation[] = [];
     if (fillCount) {
       supportedOperations.push(
@@ -554,7 +564,7 @@ function buildLayerTargets(
     if (!supportedOperations.length) continue;
     targets.push({
       id: `layer:${id}`,
-      label: `Layer: ${label}`,
+      label,
       type: "layer",
       count: fillCount + strokeCount,
       paint:
@@ -564,6 +574,7 @@ function buildLayerTargets(
             ? "fill"
             : "stroke",
       layerId: id,
+      color: representativeColor,
       supportedOperations: Array.from(new Set(supportedOperations)),
     });
   }

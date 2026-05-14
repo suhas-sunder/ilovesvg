@@ -26,6 +26,7 @@ import {
   normalizeOutputAppearance,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
+import type { SvgEditableTarget } from "~/client/lib/converter/svgEditingModel";
 import {
   useNativeColorFinalCommit,
   useThrottledCommit,
@@ -2283,27 +2284,137 @@ function TargetSelect({
 }: {
   label: string;
   value: string;
-  targets: ReadonlyArray<{ id: string; label: string; count: number }>;
+  targets: ReadonlyArray<SvgEditableTarget>;
   onChange: (value: string) => void;
 }) {
   if (targets.length <= 1) return null;
+  const selectedTarget =
+    targets.find((target) => target.id === value) || targets[0];
+  const selectedDisplay = buildTargetDisplay(selectedTarget);
   return (
     <label className="mt-3 block min-w-0">
       <span className="block text-[12px] font-semibold text-slate-700">
         {label}
       </span>
+      <span
+        data-target-selector-preview="true"
+        className="mt-1 flex min-w-0 items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5"
+      >
+        <TargetSwatch
+          color={selectedDisplay.swatchColor}
+          label={selectedDisplay.swatchLabel}
+        />
+        <span className="grid min-w-0 gap-0.5">
+          <span className="min-w-0 truncate text-[12px] font-semibold text-slate-800">
+            {selectedDisplay.primary}
+          </span>
+          {selectedDisplay.secondary ? (
+            <span className="min-w-0 truncate text-[11px] font-medium text-slate-500">
+              {selectedDisplay.secondary}
+            </span>
+          ) : null}
+        </span>
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
+        aria-label={`${label}: ${selectedDisplay.ariaLabel}`}
         className="mt-1 w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-2 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
       >
-        {targets.map((target) => (
-          <option key={target.id} value={target.id}>
-            {target.label}
-          </option>
-        ))}
+        {targets.map((target) => {
+          const display = buildTargetDisplay(target);
+          return (
+            <option key={target.id} value={target.id}>
+              {display.optionLabel}
+            </option>
+          );
+        })}
       </select>
     </label>
+  );
+}
+
+type TargetDisplay = {
+  primary: string;
+  secondary: string;
+  optionLabel: string;
+  ariaLabel: string;
+  swatchColor?: string;
+  swatchLabel: string;
+};
+
+function buildTargetDisplay(target: SvgEditableTarget): TargetDisplay {
+  const count = formatTargetCount(target);
+  const color = normalizeHexColor(target.color || "");
+  const baseLabel = normalizeTargetLabel(target);
+  const secondaryParts = [count, color].filter(Boolean);
+  const secondary = secondaryParts.join(", ");
+  const optionLabel = secondary ? `${baseLabel} - ${secondary}` : baseLabel;
+  const ariaLabel = secondary ? `${baseLabel}, ${secondary}` : baseLabel;
+  const swatchLabel = color
+    ? `${baseLabel} color swatch ${color}`
+    : `${baseLabel} target`;
+
+  return {
+    primary: baseLabel,
+    secondary,
+    optionLabel,
+    ariaLabel,
+    swatchColor: color || undefined,
+    swatchLabel,
+  };
+}
+
+function normalizeTargetLabel(target: SvgEditableTarget): string {
+  if (target.type === "allFills") return "All filled areas";
+  if (target.type === "allStrokes") return "All strokes";
+  if (target.type === "color") {
+    if (target.paint === "fill") return "Matching fill color";
+    if (target.paint === "stroke") return "Matching stroke color";
+    return "Matching color";
+  }
+  if (target.type === "layer") {
+    const label = stripTechnicalTargetPrefix(target.label);
+    return label || "Layer";
+  }
+  return stripTechnicalTargetPrefix(target.label) || "Target";
+}
+
+function stripTechnicalTargetPrefix(label: string): string {
+  return String(label || "")
+    .replace(/^Color:\s*#[0-9a-f]{3,8}(?:\s*\(\d+\))?/i, "")
+    .replace(/^Layer:\s*/i, "")
+    .trim();
+}
+
+function formatTargetCount(target: SvgEditableTarget): string {
+  const count = Math.max(0, Math.round(Number(target.count) || 0));
+  if (!count) return "";
+  const noun =
+    target.type === "allFills" || target.paint === "fill"
+      ? "area"
+      : target.type === "allStrokes" || target.paint === "stroke"
+        ? "stroke"
+        : "match";
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function TargetSwatch({
+  color,
+  label,
+}: {
+  color?: string;
+  label: string;
+}) {
+  if (!color) return null;
+  return (
+    <span
+      data-target-swatch="true"
+      role="img"
+      aria-label={label}
+      className="h-4 w-4 shrink-0 rounded-sm border border-slate-300 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]"
+      style={{ background: color }}
+    />
   );
 }
 

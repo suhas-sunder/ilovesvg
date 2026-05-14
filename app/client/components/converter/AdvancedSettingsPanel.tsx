@@ -1817,15 +1817,17 @@ function DetectedColorSwatches({
       <div className="flex flex-wrap gap-1.5">
         {colors.map(({ color, label }) => {
           const selected = selectedColors.includes(color);
+          const displayLabel = getColorChipLabel(label, color);
           return (
             <button
               type="button"
               key={color}
               onClick={() => onToggle(color)}
-              title={`${selected ? "Keep" : "Remove"} ${label}`}
+              title={`${selected ? "Keep" : "Remove"} ${displayLabel} ${color}`}
               aria-pressed={selected}
+              aria-label={`${selected ? "Keep" : "Remove"} ${displayLabel} ${color}`}
               className={[
-                "inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                "inline-flex min-w-0 items-center gap-1.5 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                 selected
                   ? "border-[#0b2dff] bg-sky-50 text-slate-900 hover:bg-sky-100"
                   : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
@@ -1834,9 +1836,15 @@ function DetectedColorSwatches({
               <span
                 className="h-3.5 w-3.5 rounded-sm border border-slate-300"
                 style={{ background: color }}
-                aria-hidden="true"
+                role="img"
+                aria-label={`Color swatch ${color}`}
               />
-              {color}
+              <span className="grid min-w-0 text-left leading-tight">
+                <span className="truncate">{displayLabel}</span>
+                <span className="truncate font-mono text-[10px] text-slate-500">
+                  {color}
+                </span>
+              </span>
             </button>
           );
         })}
@@ -1859,20 +1867,33 @@ function RemoveColorChips({
           type="button"
           key={color}
           onClick={() => onRemove(color)}
-          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           title={`Remove ${color} from list`}
+          aria-label={`Remove selected color ${color}`}
         >
           <span
             className="h-3 w-3 rounded-sm border border-slate-300"
             style={{ background: color }}
-            aria-hidden="true"
+            role="img"
+            aria-label={`Color swatch ${color}`}
           />
-          {color}
+          <span className="grid min-w-0 text-left leading-tight">
+            <span className="truncate">Selected color</span>
+            <span className="truncate font-mono text-[10px] text-slate-500">
+              {color}
+            </span>
+          </span>
           <span aria-hidden="true">x</span>
         </button>
       ))}
     </div>
   );
+}
+
+function getColorChipLabel(label: string, color: string): string {
+  const trimmed = String(label || "").trim();
+  if (trimmed && normalizeColorInput(trimmed) !== color) return trimmed;
+  return "Detected color";
 }
 
 function OutputColorRemovalSection({
@@ -1932,7 +1953,8 @@ function OutputColorRemovalSection({
                 <span
                   className="h-4 w-4 rounded-sm border border-slate-300"
                   style={{ background: color }}
-                  aria-hidden="true"
+                  role="img"
+                  aria-label={`${label} color swatch ${color}`}
                 />
                 <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-700">
                   {label}
@@ -2166,6 +2188,17 @@ function OutputLayerStyleRow({
           className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           aria-label={`Change ${label} color`}
         />
+        <div className="min-w-0 flex-[1_1_9rem]">
+          <div className="truncate text-[12px] font-semibold text-slate-700">
+            {label}
+          </div>
+          <div className="truncate text-[11px] text-slate-500">
+            Original color {original}
+            {typeof layer.pixelPercent === "number"
+              ? `, ${layer.pixelPercent}%`
+              : ""}
+          </div>
+        </div>
         <input
           type="text"
           value={colorText}
@@ -2206,17 +2239,6 @@ function OutputLayerStyleRow({
             ))}
           </div>
         </details>
-        <div className="min-w-0 flex-[1_1_9rem]">
-          <div className="truncate text-[12px] font-semibold text-slate-700">
-            {label}
-          </div>
-          <div className="truncate text-[11px] text-slate-500">
-            Original {original}
-            {typeof layer.pixelPercent === "number"
-              ? ` - ${layer.pixelPercent}%`
-              : ""}
-          </div>
-        </div>
         {onResetOutputLayer ? (
           <button
             type="button"
