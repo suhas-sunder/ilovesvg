@@ -1192,6 +1192,17 @@ async function changeFirstEditableColor(client) {
         input = findLiveColorInput(liveSection);
       }
     }
+    if (!input && liveSection !== panel) {
+      await openSection(panel, /Post-processing|Layer colors|Output colors/i);
+      input = findLiveColorInput(panel);
+      if (!input) {
+        const toggled = await enableFirstColorToggle(panel);
+        if (toggled) {
+          await nextFrame();
+          input = findLiveColorInput(panel);
+        }
+      }
+    }
     if (!input) throw new Error("no visible color input");
     const before = input.value || "#000000";
     const after = before.toLowerCase() === "#ff0066" ? "#0ea5e9" : "#ff0066";
@@ -1314,6 +1325,17 @@ async function moveFirstEditableSlider(client, previewBefore) {
       ranges = visibleRanges(liveSection);
       editableRanges = ranges.filter(isLiveEditRange);
       input =
+        editableRanges.find((candidate) => /Per-layer opacity/i.test(labelFor(candidate))) ||
+        editableRanges[0];
+    }
+    if (!input && liveSection !== panel) {
+      await openSection(panel, /Post-processing|Layer colors|Output colors/i);
+      ranges = visibleRanges(panel);
+      editableRanges = ranges.filter(isLiveEditRange);
+      input =
+        editableRanges.find((candidate) =>
+          /Border thickness|Line weight|Fill spread|Stroke|Spread/i.test(labelFor(candidate))
+        ) ||
         editableRanges.find((candidate) => /Per-layer opacity/i.test(labelFor(candidate))) ||
         editableRanges[0];
     }
