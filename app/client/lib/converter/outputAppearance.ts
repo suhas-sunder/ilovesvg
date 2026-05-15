@@ -852,6 +852,7 @@ function buildForegroundShapeClones(svg: string, targetId = "all-fills"): string
     const tagName = String(match[1] || "").toLowerCase();
     const rawAttrs = String(match[2] || "");
     if (rawAttrs.includes("data-post-processing=")) continue;
+    if (isInsideCutOutlineGroup(String(svg), match.index ?? 0)) continue;
     if (!matchesTarget(tagName, rawAttrs)) continue;
     if (isCanvasBackgroundElement(tagName, rawAttrs, viewport)) continue;
     if (isTinyForegroundArtifact(readElementGeometry(tagName, rawAttrs), viewport)) continue;
@@ -871,6 +872,7 @@ function hasForegroundFilledPath(svg: string): boolean {
   for (const match of String(svg).matchAll(PATH_TAG_PATTERN)) {
     const attrs = match[1] || "";
     if (attrs.includes("data-post-processing=")) continue;
+    if (isInsideCutOutlineGroup(String(svg), match.index ?? 0)) continue;
     const d = readAttribute(attrs, "d");
     if (!d || isCanvasBackgroundPath(d, viewport)) continue;
     if (isTinyForegroundArtifact({ d }, viewport)) continue;
@@ -879,6 +881,21 @@ function hasForegroundFilledPath(svg: string): boolean {
     return true;
   }
   return false;
+}
+
+function isInsideCutOutlineGroup(source: string, offset: number): boolean {
+  const before = source.slice(0, Math.max(0, offset));
+  const openIndex = before.lastIndexOf("<g");
+  if (openIndex < 0) return false;
+  const closeIndex = before.lastIndexOf("</g>");
+  if (closeIndex > openIndex) return false;
+  const openEnd = source.indexOf(">", openIndex);
+  if (openEnd < 0 || openEnd > offset) return false;
+  const attrs = source.slice(openIndex + 2, openEnd);
+  return (
+    /\bdata-role\s*=\s*(["'])cut-outline\1/i.test(attrs) ||
+    /\bid\s*=\s*(["'])sticker-cut-outline\1/i.test(attrs)
+  );
 }
 
 function buildShapeCloneAttributes(tagName: string, attrs: string): string {

@@ -240,11 +240,25 @@ export function replaceTraceOutputCurrent<TSettings extends MixedTraceSettings>(
   item: TraceOutputItem<TSettings>,
   version: OutputVersion<TSettings>,
 ): TraceOutputItem<TSettings> {
+  const replacementJob = version as OutputVersion<TSettings> &
+    Partial<
+      Pick<
+        TraceOutputItem<TSettings>,
+        "jobStatus" | "jobCompletedAt" | "jobError" | "canCancel"
+      >
+    >;
+  const replacingActiveJob = isTraceJobActive(item.jobStatus);
+
   return {
     ...applyTraceOutputVersion(item, version),
     previousVersion: snapshotTraceOutputVersion(item),
     nextVersion: null,
     updateError: null,
+    jobStatus: replacementJob.jobStatus ?? (replacingActiveJob ? "succeeded" : item.jobStatus),
+    jobCompletedAt:
+      replacementJob.jobCompletedAt ?? (replacingActiveJob ? Date.now() : item.jobCompletedAt),
+    jobError: replacementJob.jobError ?? null,
+    canCancel: replacementJob.canCancel ?? (replacingActiveJob ? false : item.canCancel),
   };
 }
 

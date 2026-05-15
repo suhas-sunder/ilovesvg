@@ -27,6 +27,8 @@ const thresholds = {
   settingsOpenMs: Number(process.env.POST_CONVERSION_SETTINGS_OPEN_MS || 1500),
   colorEditMs: Number(process.env.POST_CONVERSION_COLOR_EDIT_MS || 1000),
   sliderEditMs: Number(process.env.POST_CONVERSION_SLIDER_EDIT_MS || 1000),
+  copyMs: Number(process.env.POST_CONVERSION_COPY_MS || 1500),
+  downloadMs: Number(process.env.POST_CONVERSION_DOWNLOAD_MS || 1500),
 };
 
 const scenarioFilter = process.env.POST_CONVERSION_ROUTE_FILTER || "";
@@ -35,6 +37,10 @@ const scenarios = [
   {
     id: "home-layered-flat-color",
     route: "/",
+    routeFamily: "homepage/universal",
+    panelComponent: "route-local home output panel with shared output appearance controls",
+    settingsComponent: "TraceAdvancedSettingsPanel + OutputAppearanceControls",
+    outputPathKind: "route-local-home",
     fixtureKind: "source",
     selectPresetBeforeUpload: false,
     settleInitialAutoBeforePreset: true,
@@ -42,27 +48,102 @@ const scenarios = [
       /^Layered - Flat Color\b/i,
     ],
     expectedOutputPatterns: [/Layered/i, /color/i],
+    expectedOutputDescription: "Layered - Flat Color",
     conversionTimeoutMs: 240_000,
   },
   {
     id: "png-layered-flat-color",
     route: "/png-to-layered-svg-for-cricut",
+    routeFamily: "layered-svg",
+    panelComponent: "route-local PNG layered output panel",
+    settingsComponent: "LayeredAdvancedSettingsPanel + OutputAppearanceControls",
+    outputPathKind: "route-local-layered",
     fixtureKind: "source",
     presetPatterns: [
       /^Layered - Flat Color\b/i,
     ],
     expectedOutputPatterns: [/Layered/i, /color/i],
+    expectedOutputDescription: "Layered - Flat Color",
     conversionTimeoutMs: 240_000,
   },
   {
     id: "jpg-layered-flat-color",
     route: "/jpg-to-layered-svg-for-cricut",
+    routeFamily: "layered-svg",
+    panelComponent: "BespokeTraceOutputPanel",
+    settingsComponent: "LayeredAdvancedSettingsPanel + OutputAppearanceControls",
+    outputPathKind: "bespoke-layered",
     fixtureKind: "jpg",
     presetPatterns: [
       /^Layered - Flat Color\b/i,
     ],
     expectedOutputPatterns: [/Layered/i, /color/i],
+    expectedOutputDescription: "Layered - Flat Color",
     conversionTimeoutMs: 240_000,
+  },
+  {
+    id: "png-generic-logo-clean",
+    route: "/png-to-svg-converter",
+    routeFamily: "generic raster-to-SVG",
+    panelComponent: "TraceOutputPanel",
+    settingsComponent: "TraceAdvancedSettingsPanel + OutputAppearanceControls",
+    outputPathKind: "shared-trace-output-panel",
+    fixtureKind: "representativePng",
+    useCurrentPreset: true,
+    waitForAutoConversion: true,
+    presetPatterns: [],
+    expectedOutputPatterns: [],
+    expectedOutputDescription: "Lineart - Accurate default",
+    conversionTimeoutMs: 180_000,
+  },
+  {
+    id: "png-cricut-sticker-default",
+    route: "/png-to-svg-for-cricut-stickers",
+    routeFamily: "cricut/craft raster-to-SVG",
+    panelComponent: "BespokeTraceOutputPanel",
+    settingsComponent: "route-local StickerSettingsFields + OutputAppearanceControls",
+    outputPathKind: "bespoke-sticker",
+    fixtureKind: "representativePng",
+    selectPresetBeforeUpload: false,
+    presetPatterns: [
+      /^Sticker - White Border\b/i,
+      /^Sticker - Clean Edge\b/i,
+    ],
+    expectedOutputPatterns: [],
+    expectedOutputDescription: "Sticker - White Border",
+    conversionTimeoutMs: 180_000,
+  },
+  {
+    id: "svg-cleaner-route-local",
+    route: "/svg-cleaner",
+    routeFamily: "SVG cleanup/pass-through/editor",
+    panelComponent: "route-local SVG cleaner output",
+    settingsComponent: "route-local Cleaner Settings",
+    outputPathKind: "route-local-svg-cleaner",
+    scenarioKind: "svg-cleaner",
+    fixtureKind: "svg",
+    presetPatterns: [],
+    expectedOutputPatterns: [],
+    expectedOutputDescription: "Normal cleanup",
+    conversionTimeoutMs: 30_000,
+    settingsEditExpectation: "route-local-settings-no-shared-output-card",
+  },
+  {
+    id: "code-to-svg-bespoke-sample",
+    route: "/code-to-svg-for-cricut",
+    routeFamily: "bespoke text/base64/code output",
+    panelComponent: "BespokeTraceOutputPanel",
+    settingsComponent: "route-local code settings + OutputAppearanceControls",
+    outputPathKind: "bespoke-code",
+    scenarioKind: "code-sample",
+    fixtureKind: "route-sample",
+    presetPatterns: [
+      /^Logo - Clean shapes\b/i,
+      /^Lineart - Accurate\b/i,
+    ],
+    expectedOutputPatterns: [],
+    expectedOutputDescription: "Code sample SVG",
+    conversionTimeoutMs: 120_000,
   },
 ].filter(
   (scenario) =>
@@ -72,6 +153,11 @@ const scenarios = [
 );
 
 async function main() {
+  if (scenarios.length === 0) {
+    throw new Error(
+      `No post-conversion editability scenarios selected by POST_CONVERSION_ROUTE_FILTER=${JSON.stringify(scenarioFilter)}.`,
+    );
+  }
   await fs.rm(tmpDir, { recursive: true, force: true });
   await fs.mkdir(fixturesDir, { recursive: true });
   await fs.mkdir(downloadsDir, { recursive: true });
@@ -126,6 +212,12 @@ async function main() {
     server,
     git,
     fixture: fixture.source.info,
+    fixtureVariants: {
+      source: fixture.source.info,
+      jpg: fixture.jpg.info,
+      svg: fixture.svg.info,
+      representativePng: fixture.representativePng.info,
+    },
     routes: results,
   };
 
@@ -142,6 +234,10 @@ async function runScenario(scenario, fixture) {
   const scenarioFixture =
     scenario.fixtureKind === "jpg" && fixture.jpg
       ? fixture.jpg
+      : scenario.fixtureKind === "svg" && fixture.svg
+        ? fixture.svg
+        : scenario.fixtureKind === "representativePng" && fixture.representativePng
+          ? fixture.representativePng
       : fixture.source;
   const client = await openTab(`${baseUrl}${scenario.route}`);
   const consoleErrors = [];
@@ -197,17 +293,40 @@ async function runScenario(scenario, fixture) {
     await installObservers(client);
     await installClipboardCapture(client);
 
+    if (scenario.scenarioKind === "svg-cleaner") {
+      return await runSvgCleanerScenario({
+        scenario,
+        client,
+        timed,
+        scenarioFixture,
+        failures,
+        consoleErrors,
+        pageErrors,
+        downloads,
+        actionLog,
+        getCdpTimeout: () => cdpTimeout,
+      });
+    }
+
     const initial = await collectMetrics(client);
     let preset =
-      scenario.selectPresetBeforeUpload === false
-        ? { ok: true, elapsedMs: 0, value: { selected: null, skipped: true } }
+      scenario.useCurrentPreset
+        ? {
+            ok: true,
+            elapsedMs: 0,
+            value: {
+              selected: scenario.expectedOutputDescription || "current/default preset",
+              skipped: true,
+            },
+          }
+        : scenario.selectPresetBeforeUpload === false
+          ? { ok: true, elapsedMs: 0, value: { selected: null, skipped: true } }
         : await timed("select heavy layered preset before upload", () =>
             selectPreset(client, scenario.presetPatterns),
           );
-    const upload = await timed("upload fixture", async () => {
-      await setFileInput(client, scenarioFixture.path);
-      return waitForUploadAccepted(client, path.basename(scenarioFixture.path), 30_000);
-    });
+    const upload = await timed("prepare input", async () =>
+      prepareScenarioInput(client, scenario, scenarioFixture),
+    );
     const afterUpload = await collectMetrics(client);
     const preliminaryAutoOutput =
       upload.ok && scenario.settleInitialAutoBeforePreset
@@ -215,7 +334,7 @@ async function runScenario(scenario, fixture) {
             settleInitialAutoConversion(client, scenario.expectedOutputPatterns, 150_000),
           )
         : null;
-    if (!preset.value?.selected) {
+    if (!preset.value?.selected && !scenario.useCurrentPreset) {
       preset = await timed("select heavy layered preset after upload", () =>
         selectPreset(client, scenario.presetPatterns),
       );
@@ -225,12 +344,18 @@ async function runScenario(scenario, fixture) {
     const conversionStartTime = new Date().toISOString();
 
     if (!upload.ok) failures.push(`upload failed: ${upload.error}`);
-    if (!preset.ok || !preset.value?.selected) {
+    if (!preset.ok || (!preset.value?.selected && !scenario.useCurrentPreset)) {
       failures.push(`heavy layered preset not selected: ${preset.error || preset.value?.reason || "unknown"}`);
     }
     const startConversion =
-      upload.ok && preset.ok && preset.value?.selected
-        ? await timed("start conversion", () => clickConvert(client))
+      upload.ok && preset.ok && scenario.waitForAutoConversion
+        ? {
+            ok: true,
+            elapsedMs: 0,
+            value: { clicked: false, reason: "waiting for route auto-conversion after upload" },
+          }
+        : upload.ok && preset.ok && preset.value?.selected
+          ? await timed("start conversion", () => clickConvert(client))
         : {
             ok: false,
             elapsedMs: 0,
@@ -256,7 +381,7 @@ async function runScenario(scenario, fixture) {
       failures.push(`conversion did not complete: ${completed.error || completed.value?.reason || "unknown"}`);
     } else if (!completedMatchesScenario(completed.value, scenario.expectedOutputPatterns)) {
       failures.push(
-        `completed output did not match Layered - Flat Color: ${completed.value?.latestText || "no output text"}`,
+        `completed output did not match ${scenario.expectedOutputDescription || "expected preset"}: ${completed.value?.latestText || "no output text"}`,
       );
     }
 
@@ -265,21 +390,34 @@ async function runScenario(scenario, fixture) {
       await clearPhaseLongTasks(client, "post-conversion-edit");
       postConversion = await runPostConversionEditFlow(client, timed);
       if (!postConversion.settingsOpened) failures.push("Settings/Edit did not open on the completed output.");
-      if (!postConversion.colorChanged) failures.push("Layer/fill color edit did not visibly apply.");
-      if (!postConversion.sliderChanged) failures.push("Slider edit did not visibly apply.");
-      if (!postConversion.copyMatchedEditedColor) failures.push("Copy did not include the edited color.");
-      if (!postConversion.downloadMatchedEditedColor) failures.push("Download did not include the edited color.");
+      if (postConversion.colorApplicable && !postConversion.colorChanged) failures.push("Layer/fill color edit did not visibly apply.");
+      if (postConversion.sliderApplicable && !postConversion.sliderChanged) failures.push("Slider edit did not visibly apply.");
+      if (!postConversion.colorApplicable && !postConversion.sliderApplicable) {
+        failures.push("No relevant color, fill, stroke, or range edit target was available.");
+      }
+      if (!postConversion.copyMatchedEditedOutput) failures.push("Copy did not match the edited output.");
+      if (!postConversion.downloadMatchedEditedOutput) failures.push("Download did not match the edited output.");
+      if (postConversion.copyTimeMs > thresholds.copyMs) {
+        failures.push(
+          `Copy took ${Math.round(postConversion.copyTimeMs)} ms, threshold ${thresholds.copyMs} ms.`,
+        );
+      }
+      if (postConversion.downloadTimeMs > thresholds.downloadMs) {
+        failures.push(
+          `Download took ${Math.round(postConversion.downloadTimeMs)} ms, threshold ${thresholds.downloadMs} ms.`,
+        );
+      }
       if (postConversion.settingsOpenMs > thresholds.settingsOpenMs) {
         failures.push(
           `Settings/Edit open took ${Math.round(postConversion.settingsOpenMs)} ms, threshold ${thresholds.settingsOpenMs} ms.`,
         );
       }
-      if (postConversion.colorEditMs > thresholds.colorEditMs) {
+      if (postConversion.colorApplicable && postConversion.colorEditMs > thresholds.colorEditMs) {
         failures.push(
           `Color edit took ${Math.round(postConversion.colorEditMs)} ms, threshold ${thresholds.colorEditMs} ms.`,
         );
       }
-      if (postConversion.sliderEditMs > thresholds.sliderEditMs) {
+      if (postConversion.sliderApplicable && postConversion.sliderEditMs > thresholds.sliderEditMs) {
         failures.push(
           `Slider edit took ${Math.round(postConversion.sliderEditMs)} ms, threshold ${thresholds.sliderEditMs} ms.`,
         );
@@ -298,6 +436,11 @@ async function runScenario(scenario, fixture) {
     return {
       id: scenario.id,
       route: scenario.route,
+      routeFamily: scenario.routeFamily,
+      panelComponent: scenario.panelComponent,
+      settingsComponent: scenario.settingsComponent,
+      outputPathKind: scenario.outputPathKind,
+      settingsEditExpectation: scenario.settingsEditExpectation || "shared-settings-edit",
       ok: failures.length === 0,
       failures,
       fixture: scenarioFixture.info,
@@ -315,6 +458,13 @@ async function runScenario(scenario, fixture) {
       beforeConvert,
       afterConversion,
       completedOutput: completed.value || null,
+      pendingReplacementStatus: {
+        latestJobStatus: afterConversion.latestOutput?.jobStatus || completed.value?.latestJobStatus || null,
+        activeJobs: afterConversion.activeJobs ?? completed.value?.activeJobs ?? null,
+        completedOutputRemainedPending: Boolean(
+          afterConversion.activeJobs || /queued|running/i.test(String(afterConversion.latestOutput?.jobStatus || "")),
+        ),
+      },
       postConversion,
       consoleErrors,
       pageErrors,
@@ -328,6 +478,11 @@ async function runScenario(scenario, fixture) {
     return {
       id: scenario.id,
       route: scenario.route,
+      routeFamily: scenario.routeFamily,
+      panelComponent: scenario.panelComponent,
+      settingsComponent: scenario.settingsComponent,
+      outputPathKind: scenario.outputPathKind,
+      settingsEditExpectation: scenario.settingsEditExpectation || "shared-settings-edit",
       ok: false,
       failures: [message],
       fixture: scenarioFixture.info,
@@ -344,6 +499,133 @@ async function runScenario(scenario, fixture) {
   }
 }
 
+async function runSvgCleanerScenario({
+  scenario,
+  client,
+  timed,
+  scenarioFixture,
+  failures,
+  consoleErrors,
+  pageErrors,
+  downloads,
+  actionLog,
+  getCdpTimeout,
+}) {
+  const initial = await collectSvgCleanerMetrics(client);
+  const input = await timed("load SVG cleaner example", async () => {
+    await delay(1_200);
+    await clickSvgCleanerLoadExample(client);
+    const firstOutput = await waitForSvgCleanerOutput(client, 8_000).catch(() => null);
+    if (firstOutput) return firstOutput;
+    await delay(800);
+    await clickSvgCleanerLoadExample(client);
+    return waitForSvgCleanerOutput(client, scenario.conversionTimeoutMs);
+  });
+  if (!input.ok || !input.value?.hasOutput) {
+    failures.push(`SVG cleaner output did not appear: ${input.error || input.value?.reason || "unknown"}`);
+  }
+  const afterConversion = await collectSvgCleanerMetrics(client);
+  if (afterConversion.fakeSettingsEditControls > 0) {
+    failures.push("SVG cleaner exposes a shared Settings/Edit output control despite using route-local cleanup settings.");
+  }
+
+  let postConversion = null;
+  if (input.ok && input.value?.hasOutput) {
+    await clearPhaseLongTasks(client, "post-conversion-edit");
+    postConversion = await runSvgCleanerEditFlow(client, timed);
+    if (!postConversion.settingsOpened) failures.push("Route-local SVG cleaner settings did not open.");
+    if (!postConversion.editChangedOutput) failures.push("SVG cleaner setting edit did not change output.");
+    if (!postConversion.copyMatchedCurrentOutput) failures.push("SVG cleaner copy did not match the current output.");
+    if (!postConversion.downloadMatchedCurrentOutput) failures.push("SVG cleaner download did not match the current output.");
+    if (postConversion.settingsOpenMs > thresholds.settingsOpenMs) {
+      failures.push(
+        `Route-local settings open took ${Math.round(postConversion.settingsOpenMs)} ms, threshold ${thresholds.settingsOpenMs} ms.`,
+      );
+    }
+    if (postConversion.editApplyMs > thresholds.colorEditMs) {
+      failures.push(
+        `SVG cleaner edit took ${Math.round(postConversion.editApplyMs)} ms, threshold ${thresholds.colorEditMs} ms.`,
+      );
+    }
+    if (postConversion.copyTimeMs > thresholds.copyMs) {
+      failures.push(
+        `SVG cleaner copy took ${Math.round(postConversion.copyTimeMs)} ms, threshold ${thresholds.copyMs} ms.`,
+      );
+    }
+    if (postConversion.downloadTimeMs > thresholds.downloadMs) {
+      failures.push(
+        `SVG cleaner download took ${Math.round(postConversion.downloadTimeMs)} ms, threshold ${thresholds.downloadMs} ms.`,
+      );
+    }
+    if (!postConversion.pageRemainedResponsive) failures.push("SVG cleaner page did not remain responsive after editing.");
+  }
+
+  const final = await collectSvgCleanerMetrics(client).catch((error) => ({
+    pageAlive: false,
+    error: error instanceof Error ? error.message : String(error),
+  }));
+  if (getCdpTimeout() || final.pageAlive === false) {
+    failures.push("Page became unresponsive or a CDP timeout occurred.");
+  }
+
+  return {
+    id: scenario.id,
+    route: scenario.route,
+    routeFamily: scenario.routeFamily,
+    panelComponent: scenario.panelComponent,
+    settingsComponent: scenario.settingsComponent,
+    outputPathKind: scenario.outputPathKind,
+    settingsEditExpectation: scenario.settingsEditExpectation,
+    ok: failures.length === 0,
+    failures,
+    fixture: scenarioFixture.info,
+    presetUsed: scenario.expectedOutputDescription,
+    conversionStartTime: null,
+    conversionCompletedTime: new Date().toISOString(),
+    conversionDurationMs: input.elapsedMs,
+    outputBefore: null,
+    initial,
+    afterUpload: input.value || null,
+    beforeConvert: null,
+    afterConversion,
+    completedOutput: input.value || null,
+    pendingReplacementStatus: {
+      latestJobStatus: null,
+      activeJobs: 0,
+      completedOutputRemainedPending: false,
+    },
+    postConversion,
+    consoleErrors,
+    pageErrors,
+    downloads,
+    cdpTimeout: getCdpTimeout(),
+    final,
+    actionLog,
+  };
+}
+
+async function prepareScenarioInput(client, scenario, scenarioFixture) {
+  if (scenario.scenarioKind === "code-sample") {
+    await delay(1_200);
+    const clicked = await clickCodeLoadSample(client);
+    let accepted = await waitForCodeSampleAccepted(client, 8_000).catch(() => null);
+    if (!accepted) {
+      await delay(800);
+      await clickCodeLoadSample(client);
+      accepted = await waitForCodeSampleAccepted(client, 20_000);
+    }
+    return {
+      ok: true,
+      mode: "route-sample",
+      clicked,
+      ...accepted,
+    };
+  }
+
+  await setFileInput(client, scenarioFixture.path);
+  return waitForUploadAccepted(client, path.basename(scenarioFixture.path), 30_000);
+}
+
 async function runPostConversionEditFlow(client, timed) {
   const settings = await timed("open Settings/Edit immediately after conversion", () =>
     openSettingsOnLatestOutput(client),
@@ -352,7 +634,11 @@ async function runPostConversionEditFlow(client, timed) {
   const expand = await timed("open live layer controls", () => openLayerControls(client));
   const beforeColorSvg = await latestFocusedPreviewSvg(client).catch(() => "");
   const color = await timed("change layer/fill color", () => changeFirstEditableColor(client));
-  const colorApplied = color.ok
+  const colorApplicable = !(
+    !color.ok &&
+    /no visible color input/i.test(String(color.error || ""))
+  );
+  const colorApplied = colorApplicable && color.ok
     ? await timed("wait color edit visible", () =>
         waitForPreviewToContain(client, color.value?.after, beforeColorSvg, 8_000),
       )
@@ -361,14 +647,21 @@ async function runPostConversionEditFlow(client, timed) {
   const slider = await timed("move opacity/range slider", () =>
     moveFirstEditableSlider(client, afterColorSvg),
   );
-  const sliderApplied = slider.ok
+  const sliderApplicable = !(
+    !slider.ok &&
+    /no visible range input/i.test(String(slider.error || ""))
+  );
+  const sliderApplied = sliderApplicable && slider.ok
     ? await timed("wait slider edit visible", () =>
         waitForPreviewChange(client, afterColorSvg, 8_000),
       )
     : { ok: false, elapsedMs: 0, error: slider.error };
-  const copy = await timed("copy edited output", () => copyEditedOutput(client));
+  const finalPreviewSvg = await latestFocusedPreviewSvg(client).catch(() => "");
+  const copy = await timed("copy edited output", () =>
+    copyEditedOutput(client, finalPreviewSvg, color.value?.after),
+  );
   const download = await timed("download edited output", () =>
-    downloadEditedOutput(client, color.value?.after),
+    downloadEditedOutput(client, finalPreviewSvg, color.value?.after),
   );
   const heartbeat = await timed("post-edit heartbeat", () =>
     evaluate(client, `(() => ({ alive: true, focused: Boolean(document.querySelector('[data-focused-editor-workspace="true"]')) }))()`),
@@ -381,26 +674,81 @@ async function runPostConversionEditFlow(client, timed) {
     visibleSettingsPanelDetection: settings.value || null,
     layerControlOpenMs: expand.elapsedMs,
     layerControlsVisible: Boolean(expand.ok && expand.value?.opened),
-    colorChanged: Boolean(color.ok && colorApplied.ok && color.value?.changed),
-    colorEditMs: color.elapsedMs + colorApplied.elapsedMs,
+    colorApplicable,
+    colorNotApplicableReason: colorApplicable ? null : color.error,
+    colorChanged: Boolean(colorApplicable && color.ok && colorApplied.ok && color.value?.changed),
+    colorEditMs: colorApplicable ? color.elapsedMs + colorApplied.elapsedMs : null,
     colorBefore: color.value?.before || null,
     colorAfter: color.value?.after || null,
     colorApplyResult: colorApplied.value || colorApplied.error || null,
-    sliderChanged: Boolean(slider.ok && sliderApplied.ok && slider.value?.moved),
+    sliderApplicable,
+    sliderNotApplicableReason: sliderApplicable ? null : slider.error,
+    sliderChanged: Boolean(sliderApplicable && slider.ok && sliderApplied.ok && slider.value?.moved),
     sliderEditMs:
-      (slider.value?.effectiveElapsedMs ?? slider.elapsedMs) +
-      sliderApplied.elapsedMs,
+      sliderApplicable
+        ? (slider.value?.effectiveElapsedMs ?? slider.elapsedMs) + sliderApplied.elapsedMs
+        : null,
     sliderBefore: slider.value?.before ?? null,
     sliderAfter: slider.value?.after ?? null,
     sliderApplyResult: sliderApplied.value || sliderApplied.error || null,
     copyTimeMs: copy.elapsedMs,
     copyMatchedEditedColor: Boolean(copy.ok && copy.value?.containsEditedColor),
+    copyMatchedEditedOutput: Boolean(copy.ok && copy.value?.matchesExpectedSvg),
     downloadTimeMs: download.elapsedMs,
     downloadMatchedEditedColor: Boolean(download.ok && download.value?.containsEditedColor),
+    downloadMatchedEditedOutput: Boolean(download.ok && download.value?.matchesExpectedSvg),
     pageRemainedResponsive: Boolean(heartbeat.ok && heartbeat.value?.alive && afterEdit.pageAlive),
     metricsAfterSettingsOpen: afterSettings,
     metricsAfterEdit: afterEdit,
     postConversionLongTasks: afterEdit.postEditLongTasks,
+  };
+}
+
+async function runSvgCleanerEditFlow(client, timed) {
+  const settings = await timed("open route-local cleaner settings", () =>
+    openSvgCleanerSettings(client),
+  );
+  const afterSettings = await collectSvgCleanerMetrics(client);
+  const beforeEdit = await svgCleanerOutputSvg(client);
+  const edit = await timed("toggle SVG cleaner title/desc removal", () =>
+    toggleSvgCleanerSetting(client),
+  );
+  const editApplied = edit.ok
+    ? await timed("wait SVG cleaner edit visible", () =>
+        waitForSvgCleanerOutputChange(client, beforeEdit, 8_000),
+      )
+    : { ok: false, elapsedMs: 0, error: edit.error };
+  const currentOutput = await svgCleanerOutputSvg(client);
+  const copy = await timed("copy cleaned SVG", () =>
+    copySvgCleanerOutput(client, currentOutput),
+  );
+  const download = await timed("download cleaned SVG", () =>
+    downloadSvgCleanerOutput(client, currentOutput),
+  );
+  const heartbeat = await timed("post-cleaner-edit heartbeat", () =>
+    evaluate(client, `(() => ({ alive: true, hasOutput: Boolean(Array.from(document.querySelectorAll("textarea")).find((textarea) => textarea.readOnly)?.value) }))()`),
+  );
+  const afterEdit = await collectSvgCleanerMetrics(client);
+
+  return {
+    settingsOpened: Boolean(settings.ok && settings.value?.settingsVisible),
+    settingsOpenMs: settings.elapsedMs,
+    visibleSettingsPanelDetection: settings.value || null,
+    editChangedOutput: Boolean(edit.ok && editApplied.ok && edit.value?.changed),
+    editApplyMs: edit.elapsedMs + editApplied.elapsedMs,
+    editBefore: edit.value?.before ?? null,
+    editAfter: edit.value?.after ?? null,
+    editApplyResult: editApplied.value || editApplied.error || null,
+    copyTimeMs: copy.elapsedMs,
+    copyMatchedCurrentOutput: Boolean(copy.ok && copy.value?.matchesCurrentOutput),
+    downloadTimeMs: download.elapsedMs,
+    downloadMatchedCurrentOutput: Boolean(download.ok && download.value?.matchesCurrentOutput),
+    pageRemainedResponsive: Boolean(heartbeat.ok && heartbeat.value?.alive && afterEdit.pageAlive),
+    metricsAfterSettingsOpen: afterSettings,
+    metricsAfterEdit: afterEdit,
+    postConversionLongTasks: afterEdit.postEditLongTasks,
+    settingsEditKind: "route-local-svg-cleaner",
+    sharedSettingsEditNotApplicable: true,
   };
 }
 
@@ -490,6 +838,262 @@ async function selectPreset(client, patterns) {
   return { selected: null, reason: "No matching heavy layered preset button was visible." };
 }
 
+async function waitForCodeSampleAccepted(client, timeoutMs) {
+  return waitForValue(
+    client,
+    () => `(() => {
+      const textarea = document.querySelector("textarea");
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const enabledConvert = buttons.some((button) => {
+        const text = button.innerText || button.textContent || "";
+        return !button.disabled && /^\\s*Convert to SVG\\b/i.test(text);
+      });
+      return {
+        sampleLoaded: Boolean(textarea && textarea.value.trim().length > 20),
+        enabledConvert,
+      };
+    })()`,
+    timeoutMs,
+    (value) => value?.sampleLoaded && value?.enabledConvert,
+  );
+}
+
+async function clickCodeLoadSample(client) {
+  return evaluate(client, `(async () => {
+    const button = await waitForButton(/^Load sample$/i);
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    button.click();
+    await nextFrame();
+    const textarea = document.querySelector("textarea");
+    return {
+      label: (button.innerText || button.textContent || "").replace(/\\s+/g, " ").trim(),
+      textareaLength: textarea?.value?.length || 0,
+    };
+
+    async function waitForButton(pattern) {
+      const deadline = performance.now() + 8000;
+      while (performance.now() < deadline) {
+        const match = Array.from(document.querySelectorAll("button")).find((candidate) => {
+          const text = (candidate.innerText || candidate.textContent || "").replace(/\\s+/g, " ").trim();
+          return isVisible(candidate) && !candidate.disabled && pattern.test(text);
+        });
+        if (match) return match;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      throw new Error("Code route Load sample button not found");
+    }
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+    function nextFrame() {
+      return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  })()`, 10_000);
+}
+
+async function waitForSvgCleanerOutput(client, timeoutMs) {
+  return waitForValue(
+    client,
+    () => svgCleanerOutputStateExpression(),
+    timeoutMs,
+    (value) => value?.pageAlive && value.hasOutput,
+  );
+}
+
+async function clickSvgCleanerLoadExample(client) {
+  return evaluate(client, `(async () => {
+    const button = await waitForButton(/^Load example$/i);
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    button.click();
+    await nextFrame();
+    return {
+      label: (button.innerText || button.textContent || "").replace(/\\s+/g, " ").trim(),
+      textareaCount: document.querySelectorAll("textarea").length,
+    };
+
+    async function waitForButton(pattern) {
+      const deadline = performance.now() + 8000;
+      while (performance.now() < deadline) {
+        const match = Array.from(document.querySelectorAll("button")).find((candidate) => {
+          const text = (candidate.innerText || candidate.textContent || "").replace(/\\s+/g, " ").trim();
+          return isVisible(candidate) && !candidate.disabled && pattern.test(text);
+        });
+        if (match) return match;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      throw new Error("SVG cleaner Load example button not found");
+    }
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+    function nextFrame() {
+      return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  })()`, 10_000);
+}
+
+async function openSvgCleanerSettings(client) {
+  const alreadyOpen = await evaluate(client, `(() => {
+    const panel = document.getElementById("advanced-settings");
+    return Boolean(panel && isVisible(panel));
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+  })()`);
+  const clicked = alreadyOpen
+    ? { label: "Settings already open" }
+    : await clickButtonIfPresent(client, [/^Settings$/i], [/Settings\s*\/\s*Edit/i]);
+  if (!clicked) throw new Error("SVG cleaner Settings button not found.");
+  const visible = await waitForValue(
+    client,
+    () => `(() => {
+      const panel = document.getElementById("advanced-settings");
+      return {
+        settingsVisible: Boolean(panel && isVisible(panel)),
+        fakeSettingsEditControls: Array.from(document.querySelectorAll("button")).filter((button) => /Settings\\s*\\/\\s*Edit/i.test(button.innerText || button.textContent || "")).length,
+        visibleCheckboxes: Array.from(panel?.querySelectorAll('input[type="checkbox"]') || []).filter(isVisible).length,
+      };
+      function isVisible(element) {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden" && !element.disabled;
+      }
+    })()`,
+    8_000,
+    (value) => value?.settingsVisible && value.visibleCheckboxes > 0,
+  );
+  return { clicked, ...visible };
+}
+
+async function toggleSvgCleanerSetting(client) {
+  return evaluate(client, `(async () => {
+    const panel = document.getElementById("advanced-settings");
+    if (!panel) throw new Error("SVG cleaner settings panel missing");
+    const labels = Array.from(panel.querySelectorAll("label"));
+    const label = labels.find((candidate) =>
+      isVisible(candidate) && /Remove\\s*(?:<title>\\s*and\\s*<desc>|title\\s*and\\s*desc)/i.test(candidate.innerText || candidate.textContent || "")
+    );
+    const input = label?.querySelector('input[type="checkbox"]');
+    if (!input) throw new Error("Remove title and desc checkbox not found");
+    const before = Boolean(input.checked);
+    input.scrollIntoView({ block: "center", inline: "nearest" });
+    input.click();
+    await nextFrame();
+    return { changed: input.checked !== before, before, after: Boolean(input.checked) };
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden" && !element.disabled;
+    }
+    function nextFrame() {
+      return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  })()`, 8_000);
+}
+
+async function waitForSvgCleanerOutputChange(client, previousSvg, timeoutMs) {
+  return waitForValue(
+    client,
+    () => svgCleanerOutputStateExpression(previousSvg),
+    timeoutMs,
+    (value) => value?.hasOutput && value.changedFromPrevious,
+  );
+}
+
+async function svgCleanerOutputSvg(client) {
+  const state = await evaluate(client, svgCleanerOutputStateExpression(), 8_000);
+  return state.outputSvg || "";
+}
+
+function svgCleanerOutputStateExpression(previousSvg = "") {
+  return `(() => {
+    const output = Array.from(document.querySelectorAll("textarea")).find((textarea) => textarea.readOnly);
+    const outputSvg = output?.value || "";
+    const parsed = outputSvg
+      ? new DOMParser().parseFromString(outputSvg, "image/svg+xml")
+      : null;
+    const longTasks = window.__POST_CONVERSION_EDITABILITY__?.longTasks || [];
+    return {
+      pageAlive: true,
+      hasOutput: Boolean(outputSvg.trim()),
+      outputSvg: outputSvg.slice(0, 2_000_000),
+      outputByteSize: new Blob([outputSvg]).size,
+      pathCount: parsed ? parsed.querySelectorAll("path").length : 0,
+      layerCount: parsed ? parsed.querySelectorAll("[data-layer-id], [data-fill-layer-id], [data-stroke-layer-id], g[data-layer-name]").length : 0,
+      sharedOutputCards: document.querySelectorAll("[data-output-stamp]").length,
+      fakeSettingsEditControls: Array.from(document.querySelectorAll("button")).filter((button) => /Settings\\s*\\/\\s*Edit/i.test(button.innerText || button.textContent || "")).length,
+      copyEnabled: Array.from(document.querySelectorAll("button")).some((button) => !button.disabled && /Copy Cleaned SVG/i.test(button.innerText || button.textContent || "")),
+      downloadEnabled: Array.from(document.querySelectorAll("button")).some((button) => !button.disabled && /^Download SVG$/i.test((button.innerText || button.textContent || "").trim())),
+      changedFromPrevious: ${JSON.stringify(String(previousSvg || ""))} ? outputSvg !== ${JSON.stringify(String(previousSvg || ""))} : Boolean(outputSvg),
+      postEditLongTasks: longTasks.filter((task) => task.phase === "post-conversion-edit"),
+    };
+  })()`;
+}
+
+async function collectSvgCleanerMetrics(client) {
+  const page = await evaluate(client, svgCleanerOutputStateExpression(), 12_000);
+  const performanceMetrics = await client
+    .send("Performance.getMetrics", {}, 8_000)
+    .catch(() => null);
+  return {
+    ...page,
+    outputSvgByteSize: page.outputByteSize,
+    decodedPreviewBytes: page.outputByteSize,
+    decodedPreviewPaths: page.pathCount,
+    browserMetrics: performanceMetrics?.metrics
+      ?.filter((metric) =>
+        ["JSHeapUsedSize", "JSHeapTotalSize", "Nodes", "Documents", "LayoutCount", "RecalcStyleCount"].includes(metric.name),
+      )
+      .reduce((acc, metric) => {
+        acc[metric.name] = metric.value;
+        return acc;
+      }, {}),
+  };
+}
+
+async function copySvgCleanerOutput(client, expectedSvg) {
+  const before = await getClipboardWrites(client);
+  const clicked = await clickButtonIfPresent(client, [/Copy Cleaned SVG/i], []);
+  if (!clicked) throw new Error("Copy Cleaned SVG control not found");
+  const write = await waitForValue(
+    client,
+    () => `(() => {
+      const writes = window.__POST_CONVERSION_EDITABILITY__?.clipboardWrites || [];
+      const latest = writes[writes.length - 1] || "";
+      return {
+        count: writes.length,
+        bytes: new Blob([latest]).size,
+        matchesCurrentOutput: latest === ${JSON.stringify(expectedSvg)},
+      };
+    })()`,
+    8_000,
+    (value) => value?.count > before.length,
+  );
+  return { clicked, ...write };
+}
+
+async function downloadSvgCleanerOutput(client, expectedSvg) {
+  await fs.rm(downloadsDir, { recursive: true, force: true });
+  await fs.mkdir(downloadsDir, { recursive: true });
+  const clicked = await clickButtonIfPresent(client, [/^Download SVG$/i], []);
+  if (!clicked) throw new Error("Download SVG control not found");
+  const file = await waitForDownloadedSvg(10_000);
+  const svg = await fs.readFile(file, "utf8");
+  return {
+    clicked,
+    file,
+    bytes: Buffer.byteLength(svg),
+    matchesCurrentOutput: svg === expectedSvg,
+  };
+}
+
 async function openSettingsOnLatestOutput(client) {
   const clicked = await clickButtonInLatestOutput(client, [/Settings\s*\/\s*Edit/i, /^Settings$/i], []);
   if (!clicked) throw new Error("No Settings/Edit button found on latest completed output.");
@@ -563,25 +1167,110 @@ async function changeFirstEditableColor(client) {
   return evaluate(client, `(async () => {
     const panel = document.querySelector('[data-editor-settings-panel="true"], [id^="output-settings-"]:not([id^="output-settings-panel-"])');
     if (!panel) throw new Error("settings panel missing");
-    const input = Array.from(panel.querySelectorAll('input[type="color"]')).find(isVisible);
+    const liveSection =
+      panel.querySelector('[data-settings-top-section-tone="live"]') ||
+      panel;
+    if (
+      liveSection !== panel &&
+      liveSection.getAttribute("data-settings-top-section-open") !== "true"
+    ) {
+      const liveToggle = Array.from(liveSection.querySelectorAll("button")).find((control) =>
+        isVisible(control) && /Live Preview Edits/i.test(textFor(control))
+      );
+      if (liveToggle) {
+        liveToggle.scrollIntoView({ block: "center", inline: "nearest" });
+        liveToggle.click();
+        await nextFrame();
+      }
+    }
+    await openSection(liveSection, /Post-processing|Layer colors|Output colors/i);
+    let input = findLiveColorInput(liveSection);
+    if (!input) {
+      const toggled = await enableFirstColorToggle(liveSection);
+      if (toggled) {
+        await nextFrame();
+        input = findLiveColorInput(liveSection);
+      }
+    }
     if (!input) throw new Error("no visible color input");
     const before = input.value || "#000000";
     const after = before.toLowerCase() === "#ff0066" ? "#0ea5e9" : "#ff0066";
     window.__POST_CONVERSION_EDITABILITY__.editedColor = after;
     input.scrollIntoView({ block: "center", inline: "nearest" });
     input.focus();
-    input.value = after;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (valueSetter) {
+      valueSetter.call(input, after);
+    } else {
+      input.value = after;
+    }
+    const inputEvent =
+      typeof InputEvent === "function"
+        ? new InputEvent("input", { bubbles: true, inputType: "insertReplacementText", data: after })
+        : new Event("input", { bubbles: true });
+    input.dispatchEvent(inputEvent);
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    input.dispatchEvent(new Event("pointerup", { bubbles: true }));
-    input.dispatchEvent(new Event("mouseup", { bubbles: true }));
+    if (typeof PointerEvent === "function") {
+      input.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    }
+    input.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     input.blur();
     await nextFrame();
     return { changed: true, before, after };
+    async function openSection(root, pattern) {
+      const control = Array.from(root.querySelectorAll("button, summary")).find((candidate) =>
+        isVisible(candidate) && pattern.test(textFor(candidate))
+      );
+      if (!control) return false;
+      const section = control.closest("[data-settings-section]");
+      if (section?.getAttribute("data-settings-section-open") === "true") return true;
+      control.scrollIntoView({ block: "center", inline: "nearest" });
+      control.click();
+      await nextFrame();
+      return true;
+    }
+    async function enableFirstColorToggle(root) {
+      const toggles = Array.from(root.querySelectorAll([
+        '[data-post-processing-controls="true"] label',
+        '[data-settings-section] [data-post-processing-controls="true"] label',
+      ].join(", ")))
+        .map((label) => ({
+          label,
+          input: label.querySelector('input[type="checkbox"]'),
+          text: textFor(label),
+        }))
+        .filter(({ label, input, text }) =>
+          input &&
+          !input.disabled &&
+          isVisible(input) &&
+          isVisible(label) &&
+          /^(Stroke color|Fill color)$/.test(text)
+        );
+      const target =
+        toggles.find(({ text }) => /^Fill color$/.test(text)) ||
+        toggles.find(({ text }) => /^Stroke color$/.test(text)) ||
+        toggles[0];
+      if (!target) return false;
+      if (target.input.checked) return false;
+      target.label.scrollIntoView({ block: "center", inline: "nearest" });
+      target.input.click();
+      await nextFrame();
+      return true;
+    }
+    function findLiveColorInput(root) {
+      return Array.from(root.querySelectorAll([
+        '[data-post-processing-controls="true"] input[type="color"]',
+        '[data-layer-palette-editor="true"] input[type="color"]',
+        '[data-settings-section] input[type="color"]',
+      ].join(", "))).find(isVisible);
+    }
     function isVisible(element) {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
       return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden" && !element.disabled;
+    }
+    function textFor(element) {
+      return (element?.innerText || element?.textContent || element?.getAttribute?.("aria-label") || "").replace(/\\s+/g, " ").trim();
     }
     function nextFrame() {
       return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -809,8 +1498,16 @@ function focusedPreviewStateExpression(color, previousSvg) {
   })()`;
 }
 
-async function copyEditedOutput(client) {
+async function copyEditedOutput(client, expectedSvg, editedColor) {
   const before = await getClipboardWrites(client);
+  await evaluate(
+    client,
+    `(() => {
+      window.__POST_CONVERSION_EDITABILITY__.editedColor = ${JSON.stringify(editedColor || "")};
+      window.__POST_CONVERSION_EDITABILITY__.expectedEditedSvg = ${JSON.stringify(expectedSvg || "")};
+      return true;
+    })()`,
+  );
   const clicked = await clickButtonInFocusedEditor(client, [/Copy SVG/i, /^Copy$/i], [/Copied/i]);
   if (!clicked) throw new Error("copy control not found");
   const write = await waitForValue(
@@ -821,7 +1518,10 @@ async function copyEditedOutput(client) {
       return {
         count: writes.length,
         bytes: new Blob([latest]).size,
-        containsEditedColor: latest.toLowerCase().includes((window.__POST_CONVERSION_EDITABILITY__?.editedColor || "").toLowerCase()),
+        containsEditedColor: (window.__POST_CONVERSION_EDITABILITY__?.editedColor || "")
+          ? latest.toLowerCase().includes((window.__POST_CONVERSION_EDITABILITY__?.editedColor || "").toLowerCase())
+          : null,
+        matchesExpectedSvg: latest === (window.__POST_CONVERSION_EDITABILITY__?.expectedEditedSvg || ""),
       };
     })()`,
     8_000,
@@ -830,12 +1530,16 @@ async function copyEditedOutput(client) {
   return { clicked, ...write };
 }
 
-async function downloadEditedOutput(client, editedColor) {
+async function downloadEditedOutput(client, expectedSvg, editedColor) {
   await fs.rm(downloadsDir, { recursive: true, force: true });
   await fs.mkdir(downloadsDir, { recursive: true });
   await evaluate(
     client,
-    `(() => { window.__POST_CONVERSION_EDITABILITY__.editedColor = ${JSON.stringify(editedColor || "")}; return true; })()`,
+    `(() => {
+      window.__POST_CONVERSION_EDITABILITY__.editedColor = ${JSON.stringify(editedColor || "")};
+      window.__POST_CONVERSION_EDITABILITY__.expectedEditedSvg = ${JSON.stringify(expectedSvg || "")};
+      return true;
+    })()`,
   );
   const clicked = await clickButtonInFocusedEditor(client, [/Download SVG/i, /^Download\b/i], [/ZIP/i]);
   if (!clicked) throw new Error("download control not found");
@@ -845,7 +1549,10 @@ async function downloadEditedOutput(client, editedColor) {
     clicked,
     file,
     bytes: Buffer.byteLength(svg),
-    containsEditedColor: svg.toLowerCase().includes(String(editedColor || "").toLowerCase()),
+    containsEditedColor: editedColor
+      ? svg.toLowerCase().includes(String(editedColor || "").toLowerCase())
+      : null,
+    matchesExpectedSvg: svg === String(expectedSvg || ""),
   };
 }
 
@@ -1657,6 +2364,17 @@ async function prepareFixture() {
       .metadata()
       .catch(() => ({})),
   ]);
+  const svgFixturePath = path.join(fixturesDir, "cleaner-route-sample.svg");
+  await fs.writeFile(svgFixturePath, buildScreenshotLikeSvg());
+  const svgStat = await fs.stat(svgFixturePath);
+  const representativeFixturePath = path.join(fixturesDir, "representative-raster-input.png");
+  await sharp(Buffer.from(buildRepresentativeRasterSvg())).png().toFile(representativeFixturePath);
+  const [representativeStat, representativeMetadata] = await Promise.all([
+    fs.stat(representativeFixturePath),
+    sharp(representativeFixturePath, { limitInputPixels: false })
+      .metadata()
+      .catch(() => ({})),
+  ]);
   return {
     source: {
       path: fixturePath,
@@ -1677,6 +2395,34 @@ async function prepareFixture() {
         format: jpgMetadata.format || path.extname(jpgFixturePath).slice(1),
       },
     },
+    svg: {
+      path: svgFixturePath,
+      info: {
+        requestedPath: svgFixturePath,
+        path: svgFixturePath,
+        basename: path.basename(svgFixturePath),
+        source: "generated-svg-cleaner-fixture",
+        usedUserFixture: false,
+        bytes: svgStat.size,
+        width: 1024,
+        height: 760,
+        format: "svg",
+      },
+    },
+    representativePng: {
+      path: representativeFixturePath,
+      info: {
+        requestedPath: representativeFixturePath,
+        path: representativeFixturePath,
+        basename: path.basename(representativeFixturePath),
+        source: "generated-representative-raster-fixture",
+        usedUserFixture: false,
+        bytes: representativeStat.size,
+        width: representativeMetadata.width || null,
+        height: representativeMetadata.height || null,
+        format: representativeMetadata.format || path.extname(representativeFixturePath).slice(1),
+      },
+    },
   };
 }
 
@@ -1693,6 +2439,18 @@ function buildScreenshotLikeSvg() {
     panels.push(`<path d="M${inset + 52} ${inset + 44} h${Math.max(20, width - 92)}" stroke="#111827" stroke-width="${1 + (index % 3)}" opacity=".2"/>`);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="760" viewBox="0 0 1024 760"><rect width="1024" height="760" fill="#f8fafc"/>${panels.join("")}<text x="44" y="718" font-family="Arial" font-size="24" font-weight="700" fill="#0f172a">Screenshot-like diagnostic fixture</text></svg>`;
+}
+
+function buildRepresentativeRasterSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="520" viewBox="0 0 720 520">
+  <rect width="720" height="520" fill="#ffffff"/>
+  <path d="M88 378 C160 262 250 244 324 326 C392 402 490 350 584 204" fill="none" stroke="#111827" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="210" cy="176" r="82" fill="#2563eb"/>
+  <path d="M494 80 L528 154 L610 162 L550 218 L566 300 L494 258 L422 300 L438 218 L378 162 L460 154 Z" fill="#ef4444"/>
+  <rect x="118" y="350" width="228" height="88" rx="18" fill="#22c55e" stroke="#111827" stroke-width="10"/>
+  <path d="M430 396 h144" stroke="#111827" stroke-width="16" stroke-linecap="round"/>
+  <path d="M430 432 h94" stroke="#111827" stroke-width="16" stroke-linecap="round"/>
+</svg>`;
 }
 
 async function findBrowserExecutable() {
