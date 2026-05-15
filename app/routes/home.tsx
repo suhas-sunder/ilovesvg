@@ -4478,6 +4478,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       item.jobStatus === "queued" || item.jobStatus === "running";
                     const isFailedJob =
                       item.jobStatus === "failed" || item.jobStatus === "canceled";
+                    const focused = focusedOutputStamp === item.stamp;
+                    if (focusedOutputStamp != null && !focused) return null;
                     const previewData =
                       isActiveJob || isFailedJob
                         ? getTraceJobPreviewData(item)
@@ -4494,7 +4496,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const batch = item.batch || createOutputBatchState();
                     const batchDynamicMax = getOutputBatchDynamicMax(item);
                     const displayName = getHistoryDisplayName(item);
-                    const focused = focusedOutputStamp === item.stamp;
                     const sourceAvailableForOutput =
                       outputMatchesActiveSource(item, file);
                     const focusedSettingsSection =
@@ -4502,7 +4503,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const batchSectionOpen = focused
                       ? focusedSettingsSection === "batch"
                       : !!item.batchOpen;
-                    if (focusedOutputStamp != null && !focused) return null;
                     const collapsed =
                       !focused && collapsedOutputStamps.has(item.stamp);
                     const appearance = normalizeOutputAppearance(item.appearance);

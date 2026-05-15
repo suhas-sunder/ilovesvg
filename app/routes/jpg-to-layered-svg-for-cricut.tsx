@@ -1414,6 +1414,8 @@ type LayerState = {
   color: string;
   originalColor: string;
   visible: boolean;
+  opacity?: number;
+  originalOpacity?: number;
   pixelPercent: number;
   pathTags: string;
 };
@@ -1549,6 +1551,8 @@ export default function JpgToLayeredSvgForCricut({
         color: layer.color,
         originalColor: layer.color,
         visible: true,
+        opacity: 1,
+        originalOpacity: 1,
         pixelPercent: layer.pixelPercent,
         pathTags: layer.pathTags,
       })),
@@ -2027,6 +2031,7 @@ export default function JpgToLayeredSvgForCricut({
                                 ...layer,
                                 color: layer.originalColor,
                                 visible: true,
+                                opacity: layer.originalOpacity ?? 1,
                               }
                             : layer,
                         ),
@@ -2038,6 +2043,7 @@ export default function JpgToLayeredSvgForCricut({
                           ...layer,
                           color: layer.originalColor,
                           visible: true,
+                          opacity: layer.originalOpacity ?? 1,
                         })),
                       )
                     }
@@ -2281,8 +2287,11 @@ function buildClientLayeredSvg({
       const color = sanitizeClientColor(layer.color, layer.originalColor);
       const safeId = escapeClientAttr(layer.id || `layer-${index + 1}`);
       const safeName = escapeClientAttr(layer.name || `Layer ${index + 1}`);
+      const opacity = normalizeClientOpacity(layer.opacity);
+      const opacityAttr =
+        opacity < 1 ? ` opacity="${formatClientOpacity(opacity)}" data-editor-opacity="true"` : "";
 
-      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}">${layer.pathTags}</g>`;
+      return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}"${opacityAttr}>${layer.pathTags}</g>`;
     })
     .join("");
 
@@ -2299,6 +2308,18 @@ function sanitizeClientColor(input: string, fallback: string) {
   }
 
   return fallback || "#000000";
+}
+
+function normalizeClientOpacity(value?: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, Number(value)));
+}
+
+function formatClientOpacity(value: number) {
+  return normalizeClientOpacity(value)
+    .toFixed(3)
+    .replace(/0+$/, "")
+    .replace(/\.$/, "");
 }
 
 function escapeClientAttr(value: string) {

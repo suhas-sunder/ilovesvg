@@ -2081,6 +2081,7 @@ function ThrottledRangeInput({
     value: normalize(value) ?? min,
     onCommit: onChange,
     delayMs: 180,
+    leading: false,
     normalize,
     isEqual: areNumbersEqual,
   });
@@ -2101,9 +2102,30 @@ function ThrottledRangeInput({
     },
     [controller],
   );
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const flushRef = React.useRef(controller.flush);
+
+  React.useEffect(() => {
+    flushRef.current = controller.flush;
+  }, [controller.flush]);
+
+  React.useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return undefined;
+
+    const flushNativeChange = () => {
+      flushRef.current(Number(input.value));
+    };
+
+    input.addEventListener("change", flushNativeChange);
+    return () => {
+      input.removeEventListener("change", flushNativeChange);
+    };
+  }, []);
 
   return (
     <input
+      ref={inputRef}
       type="range"
       min={min}
       max={max}

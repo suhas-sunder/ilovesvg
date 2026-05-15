@@ -4,6 +4,7 @@ import {
   createSvgPaintTargetMatcher,
   resolveSvgPaintTargetId,
   rewriteSvgEditablePaintTargets,
+  type SvgEditOperation,
   type SvgEditableTarget,
   type SvgEditingLayerInput,
   type SvgEditingModel,
@@ -161,6 +162,7 @@ const SHADOW_OFFSET_MIN = -40;
 const SHADOW_OFFSET_MAX = 40;
 const SHADOW_OPACITY_MIN = 0;
 const SHADOW_OPACITY_MAX = 1;
+const LARGE_LAYERED_SUPPORT_THRESHOLD_BYTES = 300_000;
 
 export function normalizeOutputAppearance(
   settings?: Partial<OutputAppearanceSettings> | null,
@@ -343,18 +345,27 @@ export function detectOutputAppearanceSupport(
   options?: OutputAppearanceSupportOptions,
 ): OutputAppearanceSupport {
   const source = String(svg || "");
-  const editingModel = analyzeSvgEditingModel(source, options);
+  const useLayerMetadataSupport =
+    source.length >= LARGE_LAYERED_SUPPORT_THRESHOLD_BYTES &&
+    Boolean(options?.layers?.length);
+  const editingModel = useLayerMetadataSupport
+    ? createLayerMetadataEditingModel(source, options)
+    : analyzeSvgEditingModel(source, options);
   const hasStroke = editingModel.capabilities.hasEditableStrokeTargets;
   const hasFill = editingModel.capabilities.hasEditableFillTargets;
   const precisionOutput = Boolean(options?.precisionOutput);
   const fillUnavailableReason = hasFill
     ? undefined
     : "This effect needs filled SVG regions.";
-  const stickerTargetIds = editingModel.fillTargets
-    .filter((target) => hasForegroundFilledShape(source, target.id))
-    .map((target) => target.id);
+  const stickerTargetIds = useLayerMetadataSupport
+    ? editingModel.fillTargets.map((target) => target.id)
+    : editingModel.fillTargets
+        .filter((target) => hasForegroundFilledShape(source, target.id))
+        .map((target) => target.id);
   const supportsStickerBorder = stickerTargetIds.length > 0;
-  const supportsInternalGapFill = hasForegroundFilledPath(source);
+  const supportsInternalGapFill = useLayerMetadataSupport
+    ? /<path\b/i.test(source)
+    : hasForegroundFilledPath(source);
 
   return {
     editingModel,
@@ -403,6 +414,177 @@ export function detectOutputAppearanceSupport(
       : undefined,
     layerUnavailableMessage: editingModel.layerUnavailableMessage,
   };
+}
+
+function createLayerMetadataEditingModel(
+  source: string,
+  options: OutputAppearanceSupportOptions = {},
+): SvgEditingModel {
+  const layers = (options.layers || []).filter((layer) =>
+    String(layer.id || "").trim(),
+  );
+  const fillLayers = layers.filter((layer) => (layer.kind || "fill") !== "stroke");
+  const strokeLayers = layers.filter((layer) => layer.kind === "stroke");
+  const fillTargets = buildLayerMetadataPaintTargets(fillLayers, "fill");
+  const strokeTargets = buildLayerMetadataPaintTargets(strokeLayers, "stroke");
+  const layerTargets = [...fillTargets, ...strokeTargets].filter(
+    (target) => target.type === "layer",
+  );
+  const colorTargets = buildLayerMetadataColorTargets(layers);
+  const hasFill = fillTargets.length > 0;
+  const hasStroke = strokeTargets.length > 0;
+  const hasVisibleContent = layers.some((layer) => layer.visible !== false);
+  const isSvgCleanupOutput = options.sourceKind === "svg";
+  const isRasterTraceOutput =
+    options.sourceKind === "raster" ||
+    /^(?:vtracer|potrace|centerline)$/i.test(String(options.engineUsed || ""));
+  const targets = [
+    ...fillTargets.filter((target) => target.id === "all-fills"),
+    ...strokeTargets.filter((target) => target.id === "all-strokes"),
+    ...colorTargets,
+    ...layerTargets,
+  ];
+
+  return {
+    capabilities: {
+      hasValidSvg: /<svg\b/i.test(source),
+      hasVisibleContent,
+      hasFills: hasFill,
+      hasStrokes: hasStroke,
+      hasText: /<text\b/i.test(source),
+      hasImageElements: /<image\b/i.test(source),
+      hasInlineStyles: /\bstyle\s*=/i.test(source),
+      hasClassStyles: false,
+      hasGradients: /<(?:linearGradient|radialGradient)\b/i.test(source),
+      hasPatterns: /<pattern\b/i.test(source),
+      hasDefs: /<defs\b/i.test(source),
+      hasEditableFillTargets: hasFill,
+      hasEditableStrokeTargets: hasStroke,
+      hasEditableLayerTargets: layerTargets.length > 0,
+      hasEditableColorTargets: colorTargets.length > 0,
+      hasLayerPathTags: true,
+      hasDetectedColors: colorTargets.length > 0,
+      isSvgCleanupOutput,
+      isRasterTraceOutput,
+      isLayeredOutput: true,
+      supportsRetrace: Boolean(options.supportsRetrace && !isSvgCleanupOutput),
+      supportsLiveSvgMutation:
+        /<svg\b/i.test(source) && hasVisibleContent && (hasFill || hasStroke),
+    },
+    targets,
+    fillTargets,
+    strokeTargets,
+    layerTargets,
+    colorTargets,
+    summary: [
+      hasFill ? "filled shapes" : "",
+      hasStroke ? "strokes" : "",
+      layerTargets.length ? "layers" : "",
+      colorTargets.length ? "detected colors" : "",
+    ].filter(Boolean),
+    layerUnavailableMessage: undefined,
+  };
+}
+
+function buildLayerMetadataPaintTargets(
+  layers: ReadonlyArray<SvgEditingLayerInput>,
+  paint: SvgPaintKind,
+): SvgEditableTarget[] {
+  const operations: SvgEditOperation[] =
+    paint === "fill"
+      ? [
+          "recolor-fill",
+          "gradient-fill",
+          "pattern-fill",
+          "opacity",
+          "fill-spread",
+          "sticker-border",
+        ]
+      : ["recolor-stroke", "opacity", "stroke-width"];
+  const targets: SvgEditableTarget[] = [];
+  if (layers.length) {
+    targets.push({
+      id: paint === "fill" ? "all-fills" : "all-strokes",
+      label: paint === "fill" ? "All filled areas" : "All strokes",
+      type: paint === "fill" ? "allFills" : "allStrokes",
+      count: layers.length,
+      paint,
+      supportedOperations: operations,
+    });
+  }
+  for (const layer of layers) {
+    const id = String(layer.id || "").trim();
+    if (!id) continue;
+    const color =
+      normalizeOutputPaintColor(layer.color, "") ||
+      normalizeOutputPaintColor(layer.originalColor, "") ||
+      undefined;
+    targets.push({
+      id: `layer:${id}`,
+      label: layer.label || layer.name || id,
+      type: "layer",
+      count: 1,
+      paint,
+      color,
+      layerId: id,
+      supportedOperations: operations,
+    });
+  }
+  return targets;
+}
+
+function buildLayerMetadataColorTargets(
+  layers: ReadonlyArray<SvgEditingLayerInput>,
+): SvgEditableTarget[] {
+  const colors = new Map<
+    string,
+    { fillCount: number; strokeCount: number }
+  >();
+  for (const layer of layers) {
+    const color =
+      normalizeOutputPaintColor(layer.color, "") ||
+      normalizeOutputPaintColor(layer.originalColor, "");
+    if (!color) continue;
+    const current = colors.get(color) || { fillCount: 0, strokeCount: 0 };
+    if (layer.kind === "stroke") current.strokeCount += 1;
+    else current.fillCount += 1;
+    colors.set(color, current);
+  }
+  return [...colors.entries()].map(([color, counts]) => {
+    const supportedOperations: SvgEditOperation[] = [];
+    if (counts.fillCount) {
+      supportedOperations.push(
+        "recolor-fill",
+        "gradient-fill",
+        "pattern-fill",
+        "opacity",
+        "fill-spread",
+        "sticker-border",
+      );
+    }
+    if (counts.strokeCount) {
+      supportedOperations.push("recolor-stroke", "opacity", "stroke-width");
+    }
+    return {
+      id: `color:${color}`,
+      label:
+        counts.fillCount && counts.strokeCount
+          ? "Matching color"
+          : counts.fillCount
+            ? "Matching fill color"
+            : "Matching stroke color",
+      type: "color" as const,
+      count: counts.fillCount + counts.strokeCount,
+      paint:
+        counts.fillCount && counts.strokeCount
+          ? ("mixed" as const)
+          : counts.fillCount
+            ? ("fill" as const)
+            : ("stroke" as const),
+      color,
+      supportedOperations: Array.from(new Set(supportedOperations)),
+    };
+  });
 }
 
 export function applyOutputAppearanceToSvg(
