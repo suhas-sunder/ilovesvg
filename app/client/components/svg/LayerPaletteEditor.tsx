@@ -59,9 +59,15 @@ export function applyLayerEditsToSvg(
   const cached = layerEditSvgCache.get(layers);
   if (cached?.sourceSvg === svg) return cached.editedSvg;
 
+  const editedLayers = layers.filter(hasLayerEdit);
+  if (editedLayers.length === 0) {
+    layerEditSvgCache.set(layers, { sourceSvg: svg, editedSvg: svg });
+    return svg;
+  }
+
   let out = svg;
 
-  for (const layer of layers) {
+  for (const layer of editedLayers) {
     const id = escapeLayerRegExp(layer.id);
 
     const groupPattern = new RegExp(
@@ -149,6 +155,17 @@ export function applyLayerEditsToSvg(
 
   layerEditSvgCache.set(layers, { sourceSvg: svg, editedSvg: out });
   return out;
+}
+
+function hasLayerEdit(layer: EditableSvgLayer): boolean {
+  const color = normalizeHexColor(layer.color) || String(layer.color || "");
+  const originalColor =
+    normalizeHexColor(layer.originalColor) || String(layer.originalColor || "");
+  if (color !== originalColor) return true;
+  if (layer.visible === false) return true;
+  const opacity = normalizeOpacity(layer.opacity);
+  const originalOpacity = normalizeOpacity(layer.originalOpacity);
+  return Math.abs(opacity - originalOpacity) > 0.0005;
 }
 
 function parseSvgElementAttrs(

@@ -124,6 +124,10 @@ type SvgElementPaint = {
   normalizedColor?: string;
 };
 
+type SvgElementContext = {
+  inheritedFillNone?: boolean;
+};
+
 type SvgProtectedRange = {
   start: number;
   end: number;
@@ -288,7 +292,9 @@ export function rewriteSvgEditablePaintTargets(
       if (!TARGETABLE_TAGS.has(normalizedTag)) return match;
       if (isInsideProtectedRange(offset, ranges)) return match;
 
-      const record = buildSvgElementRecord(normalizedTag, String(attrs || ""), cssPaints);
+      const record = buildSvgElementRecord(normalizedTag, String(attrs || ""), cssPaints, {
+        inheritedFillNone: isInsideCutOutlineGroup(source, offset),
+      });
       if (!record?.visible) return match;
       const paint = options.paint === "fill" ? record.fill : record.stroke;
       if (!paint) return match;
@@ -593,7 +599,9 @@ function collectSvgElementRecords(
     if (isInsideProtectedRange(offset, ranges)) continue;
     const tagName = String(match[1] || "").toLowerCase();
     if (!TARGETABLE_TAGS.has(tagName)) continue;
-    const record = buildSvgElementRecord(tagName, String(match[2] || ""), cssPaints);
+    const record = buildSvgElementRecord(tagName, String(match[2] || ""), cssPaints, {
+      inheritedFillNone: isInsideCutOutlineGroup(source, offset),
+    });
     if (record) records.push(record);
   }
   return records;
@@ -603,6 +611,7 @@ function buildSvgElementRecord(
   tagName: string,
   attrs: string,
   cssPaints: Map<string, CssPaint>,
+  context: SvgElementContext = {},
 ): SvgElementRecord | null {
   const visible = isVisibleElement(tagName, attrs, cssPaints);
   if (!visible) {
@@ -614,8 +623,8 @@ function buildSvgElementRecord(
       isText: tagName === "text",
     };
   }
-  const fill = readElementPaint(tagName, attrs, "fill", cssPaints);
-  const stroke = readElementPaint(tagName, attrs, "stroke", cssPaints);
+  const fill = readElementPaint(tagName, attrs, "fill", cssPaints, context);
+  const stroke = readElementPaint(tagName, attrs, "stroke", cssPaints, context);
   return {
     tagName,
     attrs,
@@ -632,13 +641,17 @@ function readElementPaint(
   attrs: string,
   paint: SvgPaintKind,
   cssPaints: Map<string, CssPaint>,
+  context: SvgElementContext = {},
 ): SvgElementPaint | undefined {
   if (paint === "fill" && !FILLABLE_TAGS.has(tagName)) return undefined;
-  const value =
+  const explicitValue =
     readStyleProperty(attrs, paint) ||
     readAttribute(attrs, paint) ||
-    readCssPaint(attrs, paint, cssPaints) ||
+    readCssPaint(attrs, paint, cssPaints);
+  const value =
+    explicitValue ||
     (paint === "fill" && FILLABLE_TAGS.has(tagName) && tagName !== "g"
+      && !context.inheritedFillNone
       ? "#000000"
       : "");
   if (!value || !isPaintEnabled(value)) return undefined;
@@ -646,6 +659,21 @@ function readElementPaint(
     value,
     normalizedColor: normalizePaintColor(value),
   };
+}
+
+function isInsideCutOutlineGroup(source: string, offset: number): boolean {
+  const before = source.slice(0, Math.max(0, offset));
+  const openIndex = before.lastIndexOf("<g");
+  if (openIndex < 0) return false;
+  const closeIndex = before.lastIndexOf("</g>");
+  if (closeIndex > openIndex) return false;
+  const openEnd = source.indexOf(">", openIndex);
+  if (openEnd < 0 || openEnd > offset) return false;
+  const attrs = source.slice(openIndex + 2, openEnd);
+  return (
+    /\bdata-role\s*=\s*(["'])cut-outline\1/i.test(attrs) ||
+    /\bid\s*=\s*(["'])sticker-cut-outline\1/i.test(attrs)
+  );
 }
 
 function isVisibleElement(
