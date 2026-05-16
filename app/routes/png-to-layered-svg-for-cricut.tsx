@@ -1417,6 +1417,7 @@ export default function PngToLayeredSvgForCricut({
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
+  const skipNextLiveSubmitRef = React.useRef(false);
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const outputCounterRef = React.useRef(0);
   const activeHistoryStampRef = React.useRef<number | null>(null);
@@ -1527,6 +1528,10 @@ export default function PngToLayeredSvgForCricut({
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
     if (!file) return;
+    if (skipNextLiveSubmitRef.current) {
+      skipNextLiveSubmitRef.current = false;
+      return;
+    }
 
     const mode = autoMode;
     if (mode === "off") return;
@@ -1883,6 +1888,7 @@ export default function PngToLayeredSvgForCricut({
 
     await measureAndSet(chosen, measureRunId);
 
+    skipNextLiveSubmitRef.current = true;
     suppressLiveRef.current = false;
 
     void submitConvert(chosen, settings, {

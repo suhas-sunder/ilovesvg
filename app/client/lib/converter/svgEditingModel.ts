@@ -281,11 +281,24 @@ export function rewriteSvgEditablePaintTargets(
   const cssPaints = collectCssPaints(source);
   const ranges = collectProtectedRanges(source);
   const model = options.model ?? analyzeSvgEditingModel(source);
+  const hasCutOutlineGroups = hasCutOutlineGroupMarkers(source);
   const resolvedTargetId = resolveSvgPaintTargetId(
     model,
     options.targetId,
     options.paint,
   );
+  if (
+    cssPaints.size === 0 &&
+    ranges.length === 0 &&
+    !hasCutOutlineGroups &&
+    isDefaultAllPaintTarget(resolvedTargetId, options.paint)
+  ) {
+    return rewriteSimpleAllPaintTargets(
+      source,
+      options.paint,
+      rewriteAttrs,
+    );
+  }
   return source.replace(
     ELEMENT_TAG_PATTERN,
     (match: string, tagName: string, attrs = "", slash = "", offset: number) => {
@@ -294,7 +307,8 @@ export function rewriteSvgEditablePaintTargets(
       if (isInsideProtectedRange(offset, ranges)) return match;
 
       const record = buildSvgElementRecord(normalizedTag, String(attrs || ""), cssPaints, {
-        inheritedFillNone: isInsideCutOutlineGroup(source, offset),
+        inheritedFillNone:
+          hasCutOutlineGroups && isInsideCutOutlineGroup(source, offset),
       });
       if (!record?.visible) return match;
       const paint = options.paint === "fill" ? record.fill : record.stroke;
@@ -309,6 +323,49 @@ export function rewriteSvgEditablePaintTargets(
         isText: record.isText,
       };
       if (!matchesSvgEditTarget(context, resolvedTargetId)) return match;
+      const nextAttrs = rewriteAttrs(context);
+      return `<${tagName}${nextAttrs}${slash || ""}>`;
+    },
+  );
+}
+
+function isDefaultAllPaintTarget(
+  targetId: string,
+  paint: SvgPaintKind,
+): boolean {
+  return paint === "fill"
+    ? targetId === DEFAULT_FILL_TARGET_ID
+    : targetId === DEFAULT_STROKE_TARGET_ID;
+}
+
+function rewriteSimpleAllPaintTargets(
+  source: string,
+  paint: SvgPaintKind,
+  rewriteAttrs: (context: SvgPaintTargetContext) => string,
+): string {
+  return source.replace(
+    ELEMENT_TAG_PATTERN,
+    (match: string, tagName: string, attrs = "", slash = "") => {
+      const normalizedTag = String(tagName || "").toLowerCase();
+      if (!TARGETABLE_TAGS.has(normalizedTag)) return match;
+      if (paint === "fill" && !FILLABLE_TAGS.has(normalizedTag)) return match;
+      const attrsText = String(attrs || "");
+      if (isSimpleElementHidden(attrsText)) return match;
+      const explicitPaintValue =
+        readStyleProperty(attrsText, paint) || readAttribute(attrsText, paint);
+      const paintValue =
+        explicitPaintValue ||
+        (paint === "fill" && normalizedTag !== "g" ? "#000000" : "");
+      if (!paintValue || !isPaintEnabled(paintValue)) return match;
+      const context: SvgPaintTargetContext = {
+        tagName: normalizedTag,
+        attrs: attrsText,
+        paint,
+        paintValue,
+        normalizedColor: normalizePaintColor(paintValue),
+        layerIds: getElementLayerIds(attrsText),
+        isText: normalizedTag === "text",
+      };
       const nextAttrs = rewriteAttrs(context);
       return `<${tagName}${nextAttrs}${slash || ""}>`;
     },
@@ -594,6 +651,7 @@ function collectSvgElementRecords(
 ): SvgElementRecord[] {
   const source = String(svg || "");
   const ranges = collectProtectedRanges(source);
+  const hasCutOutlineGroups = hasCutOutlineGroupMarkers(source);
   const records: SvgElementRecord[] = [];
   for (const match of source.matchAll(ELEMENT_TAG_PATTERN)) {
     const offset = match.index ?? 0;
@@ -601,7 +659,8 @@ function collectSvgElementRecords(
     const tagName = String(match[1] || "").toLowerCase();
     if (!TARGETABLE_TAGS.has(tagName)) continue;
     const record = buildSvgElementRecord(tagName, String(match[2] || ""), cssPaints, {
-      inheritedFillNone: isInsideCutOutlineGroup(source, offset),
+      inheritedFillNone:
+        hasCutOutlineGroups && isInsideCutOutlineGroup(source, offset),
     });
     if (record) records.push(record);
   }
@@ -662,6 +721,13 @@ function readElementPaint(
   };
 }
 
+function hasCutOutlineGroupMarkers(source: string): boolean {
+  return (
+    /\bdata-role\s*=\s*(["'])cut-outline\1/i.test(source) ||
+    /\bid\s*=\s*(["'])sticker-cut-outline\1/i.test(source)
+  );
+}
+
 function isInsideCutOutlineGroup(source: string, offset: number): boolean {
   const before = source.slice(0, Math.max(0, offset));
   const openIndex = before.lastIndexOf("<g");
@@ -694,6 +760,15 @@ function isVisibleElement(
   if (isZeroOpacity(css.opacity)) return false;
   if (tagName === "path" && !readAttribute(attrs, "d")) return false;
   return true;
+}
+
+function isSimpleElementHidden(attrs: string): boolean {
+  if (readAttribute(attrs, "display")?.toLowerCase() === "none") return true;
+  if (readAttribute(attrs, "visibility")?.toLowerCase() === "hidden") return true;
+  if (isZeroOpacity(readAttribute(attrs, "opacity"))) return true;
+  return /display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\D|$)/i.test(
+    readAttribute(attrs, "style") || "",
+  );
 }
 
 function collectCssPaints(svg: string): Map<string, CssPaint> {

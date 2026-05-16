@@ -16,6 +16,7 @@ export type SvgLayerMeta = {
   opacity?: number;
   originalOpacity?: number;
   kind?: SvgLayerKind;
+  pathCount?: number;
 };
 
 export type EditableSvgLayer = SvgLayerMeta;
@@ -66,8 +67,20 @@ export function applyLayerEditsToSvg(
   }
 
   let out = svg;
+  const groupIds = collectSvgGroupLayerIds(out);
+  const groupEditedLayers = editedLayers.filter((layer) => groupIds.has(layer.id));
+  const fillElementLayers = new Map<string, EditableSvgLayer>();
+  const strokeElementLayers = new Map<string, EditableSvgLayer>();
 
   for (const layer of editedLayers) {
+    if ((layer.kind || "fill") === "stroke") {
+      strokeElementLayers.set(layer.id, layer);
+    } else {
+      fillElementLayers.set(layer.id, layer);
+    }
+  }
+
+  for (const layer of groupEditedLayers) {
     const id = escapeLayerRegExp(layer.id);
 
     const groupPattern = new RegExp(
@@ -115,46 +128,124 @@ export function applyLayerEditsToSvg(
       return `<g${nextAttrs}>${normalizedInner}${close}`;
     });
 
-    const attrName =
-      (layer.kind || "fill") === "stroke"
-        ? "data-stroke-layer-id"
-        : "data-fill-layer-id";
-    const paintProp = (layer.kind || "fill") === "stroke" ? "stroke" : "fill";
-    const elementPattern = new RegExp(
-      `(<([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\\/?>)`,
-      "gi",
-    );
+  }
 
+  const elementLayerCount = fillElementLayers.size + strokeElementLayers.size;
+  if (elementLayerCount > 0 && elementLayerCount <= 4) {
+    for (const layer of fillElementLayers.values()) {
+      out = replaceTaggedElementLayer(out, layer, "fill");
+    }
+    for (const layer of strokeElementLayers.values()) {
+      out = replaceTaggedElementLayer(out, layer, "stroke");
+    }
+  } else if (elementLayerCount > 0) {
     out = out.replace(
-      elementPattern,
-      (_match, _start, tagName, attrs, endTag) => {
-        const parsedElement = parseSvgElementAttrs(String(attrs || ""), String(endTag || ">"));
-        let nextAttrs = parsedElement.attrs
-          .replace(
-            new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"),
-            "",
-          )
-          .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "")
-          .replace(/\sdata-layer-color\s*=\s*["'][^"']*["']/gi, "")
-          .replace(/\sdata-layer-editor-hidden\s*=\s*["'][^"']*["']/gi, "");
-        nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
-        nextAttrs = rewriteStyleProperty(
-          nextAttrs,
-          "display",
-          layer.visible ? null : "none",
-        );
-        nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
-        nextAttrs += ` data-layer-color="${escapeSvgAttribute(layer.color)}"`;
-        nextAttrs += ` ${paintProp}="${layer.color}"`;
-        if (!layer.visible)
-          nextAttrs += ` display="none" data-layer-editor-hidden="true"`;
-        return `<${tagName}${nextAttrs}${parsedElement.close}`;
+      /<([a-zA-Z][\w:.-]*)\b([^<>]*?)(\/?)>/gi,
+      (match, tagName: string, attrs: string, selfClose: string) => {
+        let nextAttrs = String(attrs || "");
+        const fillLayerId = readSvgAttribute(nextAttrs, "data-fill-layer-id");
+        const strokeLayerId = readSvgAttribute(nextAttrs, "data-stroke-layer-id");
+        const fillLayer = fillLayerId ? fillElementLayers.get(fillLayerId) : undefined;
+        const strokeLayer = strokeLayerId ? strokeElementLayers.get(strokeLayerId) : undefined;
+        if (!fillLayer && !strokeLayer) return match;
+
+        let close = selfClose ? " />" : ">";
+        if (fillLayer) {
+          const edited = rewriteElementLayerAttrs(nextAttrs, close, fillLayer, "fill");
+          nextAttrs = edited.attrs;
+          close = edited.close;
+        }
+        if (strokeLayer) {
+          const edited = rewriteElementLayerAttrs(nextAttrs, close, strokeLayer, "stroke");
+          nextAttrs = edited.attrs;
+          close = edited.close;
+        }
+        return `<${tagName}${nextAttrs}${close}`;
       },
     );
   }
 
   layerEditSvgCache.set(layers, { sourceSvg: svg, editedSvg: out });
   return out;
+}
+
+function replaceTaggedElementLayer(
+  svg: string,
+  layer: EditableSvgLayer,
+  paintProp: "fill" | "stroke",
+): string {
+  const attrName =
+    paintProp === "stroke" ? "data-stroke-layer-id" : "data-fill-layer-id";
+  const id = escapeLayerRegExp(layer.id);
+  const elementPattern = new RegExp(
+    `(<([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\\/?>)`,
+    "gi",
+  );
+
+  return svg.replace(
+    elementPattern,
+    (_match, _start, tagName, attrs, endTag) => {
+      const edited = rewriteElementLayerAttrs(
+        String(attrs || ""),
+        String(endTag || ">"),
+        layer,
+        paintProp,
+      );
+      return `<${tagName}${edited.attrs}${edited.close}`;
+    },
+  );
+}
+
+export function completeEditableLayersFromTaggedSvg(
+  svg: string,
+  layers?: ReadonlyArray<EditableSvgLayer>,
+): EditableSvgLayer[] | undefined {
+  const taggedTargets = collectTaggedPaintTargets(svg);
+  if (!layers?.length && taggedTargets.length === 0) return layers ? [...layers] : undefined;
+
+  const targetsById = new Map(taggedTargets.map((target) => [target.id, target]));
+  const completed: EditableSvgLayer[] = [];
+  const seen = new Set<string>();
+
+  for (const layer of layers || []) {
+    const target = targetsById.get(layer.id);
+    const color =
+      normalizeHexColor(layer.color) ||
+      target?.color ||
+      normalizeHexColor(layer.originalColor) ||
+      "#000000";
+    const originalColor =
+      normalizeHexColor(layer.originalColor) || target?.color || color;
+    completed.push({
+      ...layer,
+      color,
+      originalColor,
+      visible: layer.visible !== false,
+      kind: layer.kind || target?.kind || "fill",
+      opacity: normalizeOpacity(layer.opacity),
+      originalOpacity: normalizeOpacity(layer.originalOpacity),
+      pathCount: layer.pathCount ?? target?.pathCount,
+    });
+    seen.add(layer.id);
+  }
+
+  for (const target of taggedTargets) {
+    if (seen.has(target.id)) continue;
+    completed.push({
+      id: target.id,
+      label: `Layer ${completed.length + 1}`,
+      color: target.color,
+      originalColor: target.color,
+      visible: true,
+      opacity: 1,
+      originalOpacity: 1,
+      kind: target.kind,
+      pathCount: target.pathCount,
+    });
+    seen.add(target.id);
+  }
+
+  return completed.length ? completed : layers ? [...layers] : undefined;
 }
 
 function hasLayerEdit(layer: EditableSvgLayer): boolean {
@@ -179,6 +270,104 @@ function parseSvgElementAttrs(
     attrs: selfClosing ? rawAttrs.replace(/\s*\/\s*$/, "") : rawAttrs,
     close: selfClosing ? " />" : ">",
   };
+}
+
+function rewriteElementLayerAttrs(
+  attrs: string,
+  endTag: string,
+  layer: EditableSvgLayer,
+  paintProp: "fill" | "stroke",
+): { attrs: string; close: string } {
+  const parsedElement = parseSvgElementAttrs(String(attrs || ""), String(endTag || ">"));
+  let nextAttrs = parsedElement.attrs
+    .replace(new RegExp(`\\s${paintProp}\\s*=\\s*["'][^"']*["']`, "gi"), "")
+    .replace(/\sdisplay\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sdata-layer-color\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sdata-layer-editor-hidden\s*=\s*["'][^"']*["']/gi, "");
+  nextAttrs = rewriteStyleProperty(nextAttrs, paintProp, layer.color);
+  nextAttrs = rewriteStyleProperty(nextAttrs, "display", layer.visible ? null : "none");
+  nextAttrs = applyOpacityAttribute(nextAttrs, layer.opacity);
+  nextAttrs += ` data-layer-color="${escapeSvgAttribute(layer.color)}"`;
+  nextAttrs += ` ${paintProp}="${layer.color}"`;
+  if (!layer.visible) {
+    nextAttrs += ` display="none" data-layer-editor-hidden="true"`;
+  }
+  return { attrs: nextAttrs, close: parsedElement.close };
+}
+
+function collectSvgGroupLayerIds(svg: string): Set<string> {
+  const ids = new Set<string>();
+  for (const match of String(svg || "").matchAll(/<g\b([^>]*)>/gi)) {
+    const id = readSvgAttribute(match[1] || "", "data-layer-id");
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
+function collectTaggedPaintTargets(svg: string): Array<{
+  id: string;
+  color: string;
+  kind: SvgLayerKind;
+  pathCount: number;
+}> {
+  const targets = new Map<
+    string,
+    { id: string; color: string; kind: SvgLayerKind; pathCount: number }
+  >();
+  for (const match of String(svg || "").matchAll(/<([a-zA-Z][\w:.-]*)\b([^<>]*?)(\/?)>/gi)) {
+    const tagName = String(match[1] || "").toLowerCase();
+    const attrs = String(match[2] || "");
+    if (!isTaggedPaintElementVisible(tagName, attrs)) continue;
+
+    const fillLayerId = readSvgAttribute(attrs, "data-fill-layer-id");
+    if (fillLayerId) {
+      const fill = readElementPaintColor(attrs, "fill");
+      if (fill) recordTaggedPaintTarget(targets, fillLayerId, fill, "fill");
+    }
+
+    const strokeLayerId = readSvgAttribute(attrs, "data-stroke-layer-id");
+    if (strokeLayerId) {
+      const stroke = readElementPaintColor(attrs, "stroke");
+      if (stroke) recordTaggedPaintTarget(targets, strokeLayerId, stroke, "stroke");
+    }
+  }
+  return Array.from(targets.values());
+}
+
+function recordTaggedPaintTarget(
+  targets: Map<string, { id: string; color: string; kind: SvgLayerKind; pathCount: number }>,
+  id: string,
+  color: string,
+  kind: SvgLayerKind,
+) {
+  const key = `${kind}:${id}`;
+  const current = targets.get(key);
+  if (current) {
+    current.pathCount += 1;
+    return;
+  }
+  targets.set(key, { id, color, kind, pathCount: 1 });
+}
+
+function isTaggedPaintElementVisible(tagName: string, attrs: string): boolean {
+  if (tagName === "path" && !readSvgAttribute(attrs, "d")) return false;
+  if (readSvgAttribute(attrs, "display")?.toLowerCase() === "none") return false;
+  if (readSvgAttribute(attrs, "visibility")?.toLowerCase() === "hidden") return false;
+  if (isZeroOpacity(readSvgAttribute(attrs, "opacity"))) return false;
+  const style = readSvgAttribute(attrs, "style") || "";
+  return !/display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\D|$)/i.test(style);
+}
+
+function readElementPaintColor(attrs: string, paint: "fill" | "stroke"): string | null {
+  const value =
+    readStylePropertyValue(attrs, paint) ||
+    readSvgAttribute(attrs, paint) ||
+    readSvgAttribute(attrs, "data-layer-color") ||
+    "";
+  if (!value || value === "none" || /^url\(/i.test(value) || /^currentColor$/i.test(value)) {
+    return null;
+  }
+  return normalizeHexColor(value);
 }
 
 export function LayerPaletteEditor({
@@ -609,6 +798,26 @@ function rewriteStyleProperty(
     /\bstyle\s*=\s*(["'])[^"']*\1/i,
     `style=${quote}${nextStyle}${quote}`,
   );
+}
+
+function readStylePropertyValue(attrs: string, property: string): string | null {
+  const style = readSvgAttribute(attrs, "style");
+  if (!style) return null;
+  const pattern = new RegExp(`(?:^|;)\\s*${escapeLayerRegExp(property)}\\s*:\\s*([^;]+)`, "i");
+  return style.match(pattern)?.[1]?.trim() || null;
+}
+
+function readSvgAttribute(attrs: string, attribute: string): string | null {
+  const match = String(attrs || "").match(
+    new RegExp(`\\s${escapeLayerRegExp(attribute)}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i"),
+  );
+  return match?.[2]?.trim() || null;
+}
+
+function isZeroOpacity(value: string | null): boolean {
+  if (value == null || value === "") return false;
+  const number = Number(value);
+  return Number.isFinite(number) && number <= 0.001;
 }
 
 function applyOpacityAttribute(attrs: string, opacity?: number): string {

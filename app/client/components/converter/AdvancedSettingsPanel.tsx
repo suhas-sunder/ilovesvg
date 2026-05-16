@@ -60,6 +60,7 @@ type Props<TSettings extends MixedTraceSettings> = {
   outputLayerItems?: OutputLayerControlItem[];
   outputSize?: OutputSizeInfo | null;
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onOutputLayersChange?: (patches: OutputLayerBatchPatch[]) => void;
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   onOutputSizeChange?: (size: { width: number; height: number }) => void;
@@ -117,6 +118,7 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   outputLayerItems?: OutputLayerControlItem[];
   outputSize?: OutputSizeInfo | null;
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onOutputLayersChange?: (patches: OutputLayerBatchPatch[]) => void;
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   onOutputSizeChange?: (size: { width: number; height: number }) => void;
@@ -148,6 +150,7 @@ type DetectedColorItem = {
     opacity?: number;
     originalOpacity?: number;
     pixelPercent?: number;
+    pathCount?: number;
   }>;
 };
 
@@ -171,12 +174,18 @@ export type OutputLayerControlItem = {
   opacity?: number;
   originalOpacity?: number;
   pixelPercent?: number;
+  pathCount?: number;
 };
 
 type OutputLayerPatch = {
   color?: string;
   visible?: boolean;
   opacity?: number;
+};
+
+type OutputLayerBatchPatch = {
+  layerId: string;
+  patch: OutputLayerPatch;
 };
 
 type OutputSizeInfo = {
@@ -198,6 +207,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   outputLayerItems,
   outputSize,
   onOutputLayerChange,
+  onOutputLayersChange,
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
@@ -396,6 +406,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
               <OutputLayerStylingSection
                 layers={outputLayers}
                 onOutputLayerChange={onOutputLayerChange}
+                onOutputLayersChange={onOutputLayersChange}
                 onResetOutputLayer={onResetOutputLayer}
                 onResetAllOutputLayers={onResetAllOutputLayers}
                 sectionId={`${id}-live-layer-styling`}
@@ -1005,6 +1016,7 @@ export function LayeredAdvancedSettingsPanel<
   outputLayerItems,
   outputSize,
   onOutputLayerChange,
+  onOutputLayersChange,
   onResetOutputLayer,
   onResetAllOutputLayers,
   onOutputSizeChange,
@@ -1199,6 +1211,7 @@ export function LayeredAdvancedSettingsPanel<
               <OutputLayerStylingSection
                 layers={outputLayers}
                 onOutputLayerChange={onOutputLayerChange}
+                onOutputLayersChange={onOutputLayersChange}
                 onResetOutputLayer={onResetOutputLayer}
                 onResetAllOutputLayers={onResetAllOutputLayers}
                 sectionId={`${id}-live-layer-styling`}
@@ -1983,6 +1996,7 @@ function OutputColorRemovalSection({
 function OutputLayerStylingSection({
   layers,
   onOutputLayerChange,
+  onOutputLayersChange,
   onResetOutputLayer,
   onResetAllOutputLayers,
   sectionId,
@@ -1991,12 +2005,72 @@ function OutputLayerStylingSection({
 }: {
   layers: OutputLayerControlItem[];
   onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onOutputLayersChange?: (patches: OutputLayerBatchPatch[]) => void;
   onResetOutputLayer?: (layerId: string) => void;
   onResetAllOutputLayers?: () => void;
   sectionId?: string;
   open?: boolean;
   onToggle?: () => void;
 }) {
+  const [query, setQuery] = React.useState("");
+  const [visibleLimit, setVisibleLimit] = React.useState(32);
+  const [expandedLayerId, setExpandedLayerId] = React.useState<string | null>(null);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredLayers = React.useMemo(() => {
+    if (!normalizedQuery) return layers;
+    return layers.filter((layer) => {
+      const label = layer.label || layer.name || layer.id;
+      const color = normalizeColorInput(layer.color || layer.originalColor || "") || "";
+      return (
+        label.toLowerCase().includes(normalizedQuery) ||
+        layer.id.toLowerCase().includes(normalizedQuery) ||
+        color.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [layers, normalizedQuery]);
+  const mountedLayers = React.useMemo(
+    () => filteredLayers.slice(0, visibleLimit),
+    [filteredLayers, visibleLimit],
+  );
+  const heavyDirectLimit = layers.length <= 32 ? mountedLayers.length : 16;
+  const heavyControlRowCount = mountedLayers.filter(
+    (layer, index) => index < heavyDirectLimit || expandedLayerId === layer.id,
+  ).length;
+  const allColors = React.useMemo(
+    () =>
+      layers
+        .map((layer) => normalizeColorInput(layer.color || layer.originalColor || ""))
+        .filter((color): color is string => Boolean(color)),
+    [layers],
+  );
+  const canShowMore = mountedLayers.length < filteredLayers.length;
+  const showFilterControls = layers.length > 32;
+
+  React.useEffect(() => {
+    setVisibleLimit(32);
+  }, [normalizedQuery, layers.length]);
+
+  React.useEffect(() => {
+    if (!expandedLayerId) return;
+    if (layers.some((layer) => layer.id === expandedLayerId)) return;
+    setExpandedLayerId(null);
+  }, [expandedLayerId, layers]);
+
+  const applyVisibilityToAll = React.useCallback(
+    (visible: boolean) => {
+      const patches = layers
+        .filter((layer) => (layer.visible !== false) !== visible)
+        .map((layer) => ({ layerId: layer.id, patch: { visible } }));
+      if (!patches.length) return;
+      if (onOutputLayersChange) {
+        onOutputLayersChange(patches);
+        return;
+      }
+      patches.forEach(({ layerId, patch }) => onOutputLayerChange?.(layerId, patch));
+    },
+    [layers, onOutputLayerChange, onOutputLayersChange],
+  );
+
   return (
     <SettingSection
       title="Layer colors"
@@ -2010,7 +2084,30 @@ function OutputLayerStylingSection({
         current layer state.
       </p>
       <>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[12px] font-medium text-slate-600">
+              Showing {mountedLayers.length} of {filteredLayers.length}
+              {filteredLayers.length !== layers.length ? ` matching ${layers.length} total` : " layer colors"}
+            </div>
+            <div className="flex flex-wrap justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => applyVisibilityToAll(false)}
+                disabled={!onOutputLayerChange && !onOutputLayersChange}
+                aria-label="Hide all layer colors"
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Hide all
+              </button>
+              <button
+                type="button"
+                onClick={() => applyVisibilityToAll(true)}
+                disabled={!onOutputLayerChange && !onOutputLayersChange}
+                aria-label="Show all layer colors"
+                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Show all
+              </button>
             <button
               type="button"
               onClick={onResetAllOutputLayers}
@@ -2019,21 +2116,143 @@ function OutputLayerStylingSection({
             >
               Reset all
             </button>
+            </div>
           </div>
-          <div className="grid max-h-[34rem] min-w-0 max-w-full gap-0 overflow-y-auto overflow-x-hidden">
-            {layers.map((layer) => (
-              <OutputLayerStyleRow
-                key={layer.id}
-                layer={layer}
-                onOutputLayerChange={onOutputLayerChange}
-                onResetOutputLayer={onResetOutputLayer}
-              />
-            ))}
+          {showFilterControls ? (
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              placeholder="Search layer colors"
+              data-layer-color-search="true"
+              className="w-full rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              aria-label="Search layer colors"
+            />
+          ) : null}
+          <div
+            className="grid max-h-[34rem] min-w-0 max-w-full gap-0 overflow-y-auto overflow-x-hidden"
+            data-layer-color-total-count={layers.length}
+            data-layer-color-mounted-count={mountedLayers.length}
+            data-layer-color-heavy-count={heavyControlRowCount}
+            data-layer-color-all-colors={allColors.join(" ")}
+          >
+            {mountedLayers.map((layer, index) => {
+              const showHeavyControls =
+                index < heavyDirectLimit || expandedLayerId === layer.id;
+              return showHeavyControls ? (
+                <MemoizedOutputLayerStyleRow
+                  key={layer.id}
+                  layer={layer}
+                  onOutputLayerChange={onOutputLayerChange}
+                  onResetOutputLayer={onResetOutputLayer}
+                />
+              ) : (
+                <OutputLayerLightRow
+                  key={layer.id}
+                  layer={layer}
+                  onOutputLayerChange={onOutputLayerChange}
+                  onResetOutputLayer={onResetOutputLayer}
+                  onExpand={() => setExpandedLayerId(layer.id)}
+                />
+              );
+            })}
           </div>
+          {canShowMore ? (
+            <button
+              type="button"
+              data-layer-color-show-more="true"
+              onClick={() => setVisibleLimit((current) => current + 32)}
+              className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              Show more layer colors
+            </button>
+          ) : null}
       </>
     </SettingSection>
   );
 }
+
+function formatLayerCoverageDetail(layer: OutputLayerControlItem): string {
+  const original =
+    normalizeColorInput(layer.originalColor || layer.color || "") || "#000000";
+  const parts = [`Original color ${original}`];
+  if (typeof layer.pathCount === "number" && Number.isFinite(layer.pathCount)) {
+    parts.push(`${layer.pathCount} path${layer.pathCount === 1 ? "" : "s"}`);
+  }
+  if (typeof layer.pixelPercent === "number") {
+    parts.push(`${layer.pixelPercent}%`);
+  }
+  return parts.join(", ");
+}
+
+const OutputLayerLightRow = React.memo(function OutputLayerLightRow({
+  layer,
+  onOutputLayerChange,
+  onResetOutputLayer,
+  onExpand,
+}: {
+  layer: OutputLayerControlItem;
+  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
+  onResetOutputLayer?: (layerId: string) => void;
+  onExpand: () => void;
+}) {
+  const label = layer.label || layer.name || layer.id;
+  const color =
+    normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
+
+  return (
+    <div
+      className="min-w-0 max-w-full overflow-x-hidden border-t border-slate-100 py-2 first:border-t-0"
+      data-layer-color-row="true"
+      data-layer-color-label={label}
+      data-layer-color-hex={color}
+    >
+      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+        <input
+          type="checkbox"
+          checked={layer.visible !== false}
+          onChange={(event) =>
+            onOutputLayerChange?.(layer.id, { visible: event.target.checked })
+          }
+          className="h-4 w-4 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          aria-label={`Show ${label}`}
+        />
+        <span
+          className="h-6 w-8 shrink-0 rounded-md border border-slate-200"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
+        <div className="min-w-0 flex-[1_1_10rem]">
+          <div className="truncate text-[12px] font-semibold text-slate-700">
+            {label}
+          </div>
+          <div className="truncate text-[11px] text-slate-500">
+            {formatLayerCoverageDetail(layer)}
+          </div>
+        </div>
+        <span className="shrink-0 font-mono text-[11px] text-slate-500">
+          {color}
+        </span>
+        <button
+          type="button"
+          onClick={onExpand}
+          className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
+          Edit
+        </button>
+        {onResetOutputLayer ? (
+          <button
+            type="button"
+            onClick={() => onResetOutputLayer(layer.id)}
+            className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Reset
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+});
 
 function OutputLayerStyleRow({
   layer,
@@ -2160,11 +2379,15 @@ function OutputLayerStyleRow({
   }
 
   const label = layer.label || layer.name || layer.id;
-  const original = normalizeColorInput(layer.originalColor || layer.color || "") || normalizedColor;
   const colorInputRef = useNativeColorFinalCommit(commitColorNow);
 
   return (
-    <div className="min-w-0 max-w-full overflow-x-hidden border-t border-slate-100 py-2 first:border-t-0">
+    <div
+      className="min-w-0 max-w-full overflow-x-hidden border-t border-slate-100 py-2 first:border-t-0"
+      data-layer-color-row="true"
+      data-layer-color-label={label}
+      data-layer-color-hex={normalizedColor}
+    >
       <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
         <input
           type="checkbox"
@@ -2193,10 +2416,7 @@ function OutputLayerStyleRow({
             {label}
           </div>
           <div className="truncate text-[11px] text-slate-500">
-            Original color {original}
-            {typeof layer.pixelPercent === "number"
-              ? `, ${layer.pixelPercent}%`
-              : ""}
+            {formatLayerCoverageDetail(layer)}
           </div>
         </div>
         <input
@@ -2269,6 +2489,8 @@ function OutputLayerStyleRow({
     </div>
   );
 }
+
+const MemoizedOutputLayerStyleRow = React.memo(OutputLayerStyleRow);
 
 function OutputSizeControls({
   settings,
@@ -2449,6 +2671,8 @@ function normalizeOutputLayers(
         originalOpacity: normalizeOpacity(layer.originalOpacity),
         pixelPercent:
           typeof layer.pixelPercent === "number" ? layer.pixelPercent : undefined,
+        pathCount:
+          typeof layer.pathCount === "number" ? layer.pathCount : undefined,
       });
     });
 
