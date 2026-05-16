@@ -51,6 +51,7 @@ import {
   detectOutputAppearanceSupport,
   hasOutputAppearanceChanges,
   normalizeOutputAppearance,
+  type OutputAppearanceSupport,
   type OutputAppearanceSettings,
 } from "~/client/lib/converter/outputAppearance";
 import { validateMeaningfulSvgOutput } from "~/shared/tracing/meaningfulOutput";
@@ -1290,6 +1291,11 @@ type HistoryItem = {
   appearance?: OutputAppearanceSettings;
 };
 
+type OutputAppearanceSupportCacheEntry = {
+  svg: string;
+  support: OutputAppearanceSupport;
+};
+
 const OUTPUT_HISTORY_LIMIT = 10;
 
 function trimOutputHistory(items: HistoryItem[]): HistoryItem[] {
@@ -1420,6 +1426,9 @@ export default function PngToLayeredSvgForCricut({
   const fileMeasureRunIdRef = React.useRef(0);
   const busyRetryCountRef = React.useRef(0);
   const lastHandledBusyKeyRef = React.useRef("");
+  const outputAppearanceSupportCacheRef = React.useRef(
+    new Map<number, OutputAppearanceSupportCacheEntry>(),
+  );
   const lastSubmittedRef = React.useRef<{
     settings: Settings;
     presetId: string;
@@ -1472,6 +1481,15 @@ export default function PngToLayeredSvgForCricut({
 
   React.useEffect(() => {
     historyRef.current = history;
+  }, [history]);
+
+  React.useEffect(() => {
+    const activeStamps = new Set(history.map((item) => item.stamp));
+    for (const stamp of outputAppearanceSupportCacheRef.current.keys()) {
+      if (!activeStamps.has(stamp)) {
+        outputAppearanceSupportCacheRef.current.delete(stamp);
+      }
+    }
   }, [history]);
 
   React.useEffect(() => {
@@ -2086,32 +2104,55 @@ export default function PngToLayeredSvgForCricut({
     });
   }
 
+  function getOutputAppearanceSupport(
+    stamp: number,
+    svg: string,
+  ): OutputAppearanceSupport {
+    const cache = outputAppearanceSupportCacheRef.current;
+    const cached = cache.get(stamp);
+    if (cached?.svg === svg) return cached.support;
+
+    const support = detectOutputAppearanceSupport(svg, {
+      precisionOutput: false,
+    });
+    cache.set(stamp, { svg, support });
+    return support;
+  }
+
   function setOutputAppearance(
     stamp: number,
     patch: Partial<OutputAppearanceSettings>,
   ) {
     setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp === stamp
-          ? {
-              ...item,
-              appearance: normalizeOutputAppearance({
-                ...(item.appearance ?? DEFAULT_OUTPUT_APPEARANCE),
-                ...patch,
-              }),
-            }
-          : item,
-      ),
+      prev.map((item) => {
+        if (item.stamp !== stamp) return item;
+        const current = normalizeOutputAppearance(
+          item.appearance ?? DEFAULT_OUTPUT_APPEARANCE,
+        );
+        const next = normalizeOutputAppearance({
+          ...current,
+          ...patch,
+        });
+        if (JSON.stringify(current) === JSON.stringify(next)) return item;
+        return {
+          ...item,
+          appearance: next,
+        };
+      }),
     );
   }
 
   function resetOutputAppearance(stamp: number) {
     setHistory((prev) =>
-      prev.map((item) =>
-        item.stamp === stamp
-          ? { ...item, appearance: DEFAULT_OUTPUT_APPEARANCE }
-          : item,
-      ),
+      prev.map((item) => {
+        if (item.stamp !== stamp) return item;
+        const current = normalizeOutputAppearance(
+          item.appearance ?? DEFAULT_OUTPUT_APPEARANCE,
+        );
+        const next = normalizeOutputAppearance(DEFAULT_OUTPUT_APPEARANCE);
+        if (JSON.stringify(current) === JSON.stringify(next)) return item;
+        return { ...item, appearance: DEFAULT_OUTPUT_APPEARANCE };
+      }),
     );
   }
 
@@ -2440,6 +2481,10 @@ export default function PngToLayeredSvgForCricut({
                             layerAlpha: itemSettings.layerAlpha ?? 1,
                           });
                     const appearance = normalizeOutputAppearance(item.appearance);
+                    const appearanceSupportForSvg =
+                      !isActiveJob && !isFailedJob
+                        ? getOutputAppearanceSupport(item.stamp, editedSvg)
+                        : null;
                     const candidateDisplaySvg =
                       !isActiveJob &&
                       !isFailedJob &&
@@ -2447,9 +2492,7 @@ export default function PngToLayeredSvgForCricut({
                           ? applyOutputAppearanceToSvg(
                             editedSvg,
                             appearance,
-                            detectOutputAppearanceSupport(editedSvg, {
-                              precisionOutput: false,
-                            }),
+                            appearanceSupportForSvg ?? undefined,
                             { idPrefix: `output-${item.jobId || item.stamp}` },
                           )
                         : editedSvg;
@@ -2480,9 +2523,7 @@ export default function PngToLayeredSvgForCricut({
                       (focused || openSettingsStamp === item.stamp) &&
                       !isActiveJob &&
                       !isFailedJob
-                        ? detectOutputAppearanceSupport(editedSvg, {
-                            precisionOutput: false,
-                          })
+                        ? appearanceSupportForSvg
                         : null;
                     const appearanceControls = appearanceSupport ? (
                       <OutputAppearanceControls
@@ -3161,9 +3202,7 @@ export default function PngToLayeredSvgForCricut({
               ? applyOutputAppearanceToSvg(
                   baseSvg,
                   appearance,
-                  detectOutputAppearanceSupport(baseSvg, {
-                    precisionOutput: false,
-                  }),
+                  getOutputAppearanceSupport(item.stamp, baseSvg),
                   { idPrefix: `output-${item.jobId || item.stamp}` },
                 )
               : baseSvg;

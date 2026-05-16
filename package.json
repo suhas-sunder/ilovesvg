@@ -23,6 +23,7 @@
     "test:output-ux": "node scripts/output-card-ux-audit.mjs",
     "test:post-processing": "node scripts/post-processing-smoke.mjs",
     "test:post-conversion-editability": "node scripts/post-conversion-editability-smoke.mjs",
+    "test:cumulative-edit-performance": "node scripts/cumulative-edit-performance-smoke.mjs",
     "test:production-logging": "node scripts/production-logging-audit.mjs",
     "test:responsive": "node scripts/responsive-nav-example-audit.mjs responsive",
     "test:stage1-route-presets": "node scripts/stage1-route-preset-smoke.mjs",
