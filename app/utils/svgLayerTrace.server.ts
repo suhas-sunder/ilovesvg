@@ -30,6 +30,7 @@ export type SvgLayerMeta = {
   opacity?: number;
   originalOpacity?: number;
   kind?: SvgLayerKind;
+  pathCount?: number;
 };
 
 export type EditableSvgLayer = SvgLayerMeta;

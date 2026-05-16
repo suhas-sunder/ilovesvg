@@ -27,6 +27,7 @@ import {
 } from "~/client/components/converter/FullscreenOutputPreview";
 import {
   applyLayerEditsToSvg,
+  completeEditableLayersFromTaggedSvg,
 } from "~/client/components/svg/LayerPaletteEditor";
 import { ensureSvgRootNamespace } from "~/client/components/svg/EditedSvgPreviewImage";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
@@ -1876,6 +1877,7 @@ type SvgLayerMeta = {
   opacity?: number;
   originalOpacity?: number;
   kind?: SvgLayerKind;
+  pathCount?: number;
 };
 
 type EditableSvgLayer = SvgLayerMeta;
@@ -2580,6 +2582,15 @@ function mergeLayerEditsIntoResultLayers(
   });
 }
 
+function buildCompleteResultLayers(
+  svg: string,
+  resultLayers: SvgLayerMeta[] | undefined,
+  sourceLayerEdits?: EditableSvgLayer[],
+): EditableSvgLayer[] | undefined {
+  const completeLayers = completeEditableLayersFromTaggedSvg(svg, resultLayers);
+  return mergeLayerEditsIntoResultLayers(completeLayers, sourceLayerEdits);
+}
+
 function clearOutputBatchResult(batch?: OutputBatchState): OutputBatchState | undefined {
   if (!batch) return batch;
   if (
@@ -2798,11 +2809,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         data.enginePathLabel ||
         submitted.enginePathLabel ||
         (resultSourceKind === "svg" ? "SVG cleanup" : undefined);
-      const resultLayers = mergeLayerEditsIntoResultLayers(
+      const resultSvg = data.svg;
+      const resultLayers = buildCompleteResultLayers(
+        resultSvg,
         data.layers,
         submitted.sourceLayerEdits,
       );
-      const resultSvg = data.svg;
       const resultWidth = data.width ?? 0;
       const resultHeight = data.height ?? 0;
       if (submitted.conversionCacheKey && !data.cacheHit) {
@@ -4253,6 +4265,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     });
   }
 
+  function setHistoryLayers(
+    stamp: number,
+    patches: Array<{
+      layerId: string;
+      patch: Partial<Pick<EditableSvgLayer, "color" | "visible" | "opacity">>;
+    }>,
+  ) {
+    if (!patches.length) return;
+    const patchByLayerId = new Map(
+      patches.map((entry) => [entry.layerId, entry.patch]),
+    );
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (item.stamp !== stamp || !item.layers?.length) return item;
+        let itemChanged = false;
+        const layers = item.layers.map((layer) => {
+          const patch = patchByLayerId.get(layer.id);
+          if (!patch || !hasLayerPatchChanges(layer, patch)) return layer;
+          itemChanged = true;
+          return { ...layer, ...patch };
+        });
+        if (!itemChanged) return item;
+        changed = true;
+        return { ...item, layers, batch: clearOutputBatchResult(item.batch) };
+      });
+      return changed ? next : prev;
+    });
+  }
+
   function resetHistoryLayer(stamp: number, layerId: string) {
     setHistory((prev) => {
       let changed = false;
@@ -4606,6 +4648,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           }}
                           onOutputLayerChange={(layerId, patch) =>
                             setHistoryLayer(item.stamp, layerId, patch)
+                          }
+                          onOutputLayersChange={(patches) =>
+                            setHistoryLayers(item.stamp, patches)
                           }
                           onResetOutputLayer={(layerId) =>
                             resetHistoryLayer(item.stamp, layerId)
@@ -5277,6 +5322,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             }}
                             onOutputLayerChange={(layerId, patch) =>
                               setHistoryLayer(item.stamp, layerId, patch)
+                            }
+                            onOutputLayersChange={(patches) =>
+                              setHistoryLayers(item.stamp, patches)
                             }
                             onResetOutputLayer={(layerId) =>
                               resetHistoryLayer(item.stamp, layerId)

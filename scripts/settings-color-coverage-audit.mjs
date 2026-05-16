@@ -109,6 +109,8 @@ async function main() {
     await fs.rm(tmpRunDir, { recursive: true, force: true }).catch(() => {});
   }
 
+  const summary = summarizeResults(results, staticFindings);
+  const ok = results.every((result) => result.ok) && summary.ok;
   const report = {
     schemaVersion: 1,
     auditKind: "settings-color-layer-coverage",
@@ -119,18 +121,18 @@ async function main() {
     fixture,
     staticFindings,
     scenarios: results,
-    summary: summarizeResults(results, staticFindings),
+    summary,
   };
 
   await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
   console.log(JSON.stringify({
-    ok: results.every((result) => result.ok),
+    ok,
     reportPath,
     scenarioCount: results.length,
-    summary: report.summary,
+    summary,
   }, null, 2));
 
-  if (!results.every((result) => result.ok)) {
+  if (!ok) {
     process.exitCode = 1;
   }
 }
@@ -159,7 +161,9 @@ async function runScenario(scenario, fixture) {
   const client = await step("open tab", () => openTab(`${baseUrl}${scenario.route}`));
   try {
     await step("enable page", () => enablePage(client));
+    await step("reset browser state", () => resetScenarioBrowserState(client));
     await step("wait for document ready", () => waitForDocumentReady(client));
+    await step("install copy/download capture", () => installCopyDownloadCapture(client));
     await step("set file input", () => setFileInput(client, file.path));
     await step("settle initial auto conversion", () => settleInitialAutoConversion(client, 20_000).catch(() => null));
 
@@ -184,6 +188,16 @@ async function runScenario(scenario, fixture) {
     await step("open layer colors", () => ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors"));
     const beforeHideSnapshot = await step("collect layer section snapshot", () =>
       collectCoverageSnapshot(client, "layer-colors-before-hide"),
+    );
+    const parityEdit = await step("edit first layer for copy/download parity", () =>
+      editFirstLayerForCopyDownloadParity(client),
+    );
+    await step("wait after parity edit", () => delay(800));
+    const editedSnapshot = await step("collect edited layer snapshot", () =>
+      collectCoverageSnapshot(client, "layer-colors-edited"),
+    );
+    const copyDownloadParity = await step("verify edited copy/download parity", () =>
+      verifyCopyDownloadParity(client, editedSnapshot.svg || ""),
     );
     const hideAction = await step("hide all exposed layer colors", () => hideAllExposedLayerColors(client));
     await step("wait after hide", () => delay(800));
@@ -249,9 +263,12 @@ async function runScenario(scenario, fixture) {
       },
       svgAnalysisBeforeHide: beforeSvgColors,
       svgAnalysisAfterHide: afterSvgColors,
+      copyDownloadParity,
+      parityEdit,
       uiSnapshots: {
         removeDetectedOutputColorsOpen: withoutSvg(removeSnapshot),
         layerColorsBeforeHide: withoutSvg(beforeHideSnapshot),
+        layerColorsEdited: withoutSvg(editedSnapshot),
         layerColorsAfterHide: withoutSvg(afterHideSnapshot),
       },
       hideAction,
@@ -444,22 +461,41 @@ async function collectCoverageSnapshot(client, phase) {
     };
 
     function collectUi(root) {
+      const layerSection = root.querySelector('[data-layer-color-total-count]');
+      const layerTotalCount = numberOrNull(layerSection?.getAttribute("data-layer-color-total-count")) || null;
+      const layerMountedCount = numberOrNull(layerSection?.getAttribute("data-layer-color-mounted-count")) || null;
+      const layerHeavyCount = numberOrNull(layerSection?.getAttribute("data-layer-color-heavy-count")) || null;
+      const layerAllColors = String(layerSection?.getAttribute("data-layer-color-all-colors") || "")
+        .split(/[\\s,]+/)
+        .map(normalizeHex)
+        .filter(Boolean);
+      const layerSearch = root.querySelector('[data-layer-color-search="true"]');
+      const layerShowMore = root.querySelector('[data-layer-color-show-more="true"]');
+      const explicitRows = visibleElements(root, '[data-layer-color-row="true"]');
       const layerInputs = visibleElements(root, 'input[type="text"][aria-label$=" hex color"]');
-      const layerRows = layerInputs.map((input) => {
-        const label = String(input.getAttribute("aria-label") || "").replace(/\\s+hex color$/i, "");
-        const row = findLayerRow(input);
+      const layerRowElements = explicitRows.length ? explicitRows : uniqueElements(layerInputs.map(findLayerRow).filter(Boolean));
+      const layerRows = layerRowElements.map((row) => {
+        const input = row.querySelector('input[type="text"][aria-label$=" hex color"]');
+        const label =
+          row.getAttribute("data-layer-color-label") ||
+          String(input?.getAttribute("aria-label") || "").replace(/\\s+hex color$/i, "") ||
+          (row.innerText || "").replace(/\\s+/g, " ").trim().split(" ").slice(0, 3).join(" ");
         const checkbox = row?.querySelector('input[type="checkbox"][aria-label^="Show "]') || null;
         const picker = row?.querySelector('input[type="color"][aria-label^="Change "]') || null;
         const range = row?.querySelector('input[type="range"]') || null;
-        const rect = input.getBoundingClientRect();
+        const rect = input?.getBoundingClientRect?.() || row.getBoundingClientRect();
         const rowRect = row?.getBoundingClientRect?.() || null;
         return {
           label,
-          hexValue: input.value || input.getAttribute("value") || "",
+          hexValue:
+            row.getAttribute("data-layer-color-hex") ||
+            input?.value ||
+            input?.getAttribute("value") ||
+            "",
           visible: checkbox ? checkbox.checked : null,
           hasColorPicker: Boolean(picker),
           hasOpacityRange: Boolean(range),
-          inputType: input.getAttribute("type"),
+          inputType: input?.getAttribute("type") || null,
           widthPx: Math.round(rect.width),
           rowWidthPx: rowRect ? Math.round(rowRect.width) : null,
           rightGapPx: rowRect ? Math.round(rowRect.right - rect.right) : null,
@@ -512,8 +548,16 @@ async function collectCoverageSnapshot(client, phase) {
           hasOutputPolish: /Output polish/i.test(root.innerText || ""),
         },
         layerColors: {
-          rowCount: layerRows.length,
-          uniqueColors: unique(layerRows.map((row) => normalizeHex(row.hexValue)).filter(Boolean)),
+          rowCount: layerTotalCount || layerRows.length,
+          mountedRowCount: layerRows.length,
+          heavyControlRowCount: layerHeavyCount || layerRows.filter((row) => row.hasColorPicker || row.hasOpacityRange || row.inputType === "text").length,
+          mountedWindowCount: layerMountedCount || layerRows.length,
+          hasSearch: Boolean(layerSearch),
+          hasShowMore: Boolean(layerShowMore),
+          uniqueColors: unique([
+            ...layerAllColors,
+            ...layerRows.map((row) => normalizeHex(row.hexValue)).filter(Boolean),
+          ]),
           rows: layerRows,
           manualHexInputAudit: auditManualHexInputs(layerRows),
         },
@@ -610,6 +654,15 @@ async function collectCoverageSnapshot(client, phase) {
       });
     }
 
+    function uniqueElements(items) {
+      const seen = new Set();
+      return items.filter((item) => {
+        if (!item || seen.has(item)) return false;
+        seen.add(item);
+        return true;
+      });
+    }
+
     function extractHexColors(value) {
       return Array.from(String(value || "").matchAll(/#[0-9a-f]{3,8}\\b/gi)).map((match) => match[0]);
     }
@@ -643,10 +696,229 @@ async function collectCoverageSnapshot(client, phase) {
   })()`, 15_000);
 }
 
+async function installCopyDownloadCapture(client) {
+  return evaluate(client, `(() => {
+    const state = window.__SETTINGS_COLOR_COVERAGE__ || {};
+    state.clipboardWrites = Array.isArray(state.clipboardWrites) ? state.clipboardWrites : [];
+    state.downloadedSvgBlobs = Array.isArray(state.downloadedSvgBlobs) ? state.downloadedSvgBlobs : [];
+    window.__SETTINGS_COLOR_COVERAGE__ = state;
+
+    const capture = async (text) => {
+      window.__SETTINGS_COLOR_COVERAGE__.clipboardWrites.push(String(text || ""));
+      return undefined;
+    };
+    try {
+      if (!navigator.clipboard) {
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: capture } });
+      } else {
+        navigator.clipboard.writeText = capture;
+      }
+    } catch {
+      try {
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: capture } });
+      } catch {}
+    }
+
+    if (!URL.__settingsColorCoverageCreateObjectUrl) {
+      URL.__settingsColorCoverageCreateObjectUrl = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = (blob) => {
+        try {
+          if (blob && /image\\/svg\\+xml/i.test(String(blob.type || "")) && typeof blob.text === "function") {
+            blob.text().then((text) => {
+              window.__SETTINGS_COLOR_COVERAGE__.downloadedSvgBlobs.push(String(text || ""));
+            }).catch(() => {});
+          }
+        } catch {}
+        return URL.__settingsColorCoverageCreateObjectUrl(blob);
+      };
+    }
+    return true;
+  })()`, 8_000);
+}
+
+async function resetScenarioBrowserState(client) {
+  await evaluate(client, `(() => {
+    try { localStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch {}
+    return true;
+  })()`, 8_000);
+  await client.send("Page.reload", { ignoreCache: true }).catch(async () => {
+    await evaluate(client, `(() => { location.reload(); return true; })()`, 8_000);
+  });
+}
+
+async function editFirstLayerForCopyDownloadParity(client) {
+  return evaluate(client, `(async () => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { applicable: false, reason: "missing latest output" };
+    const row = Array.from(latest.querySelectorAll('[data-layer-color-row="true"]'))
+      .find((candidate) => {
+        const hex = candidate.querySelector('input[type="text"][aria-label$=" hex color"]');
+        const range = candidate.querySelector('input[type="range"]');
+        return isVisible(candidate) && hex && range;
+      });
+    if (!row) return { applicable: false, reason: "missing editable heavy layer row" };
+
+    const hexInput = row.querySelector('input[type="text"][aria-label$=" hex color"]');
+    const rangeInput = row.querySelector('input[type="range"]');
+    const label = row.getAttribute("data-layer-color-label") || "";
+    const beforeColor = hexInput.value || hexInput.getAttribute("value") || "";
+    const nextColor = "#ff00aa";
+    const nextOpacityPercent = "41";
+
+    setNativeValue(hexInput, nextColor);
+    hexInput.dispatchEvent(new Event("input", { bubbles: true }));
+    hexInput.dispatchEvent(new Event("change", { bubbles: true }));
+    hexInput.blur();
+
+    setNativeValue(rangeInput, nextOpacityPercent);
+    rangeInput.dispatchEvent(new Event("input", { bubbles: true }));
+    rangeInput.dispatchEvent(new Event("change", { bubbles: true }));
+    rangeInput.blur();
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return {
+      applicable: true,
+      label,
+      beforeColor,
+      nextColor,
+      nextOpacity: 0.41,
+    };
+
+    function setNativeValue(element, value) {
+      const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value");
+      if (descriptor?.set) descriptor.set.call(element, value);
+      else element.value = value;
+    }
+    function latestCard(items) {
+      return items.reduce((best, card) => {
+        if (!best) return card;
+        return numberOrNull(card.getAttribute("data-output-stamp")) >= numberOrNull(best.getAttribute("data-output-stamp")) ? card : best;
+      }, null);
+    }
+    function numberOrNull(value) {
+      const number = Number(String(value || "").replace(/[^0-9.]/g, ""));
+      return Number.isFinite(number) ? number : 0;
+    }
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+  })()`, 12_000);
+}
+
+async function verifyCopyDownloadParity(client, expectedSvg) {
+  if (!expectedSvg) {
+    throw new Error("Missing edited preview SVG for copy/download parity check.");
+  }
+  const expectedHash = hashString(expectedSvg);
+  const expectedBytes = Buffer.byteLength(expectedSvg);
+  const before = await getCopyDownloadCapture(client);
+
+  const copyClick = await clickButtonInLatestOutput(client, [/Copy SVG/i, /^Copy$/i], [/Copied/i]);
+  if (!copyClick) throw new Error("Copy SVG control not found for parity check.");
+  const copied = await waitForValue(
+    client,
+    () => copyDownloadCaptureExpression(expectedHash, expectedBytes),
+    8_000,
+    (value) => value?.clipboardCount > before.clipboardCount,
+  );
+
+  const downloadClick = await clickButtonInLatestOutput(client, [/Download SVG/i, /^Download\b/i], [/ZIP/i]);
+  if (!downloadClick) throw new Error("Download SVG control not found for parity check.");
+  const downloaded = await waitForValue(
+    client,
+    () => copyDownloadCaptureExpression(expectedHash, expectedBytes),
+    8_000,
+    (value) => value?.downloadCount > before.downloadCount,
+  );
+
+  const result = {
+    expectedHash,
+    expectedBytes,
+    copyClick,
+    downloadClick,
+    copyHash: copied.latestClipboardHash,
+    copyBytes: copied.latestClipboardBytes,
+    downloadHash: downloaded.latestDownloadHash,
+    downloadBytes: downloaded.latestDownloadBytes,
+    copyMatchedPreview: copied.latestClipboardHash === expectedHash && copied.latestClipboardBytes === expectedBytes,
+    downloadMatchedPreview: downloaded.latestDownloadHash === expectedHash && downloaded.latestDownloadBytes === expectedBytes,
+  };
+  if (!result.copyMatchedPreview) {
+    throw new Error("Copy SVG did not match the edited preview SVG.");
+  }
+  if (!result.downloadMatchedPreview) {
+    throw new Error("Download SVG did not match the edited preview SVG.");
+  }
+  return result;
+}
+
+async function getCopyDownloadCapture(client) {
+  return evaluate(client, copyDownloadCaptureExpression("", 0), 8_000);
+}
+
+function copyDownloadCaptureExpression(expectedHash, expectedBytes) {
+  return `(() => {
+    const state = window.__SETTINGS_COLOR_COVERAGE__ || {};
+    const clipboardWrites = state.clipboardWrites || [];
+    const downloadedSvgBlobs = state.downloadedSvgBlobs || [];
+    const latestClipboard = clipboardWrites[clipboardWrites.length - 1] || "";
+    const latestDownload = downloadedSvgBlobs[downloadedSvgBlobs.length - 1] || "";
+    const latestClipboardHash = latestClipboard ? hashString(latestClipboard) : null;
+    const latestDownloadHash = latestDownload ? hashString(latestDownload) : null;
+    const latestClipboardBytes = latestClipboard ? new Blob([latestClipboard]).size : 0;
+    const latestDownloadBytes = latestDownload ? new Blob([latestDownload]).size : 0;
+    return {
+      clipboardCount: clipboardWrites.length,
+      downloadCount: downloadedSvgBlobs.length,
+      latestClipboardHash,
+      latestDownloadHash,
+      latestClipboardBytes,
+      latestDownloadBytes,
+      expectedHash: ${JSON.stringify(expectedHash)},
+      expectedBytes: ${JSON.stringify(expectedBytes)},
+      copyMatchedPreview: latestClipboardHash === ${JSON.stringify(expectedHash)} && latestClipboardBytes === ${JSON.stringify(expectedBytes)},
+      downloadMatchedPreview: latestDownloadHash === ${JSON.stringify(expectedHash)} && latestDownloadBytes === ${JSON.stringify(expectedBytes)},
+    };
+    function hashString(value) {
+      let hash = 2166136261;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(16);
+    }
+  })()`;
+}
+
 async function hideAllExposedLayerColors(client) {
   return evaluate(client, `(async () => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
     if (!latest) return { clicked: 0, reason: "missing latest output" };
+    const hideAllButton = Array.from(latest.querySelectorAll("button"))
+      .find((button) => {
+        const label = (button.getAttribute("aria-label") || button.innerText || button.textContent || "").replace(/\\s+/g, " ").trim();
+        const rect = button.getBoundingClientRect();
+        const style = getComputedStyle(button);
+        return /hide all layer colors/i.test(label) &&
+          !button.disabled &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          style.display !== "none" &&
+          style.visibility !== "hidden";
+      });
+    if (hideAllButton) {
+      hideAllButton.scrollIntoView({ block: "center", inline: "nearest" });
+      hideAllButton.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      return {
+        clicked: 1,
+        usedBulkHide: true,
+        mountedShowCheckboxes: latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]').length,
+      };
+    }
     const boxes = Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
       .filter((box) => {
         const rect = box.getBoundingClientRect();
@@ -972,13 +1244,64 @@ function summarizeResults(results, staticFindings) {
   const okResults = results.filter((result) => result.ok);
   const totals = okResults.map((result) => result.counts);
   const max = (field) => Math.max(0, ...totals.map((counts) => Number(counts[field] || 0)));
+  const home = okResults.find((result) => result.id === "home-layered-flat-color");
+  const layeredRoutes = okResults.filter((result) =>
+    ["home-layered-flat-color", "png-layered-flat-color", "jpg-layered-flat-color"].includes(result.id),
+  );
+  const failures = [];
+  if (!home) {
+    failures.push("Home layered coverage scenario did not complete.");
+  } else {
+    if (home.counts.actualVisibleSvgColorsBeforeHide > home.counts.layerRowsExposed) {
+      failures.push("Home layered output exposes fewer layer rows than visible SVG colors.");
+    }
+    if (home.counts.actualVisibleSvgColorsBeforeHide > 16 && home.counts.layerRowsExposed <= 16) {
+      failures.push("Home layered output is still silently capped at 16 exposed layer rows.");
+    }
+    if (home.counts.visibleColorsAfterHidingAllExposedLayerColors > 0) {
+      failures.push("Home layered output leaves visible controllable colors after hiding every exposed layer row.");
+    }
+    if (
+      home.counts.layerRowsExposed > 48 &&
+      home.uiSnapshots?.layerColorsBeforeHide?.ui?.layerColors?.heavyControlRowCount >= home.counts.layerRowsExposed
+    ) {
+      failures.push("Home layered output mounts heavy controls for every exposed layer row.");
+    }
+    if (!home.copyDownloadParity?.copyMatchedPreview) {
+      failures.push("Home layered Copy SVG output does not match the edited preview.");
+    }
+    if (!home.copyDownloadParity?.downloadMatchedPreview) {
+      failures.push("Home layered Download SVG output does not match the edited preview.");
+    }
+    if (home.latestOutput?.engineUsed !== "vtracer") {
+      failures.push("Home layered coverage scenario did not exercise the tagged VTracer output path.");
+    }
+    if (home.counts.actualVisibleSvgColorsBeforeHide > 16 && home.counts.pathTagsPaintColors === 0) {
+      failures.push("Home layered output has many visible colors but no tagged path colors to edit.");
+    }
+  }
+  for (const result of layeredRoutes) {
+    if (result.counts.visibleColorsAfterHidingAllExposedLayerColors > 0) {
+      failures.push(`${result.id} leaves visible colors after hiding all exposed layer rows.`);
+    }
+    if (result.counts.actualVisibleSvgColorsBeforeHide > result.counts.layerRowsExposed) {
+      failures.push(`${result.id} exposes fewer layer rows than visible SVG colors.`);
+    }
+    if (!result.copyDownloadParity?.copyMatchedPreview) {
+      failures.push(`${result.id} Copy SVG output does not match the edited preview.`);
+    }
+    if (!result.copyDownloadParity?.downloadMatchedPreview) {
+      failures.push(`${result.id} Download SVG output does not match the edited preview.`);
+    }
+  }
   return {
-    ok: results.every((result) => result.ok),
+    ok: results.every((result) => result.ok) && failures.length === 0,
     scenarioCount: results.length,
     maxActualVisibleSvgColors: max("actualVisibleSvgColorsBeforeHide"),
     maxLayerRowsExposed: max("layerRowsExposed"),
     maxVisibleColorsRemainingAfterHide: max("visibleColorsAfterHidingAllExposedLayerColors"),
     anyMissingOrUncontrolledColors: okResults.some((result) => result.missingOrUncontrolled.remainingColorCountAfterHide > 0),
+    failures,
     hardCapsFound: staticFindings.hardCaps,
   };
 }

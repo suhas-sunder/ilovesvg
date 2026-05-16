@@ -90,6 +90,7 @@ export type TraceLayerMeta = {
   opacity?: number;
   originalOpacity?: number;
   kind?: TraceLayerKind;
+  pathCount?: number;
 };
 
 export type TraceResult = {
