@@ -137,6 +137,7 @@ const scenarios = [
     outputPathKind: "bespoke-code",
     scenarioKind: "code-sample",
     fixtureKind: "route-sample",
+    waitForAutoConversion: true,
     presetPatterns: [
       /^Logo - Clean shapes\b/i,
       /^Lineart - Accurate\b/i,
