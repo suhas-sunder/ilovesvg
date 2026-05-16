@@ -273,13 +273,14 @@ export function rewriteSvgEditablePaintTargets(
   options: {
     targetId: string | null | undefined;
     paint: SvgPaintKind;
+    model?: SvgEditingModel;
   },
   rewriteAttrs: (context: SvgPaintTargetContext) => string,
 ): string {
   const source = String(svg || "");
   const cssPaints = collectCssPaints(source);
   const ranges = collectProtectedRanges(source);
-  const model = analyzeSvgEditingModel(source);
+  const model = options.model ?? analyzeSvgEditingModel(source);
   const resolvedTargetId = resolveSvgPaintTargetId(
     model,
     options.targetId,
