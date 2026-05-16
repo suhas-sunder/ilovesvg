@@ -419,6 +419,7 @@ async function checkMobileAffiliate(client, width) {
       duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
     };
   })()`);
+  await clearAffiliateStorage(client);
 
   return {
     scenario: "mobile-affiliate-suppressed-by-nearby-ad",

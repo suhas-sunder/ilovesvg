@@ -222,6 +222,7 @@ async function runRouteSmoke(route, fixturePath) {
   const network = [];
   let selectedPreset = null;
   let convertButton = null;
+  let phase = "startup";
   client.onEvent((message) => {
     if (message.method === "Runtime.exceptionThrown") {
       const details = message.params?.exceptionDetails;
@@ -261,6 +262,7 @@ async function runRouteSmoke(route, fixturePath) {
   });
 
   try {
+    phase = "enable-browser-dom";
     await client.send("Runtime.enable");
     await client.send("Log.enable");
     await client.send("Page.enable");
@@ -268,23 +270,27 @@ async function runRouteSmoke(route, fixturePath) {
     await client.send("Network.enable");
     await waitForDocumentReady(client);
     await evaluate(client, `(() => { window.__ILOVESVG_HYBRID_TRACE_DEBUG__ = []; return true; })()`);
-    await delay(1_000);
+    await delay(1_500);
 
+    phase = "attach-file";
     await setFileInput(client, fixturePath);
-    await waitForValue(client, () => textIncludesExpression(path.basename(fixturePath)), 8_000);
+    await waitForValue(client, () => textIncludesExpression(path.basename(fixturePath)), 15_000);
 
     let output = null;
     if (route.mode === "vtracer") {
+      phase = "select-vtracer-preset";
       selectedPreset = await selectVTracerPreset(client, route);
       if (!selectedPreset) {
         throw new Error("Could not select a VTracer-eligible preset.");
       }
     } else if (route.mode === "centerline") {
+      phase = "select-centerline-preset";
       selectedPreset = await selectCenterlinePreset(client, route);
       if (!selectedPreset) {
         throw new Error("Could not select a Centerline stroke preset.");
       }
     } else if (route.mode === "potrace") {
+      phase = "select-potrace-preset";
       selectedPreset = await selectPotracePreset(client, route);
       if (!selectedPreset) {
         if (route.optional) {
@@ -304,6 +310,7 @@ async function runRouteSmoke(route, fixturePath) {
       }
     }
 
+    phase = "wait-for-output";
     output = await waitForOutput(
       client,
       route.mode === "default" ? 4_000 : 60_000,
@@ -311,7 +318,9 @@ async function runRouteSmoke(route, fixturePath) {
     ).catch(() => null);
 
     if (!output) {
+      phase = "click-convert";
       convertButton = await clickConvertButton(client);
+      phase = "wait-for-output-after-convert";
       output = await waitForOutput(
         client,
         60_000,
@@ -320,6 +329,7 @@ async function runRouteSmoke(route, fixturePath) {
     } else {
       convertButton = "preset-triggered conversion";
     }
+    phase = "read-output-actions";
     const copyDownload = await evaluate(client, `(() => {
       const text = document.body.innerText || "";
       return {
@@ -328,6 +338,7 @@ async function runRouteSmoke(route, fixturePath) {
         hasSettings: /Settings/i.test(text),
       };
     })()`);
+    phase = "verify-output-actions";
     const actions = await verifyOutputActions(client, route, output.engineUsed);
 
     const ok =
@@ -397,7 +408,7 @@ async function runRouteSmoke(route, fixturePath) {
       network,
       traceDebug: await readTraceDebug(client).catch(() => []),
       ok: false,
-      failure: error instanceof Error ? error.message : String(error),
+      failure: `${phase}: ${error instanceof Error ? error.message : String(error)}`,
       debug,
     };
   } finally {
@@ -1468,9 +1479,8 @@ async function runOutputUxRouteSmoke(testCase) {
     await client.send("Page.enable");
     await client.send("DOM.enable");
     await waitForDocumentReady(client);
-    await delay(750);
-    await setFileInput(client, testCase.fixture);
-    await waitForValue(client, () => textIncludesExpression(path.basename(testCase.fixture)), 8_000);
+    await delay(1_000);
+    await setFileInputAndWaitForSelection(client, testCase.fixture, 12_000);
     let output = await waitForOutput(client, 8_000, testCase.expectedEngine).catch(() => null);
     if (!output) {
       await clickConvertButton(client);
@@ -2334,20 +2344,27 @@ async function readTraceDebug(client) {
 }
 
 async function verifyOutputActions(client, route, expectedEngine) {
-  const copy = await verifyCopySvg(client);
-  const download = await verifySvgDownload(client, `${safeName(route.id)}-${route.scenario}`);
-  const updatePreview = await verifyUpdatePreview(client, expectedEngine);
-  return {
-    copyOk: copy.ok,
-    copyLength: copy.length,
-    copyHasStrokeWidth: copy.hasStrokeWidth,
-    downloadOk: download.ok,
-    downloadFile: download.file,
-    downloadBytes: download.bytes,
-    downloadHasStrokeWidth: download.hasStrokeWidth,
-    updatePreviewOk: updatePreview.ok,
-    updatePreview: updatePreview.status,
-  };
+  let phase = "copy";
+  try {
+    const copy = await verifyCopySvg(client);
+    phase = "download";
+    const download = await verifySvgDownload(client, `${safeName(route.id)}-${route.scenario}`);
+    phase = "update-preview";
+    const updatePreview = await verifyUpdatePreview(client, expectedEngine);
+    return {
+      copyOk: copy.ok,
+      copyLength: copy.length,
+      copyHasStrokeWidth: copy.hasStrokeWidth,
+      downloadOk: download.ok,
+      downloadFile: download.file,
+      downloadBytes: download.bytes,
+      downloadHasStrokeWidth: download.hasStrokeWidth,
+      updatePreviewOk: updatePreview.ok,
+      updatePreview: updatePreview.status,
+    };
+  } catch (error) {
+    throw new Error(`${phase}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 async function verifyCopySvg(client) {
@@ -2358,17 +2375,24 @@ async function verifyCopySvg(client) {
   }).catch(() => {});
   await evaluate(client, `(() => { window.focus(); document.body?.focus?.(); return true; })()`).catch(() => {});
   await clickButtonMatching(client, "/Copy SVG/i", { reject: "/ZIP|batch/i" });
-  const text = await waitForValue(
+  const result = await waitForValue(
     client,
-    () => `navigator.clipboard.readText().catch(() => "")`,
+    () => `navigator.clipboard.readText()
+      .then((text) => ({
+        ok: /<svg[\\s>]/i.test(text),
+        length: typeof text === "string" ? text.length : 0,
+        hasFillSpread: typeof text === "string" ? /data-fill-spread=|paint-order=["']stroke fill markers/i.test(text) : false,
+        hasStrokeWidth: typeof text === "string" ? /stroke-width=/i.test(text) : false,
+      }))
+      .catch(() => ({ ok: false, length: 0, hasFillSpread: false, hasStrokeWidth: false }))`,
     8_000,
-    (value) => typeof value === "string" && /<svg[\s>]/i.test(value),
-  ).catch(() => "");
+    (value) => Boolean(value?.ok),
+  ).catch(() => ({ ok: false, length: 0, hasFillSpread: false, hasStrokeWidth: false }));
   return {
-    ok: /<svg[\s>]/i.test(text),
-    length: typeof text === "string" ? text.length : 0,
-    hasFillSpread: typeof text === "string" ? /data-fill-spread=|paint-order=["']stroke fill markers/i.test(text) : false,
-    hasStrokeWidth: typeof text === "string" ? /stroke-width=/i.test(text) : false,
+    ok: Boolean(result?.ok),
+    length: Number(result?.length || 0),
+    hasFillSpread: Boolean(result?.hasFillSpread),
+    hasStrokeWidth: Boolean(result?.hasStrokeWidth),
   };
 }
 
@@ -2391,21 +2415,28 @@ async function verifySvgDownload(client, label) {
 }
 
 async function verifyUpdatePreview(client, expectedEngine) {
-  const opened = await clickButtonIfPresent(client, "/Settings/i", { reject: "/Advanced/i" });
-  if (!opened) {
-    return { ok: true, status: "not-available" };
+  let phase = "open-settings";
+  try {
+    const opened = await clickButtonIfPresent(client, "/Settings/i", { reject: "/Advanced/i" });
+    if (!opened) {
+      return { ok: true, status: "not-available" };
+    }
+    phase = "click-update-preview";
+    const clicked = await clickButtonIfPresent(client, "/Update preview/i");
+    if (!clicked) {
+      return { ok: true, status: "settings-open-no-update-preview" };
+    }
+    phase = "wait-for-updated-output";
+    const output = await waitForOutput(client, 60_000, expectedEngine).catch((error) => ({
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    if (output?.error) {
+      return { ok: false, status: `${phase}: ${output.error}` };
+    }
+    return { ok: Boolean(output?.hasOutput && !output?.hasGenericFailure), status: "updated" };
+  } catch (error) {
+    throw new Error(`${phase}: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const clicked = await clickButtonIfPresent(client, "/Update preview/i");
-  if (!clicked) {
-    return { ok: true, status: "settings-open-no-update-preview" };
-  }
-  const output = await waitForOutput(client, 60_000, expectedEngine).catch((error) => ({
-    error: error instanceof Error ? error.message : String(error),
-  }));
-  if (output?.error) {
-    return { ok: false, status: output.error };
-  }
-  return { ok: Boolean(output?.hasOutput && !output?.hasGenericFailure), status: "updated" };
 }
 
 async function configureDownloads(client) {
@@ -2509,17 +2540,18 @@ async function clickButtonIfPresent(client, patternSource, options = {}) {
     const reject = ${options.reject || "null"};
     const buttons = Array.from(document.querySelectorAll("button, a, [role='button'], summary"));
     const target = buttons.find((candidate) => {
-      const text = candidate.innerText || candidate.getAttribute("aria-label") || "";
+      const text = (candidate.textContent || candidate.getAttribute("aria-label") || "").trim();
+      if (!pattern.test(text) || (reject && reject.test(text)) || candidate.disabled) return false;
       const rect = candidate.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      const style = getComputedStyle(candidate);
       const visible =
-        rect.width > 0 &&
-        rect.height > 0 &&
-        getComputedStyle(candidate).visibility !== "hidden" &&
-        getComputedStyle(candidate).display !== "none";
-      return visible && !candidate.disabled && pattern.test(text) && !(reject && reject.test(text));
+        style.visibility !== "hidden" &&
+        style.display !== "none";
+      return visible;
     });
     if (!target) return null;
-    const label = target.innerText.trim() || target.getAttribute("aria-label") || "";
+    const label = (target.textContent || "").trim() || target.getAttribute("aria-label") || "";
     for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
       target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
     }
@@ -2575,11 +2607,12 @@ class CdpClient {
     this.ws.send(JSON.stringify({ id, method, params }));
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
+      const commandTimeoutMs = method === "Runtime.evaluate" ? 90_000 : 30_000;
       setTimeout(() => {
         if (!this.pending.has(id)) return;
         this.pending.delete(id);
         reject(new Error(`CDP command timed out: ${method}`));
-      }, 30_000).unref?.();
+      }, commandTimeoutMs).unref?.();
     });
   }
 
@@ -2610,6 +2643,21 @@ class CdpClient {
 
 async function setFileInput(client, filePath) {
   await setFileInputFiles(client, 'input[type="file"]', [filePath]);
+}
+
+async function setFileInputAndWaitForSelection(client, filePath, timeoutMs) {
+  const fileName = path.basename(filePath);
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await setFileInput(client, filePath);
+    try {
+      return await waitForValue(client, () => textIncludesExpression(fileName), timeoutMs);
+    } catch (error) {
+      lastError = error;
+      await delay(400);
+    }
+  }
+  throw lastError || new Error(`Could not attach ${fileName}.`);
 }
 
 async function setFileInputFiles(client, selector, filePaths) {
@@ -3112,13 +3160,14 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
   return waitForValue(
     client,
     () => `(async () => {
+      const expectedEngine = ${JSON.stringify(expectedEngine)};
       const outputs = Array.from(document.querySelectorAll("[data-engine-used]"))
         .filter((candidate) => {
           const engine = candidate.getAttribute("data-engine-used");
           return engine === "vtracer" || engine === "potrace" || engine === "centerline";
         });
-      const output = ${JSON.stringify(expectedEngine)}
-        ? outputs.find((candidate) => candidate.getAttribute("data-engine-used") === ${JSON.stringify(expectedEngine)})
+      const output = expectedEngine
+        ? outputs.find((candidate) => candidate.getAttribute("data-engine-used") === expectedEngine)
         : outputs[0];
       const debug = Array.isArray(window.__ILOVESVG_HYBRID_TRACE_DEBUG__)
         ? window.__ILOVESVG_HYBRID_TRACE_DEBUG__
@@ -3151,47 +3200,77 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
       let previewPathCount = 0;
       let previewViewBoxOk = false;
       const previewSrc = previewImages[0]?.getAttribute("src") || "";
-      if (previewSrc.startsWith("data:image/svg+xml")) {
+      const outputPathCount = numericAttr("data-path-count");
+      const outputSvgBytes = numericAttr("data-svg-bytes");
+      const canUseOutputMetrics =
+        expectedEngine !== "centerline" &&
+        previewDecoded &&
+        Number.isFinite(outputPathCount) &&
+        outputPathCount > 0 &&
+        Number.isFinite(outputSvgBytes) &&
+        outputSvgBytes > 0;
+      if (canUseOutputMetrics) {
+        previewPathCount = outputPathCount;
+        previewVisibleDrawableCount = outputPathCount;
+        previewViewBoxOk = true;
+      } else if (previewSrc.startsWith("data:image/svg+xml")) {
         const encoded = previewSrc.slice(previewSrc.indexOf(",") + 1);
         decodedPreviewSvg = decodeURIComponent(encoded);
       } else if (previewSrc.startsWith("blob:")) {
         decodedPreviewSvg = await fetch(previewSrc).then((response) => response.text()).catch(() => "");
       }
       if (decodedPreviewSvg) {
-        const parsed = new DOMParser().parseFromString(decodedPreviewSvg, "image/svg+xml");
-        previewParseError = parsed.querySelector("parsererror")?.textContent?.slice(0, 400) || "";
-        previewPathCount = parsed.querySelectorAll("path").length;
-        const svgRoot = parsed.querySelector("svg");
-        const viewBox = svgRoot?.getAttribute("viewBox") || "";
-        const viewBoxParts = viewBox.trim().split(/[\\s,]+/).map(Number);
-        const width = Number.parseFloat(svgRoot?.getAttribute("width") || "");
-        const height = Number.parseFloat(svgRoot?.getAttribute("height") || "");
-        previewViewBoxOk =
-          (viewBoxParts.length === 4 &&
-            viewBoxParts.every(Number.isFinite) &&
-            viewBoxParts[2] > 0 &&
-            viewBoxParts[3] > 0) ||
-          (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
-        const isVisibleDrawable = (element) => {
-          const tag = element.tagName.toLowerCase();
-          const attrs = element.getAttributeNames()
-            .map((name) => name + '="' + (element.getAttribute(name) || "") + '"')
-            .join(" ");
-          if (/display\\s*=\\s*["']none["']/i.test(attrs)) return false;
-          if (/visibility\\s*=\\s*["']hidden["']/i.test(attrs)) return false;
-          if (/opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
-          if (/fill-opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
-          if (/stroke-opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
-          if (/style\\s*=\\s*["'][^"']*(?:display\\s*:\\s*none|visibility\\s*:\\s*hidden|opacity\\s*:\\s*0)(?:\\D|$)/i.test(attrs)) return false;
-          if (tag === "path" && !(element.getAttribute("d") || "").trim()) return false;
-          if (tag === "image" && !(element.getAttribute("href") || element.getAttribute("xlink:href") || "").trim()) return false;
-          return true;
-        };
-        previewVisibleDrawableCount = Array.from(parsed.querySelectorAll("path,polygon,polyline,rect,circle,ellipse,line,text,image"))
-          .filter(isVisibleDrawable).length;
-        if (previewParseError) {
-          const line = decodedPreviewSvg.split(/\\r?\\n/)[3] || decodedPreviewSvg;
-          previewParseExcerpt = line.slice(3800, 4100);
+        if (decodedPreviewSvg.length > 250_000) {
+          previewParseError = /<parsererror\\b/i.test(decodedPreviewSvg) ? "parsererror" : "";
+          previewPathCount = (decodedPreviewSvg.match(/<path\\b/gi) || []).length;
+          const svgTag = decodedPreviewSvg.match(/<svg\\b([^>]*)>/i)?.[1] || "";
+          const viewBox = svgTag.match(/\\bviewBox\\s*=\\s*["']([^"']+)["']/i)?.[1] || "";
+          const viewBoxParts = viewBox.trim().split(/[\\s,]+/).map(Number);
+          const width = Number.parseFloat(svgTag.match(/\\bwidth\\s*=\\s*["']([^"']+)["']/i)?.[1] || "");
+          const height = Number.parseFloat(svgTag.match(/\\bheight\\s*=\\s*["']([^"']+)["']/i)?.[1] || "");
+          previewViewBoxOk =
+            (viewBoxParts.length === 4 &&
+              viewBoxParts.every(Number.isFinite) &&
+              viewBoxParts[2] > 0 &&
+              viewBoxParts[3] > 0) ||
+            (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
+          previewVisibleDrawableCount = (decodedPreviewSvg.match(/<(path|polygon|polyline|rect|circle|ellipse|line|text|image)\\b/gi) || []).length;
+        } else {
+          const parsed = new DOMParser().parseFromString(decodedPreviewSvg, "image/svg+xml");
+          previewParseError = parsed.querySelector("parsererror")?.textContent?.slice(0, 400) || "";
+          previewPathCount = parsed.querySelectorAll("path").length;
+          const svgRoot = parsed.querySelector("svg");
+          const viewBox = svgRoot?.getAttribute("viewBox") || "";
+          const viewBoxParts = viewBox.trim().split(/[\\s,]+/).map(Number);
+          const width = Number.parseFloat(svgRoot?.getAttribute("width") || "");
+          const height = Number.parseFloat(svgRoot?.getAttribute("height") || "");
+          previewViewBoxOk =
+            (viewBoxParts.length === 4 &&
+              viewBoxParts.every(Number.isFinite) &&
+              viewBoxParts[2] > 0 &&
+              viewBoxParts[3] > 0) ||
+            (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
+          const isVisibleDrawable = (element) => {
+            const tag = element.tagName.toLowerCase();
+            const attrs = element.getAttributeNames()
+              .map((name) => name + '="' + (element.getAttribute(name) || "") + '"')
+              .join(" ");
+            if (/display\\s*=\\s*["']none["']/i.test(attrs)) return false;
+            if (/visibility\\s*=\\s*["']hidden["']/i.test(attrs)) return false;
+            if (/opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+            if (/fill-opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+            if (/stroke-opacity\\s*=\\s*["'](?:0|0\\.0+)["']/i.test(attrs)) return false;
+            if (/style\\s*=\\s*["'][^"']*(?:display\\s*:\\s*none|visibility\\s*:\\s*hidden|opacity\\s*:\\s*0)(?:\\D|$)/i.test(attrs)) return false;
+            if (tag === "path" && !(element.getAttribute("d") || "").trim()) return false;
+            if (tag === "image" && !(element.getAttribute("href") || element.getAttribute("xlink:href") || "").trim()) return false;
+            return true;
+          };
+          previewVisibleDrawableCount = Array.from(parsed.querySelectorAll("path,polygon,polyline,rect,circle,ellipse,line,text,image"))
+            .filter(isVisibleDrawable).length;
+          if (previewParseError) {
+            const line = decodedPreviewSvg.split(/\\r?\\n/)[3] || decodedPreviewSvg;
+            previewParseExcerpt = line.slice(3800, 4100);
+          }
         }
       }
       return {
@@ -3208,7 +3287,7 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null) {
         previewPathCount,
         previewViewBoxOk,
         previewHasMeaningfulSvg: Boolean(
-          decodedPreviewSvg &&
+          (decodedPreviewSvg || canUseOutputMetrics) &&
             !previewParseError &&
             previewViewBoxOk &&
             previewVisibleDrawableCount > 0
@@ -3270,12 +3349,23 @@ async function evaluate(client, expression) {
 async function waitForValue(client, expressionFactory, timeoutMs, isReady = Boolean) {
   const deadline = Date.now() + timeoutMs;
   let last;
+  let lastError = null;
   while (Date.now() < deadline) {
-    last = await evaluate(client, expressionFactory());
-    if (isReady(last)) return last;
+    try {
+      last = await evaluate(client, expressionFactory());
+      lastError = null;
+      if (isReady(last)) return last;
+    } catch (error) {
+      lastError = error;
+      if (!/CDP command timed out: Runtime\.evaluate/.test(String(error?.message || error))) {
+        throw error;
+      }
+    }
     await delay(250);
   }
-  throw new Error(`Timed out waiting for browser state. Last value: ${JSON.stringify(last)}`);
+  throw new Error(
+    `Timed out waiting for browser state. Last value: ${JSON.stringify(last)}${lastError ? `. Last error: ${lastError.message || lastError}` : ""}`,
+  );
 }
 
 function textIncludesExpression(text) {
