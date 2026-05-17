@@ -550,12 +550,7 @@ export const SETTING_GROUPS = [
       {
         name: "Layer colors",
         details:
-          "Layer visibility, swatches, and opacity are available when the SVG contains editable layer metadata.",
-      },
-      {
-        name: "Remove detected output colors",
-        details:
-          "Hide or remove colors already detected in the output SVG when the current card exposes those color entries.",
+          "Layer visibility, swatches, color inputs, reset, and opacity are available when the SVG contains editable layer metadata.",
       },
       {
         name: "Size and export",

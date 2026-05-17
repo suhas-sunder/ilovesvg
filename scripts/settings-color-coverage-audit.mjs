@@ -178,13 +178,6 @@ async function runScenario(scenario, fixture) {
     ));
 
     await step("open latest settings panel", () => openLatestSettingsPanel(client));
-    await step("open remove detected output colors", () =>
-      ensureSettingsSectionOpen(client, /Remove detected output colors/i, "remove-detected-output-colors"),
-    );
-    const removeSnapshot = await step("collect remove section snapshot", () =>
-      collectCoverageSnapshot(client, "remove-detected-output-colors-open"),
-    );
-
     await step("open layer colors", () => ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors"));
     const beforeHideSnapshot = await step("collect layer section snapshot", () =>
       collectCoverageSnapshot(client, "layer-colors-before-hide"),
@@ -242,8 +235,8 @@ async function runScenario(scenario, fixture) {
         visibleColorsAfterHidingAllExposedLayerColors: afterSvgColors.uniqueVisibleColorCount,
         layerMetadataColorsExposed: beforeHideSnapshot.ui.layerColors.uniqueColors.length,
         layerRowsExposed: beforeHideSnapshot.ui.layerColors.rowCount,
-        removeDetectedOutputRowsExposed: removeSnapshot.ui.removeDetectedOutputColors.rowCount,
-        removeDetectedOutputColorsExposed: removeSnapshot.ui.removeDetectedOutputColors.uniqueColors.length,
+        liveRemoveDetectedOutputColorsPresent: beforeHideSnapshot.ui.sectionText.hasRemoveDetectedOutputColors ? 1 : 0,
+        clickToConvertDetectedColorSwatches: beforeHideSnapshot.ui.detectedColorSwatches.count,
         fillTargetSelectorOptions: beforeHideSnapshot.ui.targetSelectors.fill?.optionCount ?? 0,
         fillTargetSelectorLayerOptions: beforeHideSnapshot.ui.targetSelectors.fill?.layerOptionCount ?? 0,
         fillTargetSelectorColorOptions: beforeHideSnapshot.ui.targetSelectors.fill?.colorOptionCount ?? 0,
@@ -266,29 +259,22 @@ async function runScenario(scenario, fixture) {
       copyDownloadParity,
       parityEdit,
       uiSnapshots: {
-        removeDetectedOutputColorsOpen: withoutSvg(removeSnapshot),
         layerColorsBeforeHide: withoutSvg(beforeHideSnapshot),
         layerColorsEdited: withoutSvg(editedSnapshot),
         layerColorsAfterHide: withoutSvg(afterHideSnapshot),
       },
       hideAction,
-      diagnosis: diagnoseScenario(beforeSvgColors, afterSvgColors, beforeHideSnapshot, removeSnapshot),
+      diagnosis: diagnoseScenario(beforeSvgColors, afterSvgColors, beforeHideSnapshot),
     };
   } finally {
     await client.close().catch(() => {});
   }
 }
 
-function diagnoseScenario(beforeSvgColors, afterSvgColors, layerSnapshot, removeSnapshot) {
+function diagnoseScenario(beforeSvgColors, afterSvgColors, layerSnapshot) {
   const exposed = layerSnapshot.ui.layerColors.uniqueColors.length;
   const actual = beforeSvgColors.uniqueVisibleColorCount;
   const remaining = afterSvgColors.uniqueVisibleColorCount;
-  const sameSource =
-    layerSnapshot.ui.layerColors.rowCount === removeSnapshot.ui.removeDetectedOutputColors.rowCount &&
-    arraysEqual(
-      layerSnapshot.ui.layerColors.uniqueColors,
-      removeSnapshot.ui.removeDetectedOutputColors.uniqueColors,
-    );
 
   const reasons = [];
   if (actual > exposed) {
@@ -306,14 +292,14 @@ function diagnoseScenario(beforeSvgColors, afterSvgColors, layerSnapshot, remove
   if (beforeSvgColors.colors.some((entry) => entry.channels.includes("stroke"))) {
     reasons.push("SVG contains visible stroke paints. Stroke-only paints require stroke targets or stroke layer metadata.");
   }
-  if (sameSource) {
-    reasons.push("Remove detected output colors and Layer colors expose the same layer rows.");
+  if (layerSnapshot.ui.sectionText.hasRemoveDetectedOutputColors) {
+    reasons.push("Live Preview Edits still contains redundant Remove detected output colors.");
   }
 
   return {
     exposedLayerRowsRepresentAllVisibleColors: actual <= exposed,
     visibleColorsRemainAfterHide: remaining > 0,
-    removeDetectedOutputColorsUsesSameVisibleRowsAsLayerColors: sameSource,
+    liveRemoveDetectedOutputColorsPresent: Boolean(layerSnapshot.ui.sectionText.hasRemoveDetectedOutputColors),
     reasons,
   };
 }
@@ -340,7 +326,7 @@ async function openLatestSettingsPanel(client) {
       const text = latest.innerText || "";
       const controls = latest.querySelectorAll('input[aria-label$=" hex color"], [data-post-processing-controls="true"], [data-settings-section]');
       return {
-        open: controls.length > 0 || /Advanced settings|Layer colors|Output polish|Remove detected output colors/i.test(text),
+        open: controls.length > 0 || /Advanced settings|Layer colors|Output polish/i.test(text),
         controls: controls.length,
         text: text.replace(/\\s+/g, " ").slice(0, 300),
       };
@@ -1302,6 +1288,9 @@ function summarizeResults(results, staticFindings) {
   }
   for (const result of layeredRoutes) {
     const layerUi = result.uiSnapshots?.layerColorsBeforeHide?.ui?.layerColors;
+    if (result.uiSnapshots?.layerColorsBeforeHide?.ui?.sectionText?.hasRemoveDetectedOutputColors) {
+      failures.push(`${result.id} still exposes Live Preview Edits Remove detected output colors.`);
+    }
     if (layerUi?.hasBulkHide) {
       failures.push(`${result.id} still exposes Hide all in Layer colors.`);
     }
@@ -1402,9 +1391,9 @@ async function collectStaticFindings() {
       ].filter(Boolean),
       sharedOutputLayerSource: [
         findEvidence(contents.advancedSettingsPanel, "live output layer source", "const outputLayers = onOutputLayerChange"),
-        findEvidence(contents.advancedSettingsPanel, "Remove detected output colors receives outputLayers", "layers={outputLayers}"),
         findEvidence(contents.advancedSettingsPanel, "Layer colors receives outputLayers", "layers={outputLayers}"),
       ].filter(Boolean),
+      removedLiveOutputColorPanel: !/Remove detected output colors/i.test(contents.advancedSettingsPanel),
     },
   };
 }
@@ -2073,11 +2062,6 @@ async function findBrowserExecutable() {
     } catch {}
   }
   throw new Error("No Chromium-family browser executable found for browser diagnostics.");
-}
-
-function arraysEqual(a, b) {
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
 }
 
 function unique(items) {

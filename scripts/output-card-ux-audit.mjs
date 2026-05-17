@@ -144,6 +144,8 @@ checks.push(
     assertIncludes(advancedSettingsPanel, "showOutputLayerControls", "layer controls render only when real output layer controls exist"),
     assertNotIncludes(advancedSettingsPanel, "outputLayerUnavailableMessage", "layer-unavailable implementation detail is not rendered in the default settings UI"),
     assertNotIncludes(advancedSettingsPanel, "Generate an SVG to edit output layer colors and opacity.", "empty layer editor is hidden instead of shown as an unavailable section"),
+    assertNotIncludes(advancedSettingsPanel, "Remove detected output colors", "Live Preview Edits no longer exposes the redundant output color removal panel"),
+    assertIncludes(advancedSettingsPanel, 'sectionId={`${id}-convert-input-colors`}', "Click To Convert remove-colors section remains wired"),
     assertNotIncludes(advancedSettingsPanel, 'aria-label="Hide all layer colors"', "layer colors no longer exposes an unnecessary Hide all bulk action"),
     assertNotIncludes(advancedSettingsPanel, 'aria-label="Show all layer colors"', "layer colors no longer exposes an unnecessary Show all bulk action"),
     assertNotIncludes(advancedSettingsPanel, 'data-layer-color-search="true"', "layer colors no longer exposes a random-color search field"),
