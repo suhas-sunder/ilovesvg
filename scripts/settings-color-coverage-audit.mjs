@@ -470,6 +470,8 @@ async function collectCoverageSnapshot(client, phase) {
         .map(normalizeHex)
         .filter(Boolean);
       const layerSearch = root.querySelector('[data-layer-color-search="true"]');
+      const layerBulkHide = root.querySelector('button[aria-label="Hide all layer colors"]');
+      const layerBulkShow = root.querySelector('button[aria-label="Show all layer colors"]');
       const layerShowMore = root.querySelector('[data-layer-color-show-more="true"]');
       const explicitRows = visibleElements(root, '[data-layer-color-row="true"]');
       const layerInputs = visibleElements(root, 'input[type="text"][aria-label$=" hex color"]');
@@ -485,6 +487,11 @@ async function collectCoverageSnapshot(client, phase) {
         const range = row?.querySelector('input[type="range"]') || null;
         const rect = input?.getBoundingClientRect?.() || row.getBoundingClientRect();
         const rowRect = row?.getBoundingClientRect?.() || null;
+        const manualRow = row?.querySelector('[data-layer-color-manual-row="true"]') || null;
+        const resetInManualRow = manualRow?.querySelector('[data-layer-color-reset="true"], button') || null;
+        const editButton = Array.from(row?.querySelectorAll("button") || []).find((button) =>
+          /^\\s*Edit\\s*$/i.test(button.innerText || button.textContent || "")
+        );
         return {
           label,
           hexValue:
@@ -495,6 +502,9 @@ async function collectCoverageSnapshot(client, phase) {
           visible: checkbox ? checkbox.checked : null,
           hasColorPicker: Boolean(picker),
           hasOpacityRange: Boolean(range),
+          hasManualRow: Boolean(manualRow),
+          hasResetInManualRow: Boolean(resetInManualRow),
+          hasEditButton: Boolean(editButton),
           inputType: input?.getAttribute("type") || null,
           widthPx: Math.round(rect.width),
           rowWidthPx: rowRect ? Math.round(rowRect.width) : null,
@@ -553,6 +563,9 @@ async function collectCoverageSnapshot(client, phase) {
           heavyControlRowCount: layerHeavyCount || layerRows.filter((row) => row.hasColorPicker || row.hasOpacityRange || row.inputType === "text").length,
           mountedWindowCount: layerMountedCount || layerRows.length,
           hasSearch: Boolean(layerSearch),
+          hasBulkHide: Boolean(layerBulkHide),
+          hasBulkShow: Boolean(layerBulkShow),
+          hasRowEditButton: layerRows.some((row) => row.hasEditButton),
           hasShowMore: Boolean(layerShowMore),
           uniqueColors: unique([
             ...layerAllColors,
@@ -598,17 +611,17 @@ async function collectCoverageSnapshot(client, phase) {
         note: "No layer hex inputs were mounted.",
       };
       const widths = rows.map((row) => row.widthPx).filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
-      const compressedRows = rows.filter((row) => Number(row.widthPx) < 118 || Number(row.rightGapPx) < 44).length;
+      const compressedRows = rows.filter((row) => Number(row.widthPx) < 160 || !row.hasManualRow || !row.hasResetInManualRow).length;
       return {
         exists: true,
-        inputKind: "separate native color input plus text hex input",
+        inputKind: "native color swatch plus full-width manual hex/RGB input",
         minWidthPx: widths[0] || null,
         medianWidthPx: widths[Math.floor(widths.length / 2)] || null,
         compressedRows,
         compressedPercent: rows.length ? Math.round((compressedRows / rows.length) * 100) : 0,
         note: compressedRows > 0
-          ? "At least one mounted hex input is crowded by adjacent inline controls."
-          : "Mounted hex inputs have enough width at this viewport, but still share the same flex row as swatch, label, RGB, and Reset.",
+          ? "At least one mounted manual color input is too narrow or not paired with reset in its own row."
+          : "Mounted manual color inputs have their own row and enough typing width at this viewport.",
       };
     }
 
@@ -897,46 +910,53 @@ async function hideAllExposedLayerColors(client) {
   return evaluate(client, `(async () => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
     if (!latest) return { clicked: 0, reason: "missing latest output" };
-    const hideAllButton = Array.from(latest.querySelectorAll("button"))
-      .find((button) => {
-        const label = (button.getAttribute("aria-label") || button.innerText || button.textContent || "").replace(/\\s+/g, " ").trim();
-        const rect = button.getBoundingClientRect();
-        const style = getComputedStyle(button);
-        return /hide all layer colors/i.test(label) &&
-          !button.disabled &&
-          rect.width > 0 &&
-          rect.height > 0 &&
-          style.display !== "none" &&
-          style.visibility !== "hidden";
-      });
-    if (hideAllButton) {
-      hideAllButton.scrollIntoView({ block: "center", inline: "nearest" });
-      hideAllButton.click();
+    let clicked = 0;
+    let showMoreClicks = 0;
+    let mountedShowCheckboxes = 0;
+    for (let attempt = 0; attempt < 32; attempt += 1) {
+      const boxes = Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
+        .filter((box) => {
+          const rect = box.getBoundingClientRect();
+          const style = getComputedStyle(box);
+          return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+        });
+      mountedShowCheckboxes = Math.max(mountedShowCheckboxes, boxes.length);
+      for (const box of boxes) {
+        if (!box.checked) continue;
+        box.scrollIntoView({ block: "center", inline: "nearest" });
+        box.click();
+        clicked += 1;
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      const showMore = Array.from(latest.querySelectorAll('[data-layer-color-show-more="true"], button'))
+        .find((button) => {
+          const label = (button.getAttribute("aria-label") || button.innerText || button.textContent || "").replace(/\\s+/g, " ").trim();
+          const rect = button.getBoundingClientRect();
+          const style = getComputedStyle(button);
+          return /show more layer colors/i.test(label) &&
+            !button.disabled &&
+            rect.width > 0 &&
+            rect.height > 0 &&
+            style.display !== "none" &&
+            style.visibility !== "hidden";
+        });
+      if (!showMore) break;
+      showMore.scrollIntoView({ block: "center", inline: "nearest" });
+      showMore.click();
+      showMoreClicks += 1;
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      return {
-        clicked: 1,
-        usedBulkHide: true,
-        mountedShowCheckboxes: latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]').length,
-      };
     }
-    const boxes = Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
+    const remainingBoxes = Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
       .filter((box) => {
         const rect = box.getBoundingClientRect();
         const style = getComputedStyle(box);
         return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
       });
-    let clicked = 0;
-    for (const box of boxes) {
-      if (!box.checked) continue;
-      box.scrollIntoView({ block: "center", inline: "nearest" });
-      box.click();
-      clicked += 1;
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
     return {
       clicked,
-      mountedShowCheckboxes: boxes.length,
-      remainingChecked: boxes.filter((box) => box.checked).length,
+      showMoreClicks,
+      mountedShowCheckboxes,
+      remainingChecked: remainingBoxes.filter((box) => box.checked).length,
     };
 
     function latestCard(items) {
@@ -949,7 +969,7 @@ async function hideAllExposedLayerColors(client) {
       const number = Number(String(value || "").replace(/[^0-9.]/g, ""));
       return Number.isFinite(number) ? number : 0;
     }
-  })()`, 20_000);
+  })()`, 60_000);
 }
 
 function analyzeSvgColors(svg) {
@@ -1281,6 +1301,22 @@ function summarizeResults(results, staticFindings) {
     }
   }
   for (const result of layeredRoutes) {
+    const layerUi = result.uiSnapshots?.layerColorsBeforeHide?.ui?.layerColors;
+    if (layerUi?.hasBulkHide) {
+      failures.push(`${result.id} still exposes Hide all in Layer colors.`);
+    }
+    if (layerUi?.hasBulkShow) {
+      failures.push(`${result.id} still exposes Show all in Layer colors.`);
+    }
+    if (layerUi?.hasSearch) {
+      failures.push(`${result.id} still exposes Layer colors search.`);
+    }
+    if (layerUi?.hasRowEditButton) {
+      failures.push(`${result.id} still exposes per-row Edit in Layer colors.`);
+    }
+    if (layerUi?.manualHexInputAudit?.compressedRows > 0) {
+      failures.push(`${result.id} has cramped or misplaced manual Layer colors inputs.`);
+    }
     if (result.counts.visibleColorsAfterHidingAllExposedLayerColors > 0) {
       failures.push(`${result.id} leaves visible colors after hiding all exposed layer rows.`);
     }

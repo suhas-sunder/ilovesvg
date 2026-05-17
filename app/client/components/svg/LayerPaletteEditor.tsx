@@ -141,15 +141,16 @@ export function applyLayerEditsToSvg(
   } else if (elementLayerCount > 0) {
     out = out.replace(
       /<([a-zA-Z][\w:.-]*)\b([^<>]*?)(\/?)>/gi,
-      (match, tagName: string, attrs: string, selfClose: string) => {
-        let nextAttrs = String(attrs || "");
+      (match, tagName: string) => {
+        const parsedStartTag = parseSvgStartTagMatch(match, tagName);
+        let nextAttrs = parsedStartTag.attrs;
         const fillLayerId = readSvgAttribute(nextAttrs, "data-fill-layer-id");
         const strokeLayerId = readSvgAttribute(nextAttrs, "data-stroke-layer-id");
         const fillLayer = fillLayerId ? fillElementLayers.get(fillLayerId) : undefined;
         const strokeLayer = strokeLayerId ? strokeElementLayers.get(strokeLayerId) : undefined;
         if (!fillLayer && !strokeLayer) return match;
 
-        let close = selfClose ? " />" : ">";
+        let close = parsedStartTag.close;
         if (fillLayer) {
           const edited = rewriteElementLayerAttrs(nextAttrs, close, fillLayer, "fill");
           nextAttrs = edited.attrs;
@@ -178,16 +179,20 @@ function replaceTaggedElementLayer(
     paintProp === "stroke" ? "data-stroke-layer-id" : "data-fill-layer-id";
   const id = escapeLayerRegExp(layer.id);
   const elementPattern = new RegExp(
-    `(<([a-zA-Z][\\w:.-]*)(?=[^>]*${attrName}=["']${id}["'])([^>]*?))(\\/?>)`,
+    `<([a-zA-Z][\\w:.-]*)\\b(?=[^<>]*${attrName}=["']${id}["'])([^<>]*?)(?:\\/\\s*>|>\\s*<\\/\\1\\s*>|>)`,
     "gi",
   );
 
   return svg.replace(
     elementPattern,
-    (_match, _start, tagName, attrs, endTag) => {
+    (match, tagName) => {
+      const parsedStartTag = parseSvgStartTagMatch(match, String(tagName || "path"));
+      const close = shouldForceEmptySvgElementClose(match, String(tagName || ""))
+        ? " />"
+        : parsedStartTag.close;
       const edited = rewriteElementLayerAttrs(
-        String(attrs || ""),
-        String(endTag || ">"),
+        parsedStartTag.attrs,
+        close,
         layer,
         paintProp,
       );
@@ -265,11 +270,43 @@ function parseSvgElementAttrs(
 ): { attrs: string; close: string } {
   const rawAttrs = String(attrs || "");
   const closeToken = String(endTag || ">");
-  const selfClosing = closeToken.startsWith("/") || /\/\s*$/.test(rawAttrs);
+  const selfClosing = closeToken.trimStart().startsWith("/") || /\/\s*$/.test(rawAttrs);
   return {
     attrs: selfClosing ? rawAttrs.replace(/\s*\/\s*$/, "") : rawAttrs,
     close: selfClosing ? " />" : ">",
   };
+}
+
+function parseSvgStartTagMatch(
+  match: string,
+  tagName: string,
+): { attrs: string; close: string } {
+  const source = String(match || "");
+  const endIndex = source.indexOf(">");
+  const startSource = endIndex >= 0 ? source.slice(0, endIndex + 1) : source;
+  const openLength = 1 + String(tagName || "").length;
+  let rawAttrs = startSource.endsWith(">")
+    ? startSource.slice(openLength, -1)
+    : startSource.slice(openLength);
+  const selfClosing = /\/\s*$/.test(rawAttrs);
+  if (selfClosing) rawAttrs = rawAttrs.replace(/\s*\/\s*$/, "");
+  return {
+    attrs: rawAttrs,
+    close: selfClosing ? " />" : ">",
+  };
+}
+
+function shouldForceEmptySvgElementClose(_match: string, tagName: string): boolean {
+  const name = String(tagName || "").toLowerCase();
+  return (
+    name === "path" ||
+    name === "rect" ||
+    name === "circle" ||
+    name === "ellipse" ||
+    name === "line" ||
+    name === "polyline" ||
+    name === "polygon"
+  );
 }
 
 function rewriteElementLayerAttrs(

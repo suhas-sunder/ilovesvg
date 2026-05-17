@@ -197,11 +197,20 @@ async function runScenario(scenario, fixture) {
       ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors"),
     );
     const baselineSvg = await step("decode baseline SVG", () => decodeLatestSvg(client));
+    const baselinePreview = await step("verify baseline preview image", () =>
+      assertLatestPreviewImageDecoded(client, "baseline"),
+    );
     const baselineAnalysis = analyzeLayerTargets(baselineSvg, scenario.targetKind);
     if (baselineAnalysis.targets.length === 0) {
       throw new Error("No editable SVG layer targets were found in the completed output.");
     }
 
+    const firstThirtyOnePreviewStability =
+      scenario.route === "/"
+        ? await step("verify first 31 layer rows preview stability", () =>
+            verifyFirstRowsPreviewStability(client, 31),
+          )
+        : null;
     const rowPlan = selectRepresentativeRows(baselineAnalysis.targets, scenario);
     const rowResults = [];
     for (const plan of rowPlan) {
@@ -211,8 +220,11 @@ async function runScenario(scenario, fixture) {
       rowResults.push(rowResult);
     }
 
-    const failures = rowResults.flatMap((row) => row.failures || []);
     const uiAfter = await step("collect final layer UI", () => collectLayerUi(client));
+    const failures = [
+      ...validateLayerColorsUiCleanup(uiAfter),
+      ...rowResults.flatMap((row) => row.failures || []),
+    ];
     return {
       id: scenario.id,
       route: scenario.route,
@@ -224,7 +236,9 @@ async function runScenario(scenario, fixture) {
         targetCount: baselineAnalysis.targets.length,
         visibleTargetCount: baselineAnalysis.targets.filter((target) => target.visibleCount > 0).length,
         totalVisibleElements: baselineAnalysis.totalVisibleElements,
+        preview: baselinePreview,
       },
+      firstThirtyOnePreviewStability,
       testedRows: rowResults,
       uiAfter,
       ok: failures.length === 0,
@@ -254,6 +268,7 @@ async function verifyLayerRow(client, scenario, plan, baselineAnalysis) {
 
   const hideAction = await setLayerRowVisibility(client, plan.index, false);
   await delay(700);
+  const hidePreview = await assertLatestPreviewImageDecoded(client, `row ${plan.index} hide`);
   const hideSvg = await decodeLatestSvg(client);
   const hideAnalysis = analyzeLayerTargets(hideSvg, scenario.targetKind);
   failures.push(...validateHide(baselineAnalysis, hideAnalysis, target, plan));
@@ -266,6 +281,7 @@ async function verifyLayerRow(client, scenario, plan, baselineAnalysis) {
   const testColor = chooseTestColor(baselineAnalysis, target);
   const colorAction = await setLayerRowColor(client, plan.index, testColor);
   await delay(850);
+  const recolorPreview = await assertLatestPreviewImageDecoded(client, `row ${plan.index} recolor`);
   const recolorSvg = await decodeLatestSvg(client);
   const recolorAnalysis = analyzeLayerTargets(recolorSvg, scenario.targetKind);
   failures.push(...validateRecolor(baselineAnalysis, recolorAnalysis, target, testColor, plan));
@@ -273,12 +289,14 @@ async function verifyLayerRow(client, scenario, plan, baselineAnalysis) {
 
   const opacityAction = await setLayerRowOpacity(client, plan.index, 37);
   await delay(700);
+  const opacityPreview = await assertLatestPreviewImageDecoded(client, `row ${plan.index} opacity`);
   const opacitySvg = await decodeLatestSvg(client);
   const opacityAnalysis = analyzeLayerTargets(opacitySvg, scenario.targetKind);
   failures.push(...validateOpacity(recolorAnalysis, opacityAnalysis, target, 0.37, plan));
 
   const resetAction = await resetLayerRow(client, plan.index);
   await delay(800);
+  const resetPreview = await assertLatestPreviewImageDecoded(client, `row ${plan.index} reset`);
   const resetSvg = await decodeLatestSvg(client);
   const resetAnalysis = analyzeLayerTargets(resetSvg, scenario.targetKind);
   failures.push(...validateReset(baselineAnalysis, resetAnalysis, target, plan));
@@ -289,10 +307,10 @@ async function verifyLayerRow(client, scenario, plan, baselineAnalysis) {
     target: summarizeTarget(target),
     rowBefore,
     operations: {
-      hide: { action: hideAction, parity: hideParity },
-      recolor: { action: colorAction, testColor, parity: recolorParity },
-      opacity: { action: opacityAction, opacity: 0.37 },
-      reset: { action: resetAction },
+      hide: { action: hideAction, preview: hidePreview, parity: hideParity },
+      recolor: { action: colorAction, testColor, preview: recolorPreview, parity: recolorParity },
+      opacity: { action: opacityAction, opacity: 0.37, preview: opacityPreview },
+      reset: { action: resetAction, preview: resetPreview },
     },
     ok: failures.length === 0,
     failures,
@@ -310,6 +328,9 @@ function selectRepresentativeRows(targets, scenario) {
   };
 
   if (scenario.route === "/") {
+    for (let index = 0; index < Math.min(6, targets.length); index += 1) {
+      add(index, "first visible homepage row");
+    }
     add(0, "first original metadata row");
     if (targets.length > 16) add(16, "first derived row after original cap");
     add(Math.floor(targets.length / 2), "middle derived row");
@@ -581,6 +602,78 @@ function summarizeTarget(target) {
   };
 }
 
+async function verifyFirstRowsPreviewStability(client, requestedCount) {
+  const targetCount = Math.max(0, Math.min(31, Math.round(Number(requestedCount) || 0)));
+  if (targetCount <= 0) return { testedRows: 0, operations: [] };
+  await ensureLayerRowMounted(client, targetCount - 1);
+  const operations = [];
+  for (let index = 0; index < targetCount; index += 1) {
+    const action = await setLayerRowVisibility(client, index, false);
+    await delay(180);
+    const preview = await assertLatestPreviewImageDecoded(
+      client,
+      `first ${targetCount} rows cumulative hide at row ${index}`,
+    );
+    operations.push({
+      index,
+      operation: "hide",
+      checked: action.checked,
+      preview: summarizePreviewDecode(preview),
+    });
+  }
+  for (let index = targetCount - 1; index >= 0; index -= 1) {
+    const action = await setLayerRowVisibility(client, index, true);
+    await delay(120);
+    const preview = await assertLatestPreviewImageDecoded(
+      client,
+      `first ${targetCount} rows restore at row ${index}`,
+    );
+    operations.push({
+      index,
+      operation: "restore",
+      checked: action.checked,
+      preview: summarizePreviewDecode(preview),
+    });
+  }
+  return {
+    testedRows: targetCount,
+    operationCount: operations.length,
+    operations,
+  };
+}
+
+function summarizePreviewDecode(preview) {
+  return {
+    srcKind: preview?.srcKind || null,
+    naturalWidth: preview?.naturalWidth || 0,
+    naturalHeight: preview?.naturalHeight || 0,
+    decodedSvgBytes: preview?.decodedSvgBytes || null,
+  };
+}
+
+function validateLayerColorsUiCleanup(ui) {
+  const failures = [];
+  if (ui?.hasBulkHide) failures.push("Layer colors still exposes Hide all.");
+  if (ui?.hasBulkShow) failures.push("Layer colors still exposes Show all.");
+  if (ui?.hasSearch) failures.push("Layer colors still exposes search.");
+  if (ui?.hasRowEditButton) failures.push("Layer colors still exposes per-row Edit.");
+
+  const rows = Array.isArray(ui?.rows) ? ui.rows : [];
+  const incompleteRows = rows.filter(
+    (row) =>
+      !row.hasTextInput ||
+      !row.hasOpacityRange ||
+      !row.hasManualRow ||
+      !row.hasResetInManualRow,
+  );
+  if (incompleteRows.length > 0) {
+    failures.push(
+      `Layer colors has ${incompleteRows.length} mounted row(s) without direct opacity, manual color, or reset controls.`,
+    );
+  }
+  return failures;
+}
+
 function chooseTestColor(analysis, target) {
   const existing = new Set(analysis.targets.flatMap((candidate) => candidate.colors));
   for (const color of ["#ff00aa", "#00ffaa", "#7c3aed", "#facc15"]) {
@@ -751,7 +844,10 @@ function layerUiExpression() {
       totalCount: numberOrNull(section?.getAttribute("data-layer-color-total-count")),
       mountedCount: numberOrNull(section?.getAttribute("data-layer-color-mounted-count")),
       heavyCount: numberOrNull(section?.getAttribute("data-layer-color-heavy-count")),
+      hasBulkHide: Boolean(latest?.querySelector('button[aria-label="Hide all layer colors"]')),
+      hasBulkShow: Boolean(latest?.querySelector('button[aria-label="Show all layer colors"]')),
       hasSearch: Boolean(latest?.querySelector('[data-layer-color-search="true"]')),
+      hasRowEditButton: rows.some((row) => /\\bEdit\\b/.test(row.text)),
       hasShowMore: Boolean(latest?.querySelector('[data-layer-color-show-more="true"]')),
       rows,
     };
@@ -774,6 +870,9 @@ function browserDomHelpers() {
       const range = row.querySelector('input[type="range"]');
       const checkbox = row.querySelector('input[type="checkbox"][aria-label^="Show "]');
       const picker = row.querySelector('input[type="color"]');
+      const manualRow = row.querySelector('[data-layer-color-manual-row="true"]');
+      const resetInManualRow = manualRow?.querySelector('[data-layer-color-reset="true"], button');
+      const textInputRect = textInput?.getBoundingClientRect?.() || null;
       return {
         ok: true,
         label: row.getAttribute("data-layer-color-label") || "",
@@ -784,6 +883,9 @@ function browserDomHelpers() {
         hasTextInput: Boolean(textInput),
         hasColorPicker: Boolean(picker),
         hasOpacityRange: Boolean(range),
+        hasManualRow: Boolean(manualRow),
+        hasResetInManualRow: Boolean(resetInManualRow),
+        manualInputWidthPx: textInputRect ? Math.round(textInputRect.width) : null,
         text: (row.innerText || "").replace(/\\s+/g, " ").slice(0, 240),
       };
     }
@@ -814,7 +916,7 @@ function browserDomHelpers() {
 }
 
 async function decodeLatestSvg(client) {
-  const svg = await evaluate(client, `(() => {
+  const svg = await evaluate(client, `(async () => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
     if (!latest) return "";
     const focused = latest.querySelector('[data-focused-editor-workspace="true"]');
@@ -822,10 +924,14 @@ async function decodeLatestSvg(client) {
     const images = Array.from(root.querySelectorAll('[data-editor-output-preview="true"] img, img'));
     for (const image of images) {
       const src = image?.getAttribute("src") || "";
-      if (!src.startsWith("data:image/svg+xml")) continue;
-      const comma = src.indexOf(",");
-      if (comma < 0) continue;
-      try { return decodeURIComponent(src.slice(comma + 1)); } catch {}
+      if (src.startsWith("blob:")) {
+        try { return await fetch(src).then((response) => response.text()); } catch {}
+      }
+      if (src.startsWith("data:image/svg+xml")) {
+        const comma = src.indexOf(",");
+        if (comma < 0) continue;
+        try { return decodeURIComponent(src.slice(comma + 1)); } catch {}
+      }
     }
     return "";
 
@@ -835,11 +941,102 @@ async function decodeLatestSvg(client) {
   return svg;
 }
 
+async function assertLatestPreviewImageDecoded(client, context) {
+  const status = await waitForValue(
+    client,
+    () => `(async () => {
+      const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+      if (!latest) return { ok: false, reason: "missing latest output" };
+      const focused = latest.querySelector('[data-focused-editor-workspace="true"]');
+      const root = focused || latest;
+      const images = Array.from(root.querySelectorAll('[data-editor-output-preview="true"] img, img'));
+      const image = images.find((candidate) => {
+        const src = candidate?.getAttribute("src") || "";
+        return src.startsWith("data:image/svg+xml") || src.startsWith("blob:");
+      }) || images[0] || null;
+      if (!image) return { ok: false, reason: "missing preview image" };
+      const src = image.getAttribute("src") || "";
+      let decodedSvgBytes = null;
+      let parserError = null;
+      let decodedSnippet = null;
+      const captureDecodedDiagnostics = (decoded) => {
+        const parsed = new DOMParser().parseFromString(decoded, "image/svg+xml");
+        parserError = parsed.querySelector("parsererror")?.textContent?.replace(/\\s+/g, " ").slice(0, 220) || null;
+        if (parserError) {
+          const lines = decoded.split(/\\r?\\n/);
+          const lineNumbers = [
+            Number(parserError.match(/Opening and ending tag mismatch:\\s*\\w+\\s+line\\s+(\\d+)/i)?.[1] || 0),
+            Number(parserError.match(/error on line\\s+(\\d+)/i)?.[1] || 0),
+          ].filter((line) => line > 0);
+          decodedSnippet = lineNumbers
+            .map((line) =>
+              lines
+                .slice(Math.max(0, line - 4), line + 3)
+                .map((text, index) =>
+                  String(Math.max(1, line - 3) + index) +
+                  ": len=" + String(text.length) +
+                  " head=" + text.slice(0, 520) +
+                  " tail=" + text.slice(-260)
+                )
+                .join("\\n")
+            )
+            .join("\\n---\\n");
+        }
+      };
+      if (src.startsWith("blob:")) {
+        try {
+          const decoded = await fetch(src).then((response) => response.text());
+          decodedSvgBytes = new Blob([decoded]).size;
+          captureDecodedDiagnostics(decoded);
+        } catch (error) {
+          parserError = String(error?.message || error).slice(0, 220);
+        }
+      } else if (src.startsWith("data:image/svg+xml")) {
+        const comma = src.indexOf(",");
+        if (comma >= 0) {
+          try {
+            const decoded = decodeURIComponent(src.slice(comma + 1));
+            decodedSvgBytes = new Blob([decoded]).size;
+            captureDecodedDiagnostics(decoded);
+          } catch (error) {
+            parserError = String(error?.message || error).slice(0, 220);
+          }
+        }
+      }
+      return {
+        ok: Boolean(image.complete && image.naturalWidth > 0 && image.naturalHeight > 0 && !parserError),
+        complete: Boolean(image.complete),
+        naturalWidth: image.naturalWidth || 0,
+        naturalHeight: image.naturalHeight || 0,
+        alt: image.getAttribute("alt") || "",
+        srcKind: src.startsWith("blob:") ? "blob" : src.startsWith("data:image/svg+xml") ? "data-svg" : "other",
+        srcLength: src.length,
+        decodedSvgBytes,
+        parserError,
+        decodedSnippet,
+      };
+
+      ${browserDomHelpers()}
+    })()`,
+    12_000,
+    (value) => value?.ok || (value?.complete && value?.naturalWidth === 0),
+  );
+  if (!status?.ok) {
+    throw new Error(
+      `Preview image failed to decode after ${context}: ${JSON.stringify(status)}`,
+    );
+  }
+  return status;
+}
+
 async function installCopyDownloadCapture(client) {
   return evaluate(client, `(() => {
     const state = window.__LAYER_COLOR_CORRECTNESS__ || {};
     state.clipboardWrites = Array.isArray(state.clipboardWrites) ? state.clipboardWrites : [];
     state.downloadedSvgBlobs = Array.isArray(state.downloadedSvgBlobs) ? state.downloadedSvgBlobs : [];
+    state.objectUrlSvgBlobs = state.objectUrlSvgBlobs && typeof state.objectUrlSvgBlobs === "object"
+      ? state.objectUrlSvgBlobs
+      : {};
     window.__LAYER_COLOR_CORRECTNESS__ = state;
 
     const capture = async (text) => {
@@ -861,14 +1058,29 @@ async function installCopyDownloadCapture(client) {
     if (!URL.__layerColorCorrectnessCreateObjectUrl) {
       URL.__layerColorCorrectnessCreateObjectUrl = URL.createObjectURL.bind(URL);
       URL.createObjectURL = (blob) => {
+        const url = URL.__layerColorCorrectnessCreateObjectUrl(blob);
         try {
           if (blob && /image\\/svg\\+xml/i.test(String(blob.type || "")) && typeof blob.text === "function") {
+            window.__LAYER_COLOR_CORRECTNESS__.objectUrlSvgBlobs[url] = blob;
+          }
+        } catch {}
+        return url;
+      };
+    }
+    if (!HTMLAnchorElement.prototype.__layerColorCorrectnessClick) {
+      HTMLAnchorElement.prototype.__layerColorCorrectnessClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function (...args) {
+        try {
+          const href = this.href || this.getAttribute("href") || "";
+          const download = this.download || this.getAttribute("download") || "";
+          const blob = download ? window.__LAYER_COLOR_CORRECTNESS__?.objectUrlSvgBlobs?.[href] : null;
+          if (blob && typeof blob.text === "function") {
             blob.text().then((text) => {
               window.__LAYER_COLOR_CORRECTNESS__.downloadedSvgBlobs.push(String(text || ""));
             }).catch(() => {});
           }
         } catch {}
-        return URL.__layerColorCorrectnessCreateObjectUrl(blob);
+        return HTMLAnchorElement.prototype.__layerColorCorrectnessClick.apply(this, args);
       };
     }
     return true;
