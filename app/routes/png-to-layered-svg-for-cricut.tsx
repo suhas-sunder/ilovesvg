@@ -2485,6 +2485,7 @@ export default function PngToLayeredSvgForCricut({
                             bgColor: itemSettings.bgColor,
                             backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
                             layerAlpha: itemSettings.layerAlpha ?? 1,
+                            sourceSvg: item.svg,
                           });
                     const appearance = normalizeOutputAppearance(item.appearance);
                     const appearanceSupportForSvg =
@@ -3202,6 +3203,7 @@ export default function PngToLayeredSvgForCricut({
               bgColor: itemSettings.bgColor,
               backgroundAlpha: itemSettings.backgroundAlpha ?? 1,
               layerAlpha: itemSettings.layerAlpha ?? 1,
+              sourceSvg: item.svg,
             });
             const appearance = normalizeOutputAppearance(item.appearance);
             const svg = hasOutputAppearanceChanges(appearance)
@@ -3421,6 +3423,7 @@ function buildClientLayeredSvg({
   bgColor,
   backgroundAlpha = 1,
   layerAlpha = 1,
+  sourceSvg,
 }: {
   width: number;
   height: number;
@@ -3431,6 +3434,7 @@ function buildClientLayeredSvg({
   bgColor: string;
   backgroundAlpha?: number;
   layerAlpha?: number;
+  sourceSvg?: string;
 }) {
   const safeBackgroundAlpha = normalizeClientOpacity(backgroundAlpha);
   const bg = transparent
@@ -3455,8 +3459,32 @@ function buildClientLayeredSvg({
       return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}"${opacityAttr}>${layer.pathTags}</g>`;
     })
     .join("");
+  const alphaClip = extractSourceAlphaBoundaryClip(sourceSvg);
+  const clippedBody = alphaClip
+    ? `<g data-alpha-boundary-clip="true" clip-path="url(#${escapeClientAttr(
+        alphaClip.id,
+      )})">${body}</g>`
+    : body;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" role="img" aria-label="Layered SVG from PNG for Cricut">${bg}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" role="img" aria-label="Layered SVG from PNG for Cricut">${alphaClip?.defs ?? ""}${bg}${clippedBody}</svg>`;
+}
+
+function extractSourceAlphaBoundaryClip(
+  sourceSvg: string | undefined,
+): { id: string; defs: string } | null {
+  const source = String(sourceSvg || "");
+  if (!/data-alpha-boundary-clip\s*=\s*["']true["']/i.test(source)) return null;
+  const id =
+    source.match(/data-alpha-boundary-clip\s*=\s*["']true["'][^>]*\bclip-path\s*=\s*["']url\(#([^)]+)\)["']/i)?.[1] ||
+    source.match(/\bclip-path\s*=\s*["']url\(#([^)]+)\)["'][^>]*data-alpha-boundary-clip\s*=\s*["']true["']/i)?.[1] ||
+    "source-alpha-boundary-clip";
+  const clipMatch = source.match(
+    new RegExp(
+      `<clipPath\\b[^>]*\\bid\\s*=\\s*["']${escapeClientRegExp(id)}["'][^>]*>[\\s\\S]*?<\\/clipPath>`,
+      "i",
+    ),
+  );
+  return clipMatch ? { id, defs: `<defs>${clipMatch[0]}</defs>` } : null;
 }
 
 function settingsEqual(a: Settings, b: Settings): boolean {
@@ -3525,6 +3553,10 @@ function escapeClientAttr(value: string) {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function escapeClientRegExp(value: string) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function prettyBytes(bytes: number) {

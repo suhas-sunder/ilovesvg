@@ -1,0 +1,2224 @@
+import { spawn, execFile as execFileCallback } from "node:child_process";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
+
+const execFile = promisify(execFileCallback);
+
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const baseUrl = getSmokeBaseUrl();
+const debugPort = Number(process.env.CDP_PORT || 10_300 + Math.floor(Math.random() * 500));
+const tmpRunDir = path.join(os.tmpdir(), "ilovesvg-transparent-layer-boundary", String(debugPort));
+const profileDir = path.join(tmpRunDir, "profile");
+const fixturesDir = path.join(rootDir, "tmp", "transparent-layer-boundary-fixtures");
+const reportPath = process.env.TRANSPARENT_LAYER_BOUNDARY_REPORT_PATH
+  ? path.resolve(process.env.TRANSPARENT_LAYER_BOUNDARY_REPORT_PATH)
+  : path.join(rootDir, "tmp", "transparent-layer-boundary-report.json");
+const userFixturePath =
+  process.env.TRANSPARENT_LAYER_BOUNDARY_FIXTURE ||
+  "C:\\Users\\Suhas\\Downloads\\tomato-transparent-sticker.png";
+
+const scenarios = [
+  {
+    id: "home-layered-flat-color",
+    route: "/",
+    targetKind: "tagged",
+    fixtureKind: "png",
+    presetPatterns: [/^Layered - Flat Color\b/i],
+    presetLabel: "Layered - Flat Color",
+    conversionTimeoutMs: 240_000,
+  },
+  {
+    id: "home-filled-layers-separate-colors",
+    route: "/",
+    targetKind: "tagged",
+    fixtureKind: "png",
+    presetPatterns: [/^Filled Layers - Separate Colors\b/i],
+    presetLabel: "Filled Layers - Separate Colors",
+    conversionTimeoutMs: 240_000,
+    optionalPreset: true,
+  },
+  {
+    id: "png-layered-flat-color",
+    route: "/png-to-layered-svg-for-cricut",
+    targetKind: "group",
+    fixtureKind: "png",
+    presetPatterns: [/^Layered - Flat Color\b/i],
+    presetLabel: "Layered - Flat Color",
+    conversionTimeoutMs: 240_000,
+  },
+  {
+    id: "image-layered-flat-color",
+    route: "/image-to-layered-svg-for-cricut",
+    targetKind: "group",
+    fixtureKind: "png",
+    presetPatterns: [/^Layered - Flat Color\b/i, /^Layered color SVG\b/i],
+    presetLabel: "Layered - Flat Color or equivalent layered color preset",
+    conversionTimeoutMs: 240_000,
+  },
+  {
+    id: "logo-layered-flat-color",
+    route: "/logo-to-layered-svg-converter",
+    targetKind: "group",
+    fixtureKind: "png",
+    presetPatterns: [/^Layered - Flat Color\b/i, /^Layered color SVG\b/i],
+    presetLabel: "Layered - Flat Color or equivalent layered color preset",
+    conversionTimeoutMs: 240_000,
+  },
+].filter((scenario) => {
+  const filter = process.env.TRANSPARENT_LAYER_BOUNDARY_ROUTE_FILTER || "";
+  return !filter || filter === scenario.id || filter === scenario.route;
+});
+
+async function main() {
+  if (!scenarios.length) {
+    throw new Error("No transparent layer boundary scenarios selected.");
+  }
+
+  await fs.rm(tmpRunDir, { recursive: true, force: true });
+  await fs.mkdir(profileDir, { recursive: true });
+  await fs.mkdir(fixturesDir, { recursive: true });
+  await fs.mkdir(path.dirname(reportPath), { recursive: true });
+
+  const [server, git, fixture] = await Promise.all([
+    serverState(),
+    gitState(),
+    prepareFixture(),
+  ]);
+
+  const browserPath = await findBrowserExecutable();
+  const browser = spawn(
+    browserPath,
+    [
+      `--remote-debugging-port=${debugPort}`,
+      `--user-data-dir=${profileDir}`,
+      "--headless=new",
+      "--disable-gpu",
+      "--disable-extensions",
+      "--disable-component-extensions-with-background-pages",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--window-size=1440,1050",
+      "about:blank",
+    ],
+    { stdio: "ignore", windowsHide: true },
+  );
+
+  const results = [];
+  try {
+    await waitForCdp();
+    for (const scenario of scenarios) {
+      console.error(`[transparent-layer-boundary] ${scenario.id}`);
+      const result = await runScenario(scenario, fixture).catch((error) => ({
+        id: scenario.id,
+        route: scenario.route,
+        preset: scenario.presetLabel,
+        fixture: fixture.png.info,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : null,
+        steps: error?.steps || [],
+      }));
+      results.push(result);
+    }
+  } finally {
+    browser.kill();
+    await fs.rm(tmpRunDir, { recursive: true, force: true }).catch(() => {});
+  }
+
+  const summary = summarizeResults(results);
+  const ok = results.every((result) => result.ok) && summary.failureCount === 0;
+  const report = {
+    schemaVersion: 1,
+    auditKind: "transparent-layer-boundary",
+    checkedAt: new Date().toISOString(),
+    baseUrl,
+    server,
+    git,
+    fixture,
+    scenarios: results,
+    summary,
+  };
+
+  await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        ok,
+        reportPath,
+        scenarioCount: results.length,
+        summary,
+      },
+      null,
+      2,
+    ),
+  );
+
+  if (!ok) process.exitCode = 1;
+}
+
+async function runScenario(scenario, fixture) {
+  const file = fixture.png;
+  const steps = [];
+  async function step(name, fn) {
+    const started = performance.now();
+    try {
+      const value = await fn();
+      steps.push({ name, ok: true, ms: Math.round(performance.now() - started) });
+      return value;
+    } catch (error) {
+      steps.push({
+        name,
+        ok: false,
+        ms: Math.round(performance.now() - started),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (error && typeof error === "object") error.steps = steps;
+      throw error;
+    }
+  }
+
+  const client = await step("open tab", () => openTab(`${baseUrl}${scenario.route}`));
+  try {
+    await step("enable page", () => enablePage(client));
+    await step("reset browser state", () => resetScenarioBrowserState(client));
+    await step("wait for document ready", () => waitForDocumentReady(client));
+    await step("install copy/download capture", () => installCopyDownloadCapture(client));
+    await step("set file input", () => setFileInput(client, file.path));
+    await step("settle initial auto conversion", () =>
+      settleInitialAutoConversion(client, 20_000).catch(() => null),
+    );
+
+    const beforePresetState = await step("read state before preset", () =>
+      outputState(client).catch(() => ({ latestStamp: null })),
+    );
+    const selectedPreset = await step("select preset", () =>
+      selectPreset(client, scenario.presetPatterns).catch((error) => {
+        if (scenario.optionalPreset) {
+          return {
+            skipped: true,
+            reason: error instanceof Error ? error.message : String(error),
+          };
+        }
+        throw error;
+      }),
+    );
+    if (selectedPreset?.skipped) {
+      return {
+        id: scenario.id,
+        route: scenario.route,
+        preset: scenario.presetLabel,
+        fixture: file.info,
+        skipped: true,
+        ok: true,
+        failures: [],
+        skipReason: selectedPreset.reason,
+        steps,
+      };
+    }
+    const beforeConvertState = await step("read state before convert", () =>
+      outputState(client).catch(() => beforePresetState),
+    );
+    await step("click convert", () => clickConvert(client));
+    const completed = await step("wait for completed output", () =>
+      waitForCompletedOutput(
+        client,
+        beforeConvertState.latestStamp ?? beforePresetState.latestStamp,
+        scenario.conversionTimeoutMs,
+      ),
+    );
+
+    const baselineSvg = await step("decode baseline SVG", () => decodeLatestSvg(client));
+    const baselineAnalysis = analyzeLayerTargets(baselineSvg, scenario.targetKind);
+    const baselineBoundary = await step("analyze baseline transparent boundary", () =>
+      analyzeTransparentBoundary(baselineSvg, file.path, scenario, "baseline"),
+    );
+    const baselineParity = await step("verify baseline copy/download", () =>
+      verifyCopyDownloadParity(client, baselineSvg),
+    );
+
+    const layerControls = await step("open layer colors if available", async () => {
+      try {
+        await openLatestSettingsPanel(client);
+        await ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors");
+        return { available: true };
+      } catch (error) {
+        return {
+          available: false,
+          reason: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
+    const lightRows = layerControls.available
+      ? selectLightLayerRows(baselineAnalysis.targets)
+      : [];
+    const hideLightActions = [];
+    for (const plan of lightRows) {
+      await ensureLayerRowMounted(client, plan.index);
+      hideLightActions.push(await setLayerRowVisibility(client, plan.index, false));
+      await delay(180);
+    }
+    const afterLightHideSvg = lightRows.length
+      ? await step("decode SVG after hiding light layers", () => decodeLatestSvg(client))
+      : baselineSvg;
+    const afterLightHideBoundary = lightRows.length
+      ? await step("analyze hidden-light transparent boundary", () =>
+          analyzeTransparentBoundary(
+            afterLightHideSvg,
+            file.path,
+            scenario,
+            "after-hiding-light-layers",
+          ),
+        )
+      : null;
+    const hiddenLightParity = lightRows.length
+      ? await step("verify copy/download after light hide", () =>
+          verifyCopyDownloadParity(client, afterLightHideSvg),
+        )
+      : null;
+
+    const failures = [
+      ...baselineBoundary.failures,
+      ...(afterLightHideBoundary?.failures || []),
+    ];
+    if (!baselineParity.copyMatchedPreview || !baselineParity.downloadMatchedPreview) {
+      failures.push("Copy/download output did not match the baseline preview.");
+    }
+    if (
+      hiddenLightParity &&
+      (!hiddenLightParity.copyMatchedPreview || !hiddenLightParity.downloadMatchedPreview)
+    ) {
+      failures.push("Copy/download output did not match the edited preview after hiding light layers.");
+    }
+    const uiAfter = layerControls.available
+      ? await step("collect final layer UI", () => collectLayerUi(client))
+      : null;
+    return {
+      id: scenario.id,
+      route: scenario.route,
+      preset: scenario.presetLabel,
+      selectedPreset,
+      fixture: file.info,
+      conversion: completed,
+      baseline: {
+        targetCount: baselineAnalysis.targets.length,
+        visibleTargetCount: baselineAnalysis.targets.filter((target) => target.visibleCount > 0).length,
+        totalVisibleElements: baselineAnalysis.totalVisibleElements,
+      },
+      boundary: {
+        baseline: baselineBoundary,
+        afterLightHide: afterLightHideBoundary,
+        baselineCopyDownloadParity: baselineParity,
+        layerControls,
+        hiddenLightLayerCount: lightRows.length,
+        hiddenLightLayers: lightRows.map((plan) => ({
+          index: plan.index,
+          reason: plan.reason,
+          target: summarizeTarget(baselineAnalysis.targets[plan.index]),
+        })),
+        hideLightActions,
+        copyDownloadParity: hiddenLightParity,
+      },
+      testedRows: [],
+      uiAfter,
+      ok: failures.length === 0,
+      failures,
+      steps,
+    };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+async function verifyLayerRow(client, scenario, plan, baselineAnalysis) {
+  const target = baselineAnalysis.targets[plan.index];
+  if (!target) throw new Error(`No expected target at row index ${plan.index}.`);
+
+  await ensureLayerRowMounted(client, plan.index);
+  const rowBefore = await ensureLayerRowHeavy(client, plan.index);
+  const failures = [];
+  const rowColor = normalizeHex(rowBefore.hexValue);
+  if (!rowColor) {
+    failures.push(`Row ${plan.index} has no usable hex color.`);
+  } else if (target.color && rowColor !== target.color) {
+    failures.push(
+      `Row ${plan.index} color ${rowColor} did not match expected target color ${target.color}.`,
+    );
+  }
+
+  const hideAction = await setLayerRowVisibility(client, plan.index, false);
+  await delay(700);
+  const hideSvg = await decodeLatestSvg(client);
+  const hideAnalysis = analyzeLayerTargets(hideSvg, scenario.targetKind);
+  failures.push(...validateHide(baselineAnalysis, hideAnalysis, target, plan));
+  const hideParity = await verifyCopyDownloadParity(client, hideSvg);
+
+  await setLayerRowVisibility(client, plan.index, true);
+  await delay(500);
+  await ensureLayerRowHeavy(client, plan.index);
+
+  const testColor = chooseTestColor(baselineAnalysis, target);
+  const colorAction = await setLayerRowColor(client, plan.index, testColor);
+  await delay(850);
+  const recolorSvg = await decodeLatestSvg(client);
+  const recolorAnalysis = analyzeLayerTargets(recolorSvg, scenario.targetKind);
+  failures.push(...validateRecolor(baselineAnalysis, recolorAnalysis, target, testColor, plan));
+  const recolorParity = await verifyCopyDownloadParity(client, recolorSvg);
+
+  const opacityAction = await setLayerRowOpacity(client, plan.index, 37);
+  await delay(700);
+  const opacitySvg = await decodeLatestSvg(client);
+  const opacityAnalysis = analyzeLayerTargets(opacitySvg, scenario.targetKind);
+  failures.push(...validateOpacity(recolorAnalysis, opacityAnalysis, target, 0.37, plan));
+
+  const resetAction = await resetLayerRow(client, plan.index);
+  await delay(800);
+  const resetSvg = await decodeLatestSvg(client);
+  const resetAnalysis = analyzeLayerTargets(resetSvg, scenario.targetKind);
+  failures.push(...validateReset(baselineAnalysis, resetAnalysis, target, plan));
+
+  return {
+    index: plan.index,
+    reason: plan.reason,
+    target: summarizeTarget(target),
+    rowBefore,
+    operations: {
+      hide: { action: hideAction, parity: hideParity },
+      recolor: { action: colorAction, testColor, parity: recolorParity },
+      opacity: { action: opacityAction, opacity: 0.37 },
+      reset: { action: resetAction },
+    },
+    ok: failures.length === 0,
+    failures,
+  };
+}
+
+function selectRepresentativeRows(targets, scenario) {
+  const max = targets.length - 1;
+  const selected = new Map();
+  const add = (index, reason) => {
+    const safeIndex = Math.max(0, Math.min(max, Number(index)));
+    if (Number.isFinite(safeIndex) && !selected.has(safeIndex)) {
+      selected.set(safeIndex, { index: safeIndex, reason });
+    }
+  };
+
+  if (scenario.route === "/") {
+    add(0, "first original metadata row");
+    if (targets.length > 16) add(16, "first derived row after original cap");
+    add(Math.floor(targets.length / 2), "middle derived row");
+    add(max, "last derived row");
+    const commonIndex = targets.reduce(
+      (best, target, index) =>
+        target.pathCount > targets[best].pathCount ? index : best,
+      0,
+    );
+    add(commonIndex, "common color or largest path-count row");
+    const rareIndex = targets.reduce(
+      (best, target, index) =>
+        target.pathCount < targets[best].pathCount ? index : best,
+      0,
+    );
+    add(rareIndex, "rare or smallest path-count row");
+  } else if (targets.length <= 6) {
+    targets.forEach((_target, index) => add(index, "every small route row"));
+  } else {
+    add(0, "first row");
+    add(Math.floor(targets.length / 2), "middle row");
+    add(max, "last row");
+  }
+
+  return Array.from(selected.values()).sort((left, right) => left.index - right.index);
+}
+
+function selectBoundaryControlRows(targets) {
+  if (!targets.length) return [];
+  const selected = new Map();
+  const add = (index, reason) => {
+    if (!Number.isFinite(index) || index < 0 || index >= targets.length) return;
+    if (!selected.has(index)) selected.set(index, { index, reason });
+  };
+
+  const firstNonLight = targets.findIndex((target) => !isLightBackgroundLikeTarget(target));
+  add(firstNonLight >= 0 ? firstNonLight : 0, "first non-light object layer");
+
+  const largestNonLight = targets.reduce((best, target, index) => {
+    if (isLightBackgroundLikeTarget(target)) return best;
+    if (best < 0 || target.pathCount > targets[best].pathCount) return index;
+    return best;
+  }, -1);
+  add(largestNonLight, "largest non-light object layer");
+
+  return Array.from(selected.values()).slice(0, 2);
+}
+
+function selectLightLayerRows(targets) {
+  return targets
+    .map((target, index) => ({ target, index }))
+    .filter(({ target }) => isLightBackgroundLikeTarget(target))
+    .map(({ target, index }) => ({
+      index,
+      reason: `light/background-like color ${target.color}`,
+    }));
+}
+
+function isLightBackgroundLikeTarget(target) {
+  const color = parseHexColor(target.color || target.colors?.[0]);
+  if (!color) return false;
+  const saturation = Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
+  const lightness = (Math.max(color.r, color.g, color.b) + Math.min(color.r, color.g, color.b)) / 2;
+  return lightness >= 222 && saturation <= 42;
+}
+
+async function analyzeTransparentBoundary(svg, sourcePngPath, scenario, label) {
+  const rendered = await renderSvgAlpha(svg);
+  const sourceMask = await renderSourceAlphaMask(sourcePngPath, rendered.width, rendered.height);
+  const margin = Math.max(4, Math.round(Math.max(rendered.width, rendered.height) * 0.025));
+  const allowedMask = dilateMask(sourceMask.mask, rendered.width, rendered.height, margin);
+  const visible = countVisibleAlpha(rendered.alpha);
+  const sourceVisible = countMaskPixels(sourceMask.mask);
+  let outside = 0;
+  let inside = 0;
+  for (let i = 0; i < rendered.alpha.length; i += 1) {
+    if (rendered.alpha[i] <= 12) continue;
+    if (allowedMask[i]) inside += 1;
+    else outside += 1;
+  }
+
+  const outsideRatio = visible > 0 ? outside / visible : 0;
+  const alphaClipApplied = /data-alpha-boundary-clip\s*=\s*["']true["']/i.test(String(svg || ""));
+  const rawFullCanvasTargets = collectFullCanvasTargets(svg, rendered.width, rendered.height);
+  const fullCanvasTargets = alphaClipApplied ? [] : rawFullCanvasTargets;
+  const coloredFullCanvasTargets = fullCanvasTargets.filter(
+    (target) => !isLightColor(target.color),
+  );
+  const lightFullCanvasTargets = fullCanvasTargets.filter((target) => isLightColor(target.color));
+  const failures = [];
+  if (sourceVisible < 100) {
+    failures.push(`${label}: transparent fixture source alpha mask is unexpectedly empty.`);
+  }
+  if (visible < 100) {
+    failures.push(`${label}: SVG output has no meaningful visible artwork.`);
+  }
+  const outsideLimit = Math.max(80, Math.round(Math.max(visible, 1) * 0.015));
+  if (outside > outsideLimit) {
+    failures.push(
+      `${label}: ${outside} rendered visible pixel(s) fell outside the source alpha silhouette, ratio ${outsideRatio.toFixed(4)}.`,
+    );
+  }
+  if (fullCanvasTargets.length) {
+    failures.push(
+      `${label}: found full-canvas or near-full-canvas visible layer target(s): ${fullCanvasTargets
+        .slice(0, 8)
+        .map((target) => `${target.key}:${target.color}:${target.coverage.toFixed(3)}`)
+        .join(", ")}`,
+    );
+  }
+
+  return {
+    label,
+    route: scenario.route,
+    width: rendered.width,
+    height: rendered.height,
+    margin,
+    visiblePixels: visible,
+    sourceAlphaPixels: sourceVisible,
+    insideAllowedPixels: inside,
+    outsideSourceAlphaPixels: outside,
+    outsideSourceAlphaRatio: Number(outsideRatio.toFixed(6)),
+    alphaClipApplied,
+    fullCanvasTargetCount: fullCanvasTargets.length,
+    rawFullCanvasTargetCount: rawFullCanvasTargets.length,
+    lightFullCanvasTargetCount: lightFullCanvasTargets.length,
+    coloredFullCanvasTargetCount: coloredFullCanvasTargets.length,
+    fullCanvasTargets: fullCanvasTargets.slice(0, 20),
+    rawFullCanvasTargets: rawFullCanvasTargets.slice(0, 20),
+    ok: failures.length === 0,
+    failures,
+  };
+}
+
+async function renderSvgAlpha(svg) {
+  const { data, info } = await sharp(Buffer.from(String(svg || ""), "utf8"))
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const width = info.width | 0;
+  const height = info.height | 0;
+  const channels = info.channels | 0;
+  if (!width || !height || channels < 4) {
+    throw new Error("Could not render SVG output for transparent boundary analysis.");
+  }
+  const alpha = new Uint8Array(width * height);
+  for (let i = 0; i < width * height; i += 1) {
+    alpha[i] = data[i * channels + 3];
+  }
+  return { width, height, alpha };
+}
+
+async function renderSourceAlphaMask(sourcePngPath, width, height) {
+  const { data, info } = await sharp(sourcePngPath)
+    .resize(width, height, { fit: "fill" })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = info.channels | 0;
+  if (channels < 4) {
+    throw new Error("Could not read source alpha mask for transparent boundary analysis.");
+  }
+  const mask = new Uint8Array(width * height);
+  for (let i = 0; i < width * height; i += 1) {
+    mask[i] = data[i * channels + 3] >= 18 ? 1 : 0;
+  }
+  return { mask };
+}
+
+function collectFullCanvasTargets(svg, width, height) {
+  const viewport = { width, height };
+  const targets = [];
+  const seen = new Set();
+  const addPath = (attrs, inherited) => {
+    const parsed = parseAttributes(attrs || "");
+    const d = parsed.d || "";
+    if (!d) return;
+    const bounds = measurePathBounds(d);
+    if (!bounds) return;
+    const coverage = pathBoundsCoverage(bounds, viewport);
+    if (coverage < 0.86) return;
+    const color = normalizePaintColor(
+      readStyleProperty(parsed.style, "fill") ||
+        parsed.fill ||
+        inherited.fill ||
+        parsed["data-layer-color"] ||
+        inherited.layerColor ||
+        "",
+    );
+    if (!color) return;
+    const key =
+      parsed["data-fill-layer-id"] ||
+      inherited.layerId ||
+      parsed.id ||
+      `${color}-${Math.round(bounds.minX)}-${Math.round(bounds.minY)}-${Math.round(bounds.maxX)}-${Math.round(bounds.maxY)}`;
+    const signature = `${key}:${color}:${coverage.toFixed(4)}`;
+    if (seen.has(signature)) return;
+    seen.add(signature);
+    targets.push({
+      key,
+      color,
+      coverage: Number(coverage.toFixed(6)),
+      bounds: {
+        minX: Number(bounds.minX.toFixed(2)),
+        minY: Number(bounds.minY.toFixed(2)),
+        maxX: Number(bounds.maxX.toFixed(2)),
+        maxY: Number(bounds.maxY.toFixed(2)),
+      },
+    });
+  };
+
+  const groupPattern = /<g\b([^>]*)>([\s\S]*?)<\/g>/gi;
+  let groupMatch;
+  while ((groupMatch = groupPattern.exec(String(svg || "")))) {
+    const groupAttrs = parseAttributes(groupMatch[1] || "");
+    const inherited = {
+      fill: readStyleProperty(groupAttrs.style, "fill") || groupAttrs.fill || "",
+      layerColor: groupAttrs["data-layer-color"] || "",
+      layerId: groupAttrs["data-layer-id"] || groupAttrs.id || "",
+    };
+    const body = groupMatch[2] || "";
+    body.replace(/<path\b([^>]*?)(\s*\/?)>/gi, (_match, attrs = "") => {
+      addPath(attrs, inherited);
+      return _match;
+    });
+  }
+
+  String(svg || "").replace(/<path\b([^>]*?)(\s*\/?)>/gi, (match, attrs = "") => {
+    addPath(attrs, {});
+    return match;
+  });
+
+  return targets.sort((left, right) => right.coverage - left.coverage);
+}
+
+function pathBoundsCoverage(bounds, viewport) {
+  const tolerance = Math.max(1, Math.max(viewport.width, viewport.height) * 0.01);
+  const touchesCanvas =
+    bounds.minX <= tolerance &&
+    bounds.minY <= tolerance &&
+    bounds.maxX >= viewport.width - tolerance &&
+    bounds.maxY >= viewport.height - tolerance;
+  if (!touchesCanvas) return 0;
+  const area = Math.max(0, bounds.maxX - bounds.minX) * Math.max(0, bounds.maxY - bounds.minY);
+  return area / Math.max(1, viewport.width * viewport.height);
+}
+
+function measurePathBounds(pathData) {
+  const values = (String(pathData || "").match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi) || [])
+    .map(Number)
+    .filter(Number.isFinite);
+  if (values.length < 4) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (let index = 0; index < values.length - 1; index += 2) {
+    const x = values[index];
+    const y = values[index + 1];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)
+    ? { minX, minY, maxX, maxY }
+    : null;
+}
+
+function dilateMask(mask, width, height, radius) {
+  const out = new Uint8Array(mask.length);
+  const r = Math.max(0, Math.round(radius));
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!mask[index]) continue;
+      for (let yy = Math.max(0, y - r); yy <= Math.min(height - 1, y + r); yy += 1) {
+        for (let xx = Math.max(0, x - r); xx <= Math.min(width - 1, x + r); xx += 1) {
+          out[yy * width + xx] = 1;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function countVisibleAlpha(alpha) {
+  let count = 0;
+  for (const value of alpha) {
+    if (value > 12) count += 1;
+  }
+  return count;
+}
+
+function countMaskPixels(mask) {
+  let count = 0;
+  for (const value of mask) {
+    if (value) count += 1;
+  }
+  return count;
+}
+
+function isLightColor(value) {
+  const color = parseHexColor(value);
+  if (!color) return false;
+  const saturation = Math.max(color.r, color.g, color.b) - Math.min(color.r, color.g, color.b);
+  const lightness = (Math.max(color.r, color.g, color.b) + Math.min(color.r, color.g, color.b)) / 2;
+  return lightness >= 222 && saturation <= 42;
+}
+
+function parseHexColor(value) {
+  const hex = String(value || "").trim().toLowerCase().match(/^#([0-9a-f]{6})$/)?.[1];
+  if (!hex) return null;
+  return {
+    r: Number.parseInt(hex.slice(0, 2), 16),
+    g: Number.parseInt(hex.slice(2, 4), 16),
+    b: Number.parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function validateHide(before, after, target, plan) {
+  const failures = [];
+  const afterTarget = after.byKey.get(target.key);
+  const targetVisible = afterTarget?.visibleCount || 0;
+  if (targetVisible !== 0) {
+    failures.push(
+      `Hide row ${plan.index} left ${targetVisible} visible element(s) for target ${target.key}.`,
+    );
+  }
+  if (
+    target.visibleCount < before.totalVisibleElements &&
+    after.totalVisibleElements <= 0
+  ) {
+    failures.push(`Hide row ${plan.index} made the entire SVG output disappear.`);
+  }
+  failures.push(...validateUnrelatedTargetsUnchanged(before, after, target, plan, "hide", {
+    color: true,
+    opacity: true,
+    visibility: true,
+  }));
+  return failures;
+}
+
+function validateRecolor(before, after, target, testColor, plan) {
+  const failures = [];
+  const afterTarget = after.byKey.get(target.key);
+  if (!afterTarget) {
+    failures.push(`Recolor row ${plan.index} removed expected target ${target.key}.`);
+  } else if (!afterTarget.colors.includes(testColor)) {
+    failures.push(
+      `Recolor row ${plan.index} did not apply ${testColor} to target ${target.key}.`,
+    );
+  }
+  const unrelatedWithTestColor = after.targets.filter(
+    (candidate) =>
+      candidate.key !== target.key &&
+      candidate.colors.includes(testColor) &&
+      !(before.byKey.get(candidate.key)?.colors || []).includes(testColor),
+  );
+  if (unrelatedWithTestColor.length) {
+    failures.push(
+      `Recolor row ${plan.index} changed unrelated target(s) to ${testColor}: ${unrelatedWithTestColor
+        .map((candidate) => candidate.key)
+        .join(", ")}`,
+    );
+  }
+  if (after.totalVisibleElements <= 0) {
+    failures.push(`Recolor row ${plan.index} made the SVG output disappear.`);
+  }
+  failures.push(...validateUnrelatedTargetsUnchanged(before, after, target, plan, "recolor", {
+    color: true,
+    opacity: true,
+    visibility: true,
+  }));
+  return failures;
+}
+
+function validateOpacity(before, after, target, expectedOpacity, plan) {
+  const failures = [];
+  const afterTarget = after.byKey.get(target.key);
+  if (!afterTarget) {
+    failures.push(`Opacity row ${plan.index} removed expected target ${target.key}.`);
+  } else if (!afterTarget.opacities.some((value) => Math.abs(value - expectedOpacity) <= 0.01)) {
+    failures.push(
+      `Opacity row ${plan.index} did not apply ${expectedOpacity} to target ${target.key}; found ${afterTarget.opacities.join(", ")}.`,
+    );
+  }
+  failures.push(...validateUnrelatedTargetsUnchanged(before, after, target, plan, "opacity", {
+    color: false,
+    opacity: true,
+    visibility: true,
+  }));
+  return failures;
+}
+
+function validateReset(before, after, target, plan) {
+  const failures = [];
+  const beforeTarget = before.byKey.get(target.key);
+  const afterTarget = after.byKey.get(target.key);
+  if (!beforeTarget || !afterTarget) {
+    failures.push(`Reset row ${plan.index} could not compare target ${target.key}.`);
+    return failures;
+  }
+  if (signature(afterTarget, { color: true, opacity: true, visibility: true }) !== signature(beforeTarget, { color: true, opacity: true, visibility: true })) {
+    failures.push(`Reset row ${plan.index} did not restore target ${target.key} to its baseline state.`);
+  }
+  failures.push(...validateUnrelatedTargetsUnchanged(before, after, target, plan, "reset", {
+    color: true,
+    opacity: true,
+    visibility: true,
+  }));
+  return failures;
+}
+
+function validateUnrelatedTargetsUnchanged(before, after, target, plan, operation, options) {
+  const failures = [];
+  for (const beforeTarget of before.targets) {
+    if (beforeTarget.key === target.key) continue;
+    const afterTarget = after.byKey.get(beforeTarget.key);
+    if (!afterTarget) {
+      failures.push(
+        `${operation} row ${plan.index} removed unrelated target ${beforeTarget.key}.`,
+      );
+      continue;
+    }
+    if (signature(beforeTarget, options) !== signature(afterTarget, options)) {
+      failures.push(
+        `${operation} row ${plan.index} changed unrelated target ${beforeTarget.key}.`,
+      );
+    }
+  }
+  return failures;
+}
+
+function signature(target, options) {
+  const parts = [];
+  if (options.visibility) parts.push(`visible:${target.visibleCount}/${target.elementCount}`);
+  if (options.color) parts.push(`colors:${target.colors.join("|")}`);
+  if (options.opacity) parts.push(`opacity:${target.opacities.join("|")}`);
+  return parts.join(";");
+}
+
+function analyzeLayerTargets(svg, targetKind) {
+  const targets =
+    targetKind === "group" ? collectGroupLayerTargets(svg) : collectTaggedPaintTargets(svg);
+  const byKey = new Map(targets.map((target) => [target.key, target]));
+  return {
+    targetKind,
+    targets,
+    byKey,
+    totalVisibleElements: targets.reduce((sum, target) => sum + target.visibleCount, 0),
+  };
+}
+
+function collectTaggedPaintTargets(svg) {
+  const targets = new Map();
+  const elementPattern = /<([a-zA-Z][\w:.-]*)\b([^<>]*?)(\/?)>/gi;
+  let match;
+  while ((match = elementPattern.exec(String(svg || "")))) {
+    const tagName = String(match[1] || "").toLowerCase();
+    if (tagName === "svg" || tagName === "defs" || tagName === "style") continue;
+    const attrs = parseAttributes(match[2] || "");
+    if (tagName === "path" && !attrs.d) continue;
+    const visible = !isElementHidden(attrs);
+
+    for (const paint of ["fill", "stroke"]) {
+      const attrName = paint === "fill" ? "data-fill-layer-id" : "data-stroke-layer-id";
+      const rawId = attrs[attrName];
+      if (!rawId) continue;
+      const color = normalizePaintColor(
+        readStyleProperty(attrs.style, paint) ||
+          attrs[paint] ||
+          attrs["data-layer-color"] ||
+          "",
+      );
+      if (!color) continue;
+      recordTarget(targets, {
+        id: rawId,
+        key: `${paint}:${rawId}`,
+        kind: paint,
+        label: rawId,
+        color,
+        pathCount: 1,
+        visible,
+        opacity: readOpacity(attrs),
+      });
+    }
+  }
+  return Array.from(targets.values());
+}
+
+function collectGroupLayerTargets(svg) {
+  const targets = [];
+  const groupPattern = /<g\b([^>]*)>([\s\S]*?)<\/g>/gi;
+  let match;
+  while ((match = groupPattern.exec(String(svg || "")))) {
+    const attrs = parseAttributes(match[1] || "");
+    const id = attrs["data-layer-id"] || attrs.id;
+    if (!id) continue;
+    const color = normalizePaintColor(
+      readStyleProperty(attrs.style, "fill") ||
+        attrs.fill ||
+        attrs["data-layer-color"] ||
+        "",
+    );
+    if (!color) continue;
+    const visible = !isElementHidden(attrs);
+    const pathCount = countMatches(match[2] || "", /<path\b/gi);
+    targets.push(normalizeTarget({
+      id,
+      key: `fill:${id}`,
+      kind: "fill",
+      label: attrs["data-layer-label"] || attrs["data-layer-name"] || id,
+      color,
+      pathCount,
+      visible,
+      opacity: readOpacity(attrs),
+    }));
+  }
+  return targets;
+}
+
+function recordTarget(targets, next) {
+  const existing = targets.get(next.key);
+  if (!existing) {
+    targets.set(next.key, normalizeTarget(next));
+    return;
+  }
+  existing.elementCount += 1;
+  existing.pathCount += next.pathCount;
+  if (next.visible) existing.visibleCount += 1;
+  existing.colors = unique([...existing.colors, next.color]).sort();
+  existing.opacities = uniqueNumber([...existing.opacities, next.opacity]).sort((a, b) => a - b);
+}
+
+function normalizeTarget(target) {
+  return {
+    id: target.id,
+    key: target.key,
+    kind: target.kind,
+    label: target.label,
+    color: target.color,
+    colors: [target.color],
+    opacities: [target.opacity],
+    pathCount: target.pathCount,
+    elementCount: 1,
+    visibleCount: target.visible ? 1 : 0,
+  };
+}
+
+function summarizeTarget(target) {
+  return {
+    id: target.id,
+    key: target.key,
+    kind: target.kind,
+    color: target.color,
+    colors: target.colors,
+    opacities: target.opacities,
+    pathCount: target.pathCount,
+    elementCount: target.elementCount,
+    visibleCount: target.visibleCount,
+  };
+}
+
+function chooseTestColor(analysis, target) {
+  const existing = new Set(analysis.targets.flatMap((candidate) => candidate.colors));
+  for (const color of ["#ff00aa", "#00ffaa", "#7c3aed", "#facc15"]) {
+    if (!existing.has(color) || target.colors.includes(color)) return color;
+  }
+  return "#ff00aa";
+}
+
+async function collectLayerUi(client) {
+  return evaluate(client, layerUiExpression(), 8_000);
+}
+
+async function ensureLayerRowMounted(client, index) {
+  const result = await evaluate(client, `(async () => {
+    const targetIndex = ${Number(index)};
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { ok: false, reason: "missing latest output" };
+    let clicked = 0;
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const rows = visibleRows(latest);
+      if (rows.length > targetIndex) {
+        rows[targetIndex].scrollIntoView({ block: "center", inline: "nearest" });
+        return { ok: true, mountedRows: rows.length, clickedShowMore: clicked };
+      }
+      const showMore = Array.from(latest.querySelectorAll('[data-layer-color-show-more="true"], button'))
+        .find((button) => {
+          const text = (button.innerText || button.textContent || button.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+          return /Show more layer colors/i.test(text) && isVisible(button) && !button.disabled;
+        });
+      if (!showMore) return { ok: false, reason: "row not mounted and no Show more control", mountedRows: rows.length };
+      showMore.scrollIntoView({ block: "center", inline: "nearest" });
+      showMore.click();
+      clicked += 1;
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    return { ok: false, reason: "show more attempts exhausted", clickedShowMore: clicked };
+
+    ${browserDomHelpers()}
+  })()`, 15_000);
+  if (!result?.ok) {
+    throw new Error(`Could not mount layer row ${index}: ${result?.reason || "unknown"}`);
+  }
+  return result;
+}
+
+async function ensureLayerRowHeavy(client, index) {
+  const result = await evaluate(client, `(async () => {
+    const targetIndex = ${Number(index)};
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { ok: false, reason: "missing latest output" };
+    let row = visibleRows(latest)[targetIndex];
+    if (!row) return { ok: false, reason: "row not mounted" };
+    if (!row.querySelector('input[type="text"][aria-label$=" hex color"]') || !row.querySelector('input[type="range"]')) {
+      const edit = Array.from(row.querySelectorAll("button")).find((button) =>
+        /\\bEdit\\b/i.test(button.innerText || button.textContent || "") && isVisible(button) && !button.disabled
+      );
+      if (edit) {
+        edit.scrollIntoView({ block: "center", inline: "nearest" });
+        edit.click();
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+    }
+    row = visibleRows(latest)[targetIndex];
+    const input = row?.querySelector('input[type="text"][aria-label$=" hex color"]');
+    const range = row?.querySelector('input[type="range"]');
+    const checkbox = row?.querySelector('input[type="checkbox"][aria-label^="Show "]');
+    if (!row || !input || !range || !checkbox) {
+      return {
+        ok: false,
+        reason: "row did not expose heavy controls",
+        rowText: (row?.innerText || "").replace(/\\s+/g, " ").slice(0, 220),
+      };
+    }
+    row.scrollIntoView({ block: "center", inline: "nearest" });
+    return rowInfo(row);
+
+    ${browserDomHelpers()}
+  })()`, 12_000);
+  if (!result?.ok) {
+    throw new Error(`Could not open heavy controls for row ${index}: ${result?.reason || "unknown"}`);
+  }
+  return result;
+}
+
+async function setLayerRowVisibility(client, index, visible) {
+  const result = await evaluate(client, `(async () => {
+    const row = rowAt(${Number(index)});
+    if (!row) return { ok: false, reason: "row missing" };
+    const checkbox = row.querySelector('input[type="checkbox"][aria-label^="Show "]');
+    if (!checkbox) return { ok: false, reason: "visibility checkbox missing" };
+    if (checkbox.checked !== ${visible ? "true" : "false"}) {
+      checkbox.scrollIntoView({ block: "center", inline: "nearest" });
+      checkbox.click();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    return { ok: true, checked: checkbox.checked, row: rowInfo(row) };
+
+    ${browserDomHelpers()}
+  })()`, 8_000);
+  if (!result?.ok) throw new Error(`Could not set row ${index} visibility: ${result?.reason || "unknown"}`);
+  return result;
+}
+
+async function setLayerRowColor(client, index, color) {
+  const result = await evaluate(client, `(async () => {
+    const row = rowAt(${Number(index)});
+    if (!row) return { ok: false, reason: "row missing" };
+    const input = row.querySelector('input[type="text"][aria-label$=" hex color"]');
+    if (!input) return { ok: false, reason: "hex input missing" };
+    setNativeValue(input, ${JSON.stringify(color)});
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.blur();
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    return { ok: true, value: input.value, row: rowInfo(row) };
+
+    ${browserDomHelpers()}
+  })()`, 8_000);
+  if (!result?.ok) throw new Error(`Could not set row ${index} color: ${result?.reason || "unknown"}`);
+  return result;
+}
+
+async function setLayerRowOpacity(client, index, percent) {
+  const result = await evaluate(client, `(async () => {
+    const row = rowAt(${Number(index)});
+    if (!row) return { ok: false, reason: "row missing" };
+    const input = row.querySelector('input[type="range"]');
+    if (!input) return { ok: false, reason: "opacity range missing" };
+    setNativeValue(input, String(${Number(percent)}));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.blur();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    return { ok: true, value: input.value, row: rowInfo(row) };
+
+    ${browserDomHelpers()}
+  })()`, 8_000);
+  if (!result?.ok) throw new Error(`Could not set row ${index} opacity: ${result?.reason || "unknown"}`);
+  return result;
+}
+
+async function resetLayerRow(client, index) {
+  const result = await evaluate(client, `(async () => {
+    const row = rowAt(${Number(index)});
+    if (!row) return { ok: false, reason: "row missing" };
+    const reset = Array.from(row.querySelectorAll("button")).find((button) =>
+      /^\\s*Reset\\s*$/i.test(button.innerText || button.textContent || "") && isVisible(button) && !button.disabled
+    );
+    if (!reset) return { ok: false, reason: "reset button missing" };
+    reset.scrollIntoView({ block: "center", inline: "nearest" });
+    reset.click();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    return { ok: true, row: rowInfo(row) };
+
+    ${browserDomHelpers()}
+  })()`, 8_000);
+  if (!result?.ok) throw new Error(`Could not reset row ${index}: ${result?.reason || "unknown"}`);
+  return result;
+}
+
+function layerUiExpression() {
+  return `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    const rows = latest ? visibleRows(latest).map(rowInfo) : [];
+    const section = latest?.querySelector("[data-layer-color-total-count]");
+    return {
+      rowCount: rows.length,
+      totalCount: numberOrNull(section?.getAttribute("data-layer-color-total-count")),
+      mountedCount: numberOrNull(section?.getAttribute("data-layer-color-mounted-count")),
+      heavyCount: numberOrNull(section?.getAttribute("data-layer-color-heavy-count")),
+      hasSearch: Boolean(latest?.querySelector('[data-layer-color-search="true"]')),
+      hasShowMore: Boolean(latest?.querySelector('[data-layer-color-show-more="true"]')),
+      rows,
+    };
+
+    ${browserDomHelpers()}
+  })()`;
+}
+
+function browserDomHelpers() {
+  return `
+    function rowAt(index) {
+      const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+      return latest ? visibleRows(latest)[index] || null : null;
+    }
+    function visibleRows(root) {
+      return Array.from(root.querySelectorAll('[data-layer-color-row="true"]')).filter(isVisible);
+    }
+    function rowInfo(row) {
+      const textInput = row.querySelector('input[type="text"][aria-label$=" hex color"]');
+      const range = row.querySelector('input[type="range"]');
+      const checkbox = row.querySelector('input[type="checkbox"][aria-label^="Show "]');
+      const picker = row.querySelector('input[type="color"]');
+      return {
+        ok: true,
+        label: row.getAttribute("data-layer-color-label") || "",
+        hexValue: row.getAttribute("data-layer-color-hex") || textInput?.value || "",
+        textValue: textInput?.value || null,
+        opacityValue: range?.value || null,
+        visible: checkbox ? checkbox.checked : null,
+        hasTextInput: Boolean(textInput),
+        hasColorPicker: Boolean(picker),
+        hasOpacityRange: Boolean(range),
+        text: (row.innerText || "").replace(/\\s+/g, " ").slice(0, 240),
+      };
+    }
+    function setNativeValue(element, value) {
+      const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value");
+      if (descriptor?.set) descriptor.set.call(element, value);
+      else element.value = value;
+    }
+    function isVisible(element) {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+    function latestCard(items) {
+      return items.reduce((best, card) => {
+        if (!best) return card;
+        return numberOrNull(card.getAttribute("data-output-stamp")) >= numberOrNull(best.getAttribute("data-output-stamp")) ? card : best;
+      }, null);
+    }
+    function numberOrNull(value) {
+      const text = String(value || "").trim();
+      if (!text) return null;
+      const number = Number(text.replace(/[^0-9.]/g, ""));
+      return Number.isFinite(number) ? number : null;
+    }
+  `;
+}
+
+async function decodeLatestSvg(client) {
+  const svg = await evaluate(client, `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return "";
+    const focused = latest.querySelector('[data-focused-editor-workspace="true"]');
+    const root = focused || latest;
+    const images = Array.from(root.querySelectorAll('[data-editor-output-preview="true"] img, img'));
+    for (const image of images) {
+      const src = image?.getAttribute("src") || "";
+      if (!src.startsWith("data:image/svg+xml")) continue;
+      const comma = src.indexOf(",");
+      if (comma < 0) continue;
+      try { return decodeURIComponent(src.slice(comma + 1)); } catch {}
+    }
+    return "";
+
+    ${browserDomHelpers()}
+  })()`, 8_000);
+  if (!svg || !/<svg\b/i.test(svg)) throw new Error("Could not decode latest SVG preview.");
+  return svg;
+}
+
+async function installCopyDownloadCapture(client) {
+  return evaluate(client, `(() => {
+    const state = window.__TRANSPARENT_LAYER_BOUNDARY__ || {};
+    state.clipboardWrites = Array.isArray(state.clipboardWrites) ? state.clipboardWrites : [];
+    state.downloadedSvgBlobs = Array.isArray(state.downloadedSvgBlobs) ? state.downloadedSvgBlobs : [];
+    window.__TRANSPARENT_LAYER_BOUNDARY__ = state;
+
+    const capture = async (text) => {
+      window.__TRANSPARENT_LAYER_BOUNDARY__.clipboardWrites.push(String(text || ""));
+      return undefined;
+    };
+    try {
+      if (!navigator.clipboard) {
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: capture } });
+      } else {
+        navigator.clipboard.writeText = capture;
+      }
+    } catch {
+      try {
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: capture } });
+      } catch {}
+    }
+
+    if (!URL.__layerColorCorrectnessCreateObjectUrl) {
+      URL.__layerColorCorrectnessCreateObjectUrl = URL.createObjectURL.bind(URL);
+      URL.createObjectURL = (blob) => {
+        try {
+          if (blob && /image\\/svg\\+xml/i.test(String(blob.type || "")) && typeof blob.text === "function") {
+            blob.text().then((text) => {
+              window.__TRANSPARENT_LAYER_BOUNDARY__.downloadedSvgBlobs.push(String(text || ""));
+            }).catch(() => {});
+          }
+        } catch {}
+        return URL.__layerColorCorrectnessCreateObjectUrl(blob);
+      };
+    }
+    return true;
+  })()`, 8_000);
+}
+
+async function verifyCopyDownloadParity(client, expectedSvg) {
+  const expectedHash = hashString(expectedSvg);
+  const expectedBytes = Buffer.byteLength(expectedSvg);
+  const before = await getCopyDownloadCapture(client);
+
+  const copyClick = await clickButtonInLatestOutput(client, [/Copy SVG/i, /^Copy$/i], [/Copied/i]);
+  if (!copyClick) throw new Error("Copy SVG control not found for parity check.");
+  const copied = await waitForValue(
+    client,
+    () => copyDownloadCaptureExpression(expectedHash, expectedBytes),
+    8_000,
+    (value) => value?.clipboardCount > before.clipboardCount,
+  );
+
+  const downloadClick = await clickButtonInLatestOutput(client, [/Download SVG/i, /^Download\b/i], [/ZIP/i]);
+  if (!downloadClick) throw new Error("Download SVG control not found for parity check.");
+  const downloaded = await waitForValue(
+    client,
+    () => copyDownloadCaptureExpression(expectedHash, expectedBytes),
+    8_000,
+    (value) => value?.downloadCount > before.downloadCount,
+  );
+
+  const result = {
+    expectedHash,
+    expectedBytes,
+    copyClick,
+    downloadClick,
+    copyHash: copied.latestClipboardHash,
+    copyBytes: copied.latestClipboardBytes,
+    downloadHash: downloaded.latestDownloadHash,
+    downloadBytes: downloaded.latestDownloadBytes,
+    copyMatchedPreview:
+      copied.latestClipboardHash === expectedHash &&
+      copied.latestClipboardBytes === expectedBytes,
+    downloadMatchedPreview:
+      downloaded.latestDownloadHash === expectedHash &&
+      downloaded.latestDownloadBytes === expectedBytes,
+  };
+  if (!result.copyMatchedPreview) throw new Error("Copy SVG did not match edited preview SVG.");
+  if (!result.downloadMatchedPreview) throw new Error("Download SVG did not match edited preview SVG.");
+  return result;
+}
+
+async function getCopyDownloadCapture(client) {
+  return evaluate(client, copyDownloadCaptureExpression("", 0), 8_000);
+}
+
+function copyDownloadCaptureExpression(expectedHash, expectedBytes) {
+  return `(() => {
+    const state = window.__TRANSPARENT_LAYER_BOUNDARY__ || {};
+    const clipboardWrites = state.clipboardWrites || [];
+    const downloadedSvgBlobs = state.downloadedSvgBlobs || [];
+    const latestClipboard = clipboardWrites[clipboardWrites.length - 1] || "";
+    const latestDownload = downloadedSvgBlobs[downloadedSvgBlobs.length - 1] || "";
+    const latestClipboardHash = latestClipboard ? hashString(latestClipboard) : null;
+    const latestDownloadHash = latestDownload ? hashString(latestDownload) : null;
+    const latestClipboardBytes = latestClipboard ? new Blob([latestClipboard]).size : 0;
+    const latestDownloadBytes = latestDownload ? new Blob([latestDownload]).size : 0;
+    return {
+      clipboardCount: clipboardWrites.length,
+      downloadCount: downloadedSvgBlobs.length,
+      latestClipboardHash,
+      latestClipboardBytes,
+      latestDownloadHash,
+      latestDownloadBytes,
+      copyMatchedPreview: latestClipboardHash === ${JSON.stringify(expectedHash)} && latestClipboardBytes === ${Number(expectedBytes)},
+      downloadMatchedPreview: latestDownloadHash === ${JSON.stringify(expectedHash)} && latestDownloadBytes === ${Number(expectedBytes)},
+    };
+    function hashString(value) {
+      let hash = 0;
+      const text = String(value || "");
+      for (let index = 0; index < text.length; index += 1) {
+        hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
+      }
+      return (hash >>> 0).toString(16);
+    }
+  })()`;
+}
+
+async function resetScenarioBrowserState(client) {
+  await evaluate(client, `(() => {
+    try { localStorage.clear(); } catch {}
+    try { sessionStorage.clear(); } catch {}
+    return true;
+  })()`, 8_000);
+  await client.send("Page.reload", { ignoreCache: true }).catch(async () => {
+    await evaluate(client, `(() => { location.reload(); return true; })()`, 8_000);
+  });
+}
+
+async function clickConvert(client) {
+  const clicked = await clickButtonIfPresent(
+    client,
+    [/^Convert\b/i, /^Create\b/i, /^Build\b/i, /^Generate\b/i, /^Trace\b/i, /Layered SVG/i],
+    [/Download/i, /Copy/i, /Settings/i, /ZIP/i],
+  );
+  if (clicked) return clicked;
+  const routeBusy = await routeConversionBusy(client);
+  if (routeBusy) return { clicked: false, reason: "conversion already running", routeBusy };
+  const state = await outputState(client);
+  if (state.activeJobs > 0) return { clicked: false, reason: "conversion already running", state };
+  const buttons = await visibleButtonLabels(client).catch(() => []);
+  throw new Error(`No enabled Convert/Create button found. Visible buttons: ${JSON.stringify(buttons.slice(0, 24))}`);
+}
+
+async function routeConversionBusy(client) {
+  return evaluate(client, `(() => {
+    return Array.from(document.querySelectorAll("button")).some((button) => {
+      const text = button.innerText || button.textContent || "";
+      return button.disabled && /\\b(Building|Converting|Running|Creating)\\b/i.test(text);
+    });
+  })()`);
+}
+
+async function waitForCompletedOutput(client, previousLatestStamp, timeoutMs) {
+  return waitForValue(
+    client,
+    () => outputStateExpression(previousLatestStamp),
+    timeoutMs,
+    (state) =>
+      state?.pageAlive &&
+      state.latestReady &&
+      state.activeJobs === 0 &&
+      state.latestStamp !== null,
+  );
+}
+
+async function settleInitialAutoConversion(client, timeoutMs) {
+  const state = await outputState(client).catch(() => null);
+  if (!state?.activeJobs) return { settled: true, reason: "idle" };
+  const completed = await waitForCompletedOutput(client, state.latestStamp, timeoutMs);
+  return { settled: true, reason: "waited for initial auto conversion", completed };
+}
+
+async function selectPreset(client, patterns) {
+  await clickButtonIfPresent(client, [/All presets/i, /Show all presets/i, /More presets/i], []).catch(() => null);
+  await delay(250);
+  for (const pattern of patterns) {
+    const clicked = await clickButtonIfPresent(client, [pattern], [/Show fewer/i, /Filter presets/i]).catch(() => null);
+    if (clicked) {
+      await delay(300);
+      return { selected: clicked.label, pattern: String(pattern) };
+    }
+  }
+  return { selected: null, reason: "No matching layered preset button was visible." };
+}
+
+async function outputState(client) {
+  return evaluate(client, outputStateExpression(null), 8_000);
+}
+
+function outputStateExpression(previousLatestStamp) {
+  return `(() => {
+    const cards = Array.from(document.querySelectorAll("[data-output-stamp]"));
+    const latest = latestCard(cards);
+    const latestStamp = latest ? numberOrNull(latest.getAttribute("data-output-stamp")) : null;
+    const activeJobs = cards.filter(isActiveCard).length;
+    const latestReady = Boolean(latest) &&
+      !isActiveCard(latest) &&
+      /Settings\\s*\\/\\s*Edit|Download|Copy/i.test(latest.innerText || "") &&
+      !/Conversion failed|Canceled/i.test(latest.innerText || "");
+    return {
+      pageAlive: true,
+      outputCards: cards.length,
+      activeJobs,
+      latestStamp,
+      latestReady,
+      latestChanged: ${previousLatestStamp == null ? "true" : `latestStamp !== ${JSON.stringify(previousLatestStamp)}`},
+      latestText: latest ? (latest.innerText || "").replace(/\\s+/g, " ").slice(0, 700) : "",
+      latestJobStatus: latest ? latest.getAttribute("data-job-status") || null : null,
+      latestSvgBytes: latest ? numberOrNull(latest.getAttribute("data-svg-bytes")) : null,
+      latestPathCount: latest ? numberOrNull(latest.getAttribute("data-path-count")) : null,
+    };
+    function isActiveCard(card) {
+      return /queued|running/i.test(card.getAttribute("data-job-status") || "") ||
+        /\\b(Queued|Running|Converting|Creating|Building)\\b/i.test(card.innerText || "");
+    }
+    function latestCard(items) {
+      return items.reduce((best, card) => {
+        if (!best) return card;
+        return numberOrNull(card.getAttribute("data-output-stamp")) >= numberOrNull(best.getAttribute("data-output-stamp")) ? card : best;
+      }, null);
+    }
+    function numberOrNull(value) {
+      const text = String(value || "").trim();
+      if (!text) return null;
+      const number = Number(text.replace(/[^0-9.]/g, ""));
+      return Number.isFinite(number) ? number : null;
+    }
+  })()`;
+}
+
+async function visibleButtonLabels(client) {
+  return evaluate(client, `(() => Array.from(document.querySelectorAll("button, [role='button'], summary"))
+    .filter((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    })
+    .map((element) => ({
+      text: (element.innerText || element.textContent || element.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim(),
+      disabled: Boolean(element.disabled),
+    }))
+    .filter((item) => item.text))()`, 8_000);
+}
+
+async function setFileInput(client, filePath) {
+  await waitForValue(
+    client,
+    () => `(() => Boolean(document.querySelector('input[type="file"]')))()`,
+    12_000,
+    Boolean,
+  );
+  const expectedName = path.basename(filePath);
+
+  try {
+    await setFileInputViaChooser(client, filePath);
+    const accepted = await waitForUploadAccepted(client, expectedName, 25_000).catch(() => null);
+    if (accepted) return;
+  } catch {}
+
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const nodeId = await queryFileInputNodeId(client, primaryFileInputSelector);
+      await client.send("DOM.setFileInputFiles", { nodeId, files: [filePath] }, 8_000);
+      await dispatchFileInputChange(client);
+      const accepted = await waitForUploadAccepted(client, expectedName, 12_000).catch(() => null);
+      if (accepted) return;
+    } catch (error) {
+      lastError = error;
+      if (!/could not find node|no node with given id|cannot find context/i.test(String(error?.message || error))) break;
+      await delay(150);
+    }
+  }
+  await setFileInputFromBuffer(client, filePath);
+  const accepted = await waitForUploadAccepted(client, expectedName, 20_000).catch(() => null);
+  if (accepted) return;
+
+  throw lastError || new Error(`File upload did not appear in page state for ${expectedName}.`);
+}
+
+async function waitForUploadAccepted(client, filename, timeoutMs) {
+  return waitForValue(
+    client,
+    () => `(() => {
+      const body = document.body?.innerText || "";
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const enabledConvert = buttons.some((button) => {
+        const text = button.innerText || button.textContent || "";
+        return !button.disabled && /^\\s*(Convert|Create)\\b/i.test(text);
+      });
+      const routeBusy = buttons.some((button) => {
+        const text = button.innerText || button.textContent || "";
+        return button.disabled && /\\b(Building|Converting|Running|Creating)\\b/i.test(text);
+      });
+      const outputCards = document.querySelectorAll("[data-output-stamp]").length;
+      return {
+        bodyHasName: body.includes(${JSON.stringify(filename)}),
+        enabledConvert,
+        routeBusy,
+        outputCards,
+      };
+    })()`,
+    timeoutMs,
+    (value) => value?.bodyHasName && (value?.enabledConvert || value?.routeBusy || value?.outputCards > 0),
+  );
+}
+
+const primaryFileInputSelector = 'label input[type="file"], input[type="file"]';
+
+async function setFileInputViaChooser(client, filePath) {
+  await client.send("Page.enable").catch(() => {});
+  await client.send("Page.setInterceptFileChooserDialog", { enabled: true }).catch(() => {});
+  try {
+    const chooserPromise = waitForEvent(client, "Page.fileChooserOpened", 5_000);
+    const target = await evaluate(client, `(() => {
+      const input = document.querySelector(${JSON.stringify(primaryFileInputSelector)});
+      if (!input) return null;
+      input.scrollIntoView({ block: "center", inline: "nearest" });
+      const rect = input.getBoundingClientRect();
+      return {
+        x: Math.max(1, Math.min(window.innerWidth - 2, rect.left + rect.width / 2)),
+        y: Math.max(1, Math.min(window.innerHeight - 2, rect.top + rect.height / 2)),
+      };
+    })()`, 6_000);
+    if (!target) throw new Error("No file input found.");
+    await trustedClickAtPoint(client, target);
+    const event = await chooserPromise;
+    const backendNodeId = event.params?.backendNodeId;
+    if (!backendNodeId) throw new Error("File chooser opened without a backend node id.");
+    await client.send("DOM.setFileInputFiles", { backendNodeId, files: [filePath] }, 8_000);
+  } finally {
+    await client.send("Page.setInterceptFileChooserDialog", { enabled: false }).catch(() => {});
+  }
+}
+
+async function queryFileInputNodeId(client, selector) {
+  const { root } = await client.send("DOM.getDocument", { depth: -1, pierce: true }, 8_000);
+  const { nodeId } = await client.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  }, 8_000);
+  if (!nodeId) throw new Error("No file input found.");
+  return nodeId;
+}
+
+async function dispatchFileInputChange(client) {
+  await evaluate(client, `(() => {
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return false;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  })()`, 6_000);
+}
+
+async function setFileInputFromBuffer(client, filePath) {
+  const file = {
+    name: path.basename(filePath),
+    type: mimeTypeForPath(filePath),
+    base64: (await fs.readFile(filePath)).toString("base64"),
+  };
+  const applied = await evaluate(client, `(() => {
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return { ok: false, reason: "missing input" };
+    const binary = atob(${JSON.stringify(file.base64)});
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File([bytes], ${JSON.stringify(file.name)}, { type: ${JSON.stringify(file.type)} }));
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return { ok: true };
+  })()`, 12_000);
+  if (!applied?.ok) {
+    throw new Error(`Could not set file through browser DataTransfer: ${applied?.reason || "unknown"}`);
+  }
+}
+
+function mimeTypeForPath(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".svg") return "image/svg+xml";
+  return "application/octet-stream";
+}
+
+async function openLatestSettingsPanel(client) {
+  const clicked = await clickButtonInLatestOutput(client, [/Settings\s*\/\s*Edit/i, /^Settings$/i], []);
+  if (clicked) {
+    await delay(400);
+    return clicked;
+  }
+  const labels = await visibleButtonLabels(client).catch(() => []);
+  throw new Error(`No Settings/Edit button found. Visible buttons: ${JSON.stringify(labels.slice(0, 24))}`);
+}
+
+async function ensureSettingsSectionOpen(client, titlePattern, fallbackName) {
+  const source = titlePattern instanceof RegExp ? titlePattern.source : String(titlePattern);
+  const result = await evaluate(client, `(async () => {
+    const pattern = new RegExp(${JSON.stringify(source)}, "i");
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { opened: false, reason: "missing latest output" };
+    const hasOpenContent = () => {
+      if (/Layer colors/i.test(${JSON.stringify(source)})) {
+        return Boolean(latest.querySelector("[data-layer-color-total-count]"));
+      }
+      return pattern.test(latest.innerText || "");
+    };
+    if (hasOpenContent()) return { opened: true, alreadyOpen: true };
+    const controls = Array.from(latest.querySelectorAll("button, summary"));
+    const control = controls.find((candidate) => {
+      const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+      return pattern.test(text) && isVisible(candidate) && !candidate.disabled;
+    });
+    if (!control) return { opened: false, reason: "section control not found", fallback: ${JSON.stringify(fallbackName)} };
+    control.scrollIntoView({ block: "center", inline: "nearest" });
+    control.click();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    return { opened: hasOpenContent(), clicked: textOf(control) };
+
+    function textOf(element) {
+      return (element.innerText || element.textContent || element.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+    }
+    ${browserDomHelpers()}
+  })()`, 10_000);
+  if (!result?.opened) {
+    throw new Error(`Could not open settings section ${fallbackName}: ${result?.reason || "unknown"}`);
+  }
+  return result;
+}
+
+async function clickButtonInLatestOutput(client, patterns, rejectPatterns = []) {
+  const target = await findButtonTarget(client, patterns, rejectPatterns, "latest");
+  if (!target) return null;
+  await trustedClickAtPoint(client, target);
+  return target;
+}
+
+async function clickButtonIfPresent(client, patterns, rejectPatterns = []) {
+  const target = await findButtonTarget(client, patterns, rejectPatterns, "document");
+  if (!target) return null;
+  await trustedClickAtPoint(client, target);
+  return target;
+}
+
+async function findButtonTarget(client, patterns, rejectPatterns, scope) {
+  return evaluate(client, `(() => {
+    const patterns = ${JSON.stringify(patterns.map((pattern) => pattern.source))}.map((source) => new RegExp(source, "i"));
+    const rejects = ${JSON.stringify(rejectPatterns.map((pattern) => pattern.source))}.map((source) => new RegExp(source, "i"));
+    const cards = Array.from(document.querySelectorAll("[data-output-stamp]"));
+    const latest = latestCard(cards);
+    const root = ${JSON.stringify(scope)} === "latest" ? latest : document.body;
+    if (!root) return null;
+    const buttons = Array.from(root.querySelectorAll("button, [role='button'], summary"));
+    const button = buttons.find((candidate) => {
+      const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+      return isVisible(candidate) &&
+        !candidate.disabled &&
+        patterns.some((pattern) => pattern.test(text)) &&
+        !rejects.some((pattern) => pattern.test(text));
+    });
+    if (!button) return null;
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    const rect = button.getBoundingClientRect();
+    return {
+      label: (button.innerText || button.textContent || button.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim(),
+      x: Math.max(1, Math.min(window.innerWidth - 2, rect.left + rect.width / 2)),
+      y: Math.max(1, Math.min(window.innerHeight - 2, rect.top + rect.height / 2)),
+    };
+    ${browserDomHelpers()}
+  })()`, 8_000);
+}
+
+async function trustedClickAtPoint(client, point) {
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: point.x,
+    y: point.y,
+    button: "none",
+  }, 6_000);
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: point.x,
+    y: point.y,
+    button: "left",
+    clickCount: 1,
+  }, 6_000);
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: point.x,
+    y: point.y,
+    button: "left",
+    clickCount: 1,
+  }, 6_000);
+}
+
+async function enablePage(client) {
+  await client.send("Runtime.enable").catch(() => {});
+  await client.send("Log.enable").catch(() => {});
+  await client.send("Page.enable").catch(() => {});
+  await client.send("DOM.enable").catch(() => {});
+  await client.send("Performance.enable").catch(() => {});
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1050,
+    deviceScaleFactor: 1,
+    mobile: false,
+  }).catch(() => {});
+}
+
+async function waitForDocumentReady(client) {
+  await waitForValue(
+    client,
+    () => `(() => ({ href: location.href, readyState: document.readyState }))()`,
+    30_000,
+    (state) =>
+      state?.readyState === "interactive" || state?.readyState === "complete",
+  );
+}
+
+async function waitForValue(client, expressionFactory, timeoutMs, isReady = Boolean) {
+  const deadline = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < deadline) {
+    last = await evaluate(
+      client,
+      expressionFactory(),
+      Math.min(15_000, Math.max(3_000, deadline - Date.now())),
+    );
+    if (isReady(last)) return last;
+    await delay(250);
+  }
+  throw new Error(`Timed out waiting for browser state. Last value: ${JSON.stringify(last)}`);
+}
+
+async function evaluate(client, expression, timeoutMs = 12_000) {
+  const response = await client.send(
+    "Runtime.evaluate",
+    {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+    },
+    timeoutMs,
+  );
+  if (response.exceptionDetails) {
+    throw new Error(
+      response.exceptionDetails.exception?.description ||
+        response.exceptionDetails.text ||
+        "Runtime.evaluate failed",
+    );
+  }
+  return response.result?.value;
+}
+
+async function openTab(url) {
+  const target = await createCdpTarget(url);
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
+  const client = new CdpClient(ws);
+  await client.send("Runtime.enable").catch(() => {});
+  await client.send("Page.enable").catch(() => {});
+  await ensureTabAtUrl(client, url);
+  return client;
+}
+
+async function ensureTabAtUrl(client, url) {
+  const current = await evaluate(client, `(() => location.href)()`).catch(() => "");
+  if (current !== url) {
+    await client.send("Page.navigate", { url }).catch(async () => {
+      await evaluate(
+        client,
+        `(() => { window.location.assign(${JSON.stringify(url)}); return true; })()`,
+      );
+    });
+  }
+  await waitForValue(
+    client,
+    () => `(() => ({ href: location.href, readyState: document.readyState }))()`,
+    30_000,
+    (state) =>
+      state?.href === url &&
+      (state.readyState === "interactive" || state.readyState === "complete"),
+  );
+}
+
+async function createCdpTarget(url) {
+  const browserInfo = await cdpJson("/json/version");
+  if (browserInfo.webSocketDebuggerUrl) {
+    try {
+      const browserWs = new WebSocket(browserInfo.webSocketDebuggerUrl);
+      await new Promise((resolve, reject) => {
+        browserWs.addEventListener("open", resolve, { once: true });
+        browserWs.addEventListener("error", reject, { once: true });
+      });
+      const browserClient = new CdpClient(browserWs);
+      const { targetId } = await browserClient.send("Target.createTarget", {
+        url,
+        newWindow: false,
+        background: false,
+      });
+      await browserClient.close().catch(() => {});
+      const deadline = Date.now() + 10_000;
+      while (Date.now() < deadline) {
+        const targets = await cdpJson("/json/list");
+        const target = targets.find((candidate) => candidate.id === targetId);
+        if (target?.webSocketDebuggerUrl) return target;
+        await delay(150);
+      }
+    } catch {
+      // Fall through to the legacy endpoint.
+    }
+  }
+  return cdpJson(`/json/new?${encodeURIComponent(url)}`, { method: "PUT" });
+}
+
+class CdpClient {
+  constructor(ws) {
+    this.ws = ws;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.listeners = new Set();
+    ws.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.id && this.pending.has(message.id)) {
+        const { resolve, reject, timeout } = this.pending.get(message.id);
+        clearTimeout(timeout);
+        this.pending.delete(message.id);
+        if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
+        else resolve(message.result || {});
+        return;
+      }
+      for (const listener of this.listeners) listener(message);
+    });
+  }
+
+  send(method, params = {}, timeoutMs = 15_000) {
+    const id = this.nextId++;
+    const payload = JSON.stringify({ id, method, params });
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`CDP command timed out: ${method}`));
+      }, timeoutMs);
+      timeout.unref?.();
+      this.pending.set(id, { resolve, reject, timeout });
+      this.ws.send(payload);
+    });
+  }
+
+  onEvent(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  close() {
+    return new Promise((resolve) => {
+      this.ws.addEventListener("close", resolve, { once: true });
+      this.ws.close();
+      setTimeout(resolve, 500).unref?.();
+    });
+  }
+}
+
+async function waitForCdp() {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    try {
+      await cdpJson("/json/version");
+      return;
+    } catch {
+      await delay(250);
+    }
+  }
+  throw new Error("Timed out waiting for browser CDP endpoint.");
+}
+
+async function cdpJson(pathname, options = {}) {
+  const response = await fetch(`http://127.0.0.1:${debugPort}${pathname}`, options);
+  if (!response.ok) {
+    throw new Error(`CDP request failed: ${response.status} ${await response.text()}`);
+  }
+  return response.json();
+}
+
+async function serverState() {
+  const response = await fetch(baseUrl).catch((error) => {
+    throw new Error(`Could not reach ${baseUrl}: ${error.message}`);
+  });
+  const body = await response.text();
+  if (!response.ok) throw new Error(`Could not reach ${baseUrl}: HTTP ${response.status}`);
+  return {
+    reachable: true,
+    status: response.status,
+    title: body.match(/<title>([^<]+)/i)?.[1] || null,
+    looksLikeIlovesvg: /iLoveSVG|Free SVG Converter|SVG Converter/i.test(body),
+  };
+}
+
+async function gitState() {
+  const run = async (args) => {
+    try {
+      const { stdout } = await execFile("git", args, { cwd: rootDir, windowsHide: true });
+      return stdout.trim();
+    } catch (error) {
+      return `git ${args.join(" ")} failed: ${error.message}`;
+    }
+  };
+  return {
+    branch: await run(["branch", "--show-current"]),
+    head: await run(["rev-parse", "HEAD"]),
+    statusShort: await run(["status", "--short", "--branch"]),
+  };
+}
+
+async function prepareFixture() {
+  const exists = await fs.stat(userFixturePath).then((stat) => stat.isFile()).catch(() => false);
+  const pngPath = exists
+    ? userFixturePath
+    : path.join(fixturesDir, "transparent-tomato-sticker.png");
+  if (!exists) {
+    await createTransparentTomatoFixture(pngPath);
+  }
+  const pngInfo = await describeImage(
+    pngPath,
+    exists ? "user-transparent-fixture" : "generated-transparent-tomato-fixture",
+    { usedUserFixture: exists },
+  );
+  return {
+    requestedPath: userFixturePath,
+    png: { path: pngPath, info: pngInfo },
+  };
+}
+
+async function describeImage(filePath, source, extra = {}) {
+  const [stat, metadata] = await Promise.all([fs.stat(filePath), sharp(filePath).metadata()]);
+  return {
+    requestedPath: userFixturePath,
+    path: filePath,
+    basename: path.basename(filePath),
+    source,
+    usedUserFixture: false,
+    ...extra,
+    bytes: stat.size,
+    width: metadata.width || null,
+    height: metadata.height || null,
+    format: metadata.format || null,
+    hasAlpha: Boolean(metadata.hasAlpha),
+  };
+}
+
+async function createTransparentTomatoFixture(filePath) {
+  const width = 320;
+  const height = 240;
+  const data = Buffer.alloc(width * height * 4, 0);
+  const setPixel = (x, y, color) => {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const off = (y * width + x) * 4;
+    data[off] = color.r;
+    data[off + 1] = color.g;
+    data[off + 2] = color.b;
+    data[off + 3] = color.a;
+  };
+  const inEllipse = (x, y, cx, cy, rx, ry) => {
+    const dx = (x - cx) / rx;
+    const dy = (y - cy) / ry;
+    return dx * dx + dy * dy <= 1;
+  };
+  const ellipseScore = (x, y, cx, cy, rx, ry) => {
+    const dx = (x - cx) / rx;
+    const dy = (y - cy) / ry;
+    return dx * dx + dy * dy;
+  };
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const body =
+        inEllipse(x, y, 148, 132, 82, 62) ||
+        inEllipse(x, y, 184, 130, 72, 58) ||
+        inEllipse(x, y, 164, 104, 58, 42);
+      if (!body) continue;
+      const edgeScore = Math.min(
+        ellipseScore(x, y, 148, 132, 82, 62),
+        ellipseScore(x, y, 184, 130, 72, 58),
+        ellipseScore(x, y, 164, 104, 58, 42),
+      );
+      if (edgeScore > 0.88) {
+        setPixel(x, y, { r: 80, g: 20, b: 16, a: 255 });
+      } else if (x > 184 && y > 126) {
+        setPixel(x, y, { r: 199, g: 57, b: 25, a: 255 });
+      } else if (y < 108) {
+        setPixel(x, y, { r: 241, g: 94, b: 38, a: 255 });
+      } else {
+        setPixel(x, y, { r: 226, g: 72, b: 31, a: 255 });
+      }
+    }
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (inEllipse(x, y, 128, 103, 24, 13) || inEllipse(x, y, 184, 93, 18, 9)) {
+        setPixel(x, y, { r: 255, g: 226, b: 169, a: 235 });
+      }
+      if (inEllipse(x, y, 169, 139, 15, 52)) {
+        const off = (y * width + x) * 4;
+        if (data[off + 3] > 0) {
+          data[off] = 178;
+          data[off + 1] = 44;
+          data[off + 2] = 28;
+          data[off + 3] = 255;
+        }
+      }
+      if (inEllipse(x, y, 161, 69, 14, 34) || inEllipse(x, y, 132, 76, 38, 12) || inEllipse(x, y, 190, 75, 40, 13)) {
+        setPixel(x, y, { r: 42, g: 116, b: 58, a: 255 });
+      }
+    }
+  }
+
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await sharp(data, { raw: { width, height, channels: 4 } })
+    .png({ compressionLevel: 9 })
+    .toFile(filePath);
+}
+
+async function findBrowserExecutable() {
+  const candidates = [
+    process.env.BROWSER_PATH,
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (await fs.stat(candidate).then((stat) => stat.isFile()).catch(() => false)) {
+      return candidate;
+    }
+  }
+  throw new Error("No Chromium-based browser executable found.");
+}
+
+function parseAttributes(attrs) {
+  const out = {};
+  for (const match of String(attrs || "").matchAll(/([:\w.-]+)\s*=\s*(["'])([\s\S]*?)\2/g)) {
+    out[match[1]] = decodeEntities(match[3]);
+  }
+  return out;
+}
+
+function readStyleProperty(style, property) {
+  if (!style) return "";
+  const pattern = new RegExp(`(?:^|;)\\s*${escapeRegExp(property)}\\s*:\\s*([^;]+)`, "i");
+  return String(style).match(pattern)?.[1]?.trim() || "";
+}
+
+function isElementHidden(attrs) {
+  const display = String(readStyleProperty(attrs.style, "display") || attrs.display || "").toLowerCase();
+  const visibility = String(readStyleProperty(attrs.style, "visibility") || attrs.visibility || "").toLowerCase();
+  const opacity = readOpacity(attrs);
+  return display === "none" || visibility === "hidden" || opacity <= 0.001;
+}
+
+function readOpacity(attrs) {
+  const raw = readStyleProperty(attrs.style, "opacity") || attrs.opacity || "1";
+  const value = Number(raw);
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+}
+
+function normalizePaintColor(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw || raw === "none" || raw === "transparent" || raw === "currentcolor" || /^url\(/i.test(raw)) {
+    return "";
+  }
+  const short = raw.match(/^#([0-9a-f]{3})$/i);
+  if (short) return `#${short[1].split("").map((char) => char + char).join("")}`.toLowerCase();
+  const full = raw.match(/^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/i);
+  if (full) return `#${full[1]}`.toLowerCase();
+  const rgb = raw.match(/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i);
+  if (rgb) {
+    return `#${[rgb[1], rgb[2], rgb[3]]
+      .map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0"))
+      .join("")}`;
+  }
+  return "";
+}
+
+function normalizeHex(value) {
+  return normalizePaintColor(value);
+}
+
+function unique(items) {
+  return Array.from(new Set(items));
+}
+
+function uniqueNumber(items) {
+  return Array.from(new Set(items.map((value) => Number(value.toFixed(3)))));
+}
+
+function decodeEntities(value) {
+  return String(value || "")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function countMatches(source, pattern) {
+  return (String(source || "").match(pattern) || []).length;
+}
+
+function hashString(value) {
+  let hash = 0;
+  const text = String(value || "");
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function summarizeResults(results) {
+  const rowCount = results.reduce((sum, result) => sum + (result.testedRows?.length || 0), 0);
+  const failureMessages = results.flatMap((result) => result.failures || []);
+  return {
+    ok: failureMessages.length === 0 && results.every((result) => result.ok),
+    routeCount: results.length,
+    checkedRouteCount: results.filter((result) => !result.skipped).length,
+    skippedCount: results.filter((result) => result.skipped).length,
+    testedRowCount: rowCount,
+    failureCount: failureMessages.length + results.filter((result) => !result.ok).length,
+    failures: failureMessages.slice(0, 50),
+    coverage: results.map((result) => ({
+      id: result.id,
+      route: result.route,
+      preset: result.preset,
+      skipped: Boolean(result.skipped),
+      targetCount: result.baseline?.targetCount ?? null,
+      testedRowCount: result.testedRows?.length || 0,
+      baselineOutsidePixels: result.boundary?.baseline?.outsideSourceAlphaPixels ?? null,
+      afterLightHideOutsidePixels:
+        result.boundary?.afterLightHide?.outsideSourceAlphaPixels ?? null,
+      fullCanvasTargetCount: result.boundary?.baseline?.fullCanvasTargetCount ?? null,
+      afterLightHideFullCanvasTargetCount:
+        result.boundary?.afterLightHide?.fullCanvasTargetCount ?? null,
+      ok: result.ok,
+    })),
+  };
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function waitForEvent(client, method, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for CDP event: ${method}`));
+    }, timeoutMs);
+    timeout.unref?.();
+    const cleanup = client.onEvent((message) => {
+      if (message.method !== method) return;
+      clearTimeout(timeout);
+      cleanup();
+      resolve(message);
+    });
+  });
+}
+
+await main().catch(async (error) => {
+  const fatal = {
+    schemaVersion: 1,
+    auditKind: "transparent-layer-boundary",
+    baseUrl,
+    checkedAt: new Date().toISOString(),
+    fatal: error instanceof Error ? error.message : String(error),
+  };
+  await fs.mkdir(path.dirname(reportPath), { recursive: true }).catch(() => {});
+  await fs.writeFile(reportPath, JSON.stringify(fatal, null, 2)).catch(() => {});
+  console.error(JSON.stringify(fatal, null, 2));
+  process.exit(1);
+});

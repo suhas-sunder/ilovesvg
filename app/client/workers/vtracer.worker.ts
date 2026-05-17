@@ -159,7 +159,13 @@ async function runTrace(request: WorkerRequest) {
 
     postProgress(request.id, 0.86, "Finishing SVG...");
     const svg = timedSync(timings, "postprocessSvg", () =>
-      postprocessSvg(rawSvg, request.settings, decoded.width, decoded.height),
+      postprocessSvg(
+        rawSvg,
+        request.settings,
+        decoded.width,
+        decoded.height,
+        decoded.imageData,
+      ),
     );
     const layers = extractEditableLayers(svg, request.settings);
     const pathCount = countSvgPaths(svg);
@@ -370,6 +376,7 @@ function postprocessSvg(
   settings: NormalizedTraceSettings,
   sourceWidth: number,
   sourceHeight: number,
+  sourceImageData?: ImageData,
 ) {
   const outputWidth = getOutputWidth(settings, sourceWidth, sourceHeight);
   const outputHeight = getOutputHeight(settings, sourceWidth, sourceHeight);
@@ -416,7 +423,116 @@ function postprocessSvg(
     fillStrokeColor: settings.fillStrokeColor,
   });
 
-  return annotateSvgLayerIds(svg, settings);
+  svg = annotateSvgLayerIds(svg, settings);
+
+  const alphaClipPathTags = buildSourceAlphaClipPathTags(sourceImageData, settings);
+  if (alphaClipPathTags) {
+    svg = wrapSvgContentWithSourceAlphaClip(svg, alphaClipPathTags);
+  }
+
+  return svg;
+}
+
+function buildSourceAlphaClipPathTags(
+  sourceImageData: ImageData | undefined,
+  settings: NormalizedTraceSettings,
+): string {
+  if (
+    !sourceImageData ||
+    settings.traceMode !== "layered" ||
+    settings.transparent === false ||
+    settings.removeTransparent === false
+  ) {
+    return "";
+  }
+
+  const width = sourceImageData.width | 0;
+  const height = sourceImageData.height | 0;
+  if (width <= 0 || height <= 0) return "";
+
+  const source = sourceImageData.data;
+  let transparentPixels = 0;
+  let visiblePixels = 0;
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    const sourceOff = pixel * 4;
+    if (source[sourceOff + 3] >= 18) {
+      visiblePixels += 1;
+    } else {
+      transparentPixels += 1;
+    }
+  }
+
+  if (transparentPixels <= 0 || visiblePixels <= 0) return "";
+  return buildSourceAlphaRunClipPath(source, width, height);
+}
+
+function buildSourceAlphaRunClipPath(
+  source: Uint8ClampedArray,
+  width: number,
+  height: number,
+): string {
+  type Rect = { x1: number; x2: number; y1: number; y2: number };
+  const active = new Map<string, Rect>();
+  const pathParts: string[] = [];
+
+  const flushRect = (rect: Rect) => {
+    pathParts.push(`M${rect.x1} ${rect.y1}H${rect.x2}V${rect.y2}H${rect.x1}Z`);
+  };
+
+  for (let y = 0; y < height; y += 1) {
+    const currentKeys = new Set<string>();
+    let x = 0;
+    while (x < width) {
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] < 18) {
+        x += 1;
+        continue;
+      }
+
+      const x1 = x;
+      x += 1;
+      while (x < width && source[(y * width + x) * 4 + 3] >= 18) {
+        x += 1;
+      }
+      const x2 = x;
+      const key = `${x1}:${x2}`;
+      currentKeys.add(key);
+      const existing = active.get(key);
+      if (existing) {
+        existing.y2 = y + 1;
+      } else {
+        active.set(key, { x1, x2, y1: y, y2: y + 1 });
+      }
+    }
+
+    for (const [key, rect] of Array.from(active.entries())) {
+      if (currentKeys.has(key)) continue;
+      flushRect(rect);
+      active.delete(key);
+    }
+  }
+
+  for (const rect of active.values()) {
+    flushRect(rect);
+  }
+
+  return pathParts.length ? `<path d="${pathParts.join("")}" />` : "";
+}
+
+function wrapSvgContentWithSourceAlphaClip(svg: string, pathTags: string): string {
+  const source = String(svg || "");
+  if (!pathTags || /data-alpha-boundary-clip\s*=\s*["']true["']/i.test(source)) {
+    return source;
+  }
+
+  const clipId = "source-alpha-boundary-clip";
+  const defs = `<defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse">${pathTags}</clipPath></defs>`;
+  const openWrapped = source.replace(
+    /<svg\b[^>]*>/i,
+    (open) => `${open}${defs}<g data-alpha-boundary-clip="true" clip-path="url(#${clipId})">`,
+  );
+  if (openWrapped === source) return source;
+  return openWrapped.replace(/<\/svg>\s*$/i, "</g></svg>");
 }
 
 function extractEditableLayers(
@@ -1370,6 +1486,14 @@ function isWhiteFill(attrs: string) {
 function stripAttr(attrs: string, name: string) {
   const pattern = new RegExp(`\\s${name}\\s*=\\s*(["'])[^"']*\\1`, "gi");
   return attrs.replace(pattern, "");
+}
+
+function escapeSvgAttribute(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function colorDistance(
