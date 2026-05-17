@@ -1650,6 +1650,7 @@ export default function LogoToLayeredSvgForCricut({
       layers: item.layers,
       transparent: itemSettings.transparent,
       bgColor: itemSettings.bgColor,
+      sourceSvg: item.svg,
     });
   }
   const buttonDisabled = isServer || !hydrated || busy || !file;
@@ -2090,12 +2091,14 @@ function buildClientLayeredSvg({
   layers,
   transparent,
   bgColor,
+  sourceSvg,
 }: {
   width: number;
   height: number;
   layers: LayerState[];
   transparent: boolean;
   bgColor: string;
+  sourceSvg?: string;
 }) {
   const bg = transparent
     ? ""
@@ -2114,8 +2117,32 @@ function buildClientLayeredSvg({
       return `<g id="${safeId}" data-layer-name="${safeName}" fill="${color}">${layer.pathTags}</g>`;
     })
     .join("");
+  const alphaClip = extractSourceAlphaBoundaryClip(sourceSvg);
+  const clippedBody = alphaClip
+    ? `<g data-alpha-boundary-clip="true" clip-path="url(#${escapeClientAttr(
+        alphaClip.id,
+      )})">${body}</g>`
+    : body;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from logo for Cricut">${bg}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from logo for Cricut">${alphaClip?.defs ?? ""}${bg}${clippedBody}</svg>`;
+}
+
+function extractSourceAlphaBoundaryClip(
+  sourceSvg: string | undefined,
+): { id: string; defs: string } | null {
+  const source = String(sourceSvg || "");
+  if (!/data-alpha-boundary-clip\s*=\s*["']true["']/i.test(source)) return null;
+  const id =
+    source.match(/data-alpha-boundary-clip\s*=\s*["']true["'][^>]*\bclip-path\s*=\s*["']url\(#([^)]+)\)["']/i)?.[1] ||
+    source.match(/\bclip-path\s*=\s*["']url\(#([^)]+)\)["'][^>]*data-alpha-boundary-clip\s*=\s*["']true["']/i)?.[1] ||
+    "source-alpha-boundary-clip";
+  const clipMatch = source.match(
+    new RegExp(
+      `<clipPath\\b[^>]*\\bid\\s*=\\s*["']${escapeClientRegExp(id)}["'][^>]*>[\\s\\S]*?<\\/clipPath>`,
+      "i",
+    ),
+  );
+  return clipMatch ? { id, defs: `<defs>${clipMatch[0]}</defs>` } : null;
 }
 
 function sanitizeClientColor(input: string, fallback: string) {
@@ -2136,6 +2163,10 @@ function escapeClientAttr(value: string) {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function escapeClientRegExp(value: string) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function prettyBytes(bytes: number) {

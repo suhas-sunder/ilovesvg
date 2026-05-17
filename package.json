@@ -26,6 +26,7 @@
     "test:cumulative-edit-performance": "node scripts/cumulative-edit-performance-smoke.mjs",
     "test:settings-color-coverage": "node scripts/settings-color-coverage-audit.mjs",
     "test:layer-color-correctness": "node scripts/layer-color-correctness-smoke.mjs",
+    "test:transparent-layer-boundary": "node scripts/transparent-layer-boundary-smoke.mjs",
     "test:production-logging": "node scripts/production-logging-audit.mjs",
     "test:responsive": "node scripts/responsive-nav-example-audit.mjs responsive",
     "test:stage1-route-presets": "node scripts/stage1-route-preset-smoke.mjs",
