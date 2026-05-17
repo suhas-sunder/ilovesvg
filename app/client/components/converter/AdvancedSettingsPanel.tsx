@@ -1996,7 +1996,6 @@ function OutputColorRemovalSection({
 function OutputLayerStylingSection({
   layers,
   onOutputLayerChange,
-  onOutputLayersChange,
   onResetOutputLayer,
   onResetAllOutputLayers,
   sectionId,
@@ -2012,30 +2011,12 @@ function OutputLayerStylingSection({
   open?: boolean;
   onToggle?: () => void;
 }) {
-  const [query, setQuery] = React.useState("");
   const [visibleLimit, setVisibleLimit] = React.useState(32);
-  const [expandedLayerId, setExpandedLayerId] = React.useState<string | null>(null);
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredLayers = React.useMemo(() => {
-    if (!normalizedQuery) return layers;
-    return layers.filter((layer) => {
-      const label = layer.label || layer.name || layer.id;
-      const color = normalizeColorInput(layer.color || layer.originalColor || "") || "";
-      return (
-        label.toLowerCase().includes(normalizedQuery) ||
-        layer.id.toLowerCase().includes(normalizedQuery) ||
-        color.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [layers, normalizedQuery]);
   const mountedLayers = React.useMemo(
-    () => filteredLayers.slice(0, visibleLimit),
-    [filteredLayers, visibleLimit],
+    () => layers.slice(0, visibleLimit),
+    [layers, visibleLimit],
   );
-  const heavyDirectLimit = layers.length <= 32 ? mountedLayers.length : 16;
-  const heavyControlRowCount = mountedLayers.filter(
-    (layer, index) => index < heavyDirectLimit || expandedLayerId === layer.id,
-  ).length;
+  const heavyControlRowCount = mountedLayers.length;
   const allColors = React.useMemo(
     () =>
       layers
@@ -2043,33 +2024,11 @@ function OutputLayerStylingSection({
         .filter((color): color is string => Boolean(color)),
     [layers],
   );
-  const canShowMore = mountedLayers.length < filteredLayers.length;
-  const showFilterControls = layers.length > 32;
+  const canShowMore = mountedLayers.length < layers.length;
 
   React.useEffect(() => {
     setVisibleLimit(32);
-  }, [normalizedQuery, layers.length]);
-
-  React.useEffect(() => {
-    if (!expandedLayerId) return;
-    if (layers.some((layer) => layer.id === expandedLayerId)) return;
-    setExpandedLayerId(null);
-  }, [expandedLayerId, layers]);
-
-  const applyVisibilityToAll = React.useCallback(
-    (visible: boolean) => {
-      const patches = layers
-        .filter((layer) => (layer.visible !== false) !== visible)
-        .map((layer) => ({ layerId: layer.id, patch: { visible } }));
-      if (!patches.length) return;
-      if (onOutputLayersChange) {
-        onOutputLayersChange(patches);
-        return;
-      }
-      patches.forEach(({ layerId, patch }) => onOutputLayerChange?.(layerId, patch));
-    },
-    [layers, onOutputLayerChange, onOutputLayersChange],
-  );
+  }, [layers.length]);
 
   return (
     <SettingSection
@@ -2086,28 +2045,9 @@ function OutputLayerStylingSection({
       <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-[12px] font-medium text-slate-600">
-              Showing {mountedLayers.length} of {filteredLayers.length}
-              {filteredLayers.length !== layers.length ? ` matching ${layers.length} total` : " layer colors"}
+              Showing {mountedLayers.length} of {layers.length} layer colors
             </div>
             <div className="flex flex-wrap justify-end gap-1.5">
-              <button
-                type="button"
-                onClick={() => applyVisibilityToAll(false)}
-                disabled={!onOutputLayerChange && !onOutputLayersChange}
-                aria-label="Hide all layer colors"
-                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Hide all
-              </button>
-              <button
-                type="button"
-                onClick={() => applyVisibilityToAll(true)}
-                disabled={!onOutputLayerChange && !onOutputLayersChange}
-                aria-label="Show all layer colors"
-                className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Show all
-              </button>
             <button
               type="button"
               onClick={onResetAllOutputLayers}
@@ -2118,17 +2058,6 @@ function OutputLayerStylingSection({
             </button>
             </div>
           </div>
-          {showFilterControls ? (
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder="Search layer colors"
-              data-layer-color-search="true"
-              className="w-full rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-              aria-label="Search layer colors"
-            />
-          ) : null}
           <div
             className="grid max-h-[34rem] min-w-0 max-w-full gap-0 overflow-y-auto overflow-x-hidden"
             data-layer-color-total-count={layers.length}
@@ -2136,26 +2065,14 @@ function OutputLayerStylingSection({
             data-layer-color-heavy-count={heavyControlRowCount}
             data-layer-color-all-colors={allColors.join(" ")}
           >
-            {mountedLayers.map((layer, index) => {
-              const showHeavyControls =
-                index < heavyDirectLimit || expandedLayerId === layer.id;
-              return showHeavyControls ? (
-                <MemoizedOutputLayerStyleRow
-                  key={layer.id}
-                  layer={layer}
-                  onOutputLayerChange={onOutputLayerChange}
-                  onResetOutputLayer={onResetOutputLayer}
-                />
-              ) : (
-                <OutputLayerLightRow
-                  key={layer.id}
-                  layer={layer}
-                  onOutputLayerChange={onOutputLayerChange}
-                  onResetOutputLayer={onResetOutputLayer}
-                  onExpand={() => setExpandedLayerId(layer.id)}
-                />
-              );
-            })}
+            {mountedLayers.map((layer) => (
+              <MemoizedOutputLayerStyleRow
+                key={layer.id}
+                layer={layer}
+                onOutputLayerChange={onOutputLayerChange}
+                onResetOutputLayer={onResetOutputLayer}
+              />
+            ))}
           </div>
           {canShowMore ? (
             <button
@@ -2185,75 +2102,6 @@ function formatLayerCoverageDetail(layer: OutputLayerControlItem): string {
   return parts.join(", ");
 }
 
-const OutputLayerLightRow = React.memo(function OutputLayerLightRow({
-  layer,
-  onOutputLayerChange,
-  onResetOutputLayer,
-  onExpand,
-}: {
-  layer: OutputLayerControlItem;
-  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
-  onResetOutputLayer?: (layerId: string) => void;
-  onExpand: () => void;
-}) {
-  const label = layer.label || layer.name || layer.id;
-  const color =
-    normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
-
-  return (
-    <div
-      className="min-w-0 max-w-full overflow-x-hidden border-t border-slate-100 py-2 first:border-t-0"
-      data-layer-color-row="true"
-      data-layer-color-label={label}
-      data-layer-color-hex={color}
-    >
-      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-        <input
-          type="checkbox"
-          checked={layer.visible !== false}
-          onChange={(event) =>
-            onOutputLayerChange?.(layer.id, { visible: event.target.checked })
-          }
-          className="h-4 w-4 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-          aria-label={`Show ${label}`}
-        />
-        <span
-          className="h-6 w-8 shrink-0 rounded-md border border-slate-200"
-          style={{ backgroundColor: color }}
-          aria-hidden="true"
-        />
-        <div className="min-w-0 flex-[1_1_10rem]">
-          <div className="truncate text-[12px] font-semibold text-slate-700">
-            {label}
-          </div>
-          <div className="truncate text-[11px] text-slate-500">
-            {formatLayerCoverageDetail(layer)}
-          </div>
-        </div>
-        <span className="shrink-0 font-mono text-[11px] text-slate-500">
-          {color}
-        </span>
-        <button
-          type="button"
-          onClick={onExpand}
-          className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-        >
-          Edit
-        </button>
-        {onResetOutputLayer ? (
-          <button
-            type="button"
-            onClick={() => onResetOutputLayer(layer.id)}
-            className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-          >
-            Reset
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-});
-
 function OutputLayerStyleRow({
   layer,
   onOutputLayerChange,
@@ -2269,9 +2117,6 @@ function OutputLayerStyleRow({
     normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
   const [localColor, setLocalColor] = React.useState(normalizedColor);
   const [colorText, setColorText] = React.useState(normalizedColor);
-  const [rgbValue, setRgbValue] = React.useState(() =>
-    hexToRgbParts(normalizedColor),
-  );
   const [localOpacity, setLocalOpacity] = React.useState(
     Math.round(normalizeOpacity(layer.opacity) * 100),
   );
@@ -2288,8 +2133,6 @@ function OutputLayerStyleRow({
     const next = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
     setLocalColor((current) => (current === next ? current : next));
     setColorText((current) => (current === next ? current : next));
-    const nextRgb = hexToRgbParts(next);
-    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestColorRef.current = next;
   }, [layer.color, layer.originalColor]);
 
@@ -2323,8 +2166,6 @@ function OutputLayerStyleRow({
     }
     setLocalColor((current) => (current === normalized ? current : normalized));
     setColorText((current) => (current === normalized ? current : normalized));
-    const nextRgb = hexToRgbParts(normalized);
-    setRgbValue((current) => (sameRgbParts(current, nextRgb) ? current : nextRgb));
     latestColorRef.current = normalized;
     if (normalized !== normalizeColorInput(layer.color || "")) {
       onOutputLayerChange?.(layer.id, { color: normalized });
@@ -2342,14 +2183,6 @@ function OutputLayerStyleRow({
       colorTimerRef.current = null;
       commitColorNow(latestColorRef.current);
     }, colorCommitThrottleMs);
-  }
-
-  function queueRgbCommit(channel: "r" | "g" | "b", value: string) {
-    const draft = { ...rgbValue, [channel]: value };
-    setRgbValue(draft);
-    const hex = rgbPartsToHex(draft);
-    if (!hex) return;
-    queueColorCommit(hex);
   }
 
   function commitOpacityNow(value = latestOpacityRef.current) {
@@ -2383,12 +2216,12 @@ function OutputLayerStyleRow({
 
   return (
     <div
-      className="min-w-0 max-w-full overflow-x-hidden border-t border-slate-100 py-2 first:border-t-0"
+      className="grid min-w-0 max-w-full gap-2 overflow-x-hidden border-t border-slate-100 py-3 first:border-t-0"
       data-layer-color-row="true"
       data-layer-color-label={label}
       data-layer-color-hex={normalizedColor}
     >
-      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+      <div className="grid min-w-0 max-w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2">
         <input
           type="checkbox"
           checked={layer.visible !== false}
@@ -2411,7 +2244,7 @@ function OutputLayerStyleRow({
           className="h-7 w-10 rounded-md border border-slate-200 bg-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           aria-label={`Change ${label} color`}
         />
-        <div className="min-w-0 flex-[1_1_9rem]">
+        <div className="min-w-0">
           <div className="truncate text-[12px] font-semibold text-slate-700">
             {label}
           </div>
@@ -2419,6 +2252,33 @@ function OutputLayerStyleRow({
             {formatLayerCoverageDetail(layer)}
           </div>
         </div>
+      </div>
+
+      <label
+        className="grid min-w-0 max-w-full gap-1 text-[12px] text-slate-600"
+        data-layer-color-opacity-row="true"
+      >
+        <span className="shrink-0">Opacity {localOpacity}%</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={localOpacity}
+          onInput={(event) => queueOpacityCommit(Number(event.currentTarget.value))}
+          onChange={(event) => commitOpacityNow(Number(event.currentTarget.value) / 100)}
+          onPointerUp={() => commitOpacityNow()}
+          onMouseUp={() => commitOpacityNow()}
+          onTouchEnd={() => commitOpacityNow()}
+          onBlur={() => commitOpacityNow()}
+          className="min-w-0 flex-1 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        />
+      </label>
+
+      <div
+        className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2"
+        data-layer-color-manual-row="true"
+      >
         <input
           type="text"
           value={colorText}
@@ -2435,57 +2295,21 @@ function OutputLayerStyleRow({
           onBlur={() => commitColorNow(colorText)}
           aria-label={`${label} hex color`}
           aria-invalid={!normalizeColorInput(colorText)}
-          className="min-w-[7rem] flex-1 rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          data-layer-color-manual-input="true"
+          placeholder="#d9dbfd or rgb(217, 219, 253)"
+          className="min-w-0 rounded-md border border-[#dbe3ef] bg-white px-2 py-1.5 font-mono text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
-        <details className="relative shrink-0 max-w-full">
-          <summary className="list-none rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
-            RGB
-          </summary>
-          <div className="absolute right-0 z-20 mt-1 flex max-w-[min(18rem,calc(100vw-3rem))] gap-1 rounded-md border border-slate-200 bg-white p-2 shadow-lg sm:left-0 sm:right-auto">
-            {(["r", "g", "b"] as const).map((channel) => (
-              <input
-                key={channel}
-                type="number"
-                min={0}
-                max={255}
-                value={rgbValue[channel]}
-                onChange={(event) =>
-                  queueRgbCommit(channel, event.target.value)
-                }
-                onBlur={() => commitColorNow()}
-                aria-label={`${label} ${channel.toUpperCase()} channel`}
-                className="w-14 rounded-md border border-[#dbe3ef] bg-white px-1 py-1 text-[12px] text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-              />
-            ))}
-          </div>
-        </details>
         {onResetOutputLayer ? (
           <button
             type="button"
             onClick={() => onResetOutputLayer(layer.id)}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            data-layer-color-reset="true"
+            className="shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
           >
             Reset
           </button>
         ) : null}
       </div>
-      <label className="mt-2 grid min-w-0 max-w-full gap-1 text-[12px] text-slate-600">
-        <span className="shrink-0">Per-layer opacity {localOpacity}%</span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={localOpacity}
-          onInput={(event) => queueOpacityCommit(Number(event.currentTarget.value))}
-          onChange={(event) => commitOpacityNow(Number(event.currentTarget.value) / 100)}
-          onPointerUp={() => commitOpacityNow()}
-          onMouseUp={() => commitOpacityNow()}
-          onTouchEnd={() => commitOpacityNow()}
-          onBlur={() => commitOpacityNow()}
-          className="min-w-0 flex-1 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-        />
-      </label>
     </div>
   );
 }

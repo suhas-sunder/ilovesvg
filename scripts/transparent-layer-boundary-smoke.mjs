@@ -1232,6 +1232,9 @@ async function installCopyDownloadCapture(client) {
     const state = window.__TRANSPARENT_LAYER_BOUNDARY__ || {};
     state.clipboardWrites = Array.isArray(state.clipboardWrites) ? state.clipboardWrites : [];
     state.downloadedSvgBlobs = Array.isArray(state.downloadedSvgBlobs) ? state.downloadedSvgBlobs : [];
+    state.objectUrlSvgBlobs = state.objectUrlSvgBlobs && typeof state.objectUrlSvgBlobs === "object"
+      ? state.objectUrlSvgBlobs
+      : {};
     window.__TRANSPARENT_LAYER_BOUNDARY__ = state;
 
     const capture = async (text) => {
@@ -1253,14 +1256,29 @@ async function installCopyDownloadCapture(client) {
     if (!URL.__layerColorCorrectnessCreateObjectUrl) {
       URL.__layerColorCorrectnessCreateObjectUrl = URL.createObjectURL.bind(URL);
       URL.createObjectURL = (blob) => {
+        const url = URL.__layerColorCorrectnessCreateObjectUrl(blob);
         try {
           if (blob && /image\\/svg\\+xml/i.test(String(blob.type || "")) && typeof blob.text === "function") {
+            window.__TRANSPARENT_LAYER_BOUNDARY__.objectUrlSvgBlobs[url] = blob;
+          }
+        } catch {}
+        return url;
+      };
+    }
+    if (!HTMLAnchorElement.prototype.__transparentLayerBoundaryClick) {
+      HTMLAnchorElement.prototype.__transparentLayerBoundaryClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function (...args) {
+        try {
+          const href = this.href || this.getAttribute("href") || "";
+          const download = this.download || this.getAttribute("download") || "";
+          const blob = download ? window.__TRANSPARENT_LAYER_BOUNDARY__?.objectUrlSvgBlobs?.[href] : null;
+          if (blob && typeof blob.text === "function") {
             blob.text().then((text) => {
               window.__TRANSPARENT_LAYER_BOUNDARY__.downloadedSvgBlobs.push(String(text || ""));
             }).catch(() => {});
           }
         } catch {}
-        return URL.__layerColorCorrectnessCreateObjectUrl(blob);
+        return HTMLAnchorElement.prototype.__transparentLayerBoundaryClick.apply(this, args);
       };
     }
     return true;
