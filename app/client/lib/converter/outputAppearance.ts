@@ -117,7 +117,7 @@ export const DEFAULT_OUTPUT_APPEARANCE: OutputAppearanceSettings = {
   stickerBorderColor: "#ffffff",
   stickerBorderOpacity: 1,
   stickerBorderJoin: "round",
-  stickerBorderPlacement: "top",
+  stickerBorderPlacement: "behind",
   internalGapFillEnabled: false,
   internalGapFillColor: "#ffffff",
   internalGapFillOpacity: 0.96,
@@ -808,17 +808,43 @@ function applyStickerBorder(
   idPrefix: string,
   targetId: string,
 ): string {
-  const paths = buildForegroundShapeClones(sourceSvg, targetId);
-  if (!paths.length) return targetSvg;
+  const cloneSet = buildStickerBorderCloneSet(sourceSvg, targetId);
+  if (!cloneSet.paths.length) return targetSvg;
   const groupId = makeUniqueSvgId(targetSvg, `${idPrefix}-sticker-border`);
+  if (settings.stickerBorderPlacement === "behind") {
+    const filterId = makeUniqueSvgId(targetSvg, `${idPrefix}-sticker-border-filter`);
+    const radius = formatNumber(Math.max(0.25, settings.stickerBorderWidth / 2));
+    const width = formatNumber(settings.stickerBorderWidth);
+    const opacity = formatNumber(settings.stickerBorderOpacity);
+    const color = escapeSvgAttribute(settings.stickerBorderColor);
+    const sourceLabel = escapeSvgAttribute(cloneSet.source);
+    const filter = `<filter id="${filterId}" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="${radius}" result="expanded"/><feFlood flood-color="${color}" flood-opacity="${opacity}" result="border-color"/><feComposite in="border-color" in2="expanded" operator="in"/></filter>`;
+    const group = `<g id="${groupId}" data-post-processing="sticker-border" data-sticker-border-source="${sourceLabel}" data-sticker-border-width="${width}" data-sticker-border-color="${color}" data-sticker-border-opacity="${opacity}" filter="url(#${filterId})"><g data-sticker-border-source="${sourceLabel}" fill="#000000" stroke="none">${cloneSet.paths.join("")}</g></g>`;
+    return insertAfterOpeningSvgAndDefs(injectDefs(targetSvg, filter), group);
+  }
   const opacity =
     settings.stickerBorderOpacity < 0.999
       ? ` stroke-opacity="${formatNumber(settings.stickerBorderOpacity)}"`
       : "";
-  const group = `<g id="${groupId}" data-post-processing="sticker-border" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}"${opacity} stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${paths.join("")}</g>`;
-  return settings.stickerBorderPlacement === "behind"
-    ? insertAfterOpeningSvgAndDefs(targetSvg, group)
-    : insertBeforeClosingSvg(targetSvg, group);
+  const group = `<g id="${groupId}" data-post-processing="sticker-border" data-sticker-border-source="${escapeSvgAttribute(cloneSet.source)}" data-sticker-border-width="${formatNumber(settings.stickerBorderWidth)}" fill="none" stroke="${escapeSvgAttribute(settings.stickerBorderColor)}" stroke-width="${formatNumber(settings.stickerBorderWidth)}"${opacity} stroke-linejoin="${settings.stickerBorderJoin}" stroke-linecap="round" paint-order="stroke fill markers">${cloneSet.paths.join("")}</g>`;
+  return insertBeforeClosingSvg(targetSvg, group);
+}
+
+function buildStickerBorderCloneSet(
+  svg: string,
+  targetId = "all-fills",
+): { source: "alpha-boundary" | "foreground-shapes"; paths: string[] } {
+  if (targetId === "all-fills") {
+    const alphaBoundaryPaths = buildSourceAlphaBoundaryClones(svg);
+    if (alphaBoundaryPaths.length) {
+      return { source: "alpha-boundary", paths: alphaBoundaryPaths };
+    }
+  }
+
+  return {
+    source: "foreground-shapes",
+    paths: buildForegroundShapeClones(svg, targetId),
+  };
 }
 
 function applyInternalGapFill(
@@ -895,6 +921,7 @@ function splitClosedPathSubpaths(pathData: string): string[] {
 function buildForegroundShapeClones(svg: string, targetId = "all-fills"): string[] {
   const viewport = readSvgViewport(svg);
   const clones: string[] = [];
+  const protectedRanges = collectSvgProtectedRanges(svg);
   const matchesTarget = createSvgPaintTargetMatcher(svg, {
     targetId,
     paint: "fill",
@@ -903,6 +930,9 @@ function buildForegroundShapeClones(svg: string, targetId = "all-fills"): string
     const tagName = String(match[1] || "").toLowerCase();
     const rawAttrs = String(match[2] || "");
     if (rawAttrs.includes("data-post-processing=")) continue;
+    if (match.index != null && isInsideSvgProtectedRange(match.index, protectedRanges)) {
+      continue;
+    }
     if (isInsideCutOutlineGroup(String(svg), match.index ?? 0)) continue;
     if (!matchesTarget(tagName, rawAttrs)) continue;
     if (isCanvasBackgroundElement(tagName, rawAttrs, viewport)) continue;
@@ -915,7 +945,60 @@ function buildForegroundShapeClones(svg: string, targetId = "all-fills"): string
 }
 
 function hasForegroundFilledShape(svg: string, targetId = "all-fills"): boolean {
+  if (targetId === "all-fills" && buildSourceAlphaBoundaryClones(svg).length > 0) {
+    return true;
+  }
   return buildForegroundShapeClones(svg, targetId).length > 0;
+}
+
+function buildSourceAlphaBoundaryClones(svg: string): string[] {
+  const clip = extractSourceAlphaBoundaryClip(svg);
+  if (!clip) return [];
+  const clones: string[] = [];
+  for (const match of clip.content.matchAll(FILL_SHAPE_TAG_PATTERN)) {
+    const tagName = String(match[1] || "").toLowerCase();
+    const rawAttrs = String(match[2] || "");
+    const preserved = buildShapeCloneAttributes(tagName, rawAttrs);
+    if (!preserved) continue;
+    clones.push(`<${tagName} data-sticker-border-source="source-alpha-boundary"${preserved}/>`);
+  }
+  return clones;
+}
+
+function extractSourceAlphaBoundaryClip(
+  svg: string,
+): { id: string; content: string } | null {
+  const source = String(svg || "");
+  if (!/data-alpha-boundary-clip\s*=\s*["']true["']/i.test(source)) return null;
+  const id =
+    source.match(/data-alpha-boundary-clip\s*=\s*["']true["'][^>]*\bclip-path\s*=\s*["']url\(#([^)]+)\)["']/i)?.[1] ||
+    source.match(/\bclip-path\s*=\s*["']url\(#([^)]+)\)["'][^>]*data-alpha-boundary-clip\s*=\s*["']true["']/i)?.[1] ||
+    "source-alpha-boundary-clip";
+  const clipMatch = source.match(
+    new RegExp(
+      `<clipPath\\b[^>]*\\bid\\s*=\\s*["']${escapeRegExp(id)}["'][^>]*>([\\s\\S]*?)<\\/clipPath>`,
+      "i",
+    ),
+  );
+  return clipMatch ? { id, content: clipMatch[1] || "" } : null;
+}
+
+function collectSvgProtectedRanges(source: string): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = [];
+  const pattern =
+    /<(defs|style|script|clipPath|mask|marker|symbol)\b[\s\S]*?<\/\1>/gi;
+  for (const match of String(source || "").matchAll(pattern)) {
+    if (match.index == null) continue;
+    ranges.push({ start: match.index, end: match.index + match[0].length });
+  }
+  return ranges;
+}
+
+function isInsideSvgProtectedRange(
+  index: number,
+  ranges: Array<{ start: number; end: number }>,
+): boolean {
+  return ranges.some((range) => index >= range.start && index < range.end);
 }
 
 function hasForegroundFilledPath(svg: string): boolean {

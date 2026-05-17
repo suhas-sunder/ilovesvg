@@ -73,16 +73,17 @@ const stickerSvg = applyOutputAppearanceToSvg(fixtureSvg, sticker, support, {
   idPrefix: "pp-sticker",
 });
 assert(hasOutputAppearanceChanges(sticker), "enabled sticker border should count as changed");
-assert(sticker.stickerBorderPlacement === "top", "sticker border placement should default to top");
+assert(sticker.stickerBorderPlacement === "behind", "sticker border placement should default behind artwork");
 assertIncludes(stickerSvg, 'data-post-processing="sticker-border"', "sticker border group should be emitted");
-assertIncludes(stickerSvg, 'stroke="#ff00aa"', "sticker border should use requested color");
-assertIncludes(stickerSvg, 'stroke-width="8"', "sticker border should use requested thickness");
+assertIncludes(stickerSvg, "#ff00aa", "sticker border should use requested color");
+assertIncludes(stickerSvg, 'data-sticker-border-width="8"', "sticker border should use requested thickness");
+assertIncludes(stickerSvg, "<feMorphology", "sticker border behind artwork should use a silhouette expansion filter");
 const stickerGroup = extractGroup(stickerSvg, 'data-post-processing="sticker-border"');
 assertNotIncludes(stickerGroup, "M0 0H100V80H0Z", "sticker border should not stroke the full canvas background");
 assert(
-  stickerSvg.indexOf('data-post-processing="sticker-border"') >
+  stickerSvg.indexOf('data-post-processing="sticker-border"') <
     stickerSvg.indexOf('id="subject"'),
-  "sticker border should render on top of the original artwork by default",
+  "sticker border should render behind the original artwork by default",
 );
 
 const behindSticker = normalizeOutputAppearance({
@@ -114,8 +115,8 @@ assert(thickSticker.stickerBorderOpacity === 0.42, "sticker border opacity shoul
 const thickStickerSvg = applyOutputAppearanceToSvg(fixtureSvg, thickSticker, support, {
   idPrefix: "pp-thick-sticker",
 });
-assertIncludes(thickStickerSvg, 'stroke-width="200"', "sticker border should emit 200px thickness");
-assertIncludes(thickStickerSvg, 'stroke-opacity="0.42"', "sticker border should emit requested opacity");
+assertIncludes(thickStickerSvg, 'data-sticker-border-width="200"', "sticker border should emit 200px thickness");
+assertIncludes(thickStickerSvg, 'flood-opacity="0.42"', "sticker border should emit requested opacity");
 
 const shapeStickerFixture =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80"><rect id="canvas-rect" fill="#ffffff" width="100" height="80"/><circle id="shape-subject" fill="#f97316" cx="50" cy="40" r="16"/></svg>';
