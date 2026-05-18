@@ -18,6 +18,7 @@ const fixturesDir = path.join(rootDir, "tmp", "layer-color-correctness-fixtures"
 const reportPath = process.env.LAYER_COLOR_CORRECTNESS_REPORT_PATH
   ? path.resolve(process.env.LAYER_COLOR_CORRECTNESS_REPORT_PATH)
   : path.join(rootDir, "tmp", "layer-color-correctness-report.json");
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
 const userFixturePath =
   process.env.LAYER_COLOR_CORRECTNESS_FIXTURE ||
   "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
@@ -207,8 +208,8 @@ async function runScenario(scenario, fixture) {
 
     const firstThirtyOnePreviewStability =
       scenario.route === "/"
-        ? await step("verify first 31 layer rows preview stability", () =>
-            verifyFirstRowsPreviewStability(client, 31),
+        ? await step("verify grouped layer rows preview stability", () =>
+            verifyFirstRowsPreviewStability(client, baselineAnalysis.targets.length),
           )
         : null;
     const rowPlan = selectRepresentativeRows(baselineAnalysis.targets, scenario);
@@ -1905,7 +1906,17 @@ function escapeRegExp(value) {
 
 function summarizeResults(results) {
   const rowCount = results.reduce((sum, result) => sum + (result.testedRows?.length || 0), 0);
-  const failureMessages = results.flatMap((result) => result.failures || []);
+  const groupingFailures = results
+    .filter((result) => result.id === "home-layered-flat-color")
+    .flatMap((result) => {
+      const targetCount = Number(result.baseline?.targetCount ?? 0);
+      return targetCount >= FLAT_COLOR_MAX_EDITABLE_GROUPS
+        ? [
+            `Home layered flat color still exposes ${targetCount} editable targets; expected grouped target count under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+          ]
+        : [];
+    });
+  const failureMessages = results.flatMap((result) => result.failures || []).concat(groupingFailures);
   return {
     ok: failureMessages.length === 0 && results.every((result) => result.ok),
     routeCount: results.length,

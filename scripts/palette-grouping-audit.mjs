@@ -25,6 +25,8 @@ const tomatoFixturePath =
   "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png";
 
 const fixtureOutputDir = path.join(rootDir, "tmp", "palette-grouping-audit-fixtures");
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
+const FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD = 160;
 
 const presetContracts = [
   {
@@ -171,7 +173,11 @@ async function main() {
   const fixturePresetMatrix = buildFixturePresetMatrix(fixtureAnalyses, contractTable);
   const recommendations = buildRecommendations(measuredOutputs, fixtureAnalyses, contractTable);
   const summary = summarize(measuredOutputs, fixtureAnalyses, recommendations);
-  const ok = Boolean(coverageReport?.summary?.ok) && measuredOutputs.length > 0;
+  const implementationFailures = flatColorImplementationFailures(measuredOutputs);
+  const ok =
+    Boolean(coverageReport?.summary?.ok) &&
+    measuredOutputs.length > 0 &&
+    implementationFailures.length === 0;
 
   const report = {
     schemaVersion: 1,
@@ -189,6 +195,7 @@ async function main() {
     presetContracts: contractTable,
     recommendations,
     summary,
+    implementationFailures,
   };
 
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -202,6 +209,7 @@ async function main() {
         measuredScenarioCount: measuredOutputs.length,
         fixtureCount: fixtureAnalyses.length,
         summary,
+        implementationFailures,
       },
       null,
       2,
@@ -824,6 +832,37 @@ function summarize(measuredOutputs, fixtureAnalyses, recommendations) {
       : null,
     recommendation: recommendations.coreFinding,
   };
+}
+
+function flatColorImplementationFailures(measuredOutputs) {
+  const failures = [];
+  const home = measuredOutputs.find((item) => item.id === "home-layered-flat-color");
+  if (!home) {
+    failures.push("Home Layered - Flat Color measurement is missing.");
+    return failures;
+  }
+  if (home.rawVisibleSvgColorCount >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+    failures.push(
+      `Home Layered - Flat Color still has ${home.rawVisibleSvgColorCount} visible SVG colors; expected grouped output under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+    );
+  }
+  if (home.exposedLayerRowCount >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+    failures.push(
+      `Home Layered - Flat Color still exposes ${home.exposedLayerRowCount} layer rows; expected grouped rows under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+    );
+  }
+  if (home.exposedLayerRowCount !== home.rawVisibleSvgColorCount) {
+    failures.push(
+      `Home Layered - Flat Color exposes ${home.exposedLayerRowCount} rows for ${home.rawVisibleSvgColorCount} grouped SVG colors.`,
+    );
+  }
+  if (home.exposedLayerRowCount >= FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD) {
+    failures.push(`Home Layered - Flat Color still has raw row exposure: ${home.exposedLayerRowCount} rows.`);
+  }
+  if (Number(home.remainingAfterHide || 0) > 0) {
+    failures.push(`Home Layered - Flat Color leaves ${home.remainingAfterHide} visible colors after hiding grouped rows.`);
+  }
+  return failures;
 }
 
 async function serverState() {

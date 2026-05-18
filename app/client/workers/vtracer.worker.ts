@@ -70,6 +70,25 @@ type WorkerError = {
 type RGB = { r: number; g: number; b: number };
 type LayerItem = { color: RGB; index: number; count: number };
 type Mask = Uint8Array<ArrayBufferLike>;
+type FlatColorStats = {
+  color: string;
+  rgb: RGB;
+  firstIndex: number;
+  pathCount: number;
+  weight: number;
+  luma: number;
+  saturation: number;
+  isTiny: boolean;
+  isNearBlack: boolean;
+  isNearWhite: boolean;
+};
+type FlatColorGroup = {
+  representative: FlatColorStats;
+  members: FlatColorStats[];
+  weight: number;
+  pathCount: number;
+  firstIndex: number;
+};
 
 type PreparedImage = {
   data: Uint8ClampedArray;
@@ -81,6 +100,8 @@ type PreparedImage = {
 };
 
 const ciede2000Difference = differenceCiede2000();
+const FLAT_COLOR_GROUPING_PRESET_ID = "layered-flat-color";
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
 
 let wasmReadyPromise: Promise<void> | null = null;
 
@@ -170,7 +191,8 @@ async function runTrace(request: WorkerRequest) {
     const layers = extractEditableLayers(svg, request.settings);
     const pathCount = countSvgPaths(svg);
     const svgBytes = byteLength(svg);
-    const actualPaletteCount = prepared.palette.length || countUniqueSvgFills(svg, request.settings);
+    const outputDetectedColorCount = countUniqueSvgFills(svg, request.settings);
+    const actualPaletteCount = prepared.palette.length || outputDetectedColorCount;
     timings.total = performance.now() - started;
 
     postMessage({
@@ -194,7 +216,7 @@ async function runTrace(request: WorkerRequest) {
       layerBuildMode: prepared.layerBuildMode,
       requestedPaletteCount: prepared.requestedPaletteCount || undefined,
       actualPaletteCount: actualPaletteCount || undefined,
-      outputDetectedColors: actualPaletteCount || undefined,
+      outputDetectedColors: outputDetectedColorCount || actualPaletteCount || undefined,
       pathCount,
       svgBytes,
     } satisfies WorkerResult);
@@ -423,6 +445,7 @@ function postprocessSvg(
     fillStrokeColor: settings.fillStrokeColor,
   });
 
+  svg = groupFlatColorLayeredPalette(svg, settings);
   svg = annotateSvgLayerIds(svg, settings);
 
   const alphaClipPathTags = buildSourceAlphaClipPathTags(sourceImageData, settings);
@@ -616,6 +639,267 @@ function normalizeLayerPathTag(tag: string) {
     .replace(/\sfill\s*=\s*["'][^"']*["']/gi, "")
     .replace(/\sstroke\s*=\s*["'][^"']*["']/gi, "")
     .replace(/\s\/?>$/i, " />");
+}
+
+function groupFlatColorLayeredPalette(svg: string, settings: NormalizedTraceSettings) {
+  if (!shouldGroupFlatColorLayeredPalette(settings)) return svg;
+  const stats = collectFlatColorStats(svg, settings);
+  if (stats.length <= 1) return svg;
+
+  const groups = buildFlatColorGroups(stats);
+  if (groups.length <= 0 || groups.length >= stats.length) return svg;
+
+  const representativeByColor = new Map<string, string>();
+  for (const group of groups) {
+    for (const member of group.members) {
+      representativeByColor.set(member.color, group.representative.color);
+    }
+  }
+
+  let changed = false;
+  const next = svg.replace(/<path\b([^>]*)>/gi, (match, attrs = "") => {
+    const parsed = parseSelfClosingPathAttrs(String(attrs || ""));
+    const color = readPathFillColor(parsed.attrs);
+    if (!color || isBackgroundColor(color, settings)) return match;
+    const representative = representativeByColor.get(color);
+    if (!representative || representative === color) return match;
+    changed = true;
+    return `<path${writePathFillColor(parsed.attrs, representative)}${parsed.close}`;
+  });
+
+  return changed ? next : svg;
+}
+
+function shouldGroupFlatColorLayeredPalette(settings: NormalizedTraceSettings) {
+  return (
+    settings.traceMode === "layered" &&
+    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID &&
+    getLayerBuildMode(settings) === "per-color-cutout"
+  );
+}
+
+function collectFlatColorStats(svg: string, settings: NormalizedTraceSettings): FlatColorStats[] {
+  const colors = new Map<
+    string,
+    {
+      color: string;
+      rgb: RGB;
+      firstIndex: number;
+      pathCount: number;
+      weight: number;
+    }
+  >();
+  const pathPattern = /<path\b([^>]*)>/gi;
+  let match: RegExpExecArray | null;
+  let index = 0;
+
+  while ((match = pathPattern.exec(svg))) {
+    index += 1;
+    const attrs = parseSelfClosingPathAttrs(String(match[1] || "")).attrs;
+    const color = readPathFillColor(attrs);
+    if (!color || isBackgroundColor(color, settings)) continue;
+    const rgb = parseHexColor(color);
+    if (!rgb) continue;
+    const current = colors.get(color);
+    const pathWeight = flatColorPathWeight(attrs);
+    if (current) {
+      current.pathCount += 1;
+      current.weight += pathWeight;
+    } else {
+      colors.set(color, {
+        color,
+        rgb,
+        firstIndex: index,
+        pathCount: 1,
+        weight: pathWeight,
+      });
+    }
+  }
+
+  const totalWeight = Array.from(colors.values()).reduce((sum, item) => sum + item.weight, 0) || 1;
+  return Array.from(colors.values()).map((item) => {
+    const luma = luminance(item.rgb);
+    const saturation = rgbSaturation(item.rgb);
+    const share = item.weight / totalWeight;
+    return {
+      ...item,
+      luma,
+      saturation,
+      isTiny: share < 0.004 || (item.pathCount <= 2 && share < 0.015),
+      isNearBlack: luma <= 0.07 || (luma <= 0.13 && saturation <= 0.45),
+      isNearWhite: luma >= 0.91 && saturation <= 0.38,
+    };
+  });
+}
+
+function flatColorPathWeight(attrs: string) {
+  const d = String(attrs || "").match(/\sd\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
+  return 1 + Math.min(24, Math.sqrt(d.length || 0) / 4);
+}
+
+function buildFlatColorGroups(stats: FlatColorStats[]): FlatColorGroup[] {
+  const groups: FlatColorGroup[] = [];
+  const orderedStats = [...stats].sort(compareFlatColorStatsByImportance);
+
+  for (const stat of orderedStats) {
+    const match = findFlatColorGroup(stat, groups);
+    if (match) {
+      mergeFlatColorStat(match, stat);
+    } else {
+      groups.push({
+        representative: stat,
+        members: [stat],
+        weight: stat.weight,
+        pathCount: stat.pathCount,
+        firstIndex: stat.firstIndex,
+      });
+    }
+  }
+
+  pruneFlatColorGroups(groups);
+  return groups.sort((a, b) => a.firstIndex - b.firstIndex || a.representative.color.localeCompare(b.representative.color));
+}
+
+function findFlatColorGroup(stat: FlatColorStats, groups: FlatColorGroup[]) {
+  let best: FlatColorGroup | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const group of groups) {
+    const representative = group.representative;
+    const distance = perceptualDistance(stat.rgb, representative.rgb, "ciede2000");
+    const threshold = flatColorMergeThreshold(stat, representative);
+    if (distance > threshold) continue;
+    const score = distance / Math.max(0.1, threshold);
+    if (
+      score < bestScore ||
+      (score === bestScore && distance < bestDistance) ||
+      (score === bestScore && distance === bestDistance && group.weight > (best?.weight || 0))
+    ) {
+      best = group;
+      bestScore = score;
+      bestDistance = distance;
+    }
+  }
+
+  return best;
+}
+
+function flatColorMergeThreshold(a: FlatColorStats, b: FlatColorStats) {
+  if (a.isNearBlack && b.isNearBlack) return 22;
+  if (a.isNearWhite && b.isNearWhite) return 16;
+  if (a.luma < 0.18 && b.luma < 0.18 && Math.abs(a.saturation - b.saturation) < 0.3) {
+    return 12;
+  }
+  const saturatedMidTone =
+    Math.max(a.saturation, b.saturation) >= 0.55 &&
+    !a.isNearBlack &&
+    !b.isNearBlack &&
+    !a.isNearWhite &&
+    !b.isNearWhite;
+  const base = saturatedMidTone ? 7 : 9.5;
+  return a.isTiny || b.isTiny ? Math.max(base, 12) : base;
+}
+
+function pruneFlatColorGroups(groups: FlatColorGroup[]) {
+  while (groups.length > FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+    groups.sort((a, b) => a.weight - b.weight || a.pathCount - b.pathCount || a.firstIndex - b.firstIndex);
+    const source = groups.shift();
+    if (!source) return;
+    let bestIndex = 0;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < groups.length; index += 1) {
+      const candidate = groups[index];
+      const distance = perceptualDistance(
+        source.representative.rgb,
+        candidate.representative.rgb,
+        "ciede2000",
+      );
+      const classPenalty =
+        source.representative.isNearBlack !== candidate.representative.isNearBlack
+          ? 4
+          : source.representative.isNearWhite !== candidate.representative.isNearWhite
+            ? 3
+            : 0;
+      const score = distance + classPenalty;
+      if (
+        score < bestScore ||
+        (score === bestScore && candidate.weight > groups[bestIndex].weight) ||
+        (score === bestScore && candidate.weight === groups[bestIndex].weight && candidate.firstIndex < groups[bestIndex].firstIndex)
+      ) {
+        bestIndex = index;
+        bestScore = score;
+      }
+    }
+    mergeFlatColorGroup(groups[bestIndex], source);
+  }
+}
+
+function mergeFlatColorStat(group: FlatColorGroup, stat: FlatColorStats) {
+  group.members.push(stat);
+  group.weight += stat.weight;
+  group.pathCount += stat.pathCount;
+  group.firstIndex = Math.min(group.firstIndex, stat.firstIndex);
+  group.representative = chooseFlatColorRepresentative(group.members);
+}
+
+function mergeFlatColorGroup(target: FlatColorGroup, source: FlatColorGroup) {
+  for (const member of source.members) {
+    target.members.push(member);
+  }
+  target.weight += source.weight;
+  target.pathCount += source.pathCount;
+  target.firstIndex = Math.min(target.firstIndex, source.firstIndex);
+  target.representative = chooseFlatColorRepresentative(target.members);
+}
+
+function chooseFlatColorRepresentative(members: FlatColorStats[]) {
+  return [...members].sort(compareFlatColorStatsByImportance)[0];
+}
+
+function compareFlatColorStatsByImportance(a: FlatColorStats, b: FlatColorStats) {
+  return (
+    b.weight - a.weight ||
+    b.pathCount - a.pathCount ||
+    a.firstIndex - b.firstIndex ||
+    a.color.localeCompare(b.color)
+  );
+}
+
+function readPathFillColor(attrs: string) {
+  return normalizeHexColor(
+    String(attrs || "").match(/\sfill\s*=\s*(["'])([^"']+)\1/i)?.[2] || "",
+  );
+}
+
+function writePathFillColor(attrs: string, color: string) {
+  const current = String(attrs || "");
+  if (/\sfill\s*=/i.test(current)) {
+    return current.replace(/\sfill\s*=\s*(["'])[^"']*\1/i, ` fill="${color}"`);
+  }
+  return `${removeStyleFill(current)} fill="${color}"`;
+}
+
+function removeStyleFill(attrs: string) {
+  return String(attrs || "").replace(/\sstyle\s*=\s*(["'])([^"']*)\1/i, (match, quote, value) => {
+    const declarations = String(value || "")
+      .split(";")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .filter((item) => !item.toLowerCase().startsWith("fill:"));
+    return declarations.length ? ` style=${quote}${declarations.join("; ")}${quote}` : "";
+  });
+}
+
+function rgbSaturation(color: RGB) {
+  const r = color.r / 255;
+  const g = color.g / 255;
+  const b = color.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === min) return 0;
+  const lightness = (max + min) / 2;
+  return (max - min) / (1 - Math.abs(2 * lightness - 1));
 }
 
 function annotateSvgLayerIds(svg: string, settings: NormalizedTraceSettings) {

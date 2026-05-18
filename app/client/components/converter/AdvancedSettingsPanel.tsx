@@ -2008,7 +2008,7 @@ function OutputLayerStyleRow({
   onResetOutputLayer?: (layerId: string) => void;
 }) {
   const colorCommitThrottleMs = 90;
-  const opacityCommitThrottleMs = 90;
+  const opacityCommitThrottleMs = 300;
   const normalizedColor =
     normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
   const [localColor, setLocalColor] = React.useState(normalizedColor);
@@ -2162,10 +2162,11 @@ function OutputLayerStyleRow({
           step={1}
           value={localOpacity}
           onInput={(event) => queueOpacityCommit(Number(event.currentTarget.value))}
-          onChange={(event) => commitOpacityNow(Number(event.currentTarget.value) / 100)}
+          onChange={(event) => queueOpacityCommit(Number(event.currentTarget.value))}
           onPointerUp={() => commitOpacityNow()}
           onMouseUp={() => commitOpacityNow()}
           onTouchEnd={() => commitOpacityNow()}
+          onKeyUp={() => commitOpacityNow()}
           onBlur={() => commitOpacityNow()}
           className="min-w-0 flex-1 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         />
