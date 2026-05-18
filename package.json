@@ -26,6 +26,7 @@
     "test:cumulative-edit-performance": "node scripts/cumulative-edit-performance-smoke.mjs",
     "test:settings-color-coverage": "node scripts/settings-color-coverage-audit.mjs",
     "test:palette-grouping-audit": "node scripts/palette-grouping-audit.mjs",
+    "test:color-region-fidelity-audit": "node scripts/color-region-fidelity-audit.mjs",
     "test:layer-color-correctness": "node scripts/layer-color-correctness-smoke.mjs",
     "test:transparent-layer-boundary": "node scripts/transparent-layer-boundary-smoke.mjs",
     "test:sticker-border": "node scripts/sticker-border-correctness-smoke.mjs",
