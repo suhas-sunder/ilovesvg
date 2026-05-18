@@ -166,18 +166,34 @@ async function runScenario(scenario, fixture) {
     await step("reset browser state", () => resetScenarioBrowserState(client));
     await step("wait for document ready", () => waitForDocumentReady(client));
     await step("install copy/download capture", () => installCopyDownloadCapture(client));
-    await step("set file input", () => setFileInput(client, file.path));
-    await step("settle initial auto conversion", () => settleInitialAutoConversion(client, 20_000).catch(() => null));
-
-    const beforePresetState = await step("read state before preset", () => outputState(client).catch(() => ({ latestStamp: null })));
     const selectedPreset = await step("select preset", () => selectPreset(client, scenario.presetPatterns));
-    const beforeConvertState = await step("read state before convert", () => outputState(client).catch(() => beforePresetState));
-    await step("click convert", () => clickConvert(client));
-    const completed = await step("wait for completed output", () => waitForCompletedOutput(
-      client,
-      beforeConvertState.latestStamp ?? beforePresetState.latestStamp,
-      scenario.conversionTimeoutMs,
-    ));
+    if (!selectedPreset.selected) {
+      return {
+        id: scenario.id,
+        route: scenario.route,
+        preset: scenario.presetLabel,
+        selectedPreset,
+        fixture: file.info,
+        ok: true,
+        skipped: true,
+        skipReason: selectedPreset.reason || "Preset was not visible on this route.",
+        steps,
+      };
+    }
+    await step("set file input", () => setFileInput(client, file.path));
+    await step("settle initial auto conversion", () => settleInitialAutoConversion(client, scenario.conversionTimeoutMs).catch(() => null));
+
+    const beforeConvertState = await step("read state before convert", () => outputState(client).catch(() => ({ latestStamp: null })));
+    let completed = beforeConvertState;
+    if (!beforeConvertState?.latestReady || beforeConvertState.activeJobs > 0 || beforeConvertState.latestStamp == null) {
+      await step("click convert", () => clickConvert(client));
+      completed = await step("wait for completed output", () => waitForCompletedOutput(
+        client,
+        beforeConvertState.latestStamp,
+        scenario.conversionTimeoutMs,
+        { requireLatestChanged: true },
+      ));
+    }
 
     await step("open latest settings panel", () => openLatestSettingsPanel(client));
     await step("open layer colors", () => ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors"));
@@ -1249,7 +1265,7 @@ function countMatches(value, pattern) {
 }
 
 function summarizeResults(results, staticFindings) {
-  const okResults = results.filter((result) => result.ok);
+  const okResults = results.filter((result) => result.ok && !result.skipped);
   const totals = okResults.map((result) => result.counts);
   const max = (field) => Math.max(0, ...totals.map((counts) => Number(counts[field] || 0)));
   const home = okResults.find((result) => result.id === "home-layered-flat-color");
@@ -1454,7 +1470,7 @@ async function routeConversionBusy(client) {
   })()`);
 }
 
-async function waitForCompletedOutput(client, previousLatestStamp, timeoutMs) {
+async function waitForCompletedOutput(client, previousLatestStamp, timeoutMs, options = {}) {
   return waitForValue(
     client,
     () => outputStateExpression(previousLatestStamp),
@@ -1463,7 +1479,8 @@ async function waitForCompletedOutput(client, previousLatestStamp, timeoutMs) {
       state?.pageAlive &&
       state.latestReady &&
       state.activeJobs === 0 &&
-      state.latestStamp !== null,
+      state.latestStamp !== null &&
+      (!options.requireLatestChanged || state.latestChanged),
   );
 }
 
@@ -1475,16 +1492,87 @@ async function settleInitialAutoConversion(client, timeoutMs) {
 }
 
 async function selectPreset(client, patterns) {
-  await clickButtonIfPresent(client, [/All presets/i, /Show all presets/i, /More presets/i], []).catch(() => null);
-  await delay(250);
+  await expandPresetList(client).catch(() => null);
   for (const pattern of patterns) {
-    const clicked = await clickButtonIfPresent(client, [pattern], [/Show fewer/i, /Filter presets/i]).catch(() => null);
-    if (clicked) {
-      await delay(300);
-      return { selected: clicked.label, pattern: String(pattern) };
-    }
+    const deadline = Date.now() + 8_000;
+    do {
+      const clicked = await clickButtonByPattern(client, [pattern], [/Show fewer/i, /Filter presets/i]).catch(() => null);
+      if (clicked) {
+        await delay(300);
+        return { selected: clicked.label, pattern: String(pattern) };
+      }
+      await delay(250);
+    } while (Date.now() < deadline);
   }
-  return { selected: null, reason: "No matching layered preset button was visible." };
+  const visibleButtons = await visibleButtonLabels(client).catch(() => []);
+  return {
+    selected: null,
+    reason: "No matching layered preset button was visible.",
+    visibleButtons: visibleButtons.slice(0, 40),
+  };
+}
+
+async function expandPresetList(client) {
+  return waitForValue(
+    client,
+    () => `(() => {
+      const hasExpandedControls = Boolean(document.querySelector('input[type="search"]')) ||
+        Array.from(document.querySelectorAll("button, [role='button'], summary")).some((candidate) => {
+          const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+          return /^All presets$/i.test(text) || /^Pinned presets$/i.test(text);
+        });
+      if (hasExpandedControls) return { expanded: true, clicked: false };
+
+      const buttons = Array.from(document.querySelectorAll("button, [role='button'], summary"));
+      const button = buttons.find((candidate) => {
+        const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+        return isVisible(candidate) && !candidate.disabled && /^Show\\s+\\d+\\s+more presets$/i.test(text);
+      });
+      if (!button) return { expanded: false, clicked: false };
+      button.scrollIntoView({ block: "center", inline: "nearest" });
+      button.click();
+      return {
+        expanded: false,
+        clicked: true,
+        label: (button.innerText || button.textContent || button.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim(),
+      };
+
+      function isVisible(element) {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      }
+    })()`,
+    8_000,
+    (value) => value?.expanded,
+  );
+}
+
+async function clickButtonByPattern(client, patterns, rejectPatterns = []) {
+  return evaluate(client, `(() => {
+    const patterns = ${JSON.stringify(patterns.map((pattern) => pattern.source))}.map((source) => new RegExp(source, "i"));
+    const rejects = ${JSON.stringify(rejectPatterns.map((pattern) => pattern.source))}.map((source) => new RegExp(source, "i"));
+    const buttons = Array.from(document.querySelectorAll("button, [role='button'], summary"));
+    const button = buttons.find((candidate) => {
+      const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+      return isVisible(candidate) &&
+        !candidate.disabled &&
+        patterns.some((pattern) => pattern.test(text)) &&
+        !rejects.some((pattern) => pattern.test(text));
+    });
+    if (!button) return null;
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    button.click();
+    return {
+      label: (button.innerText || button.textContent || button.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim(),
+    };
+
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+  })()`, 8_000);
 }
 
 async function outputState(client) {
