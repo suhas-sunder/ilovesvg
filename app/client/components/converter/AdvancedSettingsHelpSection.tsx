@@ -73,8 +73,8 @@ const inputOutputItems: HelpItem[] = [
     body: "On routes with both single and layered tracing, this chooses whether selected input colors are removed from single traces, layered traces, or both.",
   },
   {
-    title: "Remove detected output colors",
-    body: "Output colors come from the actual generated SVG layers. If a cream background appears as an output layer, removing that output color should immediately hide it from the preview and export without retracing.",
+    title: "Output layer visibility",
+    body: "Output colors come from the actual generated SVG layers. If a cream background appears as an output layer, hide that layer from Layer colors so preview, copy, and download update without retracing.",
   },
   {
     title: "Layer color editing",
@@ -166,7 +166,7 @@ export function AdvancedSettingsHelpSection() {
               {[
                 "If the traced SVG has too few colors, raise color layer count or lower merge tolerance. Expect a larger SVG with more editable groups.",
                 "If the result looks too flat, lower color simplification or increase the layer count so more source colors survive the trace.",
-                "If a cream or white background becomes its own output layer, hide that output layer directly from Remove detected output colors.",
+                "If a cream or white background becomes its own output layer, hide that output layer directly from Layer colors.",
                 "If tiny fragments appear, increase Remove tiny specks or Remove small color regions. Use modest values for detailed illustrations.",
                 "If preserve aspect ratio is enabled and you change the width, the height updates automatically so the artwork does not stretch.",
                 "If you only recolor, hide, resize, or adjust opacity on output layers, copy and download should match the preview without another backend trace.",

@@ -392,16 +392,6 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
 
         {showOutputLayerControls && (
           <>
-            <OutputColorRemovalSection
-              layers={outputLayers}
-              onOutputLayerChange={onOutputLayerChange}
-              onResetOutputLayer={onResetOutputLayer}
-              sectionId={`${id}-live-output-colors`}
-              open={sectionOpen(openLiveSection, "output-colors")}
-              onToggle={() =>
-                toggleSection(setOpenLiveSection, "output-colors")
-              }
-            />
             {!hideOutputLayerStyling && (
               <OutputLayerStylingSection
                 layers={outputLayers}
@@ -1197,16 +1187,6 @@ export function LayeredAdvancedSettingsPanel<
 
         {showOutputLayerControls && (
           <>
-            <OutputColorRemovalSection
-              layers={outputLayers}
-              onOutputLayerChange={onOutputLayerChange}
-              onResetOutputLayer={onResetOutputLayer}
-              sectionId={`${id}-live-output-colors`}
-              open={sectionOpen(openLiveSection, "output-colors")}
-              onToggle={() =>
-                toggleSection(setOpenLiveSection, "output-colors")
-              }
-            />
             {!hideOutputLayerStyling && (
               <OutputLayerStylingSection
                 layers={outputLayers}
@@ -1907,90 +1887,6 @@ function getColorChipLabel(label: string, color: string): string {
   const trimmed = String(label || "").trim();
   if (trimmed && normalizeColorInput(trimmed) !== color) return trimmed;
   return "Detected color";
-}
-
-function OutputColorRemovalSection({
-  layers,
-  onOutputLayerChange,
-  onResetOutputLayer,
-  sectionId,
-  open,
-  onToggle,
-}: {
-  layers: OutputLayerControlItem[];
-  onOutputLayerChange?: (layerId: string, patch: OutputLayerPatch) => void;
-  onResetOutputLayer?: (layerId: string) => void;
-  sectionId?: string;
-  open?: boolean;
-  onToggle?: () => void;
-}) {
-  return (
-    <SettingSection
-      title="Remove detected output colors"
-      tone="remove"
-      sectionId={sectionId}
-      open={open}
-      onToggle={onToggle}
-    >
-      <p className="text-[12px] leading-5 text-slate-600">
-        Hide colors from the current SVG output. The detected list refreshes
-        after each new trace.
-      </p>
-
-      {layers.length === 0 ? (
-        <div className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-500">
-          Generate an SVG to view removable output colors.
-        </div>
-      ) : (
-        <div className="grid gap-1.5">
-          {layers.map((layer) => {
-            const visible = layer.visible !== false;
-            const label = layer.label || layer.name || layer.id;
-            const color = normalizeColorInput(layer.color || layer.originalColor || "") || "#000000";
-            return (
-              <div
-                key={layer.id}
-                className="flex items-center gap-2 rounded-md border border-slate-100 bg-slate-50 px-2 py-1.5"
-              >
-                <input
-                  type="checkbox"
-                  checked={visible}
-                  onChange={(event) =>
-                    onOutputLayerChange?.(layer.id, {
-                      visible: event.target.checked,
-                    })
-                  }
-                  className="h-4 w-4 accent-[#0b2dff] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  aria-label={`${visible ? "Keep" : "Restore"} ${label}`}
-                />
-                <span
-                  className="h-4 w-4 rounded-sm border border-slate-300"
-                  style={{ background: color }}
-                  role="img"
-                  aria-label={`${label} color swatch ${color}`}
-                />
-                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-700">
-                  {label}
-                </span>
-                <span className="shrink-0 font-mono text-[11px] text-slate-500">
-                  {color}
-                </span>
-                {onResetOutputLayer ? (
-                  <button
-                    type="button"
-                    onClick={() => onResetOutputLayer(layer.id)}
-                    className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] font-semibold text-slate-700 transition-colors cursor-pointer hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  >
-                    Reset
-                  </button>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </SettingSection>
-  );
 }
 
 function OutputLayerStylingSection({
