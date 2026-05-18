@@ -18,6 +18,8 @@ const fixturesDir = path.join(rootDir, "tmp", "settings-color-coverage-fixtures"
 const reportPath = process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH
   ? path.resolve(process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH)
   : path.join(rootDir, "tmp", "settings-color-coverage-audit.json");
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
+const FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD = 160;
 const userFixturePath =
   process.env.SETTINGS_COLOR_COVERAGE_FIXTURE ||
   "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
@@ -1260,6 +1262,24 @@ function summarizeResults(results, staticFindings) {
   } else {
     if (home.counts.actualVisibleSvgColorsBeforeHide > home.counts.layerRowsExposed) {
       failures.push("Home layered output exposes fewer layer rows than visible SVG colors.");
+    }
+    if (home.counts.actualVisibleSvgColorsBeforeHide >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+      failures.push(
+        `Home layered flat color still exposes ${home.counts.actualVisibleSvgColorsBeforeHide} visible SVG colors; expected grouped output under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+      );
+    }
+    if (home.counts.layerRowsExposed >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+      failures.push(
+        `Home layered flat color still exposes ${home.counts.layerRowsExposed} layer rows; expected grouped editable rows under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+      );
+    }
+    if (home.counts.layerRowsExposed !== home.counts.actualVisibleSvgColorsBeforeHide) {
+      failures.push(
+        `Home layered flat color exposes ${home.counts.layerRowsExposed} layer rows for ${home.counts.actualVisibleSvgColorsBeforeHide} grouped SVG colors.`,
+      );
+    }
+    if (home.counts.layerRowsExposed >= FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD) {
+      failures.push(`Home layered flat color still has raw row exposure: ${home.counts.layerRowsExposed} rows.`);
     }
     if (home.counts.actualVisibleSvgColorsBeforeHide > 16 && home.counts.layerRowsExposed <= 16) {
       failures.push("Home layered output is still silently capped at 16 exposed layer rows.");

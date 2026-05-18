@@ -689,8 +689,11 @@ async function runPostConversionEditFlow(client, timed) {
       sliderApplicable
         ? (slider.value?.effectiveElapsedMs ?? slider.elapsedMs) + sliderApplied.elapsedMs
         : null,
+    sliderMoveMs: sliderApplicable ? (slider.value?.effectiveElapsedMs ?? slider.elapsedMs) : null,
+    sliderPreviewWaitMs: sliderApplicable ? sliderApplied.elapsedMs : null,
     sliderBefore: slider.value?.before ?? null,
     sliderAfter: slider.value?.after ?? null,
+    sliderLabel: slider.value?.sliderLabel ?? null,
     sliderApplyResult: sliderApplied.value || sliderApplied.error || null,
     copyTimeMs: copy.elapsedMs,
     copyMatchedEditedColor: Boolean(copy.ok && copy.value?.containsEditedColor),
@@ -1311,15 +1314,33 @@ async function moveFirstEditableSlider(client, previewBefore) {
       }
     }
 
-    await openSection(liveSection, /Post-processing/i);
+    await openSection(liveSection, /Layer colors/i);
     let ranges = visibleRanges(liveSection);
     let editableRanges = ranges.filter(isLiveEditRange);
     let input =
+      editableRanges.find((candidate) => /Per-layer opacity/i.test(labelFor(candidate))) ||
+      editableRanges[0];
+
+    if (!input) {
+      await openSection(liveSection, /Output colors/i);
+      ranges = visibleRanges(liveSection);
+      editableRanges = ranges.filter(isLiveEditRange);
+      input =
+        editableRanges.find((candidate) => /^Opacity\b/i.test(labelFor(candidate))) ||
+        editableRanges[0];
+    }
+
+    if (!input) {
+      await openSection(liveSection, /Post-processing/i);
+      ranges = visibleRanges(liveSection);
+      editableRanges = ranges.filter(isLiveEditRange);
+      input =
       editableRanges.find((candidate) =>
         /Border thickness|Line weight|Fill spread|Stroke|Spread/i.test(labelFor(candidate))
       ) ||
       editableRanges.find((candidate) => /Per-layer opacity/i.test(labelFor(candidate))) ||
       editableRanges[0];
+    }
 
     if (!input) {
       await openSection(liveSection, /Layer colors/i);

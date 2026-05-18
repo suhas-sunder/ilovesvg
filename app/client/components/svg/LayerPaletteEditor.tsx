@@ -116,14 +116,19 @@ export function applyLayerEditsToSvg(
         `\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`,
         "gi",
       );
-      const normalizedInner = inner.replace(
-        /<path\b([^>]*)>/gi,
-        (_pathMatch: string, pathAttrs: string) => {
-          const parsedPath = parseSvgElementAttrs(String(pathAttrs || ""));
-          const nextPathAttrs = parsedPath.attrs.replace(childPaintPattern, "");
-          return `<path${nextPathAttrs}${parsedPath.close}`;
-        },
-      );
+      const normalizedInner = new RegExp(
+        `\\s${groupPaintProp}\\s*=\\s*["'][^"']*["']`,
+        "i",
+      ).test(String(inner))
+        ? inner.replace(
+            /<path\b([^>]*)>/gi,
+            (_pathMatch: string, pathAttrs: string) => {
+              const parsedPath = parseSvgElementAttrs(String(pathAttrs || ""));
+              const nextPathAttrs = parsedPath.attrs.replace(childPaintPattern, "");
+              return `<path${nextPathAttrs}${parsedPath.close}`;
+            },
+          )
+        : inner;
 
       return `<g${nextAttrs}>${normalizedInner}${close}`;
     });
@@ -609,7 +614,7 @@ function LayerPaletteRow({
   });
   const opacityCommit = useThrottledCommit({
     value: Math.round(normalizeOpacity(layer.opacity) * 100),
-    delayMs: 120,
+    delayMs: 300,
     leading: false,
     normalize: normalizeOpacityPercent,
     onCommit: React.useCallback(
@@ -658,7 +663,7 @@ function LayerPaletteRow({
 
   const handleOpacityChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      opacityCommit.flush(Number(event.currentTarget.value));
+      opacityCommit.schedule(Number(event.currentTarget.value));
     },
     [opacityCommit],
   );
@@ -728,6 +733,7 @@ function LayerPaletteRow({
             onPointerUp={flushOpacity}
             onMouseUp={flushOpacity}
             onTouchEnd={flushOpacity}
+            onKeyUp={flushOpacity}
             onBlur={flushOpacity}
             className="min-w-0 flex-1 cursor-pointer accent-[#0b2dff]"
           />
