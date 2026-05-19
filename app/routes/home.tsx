@@ -565,6 +565,7 @@ export async function action({ request }: ActionFunctionArgs) {
       maxPartSize: MAX_UPLOAD_BYTES,
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const presetId = String(form.get("presetId") || "");
     const intent = String(form.get("intent") || "single");
     const isBatchFile = intent === "batch-file";
     if (isBatchFile) {
@@ -836,6 +837,7 @@ export async function action({ request }: ActionFunctionArgs) {
       if (traceMode === "layered") {
         const routeLayeredTraceAdapter = runSharedLayeredColorTraceShared;
         const layered = await routeLayeredTraceAdapter(input, {
+          presetId,
           layerCount: Math.round(colorLayerCount),
           maxTraceSide: Math.round(layerMaxTraceSide),
           minRegionPercent,

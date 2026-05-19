@@ -10,6 +10,25 @@ export type ConversionDiagnostics = {
   traceWidth?: number;
   traceHeight?: number;
   layerCount?: number;
+  effectiveLayerCount?: number;
+  adaptiveLayerPalette?: {
+    target: number;
+    bucketCount: number;
+    perceptualClusterCount: number;
+    familyCount: number;
+    hueBucketCount: number;
+    regionComplexity: number;
+    nearDuplicateDensity: number;
+    simpleImageScore: number;
+    transparentShare: number;
+    sourceTransparentShare?: number;
+    lightNeutralShare: number;
+    blueFamilyShare: number;
+    lightNeutralMatteShare: number;
+    sourceLightNeutralMatteShare?: number;
+    lightNeutralMatteColor?: string;
+    lightNeutralMatteApplied?: boolean;
+  };
   selectedColorRemovalCount?: number;
   finalSvgBytes?: number;
   pathCount?: number;

@@ -44,6 +44,7 @@ export type LayerTurnPolicy =
   | "majority";
 
 export type LayeredColorSvgOptions = {
+  presetId?: string;
   layerCount: number;
   maxTraceSide: number;
   minRegionPercent: number;
@@ -102,6 +103,7 @@ type NormalizedLayeredColorSvgOptions = Omit<
   outputWidth: number;
   outputHeight: number;
   preserveAspectRatio: boolean;
+  presetId: string;
 };
 
 export const MIN_LAYER_COUNT = 2;
@@ -132,6 +134,50 @@ type TraceLayerBuildItem = {
   color: string;
   pixelPercent: number;
   pathTags: string;
+};
+
+type FlatColorFamily =
+  | "dark"
+  | "lightNeutral"
+  | "neutral"
+  | "red"
+  | "orange"
+  | "yellow"
+  | "green"
+  | "cyan"
+  | "blue"
+  | "purple"
+  | "pink";
+
+type FlatColorPaletteAnalysis = {
+  target: number;
+  bucketCount: number;
+  perceptualClusterCount: number;
+  familyCount: number;
+  hueBucketCount: number;
+  regionComplexity: number;
+  nearDuplicateDensity: number;
+  simpleImageScore: number;
+  transparentShare: number;
+  sourceTransparentShare: number | null;
+  lightNeutralShare: number;
+  blueFamilyShare: number;
+  lightNeutralMatteShare: number;
+  sourceLightNeutralMatteShare: number;
+  lightNeutralMatteColor: RGB | null;
+};
+
+type FlatColorSampleEntry = {
+  color: RGB;
+  count: number;
+  firstIndex: number;
+};
+
+type FlatColorSourceMatteAnalysis = {
+  transparentShare: number;
+  lightNeutralMatteShare: number;
+  blueFamilyShare: number;
+  lightNeutralMatteColor: RGB | null;
 };
 
 export function readLayerTurnPolicy(value: string): LayerTurnPolicy {
@@ -188,6 +234,7 @@ export async function createLayeredColorSvg(
   const diagnostics = createConversionDiagnostics({
     routeId: "shared-layered-trace",
     mode: "layered",
+    presetId: opts.presetId,
     uploadBytes: input.length,
     layerCount: opts.layerCount,
     selectedColorRemovalCount: Array.isArray(opts.removeColors)
@@ -207,6 +254,11 @@ export async function createLayeredColorSvg(
       "normalizeBmpInput",
       () => normalizeBmpForSharp(input),
     );
+    const sourceMatte = isFlatColorLayeredOptions(safeOptions)
+      ? await withTimer(diagnostics, "sourceMatte", () =>
+          analyzeFlatColorSourceMatte(sourceInput, safeOptions, sharp),
+        )
+      : null;
     sourceInput = await withTimer(
       diagnostics,
       "neutralizeTransparency",
@@ -262,10 +314,58 @@ export async function createLayeredColorSvg(
     }
 
     startTimer(diagnostics, "palette");
-    const paletteRgb = mergeNearPaletteColors(
-      buildLayerPalette(pixels, safeOptions.layerCount),
-      safeOptions.colorMergeTolerance,
+    const adaptivePalette = analyzeFlatColorAdaptivePalette(
+      raw,
+      width,
+      height,
+      pixels,
+      safeOptions,
+      sourceMatte,
     );
+    const effectiveLayerCount = resolveEffectiveLayerPaletteCount(
+      safeOptions,
+      adaptivePalette,
+    );
+    const effectiveMergeTolerance =
+      effectiveLayerCount > safeOptions.layerCount &&
+      isFlatColorLayeredOptions(safeOptions)
+        ? Math.min(safeOptions.colorMergeTolerance, 4)
+        : safeOptions.colorMergeTolerance;
+    const paletteRgb = mergeNearPaletteColors(
+      buildLayerPalette(pixels, effectiveLayerCount),
+      effectiveMergeTolerance,
+    );
+    diagnostics.effectiveLayerCount = effectiveLayerCount;
+    if (adaptivePalette) {
+      diagnostics.adaptiveLayerPalette = {
+        target: adaptivePalette.target,
+        bucketCount: adaptivePalette.bucketCount,
+        perceptualClusterCount: adaptivePalette.perceptualClusterCount,
+        familyCount: adaptivePalette.familyCount,
+        hueBucketCount: adaptivePalette.hueBucketCount,
+        regionComplexity: Number(adaptivePalette.regionComplexity.toFixed(3)),
+        nearDuplicateDensity: Number(
+          adaptivePalette.nearDuplicateDensity.toFixed(3),
+        ),
+        simpleImageScore: Number(adaptivePalette.simpleImageScore.toFixed(3)),
+        transparentShare: Number(adaptivePalette.transparentShare.toFixed(3)),
+        sourceTransparentShare:
+          adaptivePalette.sourceTransparentShare == null
+            ? undefined
+            : Number(adaptivePalette.sourceTransparentShare.toFixed(3)),
+        lightNeutralShare: Number(adaptivePalette.lightNeutralShare.toFixed(3)),
+        blueFamilyShare: Number(adaptivePalette.blueFamilyShare.toFixed(3)),
+        lightNeutralMatteShare: Number(
+          adaptivePalette.lightNeutralMatteShare.toFixed(3),
+        ),
+        sourceLightNeutralMatteShare: Number(
+          adaptivePalette.sourceLightNeutralMatteShare.toFixed(3),
+        ),
+        lightNeutralMatteColor: adaptivePalette.lightNeutralMatteColor
+          ? rgbObjectToHex(adaptivePalette.lightNeutralMatteColor)
+          : undefined,
+      };
+    }
     endTimer(diagnostics, "palette");
 
     startTimer(diagnostics, "assignLayerMasks");
@@ -334,11 +434,23 @@ export async function createLayeredColorSvg(
       );
     }
 
+    const finalLayers = applyFlatColorLightNeutralMatte(
+      builtLayers,
+      adaptivePalette,
+      safeOptions,
+      width,
+      height,
+    );
+    if (diagnostics.adaptiveLayerPalette) {
+      diagnostics.adaptiveLayerPalette.lightNeutralMatteApplied =
+        finalLayers !== builtLayers;
+    }
+
     const svg = withSynchronousTimer(diagnostics, "buildSvg", () =>
       buildLayeredSvgString({
         width,
         height,
-        layers: builtLayers,
+        layers: finalLayers,
         transparent: safeOptions.transparent,
         bgColor: safeOptions.bgColor,
         backgroundAlpha: safeOptions.backgroundAlpha,
@@ -352,7 +464,7 @@ export async function createLayeredColorSvg(
     );
     diagnostics.finalSvgBytes = Buffer.byteLength(svg, "utf8");
     diagnostics.pathCount = countSvgPaths(svg);
-    diagnostics.layerCount = builtLayers.length;
+    diagnostics.layerCount = finalLayers.length;
     const outputDimensions = resolveOutputDimensions(
       safeOptions,
       width,
@@ -364,7 +476,7 @@ export async function createLayeredColorSvg(
       width: outputDimensions.width,
       height: outputDimensions.height,
       layers: [
-        ...builtLayers.map((layer) => ({
+        ...finalLayers.map((layer) => ({
           id: layer.id,
           label: layer.label,
           color: layer.color,
@@ -383,7 +495,7 @@ export async function createLayeredColorSvg(
                 color: safeOptions.fillStrokeColor,
                 originalColor: safeOptions.fillStrokeColor,
                 visible: true,
-                pathTags: builtLayers
+                pathTags: finalLayers
                   .map((layer) =>
                     filterFillStrokePathTags(extractPathTags(layer.pathTags), {
                       width,
@@ -455,6 +567,7 @@ function normalizeLayeredColorOptions(
       clampLayerNumber(Number(options.outputHeight ?? 0), 0, 6000),
     ),
     preserveAspectRatio: options.preserveAspectRatio !== false,
+    presetId: String(options.presetId || ""),
   };
 }
 
@@ -848,11 +961,456 @@ function shouldKeepLayerCandidate(
   const isDark = luminance(item.rgb) < 96;
   const isSaturatedAccent = colorSaturation(item.rgb) >= 42;
   const isNearBackgroundWhite = isNearWhite(item.rgb);
+  const isLightNeutralDetail =
+    isFlatColorLayeredOptions(options) &&
+    luminance(item.rgb) >= 96 &&
+    luminance(item.rgb) <= 238 &&
+    colorSaturation(item.rgb) <= 54;
   return (
     item.percent >= detailPercentFloor &&
-    (isDark || isSaturatedAccent) &&
+    (isDark || isSaturatedAccent || isLightNeutralDetail) &&
     !isNearBackgroundWhite
   );
+}
+
+function resolveEffectiveLayerPaletteCount(
+  options: NormalizedLayeredColorSvgOptions,
+  analysis: FlatColorPaletteAnalysis | null,
+) {
+  if (!analysis) return options.layerCount;
+  return clampInt(analysis.target, MIN_LAYER_COUNT, 30);
+}
+
+function isFlatColorLayeredOptions(options: NormalizedLayeredColorSvgOptions) {
+  return (
+    options.presetId === "layered-flat-color" ||
+    (
+      options.layerCount >= 14 &&
+      options.layerCount <= 18 &&
+      options.maxTraceSide >= 1400 &&
+      options.minRegionPercent <= 0.12 &&
+      options.posterize === false
+    )
+  );
+}
+
+function analyzeFlatColorAdaptivePalette(
+  raw: Buffer,
+  width: number,
+  height: number,
+  pixels: RGB[],
+  options: NormalizedLayeredColorSvgOptions,
+  sourceMatte: FlatColorSourceMatteAnalysis | null,
+): FlatColorPaletteAnalysis | null {
+  if (!isFlatColorLayeredOptions(options)) return null;
+  const entries = collectFlatColorSampleEntries(pixels);
+  const perceptualClusters = clusterFlatColorSamples(entries, 18);
+  const familyCounts = new Map<FlatColorFamily, number>();
+  const hueBuckets = new Set<number>();
+  const colorBuckets = new Set<string>();
+  let highChromaCount = 0;
+  let lightNeutralCount = 0;
+  let blueFamilyCount = 0;
+  let dominantFamilyCount = 0;
+  let sampledCount = 0;
+  let lightNeutralMatteCount = 0;
+  let lightNeutralMatteColor: RGB | null = null;
+  let lightNeutralMatteColorCount = 0;
+
+  for (const entry of entries) {
+    const color = entry.color;
+    const family = flatColorFamily(color);
+    familyCounts.set(family, (familyCounts.get(family) || 0) + entry.count);
+    colorBuckets.add(
+      `${Math.floor(color.r / 16)},${Math.floor(color.g / 16)},${Math.floor(color.b / 16)}`,
+    );
+    sampledCount += entry.count;
+    if (colorSaturation(color) >= 64) {
+      highChromaCount += entry.count;
+      hueBuckets.add(Math.floor(rgbHueDegrees(color) / 24));
+    }
+    if (family === "blue" || family === "cyan") blueFamilyCount += entry.count;
+    if (family === "lightNeutral" || family === "neutral") {
+      lightNeutralCount += entry.count;
+    }
+    if (isFlatColorLightNeutralMatte(color)) {
+      lightNeutralMatteCount += entry.count;
+      if (entry.count > lightNeutralMatteColorCount) {
+        lightNeutralMatteColor = color;
+        lightNeutralMatteColorCount = entry.count;
+      }
+    }
+  }
+
+  for (const count of familyCounts.values()) {
+    dominantFamilyCount = Math.max(dominantFamilyCount, count);
+  }
+
+  const regionComplexity = estimateFlatColorRegionComplexity(raw, width, height, options);
+  const transparentShare = estimateTransparentShare(raw, width, height);
+  const meaningfulFamilies = [...familyCounts.values()].filter(
+    (count) => count / Math.max(1, sampledCount) >= 0.01,
+  ).length;
+  const nearDuplicateDensity =
+    1 - perceptualClusters.length / Math.max(1, entries.length);
+  const dominantFamilyShare = dominantFamilyCount / Math.max(1, sampledCount);
+  const lightNeutralShare = lightNeutralCount / Math.max(1, sampledCount);
+  const sourceBlueFamilyShare = sourceMatte?.blueFamilyShare ?? 0;
+  const blueFamilyShare = Math.max(
+    blueFamilyCount / Math.max(1, sampledCount),
+    sourceBlueFamilyShare,
+  );
+  const outputLightNeutralMatteShare =
+    lightNeutralMatteCount / Math.max(1, sampledCount);
+  const sourceLightNeutralMatteShare =
+    sourceMatte && sourceMatte.transparentShare <= 0.03
+      ? sourceMatte.lightNeutralMatteShare
+      : 0;
+  const effectiveLightNeutralMatteShare = Math.max(
+    outputLightNeutralMatteShare,
+    sourceLightNeutralMatteShare,
+  );
+  const effectiveLightNeutralMatteColor =
+    sourceLightNeutralMatteShare > outputLightNeutralMatteShare
+      ? sourceMatte?.lightNeutralMatteColor ?? lightNeutralMatteColor
+      : lightNeutralMatteColor;
+  const simpleImageScore =
+    (dominantFamilyShare > 0.45 ? 0.55 : 0) +
+    (nearDuplicateDensity > 0.82 ? 0.25 : 0) +
+    (regionComplexity < 0.55 ? 0.2 : 0) +
+    (perceptualClusters.length < 80 ? 0.35 : 0);
+  const blueNeutralRisk =
+    blueFamilyShare > 0.12 && lightNeutralShare > 0.18 ? 1 : 0;
+  const rawTarget =
+    8 +
+    Math.log2(1 + perceptualClusters.length) * 1.55 +
+    meaningfulFamilies * 0.55 +
+    hueBuckets.size * 0.28 +
+    regionComplexity * 2.2 +
+    Math.min(4, colorBuckets.size / 120) +
+    (highChromaCount / Math.max(1, sampledCount)) * 2.5 +
+    blueNeutralRisk * 1.5 -
+    nearDuplicateDensity * 2.8 -
+    simpleImageScore * 4.2;
+
+  let target = Math.round(rawTarget);
+  if (colorBuckets.size >= 90 && meaningfulFamilies >= 4) {
+    target = Math.max(target, 18);
+  }
+  if (perceptualClusters.length >= 90 && meaningfulFamilies >= 8) {
+    target = Math.max(target, 24);
+  }
+  if (perceptualClusters.length >= 350 || colorBuckets.size >= 600) {
+    target = Math.max(target, 28);
+  }
+  if (perceptualClusters.length >= 700 || colorBuckets.size >= 900) {
+    target = 30;
+  }
+  if (simpleImageScore >= 1 && perceptualClusters.length < 90) {
+    target = Math.min(target, 18);
+  }
+
+  return {
+    target: clampInt(target, MIN_LAYER_COUNT, 30),
+    bucketCount: colorBuckets.size,
+    perceptualClusterCount: perceptualClusters.length,
+    familyCount: meaningfulFamilies,
+    hueBucketCount: hueBuckets.size,
+    regionComplexity,
+    nearDuplicateDensity,
+    simpleImageScore,
+    transparentShare,
+    sourceTransparentShare: sourceMatte?.transparentShare ?? null,
+    lightNeutralShare,
+    blueFamilyShare,
+    lightNeutralMatteShare: effectiveLightNeutralMatteShare,
+    sourceLightNeutralMatteShare,
+    lightNeutralMatteColor: effectiveLightNeutralMatteColor,
+  };
+}
+
+async function analyzeFlatColorSourceMatte(
+  input: Buffer,
+  options: NormalizedLayeredColorSvgOptions,
+  sharp: typeof import("sharp"),
+): Promise<FlatColorSourceMatteAnalysis> {
+  const { data, info } = await sharp(input)
+    .rotate()
+    .resize({
+      width: options.maxTraceSide,
+      height: options.maxTraceSide,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  return analyzeFlatColorMatteFromRaw(
+    data as Buffer,
+    info.width | 0,
+    info.height | 0,
+    options,
+  );
+}
+
+function analyzeFlatColorMatteFromRaw(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: NormalizedLayeredColorSvgOptions,
+): FlatColorSourceMatteAnalysis {
+  const total = Math.max(1, width * height);
+  const step = Math.max(1, Math.floor(total / 200000));
+  const matteCounts = new Map<string, { color: RGB; count: number }>();
+  let sampled = 0;
+  let transparent = 0;
+  let blueFamily = 0;
+  let matte = 0;
+
+  for (let pixel = 0; pixel < total; pixel += step) {
+    const offset = pixel * 4;
+    const alpha = raw[offset + 3];
+    if (alpha < 18) {
+      transparent += 1;
+      continue;
+    }
+    const color = normalizeRawLayerPixel(raw, offset, alpha, options);
+    if (!color) continue;
+    sampled += 1;
+    const family = flatColorFamily(color);
+    if (family === "blue" || family === "cyan") blueFamily += 1;
+    if (!isFlatColorLightNeutralMatte(color)) continue;
+    matte += 1;
+    const key = `${color.r},${color.g},${color.b}`;
+    const current = matteCounts.get(key);
+    if (current) {
+      current.count += 1;
+    } else {
+      matteCounts.set(key, { color, count: 1 });
+    }
+  }
+
+  const topMatte =
+    [...matteCounts.values()].sort((a, b) => b.count - a.count)[0]?.color ?? null;
+  return {
+    transparentShare: transparent / Math.max(1, sampled + transparent),
+    lightNeutralMatteShare: matte / Math.max(1, sampled),
+    blueFamilyShare: blueFamily / Math.max(1, sampled),
+    lightNeutralMatteColor: topMatte,
+  };
+}
+
+function collectFlatColorSampleEntries(pixels: RGB[]): FlatColorSampleEntry[] {
+  const entries = new Map<string, FlatColorSampleEntry>();
+  for (let index = 0; index < pixels.length; index += 1) {
+    const color = pixels[index];
+    const key = `${color.r},${color.g},${color.b}`;
+    const current = entries.get(key);
+    if (current) {
+      current.count += 1;
+    } else {
+      entries.set(key, { color, count: 1, firstIndex: index });
+    }
+  }
+  return [...entries.values()].sort(
+    (a, b) => b.count - a.count || a.firstIndex - b.firstIndex,
+  );
+}
+
+function clusterFlatColorSamples(
+  entries: FlatColorSampleEntry[],
+  tolerance: number,
+): FlatColorSampleEntry[] {
+  const clusters: FlatColorSampleEntry[] = [];
+  for (const entry of entries) {
+    let best: FlatColorSampleEntry | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    const entryFamily = flatColorFamily(entry.color);
+    for (const cluster of clusters) {
+      if (flatColorFamily(cluster.color) !== entryFamily) continue;
+      const distance = colorDistance(entry.color, cluster.color);
+      if (distance < bestDistance) {
+        best = cluster;
+        bestDistance = distance;
+      }
+    }
+    if (best && bestDistance <= tolerance) {
+      best.count += entry.count;
+    } else {
+      clusters.push({ ...entry });
+    }
+  }
+  return clusters;
+}
+
+function estimateFlatColorRegionComplexity(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: NormalizedLayeredColorSvgOptions,
+) {
+  const grid = 8;
+  const dominant: string[][] = [];
+  let transitions = 0;
+  let cells = 0;
+  const sampleXStep = Math.max(1, Math.floor(width / 160));
+  const sampleYStep = Math.max(1, Math.floor(height / 160));
+  for (let row = 0; row < grid; row += 1) {
+    dominant[row] = [];
+    const yStart = Math.floor((row / grid) * height);
+    const yEnd = Math.floor(((row + 1) / grid) * height);
+    for (let col = 0; col < grid; col += 1) {
+      const counts = new Map<FlatColorFamily, number>();
+      const xStart = Math.floor((col / grid) * width);
+      const xEnd = Math.floor(((col + 1) / grid) * width);
+      for (let y = yStart; y < yEnd; y += sampleYStep) {
+        for (let x = xStart; x < xEnd; x += sampleXStep) {
+          const offset = (y * width + x) * 4;
+          const alpha = raw[offset + 3];
+          if (options.removeTransparent && alpha < 18) continue;
+          const color = normalizeRawLayerPixel(raw, offset, alpha, options);
+          if (!color) continue;
+          const family = flatColorFamily(color);
+          counts.set(family, (counts.get(family) || 0) + 1);
+        }
+      }
+      const family = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      dominant[row][col] = family || "lightNeutral";
+      if (col > 0 && dominant[row][col - 1] !== dominant[row][col]) {
+        transitions += 1;
+      }
+      if (row > 0 && dominant[row - 1][col] !== dominant[row][col]) {
+        transitions += 1;
+      }
+      cells += 1;
+    }
+  }
+  return transitions / Math.max(1, cells);
+}
+
+function normalizeRawLayerPixel(
+  raw: Buffer,
+  offset: number,
+  alpha: number,
+  options: NormalizedLayeredColorSvgOptions,
+): RGB | null {
+  let r = raw[offset];
+  let g = raw[offset + 1];
+  let b = raw[offset + 2];
+  if (alpha < 255 && !options.removeTransparent) {
+    r = blendChannel(r, alpha, 255);
+    g = blendChannel(g, alpha, 255);
+    b = blendChannel(b, alpha, 255);
+  }
+  if (options.posterize) {
+    r = posterizeChannel(r, options.posterizeStrength);
+    g = posterizeChannel(g, options.posterizeStrength);
+    b = posterizeChannel(b, options.posterizeStrength);
+  }
+  const color = { r, g, b };
+  if (options.removeWhite && isNearWhite(color)) return null;
+  if (isSelectedRemoveColor(color, options)) return null;
+  return color;
+}
+
+function estimateTransparentShare(raw: Buffer, width: number, height: number) {
+  const total = Math.max(1, width * height);
+  const step = Math.max(1, Math.floor(total / 20000));
+  let transparent = 0;
+  let sampled = 0;
+  for (let pixel = 0; pixel < total; pixel += step) {
+    sampled += 1;
+    if (raw[pixel * 4 + 3] < 18) transparent += 1;
+  }
+  return transparent / Math.max(1, sampled);
+}
+
+function applyFlatColorLightNeutralMatte(
+  layers: TraceLayerBuildItem[],
+  analysis: FlatColorPaletteAnalysis | null,
+  options: NormalizedLayeredColorSvgOptions,
+  width: number,
+  height: number,
+) {
+  const sourceOpaqueMatte =
+    analysis &&
+    analysis.sourceTransparentShare != null &&
+    analysis.sourceTransparentShare <= 0.03 &&
+    analysis.sourceLightNeutralMatteShare >= 0.28;
+  const outputOpaqueMatte =
+    analysis &&
+    analysis.transparentShare <= 0.03 &&
+    analysis.lightNeutralMatteShare >= 0.28;
+  if (
+    !analysis ||
+    !analysis.lightNeutralMatteColor ||
+    !isFlatColorLayeredOptions(options) ||
+    (!sourceOpaqueMatte && !outputOpaqueMatte) ||
+    analysis.blueFamilyShare < 0.08
+  ) {
+    return layers;
+  }
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < layers.length; index += 1) {
+    const rgb = parseHexToRgb(layers[index].color);
+    if (!rgb || !isFlatColorLightNeutralMatte(rgb)) continue;
+    const distance = colorDistance(rgb, analysis.lightNeutralMatteColor);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+  if (bestIndex < 0 || bestDistance > 32) return layers;
+  const backgroundPath = `<path d="M 0 0 H ${formatNumber(width)} V ${formatNumber(height)} H 0 Z" />`;
+  const backgroundLayer = {
+    ...layers[bestIndex],
+    pathTags: `${backgroundPath}${layers[bestIndex].pathTags}`,
+  };
+  return [
+    backgroundLayer,
+    ...layers.slice(0, bestIndex),
+    ...layers.slice(bestIndex + 1),
+  ];
+}
+
+function flatColorFamily(color: RGB): FlatColorFamily {
+  const lum = luminance(color);
+  const sat = colorSaturation(color);
+  if (lum < 42) return "dark";
+  if (lum > 238 && sat <= 24) return "lightNeutral";
+  if (sat <= 34) return lum > 190 ? "lightNeutral" : "neutral";
+  const hue = rgbHueDegrees(color);
+  if (hue < 18 || hue >= 342) return "red";
+  if (hue < 48) return "orange";
+  if (hue < 72) return "yellow";
+  if (hue < 155) return "green";
+  if (hue < 190) return "cyan";
+  if (hue < 255) return "blue";
+  if (hue < 292) return "purple";
+  return "pink";
+}
+
+function isFlatColorLightNeutralMatte(color: RGB) {
+  const lum = luminance(color);
+  return lum >= 214 && colorSaturation(color) <= 34;
+}
+
+function rgbHueDegrees(color: RGB) {
+  const r = color.r / 255;
+  const g = color.g / 255;
+  const b = color.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  if (delta <= 0) return 0;
+  let hue = 0;
+  if (max === r) hue = ((g - b) / delta) % 6;
+  else if (max === g) hue = (b - r) / delta + 2;
+  else hue = (r - g) / delta + 4;
+  hue *= 60;
+  return hue < 0 ? hue + 360 : hue;
 }
 
 function seedLayerCentroids(pixels: RGB[], k: number): RGB[] {

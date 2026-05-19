@@ -76,11 +76,20 @@ type FlatColorStats = {
   firstIndex: number;
   pathCount: number;
   weight: number;
+  bbox: FlatColorBounds | null;
+  centerX: number | null;
+  centerY: number | null;
   luma: number;
   saturation: number;
   isTiny: boolean;
   isNearBlack: boolean;
   isNearWhite: boolean;
+};
+type FlatColorBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
 };
 type FlatColorGroup = {
   representative: FlatColorStats;
@@ -88,6 +97,7 @@ type FlatColorGroup = {
   weight: number;
   pathCount: number;
   firstIndex: number;
+  bbox: FlatColorBounds | null;
 };
 
 type PreparedImage = {
@@ -687,6 +697,10 @@ function collectFlatColorStats(svg: string, settings: NormalizedTraceSettings): 
       firstIndex: number;
       pathCount: number;
       weight: number;
+      bbox: FlatColorBounds | null;
+      centerWeight: number;
+      centerX: number;
+      centerY: number;
     }
   >();
   const pathPattern = /<path\b([^>]*)>/gi;
@@ -702,9 +716,16 @@ function collectFlatColorStats(svg: string, settings: NormalizedTraceSettings): 
     if (!rgb) continue;
     const current = colors.get(color);
     const pathWeight = flatColorPathWeight(attrs);
+    const bbox = flatColorPathBounds(attrs);
     if (current) {
       current.pathCount += 1;
       current.weight += pathWeight;
+      current.bbox = mergeFlatColorBounds(current.bbox, bbox);
+      if (bbox) {
+        current.centerX += flatColorBoundsCenterX(bbox) * pathWeight;
+        current.centerY += flatColorBoundsCenterY(bbox) * pathWeight;
+        current.centerWeight += pathWeight;
+      }
     } else {
       colors.set(color, {
         color,
@@ -712,6 +733,10 @@ function collectFlatColorStats(svg: string, settings: NormalizedTraceSettings): 
         firstIndex: index,
         pathCount: 1,
         weight: pathWeight,
+        bbox,
+        centerWeight: bbox ? pathWeight : 0,
+        centerX: bbox ? flatColorBoundsCenterX(bbox) * pathWeight : 0,
+        centerY: bbox ? flatColorBoundsCenterY(bbox) * pathWeight : 0,
       });
     }
   }
@@ -723,6 +748,8 @@ function collectFlatColorStats(svg: string, settings: NormalizedTraceSettings): 
     const share = item.weight / totalWeight;
     return {
       ...item,
+      centerX: item.centerWeight > 0 ? item.centerX / item.centerWeight : null,
+      centerY: item.centerWeight > 0 ? item.centerY / item.centerWeight : null,
       luma,
       saturation,
       isTiny: share < 0.004 || (item.pathCount <= 2 && share < 0.015),
@@ -735,6 +762,46 @@ function collectFlatColorStats(svg: string, settings: NormalizedTraceSettings): 
 function flatColorPathWeight(attrs: string) {
   const d = String(attrs || "").match(/\sd\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
   return 1 + Math.min(24, Math.sqrt(d.length || 0) / 4);
+}
+
+function flatColorPathBounds(attrs: string): FlatColorBounds | null {
+  const d = String(attrs || "").match(/\sd\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
+  if (!d) return null;
+  const numbers = d.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number).filter(Number.isFinite) || [];
+  if (numbers.length < 2) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (let index = 0; index + 1 < numbers.length; index += 2) {
+    const x = numbers[index];
+    const y = numbers[index + 1];
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+function mergeFlatColorBounds(a: FlatColorBounds | null, b: FlatColorBounds | null) {
+  if (!a) return b;
+  if (!b) return a;
+  return {
+    minX: Math.min(a.minX, b.minX),
+    minY: Math.min(a.minY, b.minY),
+    maxX: Math.max(a.maxX, b.maxX),
+    maxY: Math.max(a.maxY, b.maxY),
+  };
+}
+
+function flatColorBoundsCenterX(bounds: FlatColorBounds) {
+  return (bounds.minX + bounds.maxX) / 2;
+}
+
+function flatColorBoundsCenterY(bounds: FlatColorBounds) {
+  return (bounds.minY + bounds.maxY) / 2;
 }
 
 function buildFlatColorGroups(stats: FlatColorStats[]): FlatColorGroup[] {
@@ -752,6 +819,7 @@ function buildFlatColorGroups(stats: FlatColorStats[]): FlatColorGroup[] {
         weight: stat.weight,
         pathCount: stat.pathCount,
         firstIndex: stat.firstIndex,
+        bbox: stat.bbox,
       });
     }
   }
@@ -770,6 +838,7 @@ function findFlatColorGroup(stat: FlatColorStats, groups: FlatColorGroup[]) {
     const distance = perceptualDistance(stat.rgb, representative.rgb, "ciede2000");
     const threshold = flatColorMergeThreshold(stat, representative);
     if (distance > threshold) continue;
+    if (!flatColorSpatiallyCompatible(stat, group, distance)) continue;
     const score = distance / Math.max(0.1, threshold);
     if (
       score < bestScore ||
@@ -799,6 +868,59 @@ function flatColorMergeThreshold(a: FlatColorStats, b: FlatColorStats) {
     !b.isNearWhite;
   const base = saturatedMidTone ? 7 : 9.5;
   return a.isTiny || b.isTiny ? Math.max(base, 12) : base;
+}
+
+function flatColorSpatiallyCompatible(stat: FlatColorStats, group: FlatColorGroup, distance: number) {
+  const representative = group.representative;
+  if (distance <= 3.25) return true;
+  if (stat.isNearBlack && representative.isNearBlack) return true;
+
+  const statBlue = isFlatColorBlueFamily(stat);
+  const groupBlue = isFlatColorBlueFamily(representative);
+  const statNeutral = isFlatColorLightNeutralFamily(stat);
+  const groupNeutral = isFlatColorLightNeutralFamily(representative);
+  if ((statBlue && groupNeutral) || (groupBlue && statNeutral)) {
+    return false;
+  }
+
+  const spatial = flatColorSpatialRelation(stat.bbox, group.bbox);
+  if (!spatial.known) return true;
+  if (spatial.overlaps || spatial.near) return true;
+
+  const smallerWeight = Math.min(stat.weight, group.weight);
+  const largerWeight = Math.max(stat.weight, group.weight);
+  const smallMeaningfulRegion = smallerWeight / Math.max(1, largerWeight) < 0.18;
+  if (smallMeaningfulRegion && distance > 4.75) return false;
+  if (!stat.isTiny && distance > 6.5) return false;
+  if (stat.isTiny && distance <= 5.5) return true;
+  return false;
+}
+
+function isFlatColorBlueFamily(stat: FlatColorStats) {
+  const hue = rgbHue(stat.rgb);
+  return hue >= 175 && hue <= 265 && stat.saturation >= 0.18;
+}
+
+function isFlatColorLightNeutralFamily(stat: FlatColorStats) {
+  return stat.saturation <= 0.3 && stat.luma >= 0.36 && stat.luma <= 0.92;
+}
+
+function flatColorSpatialRelation(a: FlatColorBounds | null, b: FlatColorBounds | null) {
+  if (!a || !b) return { known: false, overlaps: false, near: false };
+  const xGap = Math.max(0, Math.max(a.minX, b.minX) - Math.min(a.maxX, b.maxX));
+  const yGap = Math.max(0, Math.max(a.minY, b.minY) - Math.min(a.maxY, b.maxY));
+  const overlaps = xGap === 0 && yGap === 0;
+  const scale = Math.max(
+    1,
+    Math.sqrt(Math.max(1, flatColorBoundsArea(a))),
+    Math.sqrt(Math.max(1, flatColorBoundsArea(b))),
+  );
+  const normalizedGap = Math.sqrt(xGap * xGap + yGap * yGap) / scale;
+  return { known: true, overlaps, near: normalizedGap <= 0.4 };
+}
+
+function flatColorBoundsArea(bounds: FlatColorBounds) {
+  return Math.max(1, bounds.maxX - bounds.minX) * Math.max(1, bounds.maxY - bounds.minY);
 }
 
 function pruneFlatColorGroups(groups: FlatColorGroup[]) {
@@ -840,6 +962,7 @@ function mergeFlatColorStat(group: FlatColorGroup, stat: FlatColorStats) {
   group.weight += stat.weight;
   group.pathCount += stat.pathCount;
   group.firstIndex = Math.min(group.firstIndex, stat.firstIndex);
+  group.bbox = mergeFlatColorBounds(group.bbox, stat.bbox);
   group.representative = chooseFlatColorRepresentative(group.members);
 }
 
@@ -850,6 +973,7 @@ function mergeFlatColorGroup(target: FlatColorGroup, source: FlatColorGroup) {
   target.weight += source.weight;
   target.pathCount += source.pathCount;
   target.firstIndex = Math.min(target.firstIndex, source.firstIndex);
+  target.bbox = mergeFlatColorBounds(target.bbox, source.bbox);
   target.representative = chooseFlatColorRepresentative(target.members);
 }
 
@@ -900,6 +1024,22 @@ function rgbSaturation(color: RGB) {
   if (max === min) return 0;
   const lightness = (max + min) / 2;
   return (max - min) / (1 - Math.abs(2 * lightness - 1));
+}
+
+function rgbHue(color: RGB) {
+  const r = color.r / 255;
+  const g = color.g / 255;
+  const b = color.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  if (delta <= 0) return 0;
+  let hue = 0;
+  if (max === r) hue = ((g - b) / delta) % 6;
+  else if (max === g) hue = (b - r) / delta + 2;
+  else hue = (r - g) / delta + 4;
+  hue *= 60;
+  return hue < 0 ? hue + 360 : hue;
 }
 
 function annotateSvgLayerIds(svg: string, settings: NormalizedTraceSettings) {
