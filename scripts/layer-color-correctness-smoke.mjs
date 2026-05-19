@@ -27,7 +27,7 @@ const scenarios = [
   {
     id: "home-layered-flat-color",
     route: "/",
-    targetKind: "tagged",
+    targetKind: "auto",
     fixtureKind: "png",
     presetPatterns: [/^Layered - Flat Color\b/i],
     presetLabel: "Layered - Flat Color",
@@ -482,15 +482,27 @@ function signature(target, options) {
 }
 
 function analyzeLayerTargets(svg, targetKind) {
-  const targets =
-    targetKind === "group" ? collectGroupLayerTargets(svg) : collectTaggedPaintTargets(svg);
+  const targetResult = collectLayerTargetsByKind(svg, targetKind);
+  const targets = targetResult.targets;
   const byKey = new Map(targets.map((target) => [target.key, target]));
   return {
-    targetKind,
+    targetKind: targetResult.targetKind,
     targets,
     byKey,
     totalVisibleElements: targets.reduce((sum, target) => sum + target.visibleCount, 0),
   };
+}
+
+function collectLayerTargetsByKind(svg, targetKind) {
+  if (targetKind === "group") {
+    return { targetKind: "group", targets: collectGroupLayerTargets(svg) };
+  }
+  if (targetKind === "auto") {
+    const tagged = collectTaggedPaintTargets(svg);
+    if (tagged.length > 0) return { targetKind: "tagged", targets: tagged };
+    return { targetKind: "group", targets: collectGroupLayerTargets(svg) };
+  }
+  return { targetKind: "tagged", targets: collectTaggedPaintTargets(svg) };
 }
 
 function collectTaggedPaintTargets(svg) {
