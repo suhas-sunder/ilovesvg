@@ -1315,8 +1315,16 @@ function summarizeResults(results, staticFindings) {
     if (!home.copyDownloadParity?.downloadMatchedPreview) {
       failures.push("Home layered Download SVG output does not match the edited preview.");
     }
-    if (home.latestOutput?.engineUsed !== "vtracer") {
-      failures.push("Home layered coverage scenario did not exercise the tagged VTracer output path.");
+    const homeEngineUsed = String(home.latestOutput?.engineUsed || "").toLowerCase();
+    if (!["vtracer", "potrace"].includes(homeEngineUsed)) {
+      failures.push(
+        `Home layered coverage scenario used unsupported engine "${home.latestOutput?.engineUsed || "unknown"}"; expected VTracer or server Potrace layered output.`,
+      );
+    }
+    if (!hasGroupedEditableLayerCoverage(home)) {
+      failures.push(
+        "Home layered coverage scenario did not produce grouped editable Layered - Flat Color output.",
+      );
     }
     if (home.counts.actualVisibleSvgColorsBeforeHide > 16 && home.counts.pathTagsPaintColors === 0) {
       failures.push("Home layered output has many visible colors but no tagged path colors to edit.");
@@ -1365,6 +1373,24 @@ function summarizeResults(results, staticFindings) {
     failures,
     hardCapsFound: staticFindings.hardCaps,
   };
+}
+
+function hasGroupedEditableLayerCoverage(result) {
+  const counts = result.counts || {};
+  const layerUi = result.uiSnapshots?.layerColorsBeforeHide?.ui?.layerColors;
+  return (
+    counts.actualVisibleSvgColorsBeforeHide >= 2 &&
+    counts.actualVisibleSvgColorsBeforeHide < FLAT_COLOR_MAX_EDITABLE_GROUPS &&
+    counts.layerRowsExposed === counts.actualVisibleSvgColorsBeforeHide &&
+    counts.layerMetadataColorsExposed === counts.layerRowsExposed &&
+    counts.visibleColorsAfterHidingAllExposedLayerColors === 0 &&
+    counts.layerRowsExposed < FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD &&
+    counts.fillTargetSelectorLayerOptions >= counts.layerRowsExposed &&
+    layerUi?.rowCount === counts.layerRowsExposed &&
+    layerUi?.uniqueColors?.length === counts.layerRowsExposed &&
+    Boolean(result.copyDownloadParity?.copyMatchedPreview) &&
+    Boolean(result.copyDownloadParity?.downloadMatchedPreview)
+  );
 }
 
 async function collectStaticFindings() {
