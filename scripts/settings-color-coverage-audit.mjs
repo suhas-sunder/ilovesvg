@@ -1485,7 +1485,18 @@ async function waitForCompletedOutput(client, previousLatestStamp, timeoutMs, op
 }
 
 async function settleInitialAutoConversion(client, timeoutMs) {
-  const state = await outputState(client).catch(() => null);
+  const deadline = Date.now() + 4_000;
+  let state = await outputState(client).catch(() => null);
+  while (
+    state &&
+    !state.activeJobs &&
+    !state.latestReady &&
+    state.outputCards === 0 &&
+    Date.now() < deadline
+  ) {
+    await delay(250);
+    state = await outputState(client).catch(() => null);
+  }
   if (!state?.activeJobs) return { settled: true, reason: "idle" };
   const completed = await waitForCompletedOutput(client, state.latestStamp, timeoutMs);
   return { settled: true, reason: "waited for initial auto conversion", completed };

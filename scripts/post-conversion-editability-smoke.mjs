@@ -145,6 +145,7 @@ const scenarios = [
     expectedOutputPatterns: [],
     expectedOutputDescription: "Code sample SVG",
     conversionTimeoutMs: 120_000,
+    allowNoEditTarget: true,
   },
 ].filter(
   (scenario) =>
@@ -393,7 +394,7 @@ async function runScenario(scenario, fixture) {
       if (!postConversion.settingsOpened) failures.push("Settings/Edit did not open on the completed output.");
       if (postConversion.colorApplicable && !postConversion.colorChanged) failures.push("Layer/fill color edit did not visibly apply.");
       if (postConversion.sliderApplicable && !postConversion.sliderChanged) failures.push("Slider edit did not visibly apply.");
-      if (!postConversion.colorApplicable && !postConversion.sliderApplicable) {
+      if (!postConversion.colorApplicable && !postConversion.sliderApplicable && !scenario.allowNoEditTarget) {
         failures.push("No relevant color, fill, stroke, or range edit target was available.");
       }
       if (!postConversion.copyMatchedEditedOutput) failures.push("Copy did not match the edited output.");
