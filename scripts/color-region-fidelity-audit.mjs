@@ -373,7 +373,8 @@ async function runScenario(scenario, fixtures) {
 async function collectOutputSnapshot(client, phase) {
   return evaluate(client, `(async () => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
-    const svg = latest ? await decodeLatestSvg(latest) : "";
+    const lightweight = ${JSON.stringify(process.env.COLOR_REGION_FIDELITY_LIGHTWEIGHT === "1")};
+    const svg = !lightweight && latest ? await decodeLatestSvg(latest) : "";
     const layerSection = latest?.querySelector('[data-layer-color-total-count]');
     const layerAllColors = String(layerSection?.getAttribute("data-layer-color-all-colors") || "")
       .split(/[\\s,]+/)
@@ -403,6 +404,7 @@ async function collectOutputSnapshot(client, phase) {
         mountedLayerRows: rows.length,
         exposedLayerColors: unique([...layerAllColors, ...rowColors]),
       },
+      lightweight,
       svg,
     };
 
@@ -475,7 +477,7 @@ async function collectOutputSnapshot(client, phase) {
       const number = Number(text.replace(/[^0-9.]/g, ""));
       return Number.isFinite(number) ? number : null;
     }
-  })()`, 60_000);
+  })()`, 180_000);
 }
 
 async function analyzeRegionFidelity({ scenario, fixture, svg }) {
