@@ -254,6 +254,11 @@ async function main() {
     inventory,
     liveMeasurements,
   });
+  const presetGuardrails = buildPresetGuardrailDiagnostics({
+    inventory,
+    fixtureMatrix,
+    liveMeasurements,
+  });
   const conditionalColorCountPlan = buildConditionalColorCountPlan();
   const recommendedImplementationOrder = buildRecommendedImplementationOrder();
   const summary = summarize({
@@ -262,6 +267,7 @@ async function main() {
     fixtureMatrix,
     sourceFindings,
     liveMeasurements,
+    presetGuardrails,
   });
 
   const report = {
@@ -278,29 +284,34 @@ async function main() {
     liveMeasurements,
     fixtureAnalyses,
     fixturePresetMatrix: fixtureMatrix,
+    presetGuardrails,
     presetContracts,
     conditionalColorCountPlan,
     recommendedImplementationOrder,
     summary,
     nonGoals: [
-      "No production conversion changes.",
-      "No preset changes.",
+      "No production conversion changes outside focused 8 Color and Poster guardrails.",
+      "No unrelated preset changes.",
       "No route URL, SEO, navigation, sitemap, monetization, affiliate, compression, or settings UI changes.",
       "No binary fixture commits.",
     ],
   };
 
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  const ok = presetGuardrails.failures.length === 0;
   console.log(
     JSON.stringify(
       {
-        ok: true,
+        ok,
         reportPath,
         availableFixtureCount: fixtures.available.length,
         unavailableFixtureCount: fixtures.unavailable.length,
         presetInventoryCount: inventory.allPresets.length,
         corePresetCount: presetContracts.length,
         matrixRowCount: fixtureMatrix.length,
+        guardrailScenarioCount: presetGuardrails.fixtureRouteMatrix.length,
+        guardrailFailureCount: presetGuardrails.failures.length,
+        guardrailFailures: presetGuardrails.failures,
         sourceRisks: summary.sourceRisks,
         measuredScenarioCount: liveMeasurements.length,
       },
@@ -308,6 +319,7 @@ async function main() {
       2,
     ),
   );
+  if (!ok) process.exitCode = 1;
 }
 
 async function readSourceFiles() {
@@ -1070,6 +1082,7 @@ function buildFixtureMatrix({ fixtureAnalyses, presetContracts, inventory, liveM
     const suggested = Math.max(1, fixture.suggestedUiGroupCount);
     const hardMax = contract.hardMaximumEditableColorGroups;
     if (contract.id === "layered-8-color") {
+      if (fixture.sampledUniqueColorCount > 1000) return hardMax;
       return clampInt(Math.min(8, Math.max(major, Math.min(meaningful, 8))), 1, hardMax);
     }
     if (contract.id === "layered-poster") {
@@ -1095,6 +1108,180 @@ function buildFixtureMatrix({ fixtureAnalyses, presetContracts, inventory, liveM
     }
     return clampInt(Math.min(hardMax, suggested), 1, hardMax);
   }
+}
+
+function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasurements }) {
+  const focusedContracts = [
+    {
+      id: "layered-8-color",
+      label: "Layered - 8 Color",
+      expectedRange: [2, 8],
+      hardMax: 8,
+    },
+    {
+      id: "layered-poster",
+      label: "Layered - Poster",
+      expectedRange: [4, 12],
+      hardMax: 12,
+    },
+  ];
+  const routes = ["/", "/png-to-layered-svg-for-cricut", "/jpg-to-layered-svg-for-cricut"];
+  const failures = [];
+  const sourceContracts = focusedContracts.map((contract) => {
+    const sourcePreset =
+      inventory.allPresets.find(
+        (preset) => preset.id === contract.id && preset.sourceKind === "shared-layered-addition",
+      ) || inventory.allPresets.find((preset) => preset.id === contract.id) || null;
+    const settings = sourcePreset?.settings || {};
+    const colorLayerCount = numberOrNull(settings.colorLayerCount);
+    const routeLayerCount = numberOrNull(settings.layerCount);
+    const requestedPaletteCount = numberOrNull(settings.requestedPaletteCount);
+    const layerBuildMode = String(settings.layerBuildMode || "");
+    const finalRequestedCount = requestedPaletteCount ?? colorLayerCount ?? routeLayerCount ?? null;
+    const usesGroupedClientPath =
+      layerBuildMode === "per-color-cutout" || layerBuildMode === "stacked-overlap";
+    const sourceFindings = [];
+
+    if (!sourcePreset) {
+      sourceFindings.push(`${contract.label} source preset was not found.`);
+    }
+    if (colorLayerCount == null || colorLayerCount > contract.hardMax) {
+      sourceFindings.push(
+        `${contract.label} colorLayerCount must be present and <= ${contract.hardMax}.`,
+      );
+    }
+    if (requestedPaletteCount == null || requestedPaletteCount > contract.hardMax) {
+      sourceFindings.push(
+        `${contract.label} requestedPaletteCount must be present and <= ${contract.hardMax} so the browser worker uses a bounded palette.`,
+      );
+    }
+    if (routeLayerCount == null || routeLayerCount > contract.hardMax) {
+      sourceFindings.push(
+        `${contract.label} layerCount must be present and <= ${contract.hardMax} so PNG/JPG layered routes do not fall back to their route default.`,
+      );
+    }
+    if (!usesGroupedClientPath) {
+      sourceFindings.push(
+        `${contract.label} must use a grouped client layerBuildMode, not raw VTracer posterize output.`,
+      );
+    }
+    if (settings.posterize !== true) {
+      sourceFindings.push(`${contract.label} must keep posterize enabled for compact layered output.`);
+    }
+    if (contract.id === "layered-poster" && (numberOrNull(settings.posterizeStrength) ?? 0) < 4) {
+      sourceFindings.push("Layered - Poster should keep posterizeStrength at 4 or higher for broad tonal bands.");
+    }
+
+    failures.push(...sourceFindings);
+
+    return {
+      presetId: contract.id,
+      preset: contract.label,
+      sourceFile: sourcePreset?.sourceFile || null,
+      sourceKind: sourcePreset?.sourceKind || null,
+      routeAvailability: sourcePreset?.routeAvailability || [],
+      expectedRange: contract.expectedRange,
+      hardMaxEditableGroups: contract.hardMax,
+      colorLayerCount,
+      routeLayerCount,
+      requestedPaletteCount,
+      finalRequestedCount,
+      layerBuildMode: layerBuildMode || null,
+      posterize: settings.posterize ?? null,
+      posterizeStrength: settings.posterizeStrength ?? null,
+      colorMergeTolerance: settings.colorMergeTolerance ?? null,
+      minIslandPx: settings.minIslandPx ?? null,
+      holeFillPx: settings.holeFillPx ?? null,
+      sourceFindings,
+      sourceWithinContract: sourceFindings.length === 0,
+    };
+  });
+
+  const fixtureRouteMatrix = [];
+  for (const route of routes) {
+    for (const contract of focusedContracts) {
+      const source = sourceContracts.find((item) => item.presetId === contract.id);
+      const projectedRows = fixtureMatrix.filter((row) => row.presetId === contract.id);
+      for (const row of projectedRows) {
+        const measuredCount = numberOrNull(row.measuredFinalGroupedOrExposedLayerCount);
+        const projectedCount = numberOrNull(row.projectedFinalGroupedOrExposedLayerCount);
+        const requestCeiling = numberOrNull(source?.finalRequestedCount ?? row.requestedTargetCount);
+        const finalExposedGroupCount =
+          measuredCount ??
+          (projectedCount != null && requestCeiling != null
+            ? Math.min(projectedCount, requestCeiling)
+            : projectedCount ?? requestCeiling);
+        const liveMeasurement = liveMeasurements.find(
+          (measurement) =>
+            measurement.presetId === contract.id &&
+            measurement.route === route &&
+            normalizeBasename(measurement.fixtureBasename) === normalizeBasename(row.inputFixture),
+        );
+        const countWithinContract =
+          finalExposedGroupCount != null && finalExposedGroupCount <= contract.hardMax;
+        const matrixRow = {
+          inputFixture: row.inputFixture,
+          fixtureRole: row.fixtureRole,
+          route,
+          presetId: contract.id,
+          preset: contract.label,
+          enginePath:
+            route === "/"
+              ? source?.layerBuildMode
+                ? "Homepage browser VTracer grouped palette first; server Potrace layered fallback."
+                : "Homepage raw VTracer posterize risk; server Potrace fallback."
+              : "Server Potrace layered mask builder.",
+          requestedTargetCount: source?.finalRequestedCount ?? row.requestedTargetCount,
+          projectedFixtureGroupCount: projectedCount,
+          sourceGuardrailCeiling: requestCeiling,
+          finalExposedGroupCount,
+          rawVisibleColorCount: liveMeasurement?.rawVisibleColorCount ?? row.measuredRawVisibleColorCount ?? null,
+          svgByteSize: liveMeasurement?.svgBytes ?? row.svgByteSize ?? null,
+          pathCount: liveMeasurement?.pathCount ?? row.pathCount ?? null,
+          countWithinContract,
+          copyDownloadParity:
+            liveMeasurement?.copyDownloadParity ??
+            row.copyDownloadParity ??
+            "not measured in this diagnostic run",
+          layerEditability:
+            countWithinContract && Boolean(source?.layerBuildMode)
+              ? "expected grouped editable layers; verified by layer-color browser smokes"
+              : "guardrail not proven",
+          overFlattenedRisk: row.overFlattenedRisk,
+          overFragmentedRisk:
+            !countWithinContract || row.overFragmentedRisk === "high" ? "high" : row.overFragmentedRisk,
+          presetIntentPreserved:
+            countWithinContract && source?.sourceWithinContract
+              ? row.presetIntentPreservedProjection
+              : "no, guardrail contract not satisfied",
+        };
+        fixtureRouteMatrix.push(matrixRow);
+        if (!countWithinContract) {
+          failures.push(
+            `${contract.label} projected or measured ${finalExposedGroupCount ?? "unknown"} groups for ${row.inputFixture} on ${route}; expected <= ${contract.hardMax}.`,
+          );
+        }
+      }
+    }
+  }
+
+  for (const measurement of liveMeasurements) {
+    const contract = focusedContracts.find((item) => item.id === measurement.presetId);
+    if (!contract) continue;
+    const measuredCount =
+      numberOrNull(measurement.exposedLayerCount) ?? numberOrNull(measurement.groupedColorCount);
+    if (measuredCount != null && measuredCount > contract.hardMax) {
+      failures.push(
+        `${contract.label} measured ${measuredCount} exposed groups in ${measurement.sourceReport}; expected <= ${contract.hardMax}.`,
+      );
+    }
+  }
+
+  return {
+    sourceContracts,
+    fixtureRouteMatrix,
+    failures: Array.from(new Set(failures)),
+  };
 }
 
 function transparentBoundaryRisk(fixture, contract) {
@@ -1251,7 +1438,7 @@ function buildRecommendedImplementationOrder() {
   ];
 }
 
-function summarize({ inventory, fixtureAnalyses, fixtureMatrix, sourceFindings, liveMeasurements }) {
+function summarize({ inventory, fixtureAnalyses, fixtureMatrix, sourceFindings, liveMeasurements, presetGuardrails }) {
   const maxSuggested = Math.max(0, ...fixtureAnalyses.map((fixture) => fixture.suggestedUiGroupCount));
   const highProjectionRows = fixtureMatrix.filter((row) => row.projectedFinalGroupedOrExposedLayerCount >= 28).length;
   const sourceRisks = [];
@@ -1269,9 +1456,13 @@ function summarize({ inventory, fixtureAnalyses, fixtureMatrix, sourceFindings, 
     maxSuggestedUiGroupCount: maxSuggested,
     matrixRowsAtOrNearCeiling: highProjectionRows,
     liveMeasurementCount: liveMeasurements.length,
+    focusedGuardrailScenarioCount: presetGuardrails.fixtureRouteMatrix.length,
+    focusedGuardrailFailureCount: presetGuardrails.failures.length,
     sourceRisks,
     result:
-      "Report-only diagnostic completed. Output quality still requires rendered route validation before implementation because projections are not a substitute for SVG visual fidelity.",
+      presetGuardrails.failures.length
+        ? "Focused 8 Color and Poster guardrails are not yet satisfied."
+        : "Focused 8 Color and Poster guardrails passed source and fixture contract diagnostics. Rendered route validation is still required for visual fidelity.",
   };
 }
 
@@ -1345,6 +1536,8 @@ function uniqueBy(items, keyFn) {
 }
 
 function numberOrNull(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
