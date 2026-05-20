@@ -156,6 +156,10 @@ type FlatColorPaletteAnalysis = {
   familyCount: number;
   hueBucketCount: number;
   regionComplexity: number;
+  edgeDensity: number;
+  highContrastEdgeDensity: number;
+  darkDetailDensity: number;
+  highDetailScore: number;
   nearDuplicateDensity: number;
   simpleImageScore: number;
   transparentShare: number;
@@ -344,6 +348,14 @@ export async function createLayeredColorSvg(
         familyCount: adaptivePalette.familyCount,
         hueBucketCount: adaptivePalette.hueBucketCount,
         regionComplexity: Number(adaptivePalette.regionComplexity.toFixed(3)),
+        edgeDensity: Number(adaptivePalette.edgeDensity.toFixed(3)),
+        highContrastEdgeDensity: Number(
+          adaptivePalette.highContrastEdgeDensity.toFixed(3),
+        ),
+        darkDetailDensity: Number(
+          adaptivePalette.darkDetailDensity.toFixed(3),
+        ),
+        highDetailScore: Number(adaptivePalette.highDetailScore.toFixed(3)),
         nearDuplicateDensity: Number(
           adaptivePalette.nearDuplicateDensity.toFixed(3),
         ),
@@ -978,7 +990,7 @@ function resolveEffectiveLayerPaletteCount(
   analysis: FlatColorPaletteAnalysis | null,
 ) {
   if (!analysis) return options.layerCount;
-  return clampInt(analysis.target, MIN_LAYER_COUNT, 30);
+  return clampInt(analysis.target, MIN_LAYER_COUNT, 32);
 }
 
 function isFlatColorLayeredOptions(options: NormalizedLayeredColorSvgOptions) {
@@ -1047,6 +1059,7 @@ function analyzeFlatColorAdaptivePalette(
   }
 
   const regionComplexity = estimateFlatColorRegionComplexity(raw, width, height, options);
+  const detailMetrics = estimateFlatColorDetailMetrics(raw, width, height, options);
   const transparentShare = estimateTransparentShare(raw, width, height);
   const meaningfulFamilies = [...familyCounts.values()].filter(
     (count) => count / Math.max(1, sampledCount) >= 0.01,
@@ -1087,6 +1100,9 @@ function analyzeFlatColorAdaptivePalette(
     meaningfulFamilies * 0.55 +
     hueBuckets.size * 0.28 +
     regionComplexity * 2.2 +
+    detailMetrics.edgeDensity * 3.6 +
+    detailMetrics.darkDetailDensity * 9 +
+    detailMetrics.highContrastEdgeDensity * 2.8 +
     Math.min(4, colorBuckets.size / 120) +
     (highChromaCount / Math.max(1, sampledCount)) * 2.5 +
     blueNeutralRisk * 1.5 -
@@ -1103,20 +1119,39 @@ function analyzeFlatColorAdaptivePalette(
   if (perceptualClusters.length >= 350 || colorBuckets.size >= 600) {
     target = Math.max(target, 28);
   }
-  if (perceptualClusters.length >= 700 || colorBuckets.size >= 900) {
+  if (
+    perceptualClusters.length >= 700 ||
+    colorBuckets.size >= 900 ||
+    (detailMetrics.highDetailScore >= 0.78 &&
+      colorBuckets.size >= 620 &&
+      detailMetrics.edgeDensity >= 0.16) ||
+    detailMetrics.darkDetailDensity >= 0.055
+  ) {
     target = 30;
+  }
+  if (
+    colorBuckets.size >= 1800 &&
+    detailMetrics.darkDetailDensity >= 0.14 &&
+    detailMetrics.highContrastEdgeDensity >= 0.13 &&
+    detailMetrics.highDetailScore >= 0.96
+  ) {
+    target = 32;
   }
   if (simpleImageScore >= 1 && perceptualClusters.length < 90) {
     target = Math.min(target, 18);
   }
 
   return {
-    target: clampInt(target, MIN_LAYER_COUNT, 30),
+    target: clampInt(target, MIN_LAYER_COUNT, 32),
     bucketCount: colorBuckets.size,
     perceptualClusterCount: perceptualClusters.length,
     familyCount: meaningfulFamilies,
     hueBucketCount: hueBuckets.size,
     regionComplexity,
+    edgeDensity: detailMetrics.edgeDensity,
+    highContrastEdgeDensity: detailMetrics.highContrastEdgeDensity,
+    darkDetailDensity: detailMetrics.darkDetailDensity,
+    highDetailScore: detailMetrics.highDetailScore,
     nearDuplicateDensity,
     simpleImageScore,
     transparentShare,
@@ -1287,6 +1322,126 @@ function estimateFlatColorRegionComplexity(
     }
   }
   return transitions / Math.max(1, cells);
+}
+
+function estimateFlatColorDetailMetrics(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: NormalizedLayeredColorSvgOptions,
+) {
+  const totalPixels = Math.max(1, width * height);
+  const stride = Math.max(1, Math.floor(Math.sqrt(totalPixels / 24000)));
+  const coarseBuckets = new Set<string>();
+  const fineBuckets = new Set<string>();
+  const hueBuckets = new Set<number>();
+  const familyCounts = new Map<FlatColorFamily, number>();
+  let sampledPixels = 0;
+  let darkPixels = 0;
+  let edgeComparisons = 0;
+  let edgeHits = 0;
+  let highContrastEdgeHits = 0;
+  let darkDetailHits = 0;
+
+  for (let y = 0; y < height; y += stride) {
+    for (let x = 0; x < width; x += stride) {
+      const color = readFlatColorDetailPixel(raw, width, height, x, y, options);
+      if (!color) continue;
+      sampledPixels += 1;
+      coarseBuckets.add(bucketFlatColorDetail(color, 16));
+      fineBuckets.add(bucketFlatColorDetail(color, 8));
+      if (colorSaturation(color) >= 46) {
+        hueBuckets.add(Math.floor(rgbHueDegrees(color) / 20));
+      }
+      const family = flatColorFamily(color);
+      familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
+      if (luminance(color) <= 72) darkPixels += 1;
+
+      for (const neighbor of [
+        readFlatColorDetailPixel(raw, width, height, x + stride, y, options),
+        readFlatColorDetailPixel(raw, width, height, x, y + stride, options),
+      ]) {
+        if (!neighbor) continue;
+        edgeComparisons += 1;
+        const distance = colorDistance(color, neighbor);
+        if (distance < 45) continue;
+        edgeHits += 1;
+        const luma = luminance(color);
+        const neighborLuma = luminance(neighbor);
+        const contrast = Math.abs(luma - neighborLuma);
+        if (distance >= 70 && contrast >= 62) {
+          highContrastEdgeHits += 1;
+        }
+        if (
+          distance >= 60 &&
+          contrast >= 56 &&
+          ((luma <= 76 && neighborLuma >= 122) ||
+            (neighborLuma <= 76 && luma >= 122))
+        ) {
+          darkDetailHits += 1;
+        }
+      }
+    }
+  }
+
+  const meaningfulFamilies = [...familyCounts.values()].filter(
+    (count) => count / Math.max(1, sampledPixels) >= 0.01,
+  ).length;
+  const dominantFamilyShare =
+    Math.max(0, ...familyCounts.values()) / Math.max(1, sampledPixels);
+  const edgeDensity = edgeHits / Math.max(1, edgeComparisons);
+  const highContrastEdgeDensity =
+    highContrastEdgeHits / Math.max(1, edgeComparisons);
+  const darkDetailDensity = darkDetailHits / Math.max(1, edgeComparisons);
+  const darkPixelShare = darkPixels / Math.max(1, sampledPixels);
+  const simpleImageScore = clampNumber(
+    (coarseBuckets.size < 150 ? 0.28 : 0) +
+      (meaningfulFamilies <= 4 ? 0.24 : 0) +
+      (dominantFamilyShare >= 0.52 ? 0.22 : 0) +
+      (edgeDensity < 0.07 ? 0.18 : 0) +
+      (darkDetailDensity < 0.01 ? 0.08 : 0),
+    0,
+    1,
+  );
+  const highDetailScore = clampNumber(
+    clampNumber(coarseBuckets.size / 760, 0, 1) * 0.28 +
+      clampNumber(fineBuckets.size / 1400, 0, 1) * 0.1 +
+      clampNumber((hueBuckets.size - 3) / 12, 0, 1) * 0.12 +
+      clampNumber((meaningfulFamilies - 3) / 6, 0, 1) * 0.12 +
+      clampNumber(edgeDensity / 0.24, 0, 1) * 0.2 +
+      clampNumber(darkDetailDensity / 0.08, 0, 1) * 0.12 +
+      clampNumber(highContrastEdgeDensity / 0.14, 0, 1) * 0.06 -
+      simpleImageScore * 0.22,
+    0,
+    1,
+  );
+
+  return {
+    edgeDensity,
+    highContrastEdgeDensity,
+    darkDetailDensity,
+    darkPixelShare,
+    highDetailScore,
+  };
+}
+
+function readFlatColorDetailPixel(
+  raw: Buffer,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  options: NormalizedLayeredColorSvgOptions,
+): RGB | null {
+  if (x < 0 || y < 0 || x >= width || y >= height) return null;
+  const offset = (y * width + x) * 4;
+  const alpha = raw[offset + 3];
+  if (alpha < 18) return null;
+  return normalizeRawLayerPixel(raw, offset, alpha, options);
+}
+
+function bucketFlatColorDetail(color: RGB, divisor: number) {
+  return `${Math.floor(color.r / divisor)},${Math.floor(color.g / divisor)},${Math.floor(color.b / divisor)}`;
 }
 
 function normalizeRawLayerPixel(
@@ -1826,6 +1981,11 @@ function formatAlpha(value: number): string {
 
 function formatNumber(value: number): string {
   return String(Number(value.toFixed(3))).replace(/\.0+$/, "");
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
 }
 
 function clampInt(value: number, min: number, max: number): number {

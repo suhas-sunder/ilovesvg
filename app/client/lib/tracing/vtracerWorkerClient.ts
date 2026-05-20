@@ -496,7 +496,8 @@ function getUnusableTraceResultReason(
   const pathCount = result.pathCount ?? (svg.match(/<path\b/gi) || []).length;
   const layered = input.traceMode === "layered";
   const requestedPaletteCount = Number(
-    input.settings?.requestedPaletteCount ||
+    result.requestedPaletteCount ||
+      input.settings?.requestedPaletteCount ||
       input.settings?.colorLayerCount ||
       0,
   );

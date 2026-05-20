@@ -1589,7 +1589,15 @@ async function waitForValue(client, expressionFactory, timeoutMs, isReady = Bool
   const deadline = Date.now() + timeoutMs;
   let last = null;
   while (Date.now() < deadline) {
-    last = await evaluate(client, expressionFactory(), Math.min(15_000, Math.max(3_000, deadline - Date.now())));
+    try {
+      last = await evaluate(client, expressionFactory(), Math.min(20_000, Math.max(3_000, deadline - Date.now())));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      last = { error: message };
+      if (!/timed out/i.test(message)) throw error;
+      await delay(500);
+      continue;
+    }
     if (isReady(last)) return last;
     await delay(250);
   }

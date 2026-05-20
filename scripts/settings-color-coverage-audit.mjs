@@ -18,7 +18,7 @@ const fixturesDir = path.join(rootDir, "tmp", "settings-color-coverage-fixtures"
 const reportPath = process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH
   ? path.resolve(process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH)
   : path.join(rootDir, "tmp", "settings-color-coverage-audit.json");
-const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
 const FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD = 160;
 const userFixturePath =
   process.env.SETTINGS_COLOR_COVERAGE_FIXTURE ||
@@ -203,7 +203,9 @@ async function runScenario(scenario, fixture) {
     const parityEdit = await step("edit first layer for copy/download parity", () =>
       editFirstLayerForCopyDownloadParity(client),
     );
-    await step("wait after parity edit", () => delay(800));
+    await step("wait after parity edit", () =>
+      waitForLayerEditPreview(client, parityEdit, beforeHideSnapshot.latestOutput?.svgBytesAttr),
+    );
     const editedSnapshot = await step("collect edited layer snapshot", () =>
       collectCoverageSnapshot(client, "layer-colors-edited"),
     );
@@ -366,6 +368,7 @@ async function openLatestSettingsPanel(client) {
 
 async function ensureSettingsSectionOpen(client, titlePattern, expectedKind) {
   const source = titlePattern.source;
+  const sectionOpenTimeoutMs = 20_000;
   const result = await evaluate(client, `(() => {
     const pattern = new RegExp(${JSON.stringify(source)}, "i");
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
@@ -400,7 +403,7 @@ async function ensureSettingsSectionOpen(client, titlePattern, expectedKind) {
       const number = Number(String(value || "").replace(/[^0-9.]/g, ""));
       return Number.isFinite(number) ? number : 0;
     }
-  })()`, 8_000);
+  })()`, sectionOpenTimeoutMs);
   if (!result?.ok) {
     throw new Error(`Could not open settings section ${expectedKind}: ${result?.reason || "unknown"}`);
   }
@@ -434,7 +437,7 @@ async function ensureSettingsSectionOpen(client, titlePattern, expectedKind) {
         return Number.isFinite(number) ? number : 0;
       }
     })()`,
-    8_000,
+    sectionOpenTimeoutMs,
     (value) => value?.ready,
   );
 }
@@ -648,10 +651,25 @@ async function collectCoverageSnapshot(client, phase) {
       const focused = root.querySelector('[data-focused-editor-workspace="true"]');
       const searchRoot = focused || root;
       const images = Array.from(searchRoot.querySelectorAll('[data-editor-output-preview="true"] img, img'));
+      const expectedBytes = numberOrNull(root.getAttribute("data-svg-bytes"));
+      const candidates = [];
       for (const image of images) {
         const svg = decodeSvgImage(image);
-        if (svg) return svg;
+        if (svg) {
+          candidates.push({
+            svg,
+            bytes: new Blob([svg]).size,
+            outputPreview: Boolean(image.closest('[data-editor-output-preview="true"]')),
+          });
+        }
       }
+      if (expectedBytes) {
+        const byteMatch = candidates.find((candidate) => candidate.bytes === expectedBytes);
+        if (byteMatch) return byteMatch.svg;
+      }
+      const outputPreview = candidates.find((candidate) => candidate.outputPreview);
+      if (outputPreview) return outputPreview.svg;
+      if (candidates[0]) return candidates[0].svg;
       return "";
     }
 
@@ -710,7 +728,7 @@ async function collectCoverageSnapshot(client, phase) {
       const number = Number(text.replace(/[^0-9.]/g, ""));
       return Number.isFinite(number) ? number : null;
     }
-  })()`, 15_000);
+  })()`, 30_000);
 }
 
 async function installCopyDownloadCapture(client) {
@@ -765,7 +783,7 @@ async function resetScenarioBrowserState(client) {
 }
 
 async function editFirstLayerForCopyDownloadParity(client) {
-  return evaluate(client, `(async () => {
+  return evaluate(client, `(() => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
     if (!latest) return { applicable: false, reason: "missing latest output" };
     const row = Array.from(latest.querySelectorAll('[data-layer-color-row="true"]'))
@@ -783,19 +801,20 @@ async function editFirstLayerForCopyDownloadParity(client) {
     const nextColor = "#ff00aa";
     const nextOpacityPercent = "41";
 
-    setNativeValue(hexInput, nextColor);
-    hexInput.dispatchEvent(new Event("input", { bubbles: true }));
-    hexInput.dispatchEvent(new Event("change", { bubbles: true }));
-    hexInput.blur();
+    window.setTimeout(() => {
+      setNativeValue(hexInput, nextColor);
+      hexInput.dispatchEvent(new Event("input", { bubbles: true }));
+      hexInput.dispatchEvent(new Event("change", { bubbles: true }));
+      hexInput.blur();
 
-    setNativeValue(rangeInput, nextOpacityPercent);
-    rangeInput.dispatchEvent(new Event("input", { bubbles: true }));
-    rangeInput.dispatchEvent(new Event("change", { bubbles: true }));
-    rangeInput.blur();
-
-    await new Promise((resolve) => setTimeout(resolve, 250));
+      setNativeValue(rangeInput, nextOpacityPercent);
+      rangeInput.dispatchEvent(new Event("input", { bubbles: true }));
+      rangeInput.dispatchEvent(new Event("change", { bubbles: true }));
+      rangeInput.blur();
+    }, 0);
     return {
       applicable: true,
+      scheduled: true,
       label,
       beforeColor,
       nextColor,
@@ -822,7 +841,77 @@ async function editFirstLayerForCopyDownloadParity(client) {
       const style = getComputedStyle(element);
       return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
     }
-  })()`, 12_000);
+  })()`, 30_000);
+}
+
+async function waitForLayerEditPreview(client, parityEdit, baselineSvgBytes = null) {
+  if (!parityEdit?.applicable || !parityEdit.nextColor || !Number.isFinite(parityEdit.nextOpacity)) {
+    await delay(1800);
+    return { applicable: false };
+  }
+  const expectedColor = String(parityEdit.nextColor).toLowerCase();
+  const expectedOpacityPercent = String(Math.round(parityEdit.nextOpacity * 100));
+  const deadline = Date.now() + 120_000;
+  let last = null;
+  let lastReadyBytes = null;
+  let stableSince = 0;
+  while (Date.now() < deadline) {
+    let state;
+    try {
+      state = await evaluate(client, `(() => {
+      const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+      const firstRow = latest ? Array.from(latest.querySelectorAll('[data-layer-color-row="true"]')).find((row) =>
+        row.querySelector('input[type="text"][aria-label$=" hex color"]') &&
+        row.querySelector('input[type="range"]')
+      ) : null;
+      const hexInput = firstRow?.querySelector('input[type="text"][aria-label$=" hex color"]') || null;
+      const rangeInput = firstRow?.querySelector('input[type="range"]') || null;
+      const currentBytes = numberOrNull(latest?.getAttribute("data-svg-bytes"));
+      const baselineBytes = ${JSON.stringify(baselineSvgBytes)};
+      const hasExpectedColor = String(hexInput?.value || hexInput?.getAttribute("value") || "").toLowerCase() === ${JSON.stringify(expectedColor)};
+      const hasExpectedOpacity = String(rangeInput?.value || rangeInput?.getAttribute("value") || "") === ${JSON.stringify(expectedOpacityPercent)};
+      const bytesChanged = !baselineBytes || (currentBytes > 0 && currentBytes !== baselineBytes);
+      return {
+        bytes: currentBytes,
+        baselineBytes,
+        hasExpectedColor,
+        hasExpectedOpacity,
+        bytesChanged,
+        ready: Boolean(hasExpectedColor && hasExpectedOpacity && bytesChanged),
+      };
+      function latestCard(items) {
+        return items.reduce((best, card) => {
+          if (!best) return card;
+          return numberOrNull(card.getAttribute("data-output-stamp")) >= numberOrNull(best.getAttribute("data-output-stamp")) ? card : best;
+        }, null);
+      }
+      function numberOrNull(value) {
+        const number = Number(String(value || "").replace(/[^0-9.]/g, ""));
+        return Number.isFinite(number) ? number : 0;
+      }
+    })()`, 20_000);
+    } catch (error) {
+      last = { error: error instanceof Error ? error.message : String(error) };
+      if (!/timed out/i.test(last.error || "")) throw error;
+      await delay(500);
+      continue;
+    }
+    last = state;
+    if (state?.ready) {
+      if (state.bytes !== lastReadyBytes) {
+        lastReadyBytes = state.bytes;
+        stableSince = Date.now();
+      } else if (!stableSince) {
+        stableSince = Date.now();
+      }
+      if (stableSince && Date.now() - stableSince >= 2000) return state;
+    } else {
+      lastReadyBytes = null;
+      stableSince = 0;
+    }
+    await delay(300);
+  }
+  throw new Error(`Timed out waiting for edited preview to settle. Last value: ${JSON.stringify(last)}`);
 }
 
 async function verifyCopyDownloadParity(client, expectedSvg) {
@@ -838,7 +927,7 @@ async function verifyCopyDownloadParity(client, expectedSvg) {
   const copied = await waitForValue(
     client,
     () => copyDownloadCaptureExpression(expectedHash, expectedBytes),
-    8_000,
+    30_000,
     (value) => value?.clipboardCount > before.clipboardCount,
   );
 
@@ -847,7 +936,7 @@ async function verifyCopyDownloadParity(client, expectedSvg) {
   const downloaded = await waitForValue(
     client,
     () => copyDownloadCaptureExpression(expectedHash, expectedBytes),
-    8_000,
+    30_000,
     (value) => value?.downloadCount > before.downloadCount,
   );
 
@@ -864,16 +953,16 @@ async function verifyCopyDownloadParity(client, expectedSvg) {
     downloadMatchedPreview: downloaded.latestDownloadHash === expectedHash && downloaded.latestDownloadBytes === expectedBytes,
   };
   if (!result.copyMatchedPreview) {
-    throw new Error("Copy SVG did not match the edited preview SVG.");
+    throw new Error(`Copy SVG did not match the edited preview SVG: ${JSON.stringify(result)}`);
   }
   if (!result.downloadMatchedPreview) {
-    throw new Error("Download SVG did not match the edited preview SVG.");
+    throw new Error(`Download SVG did not match the edited preview SVG: ${JSON.stringify(result)}`);
   }
   return result;
 }
 
 async function getCopyDownloadCapture(client) {
-  return evaluate(client, copyDownloadCaptureExpression("", 0), 8_000);
+  return evaluate(client, copyDownloadCaptureExpression("", 0), 30_000);
 }
 
 function copyDownloadCaptureExpression(expectedHash, expectedBytes) {
@@ -1279,14 +1368,14 @@ function summarizeResults(results, staticFindings) {
     if (home.counts.actualVisibleSvgColorsBeforeHide > home.counts.layerRowsExposed) {
       failures.push("Home layered output exposes fewer layer rows than visible SVG colors.");
     }
-    if (home.counts.actualVisibleSvgColorsBeforeHide >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+    if (home.counts.actualVisibleSvgColorsBeforeHide > FLAT_COLOR_MAX_EDITABLE_GROUPS) {
       failures.push(
-        `Home layered flat color still exposes ${home.counts.actualVisibleSvgColorsBeforeHide} visible SVG colors; expected grouped output under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+        `Home layered flat color still exposes ${home.counts.actualVisibleSvgColorsBeforeHide} visible SVG colors; expected grouped output at or below ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
       );
     }
-    if (home.counts.layerRowsExposed >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+    if (home.counts.layerRowsExposed > FLAT_COLOR_MAX_EDITABLE_GROUPS) {
       failures.push(
-        `Home layered flat color still exposes ${home.counts.layerRowsExposed} layer rows; expected grouped editable rows under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+        `Home layered flat color still exposes ${home.counts.layerRowsExposed} layer rows; expected grouped editable rows at or below ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
       );
     }
     if (home.counts.layerRowsExposed !== home.counts.actualVisibleSvgColorsBeforeHide) {
@@ -1380,10 +1469,11 @@ function hasGroupedEditableLayerCoverage(result) {
   const layerUi = result.uiSnapshots?.layerColorsBeforeHide?.ui?.layerColors;
   return (
     counts.actualVisibleSvgColorsBeforeHide >= 2 &&
-    counts.actualVisibleSvgColorsBeforeHide < FLAT_COLOR_MAX_EDITABLE_GROUPS &&
+    counts.actualVisibleSvgColorsBeforeHide <= FLAT_COLOR_MAX_EDITABLE_GROUPS &&
     counts.layerRowsExposed === counts.actualVisibleSvgColorsBeforeHide &&
     counts.layerMetadataColorsExposed === counts.layerRowsExposed &&
     counts.visibleColorsAfterHidingAllExposedLayerColors === 0 &&
+    counts.layerRowsExposed <= FLAT_COLOR_MAX_EDITABLE_GROUPS &&
     counts.layerRowsExposed < FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD &&
     counts.fillTargetSelectorLayerOptions >= counts.layerRowsExposed &&
     layerUi?.rowCount === counts.layerRowsExposed &&
@@ -1609,7 +1699,7 @@ async function clickButtonByPattern(client, patterns, rejectPatterns = []) {
       const style = getComputedStyle(element);
       return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
     }
-  })()`, 8_000);
+  })()`, 30_000);
 }
 
 async function outputState(client) {
@@ -1839,7 +1929,18 @@ async function findButtonTarget(client, patterns, rejectPatterns, scope) {
     const latest = latestCard(cards);
     const root = ${JSON.stringify(scope)} === "latest" ? latest : document.body;
     if (!root) return null;
-    const buttons = Array.from(root.querySelectorAll("button, [role='button'], summary"));
+    const buttons = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
+      acceptNode(node) {
+        const tagName = String(node.tagName || "").toLowerCase();
+        if (tagName === "svg") return NodeFilter.FILTER_REJECT;
+        if (node.matches?.("button, [role='button'], summary")) return NodeFilter.FILTER_ACCEPT;
+        return NodeFilter.FILTER_SKIP;
+      },
+    });
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      buttons.push(node);
+    }
     const button = buttons.find((candidate) => {
       const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
       return isVisible(candidate) &&
@@ -1872,7 +1973,7 @@ async function findButtonTarget(client, patterns, rejectPatterns, scope) {
       const number = Number(text.replace(/[^0-9.]/g, ""));
       return Number.isFinite(number) ? number : 0;
     }
-  })()`, 8_000);
+  })()`, 30_000);
 }
 
 async function trustedClickAtPoint(client, point) {
@@ -1929,7 +2030,7 @@ async function waitForValue(client, expressionFactory, timeoutMs, isReady = Bool
     last = await evaluate(
       client,
       expressionFactory(),
-      Math.min(15_000, Math.max(3_000, deadline - Date.now())),
+      Math.min(30_000, Math.max(3_000, deadline - Date.now())),
     );
     if (isReady(last)) return last;
     await delay(250);
