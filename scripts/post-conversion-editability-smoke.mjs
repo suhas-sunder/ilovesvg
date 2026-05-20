@@ -1790,10 +1790,11 @@ function outputStateExpression(previousLatestStamp) {
     const latest = latestCard(cards);
     const latestStamp = latest ? numberOrNull(latest.getAttribute("data-output-stamp")) : null;
     const activeJobs = cards.filter(isActiveCard).length;
+    const latestText = latest ? cheapCardText(latest, 700) : "";
     const latestReady = Boolean(latest) &&
       !isActiveCard(latest) &&
-      /Settings\\s*\\/\\s*Edit|Download|Copy/i.test(latest.innerText || "") &&
-      !/Conversion failed|Canceled/i.test(latest.innerText || "");
+      /Settings\\s*\\/\\s*Edit|Download|Copy/i.test(latestText) &&
+      !/Conversion failed|Canceled/i.test(latestText);
     return {
       pageAlive: true,
       outputCards: cards.length,
@@ -1801,14 +1802,32 @@ function outputStateExpression(previousLatestStamp) {
       latestStamp,
       latestReady,
       latestChanged: ${previousLatestStamp == null ? "true" : `latestStamp !== ${JSON.stringify(previousLatestStamp)}`},
-      latestText: latest ? (latest.innerText || "").replace(/\\s+/g, " ").slice(0, 700) : "",
+      latestText,
       latestJobStatus: latest ? latest.getAttribute("data-job-status") || null : null,
       latestSvgBytes: latest ? numberOrNull(latest.getAttribute("data-svg-bytes")) : null,
       latestPathCount: latest ? numberOrNull(latest.getAttribute("data-path-count")) : null,
     };
     function isActiveCard(card) {
       return /queued|running/i.test(card.getAttribute("data-job-status") || "") ||
-        /\\b(Queued|Running|Converting)\\b/i.test(card.innerText || "");
+        /\\b(Queued|Running|Converting)\\b/i.test(cheapCardText(card, 300));
+    }
+    function cheapCardText(card, maxLength) {
+      const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          if (parent.closest("svg, textarea, script, style")) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      let text = "";
+      while (walker.nextNode()) {
+        const value = (walker.currentNode.nodeValue || "").replace(/\\s+/g, " ").trim();
+        if (!value) continue;
+        text += (text ? " " : "") + value;
+        if (text.length >= maxLength) break;
+      }
+      return text.slice(0, maxLength);
     }
     function latestCard(items) {
       return items.reduce((best, card) => {
@@ -2176,11 +2195,24 @@ async function waitForValue(client, expressionFactory, timeoutMs, isReady = Bool
   const deadline = Date.now() + timeoutMs;
   let last = null;
   while (Date.now() < deadline) {
-    last = await evaluate(
-      client,
-      expressionFactory(),
-      Math.min(15_000, Math.max(3_000, deadline - Date.now())),
-    );
+    try {
+      last = await evaluate(
+        client,
+        expressionFactory(),
+        Math.min(15_000, Math.max(3_000, deadline - Date.now())),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/CDP command timed out|Runtime\.evaluate/i.test(message)) {
+        throw error;
+      }
+      last = {
+        pageAlive: false,
+        transientEvaluateTimeout: message,
+      };
+      await delay(500);
+      continue;
+    }
     if (isReady(last)) return last;
     await delay(250);
   }

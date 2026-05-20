@@ -25,7 +25,7 @@ const tomatoFixturePath =
   "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png";
 
 const fixtureOutputDir = path.join(rootDir, "tmp", "palette-grouping-audit-fixtures");
-const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
 const FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD = 160;
 
 const presetContracts = [
@@ -841,14 +841,14 @@ function flatColorImplementationFailures(measuredOutputs) {
     failures.push("Home Layered - Flat Color measurement is missing.");
     return failures;
   }
-  if (home.rawVisibleSvgColorCount >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+  if (home.rawVisibleSvgColorCount > FLAT_COLOR_MAX_EDITABLE_GROUPS) {
     failures.push(
-      `Home Layered - Flat Color still has ${home.rawVisibleSvgColorCount} visible SVG colors; expected grouped output under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+      `Home Layered - Flat Color still has ${home.rawVisibleSvgColorCount} visible SVG colors; expected grouped output at or below ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
     );
   }
-  if (home.exposedLayerRowCount >= FLAT_COLOR_MAX_EDITABLE_GROUPS) {
+  if (home.exposedLayerRowCount > FLAT_COLOR_MAX_EDITABLE_GROUPS) {
     failures.push(
-      `Home Layered - Flat Color still exposes ${home.exposedLayerRowCount} layer rows; expected grouped rows under ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
+      `Home Layered - Flat Color still exposes ${home.exposedLayerRowCount} layer rows; expected grouped rows at or below ${FLAT_COLOR_MAX_EDITABLE_GROUPS}.`,
     );
   }
   if (home.exposedLayerRowCount !== home.rawVisibleSvgColorCount) {

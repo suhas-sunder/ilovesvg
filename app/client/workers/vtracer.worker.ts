@@ -111,7 +111,7 @@ type PreparedImage = {
 
 const ciede2000Difference = differenceCiede2000();
 const FLAT_COLOR_GROUPING_PRESET_ID = "layered-flat-color";
-const FLAT_COLOR_MAX_EDITABLE_GROUPS = 30;
+const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
 
 let wasmReadyPromise: Promise<void> | null = null;
 
@@ -177,7 +177,7 @@ async function runTrace(request: WorkerRequest) {
     );
 
     postProgress(request.id, 0.52, "Tracing SVG...");
-    const config = buildVTracerConfig(request.settings);
+    const config = buildVTracerConfig(request.settings, prepared.requestedPaletteCount);
     const rawSvg = timedSync(timings, "vtracer", () =>
       convertImageToSvg(
         new Uint8Array(prepared.data.buffer, prepared.data.byteOffset, prepared.data.byteLength),
@@ -308,7 +308,16 @@ function preprocessImageData(
   }
 
   const layerBuildMode = getLayerBuildMode(settings);
-  const requestedPaletteCount = getRequestedPaletteCount(settings);
+  const baseRequestedPaletteCount = getRequestedPaletteCount(settings);
+  const flatColorPaletteBudget = getAdaptiveFlatColorPaletteBudget(
+    data,
+    imageData.width,
+    imageData.height,
+    settings,
+    layerBuildMode,
+    baseRequestedPaletteCount,
+  );
+  const requestedPaletteCount = flatColorPaletteBudget.targetPaletteCount;
   const shouldUsePaletteQuantizer =
     settings.traceMode === "layered" &&
     layerBuildMode !== "raw-vtracer" &&
@@ -324,6 +333,9 @@ function preprocessImageData(
       data: quantized.data,
       diagnostics: {
         ...diagnostics,
+        ...(flatColorPaletteBudget.analysis
+          ? { adaptiveFlatColorPaletteBudget: flatColorPaletteBudget.analysis }
+          : {}),
         ...quantized.diagnostics,
       },
       palette: quantized.palette,
@@ -342,6 +354,9 @@ function preprocessImageData(
     data,
     diagnostics: {
       ...diagnostics,
+      ...(flatColorPaletteBudget.analysis
+        ? { adaptiveFlatColorPaletteBudget: flatColorPaletteBudget.analysis }
+        : {}),
       preprocessing: settings.posterize ? "posterize" : "raw-vtracer",
       paletteAlgorithm: "simple-posterize",
     },
@@ -352,8 +367,254 @@ function preprocessImageData(
   };
 }
 
-function buildVTracerConfig(settings: NormalizedTraceSettings): TracerConfig {
-  const requestedPaletteCount = getRequestedPaletteCount(settings);
+function getAdaptiveFlatColorPaletteBudget(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+  layerBuildMode: LayerBuildMode,
+  requestedPaletteCount: number,
+): {
+  targetPaletteCount: number;
+  analysis: Record<string, unknown> | null;
+} {
+  if (
+    requestedPaletteCount <= 0 ||
+    !shouldUseHighFidelityFlatColorPalette(settings, layerBuildMode)
+  ) {
+    return { targetPaletteCount: requestedPaletteCount, analysis: null };
+  }
+
+  const analysis = analyzeFlatColorPaletteBudget(
+    data,
+    width,
+    height,
+    settings,
+    requestedPaletteCount,
+  );
+  return {
+    targetPaletteCount: analysis.targetPaletteCount,
+    analysis,
+  };
+}
+
+function analyzeFlatColorPaletteBudget(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+  requestedPaletteCount: number,
+) {
+  const totalPixels = Math.max(1, width * height);
+  const stride = Math.max(1, Math.floor(Math.sqrt(totalPixels / 24000)));
+  const coarseBuckets = new Set<string>();
+  const fineBuckets = new Set<string>();
+  const hueBuckets = new Set<number>();
+  const familyCounts = new Map<string, number>();
+  let sampledPixels = 0;
+  let darkPixels = 0;
+  let edgeComparisons = 0;
+  let edgeHits = 0;
+  let highContrastEdgeHits = 0;
+  let darkDetailHits = 0;
+
+  for (let y = 0; y < height; y += stride) {
+    for (let x = 0; x < width; x += stride) {
+      const color = readAdaptiveFlatColorPixel(data, width, height, x, y, settings);
+      if (!color) continue;
+      sampledPixels += 1;
+      coarseBuckets.add(bucketColor(color, 16));
+      fineBuckets.add(bucketColor(color, 8));
+      const saturation = rgbSaturation(color);
+      if (saturation >= 0.18) {
+        hueBuckets.add(Math.floor(rgbHue(color) / 20));
+      }
+      const family = adaptiveFlatColorFamily(color);
+      familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
+      if (luminance(color) <= 0.28) darkPixels += 1;
+
+      for (const neighbor of [
+        readAdaptiveFlatColorPixel(data, width, height, x + stride, y, settings),
+        readAdaptiveFlatColorPixel(data, width, height, x, y + stride, settings),
+      ]) {
+        if (!neighbor) continue;
+        edgeComparisons += 1;
+        const distance = colorDistance(color, neighbor);
+        if (distance < 45) continue;
+        edgeHits += 1;
+        const luma = luminance(color);
+        const neighborLuma = luminance(neighbor);
+        const contrast = Math.abs(luma - neighborLuma);
+        if (distance >= 70 && contrast >= 0.24) {
+          highContrastEdgeHits += 1;
+        }
+        if (
+          distance >= 60 &&
+          contrast >= 0.22 &&
+          ((luma <= 0.3 && neighborLuma >= 0.48) ||
+            (neighborLuma <= 0.3 && luma >= 0.48))
+        ) {
+          darkDetailHits += 1;
+        }
+      }
+    }
+  }
+
+  const meaningfulFamilyCount = [...familyCounts.values()].filter(
+    (count) => count / Math.max(1, sampledPixels) >= 0.01,
+  ).length;
+  const dominantFamilyShare =
+    Math.max(0, ...familyCounts.values()) / Math.max(1, sampledPixels);
+  const edgeDensity = edgeHits / Math.max(1, edgeComparisons);
+  const highContrastEdgeDensity = highContrastEdgeHits / Math.max(1, edgeComparisons);
+  const darkDetailDensity = darkDetailHits / Math.max(1, edgeComparisons);
+  const darkPixelShare = darkPixels / Math.max(1, sampledPixels);
+  const simpleImageScore = clampNumber(
+    (coarseBuckets.size < 150 ? 0.28 : 0) +
+      (meaningfulFamilyCount <= 4 ? 0.24 : 0) +
+      (dominantFamilyShare >= 0.52 ? 0.22 : 0) +
+      (edgeDensity < 0.07 ? 0.18 : 0) +
+      (darkDetailDensity < 0.01 ? 0.08 : 0),
+    0,
+    1,
+  );
+  const highDetailScore = clampNumber(
+    clampNumber(coarseBuckets.size / 760, 0, 1) * 0.28 +
+      clampNumber(fineBuckets.size / 1400, 0, 1) * 0.1 +
+      clampNumber((hueBuckets.size - 3) / 12, 0, 1) * 0.12 +
+      clampNumber((meaningfulFamilyCount - 3) / 6, 0, 1) * 0.12 +
+      clampNumber(edgeDensity / 0.24, 0, 1) * 0.2 +
+      clampNumber(darkDetailDensity / 0.08, 0, 1) * 0.12 +
+      clampNumber(highContrastEdgeDensity / 0.14, 0, 1) * 0.06 -
+      simpleImageScore * 0.22,
+    0,
+    1,
+  );
+
+  let target = requestedPaletteCount;
+  let reason = "preset-request";
+  if (simpleImageScore >= 0.82 && coarseBuckets.size < 180 && edgeDensity < 0.08) {
+    target = Math.min(target, meaningfulFamilyCount <= 4 ? 8 : 12);
+    reason = "simple-compact";
+  } else {
+    if (
+      coarseBuckets.size >= 420 ||
+      fineBuckets.size >= 850 ||
+      highDetailScore >= 0.64
+    ) {
+      target = Math.max(target, 24);
+      reason = "color-detail";
+    }
+    if (
+      (coarseBuckets.size >= 540 && edgeDensity >= 0.13) ||
+      darkDetailDensity >= 0.028 ||
+      highDetailScore >= 0.72
+    ) {
+      target = Math.max(target, 28);
+      reason = "high-detail";
+    }
+    if (
+      (coarseBuckets.size >= 680 && edgeDensity >= 0.17 && highDetailScore >= 0.78) ||
+      darkDetailDensity >= 0.055 ||
+      highDetailScore >= 0.86
+    ) {
+      target = Math.max(target, 30);
+      reason = "high-fidelity";
+    }
+    if (
+      coarseBuckets.size >= 1800 &&
+      darkDetailDensity >= 0.14 &&
+      highContrastEdgeDensity >= 0.13 &&
+      highDetailScore >= 0.96
+    ) {
+      target = 32;
+      reason = "maximum-dark-detail";
+    }
+  }
+
+  return {
+    requestedPaletteCount,
+    targetPaletteCount: clampInt(target, 2, FLAT_COLOR_MAX_EDITABLE_GROUPS),
+    sampledPixels,
+    bucketCount: coarseBuckets.size,
+    fineBucketCount: fineBuckets.size,
+    hueBucketCount: hueBuckets.size,
+    familyCount: meaningfulFamilyCount,
+    edgeDensity: roundMetric(edgeDensity),
+    highContrastEdgeDensity: roundMetric(highContrastEdgeDensity),
+    darkDetailDensity: roundMetric(darkDetailDensity),
+    darkPixelShare: roundMetric(darkPixelShare),
+    simpleImageScore: roundMetric(simpleImageScore),
+    highDetailScore: roundMetric(highDetailScore),
+    reason,
+  };
+}
+
+function shouldUseHighFidelityFlatColorPalette(
+  settings: NormalizedTraceSettings,
+  layerBuildMode: LayerBuildMode = getLayerBuildMode(settings),
+) {
+  return (
+    settings.traceMode === "layered" &&
+    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID &&
+    layerBuildMode === "per-color-cutout"
+  );
+}
+
+function readAdaptiveFlatColorPixel(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  settings: NormalizedTraceSettings,
+): RGB | null {
+  if (x < 0 || y < 0 || x >= width || y >= height) return null;
+  const offset = (y * width + x) * 4;
+  const alpha = data[offset + 3];
+  if (alpha < 18) return null;
+  const color = {
+    r: data[offset],
+    g: data[offset + 1],
+    b: data[offset + 2],
+  };
+  if (settings.removeWhite && luminance(color) >= 0.94 && rgbSaturation(color) <= 0.12) {
+    return null;
+  }
+  return color;
+}
+
+function adaptiveFlatColorFamily(color: RGB) {
+  const luma = luminance(color);
+  const saturation = rgbSaturation(color);
+  if (luma < 0.18) return "dark";
+  if (luma > 0.9 && saturation <= 0.12) return "lightNeutral";
+  if (saturation <= 0.14) return luma > 0.72 ? "lightNeutral" : "neutral";
+  const hue = rgbHue(color);
+  if (hue < 18 || hue >= 342) return "red";
+  if (hue < 48) return "orange";
+  if (hue < 72) return "yellow";
+  if (hue < 155) return "green";
+  if (hue < 190) return "cyan";
+  if (hue < 255) return "blue";
+  if (hue < 292) return "purple";
+  return "pink";
+}
+
+function bucketColor(color: RGB, divisor: number) {
+  return `${Math.floor(color.r / divisor)},${Math.floor(color.g / divisor)},${Math.floor(color.b / divisor)}`;
+}
+
+function roundMetric(value: number) {
+  return Number(value.toFixed(3));
+}
+
+function buildVTracerConfig(
+  settings: NormalizedTraceSettings,
+  requestedPaletteCountOverride?: number,
+): TracerConfig {
+  const requestedPaletteCount =
+    requestedPaletteCountOverride ?? getRequestedPaletteCount(settings);
   const layered = settings.traceMode === "layered";
   const config = new TracerConfig();
   config.setColorMode(ColorMode.Color);
@@ -1200,6 +1461,12 @@ function quantizeLayeredPixels(
     width,
     height,
     options.layerBuildMode,
+    {
+      flatColorHighFidelity: shouldUseHighFidelityFlatColorPalette(
+        settings,
+        options.layerBuildMode,
+      ),
+    },
   );
   const transparentPixelMask = buildTransparentPixelMask(data, settings);
   const source = new Uint8ClampedArray(data);
@@ -1435,14 +1702,24 @@ function getSafeLayeredPaletteCount(
   width: number,
   height: number,
   layerBuildMode: LayerBuildMode,
+  options: { flatColorHighFidelity?: boolean } = {},
 ): number {
   const pixels = width * height;
   if (layerBuildMode === "raw-vtracer") return requested;
 
-  let max = layerBuildMode === "per-color-cutout" ? 18 : 28;
-  if (pixels > 1_200_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 16 : 24);
-  if (pixels > 2_000_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 14 : 22);
-  if (pixels > 3_000_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 12 : 20);
+  let max =
+    layerBuildMode === "per-color-cutout"
+      ? options.flatColorHighFidelity
+        ? FLAT_COLOR_MAX_EDITABLE_GROUPS
+        : 18
+      : 28;
+  if (options.flatColorHighFidelity && layerBuildMode === "per-color-cutout") {
+    if (pixels > 3_000_000) max = Math.min(max, 30);
+  } else {
+    if (pixels > 1_200_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 16 : 24);
+    if (pixels > 2_000_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 14 : 22);
+    if (pixels > 3_000_000) max = Math.min(max, layerBuildMode === "per-color-cutout" ? 12 : 20);
+  }
   return clampInt(Math.min(requested, max), 2, requested);
 }
 

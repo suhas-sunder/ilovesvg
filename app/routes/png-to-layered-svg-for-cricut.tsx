@@ -2111,17 +2111,21 @@ export default function PngToLayeredSvgForCricut({
   }
 
   function getOutputAppearanceSupport(
-    stamp: number,
+    item: HistoryItem,
     svg: string,
   ): OutputAppearanceSupport {
     const cache = outputAppearanceSupportCacheRef.current;
-    const cached = cache.get(stamp);
+    const cached = cache.get(item.stamp);
     if (cached?.svg === svg) return cached.support;
 
     const support = detectOutputAppearanceSupport(svg, {
       precisionOutput: false,
+      sourceKind: item.sourceKind,
+      engineUsed: item.engineUsed,
+      layers: item.layers,
+      supportsRetrace: routeCapabilities.supportsStrokeTrace,
     });
-    cache.set(stamp, { svg, support });
+    cache.set(item.stamp, { svg, support });
     return support;
   }
 
@@ -2490,7 +2494,7 @@ export default function PngToLayeredSvgForCricut({
                     const appearance = normalizeOutputAppearance(item.appearance);
                     const appearanceSupportForSvg =
                       !isActiveJob && !isFailedJob
-                        ? getOutputAppearanceSupport(item.stamp, editedSvg)
+                        ? getOutputAppearanceSupport(item, editedSvg)
                         : null;
                     const candidateDisplaySvg =
                       !isActiveJob &&
@@ -3210,7 +3214,7 @@ export default function PngToLayeredSvgForCricut({
               ? applyOutputAppearanceToSvg(
                   baseSvg,
                   appearance,
-                  getOutputAppearanceSupport(item.stamp, baseSvg),
+                  getOutputAppearanceSupport(item, baseSvg),
                   { idPrefix: `output-${item.jobId || item.stamp}` },
                 )
               : baseSvg;

@@ -18,6 +18,10 @@ export type ConversionDiagnostics = {
     familyCount: number;
     hueBucketCount: number;
     regionComplexity: number;
+    edgeDensity?: number;
+    highContrastEdgeDensity?: number;
+    darkDetailDensity?: number;
+    highDetailScore?: number;
     nearDuplicateDensity: number;
     simpleImageScore: number;
     transparentShare: number;

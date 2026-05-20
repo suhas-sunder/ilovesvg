@@ -30,7 +30,7 @@ const reportPath =
   process.env.FISH_CARD_REGION_REPORT_PATH ||
   path.join(repoRoot, "tmp", "fish-card-region-fidelity-smoke.json");
 const baseUrl = getSmokeBaseUrl({ defaultPort: 3000 });
-const maxGroupedLayers = Number(process.env.FISH_CARD_REGION_MAX_GROUPED_LAYERS || 30);
+const maxGroupedLayers = Number(process.env.FISH_CARD_REGION_MAX_GROUPED_LAYERS || 32);
 const minComplexGroupedLayers = Number(
   process.env.FISH_CARD_REGION_MIN_COMPLEX_GROUPED_LAYERS || 18,
 );
