@@ -151,7 +151,7 @@ async function auditPresets() {
     ],
     "photo-many-colors": [
       "requestedPaletteCount: 32",
-      'layerBuildMode: "raw-vtracer"',
+      'layerBuildMode: "per-color-cutout"',
       'paletteAlgorithm: "image-q-wuquant"',
     ],
     "filled-layers-smooth": [
