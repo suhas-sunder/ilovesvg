@@ -143,6 +143,8 @@ async function main() {
         completedScenarioCount: summary.completedScenarioCount,
         skippedScenarioCount: summary.skippedScenarioCount,
         failedScenarioCount: summary.failedScenarioCount,
+        timeoutFailedScenarioCount: summary.timeoutFailedScenarioCount,
+        failedScenarios: summary.failedScenarios,
         flatColorRouteCoverage: summary.flatColorRouteCoverage,
         highRiskScenarioIds: summary.highRiskScenarioIds,
       },
@@ -347,6 +349,12 @@ async function runScenario(scenario, fixtures) {
         })),
       );
     }
+    const failures = [
+      ...(analysis.ok ? [] : [`region fidelity: ${analysis.reason || analysis.error || "analysis failed"}`]),
+      ...(copyDownloadParity.applicable && copyDownloadParity.ok === false
+        ? [`copy/download parity: ${copyDownloadParity.error || copyDownloadParity.reason || "mismatch"}`]
+        : []),
+    ];
 
     return {
       id: scenario.id,
@@ -354,8 +362,9 @@ async function runScenario(scenario, fixtures) {
       presetId: scenario.presetId,
       preset: preset.label,
       fixture: fixture.info,
-      ok: true,
+      ok: failures.length === 0,
       skipped: false,
+      failures,
       selectedPreset,
       completed,
       snapshot: withoutSvg(snapshot),
@@ -371,10 +380,9 @@ async function runScenario(scenario, fixtures) {
 }
 
 async function collectOutputSnapshot(client, phase) {
-  return evaluate(client, `(async () => {
+  const lightweight = process.env.COLOR_REGION_FIDELITY_LIGHTWEIGHT === "1";
+  const snapshot = await evaluate(client, `(() => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
-    const lightweight = ${JSON.stringify(process.env.COLOR_REGION_FIDELITY_LIGHTWEIGHT === "1")};
-    const svg = !lightweight && latest ? await decodeLatestSvg(latest) : "";
     const layerSection = latest?.querySelector('[data-layer-color-total-count]');
     const layerAllColors = String(layerSection?.getAttribute("data-layer-color-all-colors") || "")
       .split(/[\\s,]+/)
@@ -404,43 +412,10 @@ async function collectOutputSnapshot(client, phase) {
         mountedLayerRows: rows.length,
         exposedLayerColors: unique([...layerAllColors, ...rowColors]),
       },
-      lightweight,
-      svg,
+      lightweight: ${JSON.stringify(lightweight)},
+      svgSource: null,
+      svg: "",
     };
-
-    async function decodeLatestSvg(root) {
-      const focused = root.querySelector('[data-focused-editor-workspace="true"]');
-      const searchRoot = focused || root;
-      const images = Array.from(searchRoot.querySelectorAll('[data-editor-output-preview="true"] img, img'));
-      for (const image of images) {
-        const svg = await decodeSvgImage(image);
-        if (svg) return svg;
-      }
-      return "";
-    }
-
-    async function decodeSvgImage(image) {
-      const src = image?.getAttribute("src") || "";
-      if (!src) return "";
-      if (src.startsWith("data:image/svg+xml;base64,")) {
-        try { return atob(src.slice(src.indexOf(",") + 1)); } catch { return ""; }
-      }
-      if (src.startsWith("data:image/svg+xml")) {
-        const comma = src.indexOf(",");
-        if (comma < 0) return "";
-        try { return decodeURIComponent(src.slice(comma + 1)); } catch { return ""; }
-      }
-      if (src.startsWith("blob:") || src.startsWith(location.origin)) {
-        try {
-          const response = await fetch(src);
-          const text = await response.text();
-          return /^\\s*<svg[\\s>]/i.test(text) ? text : "";
-        } catch {
-          return "";
-        }
-      }
-      return "";
-    }
 
     function visibleElements(root, selector) {
       if (!root) return [];
@@ -477,7 +452,63 @@ async function collectOutputSnapshot(client, phase) {
       const number = Number(text.replace(/[^0-9.]/g, ""));
       return Number.isFinite(number) ? number : null;
     }
-  })()`, 180_000);
+  })()`, 20_000);
+
+  if (lightweight) return snapshot;
+
+  const svg = await downloadLatestSvgSnapshot(client, phase);
+  return {
+    ...snapshot,
+    svg,
+    svgSource: "download",
+  };
+}
+
+async function downloadLatestSvgSnapshot(client, phase) {
+  const downloadDir = path.join(tmpRunDir, "downloads", `${Date.now()}-${safeFileSegment(phase)}`);
+  await fs.rm(downloadDir, { recursive: true, force: true });
+  await fs.mkdir(downloadDir, { recursive: true });
+  await allowDownloads(client, downloadDir);
+
+  const click = await clickButtonInLatestOutput(client, [/Download SVG/i, /^Download\b/i], [/ZIP/i]);
+  if (!click) {
+    throw new Error("Download SVG control not found for snapshot collection.");
+  }
+
+  const svg = await waitForDownloadedSvg(downloadDir, 60_000);
+  if (!/^\s*<svg[\s>]/i.test(svg)) {
+    throw new Error(`Downloaded snapshot was not SVG markup: ${downloadDir}`);
+  }
+  return svg;
+}
+
+async function allowDownloads(client, downloadDir) {
+  const params = { behavior: "allow", downloadPath: downloadDir };
+  try {
+    await client.send("Page.setDownloadBehavior", params, 8_000);
+  } catch {
+    await client.send("Browser.setDownloadBehavior", params, 8_000);
+  }
+}
+
+async function waitForDownloadedSvg(downloadDir, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastState = "no files";
+  while (Date.now() < deadline) {
+    const names = await fs.readdir(downloadDir).catch(() => []);
+    const pending = names.filter((name) => /\.crdownload$/i.test(name));
+    const candidates = names.filter((name) => /\.svg$/i.test(name) && !/\.crdownload$/i.test(name));
+    lastState = JSON.stringify({ pending, candidates });
+    for (const name of candidates) {
+      const filePath = path.join(downloadDir, name);
+      const stat = await fs.stat(filePath).catch(() => null);
+      if (!stat?.size) continue;
+      const text = await fs.readFile(filePath, "utf8").catch(() => "");
+      if (/^\s*<svg[\s>]/i.test(text)) return text;
+    }
+    await delay(250);
+  }
+  throw new Error(`Timed out waiting for downloaded SVG snapshot in ${downloadDir}. Last state: ${lastState}`);
 }
 
 async function analyzeRegionFidelity({ scenario, fixture, svg }) {
@@ -1041,7 +1072,7 @@ async function inspectGroupingImplementation() {
 function summarizeResults(results, fixtures, sourceInspection) {
   const completed = results.filter((result) => result.ok && !result.skipped && result.analysis?.ok);
   const skipped = results.filter((result) => result.skipped);
-  const failed = results.filter((result) => !result.ok);
+  const failed = results.filter((result) => !result.ok && !result.skipped);
   const requiredFailures = failed.filter((result) => presetDefinitions[result.presetId]?.required);
   const flatColorCompleted = completed.filter((result) => result.presetId === "layered-flat-color");
   const routesCovered = unique(flatColorCompleted.map((result) => result.route));
@@ -1054,6 +1085,21 @@ function summarizeResults(results, fixtures, sourceInspection) {
   const exactCardAvailable = fixtures.inputs.some((fixture) => fixture.role === "trading-card-candidate");
   const wrongRegionReproduced = exactCardAvailable && completed.some((result) => result.analysis?.risk?.level === "high");
   const wrongRegionRiskObserved = completed.some((result) => ["high", "medium"].includes(result.analysis?.risk?.level));
+  const failedScenarios = failed.map((result) => ({
+    id: result.id,
+    route: result.route,
+    preset: result.preset,
+    fixture: result.fixture?.basename || result.fixtureId || null,
+    error: result.error || null,
+    failures: result.failures || [],
+    failedSteps: (result.steps || [])
+      .filter((step) => step && step.ok === false)
+      .map((step) => ({
+        name: step.name,
+        error: step.error || null,
+        ms: step.ms ?? null,
+      })),
+  }));
   const flatColorRows = flatColorCompleted.map((result) => ({
     id: result.id,
     route: result.route,
@@ -1064,16 +1110,25 @@ function summarizeResults(results, fixtures, sourceInspection) {
     svgBytes: result.svgBytes,
     riskLevel: result.analysis.risk.level,
   }));
+  const hasFlatColorRouteCoverage =
+    routesCovered.includes("/") &&
+    routesCovered.includes("/png-to-layered-svg-for-cricut") &&
+    routesCovered.includes("/jpg-to-layered-svg-for-cricut");
 
   return {
-    ok: routesCovered.includes("/") &&
-      routesCovered.includes("/png-to-layered-svg-for-cricut") &&
-      routesCovered.includes("/jpg-to-layered-svg-for-cricut") &&
-      requiredFailures.length === 0,
+    ok: hasFlatColorRouteCoverage && failed.length === 0,
     completedScenarioCount: completed.length,
     skippedScenarioCount: skipped.length,
     failedScenarioCount: failed.length,
     requiredFailedScenarioCount: requiredFailures.length,
+    failedScenarios,
+    timeoutFailedScenarioCount: failedScenarios.filter((result) =>
+      /timed out|timeout|CDP|Runtime\.evaluate|browser/i.test(
+        [result.error, ...(result.failures || []), ...(result.failedSteps || []).map((step) => step.error)]
+          .filter(Boolean)
+          .join(" "),
+      ),
+    ).length,
     flatColorRouteCoverage: routesCovered,
     flatColorRows,
     highRiskScenarioIds,
@@ -1982,6 +2037,10 @@ function unique(items) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function safeFileSegment(value) {
+  return String(value || "snapshot").replace(/[^a-z0-9._-]+/gi, "-").slice(0, 80);
 }
 
 function round(value) {
