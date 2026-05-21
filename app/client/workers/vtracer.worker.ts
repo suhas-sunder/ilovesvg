@@ -112,6 +112,8 @@ type PreparedImage = {
 const ciede2000Difference = differenceCiede2000();
 const FLAT_COLOR_GROUPING_PRESET_ID = "layered-flat-color";
 const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
+const PHOTO_MANY_COLORS_PRESET_ID = "photo-many-colors";
+const PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS = 32;
 
 let wasmReadyPromise: Promise<void> | null = null;
 
@@ -309,7 +311,7 @@ function preprocessImageData(
 
   const layerBuildMode = getLayerBuildMode(settings);
   const baseRequestedPaletteCount = getRequestedPaletteCount(settings);
-  const flatColorPaletteBudget = getAdaptiveFlatColorPaletteBudget(
+  const adaptivePaletteBudget = getAdaptiveLayeredPaletteBudget(
     data,
     imageData.width,
     imageData.height,
@@ -317,7 +319,7 @@ function preprocessImageData(
     layerBuildMode,
     baseRequestedPaletteCount,
   );
-  const requestedPaletteCount = flatColorPaletteBudget.targetPaletteCount;
+  const requestedPaletteCount = adaptivePaletteBudget.targetPaletteCount;
   const shouldUsePaletteQuantizer =
     settings.traceMode === "layered" &&
     layerBuildMode !== "raw-vtracer" &&
@@ -333,9 +335,7 @@ function preprocessImageData(
       data: quantized.data,
       diagnostics: {
         ...diagnostics,
-        ...(flatColorPaletteBudget.analysis
-          ? { adaptiveFlatColorPaletteBudget: flatColorPaletteBudget.analysis }
-          : {}),
+        ...adaptivePaletteBudget.diagnostics,
         ...quantized.diagnostics,
       },
       palette: quantized.palette,
@@ -354,9 +354,7 @@ function preprocessImageData(
     data,
     diagnostics: {
       ...diagnostics,
-      ...(flatColorPaletteBudget.analysis
-        ? { adaptiveFlatColorPaletteBudget: flatColorPaletteBudget.analysis }
-        : {}),
+      ...adaptivePaletteBudget.diagnostics,
       preprocessing: settings.posterize ? "posterize" : "raw-vtracer",
       paletteAlgorithm: "simple-posterize",
     },
@@ -365,6 +363,55 @@ function preprocessImageData(
     requestedPaletteCount,
     effectivePaletteCount: requestedPaletteCount,
   };
+}
+
+function getAdaptiveLayeredPaletteBudget(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+  layerBuildMode: LayerBuildMode,
+  requestedPaletteCount: number,
+): {
+  targetPaletteCount: number;
+  diagnostics: Record<string, unknown>;
+} {
+  const flatColorPaletteBudget = getAdaptiveFlatColorPaletteBudget(
+    data,
+    width,
+    height,
+    settings,
+    layerBuildMode,
+    requestedPaletteCount,
+  );
+  if (flatColorPaletteBudget.analysis) {
+    return {
+      targetPaletteCount: flatColorPaletteBudget.targetPaletteCount,
+      diagnostics: {
+        adaptiveFlatColorPaletteBudget: flatColorPaletteBudget.analysis,
+      },
+    };
+  }
+
+  const photoManyColorsPaletteBudget = getAdaptivePhotoManyColorsPaletteBudget(
+    data,
+    width,
+    height,
+    settings,
+    layerBuildMode,
+    requestedPaletteCount,
+  );
+  if (photoManyColorsPaletteBudget.analysis) {
+    return {
+      targetPaletteCount: photoManyColorsPaletteBudget.targetPaletteCount,
+      diagnostics: {
+        adaptivePhotoManyColorsPaletteBudget:
+          photoManyColorsPaletteBudget.analysis,
+      },
+    };
+  }
+
+  return { targetPaletteCount: requestedPaletteCount, diagnostics: {} };
 }
 
 function getAdaptiveFlatColorPaletteBudget(
@@ -395,6 +442,95 @@ function getAdaptiveFlatColorPaletteBudget(
   return {
     targetPaletteCount: analysis.targetPaletteCount,
     analysis,
+  };
+}
+
+function getAdaptivePhotoManyColorsPaletteBudget(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+  layerBuildMode: LayerBuildMode,
+  requestedPaletteCount: number,
+): {
+  targetPaletteCount: number;
+  analysis: Record<string, unknown> | null;
+} {
+  if (
+    requestedPaletteCount <= 0 ||
+    !shouldUsePhotoManyColorsGroupedPalette(settings, layerBuildMode)
+  ) {
+    return { targetPaletteCount: requestedPaletteCount, analysis: null };
+  }
+
+  const baseAnalysis = analyzeFlatColorPaletteBudget(
+    data,
+    width,
+    height,
+    settings,
+    requestedPaletteCount,
+  );
+  const bucketCount = Number(baseAnalysis.bucketCount || 0);
+  const fineBucketCount = Number(baseAnalysis.fineBucketCount || 0);
+  const familyCount = Number(baseAnalysis.familyCount || 0);
+  const edgeDensity = Number(baseAnalysis.edgeDensity || 0);
+  const highContrastEdgeDensity = Number(
+    baseAnalysis.highContrastEdgeDensity || 0,
+  );
+  const darkDetailDensity = Number(baseAnalysis.darkDetailDensity || 0);
+  const simpleImageScore = Number(baseAnalysis.simpleImageScore || 0);
+  const highDetailScore = Number(baseAnalysis.highDetailScore || 0);
+
+  let target = 20;
+  let reason = "photo-balanced-detail";
+
+  if (simpleImageScore >= 0.82 && bucketCount < 180 && edgeDensity < 0.08) {
+    target = familyCount <= 4 ? 8 : 12;
+    reason = "photo-simple-compact";
+  } else if (
+    highDetailScore >= 0.86 ||
+    darkDetailDensity >= 0.06 ||
+    (bucketCount >= 950 &&
+      highContrastEdgeDensity >= 0.1 &&
+      edgeDensity >= 0.16)
+  ) {
+    target = PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS;
+    reason = "photo-maximum-detail";
+  } else if (
+    highDetailScore >= 0.72 ||
+    darkDetailDensity >= 0.032 ||
+    (bucketCount >= 680 && edgeDensity >= 0.13)
+  ) {
+    target = 30;
+    reason = "photo-high-detail";
+  } else if (
+    highDetailScore >= 0.56 ||
+    fineBucketCount >= 850 ||
+    bucketCount >= 420 ||
+    familyCount >= 7
+  ) {
+    target = 24;
+    reason = "photo-rich-color";
+  } else if (familyCount <= 6 && bucketCount < 260 && edgeDensity < 0.12) {
+    target = 16;
+    reason = "photo-moderate-compact";
+  }
+
+  target = clampInt(
+    Math.min(target, requestedPaletteCount, PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS),
+    2,
+    PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS,
+  );
+
+  return {
+    targetPaletteCount: target,
+    analysis: {
+      ...baseAnalysis,
+      targetPaletteCount: target,
+      reason,
+      preset: PHOTO_MANY_COLORS_PRESET_ID,
+      maxEditableGroups: PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS,
+    },
   };
 }
 
@@ -557,6 +693,17 @@ function shouldUseHighFidelityFlatColorPalette(
   return (
     settings.traceMode === "layered" &&
     settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID &&
+    layerBuildMode === "per-color-cutout"
+  );
+}
+
+function shouldUsePhotoManyColorsGroupedPalette(
+  settings: NormalizedTraceSettings,
+  layerBuildMode: LayerBuildMode = getLayerBuildMode(settings),
+) {
+  return (
+    settings.traceMode === "layered" &&
+    settings.presetId === PHOTO_MANY_COLORS_PRESET_ID &&
     layerBuildMode === "per-color-cutout"
   );
 }
@@ -917,7 +1064,7 @@ function groupFlatColorLayeredPalette(svg: string, settings: NormalizedTraceSett
   const stats = collectFlatColorStats(svg, settings);
   if (stats.length <= 1) return svg;
 
-  const groups = buildFlatColorGroups(stats);
+  const groups = buildFlatColorGroups(stats, settings);
   if (groups.length <= 0 || groups.length >= stats.length) return svg;
 
   const representativeByColor = new Map<string, string>();
@@ -944,7 +1091,8 @@ function groupFlatColorLayeredPalette(svg: string, settings: NormalizedTraceSett
 function shouldGroupFlatColorLayeredPalette(settings: NormalizedTraceSettings) {
   return (
     settings.traceMode === "layered" &&
-    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID &&
+    (settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID ||
+      settings.presetId === PHOTO_MANY_COLORS_PRESET_ID) &&
     getLayerBuildMode(settings) === "per-color-cutout"
   );
 }
@@ -1065,12 +1213,15 @@ function flatColorBoundsCenterY(bounds: FlatColorBounds) {
   return (bounds.minY + bounds.maxY) / 2;
 }
 
-function buildFlatColorGroups(stats: FlatColorStats[]): FlatColorGroup[] {
+function buildFlatColorGroups(
+  stats: FlatColorStats[],
+  settings: NormalizedTraceSettings,
+): FlatColorGroup[] {
   const groups: FlatColorGroup[] = [];
   const orderedStats = [...stats].sort(compareFlatColorStatsByImportance);
 
   for (const stat of orderedStats) {
-    const match = findFlatColorGroup(stat, groups);
+    const match = findFlatColorGroup(stat, groups, settings);
     if (match) {
       mergeFlatColorStat(match, stat);
     } else {
@@ -1089,7 +1240,11 @@ function buildFlatColorGroups(stats: FlatColorStats[]): FlatColorGroup[] {
   return groups.sort((a, b) => a.firstIndex - b.firstIndex || a.representative.color.localeCompare(b.representative.color));
 }
 
-function findFlatColorGroup(stat: FlatColorStats, groups: FlatColorGroup[]) {
+function findFlatColorGroup(
+  stat: FlatColorStats,
+  groups: FlatColorGroup[],
+  settings: NormalizedTraceSettings,
+) {
   let best: FlatColorGroup | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
   let bestDistance = Number.POSITIVE_INFINITY;
@@ -1097,9 +1252,9 @@ function findFlatColorGroup(stat: FlatColorStats, groups: FlatColorGroup[]) {
   for (const group of groups) {
     const representative = group.representative;
     const distance = perceptualDistance(stat.rgb, representative.rgb, "ciede2000");
-    const threshold = flatColorMergeThreshold(stat, representative);
+    const threshold = flatColorMergeThreshold(stat, representative, settings);
     if (distance > threshold) continue;
-    if (!flatColorSpatiallyCompatible(stat, group, distance)) continue;
+    if (!flatColorSpatiallyCompatible(stat, group, distance, settings)) continue;
     const score = distance / Math.max(0.1, threshold);
     if (
       score < bestScore ||
@@ -1115,11 +1270,16 @@ function findFlatColorGroup(stat: FlatColorStats, groups: FlatColorGroup[]) {
   return best;
 }
 
-function flatColorMergeThreshold(a: FlatColorStats, b: FlatColorStats) {
-  if (a.isNearBlack && b.isNearBlack) return 22;
-  if (a.isNearWhite && b.isNearWhite) return 16;
+function flatColorMergeThreshold(
+  a: FlatColorStats,
+  b: FlatColorStats,
+  settings: NormalizedTraceSettings,
+) {
+  const photoManyColors = settings.presetId === PHOTO_MANY_COLORS_PRESET_ID;
+  if (a.isNearBlack && b.isNearBlack) return photoManyColors ? 14 : 22;
+  if (a.isNearWhite && b.isNearWhite) return photoManyColors ? 10 : 16;
   if (a.luma < 0.18 && b.luma < 0.18 && Math.abs(a.saturation - b.saturation) < 0.3) {
-    return 12;
+    return photoManyColors ? 7 : 12;
   }
   const saturatedMidTone =
     Math.max(a.saturation, b.saturation) >= 0.55 &&
@@ -1127,14 +1287,26 @@ function flatColorMergeThreshold(a: FlatColorStats, b: FlatColorStats) {
     !b.isNearBlack &&
     !a.isNearWhite &&
     !b.isNearWhite;
-  const base = saturatedMidTone ? 7 : 9.5;
-  return a.isTiny || b.isTiny ? Math.max(base, 12) : base;
+  const base = photoManyColors
+    ? saturatedMidTone
+      ? 4.5
+      : 5.5
+    : saturatedMidTone
+      ? 7
+      : 9.5;
+  return a.isTiny || b.isTiny ? Math.max(base, photoManyColors ? 7 : 12) : base;
 }
 
-function flatColorSpatiallyCompatible(stat: FlatColorStats, group: FlatColorGroup, distance: number) {
+function flatColorSpatiallyCompatible(
+  stat: FlatColorStats,
+  group: FlatColorGroup,
+  distance: number,
+  settings: NormalizedTraceSettings,
+) {
+  const photoManyColors = settings.presetId === PHOTO_MANY_COLORS_PRESET_ID;
   const representative = group.representative;
-  if (distance <= 3.25) return true;
-  if (stat.isNearBlack && representative.isNearBlack) return true;
+  if (distance <= (photoManyColors ? 2.75 : 3.25)) return true;
+  if (!photoManyColors && stat.isNearBlack && representative.isNearBlack) return true;
 
   const statBlue = isFlatColorBlueFamily(stat);
   const groupBlue = isFlatColorBlueFamily(representative);
@@ -1145,8 +1317,11 @@ function flatColorSpatiallyCompatible(stat: FlatColorStats, group: FlatColorGrou
   }
 
   const spatial = flatColorSpatialRelation(stat.bbox, group.bbox);
-  if (!spatial.known) return true;
+  if (!spatial.known) return !photoManyColors;
   if (spatial.overlaps || spatial.near) return true;
+  if (photoManyColors) {
+    return (stat.isTiny || representative.isTiny) && distance <= 2.75;
+  }
 
   const smallerWeight = Math.min(stat.weight, group.weight);
   const largerWeight = Math.max(stat.weight, group.weight);
@@ -1466,6 +1641,10 @@ function quantizeLayeredPixels(
         settings,
         options.layerBuildMode,
       ),
+      photoManyColorsHighFidelity: shouldUsePhotoManyColorsGroupedPalette(
+        settings,
+        options.layerBuildMode,
+      ),
     },
   );
   const transparentPixelMask = buildTransparentPixelMask(data, settings);
@@ -1702,10 +1881,24 @@ function getSafeLayeredPaletteCount(
   width: number,
   height: number,
   layerBuildMode: LayerBuildMode,
-  options: { flatColorHighFidelity?: boolean } = {},
+  options: {
+    flatColorHighFidelity?: boolean;
+    photoManyColorsHighFidelity?: boolean;
+  } = {},
 ): number {
   const pixels = width * height;
   if (layerBuildMode === "raw-vtracer") return requested;
+
+  if (
+    options.photoManyColorsHighFidelity &&
+    layerBuildMode === "per-color-cutout"
+  ) {
+    return clampInt(
+      Math.min(requested, PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS),
+      2,
+      requested,
+    );
+  }
 
   let max =
     layerBuildMode === "per-color-cutout"

@@ -210,7 +210,7 @@ function buildScenarioMatrix(fixtures) {
       fixtureId: complexPng.id,
       presetId: "photo-many-colors",
       conversionTimeoutMs: 300_000,
-      verifyCopyDownloadParity: false,
+      verifyCopyDownloadParity: true,
     },
     complexPng && {
       id: "home-filled-layers-complex",

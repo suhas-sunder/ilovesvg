@@ -34,6 +34,15 @@ const scenarios = [
     conversionTimeoutMs: 240_000,
   },
   {
+    id: "home-photo-many-colors",
+    route: "/",
+    targetKind: "auto",
+    fixtureKind: "png",
+    presetPatterns: [/^Photo Many Colors\b/i],
+    presetLabel: "Photo Many Colors",
+    conversionTimeoutMs: 300_000,
+  },
+  {
     id: "png-layered-flat-color",
     route: "/png-to-layered-svg-for-cricut",
     targetKind: "group",

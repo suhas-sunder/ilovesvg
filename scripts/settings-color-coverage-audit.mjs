@@ -34,6 +34,14 @@ const scenarios = [
     conversionTimeoutMs: 240_000,
   },
   {
+    id: "home-photo-many-colors",
+    route: "/",
+    fixtureKind: "png",
+    presetPatterns: [/^Photo Many Colors\b/i],
+    presetLabel: "Photo Many Colors",
+    conversionTimeoutMs: 300_000,
+  },
+  {
     id: "png-layered-flat-color",
     route: "/png-to-layered-svg-for-cricut",
     fixtureKind: "png",
@@ -1003,16 +1011,27 @@ async function hideAllExposedLayerColors(client) {
   return evaluate(client, `(async () => {
     const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
     if (!latest) return { clicked: 0, reason: "missing latest output" };
+    const bulkHide = latest.querySelector('button[aria-label="Hide all layer colors"]');
+    if (bulkHide && isVisible(bulkHide) && !bulkHide.disabled) {
+      const mountedBoxes = visibleShowCheckboxes();
+      bulkHide.scrollIntoView({ block: "center", inline: "nearest" });
+      bulkHide.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const remainingBoxes = visibleShowCheckboxes();
+      return {
+        clicked: mountedBoxes.filter((box) => box.checked).length,
+        bulkHideClicks: 1,
+        showMoreClicks: 0,
+        mountedShowCheckboxes: mountedBoxes.length,
+        remainingChecked: remainingBoxes.filter((box) => box.checked).length,
+      };
+    }
     let clicked = 0;
     let showMoreClicks = 0;
     let mountedShowCheckboxes = 0;
     for (let attempt = 0; attempt < 32; attempt += 1) {
-      const boxes = Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
-        .filter((box) => {
-          const rect = box.getBoundingClientRect();
-          const style = getComputedStyle(box);
-          return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
-        });
+      const boxes = visibleShowCheckboxes();
       mountedShowCheckboxes = Math.max(mountedShowCheckboxes, boxes.length);
       for (const box of boxes) {
         if (!box.checked) continue;
@@ -1039,19 +1058,24 @@ async function hideAllExposedLayerColors(client) {
       showMoreClicks += 1;
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
-    const remainingBoxes = Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
-      .filter((box) => {
-        const rect = box.getBoundingClientRect();
-        const style = getComputedStyle(box);
-        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
-      });
+    const remainingBoxes = visibleShowCheckboxes();
     return {
       clicked,
+      bulkHideClicks: 0,
       showMoreClicks,
       mountedShowCheckboxes,
       remainingChecked: remainingBoxes.filter((box) => box.checked).length,
     };
 
+    function visibleShowCheckboxes() {
+      return Array.from(latest.querySelectorAll('input[type="checkbox"][aria-label^="Show "]'))
+        .filter((box) => isVisible(box));
+    }
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
     function latestCard(items) {
       return items.reduce((best, card) => {
         if (!best) return card;
@@ -1358,13 +1382,14 @@ function summarizeResults(results, staticFindings) {
   const totals = okResults.map((result) => result.counts);
   const max = (field) => Math.max(0, ...totals.map((counts) => Number(counts[field] || 0)));
   const home = okResults.find((result) => result.id === "home-layered-flat-color");
+  const expectsHomeFlatColor = results.some((result) => result.id === "home-layered-flat-color");
   const layeredRoutes = okResults.filter((result) =>
     ["home-layered-flat-color", "png-layered-flat-color", "jpg-layered-flat-color"].includes(result.id),
   );
   const failures = [];
-  if (!home) {
+  if (expectsHomeFlatColor && !home) {
     failures.push("Home layered coverage scenario did not complete.");
-  } else {
+  } else if (home) {
     if (home.counts.actualVisibleSvgColorsBeforeHide > home.counts.layerRowsExposed) {
       failures.push("Home layered output exposes fewer layer rows than visible SVG colors.");
     }

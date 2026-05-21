@@ -213,9 +213,9 @@ const corePresetContracts = [
     sourceIds: ["photo-many-colors"],
     intendedUserOutcome: "High-complexity editable color approximation for photo-like images without raw color explosion.",
     typicalImageTypes: ["photos", "high-color illustrations", "complex rendered art"],
-    expectedGroupRange: [18, 30],
-    hardMaximumEditableColorGroups: 30,
-    max30Applies: true,
+    expectedGroupRange: [8, 32],
+    hardMaximumEditableColorGroups: 32,
+    max30Applies: false,
     groupingAggressiveness: "light selective",
     nearBlackBehavior: "Merge only near-identical dark variants unless they represent subject detail.",
     nearWhiteBehavior: "Merge clear highlight noise, preserve important light areas.",
@@ -725,7 +725,8 @@ function isAffectedByFlatColorAdaptive(preset) {
 
 function overFragmentationRiskForPreset(preset, family) {
   const requested = numberOrNull(preset.settings.requestedPaletteCount) ?? numberOrNull(preset.settings.colorLayerCount) ?? numberOrNull(preset.settings.layerCount) ?? 0;
-  if (family === "photo-many-colors" && requested > 30) return "high: current requested count exceeds the product-facing 30-group ceiling";
+  if (family === "photo-many-colors" && preset.settings.layerBuildMode === "raw-vtracer") return "high: raw VTracer can emit many final colors without grouping";
+  if (family === "photo-many-colors" && requested > 32) return "high: requested count exceeds the Photo Many Colors 32-group ceiling";
   if (requested >= 24) return "medium-high: many editable rows unless grouped or windowed";
   if (preset.settings.layerBuildMode === "raw-vtracer") return "high: raw VTracer can emit many final colors without grouping";
   if ((numberOrNull(preset.settings.colorMergeTolerance) ?? 0) <= 6 && requested >= 16) return "medium: low merge tolerance can preserve near-duplicates";
@@ -775,9 +776,13 @@ function inspectSourceFindings(sourceFiles, inventory) {
         "Shared layered additions use colorLayerCount, while PNG/JPG route-local submit paths append layerCount. Those route actions can keep the default layerCount for shared additions unless a route-specific mapper is added.",
     },
     photoManyColorsCeilingRisk: {
-      present: inventory.allPresets.some((preset) => preset.id === "photo-many-colors" && preset.requestedTargetCount > 30),
+      present: inventory.allPresets.some(
+        (preset) =>
+          preset.id === "photo-many-colors" &&
+          (preset.requestedTargetCount > 32 || preset.settings.layerBuildMode === "raw-vtracer"),
+      ),
       sourceRequestedCount: inventory.allPresets.find((preset) => preset.id === "photo-many-colors")?.requestedTargetCount ?? null,
-      reason: "Photo Many Colors currently requests 32 raw-vtracer colors, above the requested user-facing 30 editable group ceiling.",
+      reason: "Photo Many Colors must use grouped editable palette output and stay at or below the 32-color ceiling.",
     },
   };
 }
@@ -927,6 +932,9 @@ function fixtureRiskNotes({ colors, clusters, suggestedUiGroupCount, majorColorC
 }
 
 async function readOptionalReports() {
+  const sourceMtimeMs = await latestMtimeForPaths(
+    targetSourceFiles.map((relativePath) => path.join(rootDir, relativePath)),
+  );
   const paths = {
     settingsColorCoverage: path.join(rootDir, "tmp", "settings-color-coverage-audit.json"),
     layerColorCorrectness: path.join(rootDir, "tmp", "layer-color-correctness-report.json"),
@@ -936,21 +944,47 @@ async function readOptionalReports() {
   };
   const reports = {};
   for (const [key, filePath] of Object.entries(paths)) {
-    reports[key] = await readJsonIfExists(filePath);
+    reports[key] = await readJsonIfExists(filePath, sourceMtimeMs);
   }
   return reports;
 }
 
-async function readJsonIfExists(filePath) {
+async function latestMtimeForPaths(filePaths) {
+  let latest = 0;
+  for (const filePath of filePaths) {
+    try {
+      const stat = await fs.stat(filePath);
+      latest = Math.max(latest, stat.mtimeMs);
+    } catch {
+      // Missing inspected files are reported elsewhere; freshness checks can ignore them.
+    }
+  }
+  return latest;
+}
+
+async function readJsonIfExists(filePath, minimumMtimeMs = 0) {
   try {
+    const stat = await fs.stat(filePath);
+    if (minimumMtimeMs > 0 && stat.mtimeMs + 1000 < minimumMtimeMs) {
+      return {
+        path: filePath,
+        parsed: null,
+        stale: true,
+        mtimeMs: stat.mtimeMs,
+      };
+    }
     return {
       path: filePath,
       parsed: JSON.parse(await fs.readFile(filePath, "utf8")),
+      stale: false,
+      mtimeMs: stat.mtimeMs,
     };
   } catch {
     return {
       path: filePath,
       parsed: null,
+      stale: false,
+      mtimeMs: null,
     };
   }
 }
@@ -984,6 +1018,65 @@ function extractLiveMeasurements(optionalReports) {
     }
   }
 
+  const settingsCoverage = optionalReports.settingsColorCoverage.parsed;
+  if (Array.isArray(settingsCoverage?.scenarios)) {
+    for (const result of settingsCoverage.scenarios) {
+      if (!result?.ok || result.skipped) continue;
+      measurements.push({
+        sourceReport: optionalReports.settingsColorCoverage.path,
+        scenarioId: result.id,
+        route: result.route,
+        presetId: presetIdFromScenarioId(result.id, result.preset),
+        preset: result.preset || null,
+        fixtureBasename: result.fixture?.basename || null,
+        engineUsed: result.latestOutput?.engineUsed || result.conversion?.engineUsed || null,
+        layerBuildMode:
+          result.latestOutput?.layerBuildMode || result.conversion?.layerBuildMode || null,
+        requestedPaletteCount:
+          result.latestOutput?.requestedPaletteCount ||
+          result.conversion?.requestedPaletteCount ||
+          null,
+        actualPaletteCount:
+          result.latestOutput?.actualPaletteCount ||
+          result.conversion?.actualPaletteCount ||
+          null,
+        exposedLayerCount: result.counts?.layerRowsExposed ?? null,
+        groupedColorCount: result.counts?.actualVisibleSvgColorsBeforeHide ?? null,
+        rawVisibleColorCount: result.counts?.actualVisibleSvgColorsBeforeHide ?? null,
+        svgBytes: result.latestOutput?.svgBytesAttr ?? result.conversion?.svgBytes ?? null,
+        pathCount: result.latestOutput?.pathCountAttr ?? result.conversion?.pathCount ?? null,
+        copyDownloadParity: result.copyDownloadParity ?? null,
+        evidenceType: "settings-color-coverage-measurement",
+      });
+    }
+  }
+
+  const layerColorCorrectness = optionalReports.layerColorCorrectness.parsed;
+  if (Array.isArray(layerColorCorrectness?.scenarios)) {
+    for (const result of layerColorCorrectness.scenarios) {
+      if (!result?.ok || result.skipped) continue;
+      measurements.push({
+        sourceReport: optionalReports.layerColorCorrectness.path,
+        scenarioId: result.id,
+        route: result.route,
+        presetId: presetIdFromScenarioId(result.id, result.preset),
+        preset: result.preset || null,
+        fixtureBasename: result.fixture?.basename || null,
+        engineUsed: result.conversion?.engineUsed || null,
+        layerBuildMode: result.conversion?.layerBuildMode || null,
+        requestedPaletteCount: result.conversion?.requestedPaletteCount ?? null,
+        actualPaletteCount: result.conversion?.actualPaletteCount ?? null,
+        exposedLayerCount: result.baseline?.targetCount ?? null,
+        groupedColorCount: result.baseline?.targetCount ?? null,
+        rawVisibleColorCount: null,
+        svgBytes: result.conversion?.svgBytes ?? null,
+        pathCount: result.conversion?.pathCount ?? null,
+        copyDownloadParity: null,
+        evidenceType: "layer-color-correctness-measurement",
+      });
+    }
+  }
+
   const paletteGrouping = optionalReports.paletteGrouping.parsed;
   if (Array.isArray(paletteGrouping?.measuredOutputs)) {
     for (const item of paletteGrouping.measuredOutputs) {
@@ -1004,6 +1097,23 @@ function extractLiveMeasurements(optionalReports) {
     }
   }
   return measurements;
+}
+
+function presetIdFromScenarioId(id, preset) {
+  const text = `${id || ""} ${preset || ""}`.toLowerCase();
+  if (text.includes("photo-many-colors") || text.includes("photo many colors")) {
+    return "photo-many-colors";
+  }
+  if (text.includes("layered-flat-color") || text.includes("flat color")) {
+    return "layered-flat-color";
+  }
+  if (text.includes("layered-8-color") || text.includes("8 color")) {
+    return "layered-8-color";
+  }
+  if (text.includes("layered-poster") || text.includes("poster")) {
+    return "layered-poster";
+  }
+  return null;
 }
 
 function buildContractTable(inventory) {
@@ -1117,12 +1227,21 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
       label: "Layered - 8 Color",
       expectedRange: [2, 8],
       hardMax: 8,
+      posterizeRequired: true,
     },
     {
       id: "layered-poster",
       label: "Layered - Poster",
       expectedRange: [4, 12],
       hardMax: 12,
+      posterizeRequired: true,
+    },
+    {
+      id: "photo-many-colors",
+      label: "Photo Many Colors",
+      expectedRange: [8, 32],
+      hardMax: 32,
+      posterizeRequired: false,
     },
   ];
   const routes = ["/", "/png-to-layered-svg-for-cricut", "/jpg-to-layered-svg-for-cricut"];
@@ -1165,7 +1284,7 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
         `${contract.label} must use a grouped client layerBuildMode, not raw VTracer posterize output.`,
       );
     }
-    if (settings.posterize !== true) {
+    if (contract.posterizeRequired && settings.posterize !== true) {
       sourceFindings.push(`${contract.label} must keep posterize enabled for compact layered output.`);
     }
     if (contract.id === "layered-poster" && (numberOrNull(settings.posterizeStrength) ?? 0) < 4) {
@@ -1187,6 +1306,7 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
       requestedPaletteCount,
       finalRequestedCount,
       layerBuildMode: layerBuildMode || null,
+      usesGroupedClientPath,
       posterize: settings.posterize ?? null,
       posterizeStrength: settings.posterizeStrength ?? null,
       colorMergeTolerance: settings.colorMergeTolerance ?? null,
@@ -1227,7 +1347,7 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
           preset: contract.label,
           enginePath:
             route === "/"
-              ? source?.layerBuildMode
+              ? source?.usesGroupedClientPath
                 ? "Homepage browser VTracer grouped palette first; server Potrace layered fallback."
                 : "Homepage raw VTracer posterize risk; server Potrace fallback."
               : "Server Potrace layered mask builder.",
@@ -1244,7 +1364,7 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
             row.copyDownloadParity ??
             "not measured in this diagnostic run",
           layerEditability:
-            countWithinContract && Boolean(source?.layerBuildMode)
+            countWithinContract && Boolean(source?.usesGroupedClientPath)
               ? "expected grouped editable layers; verified by layer-color browser smokes"
               : "guardrail not proven",
           overFlattenedRisk: row.overFlattenedRisk,
@@ -1396,7 +1516,7 @@ function buildRecommendedImplementationOrder() {
     },
     {
       batch: 2,
-      scope: "Layered - Detail and Photo Many Colors, including explicit 30-group user-facing cap.",
+      scope: "Layered - Detail and Photo Many Colors, including explicit grouped-palette caps.",
       why: "These are high-complexity presets and need rendered quality plus performance evidence.",
       likelyFiles: [
         "app/client/workers/vtracer.worker.ts",

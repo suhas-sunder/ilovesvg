@@ -237,7 +237,7 @@ async function auditLayeredPresetRecipes() {
     "layered-flat-color": ["requestedPaletteCount: 16", 'layerBuildMode: "per-color-cutout"'],
     "layered-soft-poster": ["requestedPaletteCount: 12", 'gapFill: "overlap"'],
     "ui-mockup-app-screen": ["requestedPaletteCount: 28", 'paletteDistance: "ciede2000"'],
-    "photo-many-colors": ["requestedPaletteCount: 32", 'layerBuildMode: "raw-vtracer"'],
+    "photo-many-colors": ["requestedPaletteCount: 32", 'layerBuildMode: "per-color-cutout"'],
     "filled-layers-smooth": ["requestedPaletteCount: 20", 'gapFill: "overlap"'],
     "filled-layers-separate-colors": ["requestedPaletteCount: 16", 'gapFill: "none"'],
     "clean-color-sticker": ["requestedPaletteCount: 20", 'removeWhite: false'],
