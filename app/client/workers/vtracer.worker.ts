@@ -28,6 +28,10 @@ import {
   injectFillStrokeOutlineGroup,
 } from "../../shared/tracing/fillStrokeSvg";
 import { clampSvgPathDataPrecision } from "../../shared/tracing/svgPathPrecision";
+import {
+  optimizeLayeredSvgPathStructure,
+  resolveLayeredSvgStructureOptimizationOptions,
+} from "../../shared/tracing/svgPathStructureOptimizer";
 
 type WorkerRequest = {
   id: string;
@@ -201,6 +205,8 @@ async function runTrace(request: WorkerRequest) {
         decoded.height,
         decoded.imageData,
         prepared.palette,
+        decoded.originalWidth,
+        decoded.originalHeight,
       ),
     );
     const layers = extractEditableLayers(svg, request.settings);
@@ -215,8 +221,8 @@ async function runTrace(request: WorkerRequest) {
       id: request.id,
       svg,
       layers,
-      width: getOutputWidth(request.settings, decoded.width, decoded.height),
-      height: getOutputHeight(request.settings, decoded.width, decoded.height),
+      width: getOutputWidth(request.settings, decoded.originalWidth, decoded.originalHeight),
+      height: getOutputHeight(request.settings, decoded.originalWidth, decoded.originalHeight),
       warnings,
       timings,
       diagnostics: buildTraceDiagnostics({
@@ -224,6 +230,8 @@ async function runTrace(request: WorkerRequest) {
         prepared,
         decodedWidth: decoded.width,
         decodedHeight: decoded.height,
+        originalWidth: decoded.originalWidth,
+        originalHeight: decoded.originalHeight,
         pathCount,
         svgBytes,
         layerCount: layers.length,
@@ -262,6 +270,8 @@ async function decodeToImageData(
   const blob = new Blob([buffer], { type: mimeType });
   const bitmap = await createImageBitmap(blob);
   try {
+    const originalWidth = bitmap.width;
+    const originalHeight = bitmap.height;
     const maxSide = getRequestedTraceSide(settings);
     const scale =
       maxSide > 0
@@ -280,6 +290,8 @@ async function decodeToImageData(
       imageData: context.getImageData(0, 0, width, height),
       width,
       height,
+      originalWidth,
+      originalHeight,
     };
   } finally {
     bitmap.close();
@@ -821,9 +833,11 @@ function postprocessSvg(
   sourceHeight: number,
   sourceImageData?: ImageData,
   sourcePalette: RGB[] = [],
+  outputSourceWidth = sourceWidth,
+  outputSourceHeight = sourceHeight,
 ) {
-  const outputWidth = getOutputWidth(settings, sourceWidth, sourceHeight);
-  const outputHeight = getOutputHeight(settings, sourceWidth, sourceHeight);
+  const outputWidth = getOutputWidth(settings, outputSourceWidth, outputSourceHeight);
+  const outputHeight = getOutputHeight(settings, outputSourceWidth, outputSourceHeight);
   let svg = String(rawSvg || "")
     .replace(/<\?xml[^>]*>\s*/i, "")
     .replace(/<!--[\s\S]*?-->\s*/g, "");
@@ -863,12 +877,20 @@ function postprocessSvg(
   }
 
   svg = snapSvgPathFillsToPalette(svg, settings, sourcePalette);
+  svg = groupFlatColorLayeredPalette(svg, settings);
+
+  if (settings.traceMode === "layered") {
+    svg = clampSvgPathDataPrecision(svg, GENERATED_LAYERED_PATH_PRECISION);
+    svg = optimizeLayeredSvgPathStructure(svg, {
+      enabled: true,
+      ...resolveLayeredSvgStructureOptimizationOptions(sourceWidth, sourceHeight),
+    }).svg;
+  }
+
   svg = injectFillStrokeOutlineGroup(svg, {
     fillStrokeWidth: settings.fillStrokeWidth,
     fillStrokeColor: settings.fillStrokeColor,
   });
-
-  svg = groupFlatColorLayeredPalette(svg, settings);
   svg = annotateSvgLayerIds(svg, settings);
 
   const alphaClipPathTags = buildSourceAlphaClipPathTags(sourceImageData, settings);
@@ -2085,6 +2107,8 @@ function buildTraceDiagnostics(input: {
   prepared: PreparedImage;
   decodedWidth: number;
   decodedHeight: number;
+  originalWidth: number;
+  originalHeight: number;
   pathCount: number;
   svgBytes: number;
   layerCount: number;
@@ -2097,6 +2121,8 @@ function buildTraceDiagnostics(input: {
     requestedPaletteCount: input.prepared.requestedPaletteCount || undefined,
     decodedWidth: input.decodedWidth,
     decodedHeight: input.decodedHeight,
+    originalWidth: input.originalWidth,
+    originalHeight: input.originalHeight,
     pathCount: input.pathCount,
     svgBytes: input.svgBytes,
     layerCount: input.layerCount,

@@ -16,8 +16,10 @@ const reportPath = process.env.HF_BROWSER_OUTPUT_REPORT_PATH
   : path.join(runDir, "report.json");
 const profileDir = path.join(os.tmpdir(), "ilovesvg-high-fidelity-browser-output-smoke", String(debugPort));
 const scenarioTimeoutMs = Number(process.env.HF_BROWSER_OUTPUT_TIMEOUT_MS || 180_000);
-const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 10_000_000);
-const maxCriticalPresetSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_PRESET_BYTES || 20_000_000);
+const preferredSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_PREFERRED_BYTES || 1_500_000);
+const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 2_500_000);
+const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 3_000_000);
+const maxCriticalPresetSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_PRESET_BYTES || 3_000_000);
 const minHighDetailLayerCount = Number(process.env.HF_BROWSER_OUTPUT_MIN_LAYERS || 20);
 const maxGroupedColors = Number(process.env.HF_BROWSER_OUTPUT_MAX_GROUPS || 32);
 
@@ -84,6 +86,8 @@ async function main() {
     browserPath,
     budgets: {
       scenarioTimeoutMs,
+      preferredSvgBytes,
+      acceptableSvgBytes,
       maxSvgBytes,
       maxCriticalPresetSvgBytes,
       minHighDetailLayerCount,
@@ -240,6 +244,16 @@ function validateHighFidelityFlatResult(result) {
   const visibleColors = result.svg?.visibleColorCount ?? 0;
   if (visibleColors > maxGroupedColors) add(`visible color count exceeded ${maxGroupedColors}; saw ${visibleColors}`);
   if ((result.download?.bytes || 0) > maxSvgBytes) add(`downloaded SVG exceeded ${maxSvgBytes} bytes; saw ${result.download.bytes}`);
+  if ((result.download?.bytes || 0) > acceptableSvgBytes) {
+    add(`downloaded SVG exceeded acceptable intermediate budget ${acceptableSvgBytes} bytes; saw ${result.download.bytes}`);
+  }
+  const expectedWidth = result.fixture?.displayWidth || result.fixture?.width || 0;
+  const expectedHeight = result.fixture?.displayHeight || result.fixture?.height || 0;
+  if (expectedWidth && expectedHeight && result.svg?.width && result.svg?.height) {
+    if (result.svg.width < expectedWidth || result.svg.height < expectedHeight) {
+      add(`SVG dimensions were reduced from displayed source ${expectedWidth} x ${expectedHeight} to ${result.svg.width} x ${result.svg.height}`);
+    }
+  }
   if (!result.structure) {
     add("SVG structure report was not collected");
   } else {
@@ -247,6 +261,7 @@ function validateHighFidelityFlatResult(result) {
     if (result.structure.pathCount < 1) add("SVG structure has no paths");
     if (result.structure.averageDecimalPlaces > 3) add(`path numeric precision is still excessive; average decimal places ${result.structure.averageDecimalPlaces}`);
   }
+  failures.push(...validateRenderMetrics(result, label));
   return failures;
 }
 
@@ -263,6 +278,24 @@ function validatePresetTriageResult(result) {
   }
   const layerCount = result.layerTotalCount || 0;
   if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
+  return failures;
+}
+
+function validateRenderMetrics(result, label) {
+  const failures = [];
+  const source = result.render?.sourceMetrics;
+  const output = result.render?.outputMetrics;
+  if (!source || !output) return failures;
+  const add = (reason) => failures.push({ scenarioId: result.scenarioId, fixture: result.fixture?.basename || null, preset: result.presetLabel || null, reason });
+  if (source.nearBlackPixelShare > 0.01 && output.nearBlackPixelShare < source.nearBlackPixelShare * 0.45) {
+    add(`near-black text/linework metric dropped materially for ${label}: source ${source.nearBlackPixelShare}, output ${output.nearBlackPixelShare}`);
+  }
+  if (source.darkPixelShare > 0.02 && output.darkPixelShare < source.darkPixelShare * 0.5) {
+    add(`dark detail metric dropped materially for ${label}: source ${source.darkPixelShare}, output ${output.darkPixelShare}`);
+  }
+  if (source.highContrastEdgeShare > 0.004 && output.highContrastEdgeShare < source.highContrastEdgeShare * 0.5) {
+    add(`edge/detail metric dropped materially for ${label}: source ${source.highContrastEdgeShare}, output ${output.highContrastEdgeShare}`);
+  }
   return failures;
 }
 
@@ -405,14 +438,27 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
 async function fixtureInfo(filePath) {
   const stat = await fs.stat(filePath);
   const meta = await sharp(filePath).metadata();
+  const oriented = orientedDimensions(meta);
   return {
     path: filePath,
     basename: path.basename(filePath),
     bytes: stat.size,
     width: meta.width || null,
     height: meta.height || null,
+    displayWidth: oriented.width,
+    displayHeight: oriented.height,
+    orientation: meta.orientation || null,
     format: meta.format || null,
   };
+}
+
+function orientedDimensions(meta) {
+  const width = meta.width || null;
+  const height = meta.height || null;
+  if (!width || !height) return { width, height };
+  return [5, 6, 7, 8].includes(Number(meta.orientation))
+    ? { width: height, height: width }
+    : { width, height };
 }
 
 async function renderComparison(sourcePath, svgPath, scenarioId) {
@@ -461,8 +507,10 @@ function imageDarkMetrics(raw) {
 async function analyzeSvgFile(svgPath) {
   const svg = await fs.readFile(svgPath, "utf8");
   const colors = visibleColors(svg);
+  const dimensions = svgDimensions(svg);
   return {
     bytes: Buffer.byteLength(svg),
+    ...dimensions,
     pathCount: countMatches(svg, /<path\b/gi),
     groupCount: countMatches(svg, /<g\b/gi),
     visibleColorCount: colors.length,
@@ -474,6 +522,7 @@ async function analyzeSvgFile(svgPath) {
 async function analyzeStructure(svgPath) {
   const svg = await fs.readFile(svgPath, "utf8");
   const pathData = [...svg.matchAll(/<path\b[^>]*\bd\s*=\s*["']([^"']*)["'][^>]*>/gi)].map((m) => m[1]);
+  const pathStructures = pathData.map(analyzePathStructure);
   const duplicatePathStrings = pathData.length - new Set(pathData).size;
   const attrMatches = [...svg.matchAll(/\s([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*["']([^"']{500,})["']/g)];
   const largeAttrs = attrMatches.reduce((map, match) => {
@@ -489,6 +538,17 @@ async function analyzeStructure(svgPath) {
     pathCount: pathData.length,
     averagePathDataLength: pathData.length ? Math.round(pathData.reduce((sum, value) => sum + value.length, 0) / pathData.length) : 0,
     largestPathDataLength: pathData.length ? Math.max(...pathData.map((value) => value.length)) : 0,
+    totalPathCommandCount: pathStructures.reduce((sum, value) => sum + value.commandCount, 0),
+    totalPathSegmentCount: pathStructures.reduce((sum, value) => sum + value.segmentCount, 0),
+    totalPathPointCount: pathStructures.reduce((sum, value) => sum + value.pointCount, 0),
+    totalSubpathCount: pathStructures.reduce((sum, value) => sum + value.subpathCount, 0),
+    averageSegmentsPerPath: pathStructures.length
+      ? Math.round(pathStructures.reduce((sum, value) => sum + value.segmentCount, 0) / pathStructures.length)
+      : 0,
+    largestPathSegmentCount: pathStructures.length
+      ? Math.max(...pathStructures.map((value) => value.segmentCount))
+      : 0,
+    pathCommandHistogram: mergeHistograms(pathStructures.map((value) => value.commandHistogram)),
     duplicatePathStrings,
     duplicatePathRatio: pathData.length ? round(duplicatePathStrings / pathData.length, 4) : 0,
     groupCount: countMatches(svg, /<g\b/gi),
@@ -508,6 +568,166 @@ async function analyzeStructure(svgPath) {
     maxDecimalPlaces,
     visibleColorCount: visibleColors(svg).length,
   };
+}
+
+function analyzePathStructure(pathData) {
+  const tokens = [...String(pathData || "").matchAll(/[AaCcHhLlMmQqSsTtVvZz]|-?(?:\d*\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/gi)].map((m) => m[0]);
+  let index = 0;
+  let command = "";
+  let x = 0;
+  let y = 0;
+  let startX = 0;
+  let startY = 0;
+  let commandCount = 0;
+  let segmentCount = 0;
+  let pointCount = 0;
+  let subpathCount = 0;
+  const commandHistogram = {};
+  const isCommand = (token) => /^[AaCcHhLlMmQqSsTtVvZz]$/.test(token);
+  const readNumber = () => Number(tokens[index++]);
+  const addCommand = (value) => {
+    const key = value.toUpperCase();
+    commandCount += 1;
+    commandHistogram[key] = (commandHistogram[key] || 0) + 1;
+  };
+  const segmentTo = (nextX, nextY) => {
+    segmentCount += 1;
+    pointCount += 1;
+    x = nextX;
+    y = nextY;
+  };
+
+  while (index < tokens.length) {
+    if (isCommand(tokens[index])) {
+      command = tokens[index++];
+      addCommand(command);
+    }
+    if (!command) break;
+    const relative = command === command.toLowerCase();
+    const upper = command.toUpperCase();
+    if (upper === "Z") {
+      segmentTo(startX, startY);
+      command = "";
+      continue;
+    }
+    if (upper === "M") {
+      if (index + 1 > tokens.length) break;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      x = nextX;
+      y = nextY;
+      startX = x;
+      startY = y;
+      pointCount += 1;
+      subpathCount += 1;
+      command = relative ? "l" : "L";
+      continue;
+    }
+    if (upper === "L") {
+      if (index + 1 > tokens.length) break;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "H") {
+      if (index >= tokens.length) break;
+      let nextX = readNumber();
+      if (relative) nextX += x;
+      segmentTo(nextX, y);
+      continue;
+    }
+    if (upper === "V") {
+      if (index >= tokens.length) break;
+      let nextY = readNumber();
+      if (relative) nextY += y;
+      segmentTo(x, nextY);
+      continue;
+    }
+    if (upper === "C") {
+      if (index + 5 >= tokens.length) break;
+      const values = [readNumber(), readNumber(), readNumber(), readNumber(), readNumber(), readNumber()];
+      const nextX = relative ? x + values[4] : values[4];
+      const nextY = relative ? y + values[5] : values[5];
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "Q" || upper === "S") {
+      if (index + 3 >= tokens.length) break;
+      const values = [readNumber(), readNumber(), readNumber(), readNumber()];
+      const nextX = relative ? x + values[2] : values[2];
+      const nextY = relative ? y + values[3] : values[3];
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "T") {
+      if (index + 1 >= tokens.length) break;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "A") {
+      if (index + 6 >= tokens.length) break;
+      index += 5;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    break;
+  }
+
+  return { commandCount, segmentCount, pointCount, subpathCount, commandHistogram };
+}
+
+function mergeHistograms(items) {
+  return items.reduce((merged, item) => {
+    for (const [key, value] of Object.entries(item || {})) {
+      merged[key] = (merged[key] || 0) + value;
+    }
+    return merged;
+  }, {});
+}
+
+function svgDimensions(svg) {
+  const open = String(svg || "").match(/<svg\b([^>]*)>/i)?.[1] || "";
+  const width = parseSvgLength(open.match(/\bwidth\s*=\s*(["'])([^"']+)\1/i)?.[2]);
+  const height = parseSvgLength(open.match(/\bheight\s*=\s*(["'])([^"']+)\1/i)?.[2]);
+  const viewBoxValues =
+    open
+      .match(/\bviewBox\s*=\s*(["'])([^"']+)\1/i)?.[2]
+      ?.trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter(Number.isFinite) || [];
+  return {
+    width,
+    height,
+    viewBoxWidth: viewBoxValues.length >= 4 ? viewBoxValues[2] : null,
+    viewBoxHeight: viewBoxValues.length >= 4 ? viewBoxValues[3] : null,
+  };
+}
+
+function parseSvgLength(value) {
+  const match = String(value || "").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
 }
 
 function visibleColors(svg) {

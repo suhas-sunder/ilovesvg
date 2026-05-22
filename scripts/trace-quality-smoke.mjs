@@ -10,6 +10,7 @@ import {
 import { differenceCiede2000 } from "culori";
 import { traceCenterlineRasterToSvg } from "../app/shared/tracing/centerlineTrace.ts";
 import { injectFillStrokeOutlineGroup } from "../app/shared/tracing/fillStrokeSvg.ts";
+import { optimizeLayeredSvgPathStructure } from "../app/shared/tracing/svgPathStructureOptimizer.ts";
 import { traceBitmapToSvg } from "../app/utils/potraceCompat.ts";
 import {
   STROKE_TRACE_PRESET_ADDITIONS,
@@ -112,6 +113,7 @@ for (const fixture of cases) {
 metrics.push(...(await auditLayeredPresetRecipes()));
 metrics.push(...testCuratedLayeredPresetRenderability());
 metrics.push(testFillStrokeOutlineInjection());
+metrics.push(testLayeredPathStructureOptimization());
 metrics.push(testImageQPaletteFixture());
 metrics.push(...auditCenterlineStrokeRecipes());
 
@@ -459,6 +461,51 @@ function testFillStrokeOutlineInjection() {
     name: "layered-fill-stroke-outline:svg",
     strokeLayerPaths: copiedPathCount,
     hasEditableStrokeLayer: true,
+  };
+}
+
+function testLayeredPathStructureOptimization() {
+  const sourceSvg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">',
+    '<g fill="#e2e8f0" data-layer-color="#e2e8f0">',
+    '<path d="M1 1C2 1 3 2 3 3C3 4 2 5 1 5Z',
+    'M12 12C16 12 22 16 24 20C26 25 22 30 14 30C10 28 9 18 12 12Z"/>',
+    "</g>",
+    '<g fill="#020617" data-layer-color="#020617">',
+    '<path d="M4 4C5 4 6 5 6 6C6 7 5 8 4 8Z"/>',
+    "</g>",
+    "</svg>",
+  ].join("");
+  const result = optimizeLayeredSvgPathStructure(sourceSvg, {
+    removeTinyIslands: true,
+    microIslandMaxArea: 64,
+    microIslandMaxDimension: 10,
+    preserveDarkLumaBelow: 0.22,
+  });
+
+  if (result.stats.removedSubpathCount !== 1) {
+    throw new Error(
+      `Path structure optimizer removed ${result.stats.removedSubpathCount} subpaths instead of the one light texture island`,
+    );
+  }
+  if (!/data-layer-color="#020617"[\s\S]*M4 4c/i.test(result.svg)) {
+    throw new Error("Path structure optimizer removed protected dark linework");
+  }
+  if (/M1 1/i.test(result.svg)) {
+    throw new Error("Path structure optimizer kept the tiny light texture island");
+  }
+  if (!/M12 12c/i.test(result.svg)) {
+    throw new Error("Path structure optimizer removed a meaningful light region");
+  }
+  if (Buffer.byteLength(result.svg) >= Buffer.byteLength(sourceSvg)) {
+    throw new Error("Path structure optimizer did not compact path data");
+  }
+
+  return {
+    name: "layered-path-structure-optimizer:linework",
+    removedSubpaths: result.stats.removedSubpathCount,
+    removedSegments: result.stats.removedSegmentCount,
+    compactedBytes: Buffer.byteLength(result.svg),
   };
 }
 
