@@ -27,6 +27,7 @@ import {
   filterLayeredTraceArtifactPaths,
   injectFillStrokeOutlineGroup,
 } from "../../shared/tracing/fillStrokeSvg";
+import { clampSvgPathDataPrecision } from "../../shared/tracing/svgPathPrecision";
 
 type WorkerRequest = {
   id: string;
@@ -114,6 +115,7 @@ const FLAT_COLOR_GROUPING_PRESET_ID = "layered-flat-color";
 const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
 const PHOTO_MANY_COLORS_PRESET_ID = "photo-many-colors";
 const PHOTO_MANY_COLORS_MAX_EDITABLE_GROUPS = 32;
+const GENERATED_LAYERED_PATH_PRECISION = 0;
 
 let wasmReadyPromise: Promise<void> | null = null;
 
@@ -198,6 +200,7 @@ async function runTrace(request: WorkerRequest) {
         decoded.width,
         decoded.height,
         decoded.imageData,
+        prepared.palette,
       ),
     );
     const layers = extractEditableLayers(svg, request.settings);
@@ -817,6 +820,7 @@ function postprocessSvg(
   sourceWidth: number,
   sourceHeight: number,
   sourceImageData?: ImageData,
+  sourcePalette: RGB[] = [],
 ) {
   const outputWidth = getOutputWidth(settings, sourceWidth, sourceHeight);
   const outputHeight = getOutputHeight(settings, sourceWidth, sourceHeight);
@@ -858,6 +862,7 @@ function postprocessSvg(
     });
   }
 
+  svg = snapSvgPathFillsToPalette(svg, settings, sourcePalette);
   svg = injectFillStrokeOutlineGroup(svg, {
     fillStrokeWidth: settings.fillStrokeWidth,
     fillStrokeColor: settings.fillStrokeColor,
@@ -871,7 +876,51 @@ function postprocessSvg(
     svg = wrapSvgContentWithSourceAlphaClip(svg, alphaClipPathTags);
   }
 
+  if (settings.traceMode === "layered") {
+    svg = clampSvgPathDataPrecision(svg, GENERATED_LAYERED_PATH_PRECISION);
+  }
+
   return svg;
+}
+
+function snapSvgPathFillsToPalette(
+  svg: string,
+  settings: NormalizedTraceSettings,
+  palette: RGB[],
+): string {
+  if (settings.traceMode !== "layered" || palette.length <= 0) return svg;
+  if (
+    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID ||
+    settings.presetId === PHOTO_MANY_COLORS_PRESET_ID
+  ) {
+    return svg;
+  }
+  const distance = getPaletteDistance(settings);
+  const paletteItems = palette
+    .map((color) => ({ color, hex: rgbToHex(color) }))
+    .filter((item, index, items) => {
+      if (isBackgroundColor(item.hex, settings)) return false;
+      return items.findIndex((candidate) => candidate.hex === item.hex) === index;
+    });
+  if (paletteItems.length <= 0) return svg;
+
+  return svg.replace(/<path\b([^>]*)>/gi, (match, attrs = "") => {
+    const parsed = parseSelfClosingPathAttrs(String(attrs || ""));
+    const fill = readPathFillColor(parsed.attrs);
+    if (!fill || isBackgroundColor(fill, settings)) return match;
+    const rgb = parseHexColor(fill);
+    if (!rgb) return match;
+    const nearest = paletteItems.reduce((best, item) => {
+      const currentDistance = perceptualDistance(rgb, item.color, distance);
+      if (!best || currentDistance < best.distance) {
+        return { item, distance: currentDistance };
+      }
+      return best;
+    }, null as { item: { color: RGB; hex: string }; distance: number } | null);
+    const hex = nearest?.item.hex;
+    if (!hex || hex === fill) return match;
+    return `<path${writePathFillColor(parsed.attrs, hex)}${parsed.close}`;
+  });
 }
 
 function buildSourceAlphaClipPathTags(

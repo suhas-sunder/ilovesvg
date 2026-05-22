@@ -15,6 +15,7 @@ import {
   type SortLayersBy,
 } from "./converterSettings.server";
 import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
+import { clampSvgPathDataPrecision } from "~/shared/tracing/svgPathPrecision";
 import { normalizeBmpForSharp } from "./bmpDecode.server";
 
 export type TraceMode = "single" | "layered";
@@ -111,6 +112,7 @@ export const MAX_LAYER_COUNT = 40;
 export const MAX_TRACE_SIDE_DEFAULT = 1600;
 export const MAX_TRACE_SIDE = 3000;
 const MIN_TRACE_DIMENSION = 2;
+const GENERATED_LAYERED_PATH_PRECISION = 0;
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -457,12 +459,19 @@ export async function createLayeredColorSvg(
       diagnostics.adaptiveLayerPalette.lightNeutralMatteApplied =
         finalLayers !== builtLayers;
     }
+    const serializedLayers = finalLayers.map((layer) => ({
+      ...layer,
+      pathTags: clampSvgPathDataPrecision(
+        layer.pathTags,
+        GENERATED_LAYERED_PATH_PRECISION,
+      ),
+    }));
 
     const svg = withSynchronousTimer(diagnostics, "buildSvg", () =>
       buildLayeredSvgString({
         width,
         height,
-        layers: finalLayers,
+        layers: serializedLayers,
         transparent: safeOptions.transparent,
         bgColor: safeOptions.bgColor,
         backgroundAlpha: safeOptions.backgroundAlpha,
@@ -476,7 +485,7 @@ export async function createLayeredColorSvg(
     );
     diagnostics.finalSvgBytes = Buffer.byteLength(svg, "utf8");
     diagnostics.pathCount = countSvgPaths(svg);
-    diagnostics.layerCount = finalLayers.length;
+    diagnostics.layerCount = serializedLayers.length;
     const outputDimensions = resolveOutputDimensions(
       safeOptions,
       width,
@@ -488,7 +497,7 @@ export async function createLayeredColorSvg(
       width: outputDimensions.width,
       height: outputDimensions.height,
       layers: [
-        ...finalLayers.map((layer) => ({
+        ...serializedLayers.map((layer) => ({
           id: layer.id,
           label: layer.label,
           color: layer.color,
@@ -507,7 +516,7 @@ export async function createLayeredColorSvg(
                 color: safeOptions.fillStrokeColor,
                 originalColor: safeOptions.fillStrokeColor,
                 visible: true,
-                pathTags: finalLayers
+                pathTags: serializedLayers
                   .map((layer) =>
                     filterFillStrokePathTags(extractPathTags(layer.pathTags), {
                       width,

@@ -25,6 +25,7 @@
     "test:post-conversion-editability": "node scripts/post-conversion-editability-smoke.mjs",
     "test:cumulative-edit-performance": "node scripts/cumulative-edit-performance-smoke.mjs",
     "test:settings-color-coverage": "node scripts/settings-color-coverage-audit.mjs",
+    "test:high-fidelity-browser-output": "node scripts/high-fidelity-browser-output-smoke.mjs",
     "test:adaptive-palette-quality": "node scripts/adaptive-palette-quality-smoke.mjs",
     "test:palette-grouping-audit": "node scripts/palette-grouping-audit.mjs",
     "test:preset-palette-rules-audit": "node scripts/preset-palette-rules-audit.mjs",

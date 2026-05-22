@@ -295,19 +295,6 @@ async function runScenario(scenario, fixture) {
 
     const steps = [settingsOpen];
     steps.push(await timed(
-      "first fill color",
-      () => performDomEdit(client, "fill-color", {
-        color: "#ff0066",
-        targetSpecific: scenario.route !== "/",
-      }),
-      { expectPreviewChange: true, editKind: "color" },
-    ));
-    steps.push(await timed(
-      "first fill opacity",
-      () => performDomEdit(client, "fill-opacity", { value: 0.62 }),
-      { expectPreviewChange: true, editKind: "opacity" },
-    ));
-    steps.push(await timed(
       "open layer colors",
       () => performDomEdit(client, "open-layer-section"),
       { editKind: "section-switch" },
@@ -321,6 +308,19 @@ async function runScenario(scenario, fixture) {
       "layer color",
       () => performDomEdit(client, "layer-color", { color: "#0ea5e9" }),
       { expectPreviewChange: true, editKind: "layer-color" },
+    ));
+    steps.push(await timed(
+      "first fill color",
+      () => performDomEdit(client, "fill-color", {
+        color: "#ff0066",
+        targetSpecific: false,
+      }),
+      { expectPreviewChange: true, editKind: "color" },
+    ));
+    steps.push(await timed(
+      "first fill opacity",
+      () => performDomEdit(client, "fill-opacity", { value: 0.62 }),
+      { expectPreviewChange: true, editKind: "opacity" },
     ));
     steps.push(await timed(
       "open post-processing",
@@ -496,24 +496,27 @@ async function performDomEdit(client, action, options = {}) {
           options.slice().reverse().find((option) =>
             !option.disabled &&
             option.value !== targetSelect.value &&
+            !/Matching\b.*\bcolor\b/i.test(option.textContent || "") &&
             !/\\bLayer 1\\b/i.test(option.textContent || "")
           ) ||
           options.slice().reverse().find((option) => !option.disabled && option.value !== targetSelect.value);
         if (nextOption) setSelect(targetSelect, nextOption.value);
       }
       const fillColorToggle = await ensureToggle(group, /^Fill color$/i);
-      if (fillColorToggle.changed) {
-        return {
-          applicable: true,
-          changed: true,
-          before: false,
-          after: true,
-          inputKind: "checkbox",
-          label: "Fill color",
-        };
-      }
+      await nextFrame();
       const input = Array.from(group.querySelectorAll('input[type="color"]')).find(visible);
-      if (!input) return { applicable: false, reason: "fill color input unavailable" };
+      if (!input) {
+        return fillColorToggle.changed
+          ? {
+              applicable: true,
+              changed: true,
+              before: false,
+              after: true,
+              inputKind: "checkbox",
+              label: "Fill color",
+            }
+          : { applicable: false, reason: "fill color input unavailable" };
+      }
       return setInput(input, options.color || "#ff0066", "color");
     }
 
@@ -821,6 +824,19 @@ async function performLayerColorEdit(client, options = {}) {
     await openSection(panel, /^Layer colors$/i);
     const palette = findLayerControls(panel);
     if (!palette) return { applicable: false, reason: "layer color controls unavailable" };
+    const colorInput = Array.from(palette.querySelectorAll('input[type="color"]')).find(visible);
+    if (colorInput) {
+      colorInput.scrollIntoView({ block: "center", inline: "nearest" });
+      colorInput.focus();
+      window.__cumulativeLayerColorInput = colorInput;
+      window.__cumulativeLayerColorBefore = colorInput.value;
+      return {
+        applicable: true,
+        before: colorInput.value,
+        inputKind: "color",
+        label: labelFor(colorInput),
+      };
+    }
     const textInput = Array.from(palette.querySelectorAll('input[type="text"]')).find(visible);
     if (textInput) {
       textInput.scrollIntoView({ block: "center", inline: "nearest" });
@@ -833,19 +849,6 @@ async function performLayerColorEdit(client, options = {}) {
         before: textInput.value,
         inputKind: "text",
         label: labelFor(textInput) || "layer-color-text",
-      };
-    }
-    const colorInput = Array.from(palette.querySelectorAll('input[type="color"]')).find(visible);
-    if (colorInput) {
-      colorInput.scrollIntoView({ block: "center", inline: "nearest" });
-      colorInput.focus();
-      window.__cumulativeLayerColorInput = colorInput;
-      window.__cumulativeLayerColorBefore = colorInput.value;
-      return {
-        applicable: true,
-        before: colorInput.value,
-        inputKind: "color",
-        label: labelFor(colorInput),
       };
     }
     return { applicable: false, reason: "layer color input unavailable" };
@@ -1022,10 +1025,10 @@ async function openSettingsOnLatestOutput(client) {
 }
 
 async function focusedPreviewSnapshot(client) {
-  return evaluate(client, `(() => {
+  return evaluate(client, `(async () => {
     const workspace = document.querySelector('[data-focused-editor-workspace="true"]') || latestCard(Array.from(document.querySelectorAll("[data-output-stamp]"))) || document;
     const image = workspace.querySelector('[data-editor-output-preview="true"] img, img');
-    const svg = decodeSvgImage(image);
+    const svg = await decodeSvgImage(image);
     const duplicateEffectCounts = svg ? countDuplicateEffectMarkers(svg) : {};
     return {
       exists: Boolean(svg),
@@ -1044,8 +1047,16 @@ async function focusedPreviewSnapshot(client) {
       previewUpdateCount: window.__CUMULATIVE_EDIT_PERF__?.previewUpdates || 0,
       sample: svg.slice(0, 1000),
     };
-    function decodeSvgImage(image) {
+    async function decodeSvgImage(image) {
       const src = image?.getAttribute("src") || "";
+      if (src.startsWith("blob:")) {
+        try {
+          const response = await fetch(src);
+          return response.ok ? await response.text() : "";
+        } catch {
+          return "";
+        }
+      }
       if (!src.startsWith("data:image/svg+xml")) return "";
       const comma = src.indexOf(",");
       if (comma < 0) return "";
@@ -1491,7 +1502,7 @@ async function collectMetrics(client) {
     };
     async function previewSnapshot(root) {
       const image = root?.querySelector?.('[data-editor-output-preview="true"] img, img');
-      const svg = decodeSvgImage(image);
+      const svg = await decodeSvgImage(image);
       const duplicateEffectCounts = svg ? countDuplicateEffectMarkers(svg) : {};
       return {
         exists: Boolean(svg),
@@ -1507,8 +1518,16 @@ async function collectMetrics(client) {
         duplicateEffectCounts,
       };
     }
-    function decodeSvgImage(image) {
+    async function decodeSvgImage(image) {
       const src = image?.getAttribute("src") || "";
+      if (src.startsWith("blob:")) {
+        try {
+          const response = await fetch(src);
+          return response.ok ? await response.text() : "";
+        } catch {
+          return "";
+        }
+      }
       if (!src.startsWith("data:image/svg+xml")) return "";
       const comma = src.indexOf(",");
       if (comma < 0) return "";
