@@ -13,6 +13,7 @@ const requiredFiles = [
   "app/client/lib/tracing/useHybridTraceFetcher.ts",
   "app/client/lib/tracing/vtracerWorkerClient.ts",
   "app/shared/tracing/centerlineTrace.ts",
+  "app/shared/tracing/svgPathStructureOptimizer.ts",
   "app/client/workers/centerline.worker.ts",
   "app/client/workers/vtracer.worker.ts",
   "app/types/culori.d.ts",

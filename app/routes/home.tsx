@@ -2452,7 +2452,10 @@ type HistoryItem = {
 type HistoryPreviewData = {
   svg: string;
   src: string;
+  objectUrl?: string;
 };
+
+const LARGE_SVG_PREVIEW_OBJECT_URL_THRESHOLD_BYTES = 1_000_000;
 
 type BatchZipResult = {
   filename: string;
@@ -2664,6 +2667,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const historyPreviewDataCacheRef = React.useRef(
     new WeakMap<HistoryItem, HistoryPreviewData>(),
   );
+  const historyPreviewObjectUrlsRef = React.useRef(
+    new Map<number, { svg: string; url: string }>(),
+  );
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
@@ -2779,9 +2785,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
 
       const clientRunId = data.clientRunId || "";
-      const submitted =
-        (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
-        lastSubmittedRef.current;
+      const submitted = clientRunId
+        ? submittedByRunIdRef.current.get(clientRunId)
+        : lastSubmittedRef.current;
+      if (!submitted) return;
 
       const resultKey = [
         clientRunId || "legacy",
@@ -2993,9 +3000,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   React.useEffect(() => {
     if (fetcher.data?.error) {
       const clientRunId = fetcher.data.clientRunId || "";
-      const submitted =
-        (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
-        lastSubmittedRef.current;
+      const submitted = clientRunId
+        ? submittedByRunIdRef.current.get(clientRunId)
+        : lastSubmittedRef.current;
+      if (!submitted) return;
       if (submitted.sourceSnapshot) {
         cleanupUnusedSourceSnapshots([submitted.sourceSnapshot], historyRef.current);
       }
@@ -3079,6 +3087,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   React.useEffect(() => {
     return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
+  }, []);
+
+  React.useEffect(() => {
+    const activeStamps = new Set(history.map((item) => item.stamp));
+    for (const [stamp, entry] of historyPreviewObjectUrlsRef.current) {
+      if (activeStamps.has(stamp)) continue;
+      URL.revokeObjectURL(entry.url);
+      historyPreviewObjectUrlsRef.current.delete(stamp);
+    }
+  }, [history]);
+
+  React.useEffect(() => {
+    return () => {
+      for (const entry of historyPreviewObjectUrlsRef.current.values()) {
+        URL.revokeObjectURL(entry.url);
+      }
+      historyPreviewObjectUrlsRef.current.clear();
+    };
   }, []);
 
   async function measureAndSet(f: File, runId = fileMeasureRunIdRef.current) {
@@ -3237,6 +3263,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return settingsEqual(expected, effective) ? preset.id : null;
   }
 
+  function abortSupersededClientTraceJobs(nextRunId: string) {
+    const staleRunIds = Array.from(clientAbortControllersRef.current.keys()).filter(
+      (runId) => runId !== nextRunId,
+    );
+    if (staleRunIds.length === 0) return;
+
+    const staleRunIdSet = new Set(staleRunIds);
+    for (const runId of staleRunIds) {
+      clientAbortControllersRef.current.get(runId)?.abort();
+      clientAbortControllersRef.current.delete(runId);
+      submittedByRunIdRef.current.delete(runId);
+    }
+
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.jobId && staleRunIdSet.has(item.jobId) && item.jobStatus === "running"
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobError: "Superseded by a newer conversion.",
+              jobCompletedAt: Date.now(),
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
+  }
+
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
@@ -3266,6 +3320,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const effective = getEffectiveSubmitSettings(targetSettings);
 
     const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    abortSupersededClientTraceJobs(clientRunId);
     latestSubmittedRunIdRef.current = clientRunId;
     setErr(null);
     const submittedPresetId = svgInput
@@ -3327,6 +3382,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("file", targetFile);
     if (!svgInput) {
       appendTraceSettingsPayload(fd, effective);
+      fd.append("presetId", submittedPresetId ?? "");
     }
     fd.append("clientRunId", clientRunId);
     const pendingStamp = replaceStamp ? null : startedAt;
@@ -4100,10 +4156,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (cached) return cached;
 
     const svg = getHistoryItemSvg(item);
-    const src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-    const data = { svg, src };
+    const src = getHistoryPreviewSrc(item, svg);
+    const data = {
+      svg,
+      src,
+      objectUrl: src.startsWith("blob:") ? src : undefined,
+    };
     historyPreviewDataCacheRef.current.set(item, data);
     return data;
+  }
+
+  function getHistoryPreviewSrc(item: HistoryItem, svg: string): string {
+    const bytes = getSvgByteSize(svg);
+    if (
+      bytes < LARGE_SVG_PREVIEW_OBJECT_URL_THRESHOLD_BYTES ||
+      typeof Blob === "undefined" ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    const existing = historyPreviewObjectUrlsRef.current.get(item.stamp);
+    if (existing?.svg === svg) return existing.url;
+    if (existing) URL.revokeObjectURL(existing.url);
+
+    const url = URL.createObjectURL(
+      new Blob([ensureSvgRootNamespace(svg)], { type: "image/svg+xml" }),
+    );
+    historyPreviewObjectUrlsRef.current.set(item.stamp, { svg, url });
+    return url;
   }
 
   function getTraceJobPreviewData(item: HistoryItem): HistoryPreviewData {

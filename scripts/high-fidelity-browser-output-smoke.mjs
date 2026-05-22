@@ -1,0 +1,1433 @@
+import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+const debugPort = Number(process.env.CDP_PORT || 10450 + Math.floor(Math.random() * 300));
+const runDir = path.join(rootDir, "tmp", "high-fidelity-browser-output-smoke");
+const downloadRoot = path.join(runDir, "downloads");
+const renderRoot = path.join(runDir, "renders");
+const reportPath = process.env.HF_BROWSER_OUTPUT_REPORT_PATH
+  ? path.resolve(process.env.HF_BROWSER_OUTPUT_REPORT_PATH)
+  : path.join(runDir, "report.json");
+const profileDir = path.join(os.tmpdir(), "ilovesvg-high-fidelity-browser-output-smoke", String(debugPort));
+const scenarioTimeoutMs = Number(process.env.HF_BROWSER_OUTPUT_TIMEOUT_MS || 180_000);
+const preferredSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_PREFERRED_BYTES || 1_500_000);
+const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 2_500_000);
+const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 3_000_000);
+const maxCriticalPresetSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_PRESET_BYTES || 3_000_000);
+const minHighDetailLayerCount = Number(process.env.HF_BROWSER_OUTPUT_MIN_LAYERS || 20);
+const maxGroupedColors = Number(process.env.HF_BROWSER_OUTPUT_MAX_GROUPS || 32);
+
+const allFlatFixtures = [
+  "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG",
+  "C:\\Users\\Suhas\\Downloads\\IMG_9404.JPEG",
+];
+
+const allPresetChecks = [
+  { id: "layered-flat-color", label: "Layered - Flat Color", pattern: /^Layered - Flat Color\b/i },
+  { id: "photo-many-colors", label: "Photo Many Colors", pattern: /^Photo Many Colors\b/i },
+  { id: "premium-cartoon-fill-ink", label: "Premium Cartoon Fill + Ink", pattern: /^Premium Cartoon Fill \+ Ink\b/i },
+  { id: "sticker-fill-stroke-detail", label: "Sticker Fill + Stroke Detail", pattern: /^Sticker Fill \+ Stroke Detail\b/i },
+  { id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors", pattern: /^Filled Layers - Separate Colors\b/i },
+  { id: "layered-detail", label: "Layered - Detail", pattern: /^Layered - Detail\b/i },
+  { id: "layered-poster", label: "Layered - Poster", pattern: /^Layered - Poster\b/i },
+  { id: "layered-8-color", label: "Layered - 8 Color", pattern: /^Layered - 8 Color\b/i },
+];
+
+const img8846 = "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG";
+const flatFixtures = process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME
+  ? allFlatFixtures.filter((fixture) => path.basename(fixture).toLowerCase() === process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME.toLowerCase())
+  : allFlatFixtures;
+const presetChecks = process.env.HF_BROWSER_OUTPUT_PRESET_ID
+  ? allPresetChecks.filter((preset) => preset.id === process.env.HF_BROWSER_OUTPUT_PRESET_ID)
+  : allPresetChecks;
+const runFlatMatrix = process.env.HF_BROWSER_OUTPUT_RUN_FLAT !== "0";
+const runPresetMatrix = process.env.HF_BROWSER_OUTPUT_RUN_PRESETS === "1";
+const renderPreviews = process.env.HF_BROWSER_OUTPUT_RENDER !== "0";
+
+async function main() {
+  await fs.rm(runDir, { recursive: true, force: true });
+  await fs.rm(profileDir, { recursive: true, force: true });
+  await fs.mkdir(downloadRoot, { recursive: true });
+  await fs.mkdir(renderRoot, { recursive: true });
+  await fs.mkdir(profileDir, { recursive: true });
+
+  const server = await serverState();
+  if (!server.looksLikeIlovesvg) throw new Error(`Expected iLoveSVG at ${baseUrl}`);
+
+  const browserPath = await findBrowserExecutable();
+  const browser = spawn(
+    browserPath,
+    [
+      `--remote-debugging-port=${debugPort}`,
+      `--user-data-dir=${profileDir}`,
+      "--headless=new",
+      "--disable-gpu",
+      "--disable-extensions",
+      "--disable-component-extensions-with-background-pages",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--window-size=1440,1050",
+      "about:blank",
+    ],
+    { stdio: "ignore", windowsHide: true },
+  );
+
+  const report = {
+    checkedAt: new Date().toISOString(),
+    baseUrl,
+    gitHead: await gitHead(),
+    server,
+    browserPath,
+    budgets: {
+      scenarioTimeoutMs,
+      preferredSvgBytes,
+      acceptableSvgBytes,
+      maxSvgBytes,
+      maxCriticalPresetSvgBytes,
+      minHighDetailLayerCount,
+      maxGroupedColors,
+    },
+    flatColor: [],
+    presetStuckLoading: [],
+    outputStructure: {},
+    failures: [],
+    notes: [],
+  };
+
+  try {
+    await waitForCdp();
+    if (runFlatMatrix) for (const fixturePath of flatFixtures) {
+      const result = await runUiScenario({
+        fixturePath,
+        preset: presetChecks[0],
+        scenarioId: `flat-${path.basename(fixturePath).replace(/\W+/g, "-").toLowerCase()}`,
+        timeoutMs: scenarioTimeoutMs,
+        collectStructure: true,
+        renderPreview: renderPreviews,
+      }).catch(async (error) => ({
+        scenarioId: `flat-${path.basename(fixturePath).replace(/\W+/g, "-").toLowerCase()}`,
+        route: "/",
+        presetId: presetChecks[0].id,
+        presetLabel: presetChecks[0].label,
+        fixture: await fixtureInfo(fixturePath).catch(() => ({ path: fixturePath, basename: path.basename(fixturePath) })),
+        completed: false,
+        elapsedMs: null,
+        harnessError: error instanceof Error ? error.message : String(error),
+        harnessStack: error instanceof Error ? error.stack : null,
+      }));
+      report.flatColor.push(result);
+      if (result.structure) report.outputStructure[path.basename(fixturePath)] = result.structure;
+      await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+      console.error(`[flat] ${path.basename(fixturePath)} ${result.completed ? "completed" : "not-complete"} layers=${result.ui?.layerTotalCount ?? "n/a"} bytes=${result.download?.bytes ?? 0}`);
+    }
+
+    if (runPresetMatrix) for (const preset of presetChecks) {
+      const existing = preset.id === "layered-flat-color"
+        ? report.flatColor.find((item) => item.fixture.basename === path.basename(img8846))
+        : null;
+      const result = existing || await runUiScenario({
+        fixturePath: img8846,
+        preset,
+        scenarioId: `preset-${preset.id}`,
+        timeoutMs: scenarioTimeoutMs,
+        collectStructure: true,
+        renderPreview: false,
+      }).catch(async (error) => ({
+        scenarioId: `preset-${preset.id}`,
+        route: "/",
+        presetId: preset.id,
+        presetLabel: preset.label,
+        fixture: await fixtureInfo(img8846).catch(() => ({ path: img8846, basename: path.basename(img8846) })),
+        completed: false,
+        elapsedMs: null,
+        harnessError: error instanceof Error ? error.message : String(error),
+        harnessStack: error instanceof Error ? error.stack : null,
+      }));
+      report.presetStuckLoading.push({
+        presetId: preset.id,
+        presetLabel: preset.label,
+        selectedPreset: result.selectedPreset,
+        completed: result.completed,
+        elapsedMs: result.elapsedMs,
+        engineUsed: result.ui?.engineUsed || null,
+        engineLine: result.ui?.engineLine || null,
+        outputTitle: result.ui?.outputTitle || null,
+        svgBytes: result.download?.bytes ?? result.ui?.svgBytesAttr ?? null,
+        layerTotalCount: result.ui?.layerTotalCount ?? null,
+        layerMountedCount: result.ui?.layerMountedCount ?? null,
+        layerCountText: result.ui?.layerCountText || null,
+        previewVisible: result.ui?.previewVisible ?? null,
+        settingsOpened: result.ui?.settingsOpened ?? null,
+        copyDownloadParity: result.copyDownloadParity || null,
+        pendingAfterTimeout: !result.completed ? result.pendingState : null,
+        harnessError: result.harnessError || null,
+        consoleErrors: result.consoleErrors || [],
+        networkErrors: result.networkErrors || [],
+      });
+      await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+      console.error(`[preset] ${preset.label} ${result.completed ? "completed" : "not-complete"} ${Math.round(result.elapsedMs / 1000)}s`);
+    }
+  } finally {
+    browser.kill();
+    report.failures = collectFailures(report);
+    await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  }
+
+  const failures = collectFailures(report);
+  report.failures = failures;
+  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  const ok = failures.length === 0;
+  console.log(JSON.stringify({
+    ok,
+    reportPath,
+    failureCount: failures.length,
+    failures,
+    flatColor: report.flatColor.map((item) => ({
+      fixture: item.fixture.basename,
+      completed: item.completed,
+      layerCountText: item.ui?.layerCountText,
+      layerTotalCount: item.ui?.layerTotalCount,
+      engineUsed: item.ui?.engineUsed,
+      bytes: item.download?.bytes,
+      pathCount: item.svg?.pathCount,
+      visibleColorCount: item.svg?.visibleColorCount,
+      dataLayerColorCount: item.svg?.dataLayerColorCount,
+      averageDecimalPlaces: item.structure?.averageDecimalPlaces,
+      largestPathDataLength: item.structure?.largestPathDataLength,
+      copyDownloadParity: item.copyDownloadParity?.ok,
+    })),
+    presets: report.presetStuckLoading.map((item) => ({
+      preset: item.presetLabel,
+      completed: item.completed,
+      elapsedMs: item.elapsedMs,
+      layers: item.layerTotalCount,
+      bytes: item.svgBytes,
+    })),
+  }, null, 2));
+  if (!ok) process.exitCode = 1;
+}
+
+function collectFailures(report) {
+  const failures = [];
+  for (const result of report.flatColor) {
+    failures.push(...validateHighFidelityFlatResult(result));
+  }
+  if (runPresetMatrix) {
+    for (const result of report.presetStuckLoading) {
+      failures.push(...validatePresetTriageResult(result));
+    }
+  }
+  return failures;
+}
+
+function validateHighFidelityFlatResult(result) {
+  const label = `${result.fixture?.basename || result.scenarioId} / ${result.presetLabel || "Layered - Flat Color"}`;
+  const failures = [];
+  const add = (reason) => failures.push({ scenarioId: result.scenarioId, fixture: result.fixture?.basename || null, preset: result.presetLabel || null, reason });
+  if (result.harnessError) add(`harness error: ${result.harnessError}`);
+  if (!result.completed) add(`usable output was not reached within ${scenarioTimeoutMs} ms`);
+  if (!result.ui?.settingsOpened) add("Settings / Edit did not open for the latest output");
+  if (!result.ui?.layerCountText && !result.ui?.layerTotalCount) {
+    add("Layer colors section did not expose count text or count metadata");
+  }
+  if (!result.download?.bytes) add("Download SVG did not produce a file");
+  if (!result.copyDownloadParity?.ok) add("Copy SVG and Download SVG did not match");
+  const layerCount = result.ui?.layerTotalCount ?? result.svg?.dataLayerColorCount ?? 0;
+  if (layerCount < minHighDetailLayerCount) add(`grouped layer count regressed below ${minHighDetailLayerCount}; saw ${layerCount} for ${label}`);
+  if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
+  const visibleColors = result.svg?.visibleColorCount ?? 0;
+  if (visibleColors > maxGroupedColors) add(`visible color count exceeded ${maxGroupedColors}; saw ${visibleColors}`);
+  if ((result.download?.bytes || 0) > maxSvgBytes) add(`downloaded SVG exceeded ${maxSvgBytes} bytes; saw ${result.download.bytes}`);
+  if ((result.download?.bytes || 0) > acceptableSvgBytes) {
+    add(`downloaded SVG exceeded acceptable intermediate budget ${acceptableSvgBytes} bytes; saw ${result.download.bytes}`);
+  }
+  const expectedWidth = result.fixture?.displayWidth || result.fixture?.width || 0;
+  const expectedHeight = result.fixture?.displayHeight || result.fixture?.height || 0;
+  if (expectedWidth && expectedHeight && result.svg?.width && result.svg?.height) {
+    if (result.svg.width < expectedWidth || result.svg.height < expectedHeight) {
+      add(`SVG dimensions were reduced from displayed source ${expectedWidth} x ${expectedHeight} to ${result.svg.width} x ${result.svg.height}`);
+    }
+  }
+  if (!result.structure) {
+    add("SVG structure report was not collected");
+  } else {
+    if (result.structure.totalBytes > maxSvgBytes) add(`structure bytes exceeded ${maxSvgBytes}; saw ${result.structure.totalBytes}`);
+    if (result.structure.pathCount < 1) add("SVG structure has no paths");
+    if (result.structure.averageDecimalPlaces > 3) add(`path numeric precision is still excessive; average decimal places ${result.structure.averageDecimalPlaces}`);
+  }
+  failures.push(...validateRenderMetrics(result, label));
+  return failures;
+}
+
+function validatePresetTriageResult(result) {
+  const failures = [];
+  const add = (reason) => failures.push({ scenarioId: `preset-${result.presetId}`, fixture: path.basename(img8846), preset: result.presetLabel, reason });
+  if (result.harnessError) add(`harness error: ${result.harnessError}`);
+  if (!result.completed) add(`preset did not reach usable output within ${scenarioTimeoutMs} ms`);
+  if (!result.previewVisible) add("preset preview was not visible");
+  if (!result.settingsOpened) add("Settings / Edit did not open");
+  if (!result.copyDownloadParity?.ok) add("Copy SVG and Download SVG did not match");
+  if ((result.svgBytes || 0) > maxCriticalPresetSvgBytes) {
+    add(`preset SVG remained in the 20 MB-class range; saw ${result.svgBytes} bytes`);
+  }
+  const layerCount = result.layerTotalCount || 0;
+  if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
+  return failures;
+}
+
+function validateRenderMetrics(result, label) {
+  const failures = [];
+  const source = result.render?.sourceMetrics;
+  const output = result.render?.outputMetrics;
+  if (!source || !output) return failures;
+  const add = (reason) => failures.push({ scenarioId: result.scenarioId, fixture: result.fixture?.basename || null, preset: result.presetLabel || null, reason });
+  if (source.nearBlackPixelShare > 0.01 && output.nearBlackPixelShare < source.nearBlackPixelShare * 0.45) {
+    add(`near-black text/linework metric dropped materially for ${label}: source ${source.nearBlackPixelShare}, output ${output.nearBlackPixelShare}`);
+  }
+  if (source.darkPixelShare > 0.02 && output.darkPixelShare < source.darkPixelShare * 0.5) {
+    add(`dark detail metric dropped materially for ${label}: source ${source.darkPixelShare}, output ${output.darkPixelShare}`);
+  }
+  if (source.highContrastEdgeShare > 0.004 && output.highContrastEdgeShare < source.highContrastEdgeShare * 0.5) {
+    add(`edge/detail metric dropped materially for ${label}: source ${source.highContrastEdgeShare}, output ${output.highContrastEdgeShare}`);
+  }
+  return failures;
+}
+
+async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, collectStructure, renderPreview }) {
+  const fixture = await fixtureInfo(fixturePath);
+  const client = await openTab(`${baseUrl}/`);
+  const downloadDir = path.join(downloadRoot, scenarioId);
+  await fs.mkdir(downloadDir, { recursive: true });
+  const startedAt = Date.now();
+  let stage = "starting";
+
+  try {
+    stage = "enable page";
+    await enablePage(client, downloadDir);
+    stage = "wait for document ready";
+    await waitForDocumentReady(client);
+    stage = "verify clipboard access";
+    await verifyClipboardAccess(client).catch(() => null);
+    stage = "upload fixture";
+    await uploadFixtureWithRetry(client, fixturePath);
+    stage = "settle initial conversion";
+    await settleInitialAutoConversion(client, 20_000).catch(() => null);
+    stage = "read state before preset";
+    const beforePresetState = await outputState(client).catch(() => ({ latestStamp: null }));
+    stage = "select preset";
+    const selectedPreset = await selectPreset(client, [preset.pattern]);
+    stage = "read state after preset";
+    const beforeConvertState = await outputState(client).catch(() => beforePresetState);
+    let convertAction = { clicked: false, autoStarted: false, reason: "" };
+    if (beforeConvertState?.activeJobs > 0) {
+      convertAction = { clicked: false, autoStarted: true, reason: "preset selection started conversion before Convert could be clicked" };
+    } else {
+      const convertClick = await clickConvert(client).catch((error) => ({ error: error instanceof Error ? error.message : String(error) }));
+      if (convertClick?.error) {
+        const afterFailedClickState = await waitForValue(
+          client,
+          () => outputStateExpression(beforeConvertState.latestStamp ?? beforePresetState.latestStamp),
+          8_000,
+          (value) => value?.activeJobs > 0 || value?.latestChanged || value?.latestReady,
+        ).catch(() => outputState(client).catch(() => beforeConvertState));
+        if (afterFailedClickState?.activeJobs > 0 || afterFailedClickState?.latestChanged || afterFailedClickState?.latestReady) {
+          convertAction = { clicked: false, autoStarted: true, reason: `conversion started while looking for Convert: ${convertClick.error}` };
+        } else {
+          throw new Error(convertClick.error);
+        }
+      } else {
+        convertAction = { clicked: true, autoStarted: false, reason: "clicked Convert" };
+      }
+    }
+
+    let completed = null;
+    let pendingState = null;
+    stage = "wait for completed output";
+    try {
+      completed = await waitForCompletedOutput(client, beforeConvertState.latestStamp ?? beforePresetState.latestStamp, timeoutMs);
+    } catch (error) {
+      stage = "read pending state";
+      pendingState = await outputState(client).catch(() => ({ error: error instanceof Error ? error.message : String(error) }));
+    }
+    const elapsedMs = Date.now() - startedAt;
+
+    let ui = null;
+    let download = null;
+    let svg = null;
+    let structure = null;
+    let copyDownloadParity = null;
+    let render = null;
+    if (completed) {
+      stage = "open settings";
+      await openLatestSettingsPanel(client).catch(() => null);
+      stage = "prime clipboard state";
+      const beforeCapture = await primeClipboard(client, scenarioId);
+      stage = "copy svg";
+      const copyClick = await clickButtonInLatestOutput(client, [/Copy SVG/i, /^Copy$/i], [/Copied/i]).catch(() => null);
+      stage = "wait for copy capture";
+      const copyCapture = copyClick ? await waitForClipboardSvg(client, beforeCapture.latestClipboardHash).catch(() => null) : null;
+      stage = "download svg";
+      download = await downloadLatestSvg(client, downloadDir);
+      stage = "analyze svg";
+      svg = await analyzeSvgFile(download.path);
+      copyDownloadParity = {
+        attempted: Boolean(copyClick && download),
+        copyClicked: Boolean(copyClick),
+        copyClick,
+        downloadClicked: Boolean(download),
+        ok: Boolean(copyCapture && download && copyCapture.latestClipboardHash === download.hash && copyCapture.latestClipboardBytes === download.bytes),
+        copyHash: copyCapture?.latestClipboardHash || null,
+        copyBytes: copyCapture?.latestClipboardBytes || 0,
+        rawCopyHash: copyCapture?.rawClipboardHash || null,
+        rawCopyBytes: copyCapture?.rawClipboardBytes || 0,
+        downloadHash: download.hash,
+        downloadBytes: download.bytes,
+      };
+      if (collectStructure) {
+        stage = "analyze structure";
+        structure = await analyzeStructure(download.path);
+      }
+      if (renderPreview) {
+        stage = "render comparison";
+        render = await renderComparison(fixturePath, download.path, scenarioId).catch((error) => ({ error: error.message }));
+      }
+      stage = "open layer colors";
+      await ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors").catch(() => null);
+      stage = "collect ui";
+      ui = await collectUi(client);
+      ui = { ...ui, settingsOpened: true };
+    }
+
+    stage = "collect logs";
+    const logs = await client.collectLogs();
+    return {
+      scenarioId,
+      route: "/",
+      presetId: preset.id,
+      presetLabel: preset.label,
+      selectedPreset,
+      convertAction,
+      fixture,
+      completed: Boolean(completed),
+      elapsedMs,
+      completedState: completed,
+      pendingState,
+      ui,
+      download,
+      svg,
+      structure,
+      render,
+      copyDownloadParity,
+      consoleErrors: logs.consoleErrors,
+      networkErrors: logs.networkErrors,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${stage}: ${message}`, { cause: error });
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+async function fixtureInfo(filePath) {
+  const stat = await fs.stat(filePath);
+  const meta = await sharp(filePath).metadata();
+  const oriented = orientedDimensions(meta);
+  return {
+    path: filePath,
+    basename: path.basename(filePath),
+    bytes: stat.size,
+    width: meta.width || null,
+    height: meta.height || null,
+    displayWidth: oriented.width,
+    displayHeight: oriented.height,
+    orientation: meta.orientation || null,
+    format: meta.format || null,
+  };
+}
+
+function orientedDimensions(meta) {
+  const width = meta.width || null;
+  const height = meta.height || null;
+  if (!width || !height) return { width, height };
+  return [5, 6, 7, 8].includes(Number(meta.orientation))
+    ? { width: height, height: width }
+    : { width, height };
+}
+
+async function renderComparison(sourcePath, svgPath, scenarioId) {
+  const sourceOut = path.join(renderRoot, `${scenarioId}-source.png`);
+  const svgOut = path.join(renderRoot, `${scenarioId}-svg.png`);
+  const sheetOut = path.join(renderRoot, `${scenarioId}-comparison.png`);
+  await sharp(sourcePath).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(sourceOut);
+  await sharp(svgPath, { density: 72 }).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(svgOut);
+  const source = await sharp(sourceOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).raw().toBuffer();
+  const output = await sharp(svgOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).raw().toBuffer();
+  const sourceMetrics = imageDarkMetrics(source);
+  const outputMetrics = imageDarkMetrics(output);
+  await sharp({
+    create: { width: 1080, height: 580, channels: 4, background: "#ffffff" },
+  })
+    .composite([
+      { input: sourceOut, left: 20, top: 40 },
+      { input: svgOut, left: 560, top: 40 },
+    ])
+    .png()
+    .toFile(sheetOut);
+  return { sourceOut, svgOut, sheetOut, sourceMetrics, outputMetrics };
+}
+
+function imageDarkMetrics(raw) {
+  let dark = 0;
+  let nearBlack = 0;
+  let contrastEdges = 0;
+  const pixels = raw.length / 3;
+  for (let i = 0; i < raw.length; i += 3) {
+    const luma = 0.2126 * raw[i] + 0.7152 * raw[i + 1] + 0.0722 * raw[i + 2];
+    if (luma < 80) dark += 1;
+    if (luma < 35) nearBlack += 1;
+    if (i >= 3) {
+      const prev = 0.2126 * raw[i - 3] + 0.7152 * raw[i - 2] + 0.0722 * raw[i - 1];
+      if (Math.abs(luma - prev) > 90) contrastEdges += 1;
+    }
+  }
+  return {
+    darkPixelShare: round(dark / pixels, 4),
+    nearBlackPixelShare: round(nearBlack / pixels, 4),
+    highContrastEdgeShare: round(contrastEdges / pixels, 4),
+  };
+}
+
+async function analyzeSvgFile(svgPath) {
+  const svg = await fs.readFile(svgPath, "utf8");
+  const colors = visibleColors(svg);
+  const dimensions = svgDimensions(svg);
+  return {
+    bytes: Buffer.byteLength(svg),
+    ...dimensions,
+    pathCount: countMatches(svg, /<path\b/gi),
+    groupCount: countMatches(svg, /<g\b/gi),
+    visibleColorCount: colors.length,
+    visibleColors: colors,
+    dataLayerColorCount: unique([...svg.matchAll(/\bdata-layer-color\s*=\s*["'](#[0-9a-fA-F]{3,8})["']/g)].map((m) => normalizeHex(m[1]))).length,
+  };
+}
+
+async function analyzeStructure(svgPath) {
+  const svg = await fs.readFile(svgPath, "utf8");
+  const pathData = [...svg.matchAll(/<path\b[^>]*\bd\s*=\s*["']([^"']*)["'][^>]*>/gi)].map((m) => m[1]);
+  const pathStructures = pathData.map(analyzePathStructure);
+  const duplicatePathStrings = pathData.length - new Set(pathData).size;
+  const attrMatches = [...svg.matchAll(/\s([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*["']([^"']{500,})["']/g)];
+  const largeAttrs = attrMatches.reduce((map, match) => {
+    const key = match[1];
+    map[key] = (map[key] || 0) + 1;
+    return map;
+  }, {});
+  const decimalMatches = [...svg.matchAll(/-?\d+\.\d+/g)].map((m) => m[0]);
+  const decimalPlaces = decimalMatches.map((value) => value.split(".")[1]?.length || 0);
+  const maxDecimalPlaces = decimalPlaces.reduce((max, value) => Math.max(max, value), 0);
+  return {
+    totalBytes: Buffer.byteLength(svg),
+    pathCount: pathData.length,
+    averagePathDataLength: pathData.length ? Math.round(pathData.reduce((sum, value) => sum + value.length, 0) / pathData.length) : 0,
+    largestPathDataLength: pathData.length ? Math.max(...pathData.map((value) => value.length)) : 0,
+    totalPathCommandCount: pathStructures.reduce((sum, value) => sum + value.commandCount, 0),
+    totalPathSegmentCount: pathStructures.reduce((sum, value) => sum + value.segmentCount, 0),
+    totalPathPointCount: pathStructures.reduce((sum, value) => sum + value.pointCount, 0),
+    totalSubpathCount: pathStructures.reduce((sum, value) => sum + value.subpathCount, 0),
+    averageSegmentsPerPath: pathStructures.length
+      ? Math.round(pathStructures.reduce((sum, value) => sum + value.segmentCount, 0) / pathStructures.length)
+      : 0,
+    largestPathSegmentCount: pathStructures.length
+      ? Math.max(...pathStructures.map((value) => value.segmentCount))
+      : 0,
+    pathCommandHistogram: mergeHistograms(pathStructures.map((value) => value.commandHistogram)),
+    duplicatePathStrings,
+    duplicatePathRatio: pathData.length ? round(duplicatePathStrings / pathData.length, 4) : 0,
+    groupCount: countMatches(svg, /<g\b/gi),
+    defsCount: countMatches(svg, /<defs\b/gi),
+    clipPathCount: countMatches(svg, /<clipPath\b/gi),
+    maskCount: countMatches(svg, /<mask\b/gi),
+    filterCount: countMatches(svg, /<filter\b/gi),
+    styleBlockCount: countMatches(svg, /<style\b/gi),
+    dataFillLayerIdCount: countMatches(svg, /\bdata-fill-layer-id\s*=/gi),
+    dataStrokeLayerIdCount: countMatches(svg, /\bdata-stroke-layer-id\s*=/gi),
+    dataLayerIdCount: countMatches(svg, /\bdata-layer-id\s*=/gi),
+    dataLayerLabelCount: countMatches(svg, /\bdata-layer-label\s*=/gi),
+    dataLayerColorCount: countMatches(svg, /\bdata-layer-color\s*=/gi),
+    repeatedLargeAttributes: largeAttrs,
+    decimalNumberCount: decimalMatches.length,
+    averageDecimalPlaces: decimalPlaces.length ? round(decimalPlaces.reduce((sum, value) => sum + value, 0) / decimalPlaces.length, 2) : 0,
+    maxDecimalPlaces,
+    visibleColorCount: visibleColors(svg).length,
+  };
+}
+
+function analyzePathStructure(pathData) {
+  const tokens = [...String(pathData || "").matchAll(/[AaCcHhLlMmQqSsTtVvZz]|-?(?:\d*\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/gi)].map((m) => m[0]);
+  let index = 0;
+  let command = "";
+  let x = 0;
+  let y = 0;
+  let startX = 0;
+  let startY = 0;
+  let commandCount = 0;
+  let segmentCount = 0;
+  let pointCount = 0;
+  let subpathCount = 0;
+  const commandHistogram = {};
+  const isCommand = (token) => /^[AaCcHhLlMmQqSsTtVvZz]$/.test(token);
+  const readNumber = () => Number(tokens[index++]);
+  const addCommand = (value) => {
+    const key = value.toUpperCase();
+    commandCount += 1;
+    commandHistogram[key] = (commandHistogram[key] || 0) + 1;
+  };
+  const segmentTo = (nextX, nextY) => {
+    segmentCount += 1;
+    pointCount += 1;
+    x = nextX;
+    y = nextY;
+  };
+
+  while (index < tokens.length) {
+    if (isCommand(tokens[index])) {
+      command = tokens[index++];
+      addCommand(command);
+    }
+    if (!command) break;
+    const relative = command === command.toLowerCase();
+    const upper = command.toUpperCase();
+    if (upper === "Z") {
+      segmentTo(startX, startY);
+      command = "";
+      continue;
+    }
+    if (upper === "M") {
+      if (index + 1 > tokens.length) break;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      x = nextX;
+      y = nextY;
+      startX = x;
+      startY = y;
+      pointCount += 1;
+      subpathCount += 1;
+      command = relative ? "l" : "L";
+      continue;
+    }
+    if (upper === "L") {
+      if (index + 1 > tokens.length) break;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "H") {
+      if (index >= tokens.length) break;
+      let nextX = readNumber();
+      if (relative) nextX += x;
+      segmentTo(nextX, y);
+      continue;
+    }
+    if (upper === "V") {
+      if (index >= tokens.length) break;
+      let nextY = readNumber();
+      if (relative) nextY += y;
+      segmentTo(x, nextY);
+      continue;
+    }
+    if (upper === "C") {
+      if (index + 5 >= tokens.length) break;
+      const values = [readNumber(), readNumber(), readNumber(), readNumber(), readNumber(), readNumber()];
+      const nextX = relative ? x + values[4] : values[4];
+      const nextY = relative ? y + values[5] : values[5];
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "Q" || upper === "S") {
+      if (index + 3 >= tokens.length) break;
+      const values = [readNumber(), readNumber(), readNumber(), readNumber()];
+      const nextX = relative ? x + values[2] : values[2];
+      const nextY = relative ? y + values[3] : values[3];
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "T") {
+      if (index + 1 >= tokens.length) break;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    if (upper === "A") {
+      if (index + 6 >= tokens.length) break;
+      index += 5;
+      let nextX = readNumber();
+      let nextY = readNumber();
+      if (relative) {
+        nextX += x;
+        nextY += y;
+      }
+      segmentTo(nextX, nextY);
+      continue;
+    }
+    break;
+  }
+
+  return { commandCount, segmentCount, pointCount, subpathCount, commandHistogram };
+}
+
+function mergeHistograms(items) {
+  return items.reduce((merged, item) => {
+    for (const [key, value] of Object.entries(item || {})) {
+      merged[key] = (merged[key] || 0) + value;
+    }
+    return merged;
+  }, {});
+}
+
+function svgDimensions(svg) {
+  const open = String(svg || "").match(/<svg\b([^>]*)>/i)?.[1] || "";
+  const width = parseSvgLength(open.match(/\bwidth\s*=\s*(["'])([^"']+)\1/i)?.[2]);
+  const height = parseSvgLength(open.match(/\bheight\s*=\s*(["'])([^"']+)\1/i)?.[2]);
+  const viewBoxValues =
+    open
+      .match(/\bviewBox\s*=\s*(["'])([^"']+)\1/i)?.[2]
+      ?.trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter(Number.isFinite) || [];
+  return {
+    width,
+    height,
+    viewBoxWidth: viewBoxValues.length >= 4 ? viewBoxValues[2] : null,
+    viewBoxHeight: viewBoxValues.length >= 4 ? viewBoxValues[3] : null,
+  };
+}
+
+function parseSvgLength(value) {
+  const match = String(value || "").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function visibleColors(svg) {
+  const colors = [];
+  for (const match of svg.matchAll(/\b(?:fill|stroke)\s*=\s*["']([^"']+)["']/gi)) {
+    const color = normalizePaint(match[1]);
+    if (color) colors.push(color);
+  }
+  for (const match of svg.matchAll(/\bstyle\s*=\s*["']([^"']+)["']/gi)) {
+    const style = match[1];
+    for (const prop of ["fill", "stroke"]) {
+      const value = style.match(new RegExp(`${prop}\\s*:\\s*([^;]+)`, "i"))?.[1];
+      const color = normalizePaint(value || "");
+      if (color) colors.push(color);
+    }
+  }
+  return unique(colors);
+}
+
+function normalizePaint(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text || text === "none" || text === "transparent" || /^url\(/i.test(text)) return "";
+  return normalizeHex(text) || text;
+}
+
+function normalizeHex(value) {
+  const text = String(value || "").trim().toLowerCase();
+  const match = text.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/);
+  if (!match) return "";
+  const hex = match[1];
+  if (hex.length === 3) return "#" + hex.split("").map((c) => c + c).join("");
+  return "#" + hex.slice(0, 6);
+}
+
+function unique(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function countMatches(text, pattern) {
+  return (text.match(pattern) || []).length;
+}
+
+function round(value, places) {
+  const factor = 10 ** places;
+  return Math.round(value * factor) / factor;
+}
+
+async function serverState() {
+  const response = await fetch(baseUrl);
+  const text = await response.text();
+  return {
+    status: response.status,
+    title: text.match(/<title>(.*?)<\/title>/i)?.[1] || "",
+    looksLikeIlovesvg: /iLoveSVG|Free SVG Converter/i.test(text),
+    exposesCommit: /9c44950|9c44950388f971fac8fdbd1b4d05670474844ae7/.test(text),
+  };
+}
+
+async function gitHead() {
+  const { execFile } = await import("node:child_process");
+  return new Promise((resolve) => {
+    execFile("git", ["rev-parse", "HEAD"], { cwd: rootDir }, (error, stdout) => resolve(error ? null : stdout.trim()));
+  });
+}
+
+async function setFileInput(client, filePath) {
+  await waitForValue(client, () => `(() => Boolean(document.querySelector('input[type="file"]')))()`, 12_000, Boolean);
+  const basename = path.basename(filePath);
+  const acceptedExpression = () => `(() => {
+    const body = document.body?.innerText || "";
+    const inputHasFile = Array.from(document.querySelectorAll('input[type="file"]')).some((input) =>
+      Array.from(input.files || []).some((file) => file.name === ${JSON.stringify(basename)}),
+    );
+    const activeJobs = Array.from(document.querySelectorAll("[data-output-stamp]")).filter((card) =>
+      /queued|running/i.test(card.getAttribute("data-job-status") || "") ||
+      /\\b(Queued|Running|Converting|Creating|Building)\\b/i.test(card.textContent || ""),
+    ).length;
+    const enabledConvert = Array.from(document.querySelectorAll("button")).some((button) => !button.disabled && /^\\s*(Convert|Create)\\b/i.test(button.innerText || button.textContent || ""));
+    return { bodyHasName: body.includes(${JSON.stringify(basename)}), inputHasFile, activeJobs, enabledConvert };
+  })()`;
+  try {
+    const { root } = await client.send("DOM.getDocument", { depth: -1, pierce: true }, 8_000);
+    const { nodeIds = [] } = await client.send("DOM.querySelectorAll", { nodeId: root.nodeId, selector: 'input[type="file"]' }, 8_000);
+    if (!nodeIds.length) throw new Error("No file input found.");
+    for (const nodeId of nodeIds) {
+      await client.send("DOM.setFileInputFiles", { nodeId, files: [filePath] }, 20_000);
+    }
+    await evaluate(client, `(() => {
+      const input = document.querySelector('label input[type="file"], input[type="file"]');
+      if (!input) return false;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`, 8_000);
+    return await waitForValue(
+      client,
+      acceptedExpression,
+      12_000,
+      (value) => value?.bodyHasName || value?.enabledConvert || value?.activeJobs > 0,
+    );
+  } catch {}
+
+  const file = {
+    name: basename,
+    type: mimeTypeForPath(filePath),
+    base64: (await fs.readFile(filePath)).toString("base64"),
+  };
+  const applied = await evaluate(client, `(() => {
+    const inputs = Array.from(document.querySelectorAll('label input[type="file"], input[type="file"]'));
+    if (!inputs.length) return { ok: false, reason: "missing input" };
+    const binary = atob(${JSON.stringify(file.base64)});
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    for (const input of inputs) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File([bytes], ${JSON.stringify(file.name)}, { type: ${JSON.stringify(file.type)} }));
+      input.files = dataTransfer.files;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return { ok: true };
+  })()`, 30_000);
+  if (!applied?.ok) throw new Error(`Could not set file through browser DataTransfer: ${applied?.reason || "unknown"}`);
+  return waitForValue(
+    client,
+    acceptedExpression,
+    30_000,
+    (value) => value?.bodyHasName || value?.enabledConvert || value?.activeJobs > 0,
+  );
+}
+
+async function uploadFixtureWithRetry(client, filePath) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await delay(attempt === 1 ? 350 : 900);
+      return await setFileInput(client, filePath);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= 3) break;
+      await client.send("Page.reload", { ignoreCache: true }).catch(() => null);
+      await waitForDocumentReady(client).catch(() => null);
+    }
+  }
+  throw lastError || new Error("Unable to upload fixture.");
+}
+
+function mimeTypeForPath(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".gif") return "image/gif";
+  return "application/octet-stream";
+}
+
+async function selectPreset(client, patterns) {
+  await clickButtonIfPresent(client, [/All presets/i, /Show all presets/i, /More presets/i, /Show\s+\d+\s+more presets/i], []).catch(() => null);
+  await delay(250);
+  for (const pattern of patterns) {
+    const clicked = await clickButtonIfPresent(client, [pattern], [/Show fewer/i, /Filter presets/i, /Pin preset/i]).catch(() => null);
+    if (clicked) {
+      await delay(350);
+      return { selected: clicked.label, pattern: String(pattern) };
+    }
+  }
+  return { selected: null, reason: "No matching preset button was visible." };
+}
+
+async function clickConvert(client) {
+  const clicked = await clickButtonIfPresent(client, [/^Convert\b/i, /^Create\b/i], [/Update/i]);
+  if (!clicked) throw new Error("Could not find enabled Convert button.");
+  return clicked;
+}
+
+async function settleInitialAutoConversion(client, timeoutMs) {
+  const state = await outputState(client).catch(() => null);
+  if (!state?.activeJobs) return { settled: true, reason: "idle" };
+  return waitForCompletedOutput(client, state.latestStamp, timeoutMs);
+}
+
+async function waitForCompletedOutput(client, previousLatestStamp, timeoutMs) {
+  return waitForValue(
+    client,
+    () => outputStateExpression(previousLatestStamp),
+    timeoutMs,
+    (state) =>
+      state?.latestReady &&
+      !state?.activeJobs &&
+      (state?.latestChanged || Number(state?.latestSvgBytes || 0) > 0),
+  );
+}
+
+async function outputState(client) {
+  return evaluate(client, outputStateExpression(null), 10_000);
+}
+
+function outputStateExpression(previousLatestStamp) {
+  return `(() => {
+    const cards = Array.from(document.querySelectorAll("[data-output-stamp]"));
+    const latest = latestCard(cards);
+    const latestStamp = latest ? numberOrNull(latest.getAttribute("data-output-stamp")) : null;
+    const activeJobs = cards.filter(isActiveCard).length;
+    const latestReady = Boolean(latest) &&
+      !isActiveCard(latest) &&
+      Boolean(latest.querySelector("[data-output-primary-action], [data-output-action-row='true'] button")) &&
+      numberOrNull(latest.getAttribute("data-svg-bytes")) !== null;
+    const fileSize = latest ? latest.querySelector("[data-output-file-size='true']")?.textContent || "" : "";
+    const source = latest ? latest.querySelector("[data-output-source-file]")?.getAttribute("data-output-source-file") || "" : "";
+    return {
+      outputCards: cards.length,
+      activeJobs,
+      latestStamp,
+      latestReady,
+      latestChanged: ${previousLatestStamp == null ? "true" : `latestStamp !== ${JSON.stringify(previousLatestStamp)}`},
+      latestJobStatus: latest ? latest.getAttribute("data-job-status") || null : null,
+      latestText: latest ? [latest.getAttribute("data-engine-used") || "", fileSize, source].filter(Boolean).join(" ") : "",
+      latestSvgBytes: latest ? numberOrNull(latest.getAttribute("data-svg-bytes")) : null,
+    };
+    function isActiveCard(card) {
+      if (/queued|running/i.test(card.getAttribute("data-job-status") || "")) return true;
+      if (numberOrNull(card.getAttribute("data-svg-bytes")) !== null) return false;
+      return /\\b(Queued|Running|Converting|Creating|Building)\\b/i.test(card.textContent || "");
+    }
+    ${browserLatestCardHelpers()}
+  })()`;
+}
+
+async function openLatestSettingsPanel(client) {
+  await clickButtonInLatestOutput(client, [/Settings\s*\/\s*Edit/i, /\bSettings\b/i], [/Download/i, /Copy/i]);
+  return waitForValue(client, () => `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { open: false };
+    const text = latest.innerText || "";
+    const controls = latest.querySelectorAll('input[aria-label$=" hex color"], [data-post-processing-controls="true"], [data-settings-section]');
+    return { open: controls.length > 0 || /Advanced settings|Layer colors|Output polish/i.test(text), controls: controls.length };
+    ${browserLatestCardHelpers()}
+  })()`, 12_000, (value) => value?.open);
+}
+
+async function ensureSettingsSectionOpen(client, titlePattern, expectedKind) {
+  const source = titlePattern.source;
+  const result = await evaluate(client, `(() => {
+    const pattern = new RegExp(${JSON.stringify(source)}, "i");
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { ok: false, reason: "missing latest output card" };
+    const buttons = Array.from(latest.querySelectorAll("button, summary"));
+    const button = buttons.find((candidate) => {
+      const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+      return pattern.test(text) && isVisible(candidate);
+    });
+    if (!button) return { ok: false, reason: "section button not found", expected: ${JSON.stringify(expectedKind)} };
+    const expanded = button.getAttribute("aria-expanded");
+    if (expanded !== "true") {
+      button.scrollIntoView({ block: "center", inline: "nearest" });
+      button.click();
+    }
+    return { ok: true, expandedBefore: expanded };
+    ${browserVisibleHelpers()}
+    ${browserLatestCardHelpers()}
+  })()`, 8_000);
+  await delay(350);
+  return result;
+}
+
+async function collectUi(client) {
+  return evaluate(client, `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return null;
+    const layerSection = latest.querySelector("[data-layer-color-total-count]");
+    const layerText = layerSection ? (layerSection.textContent || "").replace(/\\s+/g, " ").trim() : "";
+    const cardTitle = Array.from(latest.querySelectorAll("p, span"))
+      .map((element) => (element.textContent || "").replace(/\\s+/g, " ").trim())
+      .find((value) => /^(?:Editing\\s+)?Output\\s+\\d+\\s+·/i.test(value)) || "";
+    const fileSizeText = latest.querySelector("[data-output-file-size='true']")?.textContent || "";
+    const sourceFile = latest.querySelector("[data-output-source-file]")?.getAttribute("data-output-source-file") || "";
+    const layerCountText = layerText.match(/Showing\\s+\\d+\\s+of\\s+\\d+\\s+layer colors/i)?.[0] ||
+      layerText.match(/Layer colors[^.]{0,180}/i)?.[0] ||
+      null;
+    const outputTitle = (cardTitle || "").replace(/\\s+/g, " ").trim();
+    const engineUsed = latest.getAttribute("data-engine-used") || null;
+    const engineLine = engineUsed ? "Engine: " + engineUsed : null;
+    return {
+      outputTitle,
+      engineLine,
+      engineUsed,
+      engineWarnings: latest.getAttribute("data-engine-warnings") || null,
+      layerBuildMode: latest.getAttribute("data-layer-build-mode") || null,
+      outputDetectedColors: numberOrNull(latest.getAttribute("data-output-detected-colors")),
+      svgBytesAttr: numberOrNull(latest.getAttribute("data-svg-bytes")),
+      fileSizeText,
+      sourceFile,
+      layerCountText,
+      layerTotalCount: numberOrNull(layerSection?.getAttribute("data-layer-color-total-count")),
+      layerMountedCount: numberOrNull(layerSection?.getAttribute("data-layer-color-mounted-count")),
+      layerHeavyCount: numberOrNull(layerSection?.getAttribute("data-layer-color-heavy-count")),
+      layerAllColors: String(layerSection?.getAttribute("data-layer-color-all-colors") || "").trim(),
+      visibleLayerRows: Array.from(latest.querySelectorAll('[data-layer-color-row="true"]')).filter(isVisible).length,
+      previewVisible: Boolean(latest.querySelector('img[alt="SVG result"], img[alt*="result"], svg')),
+      text: [outputTitle, engineLine, fileSizeText, sourceFile, layerText].filter(Boolean).join(" ").slice(0, 1400),
+    };
+    ${browserVisibleHelpers()}
+    ${browserLatestCardHelpers()}
+  })()`, 12_000);
+}
+
+async function verifyClipboardAccess(client) {
+  await client.send("Page.bringToFront").catch(() => {});
+  await client.send("Browser.grantPermissions", {
+    origin: baseUrl,
+    permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"],
+  }).catch(() => {});
+  await evaluate(client, `(() => { window.focus(); document.body?.focus?.(); return true; })()`, 8_000).catch(() => {});
+  return true;
+}
+
+async function primeClipboard(client, scenarioId) {
+  await verifyClipboardAccess(client);
+  const marker = `__high_fidelity_browser_output_smoke_${scenarioId}_${Date.now()}__`;
+  await evaluate(client, `navigator.clipboard.writeText(${JSON.stringify(marker)}).then(() => true)`, 8_000);
+  return clipboardCapture(client);
+}
+
+async function clipboardCapture(client) {
+  return evaluate(client, clipboardCaptureExpression(), 12_000);
+}
+
+async function waitForClipboardSvg(client, previousHash) {
+  return waitForValue(
+    client,
+    clipboardCaptureExpression,
+    30_000,
+    (value) =>
+      value?.hasSvg &&
+      value?.latestClipboardBytes > 0 &&
+      value?.latestClipboardHash !== previousHash,
+  );
+}
+
+function clipboardCaptureExpression() {
+  return `(() => {
+    return navigator.clipboard.readText()
+      .then((latest) => {
+        const normalized = normalizeNewlines(latest || "");
+        return {
+          hasSvg: /<svg[\\s>]/i.test(normalized),
+          latestClipboardHash: normalized ? hashString(normalized) : null,
+          latestClipboardBytes: normalized ? new Blob([normalized]).size : 0,
+          rawClipboardHash: latest ? hashString(latest) : null,
+          rawClipboardBytes: latest ? new Blob([latest]).size : 0,
+        };
+      })
+      .catch((error) => ({
+        hasSvg: false,
+        latestClipboardHash: null,
+        latestClipboardBytes: 0,
+        rawClipboardHash: null,
+        rawClipboardBytes: 0,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    function normalizeNewlines(value) {
+      return String(value || "").replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n");
+    }
+    function hashString(value) {
+      let hash = 2166136261;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(16);
+    }
+  })()`;
+}
+
+async function downloadLatestSvg(client, downloadDir) {
+  const before = new Set(await safeReaddir(downloadDir));
+  await clickButtonInLatestOutput(client, [/Download SVG/i, /^Download\b/i], [/ZIP/i]);
+  const file = await waitForDownloadedFile(downloadDir, before, 90_000);
+  const svg = await fs.readFile(file, "utf8");
+  return {
+    path: file,
+    basename: path.basename(file),
+    bytes: Buffer.byteLength(svg),
+    hash: hashString(svg),
+  };
+}
+
+async function waitForDownloadedFile(downloadDir, before, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let last = [];
+  while (Date.now() < deadline) {
+    last = await safeReaddir(downloadDir);
+    const candidates = last.filter((name) => !before.has(name) && !/\.crdownload$/i.test(name));
+    const downloading = last.some((name) => /\.crdownload$/i.test(name));
+    if (candidates.length && !downloading) {
+      const full = path.join(downloadDir, candidates[0]);
+      const stat = await fs.stat(full).catch(() => null);
+      if (stat?.size > 0) return full;
+    }
+    await delay(500);
+  }
+  throw new Error(`Timed out waiting for SVG download. Last files: ${last.join(", ")}`);
+}
+
+async function safeReaddir(dir) {
+  try {
+    return await fs.readdir(dir);
+  } catch {
+    return [];
+  }
+}
+
+async function clickButtonInLatestOutput(client, patterns, rejectPatterns = []) {
+  const target = await findButtonTarget(client, patterns, rejectPatterns, "latest");
+  if (!target) return null;
+  await trustedClickAtPoint(client, target);
+  return target;
+}
+
+async function clickButtonIfPresent(client, patterns, rejectPatterns = []) {
+  const target = await findButtonTarget(client, patterns, rejectPatterns, "document");
+  if (!target) return null;
+  await trustedClickAtPoint(client, target);
+  return target;
+}
+
+async function findButtonTarget(client, patterns, rejectPatterns, scope) {
+  return evaluate(client, `(() => {
+    const patterns = ${JSON.stringify(patterns.map((pattern) => pattern.source))}.map((source) => new RegExp(source, "i"));
+    const rejects = ${JSON.stringify(rejectPatterns.map((pattern) => pattern.source))}.map((source) => new RegExp(source, "i"));
+    const cards = Array.from(document.querySelectorAll("[data-output-stamp]"));
+    const latest = latestCard(cards);
+    const root = ${JSON.stringify(scope)} === "latest" ? latest : document.body;
+    if (!root) return null;
+    const buttons = Array.from(root.querySelectorAll("button, [role='button'], summary"));
+    const button = buttons.find((candidate) => {
+      const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+      return isVisible(candidate) && !candidate.disabled && patterns.some((pattern) => pattern.test(text)) && !rejects.some((pattern) => pattern.test(text));
+    });
+    if (!button) return null;
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    const rect = button.getBoundingClientRect();
+    return {
+      label: (button.innerText || button.textContent || button.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim(),
+      x: Math.max(1, Math.min(window.innerWidth - 2, rect.left + rect.width / 2)),
+      y: Math.max(1, Math.min(window.innerHeight - 2, rect.top + rect.height / 2)),
+    };
+    ${browserVisibleHelpers()}
+    ${browserLatestCardHelpers()}
+  })()`, 8_000);
+}
+
+async function trustedClickAtPoint(client, point) {
+  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "none" }, 6_000);
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", buttons: 1, clickCount: 1 }, 6_000);
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", buttons: 0, clickCount: 1 }, 6_000);
+}
+
+async function enablePage(client, downloadDir) {
+  await client.send("Runtime.enable").catch(() => {});
+  await client.send("Log.enable").catch(() => {});
+  await client.send("Page.enable").catch(() => {});
+  await client.send("DOM.enable").catch(() => {});
+  await client.send("Network.enable").catch(() => {});
+  await client.send("Browser.grantPermissions", {
+    origin: baseUrl,
+    permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"],
+  }).catch(() => {});
+  await client.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDir }).catch(() => {});
+  await client.send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDir }).catch(() => {});
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1050,
+    deviceScaleFactor: 1,
+    mobile: false,
+  }).catch(() => {});
+}
+
+async function waitForDocumentReady(client) {
+  return waitForValue(client, () => `(() => ({ href: location.href, readyState: document.readyState }))()`, 30_000, (state) =>
+    state?.readyState === "interactive" || state?.readyState === "complete"
+  );
+}
+
+async function waitForValue(client, expressionFactory, timeoutMs, isReady = Boolean) {
+  const deadline = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < deadline) {
+    try {
+      last = await evaluate(client, expressionFactory(), Math.min(5_000, Math.max(1_000, deadline - Date.now())));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      last = { error: message };
+      if (!/timed out/i.test(message)) throw error;
+      await delay(500);
+      continue;
+    }
+    if (isReady(last)) return last;
+    await delay(300);
+  }
+  throw new Error(`Timed out waiting for browser state. Last value: ${JSON.stringify(last)}`);
+}
+
+async function evaluate(client, expression, timeoutMs = 12_000) {
+  const response = await client.send(
+    "Runtime.evaluate",
+    { expression, awaitPromise: true, returnByValue: true },
+    timeoutMs,
+  );
+  if (response.exceptionDetails) {
+    throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text || "Runtime.evaluate failed");
+  }
+  return response.result?.value;
+}
+
+async function openTab(url) {
+  const target = await createCdpTarget(url);
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
+  const client = new CdpClient(ws);
+  await client.send("Runtime.enable").catch(() => {});
+  await client.send("Page.enable").catch(() => {});
+  await waitForDocumentReady(client).catch(() => {});
+  return client;
+}
+
+async function createCdpTarget(url) {
+  const browserInfo = await cdpJson("/json/version");
+  if (browserInfo.webSocketDebuggerUrl) {
+    const browserWs = new WebSocket(browserInfo.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      browserWs.addEventListener("open", resolve, { once: true });
+      browserWs.addEventListener("error", reject, { once: true });
+    });
+    const browserClient = new CdpClient(browserWs);
+    const { targetId } = await browserClient.send("Target.createTarget", { url, newWindow: false, background: false });
+    await browserClient.close().catch(() => {});
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const targets = await cdpJson("/json/list");
+      const target = targets.find((candidate) => candidate.id === targetId);
+      if (target?.webSocketDebuggerUrl) return target;
+      await delay(150);
+    }
+  }
+  return cdpJson(`/json/new?${encodeURIComponent(url)}`, { method: "PUT" });
+}
+
+class CdpClient {
+  constructor(ws) {
+    this.ws = ws;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.listeners = new Set();
+    this.consoleErrors = [];
+    this.networkErrors = [];
+    ws.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.id && this.pending.has(message.id)) {
+        const { resolve, reject, timeout } = this.pending.get(message.id);
+        clearTimeout(timeout);
+        this.pending.delete(message.id);
+        if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
+        else resolve(message.result || {});
+        return;
+      }
+      if (message.method === "Runtime.consoleAPICalled" && /error|warning/i.test(message.params?.type || "")) {
+        this.consoleErrors.push({
+          type: message.params.type,
+          text: (message.params.args || []).map((arg) => arg.value || arg.description || "").join(" ").slice(0, 500),
+        });
+      }
+      if (message.method === "Log.entryAdded" && /error|warning/i.test(message.params?.entry?.level || "")) {
+        this.consoleErrors.push({
+          type: message.params.entry.level,
+          text: String(message.params.entry.text || "").slice(0, 500),
+        });
+      }
+      if (message.method === "Network.loadingFailed") {
+        this.networkErrors.push({
+          errorText: message.params?.errorText || "",
+          type: message.params?.type || "",
+          canceled: Boolean(message.params?.canceled),
+        });
+      }
+      for (const listener of this.listeners) listener(message);
+    });
+  }
+  send(method, params = {}, timeoutMs = 15_000) {
+    const id = this.nextId++;
+    const payload = JSON.stringify({ id, method, params });
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`CDP command timed out: ${method}`));
+      }, timeoutMs);
+      timeout.unref?.();
+      this.pending.set(id, { resolve, reject, timeout });
+      this.ws.send(payload);
+    });
+  }
+  onEvent(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  collectLogs() {
+    return { consoleErrors: this.consoleErrors, networkErrors: this.networkErrors };
+  }
+  close() {
+    return new Promise((resolve) => {
+      this.ws.addEventListener("close", resolve, { once: true });
+      this.ws.close();
+      setTimeout(resolve, 500).unref?.();
+    });
+  }
+}
+
+async function cdpJson(pathname, options = {}) {
+  const response = await fetch(`http://127.0.0.1:${debugPort}${pathname}`, options);
+  if (!response.ok) throw new Error(`CDP request failed: ${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+async function waitForCdp() {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    try {
+      await cdpJson("/json/version");
+      return;
+    } catch {
+      await delay(250);
+    }
+  }
+  throw new Error("Timed out waiting for browser CDP endpoint.");
+}
+
+async function findBrowserExecutable() {
+  const candidates = [
+    process.env.BROWSER_EXECUTABLE,
+    path.join(process.env.PROGRAMFILES || "", "Microsoft/Edge/Application/msedge.exe"),
+    path.join(process.env["PROGRAMFILES(X86)"] || "", "Microsoft/Edge/Application/msedge.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Microsoft/Edge/Application/msedge.exe"),
+    path.join(process.env.PROGRAMFILES || "", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env["PROGRAMFILES(X86)"] || "", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env.LOCALAPPDATA || "", "Google/Chrome/Application/chrome.exe"),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {}
+  }
+  throw new Error("No Chromium-family browser executable found.");
+}
+
+function browserLatestCardHelpers() {
+  return `
+    function latestCard(items) {
+      return items.reduce((best, card) => {
+        if (!best) return card;
+        return numberOrNull(card.getAttribute("data-output-stamp")) >= numberOrNull(best.getAttribute("data-output-stamp")) ? card : best;
+      }, null);
+    }
+    function numberOrNull(value) {
+      const text = String(value || "").trim();
+      if (!text) return null;
+      const number = Number(text.replace(/[^0-9.]/g, ""));
+      return Number.isFinite(number) ? number : null;
+    }
+  `;
+}
+
+function browserVisibleHelpers() {
+  return `
+    function isVisible(element) {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+  `;
+}
+
+function hashString(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+await main().catch((error) => {
+  console.error(error instanceof Error ? error.stack || error.message : String(error));
+  process.exit(1);
+});

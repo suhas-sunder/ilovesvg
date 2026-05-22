@@ -15,6 +15,11 @@ import {
   type SortLayersBy,
 } from "./converterSettings.server";
 import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
+import { clampSvgPathDataPrecision } from "~/shared/tracing/svgPathPrecision";
+import {
+  optimizeLayeredSvgPathStructure,
+  resolveLayeredSvgStructureOptimizationOptions,
+} from "~/shared/tracing/svgPathStructureOptimizer";
 import { normalizeBmpForSharp } from "./bmpDecode.server";
 
 export type TraceMode = "single" | "layered";
@@ -111,6 +116,7 @@ export const MAX_LAYER_COUNT = 40;
 export const MAX_TRACE_SIDE_DEFAULT = 1600;
 export const MAX_TRACE_SIDE = 3000;
 const MIN_TRACE_DIMENSION = 2;
+const GENERATED_LAYERED_PATH_PRECISION = 0;
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -271,6 +277,12 @@ export async function createLayeredColorSvg(
     sourceInput = await withTimer(diagnostics, "preprocessLayeredRaster", () =>
       preprocessLayeredRasterInput(sourceInput, safeOptions, sharp),
     );
+    const sourceDimensions = await withTimer(diagnostics, "sourceMetadata", async () => {
+      const metadata = await sharp(sourceInput).metadata();
+      return resolveOrientedRasterDimensions(metadata);
+    });
+    diagnostics.sourceWidth = sourceDimensions.width;
+    diagnostics.sourceHeight = sourceDimensions.height;
 
     const { data, info } = await withTimer(diagnostics, "decodeResizeRaw", () =>
       sharp(sourceInput)
@@ -457,18 +469,32 @@ export async function createLayeredColorSvg(
       diagnostics.adaptiveLayerPalette.lightNeutralMatteApplied =
         finalLayers !== builtLayers;
     }
+    const serializedLayers = finalLayers.map((layer) => ({
+      ...layer,
+      pathTags: optimizeLayerPathTags(
+        clampSvgPathDataPrecision(
+          layer.pathTags,
+          GENERATED_LAYERED_PATH_PRECISION,
+        ),
+        layer.color,
+        width,
+        height,
+      ),
+    }));
 
     const svg = withSynchronousTimer(diagnostics, "buildSvg", () =>
       buildLayeredSvgString({
         width,
         height,
-        layers: finalLayers,
+        layers: serializedLayers,
         transparent: safeOptions.transparent,
         bgColor: safeOptions.bgColor,
         backgroundAlpha: safeOptions.backgroundAlpha,
         layerAlpha: safeOptions.layerAlpha,
         fillStrokeWidth: safeOptions.fillStrokeWidth,
         fillStrokeColor: safeOptions.fillStrokeColor,
+        sourceWidth: sourceDimensions.width,
+        sourceHeight: sourceDimensions.height,
         outputWidth: safeOptions.outputWidth,
         outputHeight: safeOptions.outputHeight,
         preserveAspectRatio: safeOptions.preserveAspectRatio,
@@ -476,11 +502,15 @@ export async function createLayeredColorSvg(
     );
     diagnostics.finalSvgBytes = Buffer.byteLength(svg, "utf8");
     diagnostics.pathCount = countSvgPaths(svg);
-    diagnostics.layerCount = finalLayers.length;
+    diagnostics.layerCount = serializedLayers.length;
+    const outputBasisWidth =
+      sourceDimensions.width > 0 ? sourceDimensions.width : width;
+    const outputBasisHeight =
+      sourceDimensions.height > 0 ? sourceDimensions.height : height;
     const outputDimensions = resolveOutputDimensions(
       safeOptions,
-      width,
-      height,
+      outputBasisWidth,
+      outputBasisHeight,
     );
 
     return {
@@ -488,7 +518,7 @@ export async function createLayeredColorSvg(
       width: outputDimensions.width,
       height: outputDimensions.height,
       layers: [
-        ...finalLayers.map((layer) => ({
+        ...serializedLayers.map((layer) => ({
           id: layer.id,
           label: layer.label,
           color: layer.color,
@@ -507,7 +537,7 @@ export async function createLayeredColorSvg(
                 color: safeOptions.fillStrokeColor,
                 originalColor: safeOptions.fillStrokeColor,
                 visible: true,
-                pathTags: finalLayers
+                pathTags: serializedLayers
                   .map((layer) =>
                     filterFillStrokePathTags(extractPathTags(layer.pathTags), {
                       width,
@@ -719,6 +749,35 @@ export function annotateUploadedSvgLayers(svg: string): {
   );
 
   return { svg: annotatedSvg, layers };
+}
+
+function resolveOrientedRasterDimensions(metadata: {
+  width?: number;
+  height?: number;
+  orientation?: number;
+}) {
+  const width = Math.max(0, Math.round(Number(metadata.width ?? 0)));
+  const height = Math.max(0, Math.round(Number(metadata.height ?? 0)));
+  const orientation = Number(metadata.orientation ?? 1);
+  return [5, 6, 7, 8].includes(orientation)
+    ? { width: height, height: width }
+    : { width, height };
+}
+
+function optimizeLayerPathTags(
+  pathTags: string,
+  color: string,
+  width: number,
+  height: number,
+): string {
+  if (!pathTags) return pathTags;
+  const fill = sanitizeLayerHexColor(color, "#000000");
+  const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><g fill="${fill}" data-layer-color="${fill}">${pathTags}</g></svg>`;
+  const optimized = optimizeLayeredSvgPathStructure(
+    wrappedSvg,
+    resolveLayeredSvgStructureOptimizationOptions(width, height),
+  );
+  return extractPathTags(optimized.svg) || pathTags;
 }
 
 async function traceMaskToPathTags(
@@ -1604,6 +1663,8 @@ function buildLayeredSvgString({
   layerAlpha,
   fillStrokeWidth,
   fillStrokeColor,
+  sourceWidth,
+  sourceHeight,
   outputWidth,
   outputHeight,
   preserveAspectRatio,
@@ -1617,18 +1678,22 @@ function buildLayeredSvgString({
   layerAlpha?: number;
   fillStrokeWidth?: number;
   fillStrokeColor?: string;
+  sourceWidth?: number;
+  sourceHeight?: number;
   outputWidth?: number;
   outputHeight?: number;
   preserveAspectRatio?: boolean;
 }): string {
+  const outputBasisWidth = sourceWidth && sourceWidth > 0 ? sourceWidth : width;
+  const outputBasisHeight = sourceHeight && sourceHeight > 0 ? sourceHeight : height;
   const outputDimensions = resolveOutputDimensions(
     {
       outputWidth: outputWidth ?? 0,
       outputHeight: outputHeight ?? 0,
       preserveAspectRatio: preserveAspectRatio !== false,
     },
-    width,
-    height,
+    outputBasisWidth,
+    outputBasisHeight,
   );
   const backgroundOpacity =
     backgroundAlpha != null && backgroundAlpha < 0.999
@@ -1646,25 +1711,65 @@ function buildLayeredSvgString({
   const background = transparent
     ? ""
     : `<rect x="0" y="0" width="${width}" height="${height}" fill="${sanitizeLayerHexColor(bgColor, "#ffffff")}"${backgroundOpacity} />`;
-  const body = layers
-    .map((layer) => {
+  const strokeUseTags: string[] = [];
+  const preparedLayers = layers.map((layer) => {
       const fill = sanitizeLayerHexColor(layer.color, "#000000");
       const safeId = escapeXmlAttr(layer.id);
       const safeLabel = escapeXmlAttr(layer.label);
-      return `<g id="${safeId}" data-layer-id="${safeId}" data-layer-label="${safeLabel}" data-layer-color="${fill}" fill="${fill}"${groupOpacity}>${layer.pathTags}</g>`;
-    })
+      const pathTags =
+        safeFillStrokeWidth > 0
+          ? prepareFillStrokeReferencePathTags(layer.pathTags, safeId, {
+              width,
+              height,
+              strokeUseTags,
+            })
+          : layer.pathTags;
+      return { fill, safeId, safeLabel, pathTags };
+    });
+  const body = preparedLayers
+    .map(
+      (layer) =>
+        `<g id="${layer.safeId}" data-layer-id="${layer.safeId}" data-layer-label="${layer.safeLabel}" data-layer-color="${layer.fill}" fill="${layer.fill}"${groupOpacity}>${layer.pathTags}</g>`,
+    )
     .join("");
   const strokeBody =
-    safeFillStrokeWidth > 0
+    safeFillStrokeWidth > 0 && strokeUseTags.length > 0
       ? `<g id="fill-stroke-outline" data-layer-id="fill-stroke-outline" data-layer-label="Stroke outline" data-layer-color="${safeFillStrokeColor}" fill="none" stroke="${safeFillStrokeColor}" stroke-width="${formatNumber(
           safeFillStrokeWidth,
-        )}" stroke-linecap="round" stroke-linejoin="round">${layers
-          .map((layer) =>
-            filterFillStrokePathTags(extractPathTags(layer.pathTags), { width, height }),
-          )
-          .join("")}</g>`
+        )}" stroke-linecap="round" stroke-linejoin="round">${strokeUseTags.join("")}</g>`
       : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${outputDimensions.width}" height="${outputDimensions.height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Layered SVG from image">${background}${body}${strokeBody}</svg>`;
+}
+
+function prepareFillStrokeReferencePathTags(
+  pathTags: string,
+  layerId: string,
+  options: {
+    width: number;
+    height: number;
+    strokeUseTags: string[];
+  },
+): string {
+  let drawablePathIndex = 0;
+  return String(pathTags || "").replace(
+    /<path\b([^>]*?)(\s*\/?)>/gi,
+    (match, attrs = "", close = "") => {
+      const rawAttrs = String(attrs || "");
+      const closeToken = String(close || "").includes("/") ? " />" : ">";
+      const pathCandidate = `<path${rawAttrs}${closeToken}`;
+      const strokeCandidate = filterFillStrokePathTags(pathCandidate, {
+        width: options.width,
+        height: options.height,
+      });
+      if (!strokeCandidate.trim()) return match;
+
+      drawablePathIndex += 1;
+      const id = `${layerId}-path-${drawablePathIndex}`;
+      const nextAttrs = rawAttrs.replace(/\sid\s*=\s*["'][^"']*["']/gi, "");
+      options.strokeUseTags.push(`<use href="#${escapeXmlAttr(id)}" />`);
+      return `<path id="${escapeXmlAttr(id)}"${nextAttrs}${closeToken}`;
+    },
+  );
 }
 
 function pathTagsHaveDrawablePath(pathTags: string): boolean {

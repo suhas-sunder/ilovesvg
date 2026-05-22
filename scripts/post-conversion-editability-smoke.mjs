@@ -1516,10 +1516,10 @@ async function latestFocusedPreviewSvg(client) {
 }
 
 function focusedPreviewStateExpression(color, previousSvg) {
-  return `(() => {
+  return `(async () => {
     const workspace = document.querySelector('[data-focused-editor-workspace="true"]') || document;
     const image = workspace.querySelector('[data-editor-output-preview="true"] img, img');
-    const svg = decodeSvgImage(image);
+    const svg = await decodeSvgImage(image);
     const lowered = svg.toLowerCase();
     const color = ${JSON.stringify(String(color || "").toLowerCase())};
     const previous = ${JSON.stringify(String(previousSvg || ""))};
@@ -1529,16 +1529,27 @@ function focusedPreviewStateExpression(color, previousSvg) {
       changedFromPrevious: previous ? svg !== previous : Boolean(svg),
       svg: svg.slice(0, 2_000_000),
     };
-    function decodeSvgImage(image) {
+    async function decodeSvgImage(image) {
       const src = image?.getAttribute("src") || "";
-      if (!src.startsWith("data:image/svg+xml")) return "";
-      const comma = src.indexOf(",");
-      if (comma < 0) return "";
-      try {
-        return decodeURIComponent(src.slice(comma + 1));
-      } catch {
-        return "";
+      if (src.startsWith("data:image/svg+xml")) {
+        const comma = src.indexOf(",");
+        if (comma < 0) return "";
+        try {
+          return decodeURIComponent(src.slice(comma + 1));
+        } catch {
+          return "";
+        }
       }
+      if (src.startsWith("blob:")) {
+        try {
+          const response = await fetch(src);
+          const text = await response.text();
+          return /<svg[\\s>]/i.test(text) ? text : "";
+        } catch {
+          return "";
+        }
+      }
+      return "";
     }
   })()`;
 }
@@ -1693,12 +1704,19 @@ async function collectMetrics(client) {
     const svgs = [];
     for (const image of previewImages) {
       const src = image.getAttribute("src") || "";
-      if (!src.startsWith("data:image/svg+xml")) continue;
-      const comma = src.indexOf(",");
-      if (comma < 0) continue;
-      try {
-        svgs.push(decodeURIComponent(src.slice(comma + 1)));
-      } catch {}
+      if (src.startsWith("data:image/svg+xml")) {
+        const comma = src.indexOf(",");
+        if (comma < 0) continue;
+        try {
+          svgs.push(decodeURIComponent(src.slice(comma + 1)));
+        } catch {}
+      } else if (src.startsWith("blob:")) {
+        try {
+          const response = await fetch(src);
+          const text = await response.text();
+          if (/<svg[\\s>]/i.test(text)) svgs.push(text);
+        } catch {}
+      }
     }
     const parsed = svgs.map((svg) => {
       const doc = new DOMParser().parseFromString(svg, "image/svg+xml");

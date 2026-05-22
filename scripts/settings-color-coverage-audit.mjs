@@ -451,10 +451,10 @@ async function ensureSettingsSectionOpen(client, titlePattern, expectedKind) {
 }
 
 async function collectCoverageSnapshot(client, phase) {
-  return evaluate(client, `(() => {
+  return evaluate(client, `(async () => {
     const cards = Array.from(document.querySelectorAll("[data-output-stamp]"));
     const latest = latestCard(cards);
-    const svg = latest ? decodeLatestSvg(latest) : "";
+    const svg = latest ? await decodeLatestSvg(latest) : "";
     const ui = latest ? collectUi(latest) : emptyUi();
     return {
       phase: ${JSON.stringify(phase)},
@@ -655,14 +655,14 @@ async function collectCoverageSnapshot(client, phase) {
       return input.parentElement;
     }
 
-    function decodeLatestSvg(root) {
+    async function decodeLatestSvg(root) {
       const focused = root.querySelector('[data-focused-editor-workspace="true"]');
       const searchRoot = focused || root;
       const images = Array.from(searchRoot.querySelectorAll('[data-editor-output-preview="true"] img, img'));
       const expectedBytes = numberOrNull(root.getAttribute("data-svg-bytes"));
       const candidates = [];
       for (const image of images) {
-        const svg = decodeSvgImage(image);
+        const svg = await decodeSvgImage(image);
         if (svg) {
           candidates.push({
             svg,
@@ -681,12 +681,23 @@ async function collectCoverageSnapshot(client, phase) {
       return "";
     }
 
-    function decodeSvgImage(image) {
+    async function decodeSvgImage(image) {
       const src = image?.getAttribute("src") || "";
-      if (!src.startsWith("data:image/svg+xml")) return "";
-      const comma = src.indexOf(",");
-      if (comma < 0) return "";
-      try { return decodeURIComponent(src.slice(comma + 1)); } catch { return ""; }
+      if (src.startsWith("data:image/svg+xml")) {
+        const comma = src.indexOf(",");
+        if (comma < 0) return "";
+        try { return decodeURIComponent(src.slice(comma + 1)); } catch { return ""; }
+      }
+      if (src.startsWith("blob:")) {
+        try {
+          const response = await fetch(src);
+          const text = await response.text();
+          return /<svg[\\s>]/i.test(text) ? text : "";
+        } catch {
+          return "";
+        }
+      }
+      return "";
     }
 
     function visibleElements(root, selector) {
@@ -1440,7 +1451,11 @@ function summarizeResults(results, staticFindings) {
         "Home layered coverage scenario did not produce grouped editable Layered - Flat Color output.",
       );
     }
-    if (home.counts.actualVisibleSvgColorsBeforeHide > 16 && home.counts.pathTagsPaintColors === 0) {
+    if (
+      home.counts.actualVisibleSvgColorsBeforeHide > 16 &&
+      home.counts.pathTagsPaintColors === 0 &&
+      !hasGroupedEditableLayerCoverage(home)
+    ) {
       failures.push("Home layered output has many visible colors but no tagged path colors to edit.");
     }
   }
