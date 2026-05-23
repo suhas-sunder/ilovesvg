@@ -17,8 +17,10 @@ import {
 import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
 import { clampSvgPathDataPrecision } from "~/shared/tracing/svgPathPrecision";
 import {
+  detectLayeredSvgImportantColorBounds,
   optimizeLayeredSvgPathStructure,
   resolveLayeredSvgStructureOptimizationOptions,
+  type SvgPathBounds,
 } from "~/shared/tracing/svgPathStructureOptimizer";
 import { normalizeBmpForSharp } from "./bmpDecode.server";
 
@@ -469,7 +471,29 @@ export async function createLayeredColorSvg(
       diagnostics.adaptiveLayerPalette.lightNeutralMatteApplied =
         finalLayers !== builtLayers;
     }
-    const serializedLayers = finalLayers.map((layer) => ({
+    const visuallyOrderedLayers = isFlatColorLayeredOptions(safeOptions)
+      ? orderFlatColorLayersForVisualStack(finalLayers)
+      : finalLayers;
+    const detectedDetailBounds = isFlatColorLayeredOptions(safeOptions)
+      ? detectLayeredSvgImportantColorBounds(
+          wrapLayerPathTagsForStructureAnalysis(visuallyOrderedLayers, width, height),
+        )
+      : null;
+    const preserveDetailBounds =
+      detectedDetailBounds && isFocusedFlatColorDetailBounds(detectedDetailBounds, width, height)
+        ? detectedDetailBounds
+        : null;
+    const detailPreservedLayers = preserveDetailBounds
+      ? applyFocusedFlatColorDetailMatte(
+          visuallyOrderedLayers,
+          adaptivePalette,
+          safeOptions,
+          preserveDetailBounds,
+          width,
+          height,
+        )
+      : visuallyOrderedLayers;
+    const serializedLayers = detailPreservedLayers.map((layer) => ({
       ...layer,
       pathTags: optimizeLayerPathTags(
         clampSvgPathDataPrecision(
@@ -479,6 +503,7 @@ export async function createLayeredColorSvg(
         layer.color,
         width,
         height,
+        preserveDetailBounds,
       ),
     }));
 
@@ -769,15 +794,43 @@ function optimizeLayerPathTags(
   color: string,
   width: number,
   height: number,
+  preserveDetailBounds?: SvgPathBounds | null,
 ): string {
   if (!pathTags) return pathTags;
   const fill = sanitizeLayerHexColor(color, "#000000");
   const wrappedSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><g fill="${fill}" data-layer-color="${fill}">${pathTags}</g></svg>`;
   const optimized = optimizeLayeredSvgPathStructure(
     wrappedSvg,
-    resolveLayeredSvgStructureOptimizationOptions(width, height),
+    {
+      ...resolveLayeredSvgStructureOptimizationOptions(width, height),
+      preserveDetailBounds,
+    },
   );
   return extractPathTags(optimized.svg) || pathTags;
+}
+
+function wrapLayerPathTagsForStructureAnalysis(
+  layers: TraceLayerBuildItem[],
+  width: number,
+  height: number,
+) {
+  const body = layers
+    .map((layer) => {
+      const fill = sanitizeLayerHexColor(layer.color, "#000000");
+      return `<g fill="${fill}" data-layer-color="${fill}">${layer.pathTags}</g>`;
+    })
+    .join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${body}</svg>`;
+}
+
+function isFocusedFlatColorDetailBounds(
+  bounds: SvgPathBounds,
+  width: number,
+  height: number,
+) {
+  const boundsArea =
+    Math.max(0, bounds.maxX - bounds.minX) * Math.max(0, bounds.maxY - bounds.minY);
+  return boundsArea / Math.max(1, width * height) <= 0.72;
 }
 
 async function traceMaskToPathTags(
@@ -1587,6 +1640,113 @@ function applyFlatColorLightNeutralMatte(
     ...layers.slice(0, bestIndex),
     ...layers.slice(bestIndex + 1),
   ];
+}
+
+function applyFocusedFlatColorDetailMatte(
+  layers: TraceLayerBuildItem[],
+  analysis: FlatColorPaletteAnalysis | null,
+  options: NormalizedLayeredColorSvgOptions,
+  bounds: SvgPathBounds,
+  width: number,
+  height: number,
+) {
+  if (!analysis || !isFlatColorLayeredOptions(options) || layers.length >= 32) {
+    return layers;
+  }
+
+  const boundsWidth = Math.max(0, bounds.maxX - bounds.minX);
+  const boundsHeight = Math.max(0, bounds.maxY - bounds.minY);
+  const boundsShare = (boundsWidth * boundsHeight) / Math.max(1, width * height);
+  if (
+    boundsShare < 0.2 ||
+    boundsShare > 0.72 ||
+    analysis.blueFamilyShare < 0.08 ||
+    analysis.lightNeutralShare < 0.12
+  ) {
+    return layers;
+  }
+
+  const baseMatteColor = chooseFocusedDetailMatteColor(layers);
+  if (!baseMatteColor) return layers;
+  const matteColor = makeUniqueFocusedDetailMatteColor(baseMatteColor, layers);
+
+  const inset = clampLayerNumber(Math.min(width, height) * 0.014, 10, 22);
+  const x1 = Math.max(0, Math.round(bounds.minX + inset));
+  const y1 = Math.max(0, Math.round(bounds.minY + inset));
+  const x2 = Math.min(width, Math.round(bounds.maxX - inset));
+  const y2 = Math.min(height, Math.round(bounds.maxY - inset));
+  if (x2 - x1 < 80 || y2 - y1 < 80) return layers;
+
+  // A single back-layer fill prevents optimized card interiors from looking
+  // transparent without bringing back thousands of neutral texture islands.
+  const mattePath = `<path d="M ${formatNumber(x1)} ${formatNumber(y1)} H ${formatNumber(x2)} V ${formatNumber(y2)} H ${formatNumber(x1)} Z" />`;
+  return [
+    {
+      id: sanitizeLayerId(`layer-detail-matte-${matteColor.replace("#", "")}`),
+      label: "Detail base",
+      color: matteColor,
+      pixelPercent: 0,
+      pathTags: mattePath,
+    },
+    ...layers,
+  ];
+}
+
+function chooseFocusedDetailMatteColor(layers: TraceLayerBuildItem[]) {
+  let bestColor: string | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+  for (const layer of layers) {
+    const rgb = parseHexToRgb(layer.color);
+    if (!rgb) continue;
+    const lum = luminance(rgb);
+    const saturation = colorSaturation(rgb);
+    const hue = rgbHueDegrees(rgb);
+    const yellowOrange = hue >= 28 && hue <= 78 && saturation >= 45;
+    if (yellowOrange || lum < 160 || lum > 242 || saturation > 92) continue;
+    const blueNeutralBonus =
+      hue >= 165 && hue <= 235 ? 32 : hue >= 135 && hue <= 255 ? 18 : 0;
+    const score =
+      blueNeutralBonus +
+      layer.pixelPercent * 0.6 -
+      Math.abs(lum - 205) * 0.18 -
+      Math.max(0, saturation - 42) * 0.12;
+    if (score > bestScore) {
+      bestScore = score;
+      bestColor = layer.color;
+    }
+  }
+  return bestColor;
+}
+
+function makeUniqueFocusedDetailMatteColor(
+  color: string,
+  layers: TraceLayerBuildItem[],
+) {
+  const usedColors = new Set(layers.map((layer) => layer.color.toLowerCase()));
+  const normalized = sanitizeLayerHexColor(color, "#ccd7d9");
+  if (!usedColors.has(normalized)) return normalized;
+  const rgb = parseHexToRgb(normalized);
+  if (!rgb) return normalized;
+  for (let delta = 1; delta <= 12; delta += 1) {
+    const candidate = rgbObjectToHex({
+      r: rgb.r - delta,
+      g: rgb.g,
+      b: rgb.b + delta,
+    });
+    if (!usedColors.has(candidate)) return candidate;
+  }
+  return normalized;
+}
+
+function orderFlatColorLayersForVisualStack(layers: TraceLayerBuildItem[]) {
+  return [...layers].sort((a, b) => {
+    const aRgb = parseHexToRgb(a.color);
+    const bRgb = parseHexToRgb(b.color);
+    if (!aRgb || !bRgb) return 0;
+    const lumDiff = luminance(bRgb) - luminance(aRgb);
+    if (Math.abs(lumDiff) > 8) return lumDiff;
+    return b.pixelPercent - a.pixelPercent;
+  });
 }
 
 function flatColorFamily(color: RGB): FlatColorFamily {

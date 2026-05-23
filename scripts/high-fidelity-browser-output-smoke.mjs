@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { detectLayeredSvgImportantColorBounds } from "../app/shared/tracing/svgPathStructureOptimizer.ts";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseUrl = process.env.BASE_URL || "http://localhost:3000";
@@ -17,8 +18,8 @@ const reportPath = process.env.HF_BROWSER_OUTPUT_REPORT_PATH
 const profileDir = path.join(os.tmpdir(), "ilovesvg-high-fidelity-browser-output-smoke", String(debugPort));
 const scenarioTimeoutMs = Number(process.env.HF_BROWSER_OUTPUT_TIMEOUT_MS || 180_000);
 const preferredSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_PREFERRED_BYTES || 1_500_000);
-const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 2_500_000);
-const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 3_000_000);
+const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 2_000_000);
+const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 2_000_000);
 const maxCriticalPresetSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_PRESET_BYTES || 3_000_000);
 const minHighDetailLayerCount = Number(process.env.HF_BROWSER_OUTPUT_MIN_LAYERS || 20);
 const maxGroupedColors = Number(process.env.HF_BROWSER_OUTPUT_MAX_GROUPS || 32);
@@ -152,6 +153,7 @@ async function main() {
       report.presetStuckLoading.push({
         presetId: preset.id,
         presetLabel: preset.label,
+        fixture: result.fixture || null,
         selectedPreset: result.selectedPreset,
         completed: result.completed,
         elapsedMs: result.elapsedMs,
@@ -159,6 +161,12 @@ async function main() {
         engineLine: result.ui?.engineLine || null,
         outputTitle: result.ui?.outputTitle || null,
         svgBytes: result.download?.bytes ?? result.ui?.svgBytesAttr ?? null,
+        svgWidth: result.svg?.width ?? null,
+        svgHeight: result.svg?.height ?? null,
+        svgViewBoxWidth: result.svg?.viewBoxWidth ?? null,
+        svgViewBoxHeight: result.svg?.viewBoxHeight ?? null,
+        pathCount: result.svg?.pathCount ?? null,
+        visibleColorCount: result.svg?.visibleColorCount ?? null,
         layerTotalCount: result.ui?.layerTotalCount ?? null,
         layerMountedCount: result.ui?.layerMountedCount ?? null,
         layerCountText: result.ui?.layerCountText || null,
@@ -208,6 +216,9 @@ async function main() {
       elapsedMs: item.elapsedMs,
       layers: item.layerTotalCount,
       bytes: item.svgBytes,
+      dimensions: item.svgWidth && item.svgHeight ? `${item.svgWidth}x${item.svgHeight}` : null,
+      pathCount: item.pathCount,
+      visibleColorCount: item.visibleColorCount,
     })),
   }, null, 2));
   if (!ok) process.exitCode = 1;
@@ -276,6 +287,13 @@ function validatePresetTriageResult(result) {
   if ((result.svgBytes || 0) > maxCriticalPresetSvgBytes) {
     add(`preset SVG remained in the 20 MB-class range; saw ${result.svgBytes} bytes`);
   }
+  const expectedWidth = result.fixture?.displayWidth || result.fixture?.width || 0;
+  const expectedHeight = result.fixture?.displayHeight || result.fixture?.height || 0;
+  if (expectedWidth && expectedHeight && result.svgWidth && result.svgHeight) {
+    if (result.svgWidth < expectedWidth || result.svgHeight < expectedHeight) {
+      add(`preset SVG dimensions were reduced from displayed source ${expectedWidth} x ${expectedHeight} to ${result.svgWidth} x ${result.svgHeight}`);
+    }
+  }
   const layerCount = result.layerTotalCount || 0;
   if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
   return failures;
@@ -295,6 +313,14 @@ function validateRenderMetrics(result, label) {
   }
   if (source.highContrastEdgeShare > 0.004 && output.highContrastEdgeShare < source.highContrastEdgeShare * 0.5) {
     add(`edge/detail metric dropped materially for ${label}: source ${source.highContrastEdgeShare}, output ${output.highContrastEdgeShare}`);
+  }
+  const alpha = result.render?.outputAlphaMetrics;
+  if (alpha && alpha.paintedPixelShare < 0.64) {
+    add(`painted SVG coverage dropped too low for ${label}: painted ${alpha.paintedPixelShare}, transparent ${alpha.transparentPixelShare}`);
+  }
+  const focusedAlpha = result.render?.focusedOutputAlphaMetrics;
+  if (focusedAlpha && focusedAlpha.paintedPixelShare < 0.7) {
+    add(`focused card/detail coverage dropped too low for ${label}: painted ${focusedAlpha.paintedPixelShare}, transparent ${focusedAlpha.transparentPixelShare}`);
   }
   return failures;
 }
@@ -465,10 +491,47 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
   const sourceOut = path.join(renderRoot, `${scenarioId}-source.png`);
   const svgOut = path.join(renderRoot, `${scenarioId}-svg.png`);
   const sheetOut = path.join(renderRoot, `${scenarioId}-comparison.png`);
+  const svgText = await fs.readFile(svgPath, "utf8");
+  const dimensions = svgDimensions(svgText);
+  const metricWidth = 520;
+  const metricHeight = Math.max(
+    1,
+    Math.round(metricWidth * ((dimensions.height || 1) / Math.max(1, dimensions.width || metricWidth))),
+  );
   await sharp(sourcePath).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(sourceOut);
   await sharp(svgPath, { density: 72 }).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(svgOut);
   const source = await sharp(sourceOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).raw().toBuffer();
   const output = await sharp(svgOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).raw().toBuffer();
+  const outputAlphaRaw = await sharp(Buffer.from(svgText), { density: 72 })
+    .resize(metricWidth, metricHeight, { fit: "fill" })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const outputAlphaMetrics = imageAlphaMetrics(
+    outputAlphaRaw.data,
+    outputAlphaRaw.info.width,
+    outputAlphaRaw.info.height,
+  );
+  const focusedBounds = detectLayeredSvgImportantColorBounds(svgText);
+  const viewBoxWidth = dimensions.viewBoxWidth || dimensions.width || metricWidth;
+  const viewBoxHeight = dimensions.viewBoxHeight || dimensions.height || metricHeight;
+  const focusedOutputAlphaMetrics = focusedBounds
+    ? imageAlphaMetrics(
+        outputAlphaRaw.data,
+        outputAlphaRaw.info.width,
+        outputAlphaRaw.info.height,
+        {
+          left: (focusedBounds.minX / Math.max(1, viewBoxWidth)) * outputAlphaRaw.info.width,
+          top: (focusedBounds.minY / Math.max(1, viewBoxHeight)) * outputAlphaRaw.info.height,
+          width:
+            ((focusedBounds.maxX - focusedBounds.minX) / Math.max(1, viewBoxWidth)) *
+            outputAlphaRaw.info.width,
+          height:
+            ((focusedBounds.maxY - focusedBounds.minY) / Math.max(1, viewBoxHeight)) *
+            outputAlphaRaw.info.height,
+        },
+      )
+    : null;
   const sourceMetrics = imageDarkMetrics(source);
   const outputMetrics = imageDarkMetrics(output);
   await sharp({
@@ -480,7 +543,15 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
     ])
     .png()
     .toFile(sheetOut);
-  return { sourceOut, svgOut, sheetOut, sourceMetrics, outputMetrics };
+  return {
+    sourceOut,
+    svgOut,
+    sheetOut,
+    sourceMetrics,
+    outputMetrics,
+    outputAlphaMetrics,
+    focusedOutputAlphaMetrics,
+  };
 }
 
 function imageDarkMetrics(raw) {
@@ -501,6 +572,36 @@ function imageDarkMetrics(raw) {
     darkPixelShare: round(dark / pixels, 4),
     nearBlackPixelShare: round(nearBlack / pixels, 4),
     highContrastEdgeShare: round(contrastEdges / pixels, 4),
+  };
+}
+
+function imageAlphaMetrics(raw, width = null, height = null, rect = null) {
+  let painted = 0;
+  let opaque = 0;
+  let transparent = 0;
+  let total = 0;
+  const imageWidth = width || Math.max(1, raw.length / 4);
+  const imageHeight = height || 1;
+  const left = rect ? Math.max(0, Math.floor(rect.left)) : 0;
+  const top = rect ? Math.max(0, Math.floor(rect.top)) : 0;
+  const right = rect ? Math.min(imageWidth, Math.ceil(rect.left + rect.width)) : imageWidth;
+  const bottom = rect ? Math.min(imageHeight, Math.ceil(rect.top + rect.height)) : imageHeight;
+
+  for (let y = top; y < bottom; y += 1) {
+    for (let x = left; x < right; x += 1) {
+      const alpha = raw[(y * imageWidth + x) * 4 + 3];
+      total += 1;
+      if (alpha > 16) painted += 1;
+      else transparent += 1;
+      if (alpha > 240) opaque += 1;
+    }
+  }
+
+  const pixels = Math.max(1, total);
+  return {
+    paintedPixelShare: round(painted / pixels, 4),
+    opaquePixelShare: round(opaque / pixels, 4),
+    transparentPixelShare: round(transparent / pixels, 4),
   };
 }
 

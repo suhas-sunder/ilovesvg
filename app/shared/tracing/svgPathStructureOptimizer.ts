@@ -12,12 +12,20 @@ export type SvgPathStructureOptimizationResult = {
   stats: SvgPathStructureOptimizationStats;
 };
 
+export type SvgPathBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
 export type SvgPathStructureOptimizationOptions = {
   enabled?: boolean;
   removeTinyIslands?: boolean;
   microIslandMaxArea?: number;
   microIslandMaxDimension?: number;
   preserveDarkLumaBelow?: number;
+  preserveDetailBounds?: SvgPathBounds | null;
 };
 
 type PaintContext = {
@@ -26,7 +34,13 @@ type PaintContext = {
 
 type PathAnalysis = {
   area: number;
+  centerX: number;
+  centerY: number;
   maxDimension: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
   segmentCount: number;
 };
 
@@ -94,6 +108,9 @@ export function optimizeLayeredSvgPathStructure(
   let output = "";
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  const candidateImportantBounds =
+    options.preserveDetailBounds ?? detectLayeredSvgImportantColorBounds(source);
+  const importantBounds = filterFocusedDetailBounds(source, candidateImportantBounds);
 
   GROUP_PATTERN.lastIndex = 0;
   while ((match = GROUP_PATTERN.exec(source))) {
@@ -102,6 +119,7 @@ export function optimizeLayeredSvgPathStructure(
       { fill: "" },
       options,
       stats,
+      importantBounds,
     );
     const inherited = readPaintContext(match[2] || "");
     output += `${match[1]}${optimizePathTags(
@@ -109,6 +127,7 @@ export function optimizeLayeredSvgPathStructure(
       inherited,
       options,
       stats,
+      importantBounds,
     )}${match[4]}`;
     lastIndex = GROUP_PATTERN.lastIndex;
   }
@@ -118,6 +137,7 @@ export function optimizeLayeredSvgPathStructure(
     { fill: "" },
     options,
     stats,
+    importantBounds,
   );
   return { svg: output, stats };
 }
@@ -127,6 +147,7 @@ function optimizePathTags(
   inherited: PaintContext,
   options: SvgPathStructureOptimizationOptions,
   stats: SvgPathStructureOptimizationStats,
+  importantBounds: SvgPathBounds | null,
 ): string {
   PATH_D_ATTRIBUTE_PATTERN.lastIndex = 0;
   return String(source || "").replace(
@@ -142,7 +163,13 @@ function optimizePathTags(
       stats.pathCount += 1;
       const pathContext = readPaintContext(`${prefix}${suffix}`);
       const context = { fill: pathContext.fill || inherited.fill || "" };
-      const filteredPathData = filterTinySubpaths(pathData, context, options, stats);
+      const filteredPathData = filterTinySubpaths(
+        pathData,
+        context,
+        options,
+        stats,
+        importantBounds,
+      );
       return `${prefix}${quote}${compactPathDataToRelative(filteredPathData)}${quote}${suffix}`;
     },
   );
@@ -153,6 +180,7 @@ function filterTinySubpaths(
   context: PaintContext,
   options: SvgPathStructureOptimizationOptions,
   stats: SvgPathStructureOptimizationStats,
+  importantBounds: SvgPathBounds | null,
 ): string {
   const subpaths = splitSubpaths(pathData);
   stats.subpathCountBefore += subpaths.length;
@@ -165,7 +193,7 @@ function filterTinySubpaths(
   const kept: string[] = [];
   for (const subpath of subpaths) {
     const analysis = analyzePathData(subpath);
-    if (shouldRemoveMicroIsland(analysis, context, options)) {
+    if (shouldRemoveMicroIsland(analysis, context, options, importantBounds)) {
       stats.removedSubpathCount += 1;
       stats.removedSegmentCount += analysis.segmentCount;
       stats.removedPathDataBytes += subpath.length;
@@ -182,11 +210,13 @@ function shouldRemoveMicroIsland(
   analysis: PathAnalysis,
   context: PaintContext,
   options: SvgPathStructureOptimizationOptions,
+  importantBounds: SvgPathBounds | null,
 ): boolean {
   const fill = normalizeHexColor(context.fill);
   if (!fill) return false;
 
   const luma = relativeLuma(fill);
+  if (relativeSaturation(fill) > 0.3) return false;
   const preserveDarkLumaBelow =
     options.preserveDarkLumaBelow ?? DEFAULT_OPTIONS.preserveDarkLumaBelow;
   if (luma < preserveDarkLumaBelow) return false;
@@ -194,7 +224,119 @@ function shouldRemoveMicroIsland(
   const maxArea = options.microIslandMaxArea ?? DEFAULT_OPTIONS.microIslandMaxArea;
   const maxDimension =
     options.microIslandMaxDimension ?? DEFAULT_OPTIONS.microIslandMaxDimension;
+  if (importantBounds && isWithinBounds(analysis, importantBounds)) {
+    return (
+      analysis.area <= Math.min(maxArea, 30) &&
+      analysis.maxDimension <= Math.min(maxDimension, 6)
+    );
+  }
   return analysis.area <= maxArea && analysis.maxDimension <= maxDimension;
+}
+
+function filterFocusedDetailBounds(
+  svg: string,
+  bounds: SvgPathBounds | null,
+): SvgPathBounds | null {
+  if (!bounds) return null;
+  const dimensions = readSvgViewBoxDimensions(svg);
+  if (!dimensions) return bounds;
+  const boundsArea = Math.max(0, bounds.maxX - bounds.minX) * Math.max(0, bounds.maxY - bounds.minY);
+  const canvasArea = Math.max(1, dimensions.width * dimensions.height);
+  return boundsArea / canvasArea <= 0.72 ? bounds : null;
+}
+
+function readSvgViewBoxDimensions(svg: string): { width: number; height: number } | null {
+  const viewBox = String(svg || "").match(/\bviewBox\s*=\s*["']([^"']+)["']/i)?.[1];
+  if (viewBox) {
+    const values = viewBox
+      .trim()
+      .split(/[\s,]+/)
+      .map((value) => Number(value));
+    if (values.length >= 4 && Number.isFinite(values[2]) && Number.isFinite(values[3])) {
+      return { width: Math.max(0, values[2]), height: Math.max(0, values[3]) };
+    }
+  }
+
+  const width = Number(String(svg || "").match(/\bwidth\s*=\s*["']([0-9.]+)/i)?.[1]);
+  const height = Number(String(svg || "").match(/\bheight\s*=\s*["']([0-9.]+)/i)?.[1]);
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return { width, height };
+  }
+  return null;
+}
+
+export function detectLayeredSvgImportantColorBounds(
+  svg: string,
+): SvgPathBounds | null {
+  let detected: SvgPathBounds | null = null;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  GROUP_PATTERN.lastIndex = 0;
+  while ((match = GROUP_PATTERN.exec(svg))) {
+    scanImportantPathTags(svg.slice(lastIndex, match.index), { fill: "" }, (bounds) => {
+      detected = mergeBounds(detected, bounds);
+    });
+    const inherited = readPaintContext(match[2] || "");
+    scanImportantPathTags(match[3] || "", inherited, (bounds) => {
+      detected = mergeBounds(detected, bounds);
+    });
+    lastIndex = GROUP_PATTERN.lastIndex;
+  }
+
+  scanImportantPathTags(svg.slice(lastIndex), { fill: "" }, (bounds) => {
+    detected = mergeBounds(detected, bounds);
+  });
+
+  return detected ? expandBounds(detected, 24) : null;
+}
+
+function scanImportantPathTags(
+  source: string,
+  inherited: PaintContext,
+  onBounds: (bounds: SvgPathBounds) => void,
+) {
+  PATH_D_ATTRIBUTE_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = PATH_D_ATTRIBUTE_PATTERN.exec(String(source || "")))) {
+    const prefix = match[1] || "";
+    const pathData = match[3] || "";
+    const suffix = match[5] || "";
+    const pathContext = readPaintContext(`${prefix}${suffix}`);
+    const fill = normalizeHexColor(pathContext.fill || inherited.fill || "");
+    if (!fill || relativeSaturation(fill) <= 0.3) continue;
+    const analysis = analyzePathData(pathData);
+    if (analysis.area <= 120 || analysis.maxDimension <= 14) continue;
+    onBounds(analysis);
+  }
+}
+
+function isWithinBounds(analysis: PathAnalysis, bounds: SvgPathBounds) {
+  return (
+    analysis.centerX >= bounds.minX &&
+    analysis.centerX <= bounds.maxX &&
+    analysis.centerY >= bounds.minY &&
+    analysis.centerY <= bounds.maxY
+  );
+}
+
+function mergeBounds(a: SvgPathBounds | null, b: SvgPathBounds): SvgPathBounds {
+  if (!a) return { minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY };
+  return {
+    minX: Math.min(a.minX, b.minX),
+    minY: Math.min(a.minY, b.minY),
+    maxX: Math.max(a.maxX, b.maxX),
+    maxY: Math.max(a.maxY, b.maxY),
+  };
+}
+
+function expandBounds(bounds: SvgPathBounds, amount: number): SvgPathBounds {
+  return {
+    minX: bounds.minX - amount,
+    minY: bounds.minY - amount,
+    maxX: bounds.maxX + amount,
+    maxY: bounds.maxY + amount,
+  };
 }
 
 function splitSubpaths(pathData: string): string[] {
@@ -548,9 +690,19 @@ function analyzePathData(pathData: string): PathAnalysis {
 
   const width = Math.max(0, maxX - minX);
   const height = Math.max(0, maxY - minY);
+  const safeMinX = Number.isFinite(minX) ? minX : 0;
+  const safeMinY = Number.isFinite(minY) ? minY : 0;
+  const safeMaxX = Number.isFinite(maxX) ? maxX : safeMinX;
+  const safeMaxY = Number.isFinite(maxY) ? maxY : safeMinY;
   return {
     area: width * height,
+    centerX: (safeMinX + safeMaxX) / 2,
+    centerY: (safeMinY + safeMaxY) / 2,
     maxDimension: Math.max(width, height),
+    minX: safeMinX,
+    minY: safeMinY,
+    maxX: safeMaxX,
+    maxY: safeMaxY,
     segmentCount,
   };
 }
@@ -587,6 +739,15 @@ function relativeLuma(hex: string): number {
   const green = Number.parseInt(normalized.slice(3, 5), 16);
   const blue = Number.parseInt(normalized.slice(5, 7), 16);
   return (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
+}
+
+function relativeSaturation(hex: string): number {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) return 0;
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  return (Math.max(red, green, blue) - Math.min(red, green, blue)) / 255;
 }
 
 function tokenizePathData(pathData: string): string[] {

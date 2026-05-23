@@ -474,6 +474,9 @@ function testLayeredPathStructureOptimization() {
     '<g fill="#020617" data-layer-color="#020617">',
     '<path d="M4 4C5 4 6 5 6 6C6 7 5 8 4 8Z"/>',
     "</g>",
+    '<g fill="#2563eb" data-layer-color="#2563eb">',
+    '<path d="M7 7C8 7 9 8 9 9C9 10 8 11 7 11Z"/>',
+    "</g>",
     "</svg>",
   ].join("");
   const result = optimizeLayeredSvgPathStructure(sourceSvg, {
@@ -490,6 +493,9 @@ function testLayeredPathStructureOptimization() {
   }
   if (!/data-layer-color="#020617"[\s\S]*M4 4c/i.test(result.svg)) {
     throw new Error("Path structure optimizer removed protected dark linework");
+  }
+  if (!/data-layer-color="#2563eb"[\s\S]*M7 7c/i.test(result.svg)) {
+    throw new Error("Path structure optimizer removed protected saturated card detail");
   }
   if (/M1 1/i.test(result.svg)) {
     throw new Error("Path structure optimizer kept the tiny light texture island");
