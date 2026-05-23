@@ -872,7 +872,7 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
-          engineUsed: "potrace",
+          engineUsed: layered.engineUsed || "potrace",
           clientRunId,
           gate: {
             running: gate.running,

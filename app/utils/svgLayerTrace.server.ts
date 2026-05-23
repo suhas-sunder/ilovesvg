@@ -1,3 +1,4 @@
+import * as serverVTracerRuntime from "wasm_vtracer";
 import {
   getSharp,
   traceBitmapToSvg as traceBitmapToSvgWithPotrace,
@@ -117,6 +118,10 @@ export const MAX_TRACE_SIDE_DEFAULT = 1600;
 export const MAX_TRACE_SIDE = 3000;
 const MIN_TRACE_DIMENSION = 2;
 const GENERATED_LAYERED_PATH_PRECISION = 0;
+const COMPACT_VTRACER_MAX_EDITABLE_COLORS = 32;
+const COMPACT_VTRACER_DARK_DETAIL_LUMA = 70;
+const COMPACT_VTRACER_DARK_SNAP_LUMA = 85;
+const COMPACT_VTRACER_DARK_COLOR: RGB = { r: 24, g: 24, b: 22 };
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -232,6 +237,429 @@ export function sanitizeLayerHexColor(input: string, fallback = "#000000") {
   return fallback;
 }
 
+function shouldUseCompactFlatColorVTracer(
+  options: NormalizedLayeredColorSvgOptions,
+  sourceMatte: FlatColorSourceMatteAnalysis | null,
+) {
+  return (
+    options.presetId === "layered-flat-color" &&
+    options.transparent &&
+    !options.removeWhite &&
+    (sourceMatte?.transparentShare ?? 0) <= 0.0025
+  );
+}
+
+async function createCompactFlatColorVTracerSvg({
+  raw,
+  width,
+  height,
+  sourceWidth,
+  sourceHeight,
+  options,
+  diagnostics,
+  sharp,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  options: NormalizedLayeredColorSvgOptions;
+  diagnostics: ReturnType<typeof createConversionDiagnostics>;
+  sharp: typeof import("sharp");
+}): Promise<{
+  svg: string;
+  width: number;
+  height: number;
+  layers: SvgLayerMeta[];
+  engineUsed: "vtracer";
+}> {
+  const config = new serverVTracerRuntime.TracerConfig();
+  try {
+    config.setColorMode(serverVTracerRuntime.ColorMode.Color);
+    config.setHierarchical(serverVTracerRuntime.Hierarchical.Cutout);
+    config.setPathSimplifyMode(serverVTracerRuntime.PathSimplifyMode.Spline);
+    config.setFilterSpeckle(65);
+    config.setColorPrecision(7);
+    config.setLayerDifference(32);
+    config.setCornerThreshold(60);
+    config.setLengthThreshold(9);
+    config.setMaxIterations(10);
+    config.setSpliceThreshold(45);
+    config.setPathPrecision(1);
+
+    const rawSvg = serverVTracerRuntime.convertImageToSvg(
+      new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
+      width,
+      height,
+      config,
+    );
+    const outputDimensions = resolveOutputDimensions(
+      {
+        outputWidth: options.outputWidth,
+        outputHeight: options.outputHeight,
+        preserveAspectRatio: options.preserveAspectRatio,
+      },
+      sourceWidth > 0 ? sourceWidth : width,
+      sourceHeight > 0 ? sourceHeight : height,
+    );
+    const svg = normalizeCompactVTracerSvg(rawSvg, {
+      width,
+      height,
+      outputWidth: outputDimensions.width,
+      outputHeight: outputDimensions.height,
+    });
+    const paletteLimitedSvg = snapCompactVTracerPalette(
+      svg,
+      COMPACT_VTRACER_MAX_EDITABLE_COLORS,
+    );
+    const darkDetailPaths = await createCompactVTracerDarkDetailOverlayPaths({
+      raw,
+      width,
+      height,
+      sharp,
+    });
+    const edgeDetailPaths = await createCompactVTracerEdgeOverlayPaths({
+      raw,
+      width,
+      height,
+      sharp,
+    });
+    const grouped = groupCompactVTracerSvgByFill(
+      appendSvgPaths(paletteLimitedSvg, `${darkDetailPaths}${edgeDetailPaths}`),
+    );
+    const sanitized = sanitizeSvgMarkup(grouped.svg);
+    if (!sanitized.ok) {
+      throw new Error(sanitized.message);
+    }
+    diagnostics.finalSvgBytes = Buffer.byteLength(sanitized.svg, "utf8");
+    diagnostics.pathCount = countSvgPaths(sanitized.svg);
+    diagnostics.layerCount = grouped.layers.length;
+    return {
+      svg: sanitized.svg,
+      width: outputDimensions.width,
+      height: outputDimensions.height,
+      layers: grouped.layers,
+      engineUsed: "vtracer",
+    };
+  } finally {
+    config.free();
+  }
+}
+
+function normalizeCompactVTracerSvg(
+  rawSvg: string,
+  dimensions: {
+    width: number;
+    height: number;
+    outputWidth: number;
+    outputHeight: number;
+  },
+) {
+  let svg = String(rawSvg || "")
+    .replace(/<\?xml[^>]*>\s*/i, "")
+    .replace(/<!--[\s\S]*?-->\s*/g, "");
+  svg = svg.replace(/<svg\b([^>]*)>/i, (_match, attrs = "") => {
+    const next = String(attrs)
+      .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sviewBox\s*=\s*["'][^"']*["']/gi, "")
+      .trim();
+    const extra = next ? ` ${next}` : "";
+    return `<svg${extra} width="${dimensions.outputWidth}" height="${dimensions.outputHeight}" viewBox="0 0 ${dimensions.width} ${dimensions.height}" role="img" aria-label="Layered SVG from image">`;
+  });
+  return svg
+    .replace(/-?\d*\.\d+(?:e[-+]?\d+)?/gi, (match) =>
+      String(Math.round(Number(match))),
+    )
+    .replace(/\s+/g, " ")
+    .replace(/> </g, "><")
+    .trim();
+}
+
+function snapCompactVTracerPalette(svg: string, maxColors: number) {
+  const samples: RGB[] = [];
+  let hasDarkDetail = false;
+
+  for (const match of String(svg).matchAll(/<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    const fill = tag.match(/\bfill\s*=\s*["'](#[0-9a-fA-F]{6})["']/i)?.[1];
+    const color = fill ? parseHexToRgb(fill) : null;
+    if (!color) continue;
+    const normalized =
+      luminance(color) < COMPACT_VTRACER_DARK_SNAP_LUMA
+        ? COMPACT_VTRACER_DARK_COLOR
+        : color;
+    hasDarkDetail ||= normalized === COMPACT_VTRACER_DARK_COLOR;
+    const pathLength =
+      tag.match(/\bd\s*=\s*["']([^"']*)["']/i)?.[1]?.length ?? tag.length;
+    const weight = clampInt(Math.round(Math.sqrt(pathLength) / 24), 1, 18);
+    for (let index = 0; index < weight && samples.length < 4096; index += 1) {
+      samples.push(normalized);
+    }
+  }
+
+  if (samples.length === 0) return svg;
+
+  let palette = buildLayerPalette(
+    samples,
+    clampInt(maxColors, MIN_LAYER_COUNT, COMPACT_VTRACER_MAX_EDITABLE_COLORS),
+  );
+  if (hasDarkDetail) {
+    palette = palette.filter(
+      (color) => colorDistance(color, COMPACT_VTRACER_DARK_COLOR) > 8,
+    );
+    palette.unshift(COMPACT_VTRACER_DARK_COLOR);
+    palette = palette.slice(0, maxColors);
+  }
+
+  const snapPaint = (value: string) => {
+    const color = parseHexToRgb(value);
+    if (!color || palette.length === 0) return value;
+    if (luminance(color) < COMPACT_VTRACER_DARK_SNAP_LUMA) {
+      return rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR);
+    }
+    return rgbObjectToHex(palette[nearestPaletteIndex(color, palette)]);
+  };
+
+  return String(svg).replace(
+    /\b(fill|stroke)\s*=\s*(["'])(#[0-9a-fA-F]{6})\2/g,
+    (_match, attr, quote, color) => `${attr}=${quote}${snapPaint(color)}${quote}`,
+  );
+}
+
+async function createCompactVTracerDarkDetailOverlayPaths({
+  raw,
+  width,
+  height,
+  sharp,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  sharp: typeof import("sharp");
+}) {
+  const bounds = estimateFlatColorForegroundBounds(raw, width, height);
+  if (!bounds) return "";
+
+  const mask = Buffer.alloc(width * height, 255);
+  let inkPixels = 0;
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    if (
+      x < bounds.minX ||
+      x > bounds.maxX ||
+      y < bounds.minY ||
+      y > bounds.maxY
+    ) {
+      continue;
+    }
+    const offset = pixel * 4;
+    if (raw[offset + 3] < 18) continue;
+    const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
+    if (luminance(color) >= COMPACT_VTRACER_DARK_DETAIL_LUMA) continue;
+    mask[pixel] = 0;
+    inkPixels += 1;
+  }
+
+  const share = inkPixels / Math.max(1, width * height);
+  if (inkPixels < 120 || share > 0.12) return "";
+
+  const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
+    .png()
+    .toBuffer();
+  const pathTags = await traceMaskToPathTags(maskPng, {
+    turdSize: 12,
+    optTolerance: 1.6,
+    turnPolicy: "minority",
+  });
+
+  return applyFillToPathTags(
+    String(pathTags || ""),
+    rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR),
+  )
+    .replace(/-?\d*\.\d+(?:e[-+]?\d+)?/gi, (match) =>
+      String(Math.round(Number(match))),
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function createCompactVTracerEdgeOverlayPaths({
+  raw,
+  width,
+  height,
+  sharp,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  sharp: typeof import("sharp");
+}) {
+  const bounds = estimateFlatColorForegroundBounds(raw, width, height);
+  if (!bounds) return "";
+
+  const mask = Buffer.alloc(width * height, 255);
+  let edgePixels = 0;
+  const pixelLuma = (pixel: number) => {
+    const offset = pixel * 4;
+    return luminance({
+      r: raw[offset],
+      g: raw[offset + 1],
+      b: raw[offset + 2],
+    });
+  };
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      if (
+        x < bounds.minX ||
+        x > bounds.maxX ||
+        y < bounds.minY ||
+        y > bounds.maxY
+      ) {
+        continue;
+      }
+      const pixel = y * width + x;
+      const offset = pixel * 4;
+      if (raw[offset + 3] < 18) continue;
+      const center = pixelLuma(pixel);
+      const sourceColor = {
+        r: raw[offset],
+        g: raw[offset + 1],
+        b: raw[offset + 2],
+      };
+      const gradient = Math.max(
+        Math.abs(center - pixelLuma(pixel - 1)),
+        Math.abs(center - pixelLuma(pixel + 1)),
+        Math.abs(center - pixelLuma(pixel - width)),
+        Math.abs(center - pixelLuma(pixel + width)),
+      );
+      if (
+        gradient < 70 ||
+        (center >= 210 && colorSaturation(sourceColor) <= 36)
+      ) {
+        continue;
+      }
+      mask[pixel] = 0;
+      edgePixels += 1;
+    }
+  }
+
+  const share = edgePixels / Math.max(1, width * height);
+  if (edgePixels < 200 || share > 0.05) return "";
+
+  const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
+    .png()
+    .toBuffer();
+  const pathTags = await traceMaskToPathTags(maskPng, {
+    turdSize: 48,
+    optTolerance: 4,
+    turnPolicy: "minority",
+  });
+
+  return applyFillToPathTags(
+    String(pathTags || ""),
+    rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR),
+  )
+    .replace(/-?\d*\.\d+(?:e[-+]?\d+)?/gi, (match) =>
+      String(Math.round(Number(match))),
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function appendSvgPaths(svg: string, pathTags: string) {
+  if (!pathTags.trim()) return svg;
+  return String(svg).replace(/<\/svg>\s*$/i, `${pathTags}</svg>`);
+}
+
+function applyFillToPathTags(pathTags: string, fill: string) {
+  const color = sanitizeLayerHexColor(fill, "#000000");
+  return String(pathTags || "").replace(/<path\b[^>]*>/gi, (tag) => {
+    if (/\sfill\s*=/i.test(tag)) {
+      return tag.replace(
+        /\sfill\s*=\s*(["'])#[0-9a-fA-F]{3,8}\1/gi,
+        ` fill="${color}"`,
+      );
+    }
+    return tag.replace(/\s*\/?>$/i, (ending) => {
+      const close = ending.includes("/") ? " />" : ">";
+      return ` fill="${color}"${close}`;
+    });
+  });
+}
+
+function groupCompactVTracerSvgByFill(svg: string): {
+  svg: string;
+  layers: SvgLayerMeta[];
+} {
+  const openTag = String(svg).match(/<svg\b[^>]*>/i)?.[0] || "";
+  const groups = new Map<
+    string,
+    { id: string; label: string; color: string; pathTags: string; pathCount: number }
+  >();
+
+  for (const match of String(svg).matchAll(/<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    const fill = sanitizeLayerHexColor(
+      tag.match(/\bfill\s*=\s*["'](#[0-9a-fA-F]{3,8})["']/i)?.[1] || "",
+      "",
+    );
+    if (!fill) continue;
+    let group = groups.get(fill);
+    if (!group) {
+      const count = groups.size + 1;
+      group = {
+        id: sanitizeLayerId(`fill-${count}-${fill.replace("#", "")}`),
+        label: `Fill ${count}`,
+        color: fill,
+        pathTags: "",
+        pathCount: 0,
+      };
+      groups.set(fill, group);
+    }
+    const pathTag = tag
+      .replace(/\sfill\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sdata-fill-layer-id\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sdata-layer-id\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sdata-layer-color\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\s+/g, " ");
+    group.pathTags += pathTag;
+    group.pathCount += 1;
+  }
+
+  const darkFill = rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR);
+  const orderedGroups = Array.from(groups.values()).sort((a, b) => {
+    if (a.color === darkFill && b.color !== darkFill) return 1;
+    if (b.color === darkFill && a.color !== darkFill) return -1;
+    return 0;
+  });
+  const layers: SvgLayerMeta[] = orderedGroups.map((group, index) => ({
+    id: group.id,
+    label: `Fill ${index + 1}`,
+    color: group.color,
+    originalColor: group.color,
+    visible: true,
+    pathTags: group.pathTags,
+    pathCount: group.pathCount,
+    kind: "fill",
+  }));
+  const body = orderedGroups
+    .map(
+      (group, index) =>
+        `<g id="${group.id}" data-layer-id="${group.id}" data-layer-label="${escapeXmlAttr(
+          `Fill ${index + 1}`,
+        )}" data-layer-color="${group.color}" fill="${group.color}">${group.pathTags}</g>`,
+    )
+    .join("");
+  return {
+    svg: `${openTag}${body}</svg>`,
+    layers,
+  };
+}
+
 export async function createLayeredColorSvg(
   input: Buffer,
   opts: LayeredColorSvgOptions,
@@ -240,6 +668,7 @@ export async function createLayeredColorSvg(
   width: number;
   height: number;
   layers: SvgLayerMeta[];
+  engineUsed?: "vtracer" | "potrace";
 }> {
   const diagnostics = createConversionDiagnostics({
     routeId: "shared-layered-trace",
@@ -309,6 +738,31 @@ export async function createLayeredColorSvg(
       throw new Error(
         "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
       );
+    }
+
+    if (shouldUseCompactFlatColorVTracer(safeOptions, sourceMatte)) {
+      const compactResult = await withTimer(
+        diagnostics,
+        "serverVTracerFlatColor",
+        async () =>
+          createCompactFlatColorVTracerSvg({
+          raw: data as Buffer,
+          width,
+          height,
+          sourceWidth: sourceDimensions.width,
+          sourceHeight: sourceDimensions.height,
+          options: safeOptions,
+          diagnostics,
+          sharp,
+        }),
+      );
+      if (compactResult.layers.length >= 12) {
+        return compactResult;
+      }
+      diagnostics.warnings = [
+        ...(diagnostics.warnings || []),
+        `Compact VTracer produced only ${compactResult.layers.length} editable groups; falling back to per-color layered trace.`,
+      ];
     }
 
     const raw = data as Buffer;
@@ -893,6 +1347,59 @@ function assignAllPixelsToLayerPalette(
   }
 
   return { layerForPixel, counts, assignableCount };
+}
+
+type FlatColorPixelBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+function estimateFlatColorForegroundBounds(
+  raw: Buffer,
+  width: number,
+  height: number,
+): FlatColorPixelBounds | null {
+  const total = width * height;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let matched = 0;
+
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const offset = pixel * 4;
+    if (raw[offset + 3] < 18) continue;
+    const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
+    const lum = luminance(color);
+    const saturation = colorSaturation(color);
+    if (saturation < 52 || lum < 70 || lum > 248) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    matched += 1;
+  }
+
+  if (matched / Math.max(1, total) < 0.015 || maxX < minX || maxY < minY) {
+    return null;
+  }
+
+  const pad = Math.round(Math.max(24, Math.max(width, height) * 0.055));
+  const bounds = {
+    minX: Math.max(0, minX - pad),
+    minY: Math.max(0, minY - pad),
+    maxX: Math.min(width - 1, maxX + pad),
+    maxY: Math.min(height - 1, maxY + pad),
+  };
+  const area =
+    Math.max(1, bounds.maxX - bounds.minX + 1) *
+    Math.max(1, bounds.maxY - bounds.minY + 1);
+  if (area / Math.max(1, total) > 0.92) return null;
+  return bounds;
 }
 
 function buildLayerPalette(pixels: RGB[], requestedCount: number): RGB[] {

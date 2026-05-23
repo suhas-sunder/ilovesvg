@@ -16,9 +16,9 @@ const reportPath = process.env.HF_BROWSER_OUTPUT_REPORT_PATH
   : path.join(runDir, "report.json");
 const profileDir = path.join(os.tmpdir(), "ilovesvg-high-fidelity-browser-output-smoke", String(debugPort));
 const scenarioTimeoutMs = Number(process.env.HF_BROWSER_OUTPUT_TIMEOUT_MS || 180_000);
-const preferredSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_PREFERRED_BYTES || 1_500_000);
-const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 2_500_000);
-const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 3_000_000);
+const preferredSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_PREFERRED_BYTES || 1_200_000);
+const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 1_500_000);
+const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 1_500_000);
 const maxCriticalPresetSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_PRESET_BYTES || 3_000_000);
 const minHighDetailLayerCount = Number(process.env.HF_BROWSER_OUTPUT_MIN_LAYERS || 20);
 const maxGroupedColors = Number(process.env.HF_BROWSER_OUTPUT_MAX_GROUPS || 32);
@@ -296,6 +296,17 @@ function validateRenderMetrics(result, label) {
   if (source.highContrastEdgeShare > 0.004 && output.highContrastEdgeShare < source.highContrastEdgeShare * 0.5) {
     add(`edge/detail metric dropped materially for ${label}: source ${source.highContrastEdgeShare}, output ${output.highContrastEdgeShare}`);
   }
+  const sourceAlpha = result.render?.sourceAlphaMetrics;
+  const outputAlpha = result.render?.outputAlphaMetrics;
+  if (sourceAlpha && outputAlpha && outputAlpha.paintedCoverage < sourceAlpha.paintedCoverage * 0.88) {
+    add(`painted coverage dropped materially for ${label}: source ${sourceAlpha.paintedCoverage}, output ${outputAlpha.paintedCoverage}`);
+  }
+  if (source.lightNeutralPixelShare > 0.04 && output.lightNeutralPixelShare < source.lightNeutralPixelShare * 0.35) {
+    add(`light/neutral detail metric collapsed for ${label}: source ${source.lightNeutralPixelShare}, output ${output.lightNeutralPixelShare}`);
+  }
+  if (source.colorfulPixelShare > 0.06 && output.colorfulPixelShare < source.colorfulPixelShare * 0.35) {
+    add(`color/detail metric collapsed for ${label}: source ${source.colorfulPixelShare}, output ${output.colorfulPixelShare}`);
+  }
   return failures;
 }
 
@@ -465,12 +476,20 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
   const sourceOut = path.join(renderRoot, `${scenarioId}-source.png`);
   const svgOut = path.join(renderRoot, `${scenarioId}-svg.png`);
   const sheetOut = path.join(renderRoot, `${scenarioId}-comparison.png`);
+  const sourceAlphaOut = path.join(renderRoot, `${scenarioId}-source-alpha.png`);
+  const svgAlphaOut = path.join(renderRoot, `${scenarioId}-svg-alpha.png`);
   await sharp(sourcePath).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(sourceOut);
   await sharp(svgPath, { density: 72 }).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(svgOut);
-  const source = await sharp(sourceOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).raw().toBuffer();
-  const output = await sharp(svgOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).raw().toBuffer();
+  await sharp(sourcePath).ensureAlpha().resize({ width: 520, height: 520, fit: "inside", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(sourceAlphaOut);
+  await sharp(svgPath, { density: 72 }).resize({ width: 520, height: 520, fit: "inside", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(svgAlphaOut);
+  const source = await sharp(sourceOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).removeAlpha().raw().toBuffer();
+  const output = await sharp(svgOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).removeAlpha().raw().toBuffer();
+  const sourceAlpha = await sharp(sourceAlphaOut).resize(520, 520, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).ensureAlpha().raw().toBuffer();
+  const outputAlpha = await sharp(svgAlphaOut).resize(520, 520, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).ensureAlpha().raw().toBuffer();
   const sourceMetrics = imageDarkMetrics(source);
   const outputMetrics = imageDarkMetrics(output);
+  const sourceAlphaMetrics = imageAlphaMetrics(sourceAlpha);
+  const outputAlphaMetrics = imageAlphaMetrics(outputAlpha);
   await sharp({
     create: { width: 1080, height: 580, channels: 4, background: "#ffffff" },
   })
@@ -480,18 +499,33 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
     ])
     .png()
     .toFile(sheetOut);
-  return { sourceOut, svgOut, sheetOut, sourceMetrics, outputMetrics };
+  return {
+    sourceOut,
+    svgOut,
+    sheetOut,
+    sourceMetrics,
+    outputMetrics,
+    sourceAlphaMetrics,
+    outputAlphaMetrics,
+  };
 }
 
 function imageDarkMetrics(raw) {
   let dark = 0;
   let nearBlack = 0;
   let contrastEdges = 0;
+  let lightNeutral = 0;
+  let colorful = 0;
+  let saturationSum = 0;
   const pixels = raw.length / 3;
   for (let i = 0; i < raw.length; i += 3) {
     const luma = 0.2126 * raw[i] + 0.7152 * raw[i + 1] + 0.0722 * raw[i + 2];
     if (luma < 80) dark += 1;
     if (luma < 35) nearBlack += 1;
+    const saturation = Math.max(raw[i], raw[i + 1], raw[i + 2]) - Math.min(raw[i], raw[i + 1], raw[i + 2]);
+    if (luma >= 150 && luma <= 245 && saturation <= 48) lightNeutral += 1;
+    if (saturation >= 55) colorful += 1;
+    saturationSum += saturation;
     if (i >= 3) {
       const prev = 0.2126 * raw[i - 3] + 0.7152 * raw[i - 2] + 0.0722 * raw[i - 1];
       if (Math.abs(luma - prev) > 90) contrastEdges += 1;
@@ -501,6 +535,22 @@ function imageDarkMetrics(raw) {
     darkPixelShare: round(dark / pixels, 4),
     nearBlackPixelShare: round(nearBlack / pixels, 4),
     highContrastEdgeShare: round(contrastEdges / pixels, 4),
+    lightNeutralPixelShare: round(lightNeutral / pixels, 4),
+    colorfulPixelShare: round(colorful / pixels, 4),
+    meanSaturation: round(saturationSum / pixels, 2),
+  };
+}
+
+function imageAlphaMetrics(raw) {
+  let painted = 0;
+  const pixels = raw.length / 4;
+  for (let i = 0; i < raw.length; i += 4) {
+    if (raw[i + 3] >= 16) painted += 1;
+  }
+  const paintedCoverage = round(painted / pixels, 4);
+  return {
+    paintedCoverage,
+    transparentMissingRatio: round(1 - paintedCoverage, 4),
   };
 }
 
