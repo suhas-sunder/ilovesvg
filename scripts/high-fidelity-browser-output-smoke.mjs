@@ -23,18 +23,33 @@ const maxCriticalPresetSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_PRESE
 const minHighDetailLayerCount = Number(process.env.HF_BROWSER_OUTPUT_MIN_LAYERS || 20);
 const maxGroupedColors = Number(process.env.HF_BROWSER_OUTPUT_MAX_GROUPS || 32);
 
-const allFlatFixtures = [
+const defaultFlatFixtures = [
   "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG",
   "C:\\Users\\Suhas\\Downloads\\IMG_9404.JPEG",
 ];
+const extraFlatFixtures = (process.env.HF_BROWSER_OUTPUT_EXTRA_FIXTURES || "")
+  .split(/[;\n]/)
+  .map((fixture) => fixture.trim())
+  .filter(Boolean);
+const allFlatFixtures = Array.from(
+  new Set([...defaultFlatFixtures, ...extraFlatFixtures]),
+);
 
 const allPresetChecks = [
-  { id: "layered-flat-color", label: "Layered - Flat Color", pattern: /^Layered - Flat Color\b/i },
-  { id: "photo-many-colors", label: "Photo Many Colors", pattern: /^Photo Many Colors\b/i },
+  { id: "layered-flat-color", label: "Layered - Flat Color", pattern: /^Layered - Flat Color(?! \()\b/i },
+  { id: "layered-flat-color-medium-quality", label: "Layered - Flat Color (Medium Quality)", pattern: /^Layered - Flat Color \(Medium Quality\)(?:\s|$)/i },
+  { id: "layered-flat-color-high-quality", label: "Layered - Flat Color (High Quality)", pattern: /^Layered - Flat Color \(High Quality\)(?:\s|$)/i },
+  { id: "photo-many-colors", label: "Photo Many Colors", pattern: /^Photo Many Colors(?! \()\b/i },
+  { id: "photo-many-colors-medium-quality", label: "Photo Many Colors (Medium Quality)", pattern: /^Photo Many Colors \(Medium Quality\)(?:\s|$)/i },
+  { id: "photo-many-colors-high-quality", label: "Photo Many Colors (High Quality)", pattern: /^Photo Many Colors \(High Quality\)(?:\s|$)/i },
   { id: "premium-cartoon-fill-ink", label: "Premium Cartoon Fill + Ink", pattern: /^Premium Cartoon Fill \+ Ink\b/i },
   { id: "sticker-fill-stroke-detail", label: "Sticker Fill + Stroke Detail", pattern: /^Sticker Fill \+ Stroke Detail\b/i },
-  { id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors", pattern: /^Filled Layers - Separate Colors\b/i },
-  { id: "layered-detail", label: "Layered - Detail", pattern: /^Layered - Detail\b/i },
+  { id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors", pattern: /^Filled Layers - Separate Colors(?! \()\b/i },
+  { id: "filled-layers-separate-colors-medium-quality", label: "Filled Layers - Separate Colors (Medium Quality)", pattern: /^Filled Layers - Separate Colors \(Medium Quality\)(?:\s|$)/i },
+  { id: "filled-layers-separate-colors-high-quality", label: "Filled Layers - Separate Colors (High Quality)", pattern: /^Filled Layers - Separate Colors \(High Quality\)(?:\s|$)/i },
+  { id: "layered-detail", label: "Layered - Detail", pattern: /^Layered - Detail(?! \()\b/i },
+  { id: "layered-detail-medium-quality", label: "Layered - Detail (Medium Quality)", pattern: /^Layered - Detail \(Medium Quality\)(?:\s|$)/i },
+  { id: "layered-detail-high-quality", label: "Layered - Detail (High Quality)", pattern: /^Layered - Detail \(High Quality\)(?:\s|$)/i },
   { id: "layered-poster", label: "Layered - Poster", pattern: /^Layered - Poster\b/i },
   { id: "layered-8-color", label: "Layered - 8 Color", pattern: /^Layered - 8 Color\b/i },
 ];
@@ -43,8 +58,13 @@ const img8846 = "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG";
 const flatFixtures = process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME
   ? allFlatFixtures.filter((fixture) => path.basename(fixture).toLowerCase() === process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME.toLowerCase())
   : allFlatFixtures;
-const presetChecks = process.env.HF_BROWSER_OUTPUT_PRESET_ID
-  ? allPresetChecks.filter((preset) => preset.id === process.env.HF_BROWSER_OUTPUT_PRESET_ID)
+const requestedPresetIds = process.env.HF_BROWSER_OUTPUT_PRESET_IDS
+  ? new Set(process.env.HF_BROWSER_OUTPUT_PRESET_IDS.split(",").map((id) => id.trim()).filter(Boolean))
+  : process.env.HF_BROWSER_OUTPUT_PRESET_ID
+    ? new Set([process.env.HF_BROWSER_OUTPUT_PRESET_ID])
+    : null;
+const presetChecks = requestedPresetIds
+  ? allPresetChecks.filter((preset) => requestedPresetIds.has(preset.id))
   : allPresetChecks;
 const runFlatMatrix = process.env.HF_BROWSER_OUTPUT_RUN_FLAT !== "0";
 const runPresetMatrix = process.env.HF_BROWSER_OUTPUT_RUN_PRESETS === "1";
@@ -137,7 +157,7 @@ async function main() {
         scenarioId: `preset-${preset.id}`,
         timeoutMs: scenarioTimeoutMs,
         collectStructure: true,
-        renderPreview: false,
+        renderPreview: isQualityTierPresetId(preset.id),
       }).catch(async (error) => ({
         scenarioId: `preset-${preset.id}`,
         route: "/",
@@ -158,10 +178,20 @@ async function main() {
         engineUsed: result.ui?.engineUsed || null,
         engineLine: result.ui?.engineLine || null,
         outputTitle: result.ui?.outputTitle || null,
+        fixture: result.fixture || null,
+        fixtureBytes: result.fixture?.bytes ?? null,
+        fixtureWidth: result.fixture?.displayWidth ?? result.fixture?.width ?? null,
+        fixtureHeight: result.fixture?.displayHeight ?? result.fixture?.height ?? null,
         svgBytes: result.download?.bytes ?? result.ui?.svgBytesAttr ?? null,
+        svgWidth: result.svg?.width ?? null,
+        svgHeight: result.svg?.height ?? null,
+        visibleColorCount: result.svg?.visibleColorCount ?? null,
+        dataLayerColorCount: result.svg?.dataLayerColorCount ?? null,
         layerTotalCount: result.ui?.layerTotalCount ?? null,
         layerMountedCount: result.ui?.layerMountedCount ?? null,
         layerCountText: result.ui?.layerCountText || null,
+        structure: result.structure || null,
+        render: result.render || null,
         previewVisible: result.ui?.previewVisible ?? null,
         settingsOpened: result.ui?.settingsOpened ?? null,
         copyDownloadParity: result.copyDownloadParity || null,
@@ -208,6 +238,9 @@ async function main() {
       elapsedMs: item.elapsedMs,
       layers: item.layerTotalCount,
       bytes: item.svgBytes,
+      ratio: item.fixtureBytes && item.svgBytes
+        ? Number((item.svgBytes / item.fixtureBytes).toFixed(3))
+        : null,
     })),
   }, null, 2));
   if (!ok) process.exitCode = 1;
@@ -215,6 +248,15 @@ async function main() {
 
 function collectFailures(report) {
   const failures = [];
+  if (presetChecks.length === 0) {
+    failures.push({
+      scenarioId: "preset-selection",
+      fixture: null,
+      preset: null,
+      reason: "No presets matched the requested high-fidelity browser smoke filter",
+    });
+    return failures;
+  }
   for (const result of report.flatColor) {
     failures.push(...validateHighFidelityFlatResult(result));
   }
@@ -226,12 +268,44 @@ function collectFailures(report) {
   return failures;
 }
 
+function qualityTierForPresetId(presetId) {
+  const id = String(presetId || "").toLowerCase();
+  if (id.endsWith("-high-quality")) return "high";
+  if (id.endsWith("-medium-quality")) return "medium";
+  return "default";
+}
+
+function isQualityTierPresetId(presetId) {
+  return qualityTierForPresetId(presetId) !== "default";
+}
+
+function qualityTierRatioCeiling(tier) {
+  if (tier === "high") return 10;
+  if (tier === "medium") return 3;
+  return null;
+}
+
+function normalizeUiText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function validateHighFidelityFlatResult(result) {
   const label = `${result.fixture?.basename || result.scenarioId} / ${result.presetLabel || "Layered - Flat Color"}`;
   const failures = [];
   const add = (reason) => failures.push({ scenarioId: result.scenarioId, fixture: result.fixture?.basename || null, preset: result.presetLabel || null, reason });
   if (result.harnessError) add(`harness error: ${result.harnessError}`);
+  if (!result.selectedPreset?.selected) add(`requested preset was not selected: ${result.selectedPreset?.reason || "unknown reason"}`);
   if (!result.completed) add(`usable output was not reached within ${scenarioTimeoutMs} ms`);
+  if (
+    result.presetLabel &&
+    result.ui?.outputTitle &&
+    !normalizeUiText(result.ui.outputTitle).includes(normalizeUiText(result.presetLabel))
+  ) {
+    add(`latest output title did not match requested preset; saw "${result.ui.outputTitle}"`);
+  }
   if (!result.ui?.settingsOpened) add("Settings / Edit did not open for the latest output");
   if (!result.ui?.layerCountText && !result.ui?.layerTotalCount) {
     add("Layer colors section did not expose count text or count metadata");
@@ -243,8 +317,19 @@ function validateHighFidelityFlatResult(result) {
   if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
   const visibleColors = result.svg?.visibleColorCount ?? 0;
   if (visibleColors > maxGroupedColors) add(`visible color count exceeded ${maxGroupedColors}; saw ${visibleColors}`);
-  if ((result.download?.bytes || 0) > maxSvgBytes) add(`downloaded SVG exceeded ${maxSvgBytes} bytes; saw ${result.download.bytes}`);
-  if ((result.download?.bytes || 0) > acceptableSvgBytes) {
+  const tier = qualityTierForPresetId(result.presetId);
+  const ratioCeiling = qualityTierRatioCeiling(tier);
+  const fixtureBytes = Number(result.fixture?.bytes || 0);
+  const sizeBudget = ratioCeiling && fixtureBytes > 0
+    ? Math.round(fixtureBytes * ratioCeiling)
+    : maxSvgBytes;
+  if ((result.download?.bytes || 0) > sizeBudget) {
+    const budgetLabel = ratioCeiling
+      ? `${ratioCeiling}x input size (${sizeBudget} bytes)`
+      : `${maxSvgBytes} bytes`;
+    add(`downloaded SVG exceeded ${budgetLabel}; saw ${result.download.bytes}`);
+  }
+  if (tier === "default" && (result.download?.bytes || 0) > acceptableSvgBytes) {
     add(`downloaded SVG exceeded acceptable intermediate budget ${acceptableSvgBytes} bytes; saw ${result.download.bytes}`);
   }
   const expectedWidth = result.fixture?.displayWidth || result.fixture?.width || 0;
@@ -257,7 +342,7 @@ function validateHighFidelityFlatResult(result) {
   if (!result.structure) {
     add("SVG structure report was not collected");
   } else {
-    if (result.structure.totalBytes > maxSvgBytes) add(`structure bytes exceeded ${maxSvgBytes}; saw ${result.structure.totalBytes}`);
+    if (result.structure.totalBytes > sizeBudget) add(`structure bytes exceeded ${sizeBudget}; saw ${result.structure.totalBytes}`);
     if (result.structure.pathCount < 1) add("SVG structure has no paths");
     if (result.structure.averageDecimalPlaces > 3) add(`path numeric precision is still excessive; average decimal places ${result.structure.averageDecimalPlaces}`);
   }
@@ -269,15 +354,45 @@ function validatePresetTriageResult(result) {
   const failures = [];
   const add = (reason) => failures.push({ scenarioId: `preset-${result.presetId}`, fixture: path.basename(img8846), preset: result.presetLabel, reason });
   if (result.harnessError) add(`harness error: ${result.harnessError}`);
+  if (!result.selectedPreset?.selected) add(`requested preset was not selected: ${result.selectedPreset?.reason || "unknown reason"}`);
   if (!result.completed) add(`preset did not reach usable output within ${scenarioTimeoutMs} ms`);
+  if (
+    result.presetLabel &&
+    result.outputTitle &&
+    !normalizeUiText(result.outputTitle).includes(normalizeUiText(result.presetLabel))
+  ) {
+    add(`latest output title did not match requested preset; saw "${result.outputTitle}"`);
+  }
   if (!result.previewVisible) add("preset preview was not visible");
   if (!result.settingsOpened) add("Settings / Edit did not open");
   if (!result.copyDownloadParity?.ok) add("Copy SVG and Download SVG did not match");
-  if ((result.svgBytes || 0) > maxCriticalPresetSvgBytes) {
-    add(`preset SVG remained in the 20 MB-class range; saw ${result.svgBytes} bytes`);
+  const tier = qualityTierForPresetId(result.presetId);
+  const ratioCeiling = qualityTierRatioCeiling(tier);
+  const fixtureBytes = Number(result.fixtureBytes || 0);
+  const budgetBytes = ratioCeiling && fixtureBytes > 0
+    ? Math.round(fixtureBytes * ratioCeiling)
+    : maxCriticalPresetSvgBytes;
+  if ((result.svgBytes || 0) > budgetBytes) {
+    const budgetLabel = ratioCeiling
+      ? `${ratioCeiling}x input size (${budgetBytes} bytes)`
+      : `${maxCriticalPresetSvgBytes} bytes`;
+    add(`preset SVG exceeded ${budgetLabel}; saw ${result.svgBytes} bytes`);
+  }
+  if (tier !== "default" && result.render) {
+    failures.push(...validateRenderMetrics(result, result.presetLabel));
+  }
+  const expectedWidth = Number(result.fixtureWidth || 0);
+  const expectedHeight = Number(result.fixtureHeight || 0);
+  if (expectedWidth && expectedHeight && result.svgWidth && result.svgHeight) {
+    if (result.svgWidth < expectedWidth || result.svgHeight < expectedHeight) {
+      add(`SVG dimensions were reduced from source ${expectedWidth} x ${expectedHeight} to ${result.svgWidth} x ${result.svgHeight}`);
+    }
   }
   const layerCount = result.layerTotalCount || 0;
   if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
+  if (tier !== "default" && layerCount < minHighDetailLayerCount) {
+    add(`quality-tier preset fell below ${minHighDetailLayerCount} editable layers; saw ${layerCount}`);
+  }
   return failures;
 }
 
@@ -332,9 +447,15 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
     stage = "read state before preset";
     const beforePresetState = await outputState(client).catch(() => ({ latestStamp: null }));
     stage = "select preset";
-    const selectedPreset = await selectPreset(client, [preset.pattern]);
+    const selectedPreset = await selectPreset(client, [preset.pattern], preset.label);
     stage = "read state after preset";
-    const beforeConvertState = await outputState(client).catch(() => beforePresetState);
+    const afterPresetState = await waitForValue(
+      client,
+      () => outputStateExpression(beforePresetState.latestStamp),
+      4_000,
+      (value) => value?.activeJobs > 0 || value?.latestChanged,
+    ).catch(() => outputState(client).catch(() => beforePresetState));
+    const beforeConvertState = afterPresetState || beforePresetState;
     let convertAction = { clicked: false, autoStarted: false, reason: "" };
     if (beforeConvertState?.activeJobs > 0) {
       convertAction = { clicked: false, autoStarted: true, reason: "preset selection started conversion before Convert could be clicked" };
@@ -345,9 +466,9 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
           client,
           () => outputStateExpression(beforeConvertState.latestStamp ?? beforePresetState.latestStamp),
           8_000,
-          (value) => value?.activeJobs > 0 || value?.latestChanged || value?.latestReady,
+          (value) => value?.activeJobs > 0 || value?.latestChanged,
         ).catch(() => outputState(client).catch(() => beforeConvertState));
-        if (afterFailedClickState?.activeJobs > 0 || afterFailedClickState?.latestChanged || afterFailedClickState?.latestReady) {
+        if (afterFailedClickState?.activeJobs > 0 || afterFailedClickState?.latestChanged) {
           convertAction = { clicked: false, autoStarted: true, reason: `conversion started while looking for Convert: ${convertClick.error}` };
         } else {
           throw new Error(convertClick.error);
@@ -934,9 +1055,14 @@ function mimeTypeForPath(filePath) {
   return "application/octet-stream";
 }
 
-async function selectPreset(client, patterns) {
+async function selectPreset(client, patterns, searchText = "") {
   await clickButtonIfPresent(client, [/All presets/i, /Show all presets/i, /More presets/i, /Show\s+\d+\s+more presets/i], []).catch(() => null);
-  await delay(250);
+  await waitForValue(
+    client,
+    () => `(() => Boolean(document.querySelector('input[type="search"][placeholder*="presets"]')) || /All presets/i.test(document.body?.innerText || ""))()`,
+    2_500,
+    Boolean,
+  ).catch(() => delay(500));
   for (const pattern of patterns) {
     const clicked = await clickButtonIfPresent(client, [pattern], [/Show fewer/i, /Filter presets/i, /Pin preset/i]).catch(() => null);
     if (clicked) {
@@ -944,7 +1070,42 @@ async function selectPreset(client, patterns) {
       return { selected: clicked.label, pattern: String(pattern) };
     }
   }
+  if (searchText) {
+    const searched = await setPresetSearch(client, searchText).catch(() => null);
+    if (searched?.ok) {
+      await delay(300);
+      for (const pattern of patterns) {
+        const clicked = await clickButtonIfPresent(client, [pattern], [/Show fewer/i, /Filter presets/i, /Pin preset/i]).catch(() => null);
+        if (clicked) {
+          await delay(350);
+          return { selected: clicked.label, pattern: String(pattern), searched: true };
+        }
+      }
+    }
+  }
   return { selected: null, reason: "No matching preset button was visible." };
+}
+
+async function setPresetSearch(client, searchText) {
+  return evaluate(client, `(() => {
+    const inputs = Array.from(document.querySelectorAll('input[type="search"]'));
+    const input = inputs.find((candidate) =>
+      /Search (pinned )?presets/i.test(candidate.getAttribute("placeholder") || ""),
+    );
+    if (!input) return { ok: false, reason: "preset search input not found" };
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    input.scrollIntoView({ block: "center", inline: "nearest" });
+    input.focus();
+    if (setter) setter.call(input, ${JSON.stringify(searchText)});
+    else input.value = ${JSON.stringify(searchText)};
+    input.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: ${JSON.stringify(searchText)},
+    }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return { ok: true };
+  })()`, 8_000);
 }
 
 async function clickConvert(client) {
@@ -954,7 +1115,12 @@ async function clickConvert(client) {
 }
 
 async function settleInitialAutoConversion(client, timeoutMs) {
-  const state = await outputState(client).catch(() => null);
+  const state = await waitForValue(
+    client,
+    () => outputStateExpression(null),
+    6_000,
+    (value) => value?.activeJobs > 0 || value?.latestReady,
+  ).catch(() => outputState(client).catch(() => null));
   if (!state?.activeJobs) return { settled: true, reason: "idle" };
   return waitForCompletedOutput(client, state.latestStamp, timeoutMs);
 }

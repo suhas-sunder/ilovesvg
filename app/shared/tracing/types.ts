@@ -1,3 +1,5 @@
+import type { LayeredQualityTier } from "./layeredQualityTier";
+
 export type TraceEngine = "auto" | "vtracer" | "potrace" | "centerline";
 
 export type TraceEngineUsed = "vtracer" | "potrace" | "centerline";
@@ -73,6 +75,7 @@ export type NormalizedTraceSettings = {
   paletteAlgorithm?: PaletteAlgorithm;
   paletteDistance?: PaletteDistance;
   requestedPaletteCount?: number;
+  layeredQualityTier?: LayeredQualityTier;
   traceDiagnosticsMode?: "off" | "summary";
 
   outputWidth?: number;

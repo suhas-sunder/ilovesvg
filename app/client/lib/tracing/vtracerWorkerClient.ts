@@ -2,6 +2,10 @@ import {
   getTraceEngineDecision,
   type TraceInputProfile,
 } from "~/shared/tracing/enginePolicy";
+import {
+  layeredQualityTierSizeRatioCeiling,
+  normalizeLayeredQualityTier,
+} from "~/shared/tracing/layeredQualityTier";
 import type {
   NormalizedTraceSettings,
   TraceResult,
@@ -501,13 +505,33 @@ function getUnusableTraceResultReason(
       input.settings?.colorLayerCount ||
       0,
   );
+  const inputBytes = Number(input.inputBytes || 0);
+  const layeredQualityTier = normalizeLayeredQualityTier(
+    input.settings?.layeredQualityTier,
+    input.settings?.presetId,
+  );
   const richLayered = layered && requestedPaletteCount >= 28;
-  const maxSvgBytes = layered
-    ? richLayered
-      ? 3_200_000
-      : 2_200_000
-    : 1_500_000;
-  const maxPaths = layered ? (richLayered ? 6500 : 4500) : 1_200;
+  const qualityTierMaxSvgBytes =
+    layered && layeredQualityTier !== "default" && inputBytes > 0
+      ? Math.max(
+          richLayered ? 3_200_000 : 2_200_000,
+          Math.round(
+            inputBytes * layeredQualityTierSizeRatioCeiling(layeredQualityTier),
+          ),
+        )
+      : null;
+  const maxSvgBytes =
+    qualityTierMaxSvgBytes ??
+    (layered ? (richLayered ? 3_200_000 : 2_200_000) : 1_500_000);
+  const maxPaths = layered
+    ? layeredQualityTier === "high"
+      ? 12_000
+      : layeredQualityTier === "medium"
+        ? 8_500
+        : richLayered
+          ? 6_500
+          : 4_500
+    : 1_200;
   if (svgBytes > maxSvgBytes) {
     return centerline
       ? "Centerline tracing returned an oversized SVG. Try a smaller image or a simpler stroke preset."
@@ -526,7 +550,6 @@ function getUnusableTraceResultReason(
     return "Browser tracing returned no editable color layers. Falling back to the server engine.";
   }
 
-  const inputBytes = Number(input.inputBytes || 0);
   if (
     inputBytes > 0 &&
     svgBytes > Math.max(900_000, inputBytes * 24) &&

@@ -1,3 +1,5 @@
+import type { LayeredQualityTier } from "~/shared/tracing/layeredQualityTier";
+
 export type RemoveColorApplyTo = "single" | "layered" | "both";
 export type SortLayersBy = "luminance" | "area" | "original";
 export type LayerBuildMode = "raw-vtracer" | "per-color-cutout" | "stacked-overlap";
@@ -38,6 +40,7 @@ export type TraceAdvancedSettings = {
   paletteAlgorithm?: PaletteAlgorithm;
   paletteDistance?: PaletteDistance;
   requestedPaletteCount?: number;
+  layeredQualityTier?: LayeredQualityTier;
   traceDiagnosticsMode?: "off" | "summary";
   strokeOutputMode?: StrokeOutputMode;
   centerlineMaxTraceSide?: number;
@@ -77,6 +80,7 @@ export const DEFAULT_TRACE_ADVANCED_SETTINGS = {
   paletteAlgorithm: "simple-posterize" as PaletteAlgorithm,
   paletteDistance: "bt709" as PaletteDistance,
   requestedPaletteCount: 0,
+  layeredQualityTier: "default" as LayeredQualityTier,
   traceDiagnosticsMode: "off" as const,
   strokeOutputMode: "filled" as StrokeOutputMode,
   centerlineMaxTraceSide: 1100,
@@ -120,6 +124,7 @@ export function appendAdvancedTraceSettings(
   formData.append("paletteAlgorithm", String(merged.paletteAlgorithm));
   formData.append("paletteDistance", String(merged.paletteDistance));
   formData.append("requestedPaletteCount", String(merged.requestedPaletteCount));
+  formData.append("layeredQualityTier", String(merged.layeredQualityTier));
   formData.append("traceDiagnosticsMode", String(merged.traceDiagnosticsMode));
   formData.append("strokeOutputMode", String(merged.strokeOutputMode));
   formData.append("centerlineMaxTraceSide", String(merged.centerlineMaxTraceSide));

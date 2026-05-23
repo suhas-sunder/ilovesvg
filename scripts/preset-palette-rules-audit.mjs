@@ -70,11 +70,15 @@ const corePresetContracts = [
   {
     id: "layered-flat-color",
     label: "Layered - Flat Color",
-    sourceIds: ["layered-flat-color"],
+    sourceIds: [
+      "layered-flat-color",
+      "layered-flat-color-medium-quality",
+      "layered-flat-color-high-quality",
+    ],
     intendedUserOutcome: "Clean editable flat color blocks that stay compact on simple images and expand only when detail requires it.",
     typicalImageTypes: ["logos", "stickers", "flat illustrations", "screenshots with separated color families"],
-    expectedGroupRange: [6, 30],
-    hardMaximumEditableColorGroups: 30,
+    expectedGroupRange: [6, 32],
+    hardMaximumEditableColorGroups: 32,
     max30Applies: true,
     groupingAggressiveness: "adaptive strong",
     nearBlackBehavior: "Merge low-luma variants unless they mark separate high-contrast regions.",
@@ -134,11 +138,18 @@ const corePresetContracts = [
   {
     id: "layered-detail",
     label: "Layered - Detail",
-    sourceIds: ["layered-detail", "layered-color-detail", "png-high-detail", "jpg-high-detail"],
+    sourceIds: [
+      "layered-detail",
+      "layered-detail-medium-quality",
+      "layered-detail-high-quality",
+      "layered-color-detail",
+      "png-high-detail",
+      "jpg-high-detail",
+    ],
     intendedUserOutcome: "Higher-detail editable color output without exposing raw SVG color fragments.",
     typicalImageTypes: ["detailed stickers", "complex screenshots", "illustrations", "multi-color art"],
-    expectedGroupRange: [12, 30],
-    hardMaximumEditableColorGroups: 30,
+    expectedGroupRange: [12, 32],
+    hardMaximumEditableColorGroups: 32,
     max30Applies: true,
     groupingAggressiveness: "moderate",
     nearBlackBehavior: "Merge true near-black noise, preserve distinct outlines and dark objects.",
@@ -191,11 +202,15 @@ const corePresetContracts = [
   {
     id: "filled-layers-separate-colors",
     label: "Filled Layers - Separate Colors",
-    sourceIds: ["filled-layers-separate-colors"],
+    sourceIds: [
+      "filled-layers-separate-colors",
+      "filled-layers-separate-colors-medium-quality",
+      "filled-layers-separate-colors-high-quality",
+    ],
     intendedUserOutcome: "Distinct filled color regions remain separately editable without raw near-duplicate colors.",
     typicalImageTypes: ["flat illustrations", "stickers", "cartoons", "separated-color artwork"],
-    expectedGroupRange: [8, 24],
-    hardMaximumEditableColorGroups: 24,
+    expectedGroupRange: [8, 32],
+    hardMaximumEditableColorGroups: 32,
     max30Applies: true,
     groupingAggressiveness: "moderate",
     nearBlackBehavior: "Merge near-black variants only when they are visually interchangeable.",
@@ -210,7 +225,11 @@ const corePresetContracts = [
   {
     id: "photo-many-colors",
     label: "Photo Many Colors",
-    sourceIds: ["photo-many-colors"],
+    sourceIds: [
+      "photo-many-colors",
+      "photo-many-colors-medium-quality",
+      "photo-many-colors-high-quality",
+    ],
     intendedUserOutcome: "High-complexity editable color approximation for photo-like images without raw color explosion.",
     typicalImageTypes: ["photos", "high-color illustrations", "complex rendered art"],
     expectedGroupRange: [8, 32],
@@ -688,17 +707,27 @@ function hardCapsForPreset(preset) {
   } else if (preset.settings.layerBuildMode === "raw-vtracer") {
     caps.push("client raw-vtracer path returns the requested count up to 40 before UI policy caps");
   }
-  if (preset.id === "layered-flat-color") caps.push("post-VTracer Flat Color grouping prunes editable groups to 30");
+  if (
+    preset.id === "layered-flat-color" ||
+    preset.id === "layered-flat-color-medium-quality" ||
+    preset.id === "layered-flat-color-high-quality"
+  ) {
+    caps.push("post-VTracer Flat Color grouping keeps editable groups at or below 32");
+  }
   return caps;
 }
 
 function isAffectedByFlatColorAdaptive(preset) {
   const settings = preset.settings;
-  if (preset.id === "layered-flat-color") {
+  if (
+    preset.id === "layered-flat-color" ||
+    preset.id === "layered-flat-color-medium-quality" ||
+    preset.id === "layered-flat-color-high-quality"
+  ) {
     return {
       clientWorker: true,
       serverFallback: true,
-      reason: "Exact preset id is gated in the client worker and server flat-color heuristic also matches.",
+      reason: "Flat Color quality-tier preset id is gated in the client worker and server compact flat-color path.",
     };
   }
   const layerCount = numberOrNull(settings.colorLayerCount) ?? numberOrNull(settings.layerCount);
@@ -755,12 +784,16 @@ function inspectSourceFindings(sourceFiles, inventory) {
   );
   return {
     flatColorClientGroupingGate: {
-      exactPresetIdGate: /settings\.presetId\s*===\s*FLAT_COLOR_GROUPING_PRESET_ID/.test(worker),
+      exactPresetIdGate:
+        /settings\.presetId\s*===\s*FLAT_COLOR_GROUPING_PRESET_ID/.test(worker) ||
+        /isLayeredFlatColorQualityPresetId\(settings\.presetId\)/.test(worker),
       perColorCutoutGate: /getLayerBuildMode\(settings\)\s*===\s*"per-color-cutout"/.test(worker),
       maxEditableGroups: readConstNumber(worker, "FLAT_COLOR_MAX_EDITABLE_GROUPS"),
     },
     flatColorServerAdaptiveGate: {
-      exactPresetIdGate: /options\.presetId\s*===\s*"layered-flat-color"/.test(server),
+      exactPresetIdGate:
+        /options\.presetId\s*===\s*"layered-flat-color"/.test(server) ||
+        /isLayeredQualityTierPresetId\(options\.presetId\)/.test(server),
       heuristicAlsoMatchesFlatLikeSettings: /options\.layerCount\s*>=\s*14/.test(server) && /options\.posterize\s*===\s*false/.test(server),
       maxAdaptiveTarget: /clampInt\(analysis\.target,\s*MIN_LAYER_COUNT,\s*30\)/.test(server) ? 30 : null,
     },

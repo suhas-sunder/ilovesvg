@@ -1,4 +1,8 @@
 import type { NormalizedTraceSettings } from "~/shared/tracing/types";
+import {
+  normalizeLayeredQualityTier,
+  type LayeredQualityTier,
+} from "~/shared/tracing/layeredQualityTier";
 
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
@@ -59,6 +63,7 @@ export type NormalizedConversionCacheSettings = {
   paletteAlgorithm: string;
   paletteDistance: string;
   requestedPaletteCount: number;
+  layeredQualityTier: LayeredQualityTier;
   traceDiagnosticsMode: "off" | "summary";
   outputWidth: number;
   outputHeight: number;
@@ -197,6 +202,10 @@ export function normalizeConversionRequestForCache(
     requestedPaletteCount: finiteNumber(
       merged.requestedPaletteCount,
       DEFAULT_TRACE_ADVANCED_SETTINGS.requestedPaletteCount,
+    ),
+    layeredQualityTier: normalizeLayeredQualityTier(
+      merged.layeredQualityTier,
+      merged.presetId,
     ),
     traceDiagnosticsMode:
       merged.traceDiagnosticsMode === "summary" ? "summary" : "off",

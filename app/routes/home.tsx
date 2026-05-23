@@ -858,6 +858,7 @@ export async function action({ request }: ActionFunctionArgs) {
           colorMergeTolerance: advancedTraceSettings.colorMergeTolerance,
           posterizeStrength: advancedTraceSettings.posterizeStrength,
           sortLayersBy: advancedTraceSettings.sortLayersBy,
+          layeredQualityTier: advancedTraceSettings.layeredQualityTier,
           brightness: advancedTraceSettings.brightness,
           contrast: advancedTraceSettings.contrast,
           outputWidth: advancedTraceSettings.outputWidth,

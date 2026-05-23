@@ -21,6 +21,11 @@ import {
   optimizeLayeredSvgPathStructure,
   resolveLayeredSvgStructureOptimizationOptions,
 } from "~/shared/tracing/svgPathStructureOptimizer";
+import {
+  isLayeredQualityTierPresetId,
+  normalizeLayeredQualityTier,
+  type LayeredQualityTier,
+} from "~/shared/tracing/layeredQualityTier";
 import { normalizeBmpForSharp } from "./bmpDecode.server";
 
 export type TraceMode = "single" | "layered";
@@ -76,6 +81,7 @@ export type LayeredColorSvgOptions = {
   outputWidth?: number;
   outputHeight?: number;
   preserveAspectRatio?: boolean;
+  layeredQualityTier?: LayeredQualityTier;
 };
 
 type NormalizedLayeredColorSvgOptions = Omit<
@@ -110,6 +116,7 @@ type NormalizedLayeredColorSvgOptions = Omit<
   outputHeight: number;
   preserveAspectRatio: boolean;
   presetId: string;
+  layeredQualityTier: LayeredQualityTier;
 };
 
 export const MIN_LAYER_COUNT = 2;
@@ -122,6 +129,19 @@ const COMPACT_VTRACER_MAX_EDITABLE_COLORS = 32;
 const COMPACT_VTRACER_DARK_DETAIL_LUMA = 70;
 const COMPACT_VTRACER_DARK_SNAP_LUMA = 85;
 const COMPACT_VTRACER_DARK_COLOR: RGB = { r: 24, g: 24, b: 22 };
+
+type CompactLayeredVTracerQualityOptions = {
+  filterSpeckle: number;
+  colorPrecision: number;
+  layerDifference: number;
+  lengthThreshold: number;
+  darkDetailLuma: number;
+  darkDetailTurdSize: number;
+  darkDetailOptTolerance: number;
+  edgeGradient: number;
+  edgeTurdSize: number;
+  edgeOptTolerance: number;
+};
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -241,12 +261,60 @@ function shouldUseCompactFlatColorVTracer(
   options: NormalizedLayeredColorSvgOptions,
   sourceMatte: FlatColorSourceMatteAnalysis | null,
 ) {
+  const isQualityTierPreset =
+    options.layeredQualityTier !== "default" &&
+    isLayeredQualityTierPresetId(options.presetId);
   return (
-    options.presetId === "layered-flat-color" &&
+    (options.presetId === "layered-flat-color" || isQualityTierPreset) &&
     options.transparent &&
     !options.removeWhite &&
     (sourceMatte?.transparentShare ?? 0) <= 0.0025
   );
+}
+
+function compactLayeredVTracerQualityOptions(
+  tier: LayeredQualityTier,
+): CompactLayeredVTracerQualityOptions {
+  if (tier === "high") {
+    return {
+      filterSpeckle: 40,
+      colorPrecision: 8,
+      layerDifference: 24,
+      lengthThreshold: 6,
+      darkDetailLuma: 74,
+      darkDetailTurdSize: 4,
+      darkDetailOptTolerance: 0.9,
+      edgeGradient: 58,
+      edgeTurdSize: 14,
+      edgeOptTolerance: 1.8,
+    };
+  }
+  if (tier === "medium") {
+    return {
+      filterSpeckle: 55,
+      colorPrecision: 8,
+      layerDifference: 28,
+      lengthThreshold: 7.5,
+      darkDetailLuma: 72,
+      darkDetailTurdSize: 8,
+      darkDetailOptTolerance: 1.2,
+      edgeGradient: 64,
+      edgeTurdSize: 28,
+      edgeOptTolerance: 2.8,
+    };
+  }
+  return {
+    filterSpeckle: 65,
+    colorPrecision: 7,
+    layerDifference: 32,
+    lengthThreshold: 9,
+    darkDetailLuma: COMPACT_VTRACER_DARK_DETAIL_LUMA,
+    darkDetailTurdSize: 12,
+    darkDetailOptTolerance: 1.6,
+    edgeGradient: 70,
+    edgeTurdSize: 48,
+    edgeOptTolerance: 4,
+  };
 }
 
 async function createCompactFlatColorVTracerSvg({
@@ -274,16 +342,19 @@ async function createCompactFlatColorVTracerSvg({
   layers: SvgLayerMeta[];
   engineUsed: "vtracer";
 }> {
+  const qualityOptions = compactLayeredVTracerQualityOptions(
+    options.layeredQualityTier,
+  );
   const config = new serverVTracerRuntime.TracerConfig();
   try {
     config.setColorMode(serverVTracerRuntime.ColorMode.Color);
     config.setHierarchical(serverVTracerRuntime.Hierarchical.Cutout);
     config.setPathSimplifyMode(serverVTracerRuntime.PathSimplifyMode.Spline);
-    config.setFilterSpeckle(65);
-    config.setColorPrecision(7);
-    config.setLayerDifference(32);
+    config.setFilterSpeckle(qualityOptions.filterSpeckle);
+    config.setColorPrecision(qualityOptions.colorPrecision);
+    config.setLayerDifference(qualityOptions.layerDifference);
     config.setCornerThreshold(60);
-    config.setLengthThreshold(9);
+    config.setLengthThreshold(qualityOptions.lengthThreshold);
     config.setMaxIterations(10);
     config.setSpliceThreshold(45);
     config.setPathPrecision(1);
@@ -318,12 +389,14 @@ async function createCompactFlatColorVTracerSvg({
       width,
       height,
       sharp,
+      qualityOptions,
     });
     const edgeDetailPaths = await createCompactVTracerEdgeOverlayPaths({
       raw,
       width,
       height,
       sharp,
+      qualityOptions,
     });
     const grouped = groupCompactVTracerSvgByFill(
       appendSvgPaths(paletteLimitedSvg, `${darkDetailPaths}${edgeDetailPaths}`),
@@ -433,11 +506,13 @@ async function createCompactVTracerDarkDetailOverlayPaths({
   width,
   height,
   sharp,
+  qualityOptions,
 }: {
   raw: Buffer;
   width: number;
   height: number;
   sharp: typeof import("sharp");
+  qualityOptions: CompactLayeredVTracerQualityOptions;
 }) {
   const bounds = estimateFlatColorForegroundBounds(raw, width, height);
   if (!bounds) return "";
@@ -458,7 +533,7 @@ async function createCompactVTracerDarkDetailOverlayPaths({
     const offset = pixel * 4;
     if (raw[offset + 3] < 18) continue;
     const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
-    if (luminance(color) >= COMPACT_VTRACER_DARK_DETAIL_LUMA) continue;
+    if (luminance(color) >= qualityOptions.darkDetailLuma) continue;
     mask[pixel] = 0;
     inkPixels += 1;
   }
@@ -470,8 +545,8 @@ async function createCompactVTracerDarkDetailOverlayPaths({
     .png()
     .toBuffer();
   const pathTags = await traceMaskToPathTags(maskPng, {
-    turdSize: 12,
-    optTolerance: 1.6,
+    turdSize: qualityOptions.darkDetailTurdSize,
+    optTolerance: qualityOptions.darkDetailOptTolerance,
     turnPolicy: "minority",
   });
 
@@ -491,11 +566,13 @@ async function createCompactVTracerEdgeOverlayPaths({
   width,
   height,
   sharp,
+  qualityOptions,
 }: {
   raw: Buffer;
   width: number;
   height: number;
   sharp: typeof import("sharp");
+  qualityOptions: CompactLayeredVTracerQualityOptions;
 }) {
   const bounds = estimateFlatColorForegroundBounds(raw, width, height);
   if (!bounds) return "";
@@ -537,7 +614,7 @@ async function createCompactVTracerEdgeOverlayPaths({
         Math.abs(center - pixelLuma(pixel + width)),
       );
       if (
-        gradient < 70 ||
+        gradient < qualityOptions.edgeGradient ||
         (center >= 210 && colorSaturation(sourceColor) <= 36)
       ) {
         continue;
@@ -554,8 +631,8 @@ async function createCompactVTracerEdgeOverlayPaths({
     .png()
     .toBuffer();
   const pathTags = await traceMaskToPathTags(maskPng, {
-    turdSize: 48,
-    optTolerance: 4,
+    turdSize: qualityOptions.edgeTurdSize,
+    optTolerance: qualityOptions.edgeOptTolerance,
     turnPolicy: "minority",
   });
 
@@ -1064,6 +1141,10 @@ function normalizeLayeredColorOptions(
     ),
     preserveAspectRatio: options.preserveAspectRatio !== false,
     presetId: String(options.presetId || ""),
+    layeredQualityTier: normalizeLayeredQualityTier(
+      options.layeredQualityTier,
+      options.presetId,
+    ),
   };
 }
 

@@ -32,6 +32,12 @@ import {
   optimizeLayeredSvgPathStructure,
   resolveLayeredSvgStructureOptimizationOptions,
 } from "../../shared/tracing/svgPathStructureOptimizer";
+import {
+  isLayeredFlatColorQualityPresetId,
+  isPhotoManyColorsQualityPresetId,
+  normalizeLayeredQualityTier,
+  type LayeredQualityTier,
+} from "../../shared/tracing/layeredQualityTier";
 
 type WorkerRequest = {
   id: string;
@@ -707,7 +713,7 @@ function shouldUseHighFidelityFlatColorPalette(
 ) {
   return (
     settings.traceMode === "layered" &&
-    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID &&
+    isLayeredFlatColorQualityPresetId(settings.presetId) &&
     layerBuildMode === "per-color-cutout"
   );
 }
@@ -718,8 +724,17 @@ function shouldUsePhotoManyColorsGroupedPalette(
 ) {
   return (
     settings.traceMode === "layered" &&
-    settings.presetId === PHOTO_MANY_COLORS_PRESET_ID &&
+    isPhotoManyColorsQualityPresetId(settings.presetId) &&
     layerBuildMode === "per-color-cutout"
+  );
+}
+
+function getLayeredQualityTier(
+  settings: NormalizedTraceSettings,
+): LayeredQualityTier {
+  return normalizeLayeredQualityTier(
+    settings.layeredQualityTier,
+    settings.presetId,
   );
 }
 
@@ -777,6 +792,7 @@ function buildVTracerConfig(
 ): TracerConfig {
   const requestedPaletteCount =
     requestedPaletteCountOverride ?? getRequestedPaletteCount(settings);
+  const qualityTier = getLayeredQualityTier(settings);
   const layered = settings.traceMode === "layered";
   const config = new TracerConfig();
   config.setColorMode(ColorMode.Color);
@@ -791,9 +807,13 @@ function buildVTracerConfig(
   config.setFilterSpeckle(
     clampInt(
       Number(
-        layered
-          ? settings.layerTurdSize ?? settings.turdSize ?? 4
-          : settings.turdSize ?? 2,
+        layered && qualityTier === "high"
+          ? Math.min(4, settings.layerTurdSize ?? settings.turdSize ?? 4)
+          : layered && qualityTier === "medium"
+            ? Math.min(6, settings.layerTurdSize ?? settings.turdSize ?? 4)
+            : layered
+              ? settings.layerTurdSize ?? settings.turdSize ?? 4
+              : settings.turdSize ?? 2,
       ),
       0,
       100,
@@ -809,8 +829,16 @@ function buildVTracerConfig(
   config.setLayerDifference(
     clampInt(
       Number(
-        settings.colorMergeTolerance ??
-          (requestedPaletteCount >= 28 ? 6 : requestedPaletteCount >= 16 ? 10 : 16),
+        layered && qualityTier === "high"
+          ? Math.min(24, settings.colorMergeTolerance ?? 24)
+          : layered && qualityTier === "medium"
+            ? Math.min(28, settings.colorMergeTolerance ?? 28)
+            : settings.colorMergeTolerance ??
+              (requestedPaletteCount >= 28
+                ? 6
+                : requestedPaletteCount >= 16
+                  ? 10
+                  : 16),
       ),
       0,
       255,
@@ -818,7 +846,11 @@ function buildVTracerConfig(
   );
   config.setCornerThreshold(60);
   config.setLengthThreshold(
-    clampNumber(4 + Number(settings.optTolerance ?? 0.35) * 3, 3.5, 10),
+    qualityTier === "high"
+      ? clampNumber(3.5 + Number(settings.optTolerance ?? 0.3) * 2, 3, 7)
+      : qualityTier === "medium"
+        ? clampNumber(4 + Number(settings.optTolerance ?? 0.32) * 2.4, 3.5, 8)
+        : clampNumber(4 + Number(settings.optTolerance ?? 0.35) * 3, 3.5, 10),
   );
   config.setMaxIterations(10);
   config.setSpliceThreshold(45);
@@ -883,7 +915,11 @@ function postprocessSvg(
     svg = clampSvgPathDataPrecision(svg, GENERATED_LAYERED_PATH_PRECISION);
     svg = optimizeLayeredSvgPathStructure(svg, {
       enabled: true,
-      ...resolveLayeredSvgStructureOptimizationOptions(sourceWidth, sourceHeight),
+      ...resolveQualityAwareStructureOptimizationOptions(
+        settings,
+        sourceWidth,
+        sourceHeight,
+      ),
     }).svg;
   }
 
@@ -905,6 +941,33 @@ function postprocessSvg(
   return svg;
 }
 
+function resolveQualityAwareStructureOptimizationOptions(
+  settings: NormalizedTraceSettings,
+  width: number,
+  height: number,
+) {
+  const base = resolveLayeredSvgStructureOptimizationOptions(width, height);
+  const qualityTier = getLayeredQualityTier(settings);
+  if (qualityTier === "high") {
+    return {
+      ...base,
+      removeTinyIslands: false,
+    };
+  }
+  if (qualityTier === "medium") {
+    return {
+      ...base,
+      microIslandMaxArea: Math.max(4, Math.round((base.microIslandMaxArea ?? 16) * 0.35)),
+      microIslandMaxDimension: Math.max(
+        3,
+        Math.round((base.microIslandMaxDimension ?? 6) * 0.55),
+      ),
+      preserveDarkLumaBelow: Math.max(base.preserveDarkLumaBelow ?? 0.28, 0.3),
+    };
+  }
+  return base;
+}
+
 function snapSvgPathFillsToPalette(
   svg: string,
   settings: NormalizedTraceSettings,
@@ -912,8 +975,8 @@ function snapSvgPathFillsToPalette(
 ): string {
   if (settings.traceMode !== "layered" || palette.length <= 0) return svg;
   if (
-    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID ||
-    settings.presetId === PHOTO_MANY_COLORS_PRESET_ID
+    isLayeredFlatColorQualityPresetId(settings.presetId) ||
+    isPhotoManyColorsQualityPresetId(settings.presetId)
   ) {
     return svg;
   }
@@ -1162,8 +1225,8 @@ function groupFlatColorLayeredPalette(svg: string, settings: NormalizedTraceSett
 function shouldGroupFlatColorLayeredPalette(settings: NormalizedTraceSettings) {
   return (
     settings.traceMode === "layered" &&
-    (settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID ||
-      settings.presetId === PHOTO_MANY_COLORS_PRESET_ID) &&
+    (isLayeredFlatColorQualityPresetId(settings.presetId) ||
+      isPhotoManyColorsQualityPresetId(settings.presetId)) &&
     getLayerBuildMode(settings) === "per-color-cutout"
   );
 }
@@ -1346,7 +1409,7 @@ function flatColorMergeThreshold(
   b: FlatColorStats,
   settings: NormalizedTraceSettings,
 ) {
-  const photoManyColors = settings.presetId === PHOTO_MANY_COLORS_PRESET_ID;
+  const photoManyColors = isPhotoManyColorsQualityPresetId(settings.presetId);
   if (a.isNearBlack && b.isNearBlack) return photoManyColors ? 14 : 22;
   if (a.isNearWhite && b.isNearWhite) return photoManyColors ? 10 : 16;
   if (a.luma < 0.18 && b.luma < 0.18 && Math.abs(a.saturation - b.saturation) < 0.3) {
@@ -1374,7 +1437,7 @@ function flatColorSpatiallyCompatible(
   distance: number,
   settings: NormalizedTraceSettings,
 ) {
-  const photoManyColors = settings.presetId === PHOTO_MANY_COLORS_PRESET_ID;
+  const photoManyColors = isPhotoManyColorsQualityPresetId(settings.presetId);
   const representative = group.representative;
   if (distance <= (photoManyColors ? 2.75 : 3.25)) return true;
   if (!photoManyColors && stat.isNearBlack && representative.isNearBlack) return true;
