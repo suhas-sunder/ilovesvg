@@ -73,7 +73,7 @@ const corePresetContracts = [
     sourceIds: [
       "layered-flat-color",
       "layered-flat-color-medium-quality",
-      "layered-flat-color-high-quality",
+      "layered-insane-quality",
     ],
     intendedUserOutcome: "Clean editable flat color blocks that stay compact on simple images and expand only when detail requires it.",
     typicalImageTypes: ["logos", "stickers", "flat illustrations", "screenshots with separated color families"],
@@ -141,7 +141,6 @@ const corePresetContracts = [
     sourceIds: [
       "layered-detail",
       "layered-detail-medium-quality",
-      "layered-detail-high-quality",
       "layered-color-detail",
       "png-high-detail",
       "jpg-high-detail",
@@ -204,8 +203,6 @@ const corePresetContracts = [
     label: "Filled Layers - Separate Colors",
     sourceIds: [
       "filled-layers-separate-colors",
-      "filled-layers-separate-colors-medium-quality",
-      "filled-layers-separate-colors-high-quality",
     ],
     intendedUserOutcome: "Distinct filled color regions remain separately editable without raw near-duplicate colors.",
     typicalImageTypes: ["flat illustrations", "stickers", "cartoons", "separated-color artwork"],
@@ -228,7 +225,6 @@ const corePresetContracts = [
     sourceIds: [
       "photo-many-colors",
       "photo-many-colors-medium-quality",
-      "photo-many-colors-high-quality",
     ],
     intendedUserOutcome: "High-complexity editable color approximation for photo-like images without raw color explosion.",
     typicalImageTypes: ["photos", "high-color illustrations", "complex rendered art"],
@@ -710,7 +706,7 @@ function hardCapsForPreset(preset) {
   if (
     preset.id === "layered-flat-color" ||
     preset.id === "layered-flat-color-medium-quality" ||
-    preset.id === "layered-flat-color-high-quality"
+    preset.id === "layered-insane-quality"
   ) {
     caps.push("post-VTracer Flat Color grouping keeps editable groups at or below 32");
   }
@@ -722,7 +718,7 @@ function isAffectedByFlatColorAdaptive(preset) {
   if (
     preset.id === "layered-flat-color" ||
     preset.id === "layered-flat-color-medium-quality" ||
-    preset.id === "layered-flat-color-high-quality"
+    preset.id === "layered-insane-quality"
   ) {
     return {
       clientWorker: true,

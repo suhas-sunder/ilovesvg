@@ -38,18 +38,14 @@ const allFlatFixtures = Array.from(
 const allPresetChecks = [
   { id: "layered-flat-color", label: "Layered - Flat Color", pattern: /^Layered - Flat Color(?! \()\b/i },
   { id: "layered-flat-color-medium-quality", label: "Layered - Flat Color (Medium Quality)", pattern: /^Layered - Flat Color \(Medium Quality\)(?:\s|$)/i },
-  { id: "layered-flat-color-high-quality", label: "Layered - Flat Color (High Quality)", pattern: /^Layered - Flat Color \(High Quality\)(?:\s|$)/i },
+  { id: "layered-insane-quality", label: "Layered - Insane Quality", pattern: /^Layered - Insane Quality(?:\s|$)/i },
   { id: "photo-many-colors", label: "Photo Many Colors", pattern: /^Photo Many Colors(?! \()\b/i },
   { id: "photo-many-colors-medium-quality", label: "Photo Many Colors (Medium Quality)", pattern: /^Photo Many Colors \(Medium Quality\)(?:\s|$)/i },
-  { id: "photo-many-colors-high-quality", label: "Photo Many Colors (High Quality)", pattern: /^Photo Many Colors \(High Quality\)(?:\s|$)/i },
   { id: "premium-cartoon-fill-ink", label: "Premium Cartoon Fill + Ink", pattern: /^Premium Cartoon Fill \+ Ink\b/i },
   { id: "sticker-fill-stroke-detail", label: "Sticker Fill + Stroke Detail", pattern: /^Sticker Fill \+ Stroke Detail\b/i },
   { id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors", pattern: /^Filled Layers - Separate Colors(?! \()\b/i },
-  { id: "filled-layers-separate-colors-medium-quality", label: "Filled Layers - Separate Colors (Medium Quality)", pattern: /^Filled Layers - Separate Colors \(Medium Quality\)(?:\s|$)/i },
-  { id: "filled-layers-separate-colors-high-quality", label: "Filled Layers - Separate Colors (High Quality)", pattern: /^Filled Layers - Separate Colors \(High Quality\)(?:\s|$)/i },
   { id: "layered-detail", label: "Layered - Detail", pattern: /^Layered - Detail(?! \()\b/i },
   { id: "layered-detail-medium-quality", label: "Layered - Detail (Medium Quality)", pattern: /^Layered - Detail \(Medium Quality\)(?:\s|$)/i },
-  { id: "layered-detail-high-quality", label: "Layered - Detail (High Quality)", pattern: /^Layered - Detail \(High Quality\)(?:\s|$)/i },
   { id: "layered-poster", label: "Layered - Poster", pattern: /^Layered - Poster\b/i },
   { id: "layered-8-color", label: "Layered - 8 Color", pattern: /^Layered - 8 Color\b/i },
 ];
@@ -270,7 +266,7 @@ function collectFailures(report) {
 
 function qualityTierForPresetId(presetId) {
   const id = String(presetId || "").toLowerCase();
-  if (id.endsWith("-high-quality")) return "high";
+  if (id === "layered-insane-quality") return "insane";
   if (id.endsWith("-medium-quality")) return "medium";
   return "default";
 }
@@ -280,7 +276,7 @@ function isQualityTierPresetId(presetId) {
 }
 
 function qualityTierRatioCeiling(tier) {
-  if (tier === "high") return 10;
+  if (tier === "insane") return 10;
   if (tier === "medium") return 3;
   return null;
 }

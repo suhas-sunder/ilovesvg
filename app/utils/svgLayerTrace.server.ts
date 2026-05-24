@@ -275,7 +275,7 @@ function shouldUseCompactFlatColorVTracer(
 function compactLayeredVTracerQualityOptions(
   tier: LayeredQualityTier,
 ): CompactLayeredVTracerQualityOptions {
-  if (tier === "high") {
+  if (tier === "insane") {
     return {
       filterSpeckle: 40,
       colorPrecision: 8,

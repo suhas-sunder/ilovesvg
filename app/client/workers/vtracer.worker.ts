@@ -807,7 +807,7 @@ function buildVTracerConfig(
   config.setFilterSpeckle(
     clampInt(
       Number(
-        layered && qualityTier === "high"
+        layered && qualityTier === "insane"
           ? Math.min(4, settings.layerTurdSize ?? settings.turdSize ?? 4)
           : layered && qualityTier === "medium"
             ? Math.min(6, settings.layerTurdSize ?? settings.turdSize ?? 4)
@@ -829,7 +829,7 @@ function buildVTracerConfig(
   config.setLayerDifference(
     clampInt(
       Number(
-        layered && qualityTier === "high"
+        layered && qualityTier === "insane"
           ? Math.min(24, settings.colorMergeTolerance ?? 24)
           : layered && qualityTier === "medium"
             ? Math.min(28, settings.colorMergeTolerance ?? 28)
@@ -846,7 +846,7 @@ function buildVTracerConfig(
   );
   config.setCornerThreshold(60);
   config.setLengthThreshold(
-    qualityTier === "high"
+    qualityTier === "insane"
       ? clampNumber(3.5 + Number(settings.optTolerance ?? 0.3) * 2, 3, 7)
       : qualityTier === "medium"
         ? clampNumber(4 + Number(settings.optTolerance ?? 0.32) * 2.4, 3.5, 8)
@@ -948,7 +948,7 @@ function resolveQualityAwareStructureOptimizationOptions(
 ) {
   const base = resolveLayeredSvgStructureOptimizationOptions(width, height);
   const qualityTier = getLayeredQualityTier(settings);
-  if (qualityTier === "high") {
+  if (qualityTier === "insane") {
     return {
       ...base,
       removeTinyIslands: false,

@@ -524,8 +524,8 @@ function getUnusableTraceResultReason(
     qualityTierMaxSvgBytes ??
     (layered ? (richLayered ? 3_200_000 : 2_200_000) : 1_500_000);
   const maxPaths = layered
-    ? layeredQualityTier === "high"
-      ? 12_000
+    ? layeredQualityTier === "insane"
+      ? 16_000
       : layeredQualityTier === "medium"
         ? 8_500
         : richLayered
