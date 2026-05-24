@@ -112,7 +112,9 @@ async function auditPresets() {
         .join("; ")}`,
     );
   }
-  const duplicateSettings = [...idsBySettings.values()].filter((ids) => ids.length > 1);
+  const duplicateSettings = [...idsBySettings.values()].filter(
+    (ids) => ids.length > 1 && !isAllowedDuplicatePresetSettings(ids),
+  );
   if (duplicateSettings.length > 0) {
     fatal.push(
       `Trace presets with duplicate settings: ${duplicateSettings
@@ -329,6 +331,17 @@ async function auditPresets() {
     centerlinePresets: Object.keys(centerlinePresets),
     curatedPresetExpansion: Object.keys(curatedPresetExpansion),
   };
+}
+
+function isAllowedDuplicatePresetSettings(ids) {
+  const normalized = [...ids].sort();
+  const allowed = [
+    ["layered-flat-color-insane-quality", "layered-insane-quality"],
+  ];
+  return allowed.some((group) =>
+    group.length === normalized.length &&
+    group.every((id, index) => id === normalized[index]),
+  );
 }
 
 async function auditTracingArchitecture() {

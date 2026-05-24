@@ -526,6 +526,8 @@ function getUnusableTraceResultReason(
   const maxPaths = layered
     ? layeredQualityTier === "insane"
       ? 16_000
+      : layeredQualityTier === "high"
+        ? 12_000
       : layeredQualityTier === "medium"
         ? 8_500
         : richLayered

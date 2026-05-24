@@ -73,6 +73,8 @@ const corePresetContracts = [
     sourceIds: [
       "layered-flat-color",
       "layered-flat-color-medium-quality",
+      "layered-flat-color-high-quality",
+      "layered-flat-color-insane-quality",
       "layered-insane-quality",
     ],
     intendedUserOutcome: "Clean editable flat color blocks that stay compact on simple images and expand only when detail requires it.",
@@ -141,6 +143,8 @@ const corePresetContracts = [
     sourceIds: [
       "layered-detail",
       "layered-detail-medium-quality",
+      "layered-detail-high-quality",
+      "layered-detail-insane-quality",
       "layered-color-detail",
       "png-high-detail",
       "jpg-high-detail",
@@ -203,6 +207,9 @@ const corePresetContracts = [
     label: "Filled Layers - Separate Colors",
     sourceIds: [
       "filled-layers-separate-colors",
+      "filled-layers-separate-colors-medium-quality",
+      "filled-layers-separate-colors-high-quality",
+      "filled-layers-separate-colors-insane-quality",
     ],
     intendedUserOutcome: "Distinct filled color regions remain separately editable without raw near-duplicate colors.",
     typicalImageTypes: ["flat illustrations", "stickers", "cartoons", "separated-color artwork"],
@@ -225,6 +232,8 @@ const corePresetContracts = [
     sourceIds: [
       "photo-many-colors",
       "photo-many-colors-medium-quality",
+      "photo-many-colors-high-quality",
+      "photo-many-colors-insane-quality",
     ],
     intendedUserOutcome: "High-complexity editable color approximation for photo-like images without raw color explosion.",
     typicalImageTypes: ["photos", "high-color illustrations", "complex rendered art"],
@@ -240,6 +249,45 @@ const corePresetContracts = [
     performanceRisk: "high near the ceiling",
     conditionalFutureDisplay: "Show only when image complexity supports many meaningful colors.",
     suggestedTests: ["high-color real photos", "generated noisy image", "30-row performance", "raw-color cap"],
+  },
+];
+
+const requiredLayeredQualityPresetFamilies = [
+  {
+    family: "Layered - Flat Color",
+    tiers: [
+      { tier: "default", id: "layered-flat-color", label: "Layered - Flat Color" },
+      { tier: "medium", id: "layered-flat-color-medium-quality", label: "Layered - Flat Color (Medium Quality)" },
+      { tier: "high", id: "layered-flat-color-high-quality", label: "Layered - Flat Color (High Quality)" },
+      { tier: "insane", id: "layered-flat-color-insane-quality", label: "Layered - Flat Color (Insane Quality)" },
+    ],
+  },
+  {
+    family: "Photo Many Colors",
+    tiers: [
+      { tier: "default", id: "photo-many-colors", label: "Photo Many Colors" },
+      { tier: "medium", id: "photo-many-colors-medium-quality", label: "Photo Many Colors (Medium Quality)" },
+      { tier: "high", id: "photo-many-colors-high-quality", label: "Photo Many Colors (High Quality)" },
+      { tier: "insane", id: "photo-many-colors-insane-quality", label: "Photo Many Colors (Insane Quality)" },
+    ],
+  },
+  {
+    family: "Layered - Detail",
+    tiers: [
+      { tier: "default", id: "layered-detail", label: "Layered - Detail" },
+      { tier: "medium", id: "layered-detail-medium-quality", label: "Layered - Detail (Medium Quality)" },
+      { tier: "high", id: "layered-detail-high-quality", label: "Layered - Detail (High Quality)" },
+      { tier: "insane", id: "layered-detail-insane-quality", label: "Layered - Detail (Insane Quality)" },
+    ],
+  },
+  {
+    family: "Filled Layers - Separate Colors",
+    tiers: [
+      { tier: "default", id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors" },
+      { tier: "medium", id: "filled-layers-separate-colors-medium-quality", label: "Filled Layers - Separate Colors (Medium Quality)" },
+      { tier: "high", id: "filled-layers-separate-colors-high-quality", label: "Filled Layers - Separate Colors (High Quality)" },
+      { tier: "insane", id: "filled-layers-separate-colors-insane-quality", label: "Filled Layers - Separate Colors (Insane Quality)" },
+    ],
   },
 ];
 
@@ -603,6 +651,7 @@ function extractSettings(block) {
   const settingsBlock = close > open ? block.slice(open + 1, close) : "";
   const keys = [
     "traceMode",
+    "layeredQualityTier",
     "layerCount",
     "colorLayerCount",
     "requestedPaletteCount",
@@ -706,6 +755,8 @@ function hardCapsForPreset(preset) {
   if (
     preset.id === "layered-flat-color" ||
     preset.id === "layered-flat-color-medium-quality" ||
+    preset.id === "layered-flat-color-high-quality" ||
+    preset.id === "layered-flat-color-insane-quality" ||
     preset.id === "layered-insane-quality"
   ) {
     caps.push("post-VTracer Flat Color grouping keeps editable groups at or below 32");
@@ -718,6 +769,8 @@ function isAffectedByFlatColorAdaptive(preset) {
   if (
     preset.id === "layered-flat-color" ||
     preset.id === "layered-flat-color-medium-quality" ||
+    preset.id === "layered-flat-color-high-quality" ||
+    preset.id === "layered-flat-color-insane-quality" ||
     preset.id === "layered-insane-quality"
   ) {
     return {
@@ -1250,6 +1303,7 @@ function buildFixtureMatrix({ fixtureAnalyses, presetContracts, inventory, liveM
 }
 
 function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasurements }) {
+  const qualityTierInventory = buildQualityTierInventoryGuardrails(inventory);
   const focusedContracts = [
     {
       id: "layered-8-color",
@@ -1274,7 +1328,7 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
     },
   ];
   const routes = ["/", "/png-to-layered-svg-for-cricut", "/jpg-to-layered-svg-for-cricut"];
-  const failures = [];
+  const failures = [...qualityTierInventory.failures];
   const sourceContracts = focusedContracts.map((contract) => {
     const sourcePreset =
       inventory.allPresets.find(
@@ -1427,8 +1481,95 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
   }
 
   return {
+    qualityTierInventory,
     sourceContracts,
     fixtureRouteMatrix,
+    failures: Array.from(new Set(failures)),
+  };
+}
+
+function buildQualityTierInventoryGuardrails(inventory) {
+  const failures = [];
+  const sharedPresets = inventory.sharedLayeredAdditions;
+  const sharedById = new Map();
+  const duplicateIds = [];
+
+  for (const preset of sharedPresets) {
+    if (sharedById.has(preset.id)) duplicateIds.push(preset.id);
+    else sharedById.set(preset.id, preset);
+  }
+
+  for (const id of duplicateIds) {
+    failures.push(`Duplicate shared layered preset id found: ${id}.`);
+  }
+
+  const families = requiredLayeredQualityPresetFamilies.map((family) => {
+    const tiers = family.tiers.map((expected) => {
+      const preset = sharedById.get(expected.id) || null;
+      const tierSetting = String(preset?.settings?.layeredQualityTier || "default");
+      const labelMatches = preset?.label === expected.label;
+      const traceModeMatches = preset?.settings?.traceMode === "layered";
+      const tierMatches =
+        expected.tier === "default"
+          ? tierSetting === "default"
+          : tierSetting === expected.tier;
+
+      if (!preset) {
+        failures.push(`${family.family} ${expected.tier} preset is missing: ${expected.id}.`);
+      } else {
+        if (!labelMatches) {
+          failures.push(
+            `${expected.id} label changed unexpectedly; expected "${expected.label}", saw "${preset.label}".`,
+          );
+        }
+        if (!traceModeMatches) {
+          failures.push(`${expected.id} must remain a layered trace preset.`);
+        }
+        if (!tierMatches) {
+          failures.push(
+            `${expected.id} tier setting changed unexpectedly; expected "${expected.tier}", saw "${tierSetting}".`,
+          );
+        }
+      }
+
+      return {
+        tier: expected.tier,
+        id: expected.id,
+        expectedLabel: expected.label,
+        found: Boolean(preset),
+        actualLabel: preset?.label || null,
+        layeredQualityTier: preset?.settings?.layeredQualityTier || "default",
+        traceMode: preset?.settings?.traceMode || null,
+        visibleSeparateOption: Boolean(preset && labelMatches),
+      };
+    });
+
+    const hiddenOrCollapsed = tiers.filter((tier) => !tier.visibleSeparateOption);
+    if (hiddenOrCollapsed.length > 0) {
+      failures.push(
+        `${family.family} does not expose every required default / medium / high / insane option with its expected label.`,
+      );
+    }
+
+    return {
+      family: family.family,
+      tiers,
+      complete: hiddenOrCollapsed.length === 0,
+    };
+  });
+
+  const optionalGenericInsane = sharedById.get("layered-insane-quality") || null;
+
+  return {
+    families,
+    duplicateSharedPresetIds: Array.from(new Set(duplicateIds)),
+    optionalGenericInsanePreset: optionalGenericInsane
+      ? {
+          id: optionalGenericInsane.id,
+          label: optionalGenericInsane.label,
+          layeredQualityTier: optionalGenericInsane.settings?.layeredQualityTier || null,
+        }
+      : null,
     failures: Array.from(new Set(failures)),
   };
 }
