@@ -15,7 +15,7 @@ const reportPath = process.env.HF_BROWSER_OUTPUT_REPORT_PATH
   ? path.resolve(process.env.HF_BROWSER_OUTPUT_REPORT_PATH)
   : path.join(runDir, "report.json");
 const profileDir = path.join(os.tmpdir(), "ilovesvg-high-fidelity-browser-output-smoke", String(debugPort));
-const scenarioTimeoutMs = Number(process.env.HF_BROWSER_OUTPUT_TIMEOUT_MS || 180_000);
+const scenarioTimeoutMs = Number(process.env.HF_BROWSER_OUTPUT_TIMEOUT_MS || 300_000);
 const preferredSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_PREFERRED_BYTES || 1_200_000);
 const acceptableSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_ACCEPTABLE_BYTES || 1_500_000);
 const maxSvgBytes = Number(process.env.HF_BROWSER_OUTPUT_MAX_BYTES || 1_500_000);
@@ -63,6 +63,7 @@ const img8846 = "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG";
 const flatFixtures = process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME
   ? allFlatFixtures.filter((fixture) => path.basename(fixture).toLowerCase() === process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME.toLowerCase())
   : allFlatFixtures;
+const presetMatrixFixture = flatFixtures[0] || img8846;
 const requestedPresetIds = process.env.HF_BROWSER_OUTPUT_PRESET_IDS
   ? new Set(process.env.HF_BROWSER_OUTPUT_PRESET_IDS.split(",").map((id) => id.trim()).filter(Boolean))
   : process.env.HF_BROWSER_OUTPUT_PRESET_ID
@@ -73,7 +74,57 @@ const presetChecks = requestedPresetIds
   : allPresetChecks;
 const runFlatMatrix = process.env.HF_BROWSER_OUTPUT_RUN_FLAT !== "0";
 const runPresetMatrix = process.env.HF_BROWSER_OUTPUT_RUN_PRESETS === "1";
+const runTierComparison =
+  process.env.HF_BROWSER_OUTPUT_RUN_TIER_COMPARISON === "1" ||
+  (!requestedPresetIds && process.env.HF_BROWSER_OUTPUT_RUN_TIER_COMPARISON !== "0");
 const renderPreviews = process.env.HF_BROWSER_OUTPUT_RENDER !== "0";
+const qualityTierComparisonFamilies = [
+  {
+    label: "Layered - Flat Color",
+    order: [
+      "layered-flat-color",
+      "layered-flat-color-medium-quality",
+      "layered-flat-color-high-quality",
+      "layered-flat-color-insane-quality",
+    ],
+  },
+  {
+    label: "Photo Many Colors",
+    order: [
+      "photo-many-colors",
+      "photo-many-colors-medium-quality",
+      "photo-many-colors-high-quality",
+      "photo-many-colors-insane-quality",
+    ],
+  },
+  {
+    label: "Layered - Detail",
+    order: [
+      "layered-detail",
+      "layered-detail-medium-quality",
+      "layered-detail-high-quality",
+      "layered-detail-insane-quality",
+    ],
+  },
+  {
+    label: "Filled Layers - Separate Colors",
+    order: [
+      "filled-layers-separate-colors",
+      "filled-layers-separate-colors-medium-quality",
+      "filled-layers-separate-colors-high-quality",
+      "filled-layers-separate-colors-insane-quality",
+    ],
+  },
+  {
+    label: "Layered - Insane Quality",
+    order: ["layered-insane-quality"],
+  },
+];
+const qualityTierComparisonPresets = Array.from(
+  new Set(qualityTierComparisonFamilies.flatMap((family) => family.order)),
+)
+  .map((id) => allPresetChecks.find((preset) => preset.id === id))
+  .filter(Boolean);
 
 async function main() {
   await fs.rm(runDir, { recursive: true, force: true });
@@ -119,6 +170,7 @@ async function main() {
       maxGroupedColors,
     },
     flatColor: [],
+    qualityTierComparison: [],
     presetStuckLoading: [],
     outputStructure: {},
     failures: [],
@@ -152,12 +204,41 @@ async function main() {
       console.error(`[flat] ${path.basename(fixturePath)} ${result.completed ? "completed" : "not-complete"} layers=${result.ui?.layerTotalCount ?? "n/a"} bytes=${result.download?.bytes ?? 0}`);
     }
 
+    if (runTierComparison) for (const fixturePath of flatFixtures) {
+      for (const preset of qualityTierComparisonPresets) {
+        const existing = preset.id === "layered-flat-color"
+          ? report.flatColor.find((item) => item.fixture?.basename === path.basename(fixturePath))
+          : null;
+        const result = existing || await runUiScenario({
+          fixturePath,
+          preset,
+          scenarioId: `tier-${path.basename(fixturePath).replace(/\W+/g, "-").toLowerCase()}-${preset.id}`,
+          timeoutMs: scenarioTimeoutMs,
+          collectStructure: true,
+          renderPreview: renderPreviews,
+        }).catch(async (error) => ({
+          scenarioId: `tier-${path.basename(fixturePath).replace(/\W+/g, "-").toLowerCase()}-${preset.id}`,
+          route: "/",
+          presetId: preset.id,
+          presetLabel: preset.label,
+          fixture: await fixtureInfo(fixturePath).catch(() => ({ path: fixturePath, basename: path.basename(fixturePath) })),
+          completed: false,
+          elapsedMs: null,
+          harnessError: error instanceof Error ? error.message : String(error),
+          harnessStack: error instanceof Error ? error.stack : null,
+        }));
+        report.qualityTierComparison.push(toQualityTierComparisonEntry(result));
+        await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+        console.error(`[tier] ${path.basename(fixturePath)} ${preset.label} ${result.completed ? "completed" : "not-complete"} ${Math.round((result.elapsedMs || 0) / 1000)}s`);
+      }
+    }
+
     if (runPresetMatrix) for (const preset of presetChecks) {
       const existing = preset.id === "layered-flat-color"
-        ? report.flatColor.find((item) => item.fixture.basename === path.basename(img8846))
+        ? report.flatColor.find((item) => item.fixture.basename === path.basename(presetMatrixFixture))
         : null;
       const result = existing || await runUiScenario({
-        fixturePath: img8846,
+        fixturePath: presetMatrixFixture,
         preset,
         scenarioId: `preset-${preset.id}`,
         timeoutMs: scenarioTimeoutMs,
@@ -168,7 +249,7 @@ async function main() {
         route: "/",
         presetId: preset.id,
         presetLabel: preset.label,
-        fixture: await fixtureInfo(img8846).catch(() => ({ path: img8846, basename: path.basename(img8846) })),
+        fixture: await fixtureInfo(presetMatrixFixture).catch(() => ({ path: presetMatrixFixture, basename: path.basename(presetMatrixFixture) })),
         completed: false,
         elapsedMs: null,
         harnessError: error instanceof Error ? error.message : String(error),
@@ -247,8 +328,53 @@ async function main() {
         ? Number((item.svgBytes / item.fixtureBytes).toFixed(3))
         : null,
     })),
+    qualityTierComparison: report.qualityTierComparison.map((item) => ({
+      fixture: item.fixture?.basename,
+      preset: item.presetLabel,
+      completed: item.completed,
+      elapsedMs: item.elapsedMs,
+      layers: item.layerTotalCount,
+      bytes: item.svgBytes,
+      score: item.render ? Number(qualityTierSourceDetailScore(item).toFixed(4)) : null,
+      pairedDetailMetrics: item.render?.pairedDetailMetrics || null,
+    })),
   }, null, 2));
   if (!ok) process.exitCode = 1;
+}
+
+function toQualityTierComparisonEntry(result) {
+  return {
+    scenarioId: result.scenarioId,
+    route: result.route,
+    presetId: result.presetId,
+    presetLabel: result.presetLabel,
+    tier: qualityTierForPresetId(result.presetId),
+    fixture: result.fixture || null,
+    completed: result.completed,
+    elapsedMs: result.elapsedMs,
+    selectedPreset: result.selectedPreset || null,
+    engineUsed: result.ui?.engineUsed || null,
+    engineLine: result.ui?.engineLine || null,
+    outputTitle: result.ui?.outputTitle || null,
+    svgBytes: result.download?.bytes ?? result.ui?.svgBytesAttr ?? null,
+    svgWidth: result.svg?.width ?? null,
+    svgHeight: result.svg?.height ?? null,
+    visibleColorCount: result.svg?.visibleColorCount ?? null,
+    dataLayerColorCount: result.svg?.dataLayerColorCount ?? null,
+    layerTotalCount: result.ui?.layerTotalCount ?? null,
+    pathCount: result.svg?.pathCount ?? result.structure?.pathCount ?? null,
+    segmentCount: result.structure?.totalPathSegmentCount ?? null,
+    structure: result.structure || null,
+    render: result.render || null,
+    previewVisible: result.ui?.previewVisible ?? null,
+    settingsOpened: result.ui?.settingsOpened ?? null,
+    copyDownloadParity: result.copyDownloadParity || null,
+    copyHash: result.copyDownloadParity?.copyHash || null,
+    downloadHash: result.copyDownloadParity?.downloadHash || null,
+    harnessError: result.harnessError || null,
+    consoleErrors: result.consoleErrors || [],
+    networkErrors: result.networkErrors || [],
+  };
 }
 
 function collectFailures(report) {
@@ -264,6 +390,13 @@ function collectFailures(report) {
   }
   for (const result of report.flatColor) {
     failures.push(...validateHighFidelityFlatResult(result));
+  }
+  if (runTierComparison) {
+    for (const result of report.qualityTierComparison) {
+      failures.push(...validateQualityTierResult(result));
+    }
+    failures.push(...validateProgressiveQualityTierComparison(report.qualityTierComparison));
+    failures.push(...validateQualityTierFamilyCollapse(report.qualityTierComparison));
   }
   if (runPresetMatrix) {
     for (const result of report.presetStuckLoading) {
@@ -402,6 +535,217 @@ function validatePresetTriageResult(result) {
   return failures;
 }
 
+function validateQualityTierResult(result) {
+  const failures = [];
+  const add = (reason) => failures.push({
+    scenarioId: result.scenarioId,
+    fixture: result.fixture?.basename || null,
+    preset: result.presetLabel || null,
+    reason,
+  });
+  if (result.harnessError) add(`harness error: ${result.harnessError}`);
+  if (!result.selectedPreset?.selected) add(`requested preset was not selected: ${result.selectedPreset?.reason || "unknown reason"}`);
+  if (!result.completed) add(`tier comparison did not reach usable output within ${scenarioTimeoutMs} ms`);
+  if (!result.previewVisible) add("tier comparison preview was not visible");
+  if (!result.settingsOpened) add("Settings / Edit did not open");
+  if (!result.copyDownloadParity?.ok) add("Copy SVG and Download SVG did not match");
+  const layerCount = result.layerTotalCount || result.dataLayerColorCount || 0;
+  if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
+  const tier = qualityTierForPresetId(result.presetId);
+  if (tier !== "default" && layerCount < minHighDetailLayerCount) {
+    add(`quality-tier output fell below ${minHighDetailLayerCount} editable layers; saw ${layerCount}`);
+  }
+  const fixtureBytes = Number(result.fixture?.bytes || 0);
+  const ratioCeiling = qualityTierRatioCeiling(tier);
+  const budgetBytes = ratioCeiling && fixtureBytes > 0
+    ? Math.round(fixtureBytes * ratioCeiling)
+    : maxSvgBytes;
+  const shouldEnforceSizeBudget =
+    tier !== "default" || result.presetId === "layered-flat-color";
+  if (shouldEnforceSizeBudget && (result.svgBytes || 0) > budgetBytes) {
+    add(`tier comparison SVG exceeded ${ratioCeiling ? `${ratioCeiling}x input size` : `${budgetBytes} bytes`}; saw ${result.svgBytes}`);
+  }
+  const expectedWidth = Number(result.fixture?.displayWidth || result.fixture?.width || 0);
+  const expectedHeight = Number(result.fixture?.displayHeight || result.fixture?.height || 0);
+  if (expectedWidth && expectedHeight && result.svgWidth && result.svgHeight) {
+    if (result.svgWidth < expectedWidth || result.svgHeight < expectedHeight) {
+      add(`SVG dimensions were reduced from source ${expectedWidth} x ${expectedHeight} to ${result.svgWidth} x ${result.svgHeight}`);
+    }
+  }
+  failures.push(...validateRenderMetrics(result, result.presetLabel));
+  return failures;
+}
+
+function validateProgressiveQualityTierComparison(results) {
+  const failures = [];
+  const byFixture = new Map();
+  for (const result of results) {
+    const basename = result.fixture?.basename || "unknown";
+    if (!byFixture.has(basename)) byFixture.set(basename, new Map());
+    byFixture.get(basename).set(result.presetId, result);
+  }
+
+  for (const [fixture, byPreset] of byFixture.entries()) {
+    for (const family of qualityTierComparisonFamilies) {
+      if (family.order.length < 2) continue;
+      const ordered = family.order.map((id) => byPreset.get(id));
+      for (const [index, result] of ordered.entries()) {
+        if (!result) {
+          failures.push({
+            scenarioId: `tier-comparison-${fixture}-${family.label}`,
+            fixture,
+            preset: family.order[index],
+            reason: `missing ${family.order[index]} from ${family.label} progressive tier comparison`,
+          });
+        }
+      }
+      if (ordered.some((result) => !result?.completed || !result.render?.pairedDetailMetrics)) {
+        continue;
+      }
+      const scored = ordered.map((result) => ({
+        result,
+        score: qualityTierSourceDetailScore(result),
+      }));
+      const requiredDeltas = [0.004, 0.0035, 0.003];
+      for (let index = 1; index < scored.length; index += 1) {
+        const previous = scored[index - 1];
+        const current = scored[index];
+        const previousPaired = previous.result.render.pairedDetailMetrics;
+        const currentPaired = current.result.render.pairedDetailMetrics;
+        const previousOutput = previous.result.render.outputMetrics || {};
+        const currentOutput = current.result.render.outputMetrics || {};
+        const improvesWrongRegionDarkFromDefault =
+          index === 1 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.006 &&
+          currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall * 0.82;
+        const improvesNoisyDefaultCleanup =
+          index === 1 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.02 &&
+          current.score >= previous.score + 0.0015 &&
+          (currentOutput.colorfulPixelShare || 0) >= (previousOutput.colorfulPixelShare || 0) * 1.08 &&
+          (currentOutput.lightNeutralPixelShare || 0) >= (previousOutput.lightNeutralPixelShare || 0) * 1.35;
+        const improvesSourceDetailFromDefault =
+          index === 1 &&
+          currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall + 0.004 &&
+          currentPaired.sourceHighContrastDarkRecall >= previousPaired.sourceHighContrastDarkRecall + 0.004 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.003;
+        const improvesBalancedDarkFromDefault =
+          index === 1 &&
+          currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall + 0.002 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.002;
+        const improvesHighContrastDetail =
+          index > 1 &&
+          currentPaired.sourceHighContrastDarkRecall >= previousPaired.sourceHighContrastDarkRecall + 0.002 &&
+          currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall * 0.99;
+        const improvesSourceConstrainedFineEdges =
+          index > 1 &&
+          (current.result.render.outputMetrics?.highContrastEdgeShare || 0) >=
+            (previous.result.render.outputMetrics?.highContrastEdgeShare || 0) + 0.0008 &&
+          (current.result.render.outputMetrics?.nearBlackPixelShare || 0) >=
+            (previous.result.render.outputMetrics?.nearBlackPixelShare || 0) * 1.02 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.003;
+        if (
+          !improvesWrongRegionDarkFromDefault &&
+          !improvesNoisyDefaultCleanup &&
+          !improvesSourceDetailFromDefault &&
+          !improvesBalancedDarkFromDefault &&
+          !improvesHighContrastDetail &&
+          !improvesSourceConstrainedFineEdges &&
+          current.score < previous.score + requiredDeltas[index - 1]
+        ) {
+          failures.push({
+            scenarioId: current.result.scenarioId,
+            fixture,
+            preset: current.result.presetLabel,
+            reason: `${family.label}: ${current.result.presetLabel} did not improve source-supported detail score over ${previous.result.presetLabel}; ${current.score.toFixed(4)} vs ${previous.score.toFixed(4)}`,
+          });
+        }
+      }
+      const unsupportedShares = scored.map((item) => item.result.render.pairedDetailMetrics.unsupportedOutputDarkShare);
+      const maxUnsupported = Math.max(...unsupportedShares);
+      const insane = scored.find((item) => qualityTierForPresetId(item.result.presetId) === "insane");
+      const insaneUnsupported = insane?.result.render.pairedDetailMetrics.unsupportedOutputDarkShare;
+      if (insane && insaneUnsupported > Math.max(0.018, maxUnsupported * 1.15)) {
+        failures.push({
+          scenarioId: insane.result.scenarioId,
+          fixture,
+          preset: insane.result.presetLabel,
+          reason: `${family.label}: Insane Quality increased unsupported dark detail too much; unsupported share ${insaneUnsupported}`,
+        });
+      }
+    }
+  }
+  return failures;
+}
+
+function validateQualityTierFamilyCollapse(results) {
+  const failures = [];
+  const familySpecificIds = new Set(
+    qualityTierComparisonFamilies
+      .filter((family) => family.order.length > 1)
+      .flatMap((family) => family.order),
+  );
+  const byFixtureAndTier = new Map();
+  for (const result of results) {
+    if (!result.completed || !familySpecificIds.has(result.presetId)) continue;
+    const tier = qualityTierForPresetId(result.presetId);
+    if (tier === "default") continue;
+    const fixture = result.fixture?.basename || "unknown";
+    const key = `${fixture}:${tier}`;
+    if (!byFixtureAndTier.has(key)) byFixtureAndTier.set(key, []);
+    byFixtureAndTier.get(key).push(result);
+  }
+
+  for (const [key, tierResults] of byFixtureAndTier.entries()) {
+    const signatures = new Map();
+    for (const result of tierResults) {
+      const signature = [
+        result.downloadHash || result.copyHash || "",
+        result.svgBytes || 0,
+        result.pathCount || 0,
+        result.segmentCount || 0,
+        result.layerTotalCount || 0,
+      ].join(":");
+      if (!signatures.has(signature)) signatures.set(signature, []);
+      signatures.get(signature).push(result);
+    }
+    for (const duplicates of signatures.values()) {
+      if (duplicates.length < 2) continue;
+      const [fixture, tier] = key.split(":");
+      failures.push({
+        scenarioId: `tier-family-collapse-${fixture}-${tier}`,
+        fixture,
+        preset: duplicates.map((item) => item.presetLabel).join(", "),
+        reason: `${tier} quality family presets produced identical SVG output signatures; labels must not silently collapse to one hidden implementation`,
+      });
+    }
+  }
+  return failures;
+}
+
+function qualityTierSourceDetailScore(result) {
+  const paired = result.render?.pairedDetailMetrics;
+  const output = result.render?.outputMetrics;
+  if (!paired || !output) return 0;
+  const darkOvershoot = Math.max(
+    0,
+    paired.outputDarkPixelShare - paired.sourceSupportedDarkPixelShare * 1.25,
+  );
+  const sourceBoundedEdgeShare = Math.min(
+    output.highContrastEdgeShare || 0,
+    (paired.sourceHighContrastDarkPixelShare || 0) * 0.06,
+  );
+  return (
+    paired.sourceSupportedDarkRecall * 0.52 +
+    paired.sourceHighContrastDarkRecall * 0.4 +
+    output.nearBlackPixelShare * 0.12 +
+    sourceBoundedEdgeShare * 10 +
+    output.colorfulPixelShare * 0.02 -
+    paired.unsupportedOutputDarkShare * 1.8 -
+    darkOvershoot
+  );
+}
+
 function validateRenderMetrics(result, label) {
   const failures = [];
   const source = result.render?.sourceMetrics;
@@ -414,7 +758,9 @@ function validateRenderMetrics(result, label) {
   if (source.darkPixelShare > 0.02 && output.darkPixelShare < source.darkPixelShare * 0.5) {
     add(`dark detail metric dropped materially for ${label}: source ${source.darkPixelShare}, output ${output.darkPixelShare}`);
   }
-  if (source.highContrastEdgeShare > 0.004 && output.highContrastEdgeShare < source.highContrastEdgeShare * 0.5) {
+  const tier = qualityTierForPresetId(result.presetId);
+  const edgeRetentionRatio = tier === "default" ? 0.5 : 0.25;
+  if (source.highContrastEdgeShare > 0.004 && output.highContrastEdgeShare < source.highContrastEdgeShare * edgeRetentionRatio - 0.0002) {
     add(`edge/detail metric dropped materially for ${label}: source ${source.highContrastEdgeShare}, output ${output.highContrastEdgeShare}`);
   }
   const sourceAlpha = result.render?.sourceAlphaMetrics;
@@ -427,6 +773,30 @@ function validateRenderMetrics(result, label) {
   }
   if (source.colorfulPixelShare > 0.06 && output.colorfulPixelShare < source.colorfulPixelShare * 0.35) {
     add(`color/detail metric collapsed for ${label}: source ${source.colorfulPixelShare}, output ${output.colorfulPixelShare}`);
+  }
+  const paired = result.render?.pairedDetailMetrics;
+  if (paired) {
+    const minSourceDarkRecall =
+      tier === "insane" ? 0.095 : tier === "high" ? 0.09 : tier === "medium" ? 0.075 : 0;
+    const minHighContrastDarkRecall =
+      tier === "insane" ? 0.13 : tier === "high" ? 0.11 : tier === "medium" ? 0.095 : 0;
+    if (tier !== "default" && paired.sourceSupportedDarkPixelShare > 0.005 && paired.sourceSupportedDarkRecall < minSourceDarkRecall) {
+      add(`source-supported dark text/linework recall is too low for ${label}: ${paired.sourceSupportedDarkRecall}`);
+    }
+    if (tier !== "default" && paired.sourceHighContrastDarkPixelShare > 0.003 && paired.sourceHighContrastDarkRecall < minHighContrastDarkRecall) {
+      add(`high-contrast dark linework recall is too low for ${label}: ${paired.sourceHighContrastDarkRecall}`);
+    }
+    const unsupportedDarkLimit = tier === "default" ? 0.065 : 0.035;
+    if (paired.unsupportedOutputDarkShare > unsupportedDarkLimit) {
+      add(`output adds too much dark detail where the source is not dark/high-contrast for ${label}: ${paired.unsupportedOutputDarkShare}`);
+    }
+    if (tier !== "default" && paired.unsupportedOutputDarkShare > paired.sourceSupportedDarkPixelShare * 1.6 + 0.012) {
+      add(`wrong-region dark detail outweighs source-supported dark detail for ${label}: unsupported ${paired.unsupportedOutputDarkShare}, source-supported ${paired.sourceSupportedDarkPixelShare}`);
+    }
+    const overDarkLimit = paired.sourceSupportedDarkPixelShare * 1.45 + 0.03;
+    if (tier !== "default" && paired.outputDarkPixelShare > overDarkLimit) {
+      add(`output dark detail is no longer source-constrained for ${label}: output ${paired.outputDarkPixelShare}, source-supported ${paired.sourceSupportedDarkPixelShare}`);
+    }
   }
   return failures;
 }
@@ -615,6 +985,7 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
   const outputAlpha = await sharp(svgAlphaOut).resize(520, 520, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).ensureAlpha().raw().toBuffer();
   const sourceMetrics = imageDarkMetrics(source);
   const outputMetrics = imageDarkMetrics(output);
+  const pairedDetailMetrics = pairedSourceOutputDetailMetrics(source, output, 520, 520);
   const sourceAlphaMetrics = imageAlphaMetrics(sourceAlpha);
   const outputAlphaMetrics = imageAlphaMetrics(outputAlpha);
   await sharp({
@@ -632,6 +1003,7 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
     sheetOut,
     sourceMetrics,
     outputMetrics,
+    pairedDetailMetrics,
     sourceAlphaMetrics,
     outputAlphaMetrics,
   };
@@ -679,6 +1051,91 @@ function imageAlphaMetrics(raw) {
     paintedCoverage,
     transparentMissingRatio: round(1 - paintedCoverage, 4),
   };
+}
+
+function pairedSourceOutputDetailMetrics(source, output, width, height) {
+  let sourceSupportedDark = 0;
+  let sourceSupportedDarkHit = 0;
+  let sourceHighContrastDark = 0;
+  let sourceHighContrastDarkHit = 0;
+  let unsupportedOutputDark = 0;
+  let outputDark = 0;
+  const pixels = width * height;
+  for (let pixel = 0; pixel < pixels; pixel += 1) {
+    const offset = pixel * 3;
+    const sourceColor = {
+      r: source[offset],
+      g: source[offset + 1],
+      b: source[offset + 2],
+    };
+    const outputColor = {
+      r: output[offset],
+      g: output[offset + 1],
+      b: output[offset + 2],
+    };
+    const sourceLuma = rgbLuma255(sourceColor);
+    const outputLuma = rgbLuma255(outputColor);
+    const sourceContrast = localLumaContrast(source, width, height, pixel);
+    const sourceSaturation = Math.max(sourceColor.r, sourceColor.g, sourceColor.b) - Math.min(sourceColor.r, sourceColor.g, sourceColor.b);
+    const isOutputDark = outputLuma < 82;
+    const isSourceSupportedDark =
+      sourceLuma < 86 &&
+      (sourceLuma < 44 || sourceContrast >= 34 || sourceSaturation <= 34);
+    const isSourceHighContrastDark =
+      sourceLuma < 104 &&
+      sourceContrast >= 54;
+    const isUnsupportedDark =
+      isOutputDark &&
+      sourceLuma > 112 &&
+      sourceContrast < 42 &&
+      sourceSaturation > 26;
+
+    if (isOutputDark) outputDark += 1;
+    if (isSourceSupportedDark) {
+      sourceSupportedDark += 1;
+      if (isOutputDark) sourceSupportedDarkHit += 1;
+    }
+    if (isSourceHighContrastDark) {
+      sourceHighContrastDark += 1;
+      if (isOutputDark) sourceHighContrastDarkHit += 1;
+    }
+    if (isUnsupportedDark) unsupportedOutputDark += 1;
+  }
+  return {
+    sourceSupportedDarkPixelShare: round(sourceSupportedDark / pixels, 4),
+    sourceSupportedDarkRecall: round(sourceSupportedDarkHit / Math.max(1, sourceSupportedDark), 4),
+    sourceHighContrastDarkPixelShare: round(sourceHighContrastDark / pixels, 4),
+    sourceHighContrastDarkRecall: round(sourceHighContrastDarkHit / Math.max(1, sourceHighContrastDark), 4),
+    outputDarkPixelShare: round(outputDark / pixels, 4),
+    unsupportedOutputDarkShare: round(unsupportedOutputDark / pixels, 4),
+  };
+}
+
+function localLumaContrast(raw, width, height, pixel) {
+  const x = pixel % width;
+  const y = Math.floor(pixel / width);
+  const center = rgbLumaAt(raw, pixel);
+  let maxDelta = 0;
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-2, 0], [2, 0], [0, -2], [0, 2]]) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+    maxDelta = Math.max(maxDelta, Math.abs(center - rgbLumaAt(raw, ny * width + nx)));
+  }
+  return maxDelta;
+}
+
+function rgbLumaAt(raw, pixel) {
+  const offset = pixel * 3;
+  return rgbLuma255({
+    r: raw[offset],
+    g: raw[offset + 1],
+    b: raw[offset + 2],
+  });
+}
+
+function rgbLuma255(color) {
+  return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 }
 
 async function analyzeSvgFile(svgPath) {
@@ -1167,6 +1624,7 @@ function outputStateExpression(previousLatestStamp) {
       latestChanged: ${previousLatestStamp == null ? "true" : `latestStamp !== ${JSON.stringify(previousLatestStamp)}`},
       latestJobStatus: latest ? latest.getAttribute("data-job-status") || null : null,
       latestText: latest ? [latest.getAttribute("data-engine-used") || "", fileSize, source].filter(Boolean).join(" ") : "",
+      latestBodyText: latest ? (latest.innerText || latest.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 1200) : "",
       latestSvgBytes: latest ? numberOrNull(latest.getAttribute("data-svg-bytes")) : null,
     };
     function isActiveCard(card) {

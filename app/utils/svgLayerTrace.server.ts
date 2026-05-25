@@ -135,10 +135,27 @@ type CompactLayeredVTracerQualityOptions = {
   colorPrecision: number;
   layerDifference: number;
   lengthThreshold: number;
+  pathSimplifyMode: "spline" | "none";
+  maxIterations: number;
+  spliceThreshold: number;
+  pathPrecision: number;
+  sourceConstrainedDetail: boolean;
   darkDetailLuma: number;
+  darkDetailVeryDarkLuma: number;
+  darkDetailContrast: number;
+  darkDetailMinPixels: number;
+  darkDetailMaxShare: number;
+  darkDetailMinComponentArea: number;
+  darkDetailMaxComponentShare: number;
   darkDetailTurdSize: number;
   darkDetailOptTolerance: number;
   edgeGradient: number;
+  edgeDarkLuma: number;
+  edgeContrast: number;
+  edgeMinPixels: number;
+  edgeMaxShare: number;
+  edgeMinComponentArea: number;
+  edgeMaxComponentShare: number;
   edgeTurdSize: number;
   edgeOptTolerance: number;
 };
@@ -274,47 +291,203 @@ function shouldUseCompactFlatColorVTracer(
 
 function compactLayeredVTracerQualityOptions(
   tier: LayeredQualityTier,
+  presetId?: string,
 ): CompactLayeredVTracerQualityOptions {
-  if (tier === "high" || tier === "insane") {
-    return {
-      filterSpeckle: 40,
+  let options: CompactLayeredVTracerQualityOptions;
+  if (tier === "insane") {
+    options = {
+      filterSpeckle: 32,
+      colorPrecision: 8,
+      layerDifference: 18,
+      lengthThreshold: 5.2,
+      pathSimplifyMode: "spline",
+      maxIterations: 12,
+      spliceThreshold: 36,
+      pathPrecision: 2,
+      sourceConstrainedDetail: true,
+      darkDetailLuma: 100,
+      darkDetailVeryDarkLuma: 62,
+      darkDetailContrast: 24,
+      darkDetailMinPixels: 100,
+      darkDetailMaxShare: 0.075,
+      darkDetailMinComponentArea: 2,
+      darkDetailMaxComponentShare: 0.026,
+      darkDetailTurdSize: 3,
+      darkDetailOptTolerance: 0.75,
+      edgeGradient: 56,
+      edgeDarkLuma: 100,
+      edgeContrast: 54,
+      edgeMinPixels: 120,
+      edgeMaxShare: 0.032,
+      edgeMinComponentArea: 2,
+      edgeMaxComponentShare: 0.014,
+      edgeTurdSize: 10,
+      edgeOptTolerance: 1.45,
+    };
+  } else if (tier === "high") {
+    options = {
+      filterSpeckle: 50,
       colorPrecision: 8,
       layerDifference: 24,
-      lengthThreshold: 6,
-      darkDetailLuma: 74,
-      darkDetailTurdSize: 4,
-      darkDetailOptTolerance: 0.9,
-      edgeGradient: 58,
-      edgeTurdSize: 14,
-      edgeOptTolerance: 1.8,
+      lengthThreshold: 6.8,
+      pathSimplifyMode: "spline",
+      maxIterations: 10,
+      spliceThreshold: 40,
+      pathPrecision: 1,
+      sourceConstrainedDetail: true,
+      darkDetailLuma: 96,
+      darkDetailVeryDarkLuma: 60,
+      darkDetailContrast: 26,
+      darkDetailMinPixels: 120,
+      darkDetailMaxShare: 0.068,
+      darkDetailMinComponentArea: 3,
+      darkDetailMaxComponentShare: 0.022,
+      darkDetailTurdSize: 6,
+      darkDetailOptTolerance: 1.05,
+      edgeGradient: 60,
+      edgeDarkLuma: 96,
+      edgeContrast: 58,
+      edgeMinPixels: 190,
+      edgeMaxShare: 0.028,
+      edgeMinComponentArea: 3,
+      edgeMaxComponentShare: 0.011,
+      edgeTurdSize: 18,
+      edgeOptTolerance: 2.2,
     };
-  }
-  if (tier === "medium") {
-    return {
+  } else if (tier === "medium") {
+    options = {
       filterSpeckle: 55,
       colorPrecision: 8,
       layerDifference: 28,
       lengthThreshold: 7.5,
-      darkDetailLuma: 72,
+      pathSimplifyMode: "spline",
+      maxIterations: 10,
+      spliceThreshold: 42,
+      pathPrecision: 1,
+      sourceConstrainedDetail: true,
+      darkDetailLuma: 90,
+      darkDetailVeryDarkLuma: 56,
+      darkDetailContrast: 30,
+      darkDetailMinPixels: 120,
+      darkDetailMaxShare: 0.06,
+      darkDetailMinComponentArea: 3,
+      darkDetailMaxComponentShare: 0.02,
       darkDetailTurdSize: 8,
       darkDetailOptTolerance: 1.2,
       edgeGradient: 64,
+      edgeDarkLuma: 88,
+      edgeContrast: 62,
+      edgeMinPixels: 180,
+      edgeMaxShare: 0.024,
+      edgeMinComponentArea: 3,
+      edgeMaxComponentShare: 0.01,
       edgeTurdSize: 28,
       edgeOptTolerance: 2.8,
     };
+  } else {
+    options = {
+      filterSpeckle: 65,
+      colorPrecision: 7,
+      layerDifference: 32,
+      lengthThreshold: 9,
+      pathSimplifyMode: "spline",
+      maxIterations: 10,
+      spliceThreshold: 45,
+      pathPrecision: 1,
+      sourceConstrainedDetail: false,
+      darkDetailLuma: COMPACT_VTRACER_DARK_DETAIL_LUMA,
+      darkDetailVeryDarkLuma: 42,
+      darkDetailContrast: 46,
+      darkDetailMinPixels: 120,
+      darkDetailMaxShare: 0.12,
+      darkDetailMinComponentArea: 1,
+      darkDetailMaxComponentShare: 0.12,
+      darkDetailTurdSize: 12,
+      darkDetailOptTolerance: 1.6,
+      edgeGradient: 70,
+      edgeDarkLuma: 255,
+      edgeContrast: 0,
+      edgeMinPixels: 200,
+      edgeMaxShare: 0.05,
+      edgeMinComponentArea: 1,
+      edgeMaxComponentShare: 0.05,
+      edgeTurdSize: 48,
+      edgeOptTolerance: 4,
+    };
   }
-  return {
-    filterSpeckle: 65,
-    colorPrecision: 7,
-    layerDifference: 32,
-    lengthThreshold: 9,
-    darkDetailLuma: COMPACT_VTRACER_DARK_DETAIL_LUMA,
-    darkDetailTurdSize: 12,
-    darkDetailOptTolerance: 1.6,
-    edgeGradient: 70,
-    edgeTurdSize: 48,
-    edgeOptTolerance: 4,
-  };
+  return applyCompactLayeredVTracerFamilyOptions(options, tier, presetId);
+}
+
+function applyCompactLayeredVTracerFamilyOptions(
+  options: CompactLayeredVTracerQualityOptions,
+  tier: LayeredQualityTier,
+  presetId?: string,
+): CompactLayeredVTracerQualityOptions {
+  const id = String(presetId || "").toLowerCase();
+  if (tier === "default" || id.startsWith("layered-flat-color")) return options;
+  if (id.startsWith("photo-many-colors")) {
+    if (tier === "insane") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(104, options.darkDetailLuma + 4),
+        darkDetailVeryDarkLuma: Math.min(66, options.darkDetailVeryDarkLuma + 4),
+        darkDetailContrast: Math.max(21, options.darkDetailContrast - 2),
+        edgeGradient: Math.max(54, options.edgeGradient - 2),
+        edgeMaxShare: Math.min(0.034, options.edgeMaxShare + 0.002),
+      };
+    }
+    if (tier === "medium") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(96, options.darkDetailLuma + 6),
+        darkDetailVeryDarkLuma: Math.min(62, options.darkDetailVeryDarkLuma + 6),
+        darkDetailContrast: Math.max(27, options.darkDetailContrast - 3),
+        edgeDarkLuma: Math.max(92, options.edgeDarkLuma),
+        edgeGradient: Math.max(60, options.edgeGradient - 4),
+        edgeMaxShare: Math.min(0.028, options.edgeMaxShare + 0.004),
+        edgeTurdSize: Math.max(22, options.edgeTurdSize - 6),
+        edgeOptTolerance: Math.max(2.35, options.edgeOptTolerance - 0.35),
+      };
+    }
+    return {
+      ...options,
+      darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
+      darkDetailVeryDarkLuma: Math.min(65, options.darkDetailVeryDarkLuma + 3),
+      darkDetailContrast: Math.max(22, options.darkDetailContrast - 1),
+      edgeGradient: Math.max(54, options.edgeGradient - 1),
+      edgeMaxShare: Math.min(0.034, options.edgeMaxShare + 0.0015),
+    };
+  }
+  if (id.startsWith("layered-detail") || id === "layered-insane-quality") {
+    return {
+      ...options,
+      darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
+      darkDetailVeryDarkLuma: Math.min(65, options.darkDetailVeryDarkLuma + 3),
+      darkDetailContrast: Math.max(21, options.darkDetailContrast - 2),
+      darkDetailMinComponentArea: Math.max(1, options.darkDetailMinComponentArea - 1),
+      edgeGradient: Math.max(53, options.edgeGradient - 2),
+      edgeMaxShare: Math.min(0.035, options.edgeMaxShare + 0.002),
+      edgeTurdSize: Math.max(8, options.edgeTurdSize - 2),
+    };
+  }
+  if (id.startsWith("filled-layers-separate-colors")) {
+    if (tier === "high") {
+      return {
+        ...options,
+        pathPrecision: Math.max(options.pathPrecision, 2),
+        darkDetailOptTolerance: options.darkDetailOptTolerance + 0.04,
+        edgeOptTolerance: options.edgeOptTolerance + 0.04,
+      };
+    }
+    return {
+      ...options,
+      darkDetailLuma: Math.min(101, options.darkDetailLuma + 1),
+      darkDetailVeryDarkLuma: Math.min(63, options.darkDetailVeryDarkLuma + 1),
+      edgeGradient: Math.max(55, options.edgeGradient - 0.5),
+      edgeMaxShare: Math.min(0.033, options.edgeMaxShare + 0.001),
+    };
+  }
+  return options;
 }
 
 async function createCompactFlatColorVTracerSvg({
@@ -344,20 +517,25 @@ async function createCompactFlatColorVTracerSvg({
 }> {
   const qualityOptions = compactLayeredVTracerQualityOptions(
     options.layeredQualityTier,
+    options.presetId,
   );
   const config = new serverVTracerRuntime.TracerConfig();
   try {
     config.setColorMode(serverVTracerRuntime.ColorMode.Color);
     config.setHierarchical(serverVTracerRuntime.Hierarchical.Cutout);
-    config.setPathSimplifyMode(serverVTracerRuntime.PathSimplifyMode.Spline);
+    config.setPathSimplifyMode(
+      qualityOptions.pathSimplifyMode === "none"
+        ? serverVTracerRuntime.PathSimplifyMode.None
+        : serverVTracerRuntime.PathSimplifyMode.Spline,
+    );
     config.setFilterSpeckle(qualityOptions.filterSpeckle);
     config.setColorPrecision(qualityOptions.colorPrecision);
     config.setLayerDifference(qualityOptions.layerDifference);
     config.setCornerThreshold(60);
     config.setLengthThreshold(qualityOptions.lengthThreshold);
-    config.setMaxIterations(10);
-    config.setSpliceThreshold(45);
-    config.setPathPrecision(1);
+    config.setMaxIterations(qualityOptions.maxIterations);
+    config.setSpliceThreshold(qualityOptions.spliceThreshold);
+    config.setPathPrecision(qualityOptions.pathPrecision);
 
     const rawSvg = serverVTracerRuntime.convertImageToSvg(
       new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
@@ -382,7 +560,14 @@ async function createCompactFlatColorVTracerSvg({
     });
     const paletteLimitedSvg = snapCompactVTracerPalette(
       svg,
-      COMPACT_VTRACER_MAX_EDITABLE_COLORS,
+      qualityOptions.sourceConstrainedDetail
+        ? COMPACT_VTRACER_MAX_EDITABLE_COLORS - 1
+        : COMPACT_VTRACER_MAX_EDITABLE_COLORS,
+      {
+        darkSnapLuma: qualityOptions.sourceConstrainedDetail
+          ? qualityOptions.darkDetailVeryDarkLuma
+          : COMPACT_VTRACER_DARK_SNAP_LUMA,
+      },
     );
     const darkDetailPaths = await createCompactVTracerDarkDetailOverlayPaths({
       raw,
@@ -450,9 +635,16 @@ function normalizeCompactVTracerSvg(
     .trim();
 }
 
-function snapCompactVTracerPalette(svg: string, maxColors: number) {
+function snapCompactVTracerPalette(
+  svg: string,
+  maxColors: number,
+  options: { darkSnapLuma?: number } = {},
+) {
   const samples: RGB[] = [];
   let hasDarkDetail = false;
+  const darkSnapLuma = Number.isFinite(options.darkSnapLuma)
+    ? Number(options.darkSnapLuma)
+    : COMPACT_VTRACER_DARK_SNAP_LUMA;
 
   for (const match of String(svg).matchAll(/<path\b[^>]*>/gi)) {
     const tag = match[0];
@@ -460,7 +652,7 @@ function snapCompactVTracerPalette(svg: string, maxColors: number) {
     const color = fill ? parseHexToRgb(fill) : null;
     if (!color) continue;
     const normalized =
-      luminance(color) < COMPACT_VTRACER_DARK_SNAP_LUMA
+      luminance(color) < darkSnapLuma
         ? COMPACT_VTRACER_DARK_COLOR
         : color;
     hasDarkDetail ||= normalized === COMPACT_VTRACER_DARK_COLOR;
@@ -489,7 +681,7 @@ function snapCompactVTracerPalette(svg: string, maxColors: number) {
   const snapPaint = (value: string) => {
     const color = parseHexToRgb(value);
     if (!color || palette.length === 0) return value;
-    if (luminance(color) < COMPACT_VTRACER_DARK_SNAP_LUMA) {
+    if (luminance(color) < darkSnapLuma) {
       return rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR);
     }
     return rgbObjectToHex(palette[nearestPaletteIndex(color, palette)]);
@@ -517,7 +709,7 @@ async function createCompactVTracerDarkDetailOverlayPaths({
   const bounds = estimateFlatColorForegroundBounds(raw, width, height);
   if (!bounds) return "";
 
-  const mask = Buffer.alloc(width * height, 255);
+  let mask = Buffer.alloc(width * height, 255);
   let inkPixels = 0;
   for (let pixel = 0; pixel < width * height; pixel += 1) {
     const x = pixel % width;
@@ -533,13 +725,39 @@ async function createCompactVTracerDarkDetailOverlayPaths({
     const offset = pixel * 4;
     if (raw[offset + 3] < 18) continue;
     const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
-    if (luminance(color) >= qualityOptions.darkDetailLuma) continue;
+    const supported = qualityOptions.sourceConstrainedDetail
+      ? isSourceSupportedDarkDetailPixel({
+          raw,
+          width,
+          height,
+          x,
+          y,
+          color,
+          qualityOptions,
+        })
+      : luminance(color) < qualityOptions.darkDetailLuma;
+    if (!supported) continue;
     mask[pixel] = 0;
     inkPixels += 1;
   }
 
-  const share = inkPixels / Math.max(1, width * height);
-  if (inkPixels < 120 || share > 0.12) return "";
+  let keptPixels = inkPixels;
+  if (qualityOptions.sourceConstrainedDetail) {
+    const filtered = filterDetailMaskComponents(mask, width, height, {
+      minArea: qualityOptions.darkDetailMinComponentArea,
+      maxAreaShare: qualityOptions.darkDetailMaxComponentShare,
+    });
+    mask = filtered.mask;
+    keptPixels = filtered.keptPixels;
+  }
+
+  const share = keptPixels / Math.max(1, width * height);
+  if (
+    keptPixels < qualityOptions.darkDetailMinPixels ||
+    share > qualityOptions.darkDetailMaxShare
+  ) {
+    return "";
+  }
 
   const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
     .png()
@@ -577,7 +795,7 @@ async function createCompactVTracerEdgeOverlayPaths({
   const bounds = estimateFlatColorForegroundBounds(raw, width, height);
   if (!bounds) return "";
 
-  const mask = Buffer.alloc(width * height, 255);
+  let mask = Buffer.alloc(width * height, 255);
   let edgePixels = 0;
   const pixelLuma = (pixel: number) => {
     const offset = pixel * 4;
@@ -613,10 +831,21 @@ async function createCompactVTracerEdgeOverlayPaths({
         Math.abs(center - pixelLuma(pixel - width)),
         Math.abs(center - pixelLuma(pixel + width)),
       );
-      if (
-        gradient < qualityOptions.edgeGradient ||
-        (center >= 210 && colorSaturation(sourceColor) <= 36)
-      ) {
+      const supported = qualityOptions.sourceConstrainedDetail
+        ? isSourceSupportedDarkEdgePixel({
+            raw,
+            width,
+            height,
+            x,
+            y,
+            color: sourceColor,
+            centerLuma: center,
+            gradient,
+            qualityOptions,
+          })
+        : gradient >= qualityOptions.edgeGradient &&
+          !(center >= 210 && colorSaturation(sourceColor) <= 36);
+      if (!supported) {
         continue;
       }
       mask[pixel] = 0;
@@ -624,8 +853,23 @@ async function createCompactVTracerEdgeOverlayPaths({
     }
   }
 
-  const share = edgePixels / Math.max(1, width * height);
-  if (edgePixels < 200 || share > 0.05) return "";
+  let keptPixels = edgePixels;
+  if (qualityOptions.sourceConstrainedDetail) {
+    const filtered = filterDetailMaskComponents(mask, width, height, {
+      minArea: qualityOptions.edgeMinComponentArea,
+      maxAreaShare: qualityOptions.edgeMaxComponentShare,
+    });
+    mask = filtered.mask;
+    keptPixels = filtered.keptPixels;
+  }
+
+  const share = keptPixels / Math.max(1, width * height);
+  if (
+    keptPixels < qualityOptions.edgeMinPixels ||
+    share > qualityOptions.edgeMaxShare
+  ) {
+    return "";
+  }
 
   const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
     .png()
@@ -645,6 +889,175 @@ async function createCompactVTracerEdgeOverlayPaths({
     )
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isSourceSupportedDarkDetailPixel({
+  raw,
+  width,
+  height,
+  x,
+  y,
+  color,
+  qualityOptions,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  color: RGB;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  const centerLuma = luminance(color);
+  if (centerLuma >= qualityOptions.darkDetailLuma) return false;
+  const stats = localSourceDetailStats(raw, width, height, x, y, color);
+  if (
+    centerLuma <= qualityOptions.darkDetailVeryDarkLuma &&
+    stats.maxLuma - centerLuma >= Math.max(18, qualityOptions.darkDetailContrast * 0.45)
+  ) {
+    return true;
+  }
+  if (
+    centerLuma < qualityOptions.darkDetailLuma * 0.82 &&
+    (stats.maxLuma - centerLuma >= qualityOptions.darkDetailContrast * 0.45 ||
+      stats.maxDistance >= Math.max(24, qualityOptions.darkDetailContrast * 0.65))
+  ) {
+    return true;
+  }
+  return (
+    stats.maxLuma - centerLuma >= qualityOptions.darkDetailContrast &&
+    stats.maxDistance >= Math.max(34, qualityOptions.darkDetailContrast * 0.85)
+  );
+}
+
+function isSourceSupportedDarkEdgePixel({
+  raw,
+  width,
+  height,
+  x,
+  y,
+  color,
+  centerLuma,
+  gradient,
+  qualityOptions,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  color: RGB;
+  centerLuma: number;
+  gradient: number;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  if (gradient < qualityOptions.edgeGradient) return false;
+  if (centerLuma >= qualityOptions.edgeDarkLuma) return false;
+  if (centerLuma >= 210 && colorSaturation(color) <= 36) return false;
+  const stats = localSourceDetailStats(raw, width, height, x, y, color);
+  return (
+    stats.maxLuma - centerLuma >= qualityOptions.edgeContrast ||
+    stats.maxDistance >= Math.max(48, qualityOptions.edgeContrast * 0.85)
+  );
+}
+
+function localSourceDetailStats(
+  raw: Buffer,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  color: RGB,
+) {
+  const offsets = [
+    [-2, 0],
+    [-1, 0],
+    [1, 0],
+    [2, 0],
+    [0, -2],
+    [0, -1],
+    [0, 1],
+    [0, 2],
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+    [-4, 0],
+    [4, 0],
+    [0, -4],
+    [0, 4],
+  ] as const;
+  let maxLuma = luminance(color);
+  let minLuma = maxLuma;
+  let maxDistance = 0;
+  for (const [dx, dy] of offsets) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+    const pixel = ny * width + nx;
+    const offset = pixel * 4;
+    if (raw[offset + 3] < 18) continue;
+    const neighbor = {
+      r: raw[offset],
+      g: raw[offset + 1],
+      b: raw[offset + 2],
+    };
+    const luma = luminance(neighbor);
+    maxLuma = Math.max(maxLuma, luma);
+    minLuma = Math.min(minLuma, luma);
+    maxDistance = Math.max(maxDistance, colorDistance(color, neighbor));
+  }
+  return { maxLuma, minLuma, maxDistance };
+}
+
+function filterDetailMaskComponents(
+  mask: Buffer,
+  width: number,
+  height: number,
+  options: { minArea: number; maxAreaShare: number },
+) {
+  const total = width * height;
+  const out = Buffer.alloc(total, 255);
+  const visited = new Uint8Array(total);
+  const stack: number[] = [];
+  const component: number[] = [];
+  const minArea = Math.max(1, Math.round(options.minArea));
+  const maxArea = Math.max(minArea, Math.round(total * options.maxAreaShare));
+  let keptPixels = 0;
+
+  for (let start = 0; start < total; start += 1) {
+    if (mask[start] !== 0 || visited[start]) continue;
+    stack.length = 0;
+    component.length = 0;
+    stack.push(start);
+    visited[start] = 1;
+    while (stack.length > 0) {
+      const pixel = stack.pop()!;
+      component.push(pixel);
+      const x = pixel % width;
+      const neighbors = [
+        pixel - 1,
+        pixel + 1,
+        pixel - width,
+        pixel + width,
+      ];
+      for (const next of neighbors) {
+        if (next < 0 || next >= total || visited[next] || mask[next] !== 0) {
+          continue;
+        }
+        if ((next === pixel - 1 && x === 0) || (next === pixel + 1 && x === width - 1)) {
+          continue;
+        }
+        visited[next] = 1;
+        stack.push(next);
+      }
+    }
+    if (component.length < minArea || component.length > maxArea) continue;
+    for (const pixel of component) out[pixel] = 0;
+    keptPixels += component.length;
+  }
+
+  return { mask: out, keptPixels };
 }
 
 function appendSvgPaths(svg: string, pathTags: string) {

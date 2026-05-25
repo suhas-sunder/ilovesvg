@@ -334,14 +334,8 @@ async function auditPresets() {
 }
 
 function isAllowedDuplicatePresetSettings(ids) {
-  const normalized = [...ids].sort();
-  const allowed = [
-    ["layered-flat-color-insane-quality", "layered-insane-quality"],
-  ];
-  return allowed.some((group) =>
-    group.length === normalized.length &&
-    group.every((id, index) => id === normalized[index]),
-  );
+  void ids;
+  return false;
 }
 
 async function auditTracingArchitecture() {

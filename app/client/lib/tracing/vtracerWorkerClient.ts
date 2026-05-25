@@ -97,6 +97,17 @@ export async function tryTraceRasterInClient(input: {
       input.settings.presetBackendIntensity ??
       null,
   };
+  const layeredQualityTier = normalizeLayeredQualityTier(
+    settings.layeredQualityTier,
+    settings.presetId,
+  );
+  if (settings.traceMode === "layered" && layeredQualityTier !== "default") {
+    return {
+      ok: false,
+      reason:
+        "Layered quality tier presets use the server trace path for highest-fidelity output.",
+    };
+  }
   if (settings.strokeOutputMode === "centerline") {
     return tryTraceCenterlineInClient({
       file: input.file,
@@ -140,13 +151,22 @@ export async function tryTraceRasterInClient(input: {
     );
     const result = await new Promise<TraceResult>((resolve, reject) => {
       let settled = false;
+      const layered = settings.traceMode === "layered";
+      const workerTimeoutMs =
+        layered && layeredQualityTier === "insane"
+          ? 45_000
+          : layered && layeredQualityTier === "high"
+            ? 150_000
+            : layered && layeredQualityTier === "medium"
+              ? 105_000
+              : 45_000;
       const timeout = window.setTimeout(() => {
         fail(
           new Error(
             "Browser tracing took too long. Falling back to the server engine.",
           ),
         );
-      }, 45_000);
+      }, workerTimeoutMs);
       const abortHandler = () => {
         worker?.terminate();
         fail(new Error("Conversion was canceled."));

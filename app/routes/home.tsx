@@ -759,13 +759,26 @@ export async function action({ request }: ActionFunctionArgs) {
       const advancedTraceSettings = readAdvancedTraceFormSettings(form);
 
       const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
+      const maxLayerCountForRequest =
+        advancedTraceSettings.layeredQualityTier === "default"
+          ? MAX_LAYER_COUNT
+          : 32;
       const colorLayerCount = clampNumber(
         Number(
           form.get("colorLayerCount") ?? BASE_LAYERED_COLOR_DEFAULTS.layerCount,
         ),
         MIN_LAYER_COUNT,
-        MAX_LAYER_COUNT,
+        maxLayerCountForRequest,
       );
+      const requestedPaletteCount = clampNumber(
+        Number(advancedTraceSettings.requestedPaletteCount || colorLayerCount),
+        MIN_LAYER_COUNT,
+        maxLayerCountForRequest,
+      );
+      const effectiveColorLayerCount =
+        advancedTraceSettings.layeredQualityTier === "default"
+          ? colorLayerCount
+          : Math.max(colorLayerCount, requestedPaletteCount);
       const layerMaxTraceSide = clampNumber(
         Number(
           form.get("layerMaxTraceSide") ??
@@ -838,7 +851,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const routeLayeredTraceAdapter = runSharedLayeredColorTraceShared;
         const layered = await routeLayeredTraceAdapter(input, {
           presetId,
-          layerCount: Math.round(colorLayerCount),
+          layerCount: Math.round(effectiveColorLayerCount),
           maxTraceSide: Math.round(layerMaxTraceSide),
           minRegionPercent,
           optTolerance: layerOptTolerance,

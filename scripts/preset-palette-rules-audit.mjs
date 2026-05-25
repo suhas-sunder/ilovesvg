@@ -1544,6 +1544,27 @@ function buildQualityTierInventoryGuardrails(inventory) {
       };
     });
 
+    const settingPairs = [
+      ["default", "medium"],
+      ["medium", "high"],
+      ["high", "insane"],
+    ];
+    for (const [lowerTier, upperTier] of settingPairs) {
+      const lower = family.tiers.find((tier) => tier.tier === lowerTier);
+      const upper = family.tiers.find((tier) => tier.tier === upperTier);
+      const lowerPreset = lower ? sharedById.get(lower.id) : null;
+      const upperPreset = upper ? sharedById.get(upper.id) : null;
+      if (!lowerPreset || !upperPreset) continue;
+      if (
+        comparableQualityTierSettingsSignature(lowerPreset.settings) ===
+        comparableQualityTierSettingsSignature(upperPreset.settings)
+      ) {
+        failures.push(
+          `${family.family} ${lowerTier} and ${upperTier} presets share the same non-tier settings; quality tiers must remain materially distinct.`,
+        );
+      }
+    }
+
     const hiddenOrCollapsed = tiers.filter((tier) => !tier.visibleSeparateOption);
     if (hiddenOrCollapsed.length > 0) {
       failures.push(
@@ -1559,6 +1580,17 @@ function buildQualityTierInventoryGuardrails(inventory) {
   });
 
   const optionalGenericInsane = sharedById.get("layered-insane-quality") || null;
+  const flatInsane = sharedById.get("layered-flat-color-insane-quality") || null;
+  if (
+    optionalGenericInsane &&
+    flatInsane &&
+    comparableQualityTierSettingsSignature(optionalGenericInsane.settings) ===
+      comparableQualityTierSettingsSignature(flatInsane.settings)
+  ) {
+    failures.push(
+      "Layered - Insane Quality and Layered - Flat Color (Insane Quality) share the same non-tier settings; the generic option must not silently duplicate a family-specific tier.",
+    );
+  }
 
   return {
     families,
@@ -1572,6 +1604,15 @@ function buildQualityTierInventoryGuardrails(inventory) {
       : null,
     failures: Array.from(new Set(failures)),
   };
+}
+
+function comparableQualityTierSettingsSignature(settings = {}) {
+  return JSON.stringify(
+    Object.keys(settings)
+      .filter((key) => key !== "layeredQualityTier")
+      .sort()
+      .map((key) => [key, settings[key]]),
+  );
 }
 
 function transparentBoundaryRisk(fixture, contract) {
