@@ -1,4 +1,4 @@
-export type LayeredQualityTier = "default" | "medium" | "high" | "insane";
+export type LayeredQualityTier = "default" | "medium" | "high" | "amazing";
 
 const MEDIUM_LAYERED_QUALITY_PRESET_IDS = new Set([
   "layered-flat-color-medium-quality",
@@ -14,7 +14,7 @@ const HIGH_LAYERED_QUALITY_PRESET_IDS = new Set([
   "filled-layers-separate-colors-high-quality",
 ]);
 
-const INSANE_LAYERED_QUALITY_PRESET_IDS = new Set([
+const AMAZING_LAYERED_QUALITY_PRESET_IDS = new Set([
   "layered-insane-quality",
   "layered-flat-color-insane-quality",
   "photo-many-colors-insane-quality",
@@ -41,12 +41,13 @@ export function normalizeLayeredQualityTier(
   value: unknown,
   presetId?: unknown,
 ): LayeredQualityTier {
-  if (value === "medium" || value === "high" || value === "insane") {
+  if (value === "medium" || value === "high" || value === "amazing") {
     return value;
   }
+  if (value === "insane") return "amazing";
   const normalizedPresetId = normalizePresetId(presetId);
-  if (INSANE_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId)) {
-    return "insane";
+  if (AMAZING_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId)) {
+    return "amazing";
   }
   if (HIGH_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId)) return "high";
   if (MEDIUM_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId)) {
@@ -60,7 +61,7 @@ export function isLayeredQualityTierPresetId(presetId: unknown) {
   return (
     MEDIUM_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId) ||
     HIGH_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId) ||
-    INSANE_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId)
+    AMAZING_LAYERED_QUALITY_PRESET_IDS.has(normalizedPresetId)
   );
 }
 
@@ -75,7 +76,7 @@ export function isPhotoManyColorsQualityPresetId(presetId: unknown) {
 export function layeredQualityTierSizeRatioCeiling(
   tier: LayeredQualityTier,
 ) {
-  if (tier === "high" || tier === "insane") return 10;
+  if (tier === "high" || tier === "amazing") return 10;
   if (tier === "medium") return 3;
   return 1.5;
 }

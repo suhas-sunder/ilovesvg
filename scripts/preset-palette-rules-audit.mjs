@@ -259,7 +259,7 @@ const requiredLayeredQualityPresetFamilies = [
       { tier: "default", id: "layered-flat-color", label: "Layered - Flat Color" },
       { tier: "medium", id: "layered-flat-color-medium-quality", label: "Layered - Flat Color (Medium Quality)" },
       { tier: "high", id: "layered-flat-color-high-quality", label: "Layered - Flat Color (High Quality)" },
-      { tier: "insane", id: "layered-flat-color-insane-quality", label: "Layered - Flat Color (Insane Quality)" },
+      { tier: "amazing", id: "layered-flat-color-insane-quality", label: "Layered - Flat Color (Amazing Quality)" },
     ],
   },
   {
@@ -268,7 +268,7 @@ const requiredLayeredQualityPresetFamilies = [
       { tier: "default", id: "photo-many-colors", label: "Photo Many Colors" },
       { tier: "medium", id: "photo-many-colors-medium-quality", label: "Photo Many Colors (Medium Quality)" },
       { tier: "high", id: "photo-many-colors-high-quality", label: "Photo Many Colors (High Quality)" },
-      { tier: "insane", id: "photo-many-colors-insane-quality", label: "Photo Many Colors (Insane Quality)" },
+      { tier: "amazing", id: "photo-many-colors-insane-quality", label: "Photo Many Colors (Amazing Quality)" },
     ],
   },
   {
@@ -277,7 +277,7 @@ const requiredLayeredQualityPresetFamilies = [
       { tier: "default", id: "layered-detail", label: "Layered - Detail" },
       { tier: "medium", id: "layered-detail-medium-quality", label: "Layered - Detail (Medium Quality)" },
       { tier: "high", id: "layered-detail-high-quality", label: "Layered - Detail (High Quality)" },
-      { tier: "insane", id: "layered-detail-insane-quality", label: "Layered - Detail (Insane Quality)" },
+      { tier: "amazing", id: "layered-detail-insane-quality", label: "Layered - Detail (Amazing Quality)" },
     ],
   },
   {
@@ -286,7 +286,7 @@ const requiredLayeredQualityPresetFamilies = [
       { tier: "default", id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors" },
       { tier: "medium", id: "filled-layers-separate-colors-medium-quality", label: "Filled Layers - Separate Colors (Medium Quality)" },
       { tier: "high", id: "filled-layers-separate-colors-high-quality", label: "Filled Layers - Separate Colors (High Quality)" },
-      { tier: "insane", id: "filled-layers-separate-colors-insane-quality", label: "Filled Layers - Separate Colors (Insane Quality)" },
+      { tier: "amazing", id: "filled-layers-separate-colors-insane-quality", label: "Filled Layers - Separate Colors (Amazing Quality)" },
     ],
   },
 ];
@@ -1547,7 +1547,7 @@ function buildQualityTierInventoryGuardrails(inventory) {
     const settingPairs = [
       ["default", "medium"],
       ["medium", "high"],
-      ["high", "insane"],
+      ["high", "amazing"],
     ];
     for (const [lowerTier, upperTier] of settingPairs) {
       const lower = family.tiers.find((tier) => tier.tier === lowerTier);
@@ -1568,7 +1568,7 @@ function buildQualityTierInventoryGuardrails(inventory) {
     const hiddenOrCollapsed = tiers.filter((tier) => !tier.visibleSeparateOption);
     if (hiddenOrCollapsed.length > 0) {
       failures.push(
-        `${family.family} does not expose every required default / medium / high / insane option with its expected label.`,
+        `${family.family} does not expose every required default / medium / high / amazing option with its expected label.`,
       );
     }
 
@@ -1579,27 +1579,27 @@ function buildQualityTierInventoryGuardrails(inventory) {
     };
   });
 
-  const optionalGenericInsane = sharedById.get("layered-insane-quality") || null;
-  const flatInsane = sharedById.get("layered-flat-color-insane-quality") || null;
+  const optionalGenericAmazing = sharedById.get("layered-insane-quality") || null;
+  const flatAmazing = sharedById.get("layered-flat-color-insane-quality") || null;
   if (
-    optionalGenericInsane &&
-    flatInsane &&
-    comparableQualityTierSettingsSignature(optionalGenericInsane.settings) ===
-      comparableQualityTierSettingsSignature(flatInsane.settings)
+    optionalGenericAmazing &&
+    flatAmazing &&
+    comparableQualityTierSettingsSignature(optionalGenericAmazing.settings) ===
+      comparableQualityTierSettingsSignature(flatAmazing.settings)
   ) {
     failures.push(
-      "Layered - Insane Quality and Layered - Flat Color (Insane Quality) share the same non-tier settings; the generic option must not silently duplicate a family-specific tier.",
+      "Layered - Amazing Quality and Layered - Flat Color (Amazing Quality) share the same non-tier settings; the generic option must not silently duplicate a family-specific tier.",
     );
   }
 
   return {
     families,
     duplicateSharedPresetIds: Array.from(new Set(duplicateIds)),
-    optionalGenericInsanePreset: optionalGenericInsane
+    optionalGenericAmazingPreset: optionalGenericAmazing
       ? {
-          id: optionalGenericInsane.id,
-          label: optionalGenericInsane.label,
-          layeredQualityTier: optionalGenericInsane.settings?.layeredQualityTier || null,
+          id: optionalGenericAmazing.id,
+          label: optionalGenericAmazing.label,
+          layeredQualityTier: optionalGenericAmazing.settings?.layeredQualityTier || null,
         }
       : null,
     failures: Array.from(new Set(failures)),

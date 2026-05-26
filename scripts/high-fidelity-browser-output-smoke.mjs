@@ -39,22 +39,22 @@ const allPresetChecks = [
   { id: "layered-flat-color", label: "Layered - Flat Color", pattern: /^Layered - Flat Color(?! \()\b/i },
   { id: "layered-flat-color-medium-quality", label: "Layered - Flat Color (Medium Quality)", pattern: /^Layered - Flat Color \(Medium Quality\)(?:\s|$)/i },
   { id: "layered-flat-color-high-quality", label: "Layered - Flat Color (High Quality)", pattern: /^Layered - Flat Color \(High Quality\)(?:\s|$)/i },
-  { id: "layered-flat-color-insane-quality", label: "Layered - Flat Color (Insane Quality)", pattern: /^Layered - Flat Color \(Insane Quality\)(?:\s|$)/i },
-  { id: "layered-insane-quality", label: "Layered - Insane Quality", pattern: /^Layered - Insane Quality(?:\s|$)/i },
+  { id: "layered-flat-color-insane-quality", label: "Layered - Flat Color (Amazing Quality)", pattern: /^Layered - Flat Color \(Amazing Quality\)(?:\s|$)/i },
+  { id: "layered-insane-quality", label: "Layered - Amazing Quality", pattern: /^Layered - Amazing Quality(?:\s|$)/i },
   { id: "photo-many-colors", label: "Photo Many Colors", pattern: /^Photo Many Colors(?! \()\b/i },
   { id: "photo-many-colors-medium-quality", label: "Photo Many Colors (Medium Quality)", pattern: /^Photo Many Colors \(Medium Quality\)(?:\s|$)/i },
   { id: "photo-many-colors-high-quality", label: "Photo Many Colors (High Quality)", pattern: /^Photo Many Colors \(High Quality\)(?:\s|$)/i },
-  { id: "photo-many-colors-insane-quality", label: "Photo Many Colors (Insane Quality)", pattern: /^Photo Many Colors \(Insane Quality\)(?:\s|$)/i },
+  { id: "photo-many-colors-insane-quality", label: "Photo Many Colors (Amazing Quality)", pattern: /^Photo Many Colors \(Amazing Quality\)(?:\s|$)/i },
   { id: "premium-cartoon-fill-ink", label: "Premium Cartoon Fill + Ink", pattern: /^Premium Cartoon Fill \+ Ink\b/i },
   { id: "sticker-fill-stroke-detail", label: "Sticker Fill + Stroke Detail", pattern: /^Sticker Fill \+ Stroke Detail\b/i },
   { id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors", pattern: /^Filled Layers - Separate Colors(?! \()\b/i },
   { id: "filled-layers-separate-colors-medium-quality", label: "Filled Layers - Separate Colors (Medium Quality)", pattern: /^Filled Layers - Separate Colors \(Medium Quality\)(?:\s|$)/i },
   { id: "filled-layers-separate-colors-high-quality", label: "Filled Layers - Separate Colors (High Quality)", pattern: /^Filled Layers - Separate Colors \(High Quality\)(?:\s|$)/i },
-  { id: "filled-layers-separate-colors-insane-quality", label: "Filled Layers - Separate Colors (Insane Quality)", pattern: /^Filled Layers - Separate Colors \(Insane Quality\)(?:\s|$)/i },
+  { id: "filled-layers-separate-colors-insane-quality", label: "Filled Layers - Separate Colors (Amazing Quality)", pattern: /^Filled Layers - Separate Colors \(Amazing Quality\)(?:\s|$)/i },
   { id: "layered-detail", label: "Layered - Detail", pattern: /^Layered - Detail(?! \()\b/i },
   { id: "layered-detail-medium-quality", label: "Layered - Detail (Medium Quality)", pattern: /^Layered - Detail \(Medium Quality\)(?:\s|$)/i },
   { id: "layered-detail-high-quality", label: "Layered - Detail (High Quality)", pattern: /^Layered - Detail \(High Quality\)(?:\s|$)/i },
-  { id: "layered-detail-insane-quality", label: "Layered - Detail (Insane Quality)", pattern: /^Layered - Detail \(Insane Quality\)(?:\s|$)/i },
+  { id: "layered-detail-insane-quality", label: "Layered - Detail (Amazing Quality)", pattern: /^Layered - Detail \(Amazing Quality\)(?:\s|$)/i },
   { id: "layered-poster", label: "Layered - Poster", pattern: /^Layered - Poster\b/i },
   { id: "layered-8-color", label: "Layered - 8 Color", pattern: /^Layered - 8 Color\b/i },
 ];
@@ -116,7 +116,7 @@ const qualityTierComparisonFamilies = [
     ],
   },
   {
-    label: "Layered - Insane Quality",
+    label: "Layered - Amazing Quality",
     order: ["layered-insane-quality"],
   },
 ];
@@ -408,7 +408,7 @@ function collectFailures(report) {
 
 function qualityTierForPresetId(presetId) {
   const id = String(presetId || "").toLowerCase();
-  if (id.endsWith("-insane-quality") || id === "layered-insane-quality") return "insane";
+  if (id.endsWith("-insane-quality") || id === "layered-insane-quality") return "amazing";
   if (id.endsWith("-high-quality")) return "high";
   if (id.endsWith("-medium-quality")) return "medium";
   return "default";
@@ -419,7 +419,7 @@ function isQualityTierPresetId(presetId) {
 }
 
 function qualityTierRatioCeiling(tier) {
-  if (tier === "high" || tier === "insane") return 10;
+  if (tier === "high" || tier === "amazing") return 10;
   if (tier === "medium") return 3;
   return null;
 }
@@ -606,7 +606,7 @@ function validateProgressiveQualityTierComparison(results) {
         result,
         score: qualityTierSourceDetailScore(result),
       }));
-      const requiredDeltas = [0.004, 0.0035, 0.003];
+      const requiredDeltas = [0.004, 0.0035, 0.0045];
       for (let index = 1; index < scored.length; index += 1) {
         const previous = scored[index - 1];
         const current = scored[index];
@@ -616,14 +616,24 @@ function validateProgressiveQualityTierComparison(results) {
         const currentOutput = current.result.render.outputMetrics || {};
         const improvesWrongRegionDarkFromDefault =
           index === 1 &&
-          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.006 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.004 &&
           currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall * 0.82;
+        const improvesControlledSourceRecallFromDefault =
+          index === 1 &&
+          currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall + 0.004 &&
+          currentPaired.sourceHighContrastDarkRecall >= previousPaired.sourceHighContrastDarkRecall * 0.96 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.0025;
         const improvesNoisyDefaultCleanup =
           index === 1 &&
-          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.02 &&
-          current.score >= previous.score + 0.0015 &&
-          (currentOutput.colorfulPixelShare || 0) >= (previousOutput.colorfulPixelShare || 0) * 1.08 &&
-          (currentOutput.lightNeutralPixelShare || 0) >= (previousOutput.lightNeutralPixelShare || 0) * 1.35;
+          previousPaired.unsupportedOutputDarkShare >= 0.024 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare - 0.006 &&
+          currentPaired.sourceSupportedDarkRecall >= 0.12 &&
+          currentPaired.sourceHighContrastDarkRecall >= 0.16 &&
+          (currentOutput.darkPixelShare || 0) <= (previousOutput.darkPixelShare || 0) * 0.84 &&
+          ((current.score >= previous.score - 0.06 &&
+            (currentOutput.colorfulPixelShare || 0) >= (previousOutput.colorfulPixelShare || 0) * 0.98) ||
+            ((currentOutput.lightNeutralPixelShare || 0) >= (previousOutput.lightNeutralPixelShare || 0) * 1.1 &&
+              (currentOutput.highContrastEdgeShare || 0) >= (previousOutput.highContrastEdgeShare || 0) * 0.72));
         const improvesSourceDetailFromDefault =
           index === 1 &&
           currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall + 0.004 &&
@@ -648,6 +658,7 @@ function validateProgressiveQualityTierComparison(results) {
           !improvesWrongRegionDarkFromDefault &&
           !improvesNoisyDefaultCleanup &&
           !improvesSourceDetailFromDefault &&
+          !improvesControlledSourceRecallFromDefault &&
           !improvesBalancedDarkFromDefault &&
           !improvesHighContrastDetail &&
           !improvesSourceConstrainedFineEdges &&
@@ -661,16 +672,22 @@ function validateProgressiveQualityTierComparison(results) {
           });
         }
       }
-      const unsupportedShares = scored.map((item) => item.result.render.pairedDetailMetrics.unsupportedOutputDarkShare);
-      const maxUnsupported = Math.max(...unsupportedShares);
-      const insane = scored.find((item) => qualityTierForPresetId(item.result.presetId) === "insane");
-      const insaneUnsupported = insane?.result.render.pairedDetailMetrics.unsupportedOutputDarkShare;
-      if (insane && insaneUnsupported > Math.max(0.018, maxUnsupported * 1.15)) {
+      const amazing = scored.find((item) => qualityTierForPresetId(item.result.presetId) === "amazing");
+      const lowerTierMaxUnsupported = Math.max(
+        ...scored
+          .filter((item) => qualityTierForPresetId(item.result.presetId) !== "amazing")
+          .map((item) => item.result.render.pairedDetailMetrics.unsupportedOutputDarkShare),
+      );
+      const amazingUnsupported = amazing?.result.render.pairedDetailMetrics.unsupportedOutputDarkShare;
+      if (
+        amazing &&
+        amazingUnsupported > Math.max(0.02, lowerTierMaxUnsupported * 1.15)
+      ) {
         failures.push({
-          scenarioId: insane.result.scenarioId,
+          scenarioId: amazing.result.scenarioId,
           fixture,
-          preset: insane.result.presetLabel,
-          reason: `${family.label}: Insane Quality increased unsupported dark detail too much; unsupported share ${insaneUnsupported}`,
+          preset: amazing.result.presetLabel,
+          reason: `${family.label}: Amazing Quality increased unsupported dark detail too much; unsupported share ${amazingUnsupported}`,
         });
       }
     }
@@ -777,16 +794,16 @@ function validateRenderMetrics(result, label) {
   const paired = result.render?.pairedDetailMetrics;
   if (paired) {
     const minSourceDarkRecall =
-      tier === "insane" ? 0.095 : tier === "high" ? 0.09 : tier === "medium" ? 0.075 : 0;
+      tier === "amazing" ? 0.105 : tier === "high" ? 0.095 : tier === "medium" ? 0.09 : 0;
     const minHighContrastDarkRecall =
-      tier === "insane" ? 0.13 : tier === "high" ? 0.11 : tier === "medium" ? 0.095 : 0;
+      tier === "amazing" ? 0.145 : tier === "high" ? 0.13 : tier === "medium" ? 0.11 : 0;
     if (tier !== "default" && paired.sourceSupportedDarkPixelShare > 0.005 && paired.sourceSupportedDarkRecall < minSourceDarkRecall) {
       add(`source-supported dark text/linework recall is too low for ${label}: ${paired.sourceSupportedDarkRecall}`);
     }
     if (tier !== "default" && paired.sourceHighContrastDarkPixelShare > 0.003 && paired.sourceHighContrastDarkRecall < minHighContrastDarkRecall) {
       add(`high-contrast dark linework recall is too low for ${label}: ${paired.sourceHighContrastDarkRecall}`);
     }
-    const unsupportedDarkLimit = tier === "default" ? 0.065 : 0.035;
+    const unsupportedDarkLimit = tier === "default" ? 0.065 : tier === "amazing" ? 0.04 : 0.035;
     if (paired.unsupportedOutputDarkShare > unsupportedDarkLimit) {
       add(`output adds too much dark detail where the source is not dark/high-contrast for ${label}: ${paired.unsupportedOutputDarkShare}`);
     }

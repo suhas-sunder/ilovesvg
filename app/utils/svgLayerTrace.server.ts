@@ -15,6 +15,10 @@ import {
   resolveOutputDimensions,
   type SortLayersBy,
 } from "./converterSettings.server";
+import {
+  MAX_OUTPUT_SVG_BYTES,
+  MAX_SVG_PATH_COMMANDS,
+} from "./backendSecurity.server";
 import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
 import { clampSvgPathDataPrecision } from "~/shared/tracing/svgPathPrecision";
 import {
@@ -294,7 +298,37 @@ function compactLayeredVTracerQualityOptions(
   presetId?: string,
 ): CompactLayeredVTracerQualityOptions {
   let options: CompactLayeredVTracerQualityOptions;
-  if (tier === "insane") {
+  if (tier === "amazing") {
+    options = {
+      filterSpeckle: 28,
+      colorPrecision: 8,
+      layerDifference: 14,
+      lengthThreshold: 4.9,
+      pathSimplifyMode: "spline",
+      maxIterations: 14,
+      spliceThreshold: 34,
+      pathPrecision: 2,
+      sourceConstrainedDetail: true,
+      darkDetailLuma: 110,
+      darkDetailVeryDarkLuma: 72,
+      darkDetailContrast: 18,
+      darkDetailMinPixels: 70,
+      darkDetailMaxShare: 0.095,
+      darkDetailMinComponentArea: 1,
+      darkDetailMaxComponentShare: 0.03,
+      darkDetailTurdSize: 2,
+      darkDetailOptTolerance: 0.55,
+      edgeGradient: 48,
+      edgeDarkLuma: 110,
+      edgeContrast: 44,
+      edgeMinPixels: 70,
+      edgeMaxShare: 0.045,
+      edgeMinComponentArea: 1,
+      edgeMaxComponentShare: 0.018,
+      edgeTurdSize: 7,
+      edgeOptTolerance: 1.05,
+    };
+  } else if (tier === "high") {
     options = {
       filterSpeckle: 32,
       colorPrecision: 8,
@@ -324,7 +358,7 @@ function compactLayeredVTracerQualityOptions(
       edgeTurdSize: 10,
       edgeOptTolerance: 1.45,
     };
-  } else if (tier === "high") {
+  } else if (tier === "medium") {
     options = {
       filterSpeckle: 50,
       colorPrecision: 8,
@@ -353,36 +387,6 @@ function compactLayeredVTracerQualityOptions(
       edgeMaxComponentShare: 0.011,
       edgeTurdSize: 18,
       edgeOptTolerance: 2.2,
-    };
-  } else if (tier === "medium") {
-    options = {
-      filterSpeckle: 55,
-      colorPrecision: 8,
-      layerDifference: 28,
-      lengthThreshold: 7.5,
-      pathSimplifyMode: "spline",
-      maxIterations: 10,
-      spliceThreshold: 42,
-      pathPrecision: 1,
-      sourceConstrainedDetail: true,
-      darkDetailLuma: 90,
-      darkDetailVeryDarkLuma: 56,
-      darkDetailContrast: 30,
-      darkDetailMinPixels: 120,
-      darkDetailMaxShare: 0.06,
-      darkDetailMinComponentArea: 3,
-      darkDetailMaxComponentShare: 0.02,
-      darkDetailTurdSize: 8,
-      darkDetailOptTolerance: 1.2,
-      edgeGradient: 64,
-      edgeDarkLuma: 88,
-      edgeContrast: 62,
-      edgeMinPixels: 180,
-      edgeMaxShare: 0.024,
-      edgeMinComponentArea: 3,
-      edgeMaxComponentShare: 0.01,
-      edgeTurdSize: 28,
-      edgeOptTolerance: 2.8,
     };
   } else {
     options = {
@@ -426,7 +430,18 @@ function applyCompactLayeredVTracerFamilyOptions(
   const id = String(presetId || "").toLowerCase();
   if (tier === "default" || id.startsWith("layered-flat-color")) return options;
   if (id.startsWith("photo-many-colors")) {
-    if (tier === "insane") {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(112, options.darkDetailLuma + 6),
+        darkDetailVeryDarkLuma: Math.min(72, options.darkDetailVeryDarkLuma + 4),
+        darkDetailContrast: Math.max(18, options.darkDetailContrast - 3),
+        edgeDarkLuma: Math.max(106, options.edgeDarkLuma),
+        edgeGradient: Math.max(46, options.edgeGradient - 4),
+        edgeMaxShare: Math.min(0.044, options.edgeMaxShare + 0.004),
+      };
+    }
+    if (tier === "high") {
       return {
         ...options,
         darkDetailLuma: Math.min(104, options.darkDetailLuma + 4),
@@ -439,26 +454,28 @@ function applyCompactLayeredVTracerFamilyOptions(
     if (tier === "medium") {
       return {
         ...options,
-        darkDetailLuma: Math.min(96, options.darkDetailLuma + 6),
-        darkDetailVeryDarkLuma: Math.min(62, options.darkDetailVeryDarkLuma + 6),
-        darkDetailContrast: Math.max(27, options.darkDetailContrast - 3),
-        edgeDarkLuma: Math.max(92, options.edgeDarkLuma),
-        edgeGradient: Math.max(60, options.edgeGradient - 4),
-        edgeMaxShare: Math.min(0.028, options.edgeMaxShare + 0.004),
-        edgeTurdSize: Math.max(22, options.edgeTurdSize - 6),
-        edgeOptTolerance: Math.max(2.35, options.edgeOptTolerance - 0.35),
+        darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
+        darkDetailVeryDarkLuma: Math.min(65, options.darkDetailVeryDarkLuma + 3),
+        darkDetailContrast: Math.max(22, options.darkDetailContrast - 1),
+        edgeGradient: Math.max(54, options.edgeGradient - 1),
+        edgeMaxShare: Math.min(0.034, options.edgeMaxShare + 0.0015),
       };
     }
-    return {
-      ...options,
-      darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
-      darkDetailVeryDarkLuma: Math.min(65, options.darkDetailVeryDarkLuma + 3),
-      darkDetailContrast: Math.max(22, options.darkDetailContrast - 1),
-      edgeGradient: Math.max(54, options.edgeGradient - 1),
-      edgeMaxShare: Math.min(0.034, options.edgeMaxShare + 0.0015),
-    };
+    return options;
   }
   if (id.startsWith("layered-detail") || id === "layered-insane-quality") {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(112, options.darkDetailLuma + 5),
+        darkDetailVeryDarkLuma: Math.min(72, options.darkDetailVeryDarkLuma + 4),
+        darkDetailContrast: Math.max(17, options.darkDetailContrast - 3),
+        darkDetailMinComponentArea: Math.max(1, options.darkDetailMinComponentArea - 1),
+        edgeGradient: Math.max(45, options.edgeGradient - 4),
+        edgeMaxShare: Math.min(0.045, options.edgeMaxShare + 0.004),
+        edgeTurdSize: Math.max(5, options.edgeTurdSize - 3),
+      };
+    }
     return {
       ...options,
       darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
@@ -471,7 +488,17 @@ function applyCompactLayeredVTracerFamilyOptions(
     };
   }
   if (id.startsWith("filled-layers-separate-colors")) {
-    if (tier === "high") {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        pathPrecision: Math.max(options.pathPrecision, 2),
+        darkDetailLuma: Math.min(109, options.darkDetailLuma + 3),
+        darkDetailVeryDarkLuma: Math.min(70, options.darkDetailVeryDarkLuma + 2),
+        edgeGradient: Math.max(48, options.edgeGradient - 2),
+        edgeMaxShare: Math.min(0.042, options.edgeMaxShare + 0.002),
+      };
+    }
+    if (tier === "medium") {
       return {
         ...options,
         pathPrecision: Math.max(options.pathPrecision, 2),
@@ -586,7 +613,18 @@ async function createCompactFlatColorVTracerSvg({
     const grouped = groupCompactVTracerSvgByFill(
       appendSvgPaths(paletteLimitedSvg, `${darkDetailPaths}${edgeDetailPaths}`),
     );
-    const sanitized = sanitizeSvgMarkup(grouped.svg);
+    const sanitized = sanitizeSvgMarkup(
+      grouped.svg,
+      qualityOptions.sourceConstrainedDetail
+        ? {
+            maxBytes: MAX_OUTPUT_SVG_BYTES,
+            maxPathCommands:
+              options.layeredQualityTier === "amazing"
+                ? 400_000
+                : MAX_SVG_PATH_COMMANDS,
+          }
+        : undefined,
+    );
     if (!sanitized.ok) {
       throw new Error(sanitized.message);
     }
@@ -912,6 +950,14 @@ function isSourceSupportedDarkDetailPixel({
   if (centerLuma >= qualityOptions.darkDetailLuma) return false;
   const stats = localSourceDetailStats(raw, width, height, x, y, color);
   if (
+    colorSaturation(color) > 72 &&
+    centerLuma > qualityOptions.darkDetailVeryDarkLuma &&
+    stats.maxLuma - centerLuma < qualityOptions.darkDetailContrast * 1.2 &&
+    stats.maxDistance < Math.max(34, qualityOptions.darkDetailContrast * 1.15)
+  ) {
+    return false;
+  }
+  if (
     centerLuma <= qualityOptions.darkDetailVeryDarkLuma &&
     stats.maxLuma - centerLuma >= Math.max(18, qualityOptions.darkDetailContrast * 0.45)
   ) {
@@ -955,6 +1001,14 @@ function isSourceSupportedDarkEdgePixel({
   if (centerLuma >= qualityOptions.edgeDarkLuma) return false;
   if (centerLuma >= 210 && colorSaturation(color) <= 36) return false;
   const stats = localSourceDetailStats(raw, width, height, x, y, color);
+  if (
+    colorSaturation(color) > 72 &&
+    centerLuma > qualityOptions.edgeDarkLuma * 0.78 &&
+    stats.maxLuma - centerLuma < qualityOptions.edgeContrast * 1.35 &&
+    stats.maxDistance < Math.max(56, qualityOptions.edgeContrast)
+  ) {
+    return false;
+  }
   return (
     stats.maxLuma - centerLuma >= qualityOptions.edgeContrast ||
     stats.maxDistance >= Math.max(48, qualityOptions.edgeContrast * 0.85)

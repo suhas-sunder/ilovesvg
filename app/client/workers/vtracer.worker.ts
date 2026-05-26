@@ -799,7 +799,7 @@ function buildVTracerConfig(
   const colorMergeTolerance = Number(settings.colorMergeTolerance ?? 24);
   const isMediumTier = layered && qualityTier === "medium";
   const isHighTier = layered && qualityTier === "high";
-  const isInsaneTier = layered && qualityTier === "insane";
+  const isAmazingTier = layered && qualityTier === "amazing";
   const config = new TracerConfig();
   config.setColorMode(ColorMode.Color);
   config.setHierarchical(
@@ -813,15 +813,15 @@ function buildVTracerConfig(
   config.setFilterSpeckle(
     clampInt(
       Number(
-        isInsaneTier
-          ? Math.min(2, layerTurdSize)
+        isAmazingTier
+          ? Math.min(1, layerTurdSize)
           : isHighTier
-            ? Math.min(3, layerTurdSize)
+            ? Math.min(2, layerTurdSize)
           : isMediumTier
-            ? Math.min(5, layerTurdSize)
-            : layered
-              ? layerTurdSize
-              : settings.turdSize ?? 2,
+            ? Math.min(3, layerTurdSize)
+          : layered
+            ? layerTurdSize
+            : settings.turdSize ?? 2,
       ),
       0,
       100,
@@ -837,12 +837,12 @@ function buildVTracerConfig(
   config.setLayerDifference(
     clampInt(
       Number(
-        isInsaneTier
-          ? Math.min(20, colorMergeTolerance)
+        isAmazingTier
+          ? Math.min(12, colorMergeTolerance)
           : isHighTier
             ? Math.min(20, colorMergeTolerance)
           : isMediumTier
-            ? Math.min(26, colorMergeTolerance)
+            ? Math.min(20, colorMergeTolerance)
             : settings.colorMergeTolerance ??
               (requestedPaletteCount >= 28
                 ? 6
@@ -856,16 +856,16 @@ function buildVTracerConfig(
   );
   config.setCornerThreshold(60);
   config.setLengthThreshold(
-    isInsaneTier
-      ? clampNumber(3.6 + optTolerance * 1.7, 3.2, 5.8)
+    isAmazingTier
+      ? clampNumber(2.6 + optTolerance * 1.3, 2.4, 4.5)
       : isHighTier
         ? clampNumber(3.6 + optTolerance * 1.7, 3.2, 5.8)
       : isMediumTier
-        ? clampNumber(3.6 + optTolerance * 2, 3, 7)
+        ? clampNumber(3.6 + optTolerance * 1.7, 3.2, 5.8)
         : clampNumber(4 + optTolerance * 3, 3.5, 10),
   );
-  config.setMaxIterations(isInsaneTier || isHighTier ? 12 : 10);
-  config.setSpliceThreshold(isInsaneTier || isHighTier ? 40 : isMediumTier ? 42 : 45);
+  config.setMaxIterations(isAmazingTier ? 14 : isHighTier || isMediumTier ? 12 : 10);
+  config.setSpliceThreshold(isAmazingTier ? 34 : isHighTier || isMediumTier ? 40 : 45);
   config.setPathPrecision(requestedPaletteCount >= 28 ? 3 : 2);
   return config;
 }
@@ -960,22 +960,23 @@ function resolveQualityAwareStructureOptimizationOptions(
 ) {
   const base = resolveLayeredSvgStructureOptimizationOptions(width, height);
   const qualityTier = getLayeredQualityTier(settings);
-  if (qualityTier === "high" || qualityTier === "insane") {
+  if (qualityTier === "amazing") {
+    return {
+      ...base,
+      removeTinyIslands: false,
+      microIslandMaxArea: Math.max(2, Math.round((base.microIslandMaxArea ?? 16) * 0.2)),
+      microIslandMaxDimension: Math.max(
+        2,
+        Math.round((base.microIslandMaxDimension ?? 6) * 0.4),
+      ),
+      preserveDarkLumaBelow: Math.max(base.preserveDarkLumaBelow ?? 0.28, 0.38),
+    };
+  }
+  if (qualityTier === "high" || qualityTier === "medium") {
     return {
       ...base,
       removeTinyIslands: false,
       preserveDarkLumaBelow: Math.max(base.preserveDarkLumaBelow ?? 0.28, 0.34),
-    };
-  }
-  if (qualityTier === "medium") {
-    return {
-      ...base,
-      microIslandMaxArea: Math.max(4, Math.round((base.microIslandMaxArea ?? 16) * 0.35)),
-      microIslandMaxDimension: Math.max(
-        3,
-        Math.round((base.microIslandMaxDimension ?? 6) * 0.55),
-      ),
-      preserveDarkLumaBelow: Math.max(base.preserveDarkLumaBelow ?? 0.28, 0.3),
     };
   }
   return base;
@@ -1933,7 +1934,19 @@ function buildSourceConstrainedDarkDetailMask(
   const tier = getLayeredQualityTier(settings);
   if (tier === "default") return null;
   const thresholds =
-    tier === "insane"
+    tier === "amazing"
+      ? {
+          luma: 0.41,
+          veryDarkLuma: 0.27,
+          contrast: 0.082,
+          veryDarkContrast: 0.04,
+          colorDistance: 22,
+          minPixels: 45,
+          maxShare: 0.06,
+          minComponentArea: 3,
+          maxComponentShare: 0.028,
+        }
+      : tier === "high"
       ? {
           luma: 0.39,
           veryDarkLuma: 0.25,
@@ -1945,7 +1958,7 @@ function buildSourceConstrainedDarkDetailMask(
           minComponentArea: 4,
           maxComponentShare: 0.026,
         }
-      : tier === "high"
+      : tier === "medium"
         ? {
             luma: 0.39,
             veryDarkLuma: 0.25,

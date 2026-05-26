@@ -153,7 +153,7 @@ export async function tryTraceRasterInClient(input: {
       let settled = false;
       const layered = settings.traceMode === "layered";
       const workerTimeoutMs =
-        layered && layeredQualityTier === "insane"
+        layered && layeredQualityTier === "amazing"
           ? 45_000
           : layered && layeredQualityTier === "high"
             ? 150_000
@@ -544,7 +544,7 @@ function getUnusableTraceResultReason(
     qualityTierMaxSvgBytes ??
     (layered ? (richLayered ? 3_200_000 : 2_200_000) : 1_500_000);
   const maxPaths = layered
-    ? layeredQualityTier === "insane"
+    ? layeredQualityTier === "amazing"
       ? 16_000
       : layeredQualityTier === "high"
         ? 12_000
