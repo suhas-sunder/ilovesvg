@@ -133,17 +133,28 @@ const COMPACT_VTRACER_MAX_EDITABLE_COLORS = 32;
 const COMPACT_VTRACER_DARK_DETAIL_LUMA = 70;
 const COMPACT_VTRACER_DARK_SNAP_LUMA = 85;
 const COMPACT_VTRACER_DARK_COLOR: RGB = { r: 24, g: 24, b: 22 };
+const COMPACT_VTRACER_SOFT_DARK_DETAIL_COLOR: RGB = { r: 28, g: 28, b: 25 };
+const COMPACT_VTRACER_SOFT_EDGE_DETAIL_COLOR: RGB = { r: 58, g: 56, b: 50 };
+const COMPACT_VTRACER_GLARE_DETAIL_COLOR: RGB = { r: 78, g: 76, b: 70 };
+const COMPACT_VTRACER_AMAZING_MAX_SVG_BYTES = 12 * 1024 * 1024;
+const COMPACT_VTRACER_AMAZING_MAX_PATH_COMMANDS = 560_000;
 
 type CompactLayeredVTracerQualityOptions = {
   filterSpeckle: number;
   colorPrecision: number;
+  cornerThreshold: number;
   layerDifference: number;
   lengthThreshold: number;
   pathSimplifyMode: "spline" | "none";
   maxIterations: number;
   spliceThreshold: number;
   pathPrecision: number;
+  svgCoordinatePrecision: number;
   sourceConstrainedDetail: boolean;
+  detailNeighborhoodRadius: number;
+  detailBoundsPaddingRatio: number;
+  darkPaletteSnapLuma: number;
+  protectChromaticDarkColors: boolean;
   darkDetailLuma: number;
   darkDetailVeryDarkLuma: number;
   darkDetailContrast: number;
@@ -153,6 +164,7 @@ type CompactLayeredVTracerQualityOptions = {
   darkDetailMaxComponentShare: number;
   darkDetailTurdSize: number;
   darkDetailOptTolerance: number;
+  darkDetailMedianSize: number;
   edgeGradient: number;
   edgeDarkLuma: number;
   edgeContrast: number;
@@ -162,6 +174,12 @@ type CompactLayeredVTracerQualityOptions = {
   edgeMaxComponentShare: number;
   edgeTurdSize: number;
   edgeOptTolerance: number;
+  glareDetailRecovery: boolean;
+  glareDetailLuma: number;
+  glareDetailContrast: number;
+  glareDetailMaxSaturation: number;
+  textureGuardSaturation: number;
+  textureGuardContrastScale: number;
 };
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
@@ -300,45 +318,64 @@ function compactLayeredVTracerQualityOptions(
   let options: CompactLayeredVTracerQualityOptions;
   if (tier === "amazing") {
     options = {
-      filterSpeckle: 28,
+      filterSpeckle: 20,
       colorPrecision: 8,
-      layerDifference: 14,
-      lengthThreshold: 4.9,
+      cornerThreshold: 48,
+      layerDifference: 12,
+      lengthThreshold: 4.6,
       pathSimplifyMode: "spline",
       maxIterations: 14,
-      spliceThreshold: 34,
+      spliceThreshold: 32,
       pathPrecision: 2,
+      svgCoordinatePrecision: 0,
       sourceConstrainedDetail: true,
-      darkDetailLuma: 110,
-      darkDetailVeryDarkLuma: 72,
+      detailNeighborhoodRadius: 8,
+      detailBoundsPaddingRatio: 0.026,
+      darkPaletteSnapLuma: 44,
+      protectChromaticDarkColors: true,
+      darkDetailLuma: 126,
+      darkDetailVeryDarkLuma: 74,
       darkDetailContrast: 18,
-      darkDetailMinPixels: 70,
-      darkDetailMaxShare: 0.095,
-      darkDetailMinComponentArea: 1,
-      darkDetailMaxComponentShare: 0.03,
-      darkDetailTurdSize: 2,
-      darkDetailOptTolerance: 0.55,
-      edgeGradient: 48,
-      edgeDarkLuma: 110,
-      edgeContrast: 44,
+      darkDetailMinPixels: 48,
+      darkDetailMaxShare: 0.082,
+      darkDetailMinComponentArea: 6,
+      darkDetailMaxComponentShare: 0.018,
+      darkDetailTurdSize: 1,
+      darkDetailOptTolerance: 0.38,
+      darkDetailMedianSize: 0,
+      edgeGradient: 46,
+      edgeDarkLuma: 132,
+      edgeContrast: 36,
       edgeMinPixels: 70,
       edgeMaxShare: 0.045,
       edgeMinComponentArea: 1,
-      edgeMaxComponentShare: 0.018,
-      edgeTurdSize: 7,
-      edgeOptTolerance: 1.05,
+      edgeMaxComponentShare: 0.015,
+      edgeTurdSize: 4,
+      edgeOptTolerance: 0.85,
+      glareDetailRecovery: true,
+      glareDetailLuma: 164,
+      glareDetailContrast: 52,
+      glareDetailMaxSaturation: 56,
+      textureGuardSaturation: 50,
+      textureGuardContrastScale: 1.75,
     };
   } else if (tier === "high") {
     options = {
       filterSpeckle: 32,
       colorPrecision: 8,
+      cornerThreshold: 60,
       layerDifference: 18,
       lengthThreshold: 5.2,
       pathSimplifyMode: "spline",
       maxIterations: 12,
       spliceThreshold: 36,
       pathPrecision: 2,
+      svgCoordinatePrecision: 0,
       sourceConstrainedDetail: true,
+      detailNeighborhoodRadius: 4,
+      detailBoundsPaddingRatio: 0.055,
+      darkPaletteSnapLuma: 62,
+      protectChromaticDarkColors: false,
       darkDetailLuma: 100,
       darkDetailVeryDarkLuma: 62,
       darkDetailContrast: 24,
@@ -348,6 +385,7 @@ function compactLayeredVTracerQualityOptions(
       darkDetailMaxComponentShare: 0.026,
       darkDetailTurdSize: 3,
       darkDetailOptTolerance: 0.75,
+      darkDetailMedianSize: 0,
       edgeGradient: 56,
       edgeDarkLuma: 100,
       edgeContrast: 54,
@@ -357,18 +395,30 @@ function compactLayeredVTracerQualityOptions(
       edgeMaxComponentShare: 0.014,
       edgeTurdSize: 10,
       edgeOptTolerance: 1.45,
+      glareDetailRecovery: false,
+      glareDetailLuma: 0,
+      glareDetailContrast: 0,
+      glareDetailMaxSaturation: 0,
+      textureGuardSaturation: 72,
+      textureGuardContrastScale: 1.2,
     };
   } else if (tier === "medium") {
     options = {
       filterSpeckle: 50,
       colorPrecision: 8,
+      cornerThreshold: 60,
       layerDifference: 24,
       lengthThreshold: 6.8,
       pathSimplifyMode: "spline",
       maxIterations: 10,
       spliceThreshold: 40,
       pathPrecision: 1,
+      svgCoordinatePrecision: 0,
       sourceConstrainedDetail: true,
+      detailNeighborhoodRadius: 4,
+      detailBoundsPaddingRatio: 0.055,
+      darkPaletteSnapLuma: 60,
+      protectChromaticDarkColors: false,
       darkDetailLuma: 96,
       darkDetailVeryDarkLuma: 60,
       darkDetailContrast: 26,
@@ -378,6 +428,7 @@ function compactLayeredVTracerQualityOptions(
       darkDetailMaxComponentShare: 0.022,
       darkDetailTurdSize: 6,
       darkDetailOptTolerance: 1.05,
+      darkDetailMedianSize: 0,
       edgeGradient: 60,
       edgeDarkLuma: 96,
       edgeContrast: 58,
@@ -387,18 +438,30 @@ function compactLayeredVTracerQualityOptions(
       edgeMaxComponentShare: 0.011,
       edgeTurdSize: 18,
       edgeOptTolerance: 2.2,
+      glareDetailRecovery: false,
+      glareDetailLuma: 0,
+      glareDetailContrast: 0,
+      glareDetailMaxSaturation: 0,
+      textureGuardSaturation: 72,
+      textureGuardContrastScale: 1.2,
     };
   } else {
     options = {
       filterSpeckle: 65,
       colorPrecision: 7,
+      cornerThreshold: 60,
       layerDifference: 32,
       lengthThreshold: 9,
       pathSimplifyMode: "spline",
       maxIterations: 10,
       spliceThreshold: 45,
       pathPrecision: 1,
+      svgCoordinatePrecision: 0,
       sourceConstrainedDetail: false,
+      detailNeighborhoodRadius: 4,
+      detailBoundsPaddingRatio: 0.055,
+      darkPaletteSnapLuma: COMPACT_VTRACER_DARK_SNAP_LUMA,
+      protectChromaticDarkColors: false,
       darkDetailLuma: COMPACT_VTRACER_DARK_DETAIL_LUMA,
       darkDetailVeryDarkLuma: 42,
       darkDetailContrast: 46,
@@ -408,6 +471,7 @@ function compactLayeredVTracerQualityOptions(
       darkDetailMaxComponentShare: 0.12,
       darkDetailTurdSize: 12,
       darkDetailOptTolerance: 1.6,
+      darkDetailMedianSize: 0,
       edgeGradient: 70,
       edgeDarkLuma: 255,
       edgeContrast: 0,
@@ -417,6 +481,12 @@ function compactLayeredVTracerQualityOptions(
       edgeMaxComponentShare: 0.05,
       edgeTurdSize: 48,
       edgeOptTolerance: 4,
+      glareDetailRecovery: false,
+      glareDetailLuma: 0,
+      glareDetailContrast: 0,
+      glareDetailMaxSaturation: 0,
+      textureGuardSaturation: 72,
+      textureGuardContrastScale: 1.2,
     };
   }
   return applyCompactLayeredVTracerFamilyOptions(options, tier, presetId);
@@ -428,17 +498,58 @@ function applyCompactLayeredVTracerFamilyOptions(
   presetId?: string,
 ): CompactLayeredVTracerQualityOptions {
   const id = String(presetId || "").toLowerCase();
-  if (tier === "default" || id.startsWith("layered-flat-color")) return options;
+  if (tier === "default") return options;
+  if (id.startsWith("layered-flat-color")) {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(134, options.darkDetailLuma + 5),
+        darkDetailVeryDarkLuma: Math.min(
+          84,
+          options.darkDetailVeryDarkLuma + 6,
+        ),
+        darkDetailContrast: Math.max(17, options.darkDetailContrast - 3),
+        darkDetailMinComponentArea: Math.max(
+          1,
+          options.darkDetailMinComponentArea - 1,
+        ),
+        darkDetailMaxShare: Math.min(0.08, options.darkDetailMaxShare),
+        darkDetailMaxComponentShare: Math.min(
+          0.017,
+          options.darkDetailMaxComponentShare,
+        ),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        edgeMaxComponentShare: Math.min(0.014, options.edgeMaxComponentShare),
+        edgeTurdSize: Math.max(4, options.edgeTurdSize),
+        edgeOptTolerance: Math.max(0.72, options.edgeOptTolerance - 0.08),
+        glareDetailLuma: Math.min(170, options.glareDetailLuma + 5),
+        glareDetailContrast: Math.max(50, options.glareDetailContrast - 3),
+      };
+    }
+    return options;
+  }
   if (id.startsWith("photo-many-colors")) {
     if (tier === "amazing") {
       return {
         ...options,
-        darkDetailLuma: Math.min(112, options.darkDetailLuma + 6),
-        darkDetailVeryDarkLuma: Math.min(72, options.darkDetailVeryDarkLuma + 4),
-        darkDetailContrast: Math.max(18, options.darkDetailContrast - 3),
-        edgeDarkLuma: Math.max(106, options.edgeDarkLuma),
-        edgeGradient: Math.max(46, options.edgeGradient - 4),
-        edgeMaxShare: Math.min(0.044, options.edgeMaxShare + 0.004),
+        darkDetailLuma: Math.min(132, options.darkDetailLuma + 4),
+        darkDetailVeryDarkLuma: Math.min(
+          84,
+          options.darkDetailVeryDarkLuma + 5,
+        ),
+        darkDetailContrast: Math.max(18, options.darkDetailContrast - 2),
+        darkDetailMaxShare: Math.min(0.08, options.darkDetailMaxShare),
+        darkDetailMaxComponentShare: Math.min(
+          0.017,
+          options.darkDetailMaxComponentShare,
+        ),
+        edgeDarkLuma: Math.max(116, options.edgeDarkLuma),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        edgeMaxComponentShare: Math.min(0.014, options.edgeMaxComponentShare),
+        edgeTurdSize: Math.max(4, options.edgeTurdSize),
+        glareDetailLuma: Math.min(168, options.glareDetailLuma + 4),
       };
     }
     if (tier === "high") {
@@ -467,13 +578,24 @@ function applyCompactLayeredVTracerFamilyOptions(
     if (tier === "amazing") {
       return {
         ...options,
-        darkDetailLuma: Math.min(112, options.darkDetailLuma + 5),
-        darkDetailVeryDarkLuma: Math.min(72, options.darkDetailVeryDarkLuma + 4),
+        darkDetailLuma: Math.min(134, options.darkDetailLuma + 5),
+        darkDetailVeryDarkLuma: Math.min(
+          84,
+          options.darkDetailVeryDarkLuma + 6,
+        ),
         darkDetailContrast: Math.max(17, options.darkDetailContrast - 3),
         darkDetailMinComponentArea: Math.max(1, options.darkDetailMinComponentArea - 1),
-        edgeGradient: Math.max(45, options.edgeGradient - 4),
-        edgeMaxShare: Math.min(0.045, options.edgeMaxShare + 0.004),
-        edgeTurdSize: Math.max(5, options.edgeTurdSize - 3),
+        darkDetailMaxShare: Math.min(0.08, options.darkDetailMaxShare),
+        darkDetailMaxComponentShare: Math.min(
+          0.017,
+          options.darkDetailMaxComponentShare,
+        ),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        edgeMaxComponentShare: Math.min(0.014, options.edgeMaxComponentShare),
+        edgeTurdSize: Math.max(4, options.edgeTurdSize),
+        glareDetailLuma: Math.min(170, options.glareDetailLuma + 5),
+        glareDetailContrast: Math.max(50, options.glareDetailContrast - 3),
       };
     }
     return {
@@ -492,10 +614,11 @@ function applyCompactLayeredVTracerFamilyOptions(
       return {
         ...options,
         pathPrecision: Math.max(options.pathPrecision, 2),
-        darkDetailLuma: Math.min(109, options.darkDetailLuma + 3),
-        darkDetailVeryDarkLuma: Math.min(70, options.darkDetailVeryDarkLuma + 2),
-        edgeGradient: Math.max(48, options.edgeGradient - 2),
-        edgeMaxShare: Math.min(0.042, options.edgeMaxShare + 0.002),
+        darkDetailLuma: Math.min(130, options.darkDetailLuma + 2),
+        darkDetailVeryDarkLuma: Math.min(78, options.darkDetailVeryDarkLuma + 2),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        glareDetailLuma: Math.min(166, options.glareDetailLuma + 2),
       };
     }
     if (tier === "medium") {
@@ -558,7 +681,7 @@ async function createCompactFlatColorVTracerSvg({
     config.setFilterSpeckle(qualityOptions.filterSpeckle);
     config.setColorPrecision(qualityOptions.colorPrecision);
     config.setLayerDifference(qualityOptions.layerDifference);
-    config.setCornerThreshold(60);
+    config.setCornerThreshold(qualityOptions.cornerThreshold);
     config.setLengthThreshold(qualityOptions.lengthThreshold);
     config.setMaxIterations(qualityOptions.maxIterations);
     config.setSpliceThreshold(qualityOptions.spliceThreshold);
@@ -584,24 +707,23 @@ async function createCompactFlatColorVTracerSvg({
       height,
       outputWidth: outputDimensions.width,
       outputHeight: outputDimensions.height,
+      coordinatePrecision: qualityOptions.svgCoordinatePrecision,
     });
-    const paletteLimitedSvg = snapCompactVTracerPalette(
-      svg,
-      qualityOptions.sourceConstrainedDetail
-        ? COMPACT_VTRACER_MAX_EDITABLE_COLORS - 1
-        : COMPACT_VTRACER_MAX_EDITABLE_COLORS,
-      {
-        darkSnapLuma: qualityOptions.sourceConstrainedDetail
-          ? qualityOptions.darkDetailVeryDarkLuma
-          : COMPACT_VTRACER_DARK_SNAP_LUMA,
-      },
-    );
     const darkDetailPaths = await createCompactVTracerDarkDetailOverlayPaths({
       raw,
       width,
       height,
       sharp,
       qualityOptions,
+      overlayMode: "dark",
+    });
+    const glareDetailPaths = await createCompactVTracerDarkDetailOverlayPaths({
+      raw,
+      width,
+      height,
+      sharp,
+      qualityOptions,
+      overlayMode: "glare",
     });
     const edgeDetailPaths = await createCompactVTracerEdgeOverlayPaths({
       raw,
@@ -610,17 +732,40 @@ async function createCompactFlatColorVTracerSvg({
       sharp,
       qualityOptions,
     });
+    const detailOverlayPaths = `${darkDetailPaths}${glareDetailPaths}${edgeDetailPaths}`;
+    const protectedOverlayColorCount =
+      qualityOptions.protectChromaticDarkColors
+        ? countDistinctPathFills(detailOverlayPaths)
+        : 1;
+    const paletteLimitedSvg = snapCompactVTracerPalette(
+      svg,
+      qualityOptions.sourceConstrainedDetail
+        ? COMPACT_VTRACER_MAX_EDITABLE_COLORS -
+            clampInt(protectedOverlayColorCount, 1, 4)
+        : COMPACT_VTRACER_MAX_EDITABLE_COLORS,
+      {
+        darkSnapLuma: qualityOptions.sourceConstrainedDetail
+          ? qualityOptions.darkPaletteSnapLuma
+          : COMPACT_VTRACER_DARK_SNAP_LUMA,
+        protectChromaticDarkColors:
+          qualityOptions.protectChromaticDarkColors,
+        veryDarkLuma: qualityOptions.darkDetailVeryDarkLuma,
+      },
+    );
     const grouped = groupCompactVTracerSvgByFill(
-      appendSvgPaths(paletteLimitedSvg, `${darkDetailPaths}${edgeDetailPaths}`),
+      appendSvgPaths(paletteLimitedSvg, detailOverlayPaths),
     );
     const sanitized = sanitizeSvgMarkup(
       grouped.svg,
       qualityOptions.sourceConstrainedDetail
         ? {
-            maxBytes: MAX_OUTPUT_SVG_BYTES,
+            maxBytes:
+              options.layeredQualityTier === "amazing"
+                ? COMPACT_VTRACER_AMAZING_MAX_SVG_BYTES
+                : MAX_OUTPUT_SVG_BYTES,
             maxPathCommands:
               options.layeredQualityTier === "amazing"
-                ? 400_000
+                ? COMPACT_VTRACER_AMAZING_MAX_PATH_COMMANDS
                 : MAX_SVG_PATH_COMMANDS,
           }
         : undefined,
@@ -650,6 +795,7 @@ function normalizeCompactVTracerSvg(
     height: number;
     outputWidth: number;
     outputHeight: number;
+    coordinatePrecision?: number;
   },
 ) {
   let svg = String(rawSvg || "")
@@ -664,25 +810,59 @@ function normalizeCompactVTracerSvg(
     const extra = next ? ` ${next}` : "";
     return `<svg${extra} width="${dimensions.outputWidth}" height="${dimensions.outputHeight}" viewBox="0 0 ${dimensions.width} ${dimensions.height}" role="img" aria-label="Layered SVG from image">`;
   });
-  return svg
-    .replace(/-?\d*\.\d+(?:e[-+]?\d+)?/gi, (match) =>
-      String(Math.round(Number(match))),
-    )
+  return roundSvgDecimalNumbers(svg, dimensions.coordinatePrecision ?? 0)
     .replace(/\s+/g, " ")
     .replace(/> </g, "><")
     .trim();
 }
 
+function roundSvgDecimalNumbers(markup: string, precision: number) {
+  const safePrecision = clampInt(precision, 0, 3);
+  return String(markup || "").replace(
+    /-?\d*\.\d+(?:e[-+]?\d+)?/gi,
+    (match) => formatCompactSvgNumber(Number(match), safePrecision),
+  );
+}
+
+function formatCompactSvgNumber(value: number, precision: number) {
+  if (!Number.isFinite(value)) return "0";
+  if (precision <= 0) return String(Math.round(value));
+  const rounded = Number(value.toFixed(precision));
+  if (Object.is(rounded, -0)) return "0";
+  return String(rounded);
+}
+
+function countDistinctPathFills(markup: string) {
+  const colors = new Set<string>();
+  for (const match of String(markup || "").matchAll(
+    /\bfill\s*=\s*["'](#[0-9a-fA-F]{6})["']/gi,
+  )) {
+    colors.add(match[1].toLowerCase());
+  }
+  return colors.size;
+}
+
 function snapCompactVTracerPalette(
   svg: string,
   maxColors: number,
-  options: { darkSnapLuma?: number } = {},
+  options: {
+    darkSnapLuma?: number;
+    protectChromaticDarkColors?: boolean;
+    veryDarkLuma?: number;
+  } = {},
 ) {
   const samples: RGB[] = [];
   let hasDarkDetail = false;
   const darkSnapLuma = Number.isFinite(options.darkSnapLuma)
     ? Number(options.darkSnapLuma)
     : COMPACT_VTRACER_DARK_SNAP_LUMA;
+  const darkSnapOptions = {
+    darkSnapLuma,
+    protectChromaticDarkColors: Boolean(options.protectChromaticDarkColors),
+    veryDarkLuma: Number.isFinite(options.veryDarkLuma)
+      ? Number(options.veryDarkLuma)
+      : COMPACT_VTRACER_DARK_DETAIL_LUMA,
+  };
 
   for (const match of String(svg).matchAll(/<path\b[^>]*>/gi)) {
     const tag = match[0];
@@ -690,9 +870,10 @@ function snapCompactVTracerPalette(
     const color = fill ? parseHexToRgb(fill) : null;
     if (!color) continue;
     const normalized =
-      luminance(color) < darkSnapLuma
-        ? COMPACT_VTRACER_DARK_COLOR
-        : color;
+      darkSnapOptions.protectChromaticDarkColors ||
+      !shouldSnapCompactVTracerColorToDark(color, darkSnapOptions)
+        ? color
+        : COMPACT_VTRACER_DARK_COLOR;
     hasDarkDetail ||= normalized === COMPACT_VTRACER_DARK_COLOR;
     const pathLength =
       tag.match(/\bd\s*=\s*["']([^"']*)["']/i)?.[1]?.length ?? tag.length;
@@ -719,10 +900,30 @@ function snapCompactVTracerPalette(
   const snapPaint = (value: string) => {
     const color = parseHexToRgb(value);
     if (!color || palette.length === 0) return value;
-    if (luminance(color) < darkSnapLuma) {
+    const protectSourceColor = shouldProtectCompactVTracerColorFromDarkSnap(color);
+    if (
+      !darkSnapOptions.protectChromaticDarkColors &&
+      shouldSnapCompactVTracerColorToDark(color, darkSnapOptions)
+    ) {
       return rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR);
     }
-    return rgbObjectToHex(palette[nearestPaletteIndex(color, palette)]);
+    const snapPalette =
+      darkSnapOptions.protectChromaticDarkColors &&
+      protectSourceColor
+        ? palette.filter(
+            (candidate) =>
+              colorDistance(candidate, COMPACT_VTRACER_DARK_COLOR) > 8 &&
+              luminance(candidate) >= 52,
+          )
+        : palette;
+    const selectedPalette = snapPalette.length > 0 ? snapPalette : palette;
+    const selectedColor =
+      selectedPalette[nearestPaletteIndex(color, selectedPalette)];
+    return rgbObjectToHex(
+      darkSnapOptions.protectChromaticDarkColors
+        ? liftCompactVTracerBaseDarkColor(selectedColor)
+        : selectedColor,
+    );
   };
 
   return String(svg).replace(
@@ -731,20 +932,65 @@ function snapCompactVTracerPalette(
   );
 }
 
+function shouldSnapCompactVTracerColorToDark(
+  color: RGB,
+  options: {
+    darkSnapLuma: number;
+    protectChromaticDarkColors: boolean;
+    veryDarkLuma: number;
+  },
+) {
+  const luma = luminance(color);
+  if (luma >= options.darkSnapLuma) return false;
+  if (!options.protectChromaticDarkColors) return true;
+  if (luma <= Math.min(26, options.veryDarkLuma * 0.42)) return true;
+  const saturation = colorSaturation(color);
+  if (saturation <= 36) return true;
+  return saturation <= 50 && luma <= Math.min(40, options.veryDarkLuma * 0.58);
+}
+
+function shouldProtectCompactVTracerColorFromDarkSnap(color: RGB) {
+  const luma = luminance(color);
+  const saturation = colorSaturation(color);
+  if (saturation >= 42) return true;
+  return saturation >= 30 && luma > 38;
+}
+
+function liftCompactVTracerBaseDarkColor(color: RGB) {
+  const luma = luminance(color);
+  if (luma >= 52) {
+    return color;
+  }
+  const targetLuma = 74;
+  if (luma <= 0) {
+    return { r: targetLuma, g: targetLuma, b: targetLuma };
+  }
+  const factor = targetLuma / luma;
+  return {
+    r: clampInt(Math.round(color.r * factor), 0, 255),
+    g: clampInt(Math.round(color.g * factor), 0, 255),
+    b: clampInt(Math.round(color.b * factor), 0, 255),
+  };
+}
+
 async function createCompactVTracerDarkDetailOverlayPaths({
   raw,
   width,
   height,
   sharp,
   qualityOptions,
+  overlayMode = "dark",
 }: {
   raw: Buffer;
   width: number;
   height: number;
   sharp: typeof import("sharp");
   qualityOptions: CompactLayeredVTracerQualityOptions;
+  overlayMode?: "dark" | "glare";
 }) {
-  const bounds = estimateFlatColorForegroundBounds(raw, width, height);
+  const bounds = estimateFlatColorForegroundBounds(raw, width, height, {
+    padRatio: qualityOptions.detailBoundsPaddingRatio,
+  });
   if (!bounds) return "";
 
   let mask = Buffer.alloc(width * height, 255);
@@ -764,26 +1010,57 @@ async function createCompactVTracerDarkDetailOverlayPaths({
     if (raw[offset + 3] < 18) continue;
     const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
     const supported = qualityOptions.sourceConstrainedDetail
-      ? isSourceSupportedDarkDetailPixel({
-          raw,
-          width,
-          height,
-          x,
-          y,
-          color,
-          qualityOptions,
-        })
-      : luminance(color) < qualityOptions.darkDetailLuma;
+      ? overlayMode === "glare"
+        ? isSourceSupportedGlareDetailPixel({
+            centerLuma: luminance(color),
+            color,
+            stats: localSourceDetailStats(
+              raw,
+              width,
+              height,
+              x,
+              y,
+              color,
+              qualityOptions.detailNeighborhoodRadius,
+            ),
+            qualityOptions,
+          })
+        : isSourceSupportedDarkDetailPixel({
+            raw,
+            width,
+            height,
+            x,
+            y,
+            color,
+            qualityOptions,
+          })
+      : overlayMode === "dark" && luminance(color) < qualityOptions.darkDetailLuma;
     if (!supported) continue;
     mask[pixel] = 0;
     inkPixels += 1;
   }
 
   let keptPixels = inkPixels;
+  if (qualityOptions.darkDetailMedianSize >= 3 && inkPixels > 0) {
+    mask = await denoiseCompactDetailMask({
+      sharp,
+      mask,
+      width,
+      height,
+      medianSize: qualityOptions.darkDetailMedianSize,
+    });
+    keptPixels = countCompactDetailMaskPixels(mask);
+  }
   if (qualityOptions.sourceConstrainedDetail) {
     const filtered = filterDetailMaskComponents(mask, width, height, {
-      minArea: qualityOptions.darkDetailMinComponentArea,
-      maxAreaShare: qualityOptions.darkDetailMaxComponentShare,
+      minArea:
+        overlayMode === "glare"
+          ? Math.max(qualityOptions.darkDetailMinComponentArea, 14)
+          : qualityOptions.darkDetailMinComponentArea,
+      maxAreaShare:
+        overlayMode === "glare"
+          ? Math.min(qualityOptions.darkDetailMaxComponentShare, 0.012)
+          : qualityOptions.darkDetailMaxComponentShare,
     });
     mask = filtered.mask;
     keptPixels = filtered.keptPixels;
@@ -791,8 +1068,14 @@ async function createCompactVTracerDarkDetailOverlayPaths({
 
   const share = keptPixels / Math.max(1, width * height);
   if (
-    keptPixels < qualityOptions.darkDetailMinPixels ||
-    share > qualityOptions.darkDetailMaxShare
+    keptPixels <
+      (overlayMode === "glare"
+        ? Math.max(qualityOptions.darkDetailMinPixels, 90)
+        : qualityOptions.darkDetailMinPixels) ||
+    share >
+      (overlayMode === "glare"
+        ? Math.min(qualityOptions.darkDetailMaxShare, 0.045)
+        : qualityOptions.darkDetailMaxShare)
   ) {
     return "";
   }
@@ -808,13 +1091,53 @@ async function createCompactVTracerDarkDetailOverlayPaths({
 
   return applyFillToPathTags(
     String(pathTags || ""),
-    rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR),
+    rgbObjectToHex(
+      overlayMode === "glare"
+        ? COMPACT_VTRACER_GLARE_DETAIL_COLOR
+        : qualityOptions.protectChromaticDarkColors
+          ? COMPACT_VTRACER_SOFT_DARK_DETAIL_COLOR
+        : COMPACT_VTRACER_DARK_COLOR,
+    ),
   )
-    .replace(/-?\d*\.\d+(?:e[-+]?\d+)?/gi, (match) =>
-      String(Math.round(Number(match))),
+    .replace(
+      /-?\d*\.\d+(?:e[-+]?\d+)?/gi,
+      (match) =>
+        formatCompactSvgNumber(
+          Number(match),
+          qualityOptions.svgCoordinatePrecision,
+        ),
     )
     .replace(/\s+/g, " ")
     .trim();
+}
+
+async function denoiseCompactDetailMask({
+  sharp,
+  mask,
+  width,
+  height,
+  medianSize,
+}: {
+  sharp: typeof import("sharp");
+  mask: Buffer;
+  width: number;
+  height: number;
+  medianSize: number;
+}) {
+  const size = clampInt(medianSize, 3, 5);
+  const denoised = await sharp(mask, { raw: { width, height, channels: 1 } })
+    .median(size)
+    .raw()
+    .toBuffer();
+  return Buffer.from(denoised);
+}
+
+function countCompactDetailMaskPixels(mask: Buffer) {
+  let count = 0;
+  for (const value of mask) {
+    if (value === 0) count += 1;
+  }
+  return count;
 }
 
 async function createCompactVTracerEdgeOverlayPaths({
@@ -830,7 +1153,9 @@ async function createCompactVTracerEdgeOverlayPaths({
   sharp: typeof import("sharp");
   qualityOptions: CompactLayeredVTracerQualityOptions;
 }) {
-  const bounds = estimateFlatColorForegroundBounds(raw, width, height);
+  const bounds = estimateFlatColorForegroundBounds(raw, width, height, {
+    padRatio: qualityOptions.detailBoundsPaddingRatio,
+  });
   if (!bounds) return "";
 
   let mask = Buffer.alloc(width * height, 255);
@@ -920,10 +1245,19 @@ async function createCompactVTracerEdgeOverlayPaths({
 
   return applyFillToPathTags(
     String(pathTags || ""),
-    rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR),
+    rgbObjectToHex(
+      qualityOptions.protectChromaticDarkColors
+        ? COMPACT_VTRACER_SOFT_EDGE_DETAIL_COLOR
+        : COMPACT_VTRACER_DARK_COLOR,
+    ),
   )
-    .replace(/-?\d*\.\d+(?:e[-+]?\d+)?/gi, (match) =>
-      String(Math.round(Number(match))),
+    .replace(
+      /-?\d*\.\d+(?:e[-+]?\d+)?/gi,
+      (match) =>
+        formatCompactSvgNumber(
+          Number(match),
+          qualityOptions.svgCoordinatePrecision,
+        ),
     )
     .replace(/\s+/g, " ")
     .trim();
@@ -947,8 +1281,38 @@ function isSourceSupportedDarkDetailPixel({
   qualityOptions: CompactLayeredVTracerQualityOptions;
 }) {
   const centerLuma = luminance(color);
+  const stats = localSourceDetailStats(
+    raw,
+    width,
+    height,
+    x,
+    y,
+    color,
+    qualityOptions.detailNeighborhoodRadius,
+  );
   if (centerLuma >= qualityOptions.darkDetailLuma) return false;
-  const stats = localSourceDetailStats(raw, width, height, x, y, color);
+  if (isSourceSupportedNeutralTextPixel(centerLuma, color, stats, qualityOptions)) {
+    return true;
+  }
+  if (
+    centerLuma <= Math.min(52, qualityOptions.darkDetailVeryDarkLuma) &&
+    colorSaturation(color) <= 68 &&
+    (stats.maxLuma - centerLuma >= Math.max(46, qualityOptions.darkDetailContrast * 1.9) ||
+      stats.maxDistance >= Math.max(54, qualityOptions.darkDetailContrast * 2.25))
+  ) {
+    return true;
+  }
+  if (
+    isLikelyUnsupportedTextureDetail({
+      centerLuma,
+      color,
+      stats,
+      qualityOptions,
+      contrast: qualityOptions.darkDetailContrast,
+    })
+  ) {
+    return false;
+  }
   if (
     colorSaturation(color) > 72 &&
     centerLuma > qualityOptions.darkDetailVeryDarkLuma &&
@@ -976,6 +1340,69 @@ function isSourceSupportedDarkDetailPixel({
   );
 }
 
+function isSourceSupportedNeutralTextPixel(
+  centerLuma: number,
+  color: RGB,
+  stats: ReturnType<typeof localSourceDetailStats>,
+  qualityOptions: CompactLayeredVTracerQualityOptions,
+) {
+  if (!qualityOptions.glareDetailRecovery) return false;
+  if (colorSaturation(color) > 46) return false;
+  if (centerLuma > Math.min(118, qualityOptions.darkDetailLuma * 0.92)) {
+    return false;
+  }
+  const localLift = stats.maxLuma - centerLuma;
+  if (localLift < Math.max(22, qualityOptions.darkDetailContrast * 0.78)) {
+    return false;
+  }
+  if (
+    stats.maxDistance <
+    Math.max(36, qualityOptions.darkDetailContrast * 1.08)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isSourceSupportedGlareDetailPixel({
+  centerLuma,
+  color,
+  stats,
+  qualityOptions,
+}: {
+  centerLuma: number;
+  color: RGB;
+  stats: ReturnType<typeof localSourceDetailStats>;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  if (!qualityOptions.glareDetailRecovery) return false;
+  if (centerLuma >= qualityOptions.glareDetailLuma) return false;
+  const saturation = colorSaturation(color);
+  if (saturation > qualityOptions.glareDetailMaxSaturation) return false;
+  const localLift = stats.maxLuma - centerLuma;
+  const localSpan = stats.maxLuma - stats.minLuma;
+  const contrast = qualityOptions.glareDetailContrast;
+  if (localSpan < contrast * 0.72) return false;
+  if (
+    localLift < contrast &&
+    stats.maxDistance < Math.max(42, contrast * 0.92)
+  ) {
+    return false;
+  }
+  if (
+    isLikelyUnsupportedTextureDetail({
+      centerLuma,
+      color,
+      stats,
+      qualityOptions,
+      contrast,
+    })
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function isSourceSupportedDarkEdgePixel({
   raw,
   width,
@@ -998,9 +1425,38 @@ function isSourceSupportedDarkEdgePixel({
   qualityOptions: CompactLayeredVTracerQualityOptions;
 }) {
   if (gradient < qualityOptions.edgeGradient) return false;
-  if (centerLuma >= qualityOptions.edgeDarkLuma) return false;
+  const stats = localSourceDetailStats(
+    raw,
+    width,
+    height,
+    x,
+    y,
+    color,
+    qualityOptions.detailNeighborhoodRadius,
+  );
+  if (centerLuma >= qualityOptions.edgeDarkLuma) {
+    return (
+      gradient >= qualityOptions.edgeGradient * 1.35 &&
+      isSourceSupportedGlareDetailPixel({
+        centerLuma,
+        color,
+        stats,
+        qualityOptions,
+      })
+    );
+  }
   if (centerLuma >= 210 && colorSaturation(color) <= 36) return false;
-  const stats = localSourceDetailStats(raw, width, height, x, y, color);
+  if (
+    isLikelyUnsupportedTextureDetail({
+      centerLuma,
+      color,
+      stats,
+      qualityOptions,
+      contrast: qualityOptions.edgeContrast,
+    })
+  ) {
+    return false;
+  }
   if (
     colorSaturation(color) > 72 &&
     centerLuma > qualityOptions.edgeDarkLuma * 0.78 &&
@@ -1015,6 +1471,74 @@ function isSourceSupportedDarkEdgePixel({
   );
 }
 
+function isLikelyUnsupportedTextureDetail({
+  centerLuma,
+  color,
+  stats,
+  qualityOptions,
+  contrast,
+}: {
+  centerLuma: number;
+  color: RGB;
+  stats: ReturnType<typeof localSourceDetailStats>;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+  contrast: number;
+}) {
+  if (!qualityOptions.glareDetailRecovery) return false;
+  const saturation = colorSaturation(color);
+  const family = flatColorFamily(color);
+  const textureProneColor =
+    family === "blue" ||
+    family === "cyan" ||
+    family === "yellow" ||
+    family === "orange" ||
+    family === "green";
+  const lumaLift = stats.maxLuma - centerLuma;
+  const localSpan = stats.maxLuma - stats.minLuma;
+  if (
+    textureProneColor &&
+    saturation >= Math.min(qualityOptions.textureGuardSaturation, 34) &&
+    centerLuma > 38
+  ) {
+    if (
+      lumaLift >= Math.max(58, contrast * 1.6) ||
+      stats.maxDistance >= Math.max(72, contrast * 1.8)
+    ) {
+      return false;
+    }
+    return true;
+  }
+  if (
+    centerLuma <= qualityOptions.darkDetailVeryDarkLuma &&
+    saturation <= 50 &&
+    stats.maxSaturation >= 72 &&
+    stats.maxDistance >= Math.max(58, contrast * 1.35) &&
+    lumaLift < 132
+  ) {
+    return true;
+  }
+  if (centerLuma <= qualityOptions.darkDetailVeryDarkLuma) return false;
+  if (
+    centerLuma > 44 &&
+    saturation <= 44 &&
+    stats.maxSaturation >= 72 &&
+    stats.maxDistance >= Math.max(58, contrast * 1.35)
+  ) {
+    return true;
+  }
+  const weakContrast =
+    lumaLift < contrast * qualityOptions.textureGuardContrastScale &&
+    stats.maxDistance <
+      Math.max(52, contrast * qualityOptions.textureGuardContrastScale);
+  if (!weakContrast) return false;
+
+  if (textureProneColor && saturation >= qualityOptions.textureGuardSaturation) {
+    return true;
+  }
+
+  return saturation <= 42 && localSpan < contrast * 1.15;
+}
+
 function localSourceDetailStats(
   raw: Buffer,
   width: number,
@@ -1022,8 +1546,9 @@ function localSourceDetailStats(
   x: number,
   y: number,
   color: RGB,
+  radius = 4,
 ) {
-  const offsets = [
+  const offsets: Array<readonly [number, number]> = [
     [-2, 0],
     [-1, 0],
     [1, 0],
@@ -1040,10 +1565,39 @@ function localSourceDetailStats(
     [4, 0],
     [0, -4],
     [0, 4],
-  ] as const;
+  ];
+  if (radius >= 6) {
+    offsets.push(
+      [-6, 0],
+      [6, 0],
+      [0, -6],
+      [0, 6],
+      [-4, -4],
+      [4, -4],
+      [-4, 4],
+      [4, 4],
+    );
+  }
+  if (radius >= 8) {
+    offsets.push(
+      [-8, 0],
+      [8, 0],
+      [0, -8],
+      [0, 8],
+      [-6, -3],
+      [6, -3],
+      [-6, 3],
+      [6, 3],
+      [-3, -6],
+      [3, -6],
+      [-3, 6],
+      [3, 6],
+    );
+  }
   let maxLuma = luminance(color);
   let minLuma = maxLuma;
   let maxDistance = 0;
+  let maxSaturation = colorSaturation(color);
   for (const [dx, dy] of offsets) {
     const nx = x + dx;
     const ny = y + dy;
@@ -1060,8 +1614,9 @@ function localSourceDetailStats(
     maxLuma = Math.max(maxLuma, luma);
     minLuma = Math.min(minLuma, luma);
     maxDistance = Math.max(maxDistance, colorDistance(color, neighbor));
+    maxSaturation = Math.max(maxSaturation, colorSaturation(neighbor));
   }
-  return { maxLuma, minLuma, maxDistance };
+  return { maxLuma, minLuma, maxDistance, maxSaturation };
 }
 
 function filterDetailMaskComponents(
@@ -1908,6 +2463,7 @@ function estimateFlatColorForegroundBounds(
   raw: Buffer,
   width: number,
   height: number,
+  options: { padRatio?: number } = {},
 ): FlatColorPixelBounds | null {
   const total = width * height;
   let minX = width;
@@ -1936,7 +2492,10 @@ function estimateFlatColorForegroundBounds(
     return null;
   }
 
-  const pad = Math.round(Math.max(24, Math.max(width, height) * 0.055));
+  const padRatio = Number.isFinite(options.padRatio)
+    ? clampNumber(options.padRatio ?? 0.055, 0.01, 0.08)
+    : 0.055;
+  const pad = Math.round(Math.max(18, Math.max(width, height) * padRatio));
   const bounds = {
     minX: Math.max(0, minX - pad),
     minY: Math.max(0, minY - pad),

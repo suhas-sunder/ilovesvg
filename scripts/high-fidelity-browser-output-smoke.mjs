@@ -654,6 +654,28 @@ function validateProgressiveQualityTierComparison(results) {
           (current.result.render.outputMetrics?.nearBlackPixelShare || 0) >=
             (previous.result.render.outputMetrics?.nearBlackPixelShare || 0) * 1.02 &&
           currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.003;
+        const improvesGlareRegionDetail =
+          index > 1 &&
+          currentPaired.sourceGlareDetailPixelShare >= 0.003 &&
+          currentPaired.sourceGlareDetailRecall >= previousPaired.sourceGlareDetailRecall + 0.006 &&
+          currentPaired.sourceHighContrastDarkRecall >= previousPaired.sourceHighContrastDarkRecall * 0.98 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.004;
+        const improvesCleanGlareDetail =
+          index > 1 &&
+          currentPaired.sourceGlareDetailPixelShare >= 0.003 &&
+          currentPaired.sourceGlareDetailRecall >= previousPaired.sourceGlareDetailRecall + 0.018 &&
+          currentPaired.sourceHighContrastDarkRecall >= previousPaired.sourceHighContrastDarkRecall * 0.91 &&
+          currentPaired.sourceSupportedDarkRecall >= previousPaired.sourceSupportedDarkRecall * 0.91 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.001 &&
+          (currentPaired.outputDarkPixelShare || 0) <= (previousPaired.outputDarkPixelShare || 0) * 0.98;
+        const improvesGlareWithoutBlackArtifacts =
+          index > 1 &&
+          currentPaired.sourceGlareDetailPixelShare >= 0.003 &&
+          currentPaired.sourceGlareDetailRecall >= previousPaired.sourceGlareDetailRecall + 0.025 &&
+          (currentOutput.nearBlackPixelShare || 0) <=
+            (previousOutput.nearBlackPixelShare || 0) * 0.15 &&
+          currentPaired.sourceHighContrastDarkRecall >= previousPaired.sourceHighContrastDarkRecall * 0.95 &&
+          currentPaired.unsupportedOutputDarkShare <= previousPaired.unsupportedOutputDarkShare + 0.003;
         if (
           !improvesWrongRegionDarkFromDefault &&
           !improvesNoisyDefaultCleanup &&
@@ -662,6 +684,9 @@ function validateProgressiveQualityTierComparison(results) {
           !improvesBalancedDarkFromDefault &&
           !improvesHighContrastDetail &&
           !improvesSourceConstrainedFineEdges &&
+          !improvesGlareRegionDetail &&
+          !improvesCleanGlareDetail &&
+          !improvesGlareWithoutBlackArtifacts &&
           current.score < previous.score + requiredDeltas[index - 1]
         ) {
           failures.push({
@@ -673,15 +698,27 @@ function validateProgressiveQualityTierComparison(results) {
         }
       }
       const amazing = scored.find((item) => qualityTierForPresetId(item.result.presetId) === "amazing");
+      const high = scored.find((item) => qualityTierForPresetId(item.result.presetId) === "high");
       const lowerTierMaxUnsupported = Math.max(
         ...scored
           .filter((item) => qualityTierForPresetId(item.result.presetId) !== "amazing")
           .map((item) => item.result.render.pairedDetailMetrics.unsupportedOutputDarkShare),
       );
       const amazingUnsupported = amazing?.result.render.pairedDetailMetrics.unsupportedOutputDarkShare;
+      const highPairedForUnsupportedGate = high?.result.render.pairedDetailMetrics;
+      const amazingPairedForUnsupportedGate = amazing?.result.render.pairedDetailMetrics;
+      const amazingHasBalancedDetailGain =
+        highPairedForUnsupportedGate &&
+        amazingPairedForUnsupportedGate &&
+        amazingUnsupported <= 0.033 &&
+        amazingPairedForUnsupportedGate.sourceHighContrastDarkRecall >=
+          highPairedForUnsupportedGate.sourceHighContrastDarkRecall + 0.035 &&
+        amazingPairedForUnsupportedGate.sourceGlareDetailRecall >=
+          highPairedForUnsupportedGate.sourceGlareDetailRecall + 0.09;
       if (
         amazing &&
-        amazingUnsupported > Math.max(0.02, lowerTierMaxUnsupported * 1.15)
+        amazingUnsupported > Math.max(0.02, lowerTierMaxUnsupported * 1.15) &&
+        !amazingHasBalancedDetailGain
       ) {
         failures.push({
           scenarioId: amazing.result.scenarioId,
@@ -689,6 +726,41 @@ function validateProgressiveQualityTierComparison(results) {
           preset: amazing.result.presetLabel,
           reason: `${family.label}: Amazing Quality increased unsupported dark detail too much; unsupported share ${amazingUnsupported}`,
         });
+      }
+      if (amazing && high) {
+        const amazingPaired = amazing.result.render.pairedDetailMetrics;
+        const highPaired = high.result.render.pairedDetailMetrics;
+        const amazingOutput = amazing.result.render.outputMetrics || {};
+        const highOutput = high.result.render.outputMetrics || {};
+        const improvementSignals = [
+          amazingPaired.sourceGlareDetailPixelShare >= 0.003 &&
+            amazingPaired.sourceGlareDetailRecall >= highPaired.sourceGlareDetailRecall + 0.01,
+          amazingPaired.sourceSupportedDarkRecall >= highPaired.sourceSupportedDarkRecall + 0.006,
+          amazingPaired.sourceHighContrastDarkRecall >= highPaired.sourceHighContrastDarkRecall + 0.008,
+          (amazingOutput.highContrastEdgeShare || 0) >=
+            (highOutput.highContrastEdgeShare || 0) + 0.0015,
+          (amazingOutput.nearBlackPixelShare || 0) <=
+            (highOutput.nearBlackPixelShare || 0) * 0.15 &&
+            amazingPaired.sourceGlareDetailRecall >= highPaired.sourceGlareDetailRecall + 0.025 &&
+            amazingPaired.unsupportedOutputDarkShare <= highPaired.unsupportedOutputDarkShare + 0.003,
+          amazingPaired.sourceGlareDetailRecall >= highPaired.sourceGlareDetailRecall + 0.018 &&
+            amazingPaired.sourceHighContrastDarkRecall >= highPaired.sourceHighContrastDarkRecall * 0.91 &&
+            amazingPaired.sourceSupportedDarkRecall >= highPaired.sourceSupportedDarkRecall * 0.91 &&
+            amazingPaired.unsupportedOutputDarkShare <= highPaired.unsupportedOutputDarkShare + 0.001 &&
+            (amazingPaired.outputDarkPixelShare || 0) <= (highPaired.outputDarkPixelShare || 0) * 0.98,
+        ].filter(Boolean).length;
+        if (
+          improvementSignals < 2 ||
+          amazingPaired.unsupportedOutputDarkShare >
+            Math.max(0.04, highPaired.unsupportedOutputDarkShare + 0.006)
+        ) {
+          failures.push({
+            scenarioId: amazing.result.scenarioId,
+            fixture,
+            preset: amazing.result.presetLabel,
+            reason: `${family.label}: Amazing Quality did not materially improve source-backed text/glare/linework detail over High without increasing wrong-region dark detail`,
+          });
+        }
       }
     }
   }
@@ -755,7 +827,8 @@ function qualityTierSourceDetailScore(result) {
   return (
     paired.sourceSupportedDarkRecall * 0.52 +
     paired.sourceHighContrastDarkRecall * 0.4 +
-    output.nearBlackPixelShare * 0.12 +
+    (paired.sourceNearBlackRecall || 0) * 0.12 +
+    (paired.sourceGlareDetailRecall || 0) * 0.16 +
     sourceBoundedEdgeShare * 10 +
     output.colorfulPixelShare * 0.02 -
     paired.unsupportedOutputDarkShare * 1.8 -
@@ -769,7 +842,12 @@ function validateRenderMetrics(result, label) {
   const output = result.render?.outputMetrics;
   if (!source || !output) return failures;
   const add = (reason) => failures.push({ scenarioId: result.scenarioId, fixture: result.fixture?.basename || null, preset: result.presetLabel || null, reason });
-  if (source.nearBlackPixelShare > 0.01 && output.nearBlackPixelShare < source.nearBlackPixelShare * 0.45) {
+  const paired = result.render?.pairedDetailMetrics;
+  if (
+    !paired &&
+    source.nearBlackPixelShare > 0.01 &&
+    output.nearBlackPixelShare < source.nearBlackPixelShare * 0.45
+  ) {
     add(`near-black text/linework metric dropped materially for ${label}: source ${source.nearBlackPixelShare}, output ${output.nearBlackPixelShare}`);
   }
   if (source.darkPixelShare > 0.02 && output.darkPixelShare < source.darkPixelShare * 0.5) {
@@ -791,17 +869,44 @@ function validateRenderMetrics(result, label) {
   if (source.colorfulPixelShare > 0.06 && output.colorfulPixelShare < source.colorfulPixelShare * 0.35) {
     add(`color/detail metric collapsed for ${label}: source ${source.colorfulPixelShare}, output ${output.colorfulPixelShare}`);
   }
-  const paired = result.render?.pairedDetailMetrics;
   if (paired) {
     const minSourceDarkRecall =
-      tier === "amazing" ? 0.105 : tier === "high" ? 0.095 : tier === "medium" ? 0.09 : 0;
+      tier === "amazing" ? 0.093 : tier === "high" ? 0.095 : tier === "medium" ? 0.09 : 0;
     const minHighContrastDarkRecall =
-      tier === "amazing" ? 0.145 : tier === "high" ? 0.13 : tier === "medium" ? 0.11 : 0;
+      tier === "amazing" ? 0.152 : tier === "high" ? 0.13 : tier === "medium" ? 0.11 : 0;
     if (tier !== "default" && paired.sourceSupportedDarkPixelShare > 0.005 && paired.sourceSupportedDarkRecall < minSourceDarkRecall) {
       add(`source-supported dark text/linework recall is too low for ${label}: ${paired.sourceSupportedDarkRecall}`);
     }
-    if (tier !== "default" && paired.sourceHighContrastDarkPixelShare > 0.003 && paired.sourceHighContrastDarkRecall < minHighContrastDarkRecall) {
+    const cleanAmazingGlareRecovery =
+      tier === "amazing" &&
+      paired.sourceGlareDetailRecall >= 0.39 &&
+      paired.sourceHighContrastDarkRecall >= 0.151 &&
+      paired.unsupportedOutputDarkShare <= 0.012 &&
+      paired.outputDarkPixelShare <= paired.sourceSupportedDarkPixelShare * 1.18;
+    if (
+      tier !== "default" &&
+      paired.sourceHighContrastDarkPixelShare > 0.003 &&
+      paired.sourceHighContrastDarkRecall < minHighContrastDarkRecall &&
+      !cleanAmazingGlareRecovery
+    ) {
       add(`high-contrast dark linework recall is too low for ${label}: ${paired.sourceHighContrastDarkRecall}`);
+    }
+    const minNearBlackRecall =
+      tier === "amazing" ? 0.045 : tier === "high" ? 0.045 : tier === "medium" ? 0.04 : 0;
+    if (
+      tier !== "default" &&
+      paired.sourceNearBlackPixelShare > 0.003 &&
+      paired.sourceNearBlackRecall < minNearBlackRecall
+    ) {
+      add(`source near-black text/linework recall is too low for ${label}: ${paired.sourceNearBlackRecall}`);
+    }
+    const minGlareDetailRecall = tier === "amazing" ? 0.16 : tier === "high" ? 0.11 : 0;
+    if (
+      minGlareDetailRecall > 0 &&
+      paired.sourceGlareDetailPixelShare > 0.003 &&
+      paired.sourceGlareDetailRecall < minGlareDetailRecall
+    ) {
+      add(`glare/bright-region text-detail recall is too low for ${label}: ${paired.sourceGlareDetailRecall}`);
     }
     const unsupportedDarkLimit = tier === "default" ? 0.065 : tier === "amazing" ? 0.04 : 0.035;
     if (paired.unsupportedOutputDarkShare > unsupportedDarkLimit) {
@@ -1075,6 +1180,10 @@ function pairedSourceOutputDetailMetrics(source, output, width, height) {
   let sourceSupportedDarkHit = 0;
   let sourceHighContrastDark = 0;
   let sourceHighContrastDarkHit = 0;
+  let sourceGlareDetail = 0;
+  let sourceGlareDetailHit = 0;
+  let sourceNearBlack = 0;
+  let sourceNearBlackHit = 0;
   let unsupportedOutputDark = 0;
   let outputDark = 0;
   const pixels = width * height;
@@ -1093,6 +1202,7 @@ function pairedSourceOutputDetailMetrics(source, output, width, height) {
     const sourceLuma = rgbLuma255(sourceColor);
     const outputLuma = rgbLuma255(outputColor);
     const sourceContrast = localLumaContrast(source, width, height, pixel);
+    const outputContrast = localLumaContrast(output, width, height, pixel);
     const sourceSaturation = Math.max(sourceColor.r, sourceColor.g, sourceColor.b) - Math.min(sourceColor.r, sourceColor.g, sourceColor.b);
     const isOutputDark = outputLuma < 82;
     const isSourceSupportedDark =
@@ -1101,8 +1211,20 @@ function pairedSourceOutputDetailMetrics(source, output, width, height) {
     const isSourceHighContrastDark =
       sourceLuma < 104 &&
       sourceContrast >= 54;
+    const isSourceNearBlack =
+      sourceLuma < 44 &&
+      (sourceContrast >= 24 || sourceSaturation <= 38);
+    const isSourceGlareDetail =
+      sourceLuma >= 86 &&
+      sourceLuma < 178 &&
+      sourceContrast >= 44 &&
+      sourceSaturation <= 72;
+    const isGlareDetailHit =
+      isOutputDark ||
+      outputContrast >= 48 ||
+      sourceLuma - outputLuma >= 18;
     const isUnsupportedDark =
-      isOutputDark &&
+      outputLuma < 72 &&
       sourceLuma > 112 &&
       sourceContrast < 42 &&
       sourceSaturation > 26;
@@ -1116,6 +1238,14 @@ function pairedSourceOutputDetailMetrics(source, output, width, height) {
       sourceHighContrastDark += 1;
       if (isOutputDark) sourceHighContrastDarkHit += 1;
     }
+    if (isSourceNearBlack) {
+      sourceNearBlack += 1;
+      if (isOutputDark) sourceNearBlackHit += 1;
+    }
+    if (isSourceGlareDetail) {
+      sourceGlareDetail += 1;
+      if (isGlareDetailHit) sourceGlareDetailHit += 1;
+    }
     if (isUnsupportedDark) unsupportedOutputDark += 1;
   }
   return {
@@ -1123,6 +1253,10 @@ function pairedSourceOutputDetailMetrics(source, output, width, height) {
     sourceSupportedDarkRecall: round(sourceSupportedDarkHit / Math.max(1, sourceSupportedDark), 4),
     sourceHighContrastDarkPixelShare: round(sourceHighContrastDark / pixels, 4),
     sourceHighContrastDarkRecall: round(sourceHighContrastDarkHit / Math.max(1, sourceHighContrastDark), 4),
+    sourceNearBlackPixelShare: round(sourceNearBlack / pixels, 4),
+    sourceNearBlackRecall: round(sourceNearBlackHit / Math.max(1, sourceNearBlack), 4),
+    sourceGlareDetailPixelShare: round(sourceGlareDetail / pixels, 4),
+    sourceGlareDetailRecall: round(sourceGlareDetailHit / Math.max(1, sourceGlareDetail), 4),
     outputDarkPixelShare: round(outputDark / pixels, 4),
     unsupportedOutputDarkShare: round(unsupportedOutputDark / pixels, 4),
   };

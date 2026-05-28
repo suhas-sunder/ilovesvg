@@ -321,6 +321,7 @@ async function main() {
     inventory,
     fixtureMatrix,
     liveMeasurements,
+    sourceFindings,
   });
   const conditionalColorCountPlan = buildConditionalColorCountPlan();
   const recommendedImplementationOrder = buildRecommendedImplementationOrder();
@@ -866,6 +867,27 @@ function inspectSourceFindings(sourceFiles, inventory) {
       sourceRequestedCount: inventory.allPresets.find((preset) => preset.id === "photo-many-colors")?.requestedTargetCount ?? null,
       reason: "Photo Many Colors must use grouped editable palette output and stay at or below the 32-color ceiling.",
     },
+    amazingSourceConstrainedDetail: {
+      hasGlareDetailRecovery:
+        /glareDetailRecovery\s*:\s*true/.test(server) &&
+        /isSourceSupportedGlareDetailPixel/.test(server),
+      hasTextureGuard:
+        /isLikelyUnsupportedTextureDetail/.test(server) &&
+        /textureGuardContrastScale/.test(server),
+      hasChromaticDarkGuard:
+        /protectChromaticDarkColors\s*:\s*true/.test(server) &&
+        /shouldSnapCompactVTracerColorToDark/.test(server),
+      hasAmazingCoordinatePrecisionGate:
+        /svgCoordinatePrecision/.test(server) &&
+        /roundSvgDecimalNumbers/.test(server),
+      amazingPresetTraceSideMin: Math.min(
+        ...sharedAdditions
+          .filter((preset) => String(preset.settings.layeredQualityTier || "") === "amazing")
+          .map((preset) => numberOrNull(preset.settings.layerMaxTraceSide) ?? 0),
+      ),
+      reason:
+        "Amazing Quality must keep source-constrained glare/text recovery, wrong-region texture guards, chromatic dark-color protection, and less destructive tracing gates.",
+    },
   };
 }
 
@@ -1302,7 +1324,7 @@ function buildFixtureMatrix({ fixtureAnalyses, presetContracts, inventory, liveM
   }
 }
 
-function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasurements }) {
+function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasurements, sourceFindings }) {
   const qualityTierInventory = buildQualityTierInventoryGuardrails(inventory);
   const focusedContracts = [
     {
@@ -1329,6 +1351,34 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
   ];
   const routes = ["/", "/png-to-layered-svg-for-cricut", "/jpg-to-layered-svg-for-cricut"];
   const failures = [...qualityTierInventory.failures];
+  const amazingDetail = sourceFindings?.amazingSourceConstrainedDetail;
+  if (amazingDetail) {
+    if (!amazingDetail.hasGlareDetailRecovery) {
+      failures.push(
+        "Amazing Quality must keep source-constrained glare/bright-region text-detail recovery in the server trace path.",
+      );
+    }
+    if (!amazingDetail.hasTextureGuard) {
+      failures.push(
+        "Amazing Quality must keep source-constrained texture guards so dark detail is not sprayed into water, borders, or background.",
+      );
+    }
+    if (!amazingDetail.hasChromaticDarkGuard) {
+      failures.push(
+        "Amazing Quality must keep chromatic dark-color protection so dark blue/yellow/green source regions are not snapped into the black text/detail layer.",
+      );
+    }
+    if (!amazingDetail.hasAmazingCoordinatePrecisionGate) {
+      failures.push(
+        "Amazing Quality must keep an explicit coordinate-precision gate so fidelity can be raised without changing lower tiers.",
+      );
+    }
+    if (numberOrNull(amazingDetail.amazingPresetTraceSideMin) != null && amazingDetail.amazingPresetTraceSideMin < 1900) {
+      failures.push(
+        `Amazing Quality presets should trace near full source resolution for 2048px card fixtures; minimum Amazing trace side is ${amazingDetail.amazingPresetTraceSideMin}.`,
+      );
+    }
+  }
   const sourceContracts = focusedContracts.map((contract) => {
     const sourcePreset =
       inventory.allPresets.find(
