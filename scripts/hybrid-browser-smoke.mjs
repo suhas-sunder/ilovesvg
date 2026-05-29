@@ -1507,6 +1507,7 @@ async function runOutputUxRouteSmoke(testCase) {
         value?.hasOutputComparison &&
         value?.hasOriginalComparison &&
         value?.hasSettingsPanel &&
+        value?.topLevelSettingsOpen?.allOpen &&
         value?.hasFileSize &&
         !value?.hasFocusedRedundantActions &&
         value?.openSettingsSectionCount === 0 &&
@@ -1608,6 +1609,7 @@ async function runOutputUxRouteSmoke(testCase) {
         (value) =>
           value?.focused &&
           value?.batchSectionOpen &&
+          value?.topLevelSettingsOpen?.allOpen &&
           value?.openSettingsSectionCount === 1 &&
           !value?.hasFocusedRedundantActions,
       );
@@ -1629,6 +1631,7 @@ async function runOutputUxRouteSmoke(testCase) {
       focused.hasOutputComparison &&
       focused.hasOriginalComparison &&
       focused.hasSettingsPanel &&
+      focused.topLevelSettingsOpen.allOpen &&
       focused.hasFileSize &&
       !focused.hasFocusedRedundantActions &&
       focused.openSettingsSectionCount === 0 &&
@@ -2060,6 +2063,7 @@ async function runOutputUxResponsiveChecks(client) {
       focusedHasOutputComparison: focused.hasOutputComparison,
       focusedHasOriginalComparison: focused.hasOriginalComparison,
       focusedHasSettingsPanel: focused.hasSettingsPanel,
+      topLevelSettingsOpen: focused.topLevelSettingsOpen.allOpen,
       focusedHasFileSize: focused.hasFileSize,
       noFocusedRedundantActions: !focused.hasFocusedRedundantActions,
       noSettingsSectionsOpen: focused.openSettingsSectionCount === 0,
@@ -2227,6 +2231,11 @@ function outputUxSnapshotExpression() {
     const openSettingsSections = settingsPanel
       ? Array.from(settingsPanel.querySelectorAll('[data-settings-section-open="true"]'))
       : [];
+    const topLevelSettingsSections = settingsPanel
+      ? Array.from(settingsPanel.querySelectorAll('[data-settings-top-section-tone]'))
+      : [];
+    const liveTopSettingsSection = settingsPanel?.querySelector('[data-settings-top-section-tone="live"]') || null;
+    const convertTopSettingsSection = settingsPanel?.querySelector('[data-settings-top-section-tone="convert"]') || null;
     const visible = (element) => {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
@@ -2321,6 +2330,14 @@ function outputUxSnapshotExpression() {
       minimizeInActionRow: Boolean(document.querySelector('[data-output-action-row="true"] [data-output-minimize-control="true"]')),
       hasFocusedRedundantActions,
       openSettingsSectionCount: openSettingsSections.length,
+      topLevelSettingsOpen: {
+        count: topLevelSettingsSections.length,
+        liveOpen: liveTopSettingsSection?.getAttribute("data-settings-top-section-open") === "true",
+        convertOpen: convertTopSettingsSection?.getAttribute("data-settings-top-section-open") === "true",
+        allOpen:
+          liveTopSettingsSection?.getAttribute("data-settings-top-section-open") === "true" &&
+          convertTopSettingsSection?.getAttribute("data-settings-top-section-open") === "true",
+      },
       batchShortcut: Boolean(document.querySelector('[data-output-batch-shortcut="true"]')),
       batchSectionOpen: Boolean(document.querySelector('[data-settings-section^="output-batch-"][data-settings-section-open="true"]')),
       leftPaneCollapsed,

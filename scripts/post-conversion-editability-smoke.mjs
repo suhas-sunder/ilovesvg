@@ -294,6 +294,12 @@ async function runScenario(scenario, fixture) {
     await waitForDocumentReady(client);
     await installObservers(client);
     await installClipboardCapture(client);
+    const staleSettingsStorage = await timed("seed stale settings localStorage", () =>
+      seedStaleSettingsTopLevelStorage(client),
+    );
+    if (!staleSettingsStorage.ok) {
+      failures.push(`stale settings localStorage setup failed: ${staleSettingsStorage.error}`);
+    }
 
     if (scenario.scenarioKind === "svg-cleaner") {
       return await runSvgCleanerScenario({
@@ -390,8 +396,20 @@ async function runScenario(scenario, fixture) {
     let postConversion = null;
     if (completed.ok && completed.value?.completed) {
       await clearPhaseLongTasks(client, "post-conversion-edit");
+      const expectsSharedSettingsTopLevel = /TraceAdvancedSettingsPanel|LayeredAdvancedSettingsPanel/i.test(
+        scenario.settingsComponent || "",
+      );
       postConversion = await runPostConversionEditFlow(client, timed);
       if (!postConversion.settingsOpened) failures.push("Settings/Edit did not open on the completed output.");
+      if (expectsSharedSettingsTopLevel && !postConversion.topLevelSettingsGroupsPresent) {
+        failures.push("Shared Settings/Edit top-level groups were not present.");
+      }
+      if (expectsSharedSettingsTopLevel && !postConversion.topLevelSettingsGroupsDefaultOpen) {
+        failures.push("Live Preview Edits and Click To Convert did not default open after Settings/Edit, even with stale localStorage seeded.");
+      }
+      if (expectsSharedSettingsTopLevel && postConversion.openSettingsSectionCount !== 0) {
+        failures.push("Focused settings subsections did not start collapsed.");
+      }
       if (postConversion.colorApplicable && !postConversion.colorChanged) failures.push("Layer/fill color edit did not visibly apply.");
       if (postConversion.sliderApplicable && !postConversion.sliderChanged) failures.push("Slider edit did not visibly apply.");
       if (!postConversion.colorApplicable && !postConversion.sliderApplicable && !scenario.allowNoEditTarget) {
@@ -674,6 +692,15 @@ async function runPostConversionEditFlow(client, timed) {
     settingsOpened: Boolean(settings.ok && settings.value?.panelVisible),
     settingsOpenMs: settings.elapsedMs,
     visibleSettingsPanelDetection: settings.value || null,
+    topLevelSettingsGroupsPresent: Boolean(
+      settings.value?.topLevelSettings?.livePresent &&
+        settings.value?.topLevelSettings?.convertPresent,
+    ),
+    topLevelSettingsGroupsDefaultOpen: Boolean(
+      settings.value?.topLevelSettings?.liveOpen &&
+        settings.value?.topLevelSettings?.convertOpen,
+    ),
+    openSettingsSectionCount: settings.value?.openSettingsSectionCount ?? null,
     layerControlOpenMs: expand.elapsedMs,
     layerControlsVisible: Boolean(expand.ok && expand.value?.opened),
     colorApplicable,
@@ -1107,11 +1134,27 @@ async function openSettingsOnLatestOutput(client) {
     () => `(() => {
       const focused = document.querySelector('[data-focused-editor-workspace="true"]');
       const panel = document.querySelector('[data-editor-settings-panel="true"], [id^="output-settings-"]:not([id^="output-settings-panel-"])');
+      const liveTop = panel?.querySelector('[data-settings-top-section-tone="live"]') || null;
+      const convertTop = panel?.querySelector('[data-settings-top-section-tone="convert"]') || null;
+      const topSections = panel
+        ? Array.from(panel.querySelectorAll('[data-settings-top-section-tone]'))
+        : [];
+      const openSettingsSections = panel
+        ? Array.from(panel.querySelectorAll('[data-settings-section-open="true"]'))
+        : [];
       return {
         focusedVisible: isVisible(focused),
         panelVisible: isVisible(panel),
         domNodes: document.querySelectorAll("*").length,
         layerRowCount: document.querySelectorAll('[data-settings-section] input[type="color"], [data-layer-palette-editor="true"] input[type="color"]').length,
+        openSettingsSectionCount: openSettingsSections.length,
+        topLevelSettings: {
+          count: topSections.length,
+          livePresent: Boolean(liveTop),
+          convertPresent: Boolean(convertTop),
+          liveOpen: liveTop?.getAttribute("data-settings-top-section-open") === "true",
+          convertOpen: convertTop?.getAttribute("data-settings-top-section-open") === "true",
+        },
       };
       function isVisible(element) {
         if (!element) return false;
@@ -1126,26 +1169,69 @@ async function openSettingsOnLatestOutput(client) {
   return { clicked, ...panel };
 }
 
+async function seedStaleSettingsTopLevelStorage(client) {
+  return evaluate(client, `(() => {
+    const stalePayload = JSON.stringify({
+      live: false,
+      convert: false,
+      liveTopOpen: false,
+      convertTopOpen: false,
+      topSections: { live: false, convert: false },
+    });
+    const keys = [
+      "ilovesvg:settings-top-level:v1",
+      "ilovesvg:advanced-settings-top-level:v1",
+      "ilovesvg:settings:top-sections",
+      "advanced-settings-top-sections",
+      "ilovesvg.settings.topSections",
+    ];
+    for (const key of keys) localStorage.setItem(key, stalePayload);
+    return {
+      seeded: true,
+      keys,
+      payloadBytes: stalePayload.length,
+    };
+  })()`, 6_000);
+}
+
 async function openLayerControls(client) {
   return evaluate(client, `(async () => {
-    const clickByText = (root, patterns) => {
+    const openByText = (root, patterns) => {
       const controls = Array.from(root.querySelectorAll("button, summary"));
       const target = controls.find((control) => {
         const text = (control.innerText || control.textContent || control.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
         return isVisible(control) && patterns.some((pattern) => pattern.test(text));
       });
       if (!target) return null;
+      const section = target.closest("[data-settings-section]");
+      const topSection = target.closest("[data-settings-top-section-tone]");
+      if (
+        section?.getAttribute("data-settings-section-open") === "true" ||
+        target.getAttribute("aria-expanded") === "true" ||
+        (!section && topSection?.getAttribute("data-settings-top-section-open") === "true")
+      ) {
+        return {
+          clicked: false,
+          text: (target.innerText || target.textContent || "").replace(/\\s+/g, " ").trim(),
+        };
+      }
       target.scrollIntoView({ block: "center", inline: "nearest" });
       target.click();
-      return (target.innerText || target.textContent || "").replace(/\\s+/g, " ").trim();
+      return {
+        clicked: true,
+        text: (target.innerText || target.textContent || "").replace(/\\s+/g, " ").trim(),
+      };
     };
     const panel = document.querySelector('[data-editor-settings-panel="true"], [id^="output-settings-"]:not([id^="output-settings-panel-"])');
     if (!panel) throw new Error("settings panel missing");
     const opened = [];
-    const live = clickByText(panel, [/Live Preview Edits/i]);
-    if (live) opened.push(live);
+    const liveSection = panel.querySelector('[data-settings-top-section-tone="live"]');
+    if (!liveSection || liveSection.getAttribute("data-settings-top-section-open") !== "true") {
+      const live = openByText(panel, [/Live Preview Edits/i]);
+      if (live) opened.push(live);
+    }
     await nextFrame();
-    const layer = clickByText(panel, [/^Layer colors$/i, /Layer colors/i, /Output colors/i, /Post-processing/i]);
+    const layer = openByText(liveSection || panel, [/^Layer colors$/i, /Layer colors/i, /Output colors/i, /Post-processing/i]);
     if (layer) opened.push(layer);
     await nextFrame();
     const colorInput = Array.from(panel.querySelectorAll('input[type="color"]')).find(isVisible);

@@ -196,6 +196,10 @@ async function runRouteScenario({
     await enablePage(client, downloadDir);
     await waitForDocumentReady(client);
     await verifyClipboardAccess(client).catch(() => null);
+    stage = "wait for route document";
+    await waitForRouteDocument(client, `${baseUrl}${route}`);
+    stage = "seed stale settings localStorage";
+    await seedStaleSettingsTopLevelStorage(client);
 
     stage = "upload fixture";
     await uploadFixtureWithRetry(client, fixturePath);
@@ -395,6 +399,21 @@ function validateScenarioResult(result, scenario) {
   }
   if (result.settingsOpened && !result.settingsOpened.open) {
     add(`Settings/Edit did not open: ${result.settingsOpened.error || "unknown"}`);
+  }
+  if (
+    result.settingsOpened?.topLevelSettings?.count > 0 &&
+    !(
+      result.settingsOpened.topLevelSettings.liveOpen &&
+      result.settingsOpened.topLevelSettings.convertOpen
+    )
+  ) {
+    add("Live Preview Edits and Click To Convert did not default open with stale localStorage seeded");
+  }
+  if (
+    result.settingsOpened?.topLevelSettings?.count > 0 &&
+    result.settingsOpened.openSettingsSectionCount !== 0
+  ) {
+    add("Settings/Edit subsections did not remain collapsed by default");
   }
   if (scenario.preset.layered && result.layerColors && result.layerColors.ok === false) {
     add(`Layer colors did not open for layered output: ${result.layerColors.reason || "unknown"}`);
@@ -824,11 +843,61 @@ async function openLatestSettingsPanel(client) {
       if (!latest) return { open: false };
       const text = latest.innerText || "";
       const controls = latest.querySelectorAll('input[aria-label$=" hex color"], [data-post-processing-controls="true"], [data-settings-section], [data-layer-color-total-count]');
-      return { open: controls.length > 0 || /Advanced settings|Layer colors|Output polish/i.test(text), controls: controls.length };
+      const liveTop = latest.querySelector('[data-settings-top-section-tone="live"]');
+      const convertTop = latest.querySelector('[data-settings-top-section-tone="convert"]');
+      const topSections = Array.from(latest.querySelectorAll('[data-settings-top-section-tone]'));
+      const openSettingsSections = Array.from(latest.querySelectorAll('[data-settings-section-open="true"]'));
+      return {
+        open: controls.length > 0 || /Advanced settings|Layer colors|Output polish/i.test(text),
+        controls: controls.length,
+        openSettingsSectionCount: openSettingsSections.length,
+        topLevelSettings: {
+          count: topSections.length,
+          liveOpen: liveTop?.getAttribute("data-settings-top-section-open") === "true",
+          convertOpen: convertTop?.getAttribute("data-settings-top-section-open") === "true",
+        },
+      };
       ${browserLatestCardHelpers()}
     })()`,
     12_000,
     (value) => value?.open,
+  );
+}
+
+async function seedStaleSettingsTopLevelStorage(client) {
+  return evaluate(client, `(() => {
+    try {
+      const stalePayload = JSON.stringify({
+        live: false,
+        convert: false,
+        liveTopOpen: false,
+        convertTopOpen: false,
+        topSections: { live: false, convert: false },
+      });
+      const keys = [
+        "ilovesvg:settings-top-level:v1",
+        "ilovesvg:advanced-settings-top-level:v1",
+        "ilovesvg:settings:top-sections",
+        "advanced-settings-top-sections",
+        "ilovesvg.settings.topSections",
+      ];
+      for (const key of keys) localStorage.setItem(key, stalePayload);
+      return { seeded: true, keys, payloadBytes: stalePayload.length };
+    } catch (error) {
+      return { seeded: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  })()`);
+}
+
+async function waitForRouteDocument(client, expectedUrlPrefix) {
+  return waitForValue(
+    client,
+    () => `(() => ({ href: location.href, readyState: document.readyState }))()`,
+    30_000,
+    (state) =>
+      typeof state?.href === "string" &&
+      state.href.startsWith(expectedUrlPrefix) &&
+      (state.readyState === "interactive" || state.readyState === "complete"),
   );
 }
 

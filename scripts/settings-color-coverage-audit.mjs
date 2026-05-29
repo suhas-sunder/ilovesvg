@@ -346,7 +346,7 @@ async function openLatestSettingsPanel(client) {
   if (!clicked) {
     throw new Error("Could not find Settings / Edit on the latest output card.");
   }
-  return waitForValue(
+  const waitForPanel = () => waitForValue(
     client,
     () => `(() => {
       const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
@@ -372,6 +372,48 @@ async function openLatestSettingsPanel(client) {
     10_000,
     (value) => value?.open,
   );
+  return waitForPanel().catch(async (error) => {
+    const fallback = await clickLatestSettingsButtonDom(client);
+    if (!fallback?.clicked) throw error;
+    return waitForPanel();
+  });
+}
+
+async function clickLatestSettingsButtonDom(client) {
+  return evaluate(client, `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { clicked: false, reason: "missing latest output card" };
+    const buttons = Array.from(latest.querySelectorAll("button, [role='button'], summary"));
+    const button = buttons.find((candidate) => {
+      const text = (candidate.innerText || candidate.textContent || candidate.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim();
+      return /Settings\\s*\\/\\s*Edit|\\bSettings\\b/i.test(text) &&
+        !/Download|Copy/i.test(text) &&
+        isVisible(candidate) &&
+        !candidate.disabled;
+    });
+    if (!button) return { clicked: false, reason: "settings button not found" };
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    button.click();
+    return {
+      clicked: true,
+      label: (button.innerText || button.textContent || button.getAttribute("aria-label") || "").replace(/\\s+/g, " ").trim(),
+    };
+    function isVisible(element) {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    }
+    function latestCard(items) {
+      return items.reduce((best, card) => {
+        if (!best) return card;
+        return numberOrNull(card.getAttribute("data-output-stamp")) >= numberOrNull(best.getAttribute("data-output-stamp")) ? card : best;
+      }, null);
+    }
+    function numberOrNull(value) {
+      const number = Number(String(value || "").replace(/[^0-9.]/g, ""));
+      return Number.isFinite(number) ? number : 0;
+    }
+  })()`, 10_000);
 }
 
 async function ensureSettingsSectionOpen(client, titlePattern, expectedKind) {
