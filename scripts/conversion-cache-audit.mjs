@@ -8,6 +8,7 @@ import ts from "typescript";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = path.join(rootDir, "app", "client", "lib", "converter");
 const tracingDir = path.join(rootDir, "app", "client", "lib", "tracing");
+const sharedTracingDir = path.join(rootDir, "app", "shared", "tracing");
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-conversion-cache-audit");
 
 const moduleFiles = [
@@ -23,6 +24,7 @@ const moduleFiles = [
 
 await fs.rm(tmpDir, { recursive: true, force: true });
 await fs.mkdir(path.join(tmpDir, "converter"), { recursive: true });
+await fs.mkdir(path.join(tmpDir, "shared", "tracing"), { recursive: true });
 await fs.mkdir(path.join(tmpDir, "tracing"), { recursive: true });
 
 for (const moduleName of moduleFiles) {
@@ -35,6 +37,10 @@ for (const moduleName of moduleFiles) {
 await transpileModule(
   path.join(tracingDir, "useHybridTraceFetcher.ts"),
   path.join(tmpDir, "tracing", "useHybridTraceFetcher.mjs"),
+);
+await transpileModule(
+  path.join(sharedTracingDir, "layeredQualityTier.ts"),
+  path.join(tmpDir, "shared", "tracing", "layeredQualityTier.mjs"),
 );
 
 const importConverterModule = (moduleName) =>
@@ -81,7 +87,7 @@ async function transpileModule(sourcePath, targetPath) {
   const source = await fs.readFile(sourcePath, "utf8");
   const rewritten = source
     .replace(/from "~\/client\/lib\/converter\/([^"]+)"/g, 'from "../converter/$1.mjs"')
-    .replace(/from "~\/shared\/tracing\/types"/g, 'from "../shared/tracing/types.mjs"')
+    .replace(/from "~\/shared\/tracing\/([^"]+)"/g, 'from "../shared/tracing/$1.mjs"')
     .replace(/from "\.\/([^"]+)"/g, 'from "./$1.mjs"');
   const transpiled = ts.transpileModule(rewritten, {
     compilerOptions: {

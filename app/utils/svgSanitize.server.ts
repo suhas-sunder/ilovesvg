@@ -10,6 +10,12 @@ export type SvgSanitizeResult =
   | { ok: true; svg: string; elementCount: number; pathCommandCount: number }
   | { ok: false; code: "SVG_UNSAFE"; message: string };
 
+type SvgSanitizeOptions = {
+  maxBytes?: number;
+  maxOutputBytes?: number;
+  maxPathCommands?: number;
+};
+
 const SAFE_ELEMENTS = new Set([
   "svg",
   "g",
@@ -104,7 +110,17 @@ const LONG_DRAWABLE_ATTRS = new Set(["d", "points"]);
 const EXCLUDED_BLOCKS =
   /<\s*(script|foreignObject|iframe|object|embed|audio|video|canvas|animate|animateTransform|animateMotion|set)\b[\s\S]*?<\s*\/\s*\1\s*>/gi;
 
-export function sanitizeSvgMarkup(svg: string, maxBytes = MAX_SVG_BYTES): SvgSanitizeResult {
+export function sanitizeSvgMarkup(
+  svg: string,
+  optionsOrMaxBytes: number | SvgSanitizeOptions = MAX_SVG_BYTES,
+): SvgSanitizeResult {
+  const options =
+    typeof optionsOrMaxBytes === "number"
+      ? { maxBytes: optionsOrMaxBytes }
+      : optionsOrMaxBytes;
+  const maxBytes = options.maxBytes ?? MAX_SVG_BYTES;
+  const maxOutputBytes = options.maxOutputBytes ?? MAX_OUTPUT_SVG_BYTES;
+  const maxPathCommands = options.maxPathCommands ?? MAX_SVG_PATH_COMMANDS;
   let next = String(svg || "");
   if (!next.trim()) {
     return { ok: false, code: "SVG_UNSAFE", message: "SVG file is empty." };
@@ -152,14 +168,14 @@ export function sanitizeSvgMarkup(svg: string, maxBytes = MAX_SVG_BYTES): SvgSan
   next = rewriteIdReferences(next, idMap);
   next = ensureSvgViewBox(next);
 
-  if (pathCommandCount > MAX_SVG_PATH_COMMANDS) {
+  if (pathCommandCount > maxPathCommands) {
     return {
       ok: false,
       code: "SVG_UNSAFE",
       message: "SVG has too many path commands to process safely.",
     };
   }
-  if (Buffer.byteLength(next, "utf8") > MAX_OUTPUT_SVG_BYTES) {
+  if (Buffer.byteLength(next, "utf8") > maxOutputBytes) {
     return { ok: false, code: "SVG_UNSAFE", message: "Sanitized SVG output is too large." };
   }
 

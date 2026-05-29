@@ -112,7 +112,9 @@ async function auditPresets() {
         .join("; ")}`,
     );
   }
-  const duplicateSettings = [...idsBySettings.values()].filter((ids) => ids.length > 1);
+  const duplicateSettings = [...idsBySettings.values()].filter(
+    (ids) => ids.length > 1 && !isAllowedDuplicatePresetSettings(ids),
+  );
   if (duplicateSettings.length > 0) {
     fatal.push(
       `Trace presets with duplicate settings: ${duplicateSettings
@@ -329,6 +331,11 @@ async function auditPresets() {
     centerlinePresets: Object.keys(centerlinePresets),
     curatedPresetExpansion: Object.keys(curatedPresetExpansion),
   };
+}
+
+function isAllowedDuplicatePresetSettings(ids) {
+  void ids;
+  return false;
 }
 
 async function auditTracingArchitecture() {

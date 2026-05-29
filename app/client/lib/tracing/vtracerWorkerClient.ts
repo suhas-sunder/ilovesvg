@@ -2,10 +2,16 @@ import {
   getTraceEngineDecision,
   type TraceInputProfile,
 } from "~/shared/tracing/enginePolicy";
+import {
+  layeredQualityTierSizeRatioCeiling,
+  normalizeLayeredQualityTier,
+} from "~/shared/tracing/layeredQualityTier";
 import type {
   NormalizedTraceSettings,
   TraceResult,
 } from "~/shared/tracing/types";
+
+export const SERVER_FIRST_LAYERED_TRACE_REASON = "__server_first_layered_trace__";
 
 type VTracerWorkerProgress = {
   type: "progress";
@@ -93,6 +99,17 @@ export async function tryTraceRasterInClient(input: {
       input.settings.presetBackendIntensity ??
       null,
   };
+  const layeredQualityTier = normalizeLayeredQualityTier(
+    settings.layeredQualityTier,
+    settings.presetId,
+  );
+  if (settings.traceMode === "layered" && layeredQualityTier !== "default") {
+    return {
+      ok: false,
+      reason:
+        "Layered quality tier presets use the server trace path for highest-fidelity output.",
+    };
+  }
   if (settings.strokeOutputMode === "centerline") {
     return tryTraceCenterlineInClient({
       file: input.file,
@@ -105,6 +122,24 @@ export async function tryTraceRasterInClient(input: {
     input.sourceWidth && input.sourceHeight
       ? { width: input.sourceWidth, height: input.sourceHeight }
       : await readBrowserImageSize(input.file);
+  if (
+    settings.traceMode === "layered" &&
+    layeredQualityTier === "default" &&
+    settings.engine !== "vtracer"
+  ) {
+    const sourcePixels =
+      Number(probedSize?.width || input.sourceWidth || 0) *
+      Number(probedSize?.height || input.sourceHeight || 0);
+    const requestedTraceSide = Number(
+      settings.layerMaxTraceSide || settings.maxTraceSide || 0,
+    );
+    if (sourcePixels > 2_000_000 && requestedTraceSide >= 1400) {
+      return {
+        ok: false,
+        reason: SERVER_FIRST_LAYERED_TRACE_REASON,
+      };
+    }
+  }
   const profile: TraceInputProfile = {
     mimeType: input.file.type || inferRasterMimeType(input.file.name),
     fileSizeBytes: input.file.size,
@@ -136,13 +171,22 @@ export async function tryTraceRasterInClient(input: {
     );
     const result = await new Promise<TraceResult>((resolve, reject) => {
       let settled = false;
+      const layered = settings.traceMode === "layered";
+      const workerTimeoutMs =
+        layered && layeredQualityTier === "amazing"
+          ? 45_000
+          : layered && layeredQualityTier === "high"
+            ? 150_000
+            : layered && layeredQualityTier === "medium"
+              ? 105_000
+              : 45_000;
       const timeout = window.setTimeout(() => {
         fail(
           new Error(
             "Browser tracing took too long. Falling back to the server engine.",
           ),
         );
-      }, 45_000);
+      }, workerTimeoutMs);
       const abortHandler = () => {
         worker?.terminate();
         fail(new Error("Conversion was canceled."));
@@ -501,13 +545,35 @@ function getUnusableTraceResultReason(
       input.settings?.colorLayerCount ||
       0,
   );
+  const inputBytes = Number(input.inputBytes || 0);
+  const layeredQualityTier = normalizeLayeredQualityTier(
+    input.settings?.layeredQualityTier,
+    input.settings?.presetId,
+  );
   const richLayered = layered && requestedPaletteCount >= 28;
-  const maxSvgBytes = layered
-    ? richLayered
-      ? 3_200_000
-      : 2_200_000
-    : 1_500_000;
-  const maxPaths = layered ? (richLayered ? 6500 : 4500) : 1_200;
+  const qualityTierMaxSvgBytes =
+    layered && layeredQualityTier !== "default" && inputBytes > 0
+      ? Math.max(
+          richLayered ? 3_200_000 : 2_200_000,
+          Math.round(
+            inputBytes * layeredQualityTierSizeRatioCeiling(layeredQualityTier),
+          ),
+        )
+      : null;
+  const maxSvgBytes =
+    qualityTierMaxSvgBytes ??
+    (layered ? (richLayered ? 3_200_000 : 2_200_000) : 1_500_000);
+  const maxPaths = layered
+    ? layeredQualityTier === "amazing"
+      ? 16_000
+      : layeredQualityTier === "high"
+        ? 12_000
+      : layeredQualityTier === "medium"
+        ? 8_500
+        : richLayered
+          ? 6_500
+          : 4_500
+    : 1_200;
   if (svgBytes > maxSvgBytes) {
     return centerline
       ? "Centerline tracing returned an oversized SVG. Try a smaller image or a simpler stroke preset."
@@ -526,7 +592,6 @@ function getUnusableTraceResultReason(
     return "Browser tracing returned no editable color layers. Falling back to the server engine.";
   }
 
-  const inputBytes = Number(input.inputBytes || 0);
   if (
     inputBytes > 0 &&
     svgBytes > Math.max(900_000, inputBytes * 24) &&

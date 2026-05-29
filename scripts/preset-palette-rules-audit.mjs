@@ -70,11 +70,17 @@ const corePresetContracts = [
   {
     id: "layered-flat-color",
     label: "Layered - Flat Color",
-    sourceIds: ["layered-flat-color"],
+    sourceIds: [
+      "layered-flat-color",
+      "layered-flat-color-medium-quality",
+      "layered-flat-color-high-quality",
+      "layered-flat-color-insane-quality",
+      "layered-insane-quality",
+    ],
     intendedUserOutcome: "Clean editable flat color blocks that stay compact on simple images and expand only when detail requires it.",
     typicalImageTypes: ["logos", "stickers", "flat illustrations", "screenshots with separated color families"],
-    expectedGroupRange: [6, 30],
-    hardMaximumEditableColorGroups: 30,
+    expectedGroupRange: [6, 32],
+    hardMaximumEditableColorGroups: 32,
     max30Applies: true,
     groupingAggressiveness: "adaptive strong",
     nearBlackBehavior: "Merge low-luma variants unless they mark separate high-contrast regions.",
@@ -134,11 +140,19 @@ const corePresetContracts = [
   {
     id: "layered-detail",
     label: "Layered - Detail",
-    sourceIds: ["layered-detail", "layered-color-detail", "png-high-detail", "jpg-high-detail"],
+    sourceIds: [
+      "layered-detail",
+      "layered-detail-medium-quality",
+      "layered-detail-high-quality",
+      "layered-detail-insane-quality",
+      "layered-color-detail",
+      "png-high-detail",
+      "jpg-high-detail",
+    ],
     intendedUserOutcome: "Higher-detail editable color output without exposing raw SVG color fragments.",
     typicalImageTypes: ["detailed stickers", "complex screenshots", "illustrations", "multi-color art"],
-    expectedGroupRange: [12, 30],
-    hardMaximumEditableColorGroups: 30,
+    expectedGroupRange: [12, 32],
+    hardMaximumEditableColorGroups: 32,
     max30Applies: true,
     groupingAggressiveness: "moderate",
     nearBlackBehavior: "Merge true near-black noise, preserve distinct outlines and dark objects.",
@@ -191,11 +205,16 @@ const corePresetContracts = [
   {
     id: "filled-layers-separate-colors",
     label: "Filled Layers - Separate Colors",
-    sourceIds: ["filled-layers-separate-colors"],
+    sourceIds: [
+      "filled-layers-separate-colors",
+      "filled-layers-separate-colors-medium-quality",
+      "filled-layers-separate-colors-high-quality",
+      "filled-layers-separate-colors-insane-quality",
+    ],
     intendedUserOutcome: "Distinct filled color regions remain separately editable without raw near-duplicate colors.",
     typicalImageTypes: ["flat illustrations", "stickers", "cartoons", "separated-color artwork"],
-    expectedGroupRange: [8, 24],
-    hardMaximumEditableColorGroups: 24,
+    expectedGroupRange: [8, 32],
+    hardMaximumEditableColorGroups: 32,
     max30Applies: true,
     groupingAggressiveness: "moderate",
     nearBlackBehavior: "Merge near-black variants only when they are visually interchangeable.",
@@ -210,7 +229,12 @@ const corePresetContracts = [
   {
     id: "photo-many-colors",
     label: "Photo Many Colors",
-    sourceIds: ["photo-many-colors"],
+    sourceIds: [
+      "photo-many-colors",
+      "photo-many-colors-medium-quality",
+      "photo-many-colors-high-quality",
+      "photo-many-colors-insane-quality",
+    ],
     intendedUserOutcome: "High-complexity editable color approximation for photo-like images without raw color explosion.",
     typicalImageTypes: ["photos", "high-color illustrations", "complex rendered art"],
     expectedGroupRange: [8, 32],
@@ -225,6 +249,45 @@ const corePresetContracts = [
     performanceRisk: "high near the ceiling",
     conditionalFutureDisplay: "Show only when image complexity supports many meaningful colors.",
     suggestedTests: ["high-color real photos", "generated noisy image", "30-row performance", "raw-color cap"],
+  },
+];
+
+const requiredLayeredQualityPresetFamilies = [
+  {
+    family: "Layered - Flat Color",
+    tiers: [
+      { tier: "default", id: "layered-flat-color", label: "Layered - Flat Color" },
+      { tier: "medium", id: "layered-flat-color-medium-quality", label: "Layered - Flat Color (Medium Quality)" },
+      { tier: "high", id: "layered-flat-color-high-quality", label: "Layered - Flat Color (High Quality)" },
+      { tier: "amazing", id: "layered-flat-color-insane-quality", label: "Layered - Flat Color (Amazing Quality)" },
+    ],
+  },
+  {
+    family: "Photo Many Colors",
+    tiers: [
+      { tier: "default", id: "photo-many-colors", label: "Photo Many Colors" },
+      { tier: "medium", id: "photo-many-colors-medium-quality", label: "Photo Many Colors (Medium Quality)" },
+      { tier: "high", id: "photo-many-colors-high-quality", label: "Photo Many Colors (High Quality)" },
+      { tier: "amazing", id: "photo-many-colors-insane-quality", label: "Photo Many Colors (Amazing Quality)" },
+    ],
+  },
+  {
+    family: "Layered - Detail",
+    tiers: [
+      { tier: "default", id: "layered-detail", label: "Layered - Detail" },
+      { tier: "medium", id: "layered-detail-medium-quality", label: "Layered - Detail (Medium Quality)" },
+      { tier: "high", id: "layered-detail-high-quality", label: "Layered - Detail (High Quality)" },
+      { tier: "amazing", id: "layered-detail-insane-quality", label: "Layered - Detail (Amazing Quality)" },
+    ],
+  },
+  {
+    family: "Filled Layers - Separate Colors",
+    tiers: [
+      { tier: "default", id: "filled-layers-separate-colors", label: "Filled Layers - Separate Colors" },
+      { tier: "medium", id: "filled-layers-separate-colors-medium-quality", label: "Filled Layers - Separate Colors (Medium Quality)" },
+      { tier: "high", id: "filled-layers-separate-colors-high-quality", label: "Filled Layers - Separate Colors (High Quality)" },
+      { tier: "amazing", id: "filled-layers-separate-colors-insane-quality", label: "Filled Layers - Separate Colors (Amazing Quality)" },
+    ],
   },
 ];
 
@@ -258,6 +321,7 @@ async function main() {
     inventory,
     fixtureMatrix,
     liveMeasurements,
+    sourceFindings,
   });
   const conditionalColorCountPlan = buildConditionalColorCountPlan();
   const recommendedImplementationOrder = buildRecommendedImplementationOrder();
@@ -588,6 +652,7 @@ function extractSettings(block) {
   const settingsBlock = close > open ? block.slice(open + 1, close) : "";
   const keys = [
     "traceMode",
+    "layeredQualityTier",
     "layerCount",
     "colorLayerCount",
     "requestedPaletteCount",
@@ -688,17 +753,31 @@ function hardCapsForPreset(preset) {
   } else if (preset.settings.layerBuildMode === "raw-vtracer") {
     caps.push("client raw-vtracer path returns the requested count up to 40 before UI policy caps");
   }
-  if (preset.id === "layered-flat-color") caps.push("post-VTracer Flat Color grouping prunes editable groups to 30");
+  if (
+    preset.id === "layered-flat-color" ||
+    preset.id === "layered-flat-color-medium-quality" ||
+    preset.id === "layered-flat-color-high-quality" ||
+    preset.id === "layered-flat-color-insane-quality" ||
+    preset.id === "layered-insane-quality"
+  ) {
+    caps.push("post-VTracer Flat Color grouping keeps editable groups at or below 32");
+  }
   return caps;
 }
 
 function isAffectedByFlatColorAdaptive(preset) {
   const settings = preset.settings;
-  if (preset.id === "layered-flat-color") {
+  if (
+    preset.id === "layered-flat-color" ||
+    preset.id === "layered-flat-color-medium-quality" ||
+    preset.id === "layered-flat-color-high-quality" ||
+    preset.id === "layered-flat-color-insane-quality" ||
+    preset.id === "layered-insane-quality"
+  ) {
     return {
       clientWorker: true,
       serverFallback: true,
-      reason: "Exact preset id is gated in the client worker and server flat-color heuristic also matches.",
+      reason: "Flat Color quality-tier preset id is gated in the client worker and server compact flat-color path.",
     };
   }
   const layerCount = numberOrNull(settings.colorLayerCount) ?? numberOrNull(settings.layerCount);
@@ -755,12 +834,16 @@ function inspectSourceFindings(sourceFiles, inventory) {
   );
   return {
     flatColorClientGroupingGate: {
-      exactPresetIdGate: /settings\.presetId\s*===\s*FLAT_COLOR_GROUPING_PRESET_ID/.test(worker),
+      exactPresetIdGate:
+        /settings\.presetId\s*===\s*FLAT_COLOR_GROUPING_PRESET_ID/.test(worker) ||
+        /isLayeredFlatColorQualityPresetId\(settings\.presetId\)/.test(worker),
       perColorCutoutGate: /getLayerBuildMode\(settings\)\s*===\s*"per-color-cutout"/.test(worker),
       maxEditableGroups: readConstNumber(worker, "FLAT_COLOR_MAX_EDITABLE_GROUPS"),
     },
     flatColorServerAdaptiveGate: {
-      exactPresetIdGate: /options\.presetId\s*===\s*"layered-flat-color"/.test(server),
+      exactPresetIdGate:
+        /options\.presetId\s*===\s*"layered-flat-color"/.test(server) ||
+        /isLayeredQualityTierPresetId\(options\.presetId\)/.test(server),
       heuristicAlsoMatchesFlatLikeSettings: /options\.layerCount\s*>=\s*14/.test(server) && /options\.posterize\s*===\s*false/.test(server),
       maxAdaptiveTarget: /clampInt\(analysis\.target,\s*MIN_LAYER_COUNT,\s*30\)/.test(server) ? 30 : null,
     },
@@ -783,6 +866,27 @@ function inspectSourceFindings(sourceFiles, inventory) {
       ),
       sourceRequestedCount: inventory.allPresets.find((preset) => preset.id === "photo-many-colors")?.requestedTargetCount ?? null,
       reason: "Photo Many Colors must use grouped editable palette output and stay at or below the 32-color ceiling.",
+    },
+    amazingSourceConstrainedDetail: {
+      hasGlareDetailRecovery:
+        /glareDetailRecovery\s*:\s*true/.test(server) &&
+        /isSourceSupportedGlareDetailPixel/.test(server),
+      hasTextureGuard:
+        /isLikelyUnsupportedTextureDetail/.test(server) &&
+        /textureGuardContrastScale/.test(server),
+      hasChromaticDarkGuard:
+        /protectChromaticDarkColors\s*:\s*true/.test(server) &&
+        /shouldSnapCompactVTracerColorToDark/.test(server),
+      hasAmazingCoordinatePrecisionGate:
+        /svgCoordinatePrecision/.test(server) &&
+        /roundSvgDecimalNumbers/.test(server),
+      amazingPresetTraceSideMin: Math.min(
+        ...sharedAdditions
+          .filter((preset) => String(preset.settings.layeredQualityTier || "") === "amazing")
+          .map((preset) => numberOrNull(preset.settings.layerMaxTraceSide) ?? 0),
+      ),
+      reason:
+        "Amazing Quality must keep source-constrained glare/text recovery, wrong-region texture guards, chromatic dark-color protection, and less destructive tracing gates.",
     },
   };
 }
@@ -1220,7 +1324,8 @@ function buildFixtureMatrix({ fixtureAnalyses, presetContracts, inventory, liveM
   }
 }
 
-function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasurements }) {
+function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasurements, sourceFindings }) {
+  const qualityTierInventory = buildQualityTierInventoryGuardrails(inventory);
   const focusedContracts = [
     {
       id: "layered-8-color",
@@ -1245,7 +1350,35 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
     },
   ];
   const routes = ["/", "/png-to-layered-svg-for-cricut", "/jpg-to-layered-svg-for-cricut"];
-  const failures = [];
+  const failures = [...qualityTierInventory.failures];
+  const amazingDetail = sourceFindings?.amazingSourceConstrainedDetail;
+  if (amazingDetail) {
+    if (!amazingDetail.hasGlareDetailRecovery) {
+      failures.push(
+        "Amazing Quality must keep source-constrained glare/bright-region text-detail recovery in the server trace path.",
+      );
+    }
+    if (!amazingDetail.hasTextureGuard) {
+      failures.push(
+        "Amazing Quality must keep source-constrained texture guards so dark detail is not sprayed into water, borders, or background.",
+      );
+    }
+    if (!amazingDetail.hasChromaticDarkGuard) {
+      failures.push(
+        "Amazing Quality must keep chromatic dark-color protection so dark blue/yellow/green source regions are not snapped into the black text/detail layer.",
+      );
+    }
+    if (!amazingDetail.hasAmazingCoordinatePrecisionGate) {
+      failures.push(
+        "Amazing Quality must keep an explicit coordinate-precision gate so fidelity can be raised without changing lower tiers.",
+      );
+    }
+    if (numberOrNull(amazingDetail.amazingPresetTraceSideMin) != null && amazingDetail.amazingPresetTraceSideMin < 1900) {
+      failures.push(
+        `Amazing Quality presets should trace near full source resolution for 2048px card fixtures; minimum Amazing trace side is ${amazingDetail.amazingPresetTraceSideMin}.`,
+      );
+    }
+  }
   const sourceContracts = focusedContracts.map((contract) => {
     const sourcePreset =
       inventory.allPresets.find(
@@ -1398,10 +1531,138 @@ function buildPresetGuardrailDiagnostics({ inventory, fixtureMatrix, liveMeasure
   }
 
   return {
+    qualityTierInventory,
     sourceContracts,
     fixtureRouteMatrix,
     failures: Array.from(new Set(failures)),
   };
+}
+
+function buildQualityTierInventoryGuardrails(inventory) {
+  const failures = [];
+  const sharedPresets = inventory.sharedLayeredAdditions;
+  const sharedById = new Map();
+  const duplicateIds = [];
+
+  for (const preset of sharedPresets) {
+    if (sharedById.has(preset.id)) duplicateIds.push(preset.id);
+    else sharedById.set(preset.id, preset);
+  }
+
+  for (const id of duplicateIds) {
+    failures.push(`Duplicate shared layered preset id found: ${id}.`);
+  }
+
+  const families = requiredLayeredQualityPresetFamilies.map((family) => {
+    const tiers = family.tiers.map((expected) => {
+      const preset = sharedById.get(expected.id) || null;
+      const tierSetting = String(preset?.settings?.layeredQualityTier || "default");
+      const labelMatches = preset?.label === expected.label;
+      const traceModeMatches = preset?.settings?.traceMode === "layered";
+      const tierMatches =
+        expected.tier === "default"
+          ? tierSetting === "default"
+          : tierSetting === expected.tier;
+
+      if (!preset) {
+        failures.push(`${family.family} ${expected.tier} preset is missing: ${expected.id}.`);
+      } else {
+        if (!labelMatches) {
+          failures.push(
+            `${expected.id} label changed unexpectedly; expected "${expected.label}", saw "${preset.label}".`,
+          );
+        }
+        if (!traceModeMatches) {
+          failures.push(`${expected.id} must remain a layered trace preset.`);
+        }
+        if (!tierMatches) {
+          failures.push(
+            `${expected.id} tier setting changed unexpectedly; expected "${expected.tier}", saw "${tierSetting}".`,
+          );
+        }
+      }
+
+      return {
+        tier: expected.tier,
+        id: expected.id,
+        expectedLabel: expected.label,
+        found: Boolean(preset),
+        actualLabel: preset?.label || null,
+        layeredQualityTier: preset?.settings?.layeredQualityTier || "default",
+        traceMode: preset?.settings?.traceMode || null,
+        visibleSeparateOption: Boolean(preset && labelMatches),
+      };
+    });
+
+    const settingPairs = [
+      ["default", "medium"],
+      ["medium", "high"],
+      ["high", "amazing"],
+    ];
+    for (const [lowerTier, upperTier] of settingPairs) {
+      const lower = family.tiers.find((tier) => tier.tier === lowerTier);
+      const upper = family.tiers.find((tier) => tier.tier === upperTier);
+      const lowerPreset = lower ? sharedById.get(lower.id) : null;
+      const upperPreset = upper ? sharedById.get(upper.id) : null;
+      if (!lowerPreset || !upperPreset) continue;
+      if (
+        comparableQualityTierSettingsSignature(lowerPreset.settings) ===
+        comparableQualityTierSettingsSignature(upperPreset.settings)
+      ) {
+        failures.push(
+          `${family.family} ${lowerTier} and ${upperTier} presets share the same non-tier settings; quality tiers must remain materially distinct.`,
+        );
+      }
+    }
+
+    const hiddenOrCollapsed = tiers.filter((tier) => !tier.visibleSeparateOption);
+    if (hiddenOrCollapsed.length > 0) {
+      failures.push(
+        `${family.family} does not expose every required default / medium / high / amazing option with its expected label.`,
+      );
+    }
+
+    return {
+      family: family.family,
+      tiers,
+      complete: hiddenOrCollapsed.length === 0,
+    };
+  });
+
+  const optionalGenericAmazing = sharedById.get("layered-insane-quality") || null;
+  const flatAmazing = sharedById.get("layered-flat-color-insane-quality") || null;
+  if (
+    optionalGenericAmazing &&
+    flatAmazing &&
+    comparableQualityTierSettingsSignature(optionalGenericAmazing.settings) ===
+      comparableQualityTierSettingsSignature(flatAmazing.settings)
+  ) {
+    failures.push(
+      "Layered - Amazing Quality and Layered - Flat Color (Amazing Quality) share the same non-tier settings; the generic option must not silently duplicate a family-specific tier.",
+    );
+  }
+
+  return {
+    families,
+    duplicateSharedPresetIds: Array.from(new Set(duplicateIds)),
+    optionalGenericAmazingPreset: optionalGenericAmazing
+      ? {
+          id: optionalGenericAmazing.id,
+          label: optionalGenericAmazing.label,
+          layeredQualityTier: optionalGenericAmazing.settings?.layeredQualityTier || null,
+        }
+      : null,
+    failures: Array.from(new Set(failures)),
+  };
+}
+
+function comparableQualityTierSettingsSignature(settings = {}) {
+  return JSON.stringify(
+    Object.keys(settings)
+      .filter((key) => key !== "layeredQualityTier")
+      .sort()
+      .map((key) => [key, settings[key]]),
+  );
 }
 
 function transparentBoundaryRisk(fixture, contract) {

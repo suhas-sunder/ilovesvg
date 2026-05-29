@@ -32,6 +32,12 @@ import {
   optimizeLayeredSvgPathStructure,
   resolveLayeredSvgStructureOptimizationOptions,
 } from "../../shared/tracing/svgPathStructureOptimizer";
+import {
+  isLayeredFlatColorQualityPresetId,
+  isPhotoManyColorsQualityPresetId,
+  normalizeLayeredQualityTier,
+  type LayeredQualityTier,
+} from "../../shared/tracing/layeredQualityTier";
 
 type WorkerRequest = {
   id: string;
@@ -707,7 +713,7 @@ function shouldUseHighFidelityFlatColorPalette(
 ) {
   return (
     settings.traceMode === "layered" &&
-    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID &&
+    isLayeredFlatColorQualityPresetId(settings.presetId) &&
     layerBuildMode === "per-color-cutout"
   );
 }
@@ -718,8 +724,17 @@ function shouldUsePhotoManyColorsGroupedPalette(
 ) {
   return (
     settings.traceMode === "layered" &&
-    settings.presetId === PHOTO_MANY_COLORS_PRESET_ID &&
+    isPhotoManyColorsQualityPresetId(settings.presetId) &&
     layerBuildMode === "per-color-cutout"
+  );
+}
+
+function getLayeredQualityTier(
+  settings: NormalizedTraceSettings,
+): LayeredQualityTier {
+  return normalizeLayeredQualityTier(
+    settings.layeredQualityTier,
+    settings.presetId,
   );
 }
 
@@ -777,23 +792,36 @@ function buildVTracerConfig(
 ): TracerConfig {
   const requestedPaletteCount =
     requestedPaletteCountOverride ?? getRequestedPaletteCount(settings);
+  const qualityTier = getLayeredQualityTier(settings);
   const layered = settings.traceMode === "layered";
+  const optTolerance = Number(settings.optTolerance ?? settings.layerOptTolerance ?? 0.4);
+  const layerTurdSize = Number(settings.layerTurdSize ?? settings.turdSize ?? 4);
+  const colorMergeTolerance = Number(settings.colorMergeTolerance ?? 24);
+  const isMediumTier = layered && qualityTier === "medium";
+  const isHighTier = layered && qualityTier === "high";
+  const isAmazingTier = layered && qualityTier === "amazing";
   const config = new TracerConfig();
   config.setColorMode(ColorMode.Color);
   config.setHierarchical(
     layered ? Hierarchical.Stacked : Hierarchical.Cutout,
   );
   config.setPathSimplifyMode(
-    Number(settings.optTolerance ?? settings.layerOptTolerance ?? 0.4) <= 0.18
+    optTolerance <= 0.1
       ? PathSimplifyMode.None
       : PathSimplifyMode.Spline,
   );
   config.setFilterSpeckle(
     clampInt(
       Number(
-        layered
-          ? settings.layerTurdSize ?? settings.turdSize ?? 4
-          : settings.turdSize ?? 2,
+        isAmazingTier
+          ? Math.min(1, layerTurdSize)
+          : isHighTier
+            ? Math.min(2, layerTurdSize)
+          : isMediumTier
+            ? Math.min(3, layerTurdSize)
+          : layered
+            ? layerTurdSize
+            : settings.turdSize ?? 2,
       ),
       0,
       100,
@@ -809,8 +837,18 @@ function buildVTracerConfig(
   config.setLayerDifference(
     clampInt(
       Number(
-        settings.colorMergeTolerance ??
-          (requestedPaletteCount >= 28 ? 6 : requestedPaletteCount >= 16 ? 10 : 16),
+        isAmazingTier
+          ? Math.min(12, colorMergeTolerance)
+          : isHighTier
+            ? Math.min(20, colorMergeTolerance)
+          : isMediumTier
+            ? Math.min(20, colorMergeTolerance)
+            : settings.colorMergeTolerance ??
+              (requestedPaletteCount >= 28
+                ? 6
+                : requestedPaletteCount >= 16
+                  ? 10
+                  : 16),
       ),
       0,
       255,
@@ -818,10 +856,16 @@ function buildVTracerConfig(
   );
   config.setCornerThreshold(60);
   config.setLengthThreshold(
-    clampNumber(4 + Number(settings.optTolerance ?? 0.35) * 3, 3.5, 10),
+    isAmazingTier
+      ? clampNumber(2.6 + optTolerance * 1.3, 2.4, 4.5)
+      : isHighTier
+        ? clampNumber(3.6 + optTolerance * 1.7, 3.2, 5.8)
+      : isMediumTier
+        ? clampNumber(3.6 + optTolerance * 1.7, 3.2, 5.8)
+        : clampNumber(4 + optTolerance * 3, 3.5, 10),
   );
-  config.setMaxIterations(10);
-  config.setSpliceThreshold(45);
+  config.setMaxIterations(isAmazingTier ? 14 : isHighTier || isMediumTier ? 12 : 10);
+  config.setSpliceThreshold(isAmazingTier ? 34 : isHighTier || isMediumTier ? 40 : 45);
   config.setPathPrecision(requestedPaletteCount >= 28 ? 3 : 2);
   return config;
 }
@@ -883,7 +927,11 @@ function postprocessSvg(
     svg = clampSvgPathDataPrecision(svg, GENERATED_LAYERED_PATH_PRECISION);
     svg = optimizeLayeredSvgPathStructure(svg, {
       enabled: true,
-      ...resolveLayeredSvgStructureOptimizationOptions(sourceWidth, sourceHeight),
+      ...resolveQualityAwareStructureOptimizationOptions(
+        settings,
+        sourceWidth,
+        sourceHeight,
+      ),
     }).svg;
   }
 
@@ -905,6 +953,35 @@ function postprocessSvg(
   return svg;
 }
 
+function resolveQualityAwareStructureOptimizationOptions(
+  settings: NormalizedTraceSettings,
+  width: number,
+  height: number,
+) {
+  const base = resolveLayeredSvgStructureOptimizationOptions(width, height);
+  const qualityTier = getLayeredQualityTier(settings);
+  if (qualityTier === "amazing") {
+    return {
+      ...base,
+      removeTinyIslands: false,
+      microIslandMaxArea: Math.max(2, Math.round((base.microIslandMaxArea ?? 16) * 0.2)),
+      microIslandMaxDimension: Math.max(
+        2,
+        Math.round((base.microIslandMaxDimension ?? 6) * 0.4),
+      ),
+      preserveDarkLumaBelow: Math.max(base.preserveDarkLumaBelow ?? 0.28, 0.38),
+    };
+  }
+  if (qualityTier === "high" || qualityTier === "medium") {
+    return {
+      ...base,
+      removeTinyIslands: false,
+      preserveDarkLumaBelow: Math.max(base.preserveDarkLumaBelow ?? 0.28, 0.34),
+    };
+  }
+  return base;
+}
+
 function snapSvgPathFillsToPalette(
   svg: string,
   settings: NormalizedTraceSettings,
@@ -912,8 +989,8 @@ function snapSvgPathFillsToPalette(
 ): string {
   if (settings.traceMode !== "layered" || palette.length <= 0) return svg;
   if (
-    settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID ||
-    settings.presetId === PHOTO_MANY_COLORS_PRESET_ID
+    isLayeredFlatColorQualityPresetId(settings.presetId) ||
+    isPhotoManyColorsQualityPresetId(settings.presetId)
   ) {
     return svg;
   }
@@ -1162,8 +1239,8 @@ function groupFlatColorLayeredPalette(svg: string, settings: NormalizedTraceSett
 function shouldGroupFlatColorLayeredPalette(settings: NormalizedTraceSettings) {
   return (
     settings.traceMode === "layered" &&
-    (settings.presetId === FLAT_COLOR_GROUPING_PRESET_ID ||
-      settings.presetId === PHOTO_MANY_COLORS_PRESET_ID) &&
+    (isLayeredFlatColorQualityPresetId(settings.presetId) ||
+      isPhotoManyColorsQualityPresetId(settings.presetId)) &&
     getLayerBuildMode(settings) === "per-color-cutout"
   );
 }
@@ -1346,7 +1423,7 @@ function flatColorMergeThreshold(
   b: FlatColorStats,
   settings: NormalizedTraceSettings,
 ) {
-  const photoManyColors = settings.presetId === PHOTO_MANY_COLORS_PRESET_ID;
+  const photoManyColors = isPhotoManyColorsQualityPresetId(settings.presetId);
   if (a.isNearBlack && b.isNearBlack) return photoManyColors ? 14 : 22;
   if (a.isNearWhite && b.isNearWhite) return photoManyColors ? 10 : 16;
   if (a.luma < 0.18 && b.luma < 0.18 && Math.abs(a.saturation - b.saturation) < 0.3) {
@@ -1374,7 +1451,7 @@ function flatColorSpatiallyCompatible(
   distance: number,
   settings: NormalizedTraceSettings,
 ) {
-  const photoManyColors = settings.presetId === PHOTO_MANY_COLORS_PRESET_ID;
+  const photoManyColors = isPhotoManyColorsQualityPresetId(settings.presetId);
   const representative = group.representative;
   if (distance <= (photoManyColors ? 2.75 : 3.25)) return true;
   if (!photoManyColors && stat.isNearBlack && representative.isNearBlack) return true;
@@ -1723,9 +1800,18 @@ function quantizeLayeredPixels(
   if (transparentPixelMask) {
     applyTransparentPixelMask(source, transparentPixelMask);
   }
+  const darkDetailMask = buildSourceConstrainedDarkDetailMask(
+    source,
+    width,
+    height,
+    settings,
+  );
   const pointContainer = imageQUtils.PointContainer.fromUint8Array(source, width, height);
+  const paletteBudget = darkDetailMask
+    ? Math.max(2, effectiveRequested - 1)
+    : effectiveRequested;
   const palette = buildPaletteSync([pointContainer], {
-    colors: effectiveRequested,
+    colors: paletteBudget,
     colorDistanceFormula:
       distance === "ciede2000"
         ? "ciede2000"
@@ -1748,6 +1834,9 @@ function quantizeLayeredPixels(
   if (transparentPixelMask) {
     applyTransparentPixelMask(out, transparentPixelMask);
   }
+  if (darkDetailMask) {
+    applySourceConstrainedDarkDetail(out, darkDetailMask);
+  }
   const initialPalette = collectPaletteFromData(out, settings);
   const mergedPalette = mergePerceptualPalette(
     initialPalette,
@@ -1757,6 +1846,9 @@ function quantizeLayeredPixels(
 
   if (mergedPalette.length > 0) {
     snapPixelsToPalette(out, mergedPalette, distance, settings);
+    if (darkDetailMask) {
+      applySourceConstrainedDarkDetail(out, darkDetailMask);
+    }
     if (transparentPixelMask) {
       applyTransparentPixelMask(out, transparentPixelMask);
     }
@@ -1768,6 +1860,9 @@ function quantizeLayeredPixels(
   });
   if (transparentPixelMask) {
     applyTransparentPixelMask(morphed.data, transparentPixelMask);
+  }
+  if (darkDetailMask) {
+    applySourceConstrainedDarkDetail(morphed.data, darkDetailMask);
   }
   const finalPalette = collectPaletteFromData(morphed.data, settings);
 
@@ -1786,6 +1881,7 @@ function quantizeLayeredPixels(
       paletteBeforeMerge: initialPalette.length,
       paletteAfterMerge: mergedPalette.length || initialPalette.length,
       actualPaletteCount: finalPalette.length,
+      sourceConstrainedDarkDetailPixels: darkDetailMask?.pixelCount ?? 0,
       layerOverlapPx: Number(settings.layerOverlapPx ?? 0),
       gapFill: settings.gapFill || "none",
       maskCleanup: morphed.diagnostics,
@@ -1820,6 +1916,219 @@ function applyTransparentPixelMask(data: Uint8ClampedArray, mask: Uint8Array) {
     data[off + 1] = 255;
     data[off + 2] = 255;
     data[off + 3] = 0;
+  }
+}
+
+type SourceConstrainedDarkDetailMask = {
+  mask: Uint8Array;
+  pixelCount: number;
+};
+
+function buildSourceConstrainedDarkDetailMask(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  settings: NormalizedTraceSettings,
+): SourceConstrainedDarkDetailMask | null {
+  if (settings.traceMode !== "layered") return null;
+  const tier = getLayeredQualityTier(settings);
+  if (tier === "default") return null;
+  const thresholds =
+    tier === "amazing"
+      ? {
+          luma: 0.41,
+          veryDarkLuma: 0.27,
+          contrast: 0.082,
+          veryDarkContrast: 0.04,
+          colorDistance: 22,
+          minPixels: 45,
+          maxShare: 0.06,
+          minComponentArea: 3,
+          maxComponentShare: 0.028,
+        }
+      : tier === "high"
+      ? {
+          luma: 0.39,
+          veryDarkLuma: 0.25,
+          contrast: 0.095,
+          veryDarkContrast: 0.045,
+          colorDistance: 24,
+          minPixels: 60,
+          maxShare: 0.055,
+          minComponentArea: 4,
+          maxComponentShare: 0.026,
+        }
+      : tier === "medium"
+        ? {
+            luma: 0.39,
+            veryDarkLuma: 0.25,
+            contrast: 0.095,
+            veryDarkContrast: 0.045,
+            colorDistance: 24,
+            minPixels: 60,
+            maxShare: 0.055,
+            minComponentArea: 4,
+            maxComponentShare: 0.026,
+          }
+        : {
+            luma: 0.35,
+            veryDarkLuma: 0.22,
+            contrast: 0.12,
+            veryDarkContrast: 0.055,
+            colorDistance: 28,
+            minPixels: 80,
+            maxShare: 0.045,
+            minComponentArea: 4,
+            maxComponentShare: 0.02,
+          };
+  const total = width * height;
+  const rawMask = new Uint8Array(total);
+  let candidatePixels = 0;
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const pixel = y * width + x;
+      const offset = pixel * 4;
+      if (data[offset + 3] < 18) continue;
+      const color = { r: data[offset], g: data[offset + 1], b: data[offset + 2] };
+      const centerLuma = luminance(color);
+      if (centerLuma >= thresholds.luma) continue;
+      const stats = localSourceDarkDetailStats(data, width, height, x, y, color);
+      const darkSupported =
+        centerLuma <= thresholds.veryDarkLuma &&
+        stats.maxLuma - centerLuma >= thresholds.veryDarkContrast;
+      const contrastSupported =
+        stats.maxLuma - centerLuma >= thresholds.contrast &&
+        stats.maxDistance >= thresholds.colorDistance;
+      const localSourceSupported =
+        centerLuma < thresholds.luma * 0.82 &&
+        (stats.maxLuma - centerLuma >= thresholds.contrast * 0.45 ||
+          stats.maxDistance >= thresholds.colorDistance * 0.65);
+      if (!darkSupported && !contrastSupported && !localSourceSupported) continue;
+      rawMask[pixel] = 1;
+      candidatePixels += 1;
+    }
+  }
+
+  if (
+    candidatePixels < thresholds.minPixels ||
+    candidatePixels / Math.max(1, total) > thresholds.maxShare
+  ) {
+    return null;
+  }
+
+  const filtered = filterSourceDarkDetailComponents(rawMask, width, height, {
+    minArea: thresholds.minComponentArea,
+    maxAreaShare: thresholds.maxComponentShare,
+  });
+  if (
+    filtered.pixelCount < thresholds.minPixels ||
+    filtered.pixelCount / Math.max(1, total) > thresholds.maxShare
+  ) {
+    return null;
+  }
+  return filtered;
+}
+
+function localSourceDarkDetailStats(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  color: RGB,
+) {
+  const offsets = [
+    [-2, 0],
+    [-1, 0],
+    [1, 0],
+    [2, 0],
+    [0, -2],
+    [0, -1],
+    [0, 1],
+    [0, 2],
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+    [-4, 0],
+    [4, 0],
+    [0, -4],
+    [0, 4],
+  ] as const;
+  let maxLuma = luminance(color);
+  let minLuma = maxLuma;
+  let maxDistance = 0;
+  for (const [dx, dy] of offsets) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+    const offset = (ny * width + nx) * 4;
+    if (data[offset + 3] < 18) continue;
+    const neighbor = { r: data[offset], g: data[offset + 1], b: data[offset + 2] };
+    const luma = luminance(neighbor);
+    maxLuma = Math.max(maxLuma, luma);
+    minLuma = Math.min(minLuma, luma);
+    maxDistance = Math.max(maxDistance, colorDistance(color, neighbor));
+  }
+  return { maxLuma, minLuma, maxDistance };
+}
+
+function filterSourceDarkDetailComponents(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  options: { minArea: number; maxAreaShare: number },
+): SourceConstrainedDarkDetailMask {
+  const total = width * height;
+  const out = new Uint8Array(total);
+  const visited = new Uint8Array(total);
+  const stack: number[] = [];
+  const component: number[] = [];
+  const minArea = Math.max(1, Math.round(options.minArea));
+  const maxArea = Math.max(minArea, Math.round(total * options.maxAreaShare));
+  let pixelCount = 0;
+
+  for (let start = 0; start < total; start += 1) {
+    if (!mask[start] || visited[start]) continue;
+    stack.length = 0;
+    component.length = 0;
+    stack.push(start);
+    visited[start] = 1;
+    while (stack.length > 0) {
+      const pixel = stack.pop()!;
+      component.push(pixel);
+      const x = pixel % width;
+      const neighbors = [pixel - 1, pixel + 1, pixel - width, pixel + width];
+      for (const next of neighbors) {
+        if (next < 0 || next >= total || visited[next] || !mask[next]) continue;
+        if ((next === pixel - 1 && x === 0) || (next === pixel + 1 && x === width - 1)) {
+          continue;
+        }
+        visited[next] = 1;
+        stack.push(next);
+      }
+    }
+    if (component.length < minArea || component.length > maxArea) continue;
+    for (const pixel of component) out[pixel] = 1;
+    pixelCount += component.length;
+  }
+
+  return { mask: out, pixelCount };
+}
+
+function applySourceConstrainedDarkDetail(
+  data: Uint8ClampedArray,
+  detail: SourceConstrainedDarkDetailMask,
+) {
+  for (let pixel = 0; pixel < detail.mask.length; pixel += 1) {
+    if (!detail.mask[pixel]) continue;
+    const offset = pixel * 4;
+    if (data[offset + 3] < 18) continue;
+    data[offset] = 24;
+    data[offset + 1] = 24;
+    data[offset + 2] = 22;
+    data[offset + 3] = 255;
   }
 }
 

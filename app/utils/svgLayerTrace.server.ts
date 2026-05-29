@@ -1,3 +1,4 @@
+import * as serverVTracerRuntime from "wasm_vtracer";
 import {
   getSharp,
   traceBitmapToSvg as traceBitmapToSvgWithPotrace,
@@ -5,21 +6,32 @@ import {
 import {
   createConversionDiagnostics,
   endTimer,
+  finishConversionDiagnostics,
   maybeLogConversionDiagnostics,
   startTimer,
   withTimer,
+  type ConversionDiagnostics,
 } from "./conversionDiagnostics.server";
 import { sanitizeSvgMarkup } from "./svgSanitize.server";
 import {
   resolveOutputDimensions,
   type SortLayersBy,
 } from "./converterSettings.server";
+import {
+  MAX_OUTPUT_SVG_BYTES,
+  MAX_SVG_PATH_COMMANDS,
+} from "./backendSecurity.server";
 import { filterFillStrokePathTags } from "~/shared/tracing/fillStrokeSvg";
 import { clampSvgPathDataPrecision } from "~/shared/tracing/svgPathPrecision";
 import {
   optimizeLayeredSvgPathStructure,
   resolveLayeredSvgStructureOptimizationOptions,
 } from "~/shared/tracing/svgPathStructureOptimizer";
+import {
+  isLayeredQualityTierPresetId,
+  normalizeLayeredQualityTier,
+  type LayeredQualityTier,
+} from "~/shared/tracing/layeredQualityTier";
 import { normalizeBmpForSharp } from "./bmpDecode.server";
 
 export type TraceMode = "single" | "layered";
@@ -36,6 +48,17 @@ export type SvgLayerMeta = {
   originalOpacity?: number;
   kind?: SvgLayerKind;
   pathCount?: number;
+};
+
+type LayeredColorSvgResult = {
+  svg: string;
+  width: number;
+  height: number;
+  layers: SvgLayerMeta[];
+  engineUsed?: "vtracer" | "potrace";
+  warnings?: string[];
+  timings?: Record<string, number>;
+  diagnostics?: ConversionDiagnostics;
 };
 
 export type EditableSvgLayer = SvgLayerMeta;
@@ -75,6 +98,7 @@ export type LayeredColorSvgOptions = {
   outputWidth?: number;
   outputHeight?: number;
   preserveAspectRatio?: boolean;
+  layeredQualityTier?: LayeredQualityTier;
 };
 
 type NormalizedLayeredColorSvgOptions = Omit<
@@ -109,6 +133,7 @@ type NormalizedLayeredColorSvgOptions = Omit<
   outputHeight: number;
   preserveAspectRatio: boolean;
   presetId: string;
+  layeredQualityTier: LayeredQualityTier;
 };
 
 export const MIN_LAYER_COUNT = 2;
@@ -117,6 +142,58 @@ export const MAX_TRACE_SIDE_DEFAULT = 1600;
 export const MAX_TRACE_SIDE = 3000;
 const MIN_TRACE_DIMENSION = 2;
 const GENERATED_LAYERED_PATH_PRECISION = 0;
+const COMPACT_VTRACER_MAX_EDITABLE_COLORS = 32;
+const COMPACT_VTRACER_DARK_DETAIL_LUMA = 70;
+const COMPACT_VTRACER_DARK_SNAP_LUMA = 85;
+const COMPACT_VTRACER_DARK_COLOR: RGB = { r: 24, g: 24, b: 22 };
+const COMPACT_VTRACER_SOFT_DARK_DETAIL_COLOR: RGB = { r: 28, g: 28, b: 25 };
+const COMPACT_VTRACER_SOFT_EDGE_DETAIL_COLOR: RGB = { r: 58, g: 56, b: 50 };
+const COMPACT_VTRACER_GLARE_DETAIL_COLOR: RGB = { r: 78, g: 76, b: 70 };
+const COMPACT_VTRACER_AMAZING_MAX_SVG_BYTES = 12 * 1024 * 1024;
+const COMPACT_VTRACER_AMAZING_MAX_PATH_COMMANDS = 560_000;
+
+type CompactLayeredVTracerQualityOptions = {
+  filterSpeckle: number;
+  colorPrecision: number;
+  cornerThreshold: number;
+  layerDifference: number;
+  lengthThreshold: number;
+  pathSimplifyMode: "spline" | "none";
+  maxIterations: number;
+  spliceThreshold: number;
+  pathPrecision: number;
+  svgCoordinatePrecision: number;
+  sourceConstrainedDetail: boolean;
+  detailNeighborhoodRadius: number;
+  detailBoundsPaddingRatio: number;
+  darkPaletteSnapLuma: number;
+  protectChromaticDarkColors: boolean;
+  darkDetailLuma: number;
+  darkDetailVeryDarkLuma: number;
+  darkDetailContrast: number;
+  darkDetailMinPixels: number;
+  darkDetailMaxShare: number;
+  darkDetailMinComponentArea: number;
+  darkDetailMaxComponentShare: number;
+  darkDetailTurdSize: number;
+  darkDetailOptTolerance: number;
+  darkDetailMedianSize: number;
+  edgeGradient: number;
+  edgeDarkLuma: number;
+  edgeContrast: number;
+  edgeMinPixels: number;
+  edgeMaxShare: number;
+  edgeMinComponentArea: number;
+  edgeMaxComponentShare: number;
+  edgeTurdSize: number;
+  edgeOptTolerance: number;
+  glareDetailRecovery: boolean;
+  glareDetailLuma: number;
+  glareDetailContrast: number;
+  glareDetailMaxSaturation: number;
+  textureGuardSaturation: number;
+  textureGuardContrastScale: number;
+};
 
 export const BASE_LAYERED_COLOR_DEFAULTS: LayeredColorSvgOptions = {
   layerCount: 5,
@@ -223,6 +300,20 @@ function countSvgPaths(svg: string): number {
   return String(svg || "").match(/<path\b/gi)?.length ?? 0;
 }
 
+function withLayeredDiagnostics<T extends LayeredColorSvgResult>(
+  result: T,
+  diagnostics: ReturnType<typeof createConversionDiagnostics>,
+): T {
+  const finished = finishConversionDiagnostics(diagnostics);
+  if (!finished) return result;
+  return {
+    ...result,
+    warnings: finished.warnings,
+    timings: finished.timings,
+    diagnostics: finished,
+  };
+}
+
 export function sanitizeLayerHexColor(input: string, fallback = "#000000") {
   const value = String(input || "").trim();
   if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
@@ -232,15 +323,1513 @@ export function sanitizeLayerHexColor(input: string, fallback = "#000000") {
   return fallback;
 }
 
-export async function createLayeredColorSvg(
-  input: Buffer,
-  opts: LayeredColorSvgOptions,
-): Promise<{
+function shouldUseCompactFlatColorVTracer(
+  options: NormalizedLayeredColorSvgOptions,
+  sourceMatte: FlatColorSourceMatteAnalysis | null,
+) {
+  const isQualityTierPreset =
+    options.layeredQualityTier !== "default" &&
+    isLayeredQualityTierPresetId(options.presetId);
+  return (
+    (options.presetId === "layered-flat-color" || isQualityTierPreset) &&
+    options.transparent &&
+    !options.removeWhite &&
+    (sourceMatte?.transparentShare ?? 0) <= 0.0025
+  );
+}
+
+function compactLayeredVTracerQualityOptions(
+  tier: LayeredQualityTier,
+  presetId?: string,
+): CompactLayeredVTracerQualityOptions {
+  let options: CompactLayeredVTracerQualityOptions;
+  if (tier === "amazing") {
+    options = {
+      filterSpeckle: 20,
+      colorPrecision: 8,
+      cornerThreshold: 48,
+      layerDifference: 12,
+      lengthThreshold: 4.6,
+      pathSimplifyMode: "spline",
+      maxIterations: 14,
+      spliceThreshold: 32,
+      pathPrecision: 2,
+      svgCoordinatePrecision: 0,
+      sourceConstrainedDetail: true,
+      detailNeighborhoodRadius: 8,
+      detailBoundsPaddingRatio: 0.026,
+      darkPaletteSnapLuma: 44,
+      protectChromaticDarkColors: true,
+      darkDetailLuma: 126,
+      darkDetailVeryDarkLuma: 74,
+      darkDetailContrast: 18,
+      darkDetailMinPixels: 48,
+      darkDetailMaxShare: 0.082,
+      darkDetailMinComponentArea: 6,
+      darkDetailMaxComponentShare: 0.018,
+      darkDetailTurdSize: 1,
+      darkDetailOptTolerance: 0.38,
+      darkDetailMedianSize: 0,
+      edgeGradient: 46,
+      edgeDarkLuma: 132,
+      edgeContrast: 36,
+      edgeMinPixels: 70,
+      edgeMaxShare: 0.045,
+      edgeMinComponentArea: 1,
+      edgeMaxComponentShare: 0.015,
+      edgeTurdSize: 4,
+      edgeOptTolerance: 0.85,
+      glareDetailRecovery: true,
+      glareDetailLuma: 164,
+      glareDetailContrast: 52,
+      glareDetailMaxSaturation: 56,
+      textureGuardSaturation: 50,
+      textureGuardContrastScale: 1.75,
+    };
+  } else if (tier === "high") {
+    options = {
+      filterSpeckle: 32,
+      colorPrecision: 8,
+      cornerThreshold: 60,
+      layerDifference: 18,
+      lengthThreshold: 5.2,
+      pathSimplifyMode: "spline",
+      maxIterations: 12,
+      spliceThreshold: 36,
+      pathPrecision: 2,
+      svgCoordinatePrecision: 0,
+      sourceConstrainedDetail: true,
+      detailNeighborhoodRadius: 4,
+      detailBoundsPaddingRatio: 0.055,
+      darkPaletteSnapLuma: 62,
+      protectChromaticDarkColors: false,
+      darkDetailLuma: 100,
+      darkDetailVeryDarkLuma: 62,
+      darkDetailContrast: 24,
+      darkDetailMinPixels: 100,
+      darkDetailMaxShare: 0.075,
+      darkDetailMinComponentArea: 2,
+      darkDetailMaxComponentShare: 0.026,
+      darkDetailTurdSize: 3,
+      darkDetailOptTolerance: 0.75,
+      darkDetailMedianSize: 0,
+      edgeGradient: 56,
+      edgeDarkLuma: 100,
+      edgeContrast: 54,
+      edgeMinPixels: 120,
+      edgeMaxShare: 0.032,
+      edgeMinComponentArea: 2,
+      edgeMaxComponentShare: 0.014,
+      edgeTurdSize: 10,
+      edgeOptTolerance: 1.45,
+      glareDetailRecovery: false,
+      glareDetailLuma: 0,
+      glareDetailContrast: 0,
+      glareDetailMaxSaturation: 0,
+      textureGuardSaturation: 72,
+      textureGuardContrastScale: 1.2,
+    };
+  } else if (tier === "medium") {
+    options = {
+      filterSpeckle: 50,
+      colorPrecision: 8,
+      cornerThreshold: 60,
+      layerDifference: 24,
+      lengthThreshold: 6.8,
+      pathSimplifyMode: "spline",
+      maxIterations: 10,
+      spliceThreshold: 40,
+      pathPrecision: 1,
+      svgCoordinatePrecision: 0,
+      sourceConstrainedDetail: true,
+      detailNeighborhoodRadius: 4,
+      detailBoundsPaddingRatio: 0.055,
+      darkPaletteSnapLuma: 60,
+      protectChromaticDarkColors: false,
+      darkDetailLuma: 96,
+      darkDetailVeryDarkLuma: 60,
+      darkDetailContrast: 26,
+      darkDetailMinPixels: 120,
+      darkDetailMaxShare: 0.068,
+      darkDetailMinComponentArea: 3,
+      darkDetailMaxComponentShare: 0.022,
+      darkDetailTurdSize: 6,
+      darkDetailOptTolerance: 1.05,
+      darkDetailMedianSize: 0,
+      edgeGradient: 60,
+      edgeDarkLuma: 96,
+      edgeContrast: 58,
+      edgeMinPixels: 190,
+      edgeMaxShare: 0.028,
+      edgeMinComponentArea: 3,
+      edgeMaxComponentShare: 0.011,
+      edgeTurdSize: 18,
+      edgeOptTolerance: 2.2,
+      glareDetailRecovery: false,
+      glareDetailLuma: 0,
+      glareDetailContrast: 0,
+      glareDetailMaxSaturation: 0,
+      textureGuardSaturation: 72,
+      textureGuardContrastScale: 1.2,
+    };
+  } else {
+    options = {
+      filterSpeckle: 65,
+      colorPrecision: 7,
+      cornerThreshold: 60,
+      layerDifference: 32,
+      lengthThreshold: 9,
+      pathSimplifyMode: "spline",
+      maxIterations: 10,
+      spliceThreshold: 45,
+      pathPrecision: 1,
+      svgCoordinatePrecision: 0,
+      sourceConstrainedDetail: false,
+      detailNeighborhoodRadius: 4,
+      detailBoundsPaddingRatio: 0.055,
+      darkPaletteSnapLuma: COMPACT_VTRACER_DARK_SNAP_LUMA,
+      protectChromaticDarkColors: false,
+      darkDetailLuma: COMPACT_VTRACER_DARK_DETAIL_LUMA,
+      darkDetailVeryDarkLuma: 42,
+      darkDetailContrast: 46,
+      darkDetailMinPixels: 120,
+      darkDetailMaxShare: 0.12,
+      darkDetailMinComponentArea: 1,
+      darkDetailMaxComponentShare: 0.12,
+      darkDetailTurdSize: 12,
+      darkDetailOptTolerance: 1.6,
+      darkDetailMedianSize: 0,
+      edgeGradient: 70,
+      edgeDarkLuma: 255,
+      edgeContrast: 0,
+      edgeMinPixels: 200,
+      edgeMaxShare: 0.05,
+      edgeMinComponentArea: 1,
+      edgeMaxComponentShare: 0.05,
+      edgeTurdSize: 48,
+      edgeOptTolerance: 4,
+      glareDetailRecovery: false,
+      glareDetailLuma: 0,
+      glareDetailContrast: 0,
+      glareDetailMaxSaturation: 0,
+      textureGuardSaturation: 72,
+      textureGuardContrastScale: 1.2,
+    };
+  }
+  return applyCompactLayeredVTracerFamilyOptions(options, tier, presetId);
+}
+
+function applyCompactLayeredVTracerFamilyOptions(
+  options: CompactLayeredVTracerQualityOptions,
+  tier: LayeredQualityTier,
+  presetId?: string,
+): CompactLayeredVTracerQualityOptions {
+  const id = String(presetId || "").toLowerCase();
+  if (tier === "default") return options;
+  if (id.startsWith("layered-flat-color")) {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(134, options.darkDetailLuma + 5),
+        darkDetailVeryDarkLuma: Math.min(
+          84,
+          options.darkDetailVeryDarkLuma + 6,
+        ),
+        darkDetailContrast: Math.max(17, options.darkDetailContrast - 3),
+        darkDetailMinComponentArea: Math.max(
+          1,
+          options.darkDetailMinComponentArea - 1,
+        ),
+        darkDetailMaxShare: Math.min(0.08, options.darkDetailMaxShare),
+        darkDetailMaxComponentShare: Math.min(
+          0.017,
+          options.darkDetailMaxComponentShare,
+        ),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        edgeMaxComponentShare: Math.min(0.014, options.edgeMaxComponentShare),
+        edgeTurdSize: Math.max(4, options.edgeTurdSize),
+        edgeOptTolerance: Math.max(0.72, options.edgeOptTolerance - 0.08),
+        glareDetailLuma: Math.min(170, options.glareDetailLuma + 5),
+        glareDetailContrast: Math.max(50, options.glareDetailContrast - 3),
+      };
+    }
+    return options;
+  }
+  if (id.startsWith("photo-many-colors")) {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(132, options.darkDetailLuma + 4),
+        darkDetailVeryDarkLuma: Math.min(
+          84,
+          options.darkDetailVeryDarkLuma + 5,
+        ),
+        darkDetailContrast: Math.max(18, options.darkDetailContrast - 2),
+        darkDetailMaxShare: Math.min(0.08, options.darkDetailMaxShare),
+        darkDetailMaxComponentShare: Math.min(
+          0.017,
+          options.darkDetailMaxComponentShare,
+        ),
+        edgeDarkLuma: Math.max(116, options.edgeDarkLuma),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        edgeMaxComponentShare: Math.min(0.014, options.edgeMaxComponentShare),
+        edgeTurdSize: Math.max(4, options.edgeTurdSize),
+        glareDetailLuma: Math.min(168, options.glareDetailLuma + 4),
+      };
+    }
+    if (tier === "high") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(104, options.darkDetailLuma + 4),
+        darkDetailVeryDarkLuma: Math.min(66, options.darkDetailVeryDarkLuma + 4),
+        darkDetailContrast: Math.max(21, options.darkDetailContrast - 2),
+        edgeGradient: Math.max(54, options.edgeGradient - 2),
+        edgeMaxShare: Math.min(0.034, options.edgeMaxShare + 0.002),
+      };
+    }
+    if (tier === "medium") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
+        darkDetailVeryDarkLuma: Math.min(65, options.darkDetailVeryDarkLuma + 3),
+        darkDetailContrast: Math.max(22, options.darkDetailContrast - 1),
+        edgeGradient: Math.max(54, options.edgeGradient - 1),
+        edgeMaxShare: Math.min(0.034, options.edgeMaxShare + 0.0015),
+      };
+    }
+    return options;
+  }
+  if (id.startsWith("layered-detail") || id === "layered-insane-quality") {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        darkDetailLuma: Math.min(134, options.darkDetailLuma + 5),
+        darkDetailVeryDarkLuma: Math.min(
+          84,
+          options.darkDetailVeryDarkLuma + 6,
+        ),
+        darkDetailContrast: Math.max(17, options.darkDetailContrast - 3),
+        darkDetailMinComponentArea: Math.max(1, options.darkDetailMinComponentArea - 1),
+        darkDetailMaxShare: Math.min(0.08, options.darkDetailMaxShare),
+        darkDetailMaxComponentShare: Math.min(
+          0.017,
+          options.darkDetailMaxComponentShare,
+        ),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        edgeMaxComponentShare: Math.min(0.014, options.edgeMaxComponentShare),
+        edgeTurdSize: Math.max(4, options.edgeTurdSize),
+        glareDetailLuma: Math.min(170, options.glareDetailLuma + 5),
+        glareDetailContrast: Math.max(50, options.glareDetailContrast - 3),
+      };
+    }
+    return {
+      ...options,
+      darkDetailLuma: Math.min(103, options.darkDetailLuma + 3),
+      darkDetailVeryDarkLuma: Math.min(65, options.darkDetailVeryDarkLuma + 3),
+      darkDetailContrast: Math.max(21, options.darkDetailContrast - 2),
+      darkDetailMinComponentArea: Math.max(1, options.darkDetailMinComponentArea - 1),
+      edgeGradient: Math.max(53, options.edgeGradient - 2),
+      edgeMaxShare: Math.min(0.035, options.edgeMaxShare + 0.002),
+      edgeTurdSize: Math.max(8, options.edgeTurdSize - 2),
+    };
+  }
+  if (id.startsWith("filled-layers-separate-colors")) {
+    if (tier === "amazing") {
+      return {
+        ...options,
+        pathPrecision: Math.max(options.pathPrecision, 2),
+        darkDetailLuma: Math.min(130, options.darkDetailLuma + 2),
+        darkDetailVeryDarkLuma: Math.min(78, options.darkDetailVeryDarkLuma + 2),
+        edgeGradient: Math.max(46, options.edgeGradient),
+        edgeMaxShare: Math.min(0.043, options.edgeMaxShare),
+        glareDetailLuma: Math.min(166, options.glareDetailLuma + 2),
+      };
+    }
+    if (tier === "medium") {
+      return {
+        ...options,
+        pathPrecision: Math.max(options.pathPrecision, 2),
+        darkDetailOptTolerance: options.darkDetailOptTolerance + 0.04,
+        edgeOptTolerance: options.edgeOptTolerance + 0.04,
+      };
+    }
+    return {
+      ...options,
+      darkDetailLuma: Math.min(101, options.darkDetailLuma + 1),
+      darkDetailVeryDarkLuma: Math.min(63, options.darkDetailVeryDarkLuma + 1),
+      edgeGradient: Math.max(55, options.edgeGradient - 0.5),
+      edgeMaxShare: Math.min(0.033, options.edgeMaxShare + 0.001),
+    };
+  }
+  return options;
+}
+
+async function createCompactFlatColorVTracerSvg({
+  raw,
+  width,
+  height,
+  sourceWidth,
+  sourceHeight,
+  options,
+  diagnostics,
+  sharp,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  options: NormalizedLayeredColorSvgOptions;
+  diagnostics: ReturnType<typeof createConversionDiagnostics>;
+  sharp: typeof import("sharp");
+}): Promise<{
   svg: string;
   width: number;
   height: number;
   layers: SvgLayerMeta[];
+  engineUsed: "vtracer";
 }> {
+  const qualityOptions = compactLayeredVTracerQualityOptions(
+    options.layeredQualityTier,
+    options.presetId,
+  );
+  const config = new serverVTracerRuntime.TracerConfig();
+  try {
+    config.setColorMode(serverVTracerRuntime.ColorMode.Color);
+    config.setHierarchical(serverVTracerRuntime.Hierarchical.Cutout);
+    config.setPathSimplifyMode(
+      qualityOptions.pathSimplifyMode === "none"
+        ? serverVTracerRuntime.PathSimplifyMode.None
+        : serverVTracerRuntime.PathSimplifyMode.Spline,
+    );
+    config.setFilterSpeckle(qualityOptions.filterSpeckle);
+    config.setColorPrecision(qualityOptions.colorPrecision);
+    config.setLayerDifference(qualityOptions.layerDifference);
+    config.setCornerThreshold(qualityOptions.cornerThreshold);
+    config.setLengthThreshold(qualityOptions.lengthThreshold);
+    config.setMaxIterations(qualityOptions.maxIterations);
+    config.setSpliceThreshold(qualityOptions.spliceThreshold);
+    config.setPathPrecision(qualityOptions.pathPrecision);
+
+    const rawSvg = withSynchronousTimer(
+      diagnostics,
+      "compactVTracerCore",
+      () =>
+        serverVTracerRuntime.convertImageToSvg(
+          new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
+          width,
+          height,
+          config,
+        ),
+    );
+    const outputDimensions = resolveOutputDimensions(
+      {
+        outputWidth: options.outputWidth,
+        outputHeight: options.outputHeight,
+        preserveAspectRatio: options.preserveAspectRatio,
+      },
+      sourceWidth > 0 ? sourceWidth : width,
+      sourceHeight > 0 ? sourceHeight : height,
+    );
+    const svg = withSynchronousTimer(
+      diagnostics,
+      "compactNormalizeSvg",
+      () =>
+        normalizeCompactVTracerSvg(rawSvg, {
+          width,
+          height,
+          outputWidth: outputDimensions.width,
+          outputHeight: outputDimensions.height,
+          coordinatePrecision: qualityOptions.svgCoordinatePrecision,
+        }),
+    );
+    const darkDetailPaths = await withTimer(
+      diagnostics,
+      "compactDarkDetailOverlay",
+      () =>
+        createCompactVTracerDarkDetailOverlayPaths({
+          raw,
+          width,
+          height,
+          sharp,
+          qualityOptions,
+          overlayMode: "dark",
+        }),
+    );
+    const glareDetailPaths = await withTimer(
+      diagnostics,
+      "compactGlareDetailOverlay",
+      () =>
+        createCompactVTracerDarkDetailOverlayPaths({
+          raw,
+          width,
+          height,
+          sharp,
+          qualityOptions,
+          overlayMode: "glare",
+        }),
+    );
+    const edgeDetailPaths = await withTimer(
+      diagnostics,
+      "compactEdgeDetailOverlay",
+      () =>
+        createCompactVTracerEdgeOverlayPaths({
+          raw,
+          width,
+          height,
+          sharp,
+          qualityOptions,
+        }),
+    );
+    const detailOverlayPaths = `${darkDetailPaths}${glareDetailPaths}${edgeDetailPaths}`;
+    const protectedOverlayColorCount =
+      qualityOptions.protectChromaticDarkColors
+        ? countDistinctPathFills(detailOverlayPaths)
+        : 1;
+    const paletteLimitedSvg = withSynchronousTimer(
+      diagnostics,
+      "compactPaletteSnap",
+      () =>
+        snapCompactVTracerPalette(
+          svg,
+          qualityOptions.sourceConstrainedDetail
+            ? COMPACT_VTRACER_MAX_EDITABLE_COLORS -
+                clampInt(protectedOverlayColorCount, 1, 4)
+            : COMPACT_VTRACER_MAX_EDITABLE_COLORS,
+          {
+            darkSnapLuma: qualityOptions.sourceConstrainedDetail
+              ? qualityOptions.darkPaletteSnapLuma
+              : COMPACT_VTRACER_DARK_SNAP_LUMA,
+            protectChromaticDarkColors:
+              qualityOptions.protectChromaticDarkColors,
+            veryDarkLuma: qualityOptions.darkDetailVeryDarkLuma,
+          },
+        ),
+    );
+    const grouped = withSynchronousTimer(
+      diagnostics,
+      "compactGroupByFill",
+      () =>
+        groupCompactVTracerSvgByFill(
+          appendSvgPaths(paletteLimitedSvg, detailOverlayPaths),
+        ),
+    );
+    const sanitized = withSynchronousTimer(
+      diagnostics,
+      "compactSanitizeSvg",
+      () =>
+        sanitizeSvgMarkup(
+          grouped.svg,
+          qualityOptions.sourceConstrainedDetail
+            ? {
+                maxBytes:
+                  options.layeredQualityTier === "amazing"
+                    ? COMPACT_VTRACER_AMAZING_MAX_SVG_BYTES
+                    : MAX_OUTPUT_SVG_BYTES,
+                maxPathCommands:
+                  options.layeredQualityTier === "amazing"
+                    ? COMPACT_VTRACER_AMAZING_MAX_PATH_COMMANDS
+                    : MAX_SVG_PATH_COMMANDS,
+              }
+            : undefined,
+        ),
+    );
+    if (!sanitized.ok) {
+      throw new Error(sanitized.message);
+    }
+    diagnostics.finalSvgBytes = Buffer.byteLength(sanitized.svg, "utf8");
+    diagnostics.pathCount = countSvgPaths(sanitized.svg);
+    diagnostics.layerCount = grouped.layers.length;
+    return {
+      svg: sanitized.svg,
+      width: outputDimensions.width,
+      height: outputDimensions.height,
+      layers: grouped.layers,
+      engineUsed: "vtracer",
+    };
+  } finally {
+    config.free();
+  }
+}
+
+function normalizeCompactVTracerSvg(
+  rawSvg: string,
+  dimensions: {
+    width: number;
+    height: number;
+    outputWidth: number;
+    outputHeight: number;
+    coordinatePrecision?: number;
+  },
+) {
+  let svg = String(rawSvg || "")
+    .replace(/<\?xml[^>]*>\s*/i, "")
+    .replace(/<!--[\s\S]*?-->\s*/g, "");
+  svg = svg.replace(/<svg\b([^>]*)>/i, (_match, attrs = "") => {
+    const next = String(attrs)
+      .replace(/\swidth\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sheight\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sviewBox\s*=\s*["'][^"']*["']/gi, "")
+      .trim();
+    const extra = next ? ` ${next}` : "";
+    return `<svg${extra} width="${dimensions.outputWidth}" height="${dimensions.outputHeight}" viewBox="0 0 ${dimensions.width} ${dimensions.height}" role="img" aria-label="Layered SVG from image">`;
+  });
+  return roundSvgDecimalNumbers(svg, dimensions.coordinatePrecision ?? 0)
+    .replace(/\s+/g, " ")
+    .replace(/> </g, "><")
+    .trim();
+}
+
+function roundSvgDecimalNumbers(markup: string, precision: number) {
+  const safePrecision = clampInt(precision, 0, 3);
+  return String(markup || "").replace(
+    /-?\d*\.\d+(?:e[-+]?\d+)?/gi,
+    (match) => formatCompactSvgNumber(Number(match), safePrecision),
+  );
+}
+
+function formatCompactSvgNumber(value: number, precision: number) {
+  if (!Number.isFinite(value)) return "0";
+  if (precision <= 0) return String(Math.round(value));
+  const rounded = Number(value.toFixed(precision));
+  if (Object.is(rounded, -0)) return "0";
+  return String(rounded);
+}
+
+function countDistinctPathFills(markup: string) {
+  const colors = new Set<string>();
+  for (const match of String(markup || "").matchAll(
+    /\bfill\s*=\s*["'](#[0-9a-fA-F]{6})["']/gi,
+  )) {
+    colors.add(match[1].toLowerCase());
+  }
+  return colors.size;
+}
+
+function snapCompactVTracerPalette(
+  svg: string,
+  maxColors: number,
+  options: {
+    darkSnapLuma?: number;
+    protectChromaticDarkColors?: boolean;
+    veryDarkLuma?: number;
+  } = {},
+) {
+  const samples: RGB[] = [];
+  let hasDarkDetail = false;
+  const darkSnapLuma = Number.isFinite(options.darkSnapLuma)
+    ? Number(options.darkSnapLuma)
+    : COMPACT_VTRACER_DARK_SNAP_LUMA;
+  const darkSnapOptions = {
+    darkSnapLuma,
+    protectChromaticDarkColors: Boolean(options.protectChromaticDarkColors),
+    veryDarkLuma: Number.isFinite(options.veryDarkLuma)
+      ? Number(options.veryDarkLuma)
+      : COMPACT_VTRACER_DARK_DETAIL_LUMA,
+  };
+
+  for (const match of String(svg).matchAll(/<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    const fill = tag.match(/\bfill\s*=\s*["'](#[0-9a-fA-F]{6})["']/i)?.[1];
+    const color = fill ? parseHexToRgb(fill) : null;
+    if (!color) continue;
+    const normalized =
+      darkSnapOptions.protectChromaticDarkColors ||
+      !shouldSnapCompactVTracerColorToDark(color, darkSnapOptions)
+        ? color
+        : COMPACT_VTRACER_DARK_COLOR;
+    hasDarkDetail ||= normalized === COMPACT_VTRACER_DARK_COLOR;
+    const pathLength =
+      tag.match(/\bd\s*=\s*["']([^"']*)["']/i)?.[1]?.length ?? tag.length;
+    const weight = clampInt(Math.round(Math.sqrt(pathLength) / 24), 1, 18);
+    for (let index = 0; index < weight && samples.length < 4096; index += 1) {
+      samples.push(normalized);
+    }
+  }
+
+  if (samples.length === 0) return svg;
+
+  let palette = buildLayerPalette(
+    samples,
+    clampInt(maxColors, MIN_LAYER_COUNT, COMPACT_VTRACER_MAX_EDITABLE_COLORS),
+  );
+  if (hasDarkDetail) {
+    palette = palette.filter(
+      (color) => colorDistance(color, COMPACT_VTRACER_DARK_COLOR) > 8,
+    );
+    palette.unshift(COMPACT_VTRACER_DARK_COLOR);
+    palette = palette.slice(0, maxColors);
+  }
+
+  const snapPaint = (value: string) => {
+    const color = parseHexToRgb(value);
+    if (!color || palette.length === 0) return value;
+    const protectSourceColor = shouldProtectCompactVTracerColorFromDarkSnap(color);
+    if (
+      !darkSnapOptions.protectChromaticDarkColors &&
+      shouldSnapCompactVTracerColorToDark(color, darkSnapOptions)
+    ) {
+      return rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR);
+    }
+    const snapPalette =
+      darkSnapOptions.protectChromaticDarkColors &&
+      protectSourceColor
+        ? palette.filter(
+            (candidate) =>
+              colorDistance(candidate, COMPACT_VTRACER_DARK_COLOR) > 8 &&
+              luminance(candidate) >= 52,
+          )
+        : palette;
+    const selectedPalette = snapPalette.length > 0 ? snapPalette : palette;
+    const selectedColor =
+      selectedPalette[nearestPaletteIndex(color, selectedPalette)];
+    return rgbObjectToHex(
+      darkSnapOptions.protectChromaticDarkColors
+        ? liftCompactVTracerBaseDarkColor(selectedColor)
+        : selectedColor,
+    );
+  };
+
+  return String(svg).replace(
+    /\b(fill|stroke)\s*=\s*(["'])(#[0-9a-fA-F]{6})\2/g,
+    (_match, attr, quote, color) => `${attr}=${quote}${snapPaint(color)}${quote}`,
+  );
+}
+
+function shouldSnapCompactVTracerColorToDark(
+  color: RGB,
+  options: {
+    darkSnapLuma: number;
+    protectChromaticDarkColors: boolean;
+    veryDarkLuma: number;
+  },
+) {
+  const luma = luminance(color);
+  if (luma >= options.darkSnapLuma) return false;
+  if (!options.protectChromaticDarkColors) return true;
+  if (luma <= Math.min(26, options.veryDarkLuma * 0.42)) return true;
+  const saturation = colorSaturation(color);
+  if (saturation <= 36) return true;
+  return saturation <= 50 && luma <= Math.min(40, options.veryDarkLuma * 0.58);
+}
+
+function shouldProtectCompactVTracerColorFromDarkSnap(color: RGB) {
+  const luma = luminance(color);
+  const saturation = colorSaturation(color);
+  if (saturation >= 42) return true;
+  return saturation >= 30 && luma > 38;
+}
+
+function liftCompactVTracerBaseDarkColor(color: RGB) {
+  const luma = luminance(color);
+  if (luma >= 52) {
+    return color;
+  }
+  const targetLuma = 74;
+  if (luma <= 0) {
+    return { r: targetLuma, g: targetLuma, b: targetLuma };
+  }
+  const factor = targetLuma / luma;
+  return {
+    r: clampInt(Math.round(color.r * factor), 0, 255),
+    g: clampInt(Math.round(color.g * factor), 0, 255),
+    b: clampInt(Math.round(color.b * factor), 0, 255),
+  };
+}
+
+async function createCompactVTracerDarkDetailOverlayPaths({
+  raw,
+  width,
+  height,
+  sharp,
+  qualityOptions,
+  overlayMode = "dark",
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  sharp: typeof import("sharp");
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+  overlayMode?: "dark" | "glare";
+}) {
+  const bounds = estimateFlatColorForegroundBounds(raw, width, height, {
+    padRatio: qualityOptions.detailBoundsPaddingRatio,
+  });
+  if (!bounds) return "";
+
+  let mask = Buffer.alloc(width * height, 255);
+  let inkPixels = 0;
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    if (
+      x < bounds.minX ||
+      x > bounds.maxX ||
+      y < bounds.minY ||
+      y > bounds.maxY
+    ) {
+      continue;
+    }
+    const offset = pixel * 4;
+    if (raw[offset + 3] < 18) continue;
+    const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
+    const supported = qualityOptions.sourceConstrainedDetail
+      ? overlayMode === "glare"
+        ? isSourceSupportedGlareDetailPixel({
+            centerLuma: luminance(color),
+            color,
+            stats: localSourceDetailStats(
+              raw,
+              width,
+              height,
+              x,
+              y,
+              color,
+              qualityOptions.detailNeighborhoodRadius,
+            ),
+            qualityOptions,
+          })
+        : isSourceSupportedDarkDetailPixel({
+            raw,
+            width,
+            height,
+            x,
+            y,
+            color,
+            qualityOptions,
+          })
+      : overlayMode === "dark" && luminance(color) < qualityOptions.darkDetailLuma;
+    if (!supported) continue;
+    mask[pixel] = 0;
+    inkPixels += 1;
+  }
+
+  let keptPixels = inkPixels;
+  if (qualityOptions.darkDetailMedianSize >= 3 && inkPixels > 0) {
+    mask = await denoiseCompactDetailMask({
+      sharp,
+      mask,
+      width,
+      height,
+      medianSize: qualityOptions.darkDetailMedianSize,
+    });
+    keptPixels = countCompactDetailMaskPixels(mask);
+  }
+  if (qualityOptions.sourceConstrainedDetail) {
+    const filtered = filterDetailMaskComponents(mask, width, height, {
+      minArea:
+        overlayMode === "glare"
+          ? Math.max(qualityOptions.darkDetailMinComponentArea, 14)
+          : qualityOptions.darkDetailMinComponentArea,
+      maxAreaShare:
+        overlayMode === "glare"
+          ? Math.min(qualityOptions.darkDetailMaxComponentShare, 0.012)
+          : qualityOptions.darkDetailMaxComponentShare,
+    });
+    mask = filtered.mask;
+    keptPixels = filtered.keptPixels;
+  }
+
+  const share = keptPixels / Math.max(1, width * height);
+  if (
+    keptPixels <
+      (overlayMode === "glare"
+        ? Math.max(qualityOptions.darkDetailMinPixels, 90)
+        : qualityOptions.darkDetailMinPixels) ||
+    share >
+      (overlayMode === "glare"
+        ? Math.min(qualityOptions.darkDetailMaxShare, 0.045)
+        : qualityOptions.darkDetailMaxShare)
+  ) {
+    return "";
+  }
+
+  const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
+    .png()
+    .toBuffer();
+  const pathTags = await traceMaskToPathTags(maskPng, {
+    turdSize: qualityOptions.darkDetailTurdSize,
+    optTolerance: qualityOptions.darkDetailOptTolerance,
+    turnPolicy: "minority",
+  });
+
+  return applyFillToPathTags(
+    String(pathTags || ""),
+    rgbObjectToHex(
+      overlayMode === "glare"
+        ? COMPACT_VTRACER_GLARE_DETAIL_COLOR
+        : qualityOptions.protectChromaticDarkColors
+          ? COMPACT_VTRACER_SOFT_DARK_DETAIL_COLOR
+        : COMPACT_VTRACER_DARK_COLOR,
+    ),
+  )
+    .replace(
+      /-?\d*\.\d+(?:e[-+]?\d+)?/gi,
+      (match) =>
+        formatCompactSvgNumber(
+          Number(match),
+          qualityOptions.svgCoordinatePrecision,
+        ),
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function denoiseCompactDetailMask({
+  sharp,
+  mask,
+  width,
+  height,
+  medianSize,
+}: {
+  sharp: typeof import("sharp");
+  mask: Buffer;
+  width: number;
+  height: number;
+  medianSize: number;
+}) {
+  const size = clampInt(medianSize, 3, 5);
+  const denoised = await sharp(mask, { raw: { width, height, channels: 1 } })
+    .median(size)
+    .raw()
+    .toBuffer();
+  return Buffer.from(denoised);
+}
+
+function countCompactDetailMaskPixels(mask: Buffer) {
+  let count = 0;
+  for (const value of mask) {
+    if (value === 0) count += 1;
+  }
+  return count;
+}
+
+async function createCompactVTracerEdgeOverlayPaths({
+  raw,
+  width,
+  height,
+  sharp,
+  qualityOptions,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  sharp: typeof import("sharp");
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  const bounds = estimateFlatColorForegroundBounds(raw, width, height, {
+    padRatio: qualityOptions.detailBoundsPaddingRatio,
+  });
+  if (!bounds) return "";
+
+  let mask = Buffer.alloc(width * height, 255);
+  let edgePixels = 0;
+  const pixelLuma = (pixel: number) => {
+    const offset = pixel * 4;
+    return luminance({
+      r: raw[offset],
+      g: raw[offset + 1],
+      b: raw[offset + 2],
+    });
+  };
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      if (
+        x < bounds.minX ||
+        x > bounds.maxX ||
+        y < bounds.minY ||
+        y > bounds.maxY
+      ) {
+        continue;
+      }
+      const pixel = y * width + x;
+      const offset = pixel * 4;
+      if (raw[offset + 3] < 18) continue;
+      const center = pixelLuma(pixel);
+      const sourceColor = {
+        r: raw[offset],
+        g: raw[offset + 1],
+        b: raw[offset + 2],
+      };
+      const gradient = Math.max(
+        Math.abs(center - pixelLuma(pixel - 1)),
+        Math.abs(center - pixelLuma(pixel + 1)),
+        Math.abs(center - pixelLuma(pixel - width)),
+        Math.abs(center - pixelLuma(pixel + width)),
+      );
+      const supported = qualityOptions.sourceConstrainedDetail
+        ? isSourceSupportedDarkEdgePixel({
+            raw,
+            width,
+            height,
+            x,
+            y,
+            color: sourceColor,
+            centerLuma: center,
+            gradient,
+            qualityOptions,
+          })
+        : gradient >= qualityOptions.edgeGradient &&
+          !(center >= 210 && colorSaturation(sourceColor) <= 36);
+      if (!supported) {
+        continue;
+      }
+      mask[pixel] = 0;
+      edgePixels += 1;
+    }
+  }
+
+  let keptPixels = edgePixels;
+  if (qualityOptions.sourceConstrainedDetail) {
+    const filtered = filterDetailMaskComponents(mask, width, height, {
+      minArea: qualityOptions.edgeMinComponentArea,
+      maxAreaShare: qualityOptions.edgeMaxComponentShare,
+    });
+    mask = filtered.mask;
+    keptPixels = filtered.keptPixels;
+  }
+
+  const share = keptPixels / Math.max(1, width * height);
+  if (
+    keptPixels < qualityOptions.edgeMinPixels ||
+    share > qualityOptions.edgeMaxShare
+  ) {
+    return "";
+  }
+
+  const maskPng = await sharp(mask, { raw: { width, height, channels: 1 } })
+    .png()
+    .toBuffer();
+  const pathTags = await traceMaskToPathTags(maskPng, {
+    turdSize: qualityOptions.edgeTurdSize,
+    optTolerance: qualityOptions.edgeOptTolerance,
+    turnPolicy: "minority",
+  });
+
+  return applyFillToPathTags(
+    String(pathTags || ""),
+    rgbObjectToHex(
+      qualityOptions.protectChromaticDarkColors
+        ? COMPACT_VTRACER_SOFT_EDGE_DETAIL_COLOR
+        : COMPACT_VTRACER_DARK_COLOR,
+    ),
+  )
+    .replace(
+      /-?\d*\.\d+(?:e[-+]?\d+)?/gi,
+      (match) =>
+        formatCompactSvgNumber(
+          Number(match),
+          qualityOptions.svgCoordinatePrecision,
+        ),
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSourceSupportedDarkDetailPixel({
+  raw,
+  width,
+  height,
+  x,
+  y,
+  color,
+  qualityOptions,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  color: RGB;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  const centerLuma = luminance(color);
+  const stats = localSourceDetailStats(
+    raw,
+    width,
+    height,
+    x,
+    y,
+    color,
+    qualityOptions.detailNeighborhoodRadius,
+  );
+  if (centerLuma >= qualityOptions.darkDetailLuma) return false;
+  if (isSourceSupportedNeutralTextPixel(centerLuma, color, stats, qualityOptions)) {
+    return true;
+  }
+  if (
+    centerLuma <= Math.min(52, qualityOptions.darkDetailVeryDarkLuma) &&
+    colorSaturation(color) <= 68 &&
+    (stats.maxLuma - centerLuma >= Math.max(46, qualityOptions.darkDetailContrast * 1.9) ||
+      stats.maxDistance >= Math.max(54, qualityOptions.darkDetailContrast * 2.25))
+  ) {
+    return true;
+  }
+  if (
+    isLikelyUnsupportedTextureDetail({
+      centerLuma,
+      color,
+      stats,
+      qualityOptions,
+      contrast: qualityOptions.darkDetailContrast,
+    })
+  ) {
+    return false;
+  }
+  if (
+    colorSaturation(color) > 72 &&
+    centerLuma > qualityOptions.darkDetailVeryDarkLuma &&
+    stats.maxLuma - centerLuma < qualityOptions.darkDetailContrast * 1.2 &&
+    stats.maxDistance < Math.max(34, qualityOptions.darkDetailContrast * 1.15)
+  ) {
+    return false;
+  }
+  if (
+    centerLuma <= qualityOptions.darkDetailVeryDarkLuma &&
+    stats.maxLuma - centerLuma >= Math.max(18, qualityOptions.darkDetailContrast * 0.45)
+  ) {
+    return true;
+  }
+  if (
+    centerLuma < qualityOptions.darkDetailLuma * 0.82 &&
+    (stats.maxLuma - centerLuma >= qualityOptions.darkDetailContrast * 0.45 ||
+      stats.maxDistance >= Math.max(24, qualityOptions.darkDetailContrast * 0.65))
+  ) {
+    return true;
+  }
+  return (
+    stats.maxLuma - centerLuma >= qualityOptions.darkDetailContrast &&
+    stats.maxDistance >= Math.max(34, qualityOptions.darkDetailContrast * 0.85)
+  );
+}
+
+function isSourceSupportedNeutralTextPixel(
+  centerLuma: number,
+  color: RGB,
+  stats: ReturnType<typeof localSourceDetailStats>,
+  qualityOptions: CompactLayeredVTracerQualityOptions,
+) {
+  if (!qualityOptions.glareDetailRecovery) return false;
+  if (colorSaturation(color) > 46) return false;
+  if (centerLuma > Math.min(118, qualityOptions.darkDetailLuma * 0.92)) {
+    return false;
+  }
+  const localLift = stats.maxLuma - centerLuma;
+  if (localLift < Math.max(22, qualityOptions.darkDetailContrast * 0.78)) {
+    return false;
+  }
+  if (
+    stats.maxDistance <
+    Math.max(36, qualityOptions.darkDetailContrast * 1.08)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isSourceSupportedGlareDetailPixel({
+  centerLuma,
+  color,
+  stats,
+  qualityOptions,
+}: {
+  centerLuma: number;
+  color: RGB;
+  stats: ReturnType<typeof localSourceDetailStats>;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  if (!qualityOptions.glareDetailRecovery) return false;
+  if (centerLuma >= qualityOptions.glareDetailLuma) return false;
+  const saturation = colorSaturation(color);
+  if (saturation > qualityOptions.glareDetailMaxSaturation) return false;
+  const localLift = stats.maxLuma - centerLuma;
+  const localSpan = stats.maxLuma - stats.minLuma;
+  const contrast = qualityOptions.glareDetailContrast;
+  if (localSpan < contrast * 0.72) return false;
+  if (
+    localLift < contrast &&
+    stats.maxDistance < Math.max(42, contrast * 0.92)
+  ) {
+    return false;
+  }
+  if (
+    isLikelyUnsupportedTextureDetail({
+      centerLuma,
+      color,
+      stats,
+      qualityOptions,
+      contrast,
+    })
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isSourceSupportedDarkEdgePixel({
+  raw,
+  width,
+  height,
+  x,
+  y,
+  color,
+  centerLuma,
+  gradient,
+  qualityOptions,
+}: {
+  raw: Buffer;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  color: RGB;
+  centerLuma: number;
+  gradient: number;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+}) {
+  if (gradient < qualityOptions.edgeGradient) return false;
+  const stats = localSourceDetailStats(
+    raw,
+    width,
+    height,
+    x,
+    y,
+    color,
+    qualityOptions.detailNeighborhoodRadius,
+  );
+  if (centerLuma >= qualityOptions.edgeDarkLuma) {
+    return (
+      gradient >= qualityOptions.edgeGradient * 1.35 &&
+      isSourceSupportedGlareDetailPixel({
+        centerLuma,
+        color,
+        stats,
+        qualityOptions,
+      })
+    );
+  }
+  if (centerLuma >= 210 && colorSaturation(color) <= 36) return false;
+  if (
+    isLikelyUnsupportedTextureDetail({
+      centerLuma,
+      color,
+      stats,
+      qualityOptions,
+      contrast: qualityOptions.edgeContrast,
+    })
+  ) {
+    return false;
+  }
+  if (
+    colorSaturation(color) > 72 &&
+    centerLuma > qualityOptions.edgeDarkLuma * 0.78 &&
+    stats.maxLuma - centerLuma < qualityOptions.edgeContrast * 1.35 &&
+    stats.maxDistance < Math.max(56, qualityOptions.edgeContrast)
+  ) {
+    return false;
+  }
+  return (
+    stats.maxLuma - centerLuma >= qualityOptions.edgeContrast ||
+    stats.maxDistance >= Math.max(48, qualityOptions.edgeContrast * 0.85)
+  );
+}
+
+function isLikelyUnsupportedTextureDetail({
+  centerLuma,
+  color,
+  stats,
+  qualityOptions,
+  contrast,
+}: {
+  centerLuma: number;
+  color: RGB;
+  stats: ReturnType<typeof localSourceDetailStats>;
+  qualityOptions: CompactLayeredVTracerQualityOptions;
+  contrast: number;
+}) {
+  if (!qualityOptions.glareDetailRecovery) return false;
+  const saturation = colorSaturation(color);
+  const family = flatColorFamily(color);
+  const textureProneColor =
+    family === "blue" ||
+    family === "cyan" ||
+    family === "yellow" ||
+    family === "orange" ||
+    family === "green";
+  const lumaLift = stats.maxLuma - centerLuma;
+  const localSpan = stats.maxLuma - stats.minLuma;
+  if (
+    textureProneColor &&
+    saturation >= Math.min(qualityOptions.textureGuardSaturation, 34) &&
+    centerLuma > 38
+  ) {
+    if (
+      lumaLift >= Math.max(58, contrast * 1.6) ||
+      stats.maxDistance >= Math.max(72, contrast * 1.8)
+    ) {
+      return false;
+    }
+    return true;
+  }
+  if (
+    centerLuma <= qualityOptions.darkDetailVeryDarkLuma &&
+    saturation <= 50 &&
+    stats.maxSaturation >= 72 &&
+    stats.maxDistance >= Math.max(58, contrast * 1.35) &&
+    lumaLift < 132
+  ) {
+    return true;
+  }
+  if (centerLuma <= qualityOptions.darkDetailVeryDarkLuma) return false;
+  if (
+    centerLuma > 44 &&
+    saturation <= 44 &&
+    stats.maxSaturation >= 72 &&
+    stats.maxDistance >= Math.max(58, contrast * 1.35)
+  ) {
+    return true;
+  }
+  const weakContrast =
+    lumaLift < contrast * qualityOptions.textureGuardContrastScale &&
+    stats.maxDistance <
+      Math.max(52, contrast * qualityOptions.textureGuardContrastScale);
+  if (!weakContrast) return false;
+
+  if (textureProneColor && saturation >= qualityOptions.textureGuardSaturation) {
+    return true;
+  }
+
+  return saturation <= 42 && localSpan < contrast * 1.15;
+}
+
+function localSourceDetailStats(
+  raw: Buffer,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  color: RGB,
+  radius = 4,
+) {
+  const offsets: Array<readonly [number, number]> = [
+    [-2, 0],
+    [-1, 0],
+    [1, 0],
+    [2, 0],
+    [0, -2],
+    [0, -1],
+    [0, 1],
+    [0, 2],
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+    [-4, 0],
+    [4, 0],
+    [0, -4],
+    [0, 4],
+  ];
+  if (radius >= 6) {
+    offsets.push(
+      [-6, 0],
+      [6, 0],
+      [0, -6],
+      [0, 6],
+      [-4, -4],
+      [4, -4],
+      [-4, 4],
+      [4, 4],
+    );
+  }
+  if (radius >= 8) {
+    offsets.push(
+      [-8, 0],
+      [8, 0],
+      [0, -8],
+      [0, 8],
+      [-6, -3],
+      [6, -3],
+      [-6, 3],
+      [6, 3],
+      [-3, -6],
+      [3, -6],
+      [-3, 6],
+      [3, 6],
+    );
+  }
+  let maxLuma = luminance(color);
+  let minLuma = maxLuma;
+  let maxDistance = 0;
+  let maxSaturation = colorSaturation(color);
+  for (const [dx, dy] of offsets) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+    const pixel = ny * width + nx;
+    const offset = pixel * 4;
+    if (raw[offset + 3] < 18) continue;
+    const neighbor = {
+      r: raw[offset],
+      g: raw[offset + 1],
+      b: raw[offset + 2],
+    };
+    const luma = luminance(neighbor);
+    maxLuma = Math.max(maxLuma, luma);
+    minLuma = Math.min(minLuma, luma);
+    maxDistance = Math.max(maxDistance, colorDistance(color, neighbor));
+    maxSaturation = Math.max(maxSaturation, colorSaturation(neighbor));
+  }
+  return { maxLuma, minLuma, maxDistance, maxSaturation };
+}
+
+function filterDetailMaskComponents(
+  mask: Buffer,
+  width: number,
+  height: number,
+  options: { minArea: number; maxAreaShare: number },
+) {
+  const total = width * height;
+  const out = Buffer.alloc(total, 255);
+  const visited = new Uint8Array(total);
+  const stack: number[] = [];
+  const component: number[] = [];
+  const minArea = Math.max(1, Math.round(options.minArea));
+  const maxArea = Math.max(minArea, Math.round(total * options.maxAreaShare));
+  let keptPixels = 0;
+
+  for (let start = 0; start < total; start += 1) {
+    if (mask[start] !== 0 || visited[start]) continue;
+    stack.length = 0;
+    component.length = 0;
+    stack.push(start);
+    visited[start] = 1;
+    while (stack.length > 0) {
+      const pixel = stack.pop()!;
+      component.push(pixel);
+      const x = pixel % width;
+      const neighbors = [
+        pixel - 1,
+        pixel + 1,
+        pixel - width,
+        pixel + width,
+      ];
+      for (const next of neighbors) {
+        if (next < 0 || next >= total || visited[next] || mask[next] !== 0) {
+          continue;
+        }
+        if ((next === pixel - 1 && x === 0) || (next === pixel + 1 && x === width - 1)) {
+          continue;
+        }
+        visited[next] = 1;
+        stack.push(next);
+      }
+    }
+    if (component.length < minArea || component.length > maxArea) continue;
+    for (const pixel of component) out[pixel] = 0;
+    keptPixels += component.length;
+  }
+
+  return { mask: out, keptPixels };
+}
+
+function appendSvgPaths(svg: string, pathTags: string) {
+  if (!pathTags.trim()) return svg;
+  return String(svg).replace(/<\/svg>\s*$/i, `${pathTags}</svg>`);
+}
+
+function applyFillToPathTags(pathTags: string, fill: string) {
+  const color = sanitizeLayerHexColor(fill, "#000000");
+  return String(pathTags || "").replace(/<path\b[^>]*>/gi, (tag) => {
+    if (/\sfill\s*=/i.test(tag)) {
+      return tag.replace(
+        /\sfill\s*=\s*(["'])#[0-9a-fA-F]{3,8}\1/gi,
+        ` fill="${color}"`,
+      );
+    }
+    return tag.replace(/\s*\/?>$/i, (ending) => {
+      const close = ending.includes("/") ? " />" : ">";
+      return ` fill="${color}"${close}`;
+    });
+  });
+}
+
+function groupCompactVTracerSvgByFill(svg: string): {
+  svg: string;
+  layers: SvgLayerMeta[];
+} {
+  const openTag = String(svg).match(/<svg\b[^>]*>/i)?.[0] || "";
+  const groups = new Map<
+    string,
+    { id: string; label: string; color: string; pathTags: string; pathCount: number }
+  >();
+
+  for (const match of String(svg).matchAll(/<path\b[^>]*>/gi)) {
+    const tag = match[0];
+    const fill = sanitizeLayerHexColor(
+      tag.match(/\bfill\s*=\s*["'](#[0-9a-fA-F]{3,8})["']/i)?.[1] || "",
+      "",
+    );
+    if (!fill) continue;
+    let group = groups.get(fill);
+    if (!group) {
+      const count = groups.size + 1;
+      group = {
+        id: sanitizeLayerId(`fill-${count}-${fill.replace("#", "")}`),
+        label: `Fill ${count}`,
+        color: fill,
+        pathTags: "",
+        pathCount: 0,
+      };
+      groups.set(fill, group);
+    }
+    const pathTag = tag
+      .replace(/\sfill\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sdata-fill-layer-id\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sdata-layer-id\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\sdata-layer-color\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/\s+/g, " ");
+    group.pathTags += pathTag;
+    group.pathCount += 1;
+  }
+
+  const darkFill = rgbObjectToHex(COMPACT_VTRACER_DARK_COLOR);
+  const orderedGroups = Array.from(groups.values()).sort((a, b) => {
+    if (a.color === darkFill && b.color !== darkFill) return 1;
+    if (b.color === darkFill && a.color !== darkFill) return -1;
+    return 0;
+  });
+  const layers: SvgLayerMeta[] = orderedGroups.map((group, index) => ({
+    id: group.id,
+    label: `Fill ${index + 1}`,
+    color: group.color,
+    originalColor: group.color,
+    visible: true,
+    pathTags: group.pathTags,
+    pathCount: group.pathCount,
+    kind: "fill",
+  }));
+  const body = orderedGroups
+    .map(
+      (group, index) =>
+        `<g id="${group.id}" data-layer-id="${group.id}" data-layer-label="${escapeXmlAttr(
+          `Fill ${index + 1}`,
+        )}" data-layer-color="${group.color}" fill="${group.color}">${group.pathTags}</g>`,
+    )
+    .join("");
+  return {
+    svg: `${openTag}${body}</svg>`,
+    layers,
+  };
+}
+
+export async function createLayeredColorSvg(
+  input: Buffer,
+  opts: LayeredColorSvgOptions,
+): Promise<LayeredColorSvgResult> {
   const diagnostics = createConversionDiagnostics({
     routeId: "shared-layered-trace",
     mode: "layered",
@@ -309,6 +1898,31 @@ export async function createLayeredColorSvg(
       throw new Error(
         "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
       );
+    }
+
+    if (shouldUseCompactFlatColorVTracer(safeOptions, sourceMatte)) {
+      const compactResult = await withTimer(
+        diagnostics,
+        "serverVTracerFlatColor",
+        async () =>
+          createCompactFlatColorVTracerSvg({
+          raw: data as Buffer,
+          width,
+          height,
+          sourceWidth: sourceDimensions.width,
+          sourceHeight: sourceDimensions.height,
+          options: safeOptions,
+          diagnostics,
+          sharp,
+        }),
+      );
+      if (compactResult.layers.length >= 12) {
+        return withLayeredDiagnostics(compactResult, diagnostics);
+      }
+      diagnostics.warnings = [
+        ...(diagnostics.warnings || []),
+        `Compact VTracer produced only ${compactResult.layers.length} editable groups; falling back to per-color layered trace.`,
+      ];
     }
 
     const raw = data as Buffer;
@@ -420,12 +2034,22 @@ export async function createLayeredColorSvg(
     }
 
     const builtLayers: TraceLayerBuildItem[] = [];
+    startTimer(diagnostics, "buildAndTraceLayerMasks");
     for (let i = 0; i < rawLayerItems.length; i++) {
       const item = rawLayerItems[i];
-      const mask = Buffer.alloc(width * height, 255);
-      for (let px = 0; px < assignments.layerForPixel.length; px++) {
-        if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
-      }
+      const mask = withSynchronousTimer(
+        diagnostics,
+        `buildLayerMask${i + 1}`,
+        () => {
+          const nextMask = Buffer.alloc(width * height, 255);
+          for (let px = 0; px < assignments.layerForPixel.length; px++) {
+            if (assignments.layerForPixel[px] === item.index) {
+              nextMask[px] = 0;
+            }
+          }
+          return nextMask;
+        },
+      );
       if (!maskHasInk(mask)) continue;
 
       const maskPng = await withTimer(diagnostics, `encodeLayerMask${i + 1}`, () =>
@@ -451,6 +2075,7 @@ export async function createLayeredColorSvg(
         pathTags,
       });
     }
+    endTimer(diagnostics, "buildAndTraceLayerMasks");
 
     if (builtLayers.length === 0) {
       throw new Error(
@@ -469,18 +2094,23 @@ export async function createLayeredColorSvg(
       diagnostics.adaptiveLayerPalette.lightNeutralMatteApplied =
         finalLayers !== builtLayers;
     }
-    const serializedLayers = finalLayers.map((layer) => ({
-      ...layer,
-      pathTags: optimizeLayerPathTags(
-        clampSvgPathDataPrecision(
-          layer.pathTags,
-          GENERATED_LAYERED_PATH_PRECISION,
-        ),
-        layer.color,
-        width,
-        height,
-      ),
-    }));
+    const serializedLayers = withSynchronousTimer(
+      diagnostics,
+      "optimizeLayerPaths",
+      () =>
+        finalLayers.map((layer) => ({
+          ...layer,
+          pathTags: optimizeLayerPathTags(
+            clampSvgPathDataPrecision(
+              layer.pathTags,
+              GENERATED_LAYERED_PATH_PRECISION,
+            ),
+            layer.color,
+            width,
+            height,
+          ),
+        })),
+    );
 
     const svg = withSynchronousTimer(diagnostics, "buildSvg", () =>
       buildLayeredSvgString({
@@ -513,7 +2143,7 @@ export async function createLayeredColorSvg(
       outputBasisHeight,
     );
 
-    return {
+    return withLayeredDiagnostics({
       svg,
       width: outputDimensions.width,
       height: outputDimensions.height,
@@ -552,7 +2182,7 @@ export async function createLayeredColorSvg(
             ]
           : []),
       ],
-    };
+    }, diagnostics);
   } finally {
     maybeLogConversionDiagnostics(diagnostics);
   }
@@ -610,6 +2240,10 @@ function normalizeLayeredColorOptions(
     ),
     preserveAspectRatio: options.preserveAspectRatio !== false,
     presetId: String(options.presetId || ""),
+    layeredQualityTier: normalizeLayeredQualityTier(
+      options.layeredQualityTier,
+      options.presetId,
+    ),
   };
 }
 
@@ -893,6 +2527,63 @@ function assignAllPixelsToLayerPalette(
   }
 
   return { layerForPixel, counts, assignableCount };
+}
+
+type FlatColorPixelBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+function estimateFlatColorForegroundBounds(
+  raw: Buffer,
+  width: number,
+  height: number,
+  options: { padRatio?: number } = {},
+): FlatColorPixelBounds | null {
+  const total = width * height;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let matched = 0;
+
+  for (let pixel = 0; pixel < total; pixel += 1) {
+    const offset = pixel * 4;
+    if (raw[offset + 3] < 18) continue;
+    const color = { r: raw[offset], g: raw[offset + 1], b: raw[offset + 2] };
+    const lum = luminance(color);
+    const saturation = colorSaturation(color);
+    if (saturation < 52 || lum < 70 || lum > 248) continue;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    matched += 1;
+  }
+
+  if (matched / Math.max(1, total) < 0.015 || maxX < minX || maxY < minY) {
+    return null;
+  }
+
+  const padRatio = Number.isFinite(options.padRatio)
+    ? clampNumber(options.padRatio ?? 0.055, 0.01, 0.08)
+    : 0.055;
+  const pad = Math.round(Math.max(18, Math.max(width, height) * padRatio));
+  const bounds = {
+    minX: Math.max(0, minX - pad),
+    minY: Math.max(0, minY - pad),
+    maxX: Math.min(width - 1, maxX + pad),
+    maxY: Math.min(height - 1, maxY + pad),
+  };
+  const area =
+    Math.max(1, bounds.maxX - bounds.minX + 1) *
+    Math.max(1, bounds.maxY - bounds.minY + 1);
+  if (area / Math.max(1, total) > 0.92) return null;
+  return bounds;
 }
 
 function buildLayerPalette(pixels: RGB[], requestedCount: number): RGB[] {

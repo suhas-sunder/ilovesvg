@@ -759,13 +759,26 @@ export async function action({ request }: ActionFunctionArgs) {
       const advancedTraceSettings = readAdvancedTraceFormSettings(form);
 
       const traceMode = String(form.get("traceMode") ?? "single") as TraceMode;
+      const maxLayerCountForRequest =
+        advancedTraceSettings.layeredQualityTier === "default"
+          ? MAX_LAYER_COUNT
+          : 32;
       const colorLayerCount = clampNumber(
         Number(
           form.get("colorLayerCount") ?? BASE_LAYERED_COLOR_DEFAULTS.layerCount,
         ),
         MIN_LAYER_COUNT,
-        MAX_LAYER_COUNT,
+        maxLayerCountForRequest,
       );
+      const requestedPaletteCount = clampNumber(
+        Number(advancedTraceSettings.requestedPaletteCount || colorLayerCount),
+        MIN_LAYER_COUNT,
+        maxLayerCountForRequest,
+      );
+      const effectiveColorLayerCount =
+        advancedTraceSettings.layeredQualityTier === "default"
+          ? colorLayerCount
+          : Math.max(colorLayerCount, requestedPaletteCount);
       const layerMaxTraceSide = clampNumber(
         Number(
           form.get("layerMaxTraceSide") ??
@@ -838,7 +851,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const routeLayeredTraceAdapter = runSharedLayeredColorTraceShared;
         const layered = await routeLayeredTraceAdapter(input, {
           presetId,
-          layerCount: Math.round(colorLayerCount),
+          layerCount: Math.round(effectiveColorLayerCount),
           maxTraceSide: Math.round(layerMaxTraceSide),
           minRegionPercent,
           optTolerance: layerOptTolerance,
@@ -858,6 +871,7 @@ export async function action({ request }: ActionFunctionArgs) {
           colorMergeTolerance: advancedTraceSettings.colorMergeTolerance,
           posterizeStrength: advancedTraceSettings.posterizeStrength,
           sortLayersBy: advancedTraceSettings.sortLayersBy,
+          layeredQualityTier: advancedTraceSettings.layeredQualityTier,
           brightness: advancedTraceSettings.brightness,
           contrast: advancedTraceSettings.contrast,
           outputWidth: advancedTraceSettings.outputWidth,
@@ -872,7 +886,10 @@ export async function action({ request }: ActionFunctionArgs) {
           layers: layered.layers,
           width: layered.width,
           height: layered.height,
-          engineUsed: "potrace",
+          engineUsed: layered.engineUsed || "potrace",
+          warnings: layered.warnings,
+          timings: layered.timings,
+          diagnostics: layered.diagnostics,
           clientRunId,
           gate: {
             running: gate.running,
@@ -2351,6 +2368,7 @@ type ServerResult = {
   enginePathLabel?: string;
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: Record<string, unknown>;
   layerBuildMode?: string;
   requestedPaletteCount?: number;
   actualPaletteCount?: number;
@@ -5058,6 +5076,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       data-output-detected-colors={item.outputDetectedColors ?? ""}
                       data-path-count={item.pathCount ?? ""}
                       data-svg-bytes={displaySvgBytes ?? ""}
+                      data-output-timings={
+                        item.timings ? JSON.stringify(item.timings) : ""
+                      }
                       className={[
                         "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                         focused ? "shadow-xl" : "",

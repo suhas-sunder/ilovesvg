@@ -359,6 +359,7 @@ export async function action({ request }: ActionFunctionArgs) {
       maxPartSize: MAX_UPLOAD_BYTES,
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const clientRunId = sanitizeClientRunId(form.get("clientRunId"));
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
@@ -399,6 +400,7 @@ export async function action({ request }: ActionFunctionArgs) {
             "Server is busy converting other JPG layered SVGs. Retrying automatically.",
           retryAfterMs,
           code: "BUSY",
+          clientRunId,
         },
         {
           status: 429,
@@ -551,6 +553,7 @@ export async function action({ request }: ActionFunctionArgs) {
         ...result,
         engineUsed: result.engineUsed || "potrace",
         sourceKind: result.sourceKind || "raster",
+        clientRunId,
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -580,6 +583,13 @@ export async function action({ request }: ActionFunctionArgs) {
       { status: 500 },
     );
   }
+}
+
+function sanitizeClientRunId(value: FormDataEntryValue | null): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.replace(/[^a-z0-9:._-]/gi, "").slice(0, 160) || undefined;
 }
 
 /* ========================
@@ -1403,6 +1413,7 @@ type ServerResult = {
   svgBytes?: number;
   retryAfterMs?: number;
   code?: string;
+  clientRunId?: string;
   gate?: { running: number; queued: number };
   layers?: ServerLayer[];
   palette?: string[];
@@ -1435,10 +1446,18 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
   layers: LayerState[];
   settingsSnapshot: Settings;
   name?: string;
   presetLabel?: string;
+  jobId?: string;
+  jobStatus?: "queued" | "running" | "succeeded" | "failed" | "canceled";
+  jobStartedAt?: number;
+  jobCompletedAt?: number;
+  jobError?: string | null;
+  enginePathLabel?: string;
+  canCancel?: boolean;
   sourceFileName?: string;
   sourceMimeType?: string;
   sourceFileSize?: number;
@@ -1511,9 +1530,30 @@ export default function JpgToLayeredSvgForCricut({
   const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
   const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
   const historyRef = React.useRef<HistoryItem[]>([]);
+  const clientRunIdCounterRef = React.useRef(0);
+  const submittedByRunIdRef = React.useRef(
+    new Map<
+      string,
+      {
+        settings: Settings;
+        presetId: string;
+        stamp: number | null;
+        replaceStamp: number | null;
+        startedAt: number;
+        fileName: string;
+        sourceFile: File;
+        sourceSnapshot: OutputSourceSnapshot;
+      }
+    >(),
+  );
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSubmitRef = React.useRef<{
+    file: File;
+    settings: Settings;
+    presetId: string;
+  } | null>(null);
 
   const busy = fetcher.state !== "idle";
 
@@ -1529,6 +1569,14 @@ export default function JpgToLayeredSvgForCricut({
 
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
+    const clientRunId = fetcher.data.clientRunId || "";
+    const submitted =
+      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    if (clientRunId && !submitted) return;
+    const presetId = submitted?.presetId ?? activePreset;
+    const presetLabel = getPresetLabelById(presetId);
+    const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
+    const targetStamp = replaceStamp ?? submitted?.stamp ?? Date.now();
 
     const item: HistoryItem = {
       svg: fetcher.data.svg,
@@ -1544,7 +1592,8 @@ export default function JpgToLayeredSvgForCricut({
       outputDetectedColors: fetcher.data.outputDetectedColors,
       pathCount: fetcher.data.pathCount,
       svgBytes: fetcher.data.svgBytes,
-      stamp: Date.now(),
+      stamp: targetStamp,
+      presetId,
       layers: fetcher.data.layers.map((layer) => ({
         id: layer.id,
         name: layer.name,
@@ -1556,16 +1605,26 @@ export default function JpgToLayeredSvgForCricut({
         pixelPercent: layer.pixelPercent,
         pathTags: layer.pathTags,
       })),
-      settingsSnapshot: lastSubmittedSettingsRef.current,
-      name: `Output - ${getPresetLabelById(activePreset)}`,
-      presetLabel: getPresetLabelById(activePreset),
-      sourceFileName: lastSubmittedSourceSnapshotRef.current.sourceFileName,
-      sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
-      sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
-      sourcePreviewUrl: lastSubmittedSourceSnapshotRef.current.sourcePreviewUrl,
+      settingsSnapshot: submitted?.settings ?? lastSubmittedSettingsRef.current,
+      name: `Output - ${presetLabel}`,
+      presetLabel,
+      jobId: clientRunId || undefined,
+      jobStatus: "succeeded",
+      jobStartedAt: submitted?.startedAt,
+      jobCompletedAt: Date.now(),
+      sourceFileName:
+        submitted?.fileName ?? lastSubmittedSourceSnapshotRef.current.sourceFileName,
+      sourceMimeType:
+        submitted?.sourceSnapshot.sourceMimeType ??
+        lastSubmittedSourceSnapshotRef.current.sourceMimeType,
+      sourceFileSize:
+        submitted?.sourceSnapshot.sourceFileSize ??
+        lastSubmittedSourceSnapshotRef.current.sourceFileSize,
+      sourcePreviewUrl:
+        submitted?.sourceSnapshot.sourcePreviewUrl ??
+        lastSubmittedSourceSnapshotRef.current.sourcePreviewUrl,
     };
 
-    const replaceStamp = pendingReplaceStampRef.current;
     pendingReplaceStampRef.current = null;
 
     setHistory((prev) => {
@@ -1579,7 +1638,7 @@ export default function JpgToLayeredSvgForCricut({
               ...historyItem,
               ...item,
               stamp: historyItem.stamp,
-              name: historyItem.name,
+              name: item.name,
             },
             historyItem,
           );
@@ -1591,33 +1650,88 @@ export default function JpgToLayeredSvgForCricut({
         return limited;
       }
 
+      if (prev.some((historyItem) => historyItem.stamp === targetStamp)) {
+        const next = prev.map((historyItem) =>
+          historyItem.stamp === targetStamp
+            ? mergeOutputSourceSnapshot(item, historyItem)
+            : historyItem,
+        );
+        cleanupUnusedSourceSnapshots([...prev, item], next);
+        return next;
+      }
+
       return trimOutputHistory([item, ...prev], prev, OUTPUT_HISTORY_LIMIT);
     });
+    if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
     setInfo(null);
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height, activePreset]);
+  }, [
+    fetcher.data?.svg,
+    fetcher.data?.layers,
+    fetcher.data?.width,
+    fetcher.data?.height,
+    fetcher.data?.clientRunId,
+    activePreset,
+  ]);
 
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
+    const clientRunId = fetcher.data.clientRunId || "";
+    const submitted =
+      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    if (clientRunId && !submitted) return;
+    const pendingStamp = submitted?.stamp;
 
-    if (fetcher.data.code === "BUSY" && file) {
+    if (fetcher.data.code === "BUSY" && (submitted || lastSubmitRef.current)) {
       const retryAfterMs = Math.max(1500, fetcher.data.retryAfterMs ?? 2500);
+      const retryPayload = submitted || lastSubmitRef.current!;
       setInfo("Server is busy. Retrying automatically.");
 
       if (retryRef.current) clearTimeout(retryRef.current);
 
       retryRef.current = setTimeout(() => {
-        submitConvert(file, settings);
+        if (pendingStamp) pendingReplaceStampRef.current = pendingStamp;
+        const retryFile =
+          "sourceFile" in retryPayload
+            ? retryPayload.sourceFile
+            : retryPayload.file;
+        submitConvert(
+          retryFile,
+          retryPayload.settings,
+          pendingStamp ?? null,
+          retryPayload.presetId,
+        );
       }, retryAfterMs);
 
       return;
     }
 
     setErr(fetcher.data.error);
+    if (pendingStamp) {
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.stamp === pendingStamp
+            ? {
+                ...item,
+                jobStatus: "failed",
+                jobCompletedAt: Date.now(),
+                jobError: fetcher.data?.error || "Layered conversion failed.",
+                canCancel: false,
+              }
+            : item,
+        ),
+      );
+    }
+    if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
     cleanupUnusedSourceSnapshots(
       [lastSubmittedSourceSnapshotRef.current],
       historyRef.current,
     );
-  }, [fetcher.data?.error, fetcher.data?.code, fetcher.data?.retryAfterMs]);
+  }, [
+    fetcher.data?.error,
+    fetcher.data?.code,
+    fetcher.data?.retryAfterMs,
+    fetcher.data?.clientRunId,
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -1705,6 +1819,7 @@ export default function JpgToLayeredSvgForCricut({
     fileOverride?: File | null,
     settingsOverride?: Settings,
     replaceStamp?: number | null,
+    presetIdForSubmit = activePreset,
   ) {
     const sourceFile = fileOverride ?? file;
     const sourceSettings = settingsOverride ?? settings;
@@ -1730,6 +1845,11 @@ export default function JpgToLayeredSvgForCricut({
       clearTimeout(retryRef.current);
       retryRef.current = null;
     }
+    lastSubmitRef.current = {
+      file: sourceFile,
+      settings: sourceSettings,
+      presetId: presetIdForSubmit,
+    };
 
     const fd = new FormData();
     fd.append("file", sourceFile);
@@ -1752,11 +1872,49 @@ export default function JpgToLayeredSvgForCricut({
       createOutputSourceSnapshot(sourceFile);
     pendingReplaceStampRef.current = replaceStamp ?? null;
 
-    fd.append("presetId", activePreset);
-
-
-
-
+    fd.append("presetId", presetIdForSubmit);
+    const clientRunId = `jpg-layered-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    cancelSupersededRunningJobs(clientRunId);
+    fd.append("clientRunId", clientRunId);
+    const startedAt = Date.now();
+    const effectiveReplaceStamp = replaceStamp ?? null;
+    const pendingStamp = effectiveReplaceStamp ? null : startedAt;
+    const presetLabel = getPresetLabelById(presetIdForSubmit);
+    submittedByRunIdRef.current.set(clientRunId, {
+      settings: sourceSettings,
+      presetId: presetIdForSubmit,
+      stamp: pendingStamp,
+      replaceStamp: effectiveReplaceStamp,
+      startedAt,
+      fileName: sourceFile.name,
+      sourceFile,
+      sourceSnapshot: lastSubmittedSourceSnapshotRef.current,
+    });
+    if (!effectiveReplaceStamp && pendingStamp) {
+      const pendingItem: HistoryItem = {
+        svg: "",
+        width: 0,
+        height: 0,
+        stamp: pendingStamp,
+        presetId: presetIdForSubmit,
+        layers: [],
+        settingsSnapshot: sourceSettings,
+        name: `Output - ${presetLabel}`,
+        presetLabel,
+        jobId: clientRunId,
+        jobStatus: "running",
+        jobStartedAt: startedAt,
+        sourceFileName: sourceFile.name,
+        sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
+        sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
+        sourcePreviewUrl: lastSubmittedSourceSnapshotRef.current.sourcePreviewUrl,
+        enginePathLabel: "Hybrid trace",
+        canCancel: true,
+      };
+      setHistory((prev) =>
+        trimOutputHistory([pendingItem, ...prev], prev, OUTPUT_HISTORY_LIMIT),
+      );
+    }
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1766,6 +1924,41 @@ export default function JpgToLayeredSvgForCricut({
           ? "?index"
           : `${window.location.pathname}?index`,
     });
+  }
+
+  function cancelSupersededRunningJobs(nextRunId: string) {
+    const staleRunIds = historyRef.current
+      .filter(
+        (item) =>
+          item.jobId &&
+          item.jobId !== nextRunId &&
+          item.jobStatus === "running",
+      )
+      .map((item) => item.jobId!)
+      .filter((jobId, index, all) => all.indexOf(jobId) === index);
+    if (staleRunIds.length === 0) return;
+
+    const staleRunIdSet = new Set(staleRunIds);
+    for (const runId of staleRunIds) {
+      fetcher.cancelClientJob(runId);
+      submittedByRunIdRef.current.delete(runId);
+    }
+
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.jobId &&
+        staleRunIdSet.has(item.jobId) &&
+        item.jobStatus === "running"
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobError: "Superseded by a newer conversion.",
+              jobCompletedAt: Date.now(),
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
   }
 
   function applyPreset(preset: Preset) {
@@ -1783,8 +1976,42 @@ export default function JpgToLayeredSvgForCricut({
     setSettings(nextSettings);
 
     if (file) {
-      submitConvert(file, nextSettings);
+      submitConvert(file, nextSettings, null, preset.id);
     }
+  }
+
+  function cancelOutputJob(jobId: string, stamp: number) {
+    fetcher.cancelClientJob(jobId);
+    submittedByRunIdRef.current.delete(jobId);
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobCompletedAt: Date.now(),
+              jobError: "Conversion was canceled.",
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function retryOutputJob(stamp: number) {
+    const item = history.find((candidate) => candidate.stamp === stamp);
+    if (!item || !file) return;
+    setHistory((prev) => {
+      const next = prev.filter((candidate) => candidate.stamp !== stamp);
+      cleanupUnusedSourceSnapshots(prev, next);
+      return next;
+    });
+    void submitConvert(
+      file,
+      item.settingsSnapshot ?? settings,
+      null,
+      item.presetId || activePreset,
+    );
   }
 
   function showToast(msg: string) {
@@ -1990,6 +2217,8 @@ export default function JpgToLayeredSvgForCricut({
               getSvg={getHistoryItemSvg}
               onCopySvg={handleCopySvg}
               onOpenEditor={(item) => setSettings(item.settingsSnapshot)}
+              onCancelOutputJob={cancelOutputJob}
+              onRetryOutputJob={retryOutputJob}
               renderSettings={({
                 item,
                 sourceAvailableForOutput,
@@ -2058,7 +2287,12 @@ export default function JpgToLayeredSvgForCricut({
                           : "Choose the original source image to retrace this output."
                     }
                     onUpdatePreview={() =>
-                      void submitConvert(file, settings, item.stamp)
+                      void submitConvert(
+                        file,
+                        settings,
+                        item.stamp,
+                        item.presetId || activePreset,
+                      )
                     }
                   />
                 </div>

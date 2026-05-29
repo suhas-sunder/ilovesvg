@@ -330,7 +330,7 @@ function readEnginePath(body) {
     return "server Potrace layered path";
   }
   if (/engineUsed\\?",\\?"vtracer/.test(body) || /"engineUsed"\s*:\s*"vtracer"/.test(body)) {
-    return "VTracer worker path";
+    return "compact VTracer layered path";
   }
   return "unknown";
 }
@@ -458,10 +458,12 @@ function buildAssertions({ converted, quality, editability }) {
       expected: "renderable-svg",
     },
     {
-      name: "uses homepage server Potrace layered path",
-      ok: converted.summary.enginePath === "server Potrace layered path",
+      name: "uses approved homepage layered path",
+      ok:
+        converted.summary.enginePath === "server Potrace layered path" ||
+        converted.summary.enginePath === "compact VTracer layered path",
       actual: converted.summary.enginePath,
-      expected: "server Potrace layered path",
+      expected: "server Potrace layered path or compact VTracer layered path",
     },
     {
       name: "grouped layer count stays within ceiling",

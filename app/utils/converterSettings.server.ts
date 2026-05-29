@@ -3,6 +3,10 @@ import {
   normalizeFillStrokeColor,
   normalizeFillStrokeWidth,
 } from "~/shared/tracing/fillStrokeSvg";
+import {
+  normalizeLayeredQualityTier,
+  type LayeredQualityTier,
+} from "~/shared/tracing/layeredQualityTier";
 
 export type RemoveColorApplyTo = "single" | "layered" | "both";
 export type SortLayersBy = "luminance" | "area" | "original";
@@ -44,6 +48,7 @@ export type AdvancedTraceServerSettings = {
   paletteAlgorithm: PaletteAlgorithm;
   paletteDistance: PaletteDistance;
   requestedPaletteCount: number;
+  layeredQualityTier: LayeredQualityTier;
   traceDiagnosticsMode: "off" | "summary";
   strokeOutputMode: StrokeOutputMode;
   centerlineMaxTraceSide: number;
@@ -83,6 +88,7 @@ export const DEFAULT_ADVANCED_TRACE_SERVER_SETTINGS: AdvancedTraceServerSettings
   paletteAlgorithm: "simple-posterize",
   paletteDistance: "bt709",
   requestedPaletteCount: 0,
+  layeredQualityTier: "default",
   traceDiagnosticsMode: "off",
   strokeOutputMode: "filled",
   centerlineMaxTraceSide: 1100,
@@ -128,6 +134,10 @@ export function readAdvancedTraceFormSettings(
     paletteDistance: readPaletteDistance(form.get("paletteDistance")),
     requestedPaletteCount: Math.round(
       readNumber(form, "requestedPaletteCount", 0, 0, 40),
+    ),
+    layeredQualityTier: normalizeLayeredQualityTier(
+      form.get("layeredQualityTier"),
+      form.get("presetId"),
     ),
     traceDiagnosticsMode:
       form.get("traceDiagnosticsMode") === "summary" ? "summary" : "off",

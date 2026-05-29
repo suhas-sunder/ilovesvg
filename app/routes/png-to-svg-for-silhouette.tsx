@@ -56,6 +56,15 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  cleanupUnusedSourceSnapshots,
+  createOutputSourceSnapshot,
+  type OutputSourceSnapshot,
+} from "~/client/lib/converter/sourceSnapshots";
+import {
+  mergeOutputSourceSnapshot,
+  trimOutputHistory,
+} from "~/client/lib/converter/outputHistory";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -177,6 +186,7 @@ export async function action({ request }: ActionFunctionArgs) {
       maxPartSize: MAX_UPLOAD_BYTES,
     });
     const form = await parseMultipartFormData(request, uploadHandler);
+    const clientRunId = sanitizeClientRunId(form.get("clientRunId"));
 
     const fileCountError = validateMultipartFileCount(form);
     if (fileCountError) return fileCountError;
@@ -225,6 +235,7 @@ export async function action({ request }: ActionFunctionArgs) {
             "Server is busy converting other images. We'll retry automatically.",
           retryAfterMs,
           code: "BUSY",
+          clientRunId,
         },
         {
           status: 429,
@@ -378,6 +389,7 @@ export async function action({ request }: ActionFunctionArgs) {
           height: layered.height,
           engineUsed: "potrace",
           sourceKind: "raster",
+          clientRunId,
           gate: { running: gate.running, queued: gate.queued },
         });
       }
@@ -468,6 +480,7 @@ export async function action({ request }: ActionFunctionArgs) {
         height: adjusted.height,
         engineUsed: "potrace",
         sourceKind: "raster",
+        clientRunId,
         gate: {
           running: gate.running,
           queued: gate.queued,
@@ -492,6 +505,13 @@ export async function action({ request }: ActionFunctionArgs) {
       { status: 500 },
     );
   }
+}
+
+function sanitizeClientRunId(value: FormDataEntryValue | null): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.replace(/[^a-z0-9:._-]/gi, "").slice(0, 160) || undefined;
 }
 
 /* ---------- Image normalization for Potrace (server-side, robust) ---------- */
@@ -1047,6 +1067,7 @@ type ServerResult = {
   svgBytes?: number;
   retryAfterMs?: number;
   code?: string;
+  clientRunId?: string;
   gate?: { running: number; queued: number };
 };
 
@@ -1066,6 +1087,11 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
+  sourceFileName?: string;
+  sourceMimeType?: string;
+  sourceFileSize?: number;
+  sourcePreviewUrl?: string;
 };
 
 // ---- tiering helpers (client) ----
@@ -1118,6 +1144,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const clientRunIdCounterRef = React.useRef(0);
+  const submittedByRunIdRef = React.useRef(
+    new Map<
+      string,
+      {
+        settings: Settings;
+        presetId: string;
+        stamp: number | null;
+        replaceStamp: number | null;
+        startedAt: number;
+        fileName: string;
+        sourceFile: File;
+        sourceSnapshot: OutputSourceSnapshot;
+      }
+    >(),
+  );
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -1148,12 +1190,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   // When a new server SVG arrives, push to history
   React.useEffect(() => {
     if (fetcher.data?.svg) {
-      const resultKey = `${fetcher.data.svg}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
+      const clientRunId = fetcher.data.clientRunId || "";
+      const submitted =
+        (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+      const resultKey = `${clientRunId || "legacy"}:${fetcher.data.svg.length}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
       if (lastHandledResultKeyRef.current === resultKey) return;
       lastHandledResultKeyRef.current = resultKey;
 
-      const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
-      const replaceStamp = pendingReplaceStampRef.current;
+      const settingsSnapshot =
+        submitted?.settings ?? pendingOutputSettingsRef.current ?? settings;
+      const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
+      const targetStamp = replaceStamp ?? submitted?.stamp ?? Date.now();
+      const presetLabel = getPresetLabelById(
+        DISPLAY_PRESETS,
+        submitted?.presetId ?? activePreset,
+      );
       const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
@@ -1168,33 +1219,61 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         outputDetectedColors: fetcher.data.outputDetectedColors,
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
-        stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        stamp: targetStamp,
+        presetId: submitted?.presetId ?? activePreset,
+        name: `Output - ${presetLabel}`,
+        presetLabel,
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
-
         settingsSnapshot,
         draftSettings: settingsSnapshot,
+        jobId: clientRunId || undefined,
+        jobStatus: "succeeded",
+        jobStartedAt: submitted?.startedAt,
+        jobCompletedAt: Date.now(),
+        sourceFileName: submitted?.fileName,
+        sourceMimeType: submitted?.sourceSnapshot.sourceMimeType,
+        sourceFileSize: submitted?.sourceSnapshot.sourceFileSize,
+        sourcePreviewUrl: submitted?.sourceSnapshot.sourcePreviewUrl,
       };
       setHistory((prev) => {
         if (replaceStamp) {
-          return prev.map((existing) =>
+          const next = prev.map((existing) =>
             existing.stamp === replaceStamp
               ? (replaceTraceOutputCurrent(
                   existing as HistoryItem & TraceOutputItem<Settings>,
-                  item,
+                  mergeOutputSourceSnapshot(item, existing),
                 ) as HistoryItem)
               : existing,
           );
+          cleanupUnusedSourceSnapshots([...prev, item], next);
+          return next;
         }
 
-        return [item, ...prev].slice(0, 10);
+        if (prev.some((existing) => existing.stamp === targetStamp)) {
+          const next = prev.map((existing) =>
+            existing.stamp === targetStamp
+              ? (mergeOutputSourceSnapshot(item, existing) as HistoryItem)
+              : existing,
+          );
+          cleanupUnusedSourceSnapshots([...prev, item], next);
+          return next;
+        }
+
+        return trimOutputHistory([item, ...prev], prev, 10);
       });
 
+      if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
       setUpdatingOutputStamp(null);
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
+  }, [
+    fetcher.data?.svg,
+    fetcher.data?.layers,
+    fetcher.data?.width,
+    fetcher.data?.height,
+    fetcher.data?.clientRunId,
+  ]);
 
   React.useEffect(() => {
     if (!fetcher.data?.error || !pendingReplaceStampRef.current) return;
@@ -1216,6 +1295,35 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     pendingOutputSettingsRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
+
+  React.useEffect(() => {
+    if (!fetcher.data?.error) return;
+    const clientRunId = fetcher.data.clientRunId || "";
+    const submitted =
+      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    const pendingStamp = submitted?.stamp;
+    if (!pendingStamp) {
+      if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
+      return;
+    }
+
+    setErr(fetcher.data.error || "Conversion failed.");
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === pendingStamp
+          ? ({
+              ...item,
+              jobStatus: "failed",
+              jobCompletedAt: Date.now(),
+              jobError: fetcher.data?.error || "Conversion failed.",
+              canCancel: false,
+            } as HistoryItem)
+          : item,
+      ),
+    );
+    if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
+    pendingOutputSettingsRef.current = null;
+  }, [fetcher.data?.error, fetcher.data?.clientRunId]);
 
   React.useEffect(() => {
     return () => {
@@ -1264,7 +1372,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setPreviewUrl(null);
 
     // Keep any preset/settings the user selected before upload.
-    setHistory([]); // optional, remove if you want to keep old results
+    setHistory((prev) => {
+      cleanupUnusedSourceSnapshots(prev, []);
+      return [];
+    }); // optional, remove if you want to keep old results
 
     setErr(null);
     setInfo(null);
@@ -1297,7 +1408,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     void submitConvert(chosen, settings);
   }
 
-  async function submitConvert(targetFile = file, targetSettings = settings) {
+  async function submitConvert(
+    targetFile = file,
+    targetSettings = settings,
+    presetIdForSubmit = activePreset,
+  ) {
     if (!targetFile) {
       setErr("Choose an image first.");
       return;
@@ -1356,8 +1471,51 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
+    const clientRunId = `silhouette-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    fd.append("clientRunId", clientRunId);
     setErr(null);
+    const replaceStamp = pendingReplaceStampRef.current;
+    const startedAt = Date.now();
+    const pendingStamp = replaceStamp ? null : startedAt;
+    const presetLabel = getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit);
+    const sourceSnapshot = createOutputSourceSnapshot(targetFile);
+    submittedByRunIdRef.current.set(clientRunId, {
+      settings: effective,
+      presetId: presetIdForSubmit,
+      stamp: pendingStamp,
+      replaceStamp,
+      startedAt,
+      fileName: targetFile.name,
+      sourceFile: targetFile,
+      sourceSnapshot,
+    });
+    pendingOutputSettingsRef.current = effective;
+
+    if (!replaceStamp && pendingStamp) {
+      const pendingItem: HistoryItem & TraceOutputItem<Settings> = {
+        svg: "",
+        layers: [],
+        width: 0,
+        height: 0,
+        stamp: pendingStamp,
+        presetId: presetIdForSubmit,
+        name: `Output - ${presetLabel}`,
+        presetLabel,
+        settingsSnapshot: effective,
+        draftSettings: effective,
+        jobId: clientRunId,
+        jobStatus: "running",
+        jobStartedAt: startedAt,
+        sourceFileName: targetFile.name,
+        sourceMimeType: sourceSnapshot.sourceMimeType,
+        sourceFileSize: sourceSnapshot.sourceFileSize,
+        sourcePreviewUrl: sourceSnapshot.sourcePreviewUrl,
+        enginePathLabel: "Hybrid trace",
+        canCancel: true,
+      };
+      setHistory((prev) => trimOutputHistory([pendingItem, ...prev], prev, 10));
+    }
 
     // Target this route's index action
     fetcher.submit(fd, {
@@ -1407,7 +1565,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, preset.id);
     }
   }
 
@@ -1479,7 +1637,40 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     pendingReplaceStampRef.current = stamp;
     pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    void submitConvert(file, nextSettings);
+    void submitConvert(file, nextSettings, item.presetId || activePreset);
+  }
+
+  function cancelOutputJob(jobId: string, stamp: number) {
+    fetcher.cancelClientJob(jobId);
+    submittedByRunIdRef.current.delete(jobId);
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.stamp === stamp
+          ? ({
+              ...item,
+              jobStatus: "canceled",
+              jobCompletedAt: Date.now(),
+              jobError: "Conversion was canceled.",
+              canCancel: false,
+            } as HistoryItem)
+          : item,
+      ),
+    );
+  }
+
+  function retryOutputJob(stamp: number) {
+    const item = history.find((candidate) => candidate.stamp === stamp) as
+      | (HistoryItem & TraceOutputItem<Settings>)
+      | undefined;
+    if (!item || !file) return;
+    const retrySettings = item.settingsSnapshot ?? item.draftSettings ?? settings;
+    const retryPresetId = item.presetId || activePreset;
+    setHistory((prev) => {
+      const next = prev.filter((candidate) => candidate.stamp !== stamp);
+      cleanupUnusedSourceSnapshots(prev, next);
+      return next;
+    });
+    void submitConvert(file, retrySettings, retryPresetId);
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {
@@ -1724,6 +1915,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               onResetOutputLayer={resetHistoryLayer}
               onResetAllOutputLayers={resetAllHistoryLayers}
               onOutputSizeChange={setHistorySize}
+              onCancelOutputJob={cancelOutputJob}
+              onRetryOutputJob={retryOutputJob}
             />
           </section>
         </div>
