@@ -1572,6 +1572,7 @@ export default function JpgToLayeredSvgForCricut({
     const clientRunId = fetcher.data.clientRunId || "";
     const submitted =
       (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    if (clientRunId && !submitted) return;
     const presetId = submitted?.presetId ?? activePreset;
     const presetLabel = getPresetLabelById(presetId);
     const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
@@ -1677,6 +1678,7 @@ export default function JpgToLayeredSvgForCricut({
     const clientRunId = fetcher.data.clientRunId || "";
     const submitted =
       (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
+    if (clientRunId && !submitted) return;
     const pendingStamp = submitted?.stamp;
 
     if (fetcher.data.code === "BUSY" && (submitted || lastSubmitRef.current)) {
@@ -1872,6 +1874,7 @@ export default function JpgToLayeredSvgForCricut({
 
     fd.append("presetId", presetIdForSubmit);
     const clientRunId = `jpg-layered-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    cancelSupersededRunningJobs(clientRunId);
     fd.append("clientRunId", clientRunId);
     const startedAt = Date.now();
     const effectiveReplaceStamp = replaceStamp ?? null;
@@ -1921,6 +1924,41 @@ export default function JpgToLayeredSvgForCricut({
           ? "?index"
           : `${window.location.pathname}?index`,
     });
+  }
+
+  function cancelSupersededRunningJobs(nextRunId: string) {
+    const staleRunIds = historyRef.current
+      .filter(
+        (item) =>
+          item.jobId &&
+          item.jobId !== nextRunId &&
+          item.jobStatus === "running",
+      )
+      .map((item) => item.jobId!)
+      .filter((jobId, index, all) => all.indexOf(jobId) === index);
+    if (staleRunIds.length === 0) return;
+
+    const staleRunIdSet = new Set(staleRunIds);
+    for (const runId of staleRunIds) {
+      fetcher.cancelClientJob(runId);
+      submittedByRunIdRef.current.delete(runId);
+    }
+
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.jobId &&
+        staleRunIdSet.has(item.jobId) &&
+        item.jobStatus === "running"
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobError: "Superseded by a newer conversion.",
+              jobCompletedAt: Date.now(),
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
   }
 
   function applyPreset(preset: Preset) {

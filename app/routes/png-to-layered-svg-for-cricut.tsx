@@ -1552,9 +1552,10 @@ export default function PngToLayeredSvgForCricut({
   React.useEffect(() => {
     if (!fetcher.data?.svg || !fetcher.data.layers?.length) return;
     const clientRunId = fetcher.data.clientRunId || "";
-    const submitted =
-      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
-      lastSubmittedRef.current;
+    const submitted = clientRunId
+      ? submittedByRunIdRef.current.get(clientRunId)
+      : lastSubmittedRef.current;
+    if (!submitted) return;
 
     const resultKey = [
       clientRunId || "legacy",
@@ -1679,9 +1680,10 @@ export default function PngToLayeredSvgForCricut({
   React.useEffect(() => {
     if (!fetcher.data?.error) return;
     const clientRunId = fetcher.data.clientRunId || "";
-    const submitted =
-      (clientRunId && submittedByRunIdRef.current.get(clientRunId)) ||
-      lastSubmittedRef.current;
+    const submitted = clientRunId
+      ? submittedByRunIdRef.current.get(clientRunId)
+      : lastSubmittedRef.current;
+    if (!submitted) return;
     if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
 
     if (fetcher.data.code === "BUSY" && submitted.sourceFile) {
@@ -1936,6 +1938,7 @@ export default function PngToLayeredSvgForCricut({
     fd.append("bgColor", sourceSettings.bgColor);
     appendAdvancedTraceSettings(fd, sourceSettings);
     const clientRunId = `png-layered-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    cancelSupersededRunningJobs(clientRunId);
     latestSubmittedRunIdRef.current = clientRunId;
     fd.append("clientRunId", clientRunId);
     const submittedPresetId = meta?.presetId ?? activePreset;
@@ -2007,6 +2010,41 @@ export default function PngToLayeredSvgForCricut({
           ? "?index"
           : `${window.location.pathname}?index`,
     });
+  }
+
+  function cancelSupersededRunningJobs(nextRunId: string) {
+    const staleRunIds = historyRef.current
+      .filter(
+        (item) =>
+          item.jobId &&
+          item.jobId !== nextRunId &&
+          item.jobStatus === "running",
+      )
+      .map((item) => item.jobId!)
+      .filter((jobId, index, all) => all.indexOf(jobId) === index);
+    if (staleRunIds.length === 0) return;
+
+    const staleRunIdSet = new Set(staleRunIds);
+    for (const runId of staleRunIds) {
+      fetcher.cancelClientJob(runId);
+      submittedByRunIdRef.current.delete(runId);
+    }
+
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.jobId &&
+        staleRunIdSet.has(item.jobId) &&
+        item.jobStatus === "running"
+          ? {
+              ...item,
+              jobStatus: "canceled",
+              jobError: "Superseded by a newer conversion.",
+              jobCompletedAt: Date.now(),
+              canCancel: false,
+            }
+          : item,
+      ),
+    );
   }
 
   function applyPreset(preset: Preset) {

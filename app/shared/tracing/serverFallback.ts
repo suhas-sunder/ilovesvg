@@ -21,6 +21,7 @@ export type SharedLayeredTraceResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: Record<string, unknown>;
 };
 
 export type SharedAnnotatedTraceResult = {

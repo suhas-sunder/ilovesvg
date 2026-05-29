@@ -887,6 +887,9 @@ export async function action({ request }: ActionFunctionArgs) {
           width: layered.width,
           height: layered.height,
           engineUsed: layered.engineUsed || "potrace",
+          warnings: layered.warnings,
+          timings: layered.timings,
+          diagnostics: layered.diagnostics,
           clientRunId,
           gate: {
             running: gate.running,
@@ -2365,6 +2368,7 @@ type ServerResult = {
   enginePathLabel?: string;
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: Record<string, unknown>;
   layerBuildMode?: string;
   requestedPaletteCount?: number;
   actualPaletteCount?: number;
@@ -5072,6 +5076,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       data-output-detected-colors={item.outputDetectedColors ?? ""}
                       data-path-count={item.pathCount ?? ""}
                       data-svg-bytes={displaySvgBytes ?? ""}
+                      data-output-timings={
+                        item.timings ? JSON.stringify(item.timings) : ""
+                      }
                       className={[
                         "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                         focused ? "shadow-xl" : "",

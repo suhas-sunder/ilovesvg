@@ -9,6 +9,7 @@
     "test": "npm run test:conversion-cache && npm run test:trace-engine && npm run test:trace-quality",
     "test:conversion-actions": "node scripts/conversion-action-smoke.mjs",
     "test:conversion-cache": "node scripts/conversion-cache-audit.mjs",
+    "test:conversion-speed": "node scripts/conversion-speed-smoke.mjs",
     "test:docs": "node scripts/docs-audit.mjs",
     "test:hybrid-browser": "node scripts/hybrid-browser-smoke.mjs",
     "test:image-complexity": "node scripts/image-complexity-audit.mjs",

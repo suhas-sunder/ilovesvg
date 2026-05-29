@@ -6,9 +6,11 @@ import {
 import {
   createConversionDiagnostics,
   endTimer,
+  finishConversionDiagnostics,
   maybeLogConversionDiagnostics,
   startTimer,
   withTimer,
+  type ConversionDiagnostics,
 } from "./conversionDiagnostics.server";
 import { sanitizeSvgMarkup } from "./svgSanitize.server";
 import {
@@ -46,6 +48,17 @@ export type SvgLayerMeta = {
   originalOpacity?: number;
   kind?: SvgLayerKind;
   pathCount?: number;
+};
+
+type LayeredColorSvgResult = {
+  svg: string;
+  width: number;
+  height: number;
+  layers: SvgLayerMeta[];
+  engineUsed?: "vtracer" | "potrace";
+  warnings?: string[];
+  timings?: Record<string, number>;
+  diagnostics?: ConversionDiagnostics;
 };
 
 export type EditableSvgLayer = SvgLayerMeta;
@@ -285,6 +298,20 @@ function withSynchronousTimer<T>(
 
 function countSvgPaths(svg: string): number {
   return String(svg || "").match(/<path\b/gi)?.length ?? 0;
+}
+
+function withLayeredDiagnostics<T extends LayeredColorSvgResult>(
+  result: T,
+  diagnostics: ReturnType<typeof createConversionDiagnostics>,
+): T {
+  const finished = finishConversionDiagnostics(diagnostics);
+  if (!finished) return result;
+  return {
+    ...result,
+    warnings: finished.warnings,
+    timings: finished.timings,
+    diagnostics: finished,
+  };
 }
 
 export function sanitizeLayerHexColor(input: string, fallback = "#000000") {
@@ -687,11 +714,16 @@ async function createCompactFlatColorVTracerSvg({
     config.setSpliceThreshold(qualityOptions.spliceThreshold);
     config.setPathPrecision(qualityOptions.pathPrecision);
 
-    const rawSvg = serverVTracerRuntime.convertImageToSvg(
-      new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
-      width,
-      height,
-      config,
+    const rawSvg = withSynchronousTimer(
+      diagnostics,
+      "compactVTracerCore",
+      () =>
+        serverVTracerRuntime.convertImageToSvg(
+          new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
+          width,
+          height,
+          config,
+        ),
     );
     const outputDimensions = resolveOutputDimensions(
       {
@@ -702,73 +734,108 @@ async function createCompactFlatColorVTracerSvg({
       sourceWidth > 0 ? sourceWidth : width,
       sourceHeight > 0 ? sourceHeight : height,
     );
-    const svg = normalizeCompactVTracerSvg(rawSvg, {
-      width,
-      height,
-      outputWidth: outputDimensions.width,
-      outputHeight: outputDimensions.height,
-      coordinatePrecision: qualityOptions.svgCoordinatePrecision,
-    });
-    const darkDetailPaths = await createCompactVTracerDarkDetailOverlayPaths({
-      raw,
-      width,
-      height,
-      sharp,
-      qualityOptions,
-      overlayMode: "dark",
-    });
-    const glareDetailPaths = await createCompactVTracerDarkDetailOverlayPaths({
-      raw,
-      width,
-      height,
-      sharp,
-      qualityOptions,
-      overlayMode: "glare",
-    });
-    const edgeDetailPaths = await createCompactVTracerEdgeOverlayPaths({
-      raw,
-      width,
-      height,
-      sharp,
-      qualityOptions,
-    });
+    const svg = withSynchronousTimer(
+      diagnostics,
+      "compactNormalizeSvg",
+      () =>
+        normalizeCompactVTracerSvg(rawSvg, {
+          width,
+          height,
+          outputWidth: outputDimensions.width,
+          outputHeight: outputDimensions.height,
+          coordinatePrecision: qualityOptions.svgCoordinatePrecision,
+        }),
+    );
+    const darkDetailPaths = await withTimer(
+      diagnostics,
+      "compactDarkDetailOverlay",
+      () =>
+        createCompactVTracerDarkDetailOverlayPaths({
+          raw,
+          width,
+          height,
+          sharp,
+          qualityOptions,
+          overlayMode: "dark",
+        }),
+    );
+    const glareDetailPaths = await withTimer(
+      diagnostics,
+      "compactGlareDetailOverlay",
+      () =>
+        createCompactVTracerDarkDetailOverlayPaths({
+          raw,
+          width,
+          height,
+          sharp,
+          qualityOptions,
+          overlayMode: "glare",
+        }),
+    );
+    const edgeDetailPaths = await withTimer(
+      diagnostics,
+      "compactEdgeDetailOverlay",
+      () =>
+        createCompactVTracerEdgeOverlayPaths({
+          raw,
+          width,
+          height,
+          sharp,
+          qualityOptions,
+        }),
+    );
     const detailOverlayPaths = `${darkDetailPaths}${glareDetailPaths}${edgeDetailPaths}`;
     const protectedOverlayColorCount =
       qualityOptions.protectChromaticDarkColors
         ? countDistinctPathFills(detailOverlayPaths)
         : 1;
-    const paletteLimitedSvg = snapCompactVTracerPalette(
-      svg,
-      qualityOptions.sourceConstrainedDetail
-        ? COMPACT_VTRACER_MAX_EDITABLE_COLORS -
-            clampInt(protectedOverlayColorCount, 1, 4)
-        : COMPACT_VTRACER_MAX_EDITABLE_COLORS,
-      {
-        darkSnapLuma: qualityOptions.sourceConstrainedDetail
-          ? qualityOptions.darkPaletteSnapLuma
-          : COMPACT_VTRACER_DARK_SNAP_LUMA,
-        protectChromaticDarkColors:
-          qualityOptions.protectChromaticDarkColors,
-        veryDarkLuma: qualityOptions.darkDetailVeryDarkLuma,
-      },
+    const paletteLimitedSvg = withSynchronousTimer(
+      diagnostics,
+      "compactPaletteSnap",
+      () =>
+        snapCompactVTracerPalette(
+          svg,
+          qualityOptions.sourceConstrainedDetail
+            ? COMPACT_VTRACER_MAX_EDITABLE_COLORS -
+                clampInt(protectedOverlayColorCount, 1, 4)
+            : COMPACT_VTRACER_MAX_EDITABLE_COLORS,
+          {
+            darkSnapLuma: qualityOptions.sourceConstrainedDetail
+              ? qualityOptions.darkPaletteSnapLuma
+              : COMPACT_VTRACER_DARK_SNAP_LUMA,
+            protectChromaticDarkColors:
+              qualityOptions.protectChromaticDarkColors,
+            veryDarkLuma: qualityOptions.darkDetailVeryDarkLuma,
+          },
+        ),
     );
-    const grouped = groupCompactVTracerSvgByFill(
-      appendSvgPaths(paletteLimitedSvg, detailOverlayPaths),
+    const grouped = withSynchronousTimer(
+      diagnostics,
+      "compactGroupByFill",
+      () =>
+        groupCompactVTracerSvgByFill(
+          appendSvgPaths(paletteLimitedSvg, detailOverlayPaths),
+        ),
     );
-    const sanitized = sanitizeSvgMarkup(
-      grouped.svg,
-      qualityOptions.sourceConstrainedDetail
-        ? {
-            maxBytes:
-              options.layeredQualityTier === "amazing"
-                ? COMPACT_VTRACER_AMAZING_MAX_SVG_BYTES
-                : MAX_OUTPUT_SVG_BYTES,
-            maxPathCommands:
-              options.layeredQualityTier === "amazing"
-                ? COMPACT_VTRACER_AMAZING_MAX_PATH_COMMANDS
-                : MAX_SVG_PATH_COMMANDS,
-          }
-        : undefined,
+    const sanitized = withSynchronousTimer(
+      diagnostics,
+      "compactSanitizeSvg",
+      () =>
+        sanitizeSvgMarkup(
+          grouped.svg,
+          qualityOptions.sourceConstrainedDetail
+            ? {
+                maxBytes:
+                  options.layeredQualityTier === "amazing"
+                    ? COMPACT_VTRACER_AMAZING_MAX_SVG_BYTES
+                    : MAX_OUTPUT_SVG_BYTES,
+                maxPathCommands:
+                  options.layeredQualityTier === "amazing"
+                    ? COMPACT_VTRACER_AMAZING_MAX_PATH_COMMANDS
+                    : MAX_SVG_PATH_COMMANDS,
+              }
+            : undefined,
+        ),
     );
     if (!sanitized.ok) {
       throw new Error(sanitized.message);
@@ -1762,13 +1829,7 @@ function groupCompactVTracerSvgByFill(svg: string): {
 export async function createLayeredColorSvg(
   input: Buffer,
   opts: LayeredColorSvgOptions,
-): Promise<{
-  svg: string;
-  width: number;
-  height: number;
-  layers: SvgLayerMeta[];
-  engineUsed?: "vtracer" | "potrace";
-}> {
+): Promise<LayeredColorSvgResult> {
   const diagnostics = createConversionDiagnostics({
     routeId: "shared-layered-trace",
     mode: "layered",
@@ -1856,7 +1917,7 @@ export async function createLayeredColorSvg(
         }),
       );
       if (compactResult.layers.length >= 12) {
-        return compactResult;
+        return withLayeredDiagnostics(compactResult, diagnostics);
       }
       diagnostics.warnings = [
         ...(diagnostics.warnings || []),
@@ -1973,12 +2034,22 @@ export async function createLayeredColorSvg(
     }
 
     const builtLayers: TraceLayerBuildItem[] = [];
+    startTimer(diagnostics, "buildAndTraceLayerMasks");
     for (let i = 0; i < rawLayerItems.length; i++) {
       const item = rawLayerItems[i];
-      const mask = Buffer.alloc(width * height, 255);
-      for (let px = 0; px < assignments.layerForPixel.length; px++) {
-        if (assignments.layerForPixel[px] === item.index) mask[px] = 0;
-      }
+      const mask = withSynchronousTimer(
+        diagnostics,
+        `buildLayerMask${i + 1}`,
+        () => {
+          const nextMask = Buffer.alloc(width * height, 255);
+          for (let px = 0; px < assignments.layerForPixel.length; px++) {
+            if (assignments.layerForPixel[px] === item.index) {
+              nextMask[px] = 0;
+            }
+          }
+          return nextMask;
+        },
+      );
       if (!maskHasInk(mask)) continue;
 
       const maskPng = await withTimer(diagnostics, `encodeLayerMask${i + 1}`, () =>
@@ -2004,6 +2075,7 @@ export async function createLayeredColorSvg(
         pathTags,
       });
     }
+    endTimer(diagnostics, "buildAndTraceLayerMasks");
 
     if (builtLayers.length === 0) {
       throw new Error(
@@ -2022,18 +2094,23 @@ export async function createLayeredColorSvg(
       diagnostics.adaptiveLayerPalette.lightNeutralMatteApplied =
         finalLayers !== builtLayers;
     }
-    const serializedLayers = finalLayers.map((layer) => ({
-      ...layer,
-      pathTags: optimizeLayerPathTags(
-        clampSvgPathDataPrecision(
-          layer.pathTags,
-          GENERATED_LAYERED_PATH_PRECISION,
-        ),
-        layer.color,
-        width,
-        height,
-      ),
-    }));
+    const serializedLayers = withSynchronousTimer(
+      diagnostics,
+      "optimizeLayerPaths",
+      () =>
+        finalLayers.map((layer) => ({
+          ...layer,
+          pathTags: optimizeLayerPathTags(
+            clampSvgPathDataPrecision(
+              layer.pathTags,
+              GENERATED_LAYERED_PATH_PRECISION,
+            ),
+            layer.color,
+            width,
+            height,
+          ),
+        })),
+    );
 
     const svg = withSynchronousTimer(diagnostics, "buildSvg", () =>
       buildLayeredSvgString({
@@ -2066,7 +2143,7 @@ export async function createLayeredColorSvg(
       outputBasisHeight,
     );
 
-    return {
+    return withLayeredDiagnostics({
       svg,
       width: outputDimensions.width,
       height: outputDimensions.height,
@@ -2105,7 +2182,7 @@ export async function createLayeredColorSvg(
             ]
           : []),
       ],
-    };
+    }, diagnostics);
   } finally {
     maybeLogConversionDiagnostics(diagnostics);
   }

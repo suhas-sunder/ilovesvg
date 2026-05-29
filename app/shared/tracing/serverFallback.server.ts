@@ -6,6 +6,9 @@ import {
   neutralizeTransparencyCheckerboard as neutralizeRasterTransparencyCheckerboard,
 } from "~/utils/imagePreprocess.server";
 import type {
+  ConversionDiagnostics,
+} from "~/utils/conversionDiagnostics.server";
+import type {
   LayeredColorSvgOptions,
   SvgLayerMeta,
 } from "~/utils/svgLayerTrace.server";
@@ -29,6 +32,7 @@ export type SharedLayeredTraceResult = {
   sourceKind?: "svg" | "raster";
   warnings?: string[];
   timings?: Record<string, number>;
+  diagnostics?: ConversionDiagnostics;
 };
 
 export type SharedAnnotatedTraceResult = {

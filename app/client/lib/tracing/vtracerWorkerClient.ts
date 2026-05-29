@@ -11,6 +11,8 @@ import type {
   TraceResult,
 } from "~/shared/tracing/types";
 
+export const SERVER_FIRST_LAYERED_TRACE_REASON = "__server_first_layered_trace__";
+
 type VTracerWorkerProgress = {
   type: "progress";
   id: string;
@@ -120,6 +122,24 @@ export async function tryTraceRasterInClient(input: {
     input.sourceWidth && input.sourceHeight
       ? { width: input.sourceWidth, height: input.sourceHeight }
       : await readBrowserImageSize(input.file);
+  if (
+    settings.traceMode === "layered" &&
+    layeredQualityTier === "default" &&
+    settings.engine !== "vtracer"
+  ) {
+    const sourcePixels =
+      Number(probedSize?.width || input.sourceWidth || 0) *
+      Number(probedSize?.height || input.sourceHeight || 0);
+    const requestedTraceSide = Number(
+      settings.layerMaxTraceSide || settings.maxTraceSide || 0,
+    );
+    if (sourcePixels > 2_000_000 && requestedTraceSide >= 1400) {
+      return {
+        ok: false,
+        reason: SERVER_FIRST_LAYERED_TRACE_REASON,
+      };
+    }
+  }
   const profile: TraceInputProfile = {
     mimeType: input.file.type || inferRasterMimeType(input.file.name),
     fileSizeBytes: input.file.size,

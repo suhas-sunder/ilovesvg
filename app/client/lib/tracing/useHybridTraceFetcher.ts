@@ -16,7 +16,10 @@ import type {
   TraceResult,
 } from "~/shared/tracing/types";
 
-import { tryTraceRasterInClient } from "./vtracerWorkerClient";
+import {
+  SERVER_FIRST_LAYERED_TRACE_REASON,
+  tryTraceRasterInClient,
+} from "./vtracerWorkerClient";
 
 type HybridTracePayload = {
   svg?: string;
@@ -205,7 +208,10 @@ export function useHybridTraceFetcher<
           throw new Error(`An earlier browser trace did not finish. ${clientAttempt.reason}`);
         }
 
-        fallbackWarningRef.current = clientAttempt.reason;
+        fallbackWarningRef.current =
+          clientAttempt.reason === SERVER_FIRST_LAYERED_TRACE_REASON
+            ? null
+            : clientAttempt.reason;
         recordHybridTraceDebug({
           routeId: options.routeId,
           stage: "server-fallback-submit",

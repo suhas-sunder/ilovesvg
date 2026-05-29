@@ -813,6 +813,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 data-output-detected-colors={item.outputDetectedColors ?? ""}
                 data-path-count={item.pathCount ?? ""}
                 data-svg-bytes={displaySvgBytes ?? ""}
+                data-output-timings={
+                  item.timings ? JSON.stringify(item.timings) : ""
+                }
                 className={[
                   "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
                   focused ? "shadow-xl" : "",

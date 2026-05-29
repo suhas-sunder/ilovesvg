@@ -280,6 +280,10 @@ async function main() {
         render: result.render || null,
         previewVisible: result.ui?.previewVisible ?? null,
         settingsOpened: result.ui?.settingsOpened ?? null,
+        settingsOpenMs: result.ui?.settingsOpenMs ?? result.interactionTimings?.settingsOpenMs ?? null,
+        layerColorsOpened: result.ui?.layerColorsOpened ?? null,
+        layerColorsOpenMs: result.ui?.layerColorsOpenMs ?? result.interactionTimings?.layerColorsOpenMs ?? null,
+        interactionTimings: result.interactionTimings || null,
         copyDownloadParity: result.copyDownloadParity || null,
         pendingAfterTimeout: !result.completed ? result.pendingState : null,
         harnessError: result.harnessError || null,
@@ -368,6 +372,10 @@ function toQualityTierComparisonEntry(result) {
     render: result.render || null,
     previewVisible: result.ui?.previewVisible ?? null,
     settingsOpened: result.ui?.settingsOpened ?? null,
+    settingsOpenMs: result.ui?.settingsOpenMs ?? result.interactionTimings?.settingsOpenMs ?? null,
+    layerColorsOpened: result.ui?.layerColorsOpened ?? null,
+    layerColorsOpenMs: result.ui?.layerColorsOpenMs ?? result.interactionTimings?.layerColorsOpenMs ?? null,
+    interactionTimings: result.interactionTimings || null,
     copyDownloadParity: result.copyDownloadParity || null,
     copyHash: result.copyDownloadParity?.copyHash || null,
     downloadHash: result.copyDownloadParity?.downloadHash || null,
@@ -993,24 +1001,43 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
     let structure = null;
     let copyDownloadParity = null;
     let render = null;
+    let settingsOpenMs = null;
+    let settingsOpenResult = null;
+    let settingsOpenError = null;
+    let layerColorsOpenMs = null;
+    let layerColorsOpenResult = null;
+    let layerColorsOpenError = null;
+    let copyMs = null;
+    let downloadMs = null;
     if (completed) {
       stage = "open settings";
-      await openLatestSettingsPanel(client).catch(() => null);
+      const settingsStartedAt = Date.now();
+      settingsOpenResult = await openLatestSettingsPanel(client).catch((error) => {
+        settingsOpenError = error instanceof Error ? error.message : String(error);
+        return null;
+      });
+      settingsOpenMs = Date.now() - settingsStartedAt;
       stage = "prime clipboard state";
       const beforeCapture = await primeClipboard(client, scenarioId);
       stage = "copy svg";
+      const copyStartedAt = Date.now();
       const copyClick = await clickButtonInLatestOutput(client, [/Copy SVG/i, /^Copy$/i], [/Copied/i]).catch(() => null);
       stage = "wait for copy capture";
       const copyCapture = copyClick ? await waitForClipboardSvg(client, beforeCapture.latestClipboardHash).catch(() => null) : null;
+      copyMs = Date.now() - copyStartedAt;
       stage = "download svg";
+      const downloadStartedAt = Date.now();
       download = await downloadLatestSvg(client, downloadDir);
+      downloadMs = Date.now() - downloadStartedAt;
       stage = "analyze svg";
       svg = await analyzeSvgFile(download.path);
       copyDownloadParity = {
         attempted: Boolean(copyClick && download),
         copyClicked: Boolean(copyClick),
         copyClick,
+        copyMs,
         downloadClicked: Boolean(download),
+        downloadMs,
         ok: Boolean(copyCapture && download && copyCapture.latestClipboardHash === download.hash && copyCapture.latestClipboardBytes === download.bytes),
         copyHash: copyCapture?.latestClipboardHash || null,
         copyBytes: copyCapture?.latestClipboardBytes || 0,
@@ -1028,10 +1055,23 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
         render = await renderComparison(fixturePath, download.path, scenarioId).catch((error) => ({ error: error.message }));
       }
       stage = "open layer colors";
-      await ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors").catch(() => null);
+      const layerColorsStartedAt = Date.now();
+      layerColorsOpenResult = await ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors").catch((error) => {
+        layerColorsOpenError = error instanceof Error ? error.message : String(error);
+        return null;
+      });
+      layerColorsOpenMs = Date.now() - layerColorsStartedAt;
       stage = "collect ui";
       ui = await collectUi(client);
-      ui = { ...ui, settingsOpened: true };
+      ui = {
+        ...ui,
+        settingsOpened: Boolean(settingsOpenResult?.open),
+        settingsOpenMs,
+        settingsOpenError,
+        layerColorsOpened: Boolean(layerColorsOpenResult?.ok),
+        layerColorsOpenMs,
+        layerColorsOpenError,
+      };
     }
 
     stage = "collect logs";
@@ -1049,6 +1089,12 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
       completedState: completed,
       pendingState,
       ui,
+      interactionTimings: {
+        settingsOpenMs,
+        layerColorsOpenMs,
+        copyMs,
+        downloadMs,
+      },
       download,
       svg,
       structure,
@@ -1841,10 +1887,20 @@ async function collectUi(client) {
     const outputTitle = (cardTitle || "").replace(/\\s+/g, " ").trim();
     const engineUsed = latest.getAttribute("data-engine-used") || null;
     const engineLine = engineUsed ? "Engine: " + engineUsed : null;
+    let timings = null;
+    const timingsText = latest.getAttribute("data-output-timings") || "";
+    if (timingsText) {
+      try {
+        timings = JSON.parse(timingsText);
+      } catch {
+        timings = { parseError: true };
+      }
+    }
     return {
       outputTitle,
       engineLine,
       engineUsed,
+      timings,
       engineWarnings: latest.getAttribute("data-engine-warnings") || null,
       layerBuildMode: latest.getAttribute("data-layer-build-mode") || null,
       outputDetectedColors: numberOrNull(latest.getAttribute("data-output-detected-colors")),
