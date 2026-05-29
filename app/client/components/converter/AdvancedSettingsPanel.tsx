@@ -19,6 +19,8 @@ type TurnPolicy = "black" | "white" | "left" | "right" | "minority" | "majority"
 type TraceMode = "single" | "layered";
 type StrokeOutputMode = "filled" | "centerline";
 
+const DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN = true;
+
 export type MixedTraceSettings = TraceAdvancedSettings & {
   traceMode: TraceMode;
   strokeOutputMode?: StrokeOutputMode;
@@ -235,8 +237,12 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   const [openConvertSection, setOpenConvertSection] = React.useState<
     string | null
   >(null);
-  const [liveTopOpen, setLiveTopOpen] = React.useState(false);
-  const [convertTopOpen, setConvertTopOpen] = React.useState(false);
+  const [liveTopOpen, setLiveTopOpen] = React.useState(
+    DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN,
+  );
+  const [convertTopOpen, setConvertTopOpen] = React.useState(
+    DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN,
+  );
   const [localFocusedSection, setLocalFocusedSection] = React.useState<
     string | null
   >(defaultOpenSection);
@@ -1034,8 +1040,12 @@ export function LayeredAdvancedSettingsPanel<
   const [openConvertSection, setOpenConvertSection] = React.useState<
     string | null
   >(null);
-  const [liveTopOpen, setLiveTopOpen] = React.useState(false);
-  const [convertTopOpen, setConvertTopOpen] = React.useState(false);
+  const [liveTopOpen, setLiveTopOpen] = React.useState(
+    DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN,
+  );
+  const [convertTopOpen, setConvertTopOpen] = React.useState(
+    DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN,
+  );
   const [localFocusedSection, setLocalFocusedSection] = React.useState<
     string | null
   >(defaultOpenSection);
@@ -1590,8 +1600,12 @@ export function SvgRasterExportSettingsPanel<
   const [openLiveSection, setOpenLiveSection] = React.useState<string | null>(
     null,
   );
-  const [liveTopOpen, setLiveTopOpen] = React.useState(false);
-  const [convertTopOpen, setConvertTopOpen] = React.useState(false);
+  const [liveTopOpen, setLiveTopOpen] = React.useState(
+    DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN,
+  );
+  const [convertTopOpen, setConvertTopOpen] = React.useState(
+    DEFAULT_TOP_LEVEL_SETTINGS_GROUP_OPEN,
+  );
   if (!open) return null;
 
   function patch(patchValue: Partial<TSettings>) {

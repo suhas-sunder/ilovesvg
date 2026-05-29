@@ -644,7 +644,13 @@ async function performDomEdit(client, action, options = {}) {
     }
     async function openSection(root, pattern) {
       const controls = Array.from(root.querySelectorAll("button, summary"));
-      const target = controls.find((candidate) => visible(candidate) && pattern.test(text(candidate)));
+      const target =
+        controls.find((candidate) =>
+          visible(candidate) &&
+          pattern.test(text(candidate)) &&
+          candidate.closest("[data-settings-section]")
+        ) ||
+        controls.find((candidate) => visible(candidate) && pattern.test(text(candidate)));
       if (!target) return false;
       const section = target.closest("[data-settings-section]");
       if (
@@ -787,7 +793,13 @@ async function performLayerColorEdit(client, options = {}) {
     }
     async function openSection(root, pattern) {
       const controls = Array.from(root.querySelectorAll("button, summary"));
-      const target = controls.find((candidate) => visible(candidate) && pattern.test(text(candidate)));
+      const target =
+        controls.find((candidate) =>
+          visible(candidate) &&
+          pattern.test(text(candidate)) &&
+          candidate.closest("[data-settings-section]")
+        ) ||
+        controls.find((candidate) => visible(candidate) && pattern.test(text(candidate)));
       if (!target) return false;
       const section = target.closest("[data-settings-section]");
       if (
