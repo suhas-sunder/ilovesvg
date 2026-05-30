@@ -36,6 +36,10 @@ import {
   ChevronDownIcon,
   PresetPicker,
 } from "~/client/components/converter/PresetSelector";
+import {
+  ExportCompressionControls,
+  useSvgExportCompression,
+} from "~/client/components/converter/ExportCompressionControls";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
 import {
   inferPresetBackendIntensity,
@@ -2682,6 +2686,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const exportCompressionKeys = React.useMemo(
+    () => history.map((item) => item.stamp),
+    [history],
+  );
+  const exportCompression = useSvgExportCompression(exportCompressionKeys);
   const historyPreviewDataCacheRef = React.useRef(
     new WeakMap<HistoryItem, HistoryPreviewData>(),
   );
@@ -4634,6 +4643,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     const hasUsableOutput = Boolean(
                       item.svg && previewData.svg && !isActiveJob && !isFailedJob,
                     );
+                    const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+                    const exportCompressionControls = hasUsableOutput ? (
+                      <ExportCompressionControls
+                        id={`output-export-compression-${item.stamp}`}
+                        level={exportCompressionLevel}
+                        onLevelChange={(level) =>
+                          exportCompression.setLevel(item.stamp, level)
+                        }
+                      />
+                    ) : null;
                     const outputSettings =
                       item.draftSettings || item.settingsSnapshot || settings;
                     const isUpdating = updatingOutputStamp === item.stamp;
@@ -4768,9 +4787,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             buttonDisabled || isUpdating || !sourceAvailableForOutput
                           }
                           liveSectionTitle="Live Preview Edits"
-                          liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
+                          liveSectionDescription="These controls update the visible SVG right away. Export compression below only affects Copy SVG and Download SVG."
                           livePreviewLeadTitle="Post-processing"
                           livePreviewLead={appearanceControls}
+                          exportControls={exportCompressionControls}
                           convertSectionTitle="Click To Convert"
                           convertSectionDescription={
                             sourceAvailableForOutput
@@ -5125,7 +5145,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const b = new Blob([previewData.svg], {
+                                    const exportSvg = exportCompression.getExportSvg(
+                                      item.stamp,
+                                      previewData.svg,
+                                    );
+                                    const b = new Blob([exportSvg], {
                                       type: "image/svg+xml;charset=utf-8",
                                     });
                                     const u = URL.createObjectURL(b);
@@ -5144,7 +5168,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    handleCopySvg(previewData.svg);
+                                    handleCopySvg(
+                                      exportCompression.getExportSvg(
+                                        item.stamp,
+                                        previewData.svg,
+                                      ),
+                                    );
                                   }}
                                   className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                                 >
@@ -5277,12 +5306,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         </div>
                       )}
                       {!focused && hasUsableOutput && (
-                      <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
+                      <div
+                        data-output-action-row="true"
+                        data-export-compression-level={exportCompressionLevel}
+                        className="flex gap-2 flex-wrap my-2"
+                      >
                         <button
                           type="button"
                           onClick={() => {
                             if (!item.svg) return;
-                            const b = new Blob([previewData.svg], {
+                            const exportSvg = exportCompression.getExportSvg(
+                              item.stamp,
+                              previewData.svg,
+                            );
+                            const b = new Blob([exportSvg], {
                               type: "image/svg+xml;charset=utf-8",
                             });
                             const u = URL.createObjectURL(b);
@@ -5308,7 +5345,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           type="button"
                           onClick={() => {
                             if (!item.svg) return;
-                            handleCopySvg(previewData.svg);
+                            handleCopySvg(
+                              exportCompression.getExportSvg(
+                                item.stamp,
+                                previewData.svg,
+                              ),
+                            );
                           }}
                           disabled={!hasUsableOutput}
                           className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
@@ -5445,9 +5487,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               buttonDisabled || isUpdating || !sourceAvailableForOutput
                             }
                             liveSectionTitle="Live Preview Edits"
-                            liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
+                            liveSectionDescription="These controls update the visible SVG right away. Export compression below only affects Copy SVG and Download SVG."
                             livePreviewLeadTitle="Post-processing"
                             livePreviewLead={appearanceControls}
+                            exportControls={exportCompressionControls}
                             convertSectionTitle="Click To Convert"
                             convertSectionDescription={
                               sourceAvailableForOutput

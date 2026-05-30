@@ -72,6 +72,7 @@ type Props<TSettings extends MixedTraceSettings> = {
   liveSectionDescription?: string;
   livePreviewLead?: React.ReactNode;
   livePreviewLeadTitle?: string;
+  exportControls?: React.ReactNode;
   convertSectionTitle?: string;
   convertSectionDescription?: string;
   hideOutputLayerStyling?: boolean;
@@ -130,6 +131,7 @@ type LayeredProps<TSettings extends LayeredTraceSettings> = {
   liveSectionDescription?: string;
   livePreviewLead?: React.ReactNode;
   livePreviewLeadTitle?: string;
+  exportControls?: React.ReactNode;
   convertSectionTitle?: string;
   convertSectionDescription?: string;
   hideOutputLayerStyling?: boolean;
@@ -219,6 +221,7 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
   liveSectionDescription = "These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here.",
   livePreviewLead,
   livePreviewLeadTitle = "Output appearance",
+  exportControls,
   convertSectionTitle = "Click To Convert",
   convertSectionDescription = "Use Update preview when you are ready. These controls rebuild the SVG from the original image, so the app does not restart conversion after every slider or color change.",
   hideOutputLayerStyling = false,
@@ -415,8 +418,9 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
           </>
         )}
 
-        {capabilities.supportsOutputGeometry &&
-          !capabilities.supportsCutFriendlyOutput && (
+        {((capabilities.supportsOutputGeometry &&
+          !capabilities.supportsCutFriendlyOutput) ||
+          exportControls) && (
             <SettingSection
               title="Size and export"
               tone="export"
@@ -426,12 +430,16 @@ export function TraceAdvancedSettingsPanel<TSettings extends MixedTraceSettings>
                 toggleSection(setOpenLiveSection, "size-export")
               }
             >
-              <OutputSizeControls
-                settings={merged}
-                outputSize={outputSize}
-                onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
-                onOutputSizeChange={onOutputSizeChange}
-              />
+              {capabilities.supportsOutputGeometry &&
+              !capabilities.supportsCutFriendlyOutput ? (
+                <OutputSizeControls
+                  settings={merged}
+                  outputSize={outputSize}
+                  onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
+                  onOutputSizeChange={onOutputSizeChange}
+                />
+              ) : null}
+              {exportControls}
             </SettingSection>
           )}
       </AdvancedTopLevelSection>
@@ -1022,6 +1030,7 @@ export function LayeredAdvancedSettingsPanel<
   liveSectionDescription = "These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here.",
   livePreviewLead,
   livePreviewLeadTitle = "Output appearance",
+  exportControls,
   convertSectionTitle = "Click To Convert",
   convertSectionDescription = "Use Update preview when you are ready. These controls rebuild the SVG from the original image, so the app does not restart conversion after every slider or color change.",
   hideOutputLayerStyling = false,
@@ -1214,7 +1223,7 @@ export function LayeredAdvancedSettingsPanel<
           </>
         )}
 
-        {capabilities.supportsOutputGeometry && (
+        {(capabilities.supportsOutputGeometry || exportControls) && (
           <SettingSection
             title="Size and export"
             tone="export"
@@ -1224,12 +1233,15 @@ export function LayeredAdvancedSettingsPanel<
               toggleSection(setOpenLiveSection, "size-export")
             }
           >
-            <OutputSizeControls
-              settings={merged}
-              outputSize={outputSize}
-              onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
-              onOutputSizeChange={onOutputSizeChange}
-            />
+            {capabilities.supportsOutputGeometry ? (
+              <OutputSizeControls
+                settings={merged}
+                outputSize={outputSize}
+                onPatch={(patchValue) => patch(patchValue as Partial<TSettings>)}
+                onOutputSizeChange={onOutputSizeChange}
+              />
+            ) : null}
+            {exportControls}
           </SettingSection>
         )}
       </AdvancedTopLevelSection>

@@ -1,6 +1,10 @@
 import * as React from "react";
 import Icons from "~/client/assets/icons/Icons";
 import {
+  ExportCompressionControls,
+  useSvgExportCompression,
+} from "~/client/components/converter/ExportCompressionControls";
+import {
   FullscreenPreviewButton,
   PreviewHistoryArrowButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
@@ -432,6 +436,11 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     Map<number, string | null>
   >(() => new Map());
   const [appearanceVersion, setAppearanceVersion] = React.useState(0);
+  const exportCompressionKeys = React.useMemo(
+    () => history.map((item) => item.stamp),
+    [history],
+  );
+  const exportCompression = useSvgExportCompression(exportCompressionKeys);
   const focusedOutputHasSourcePreview = React.useMemo(
     () =>
       focusedOutputStamp != null &&
@@ -599,6 +608,16 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
             const displaySvgBytes = previewSvg
               ? getSvgByteSize(previewSvg)
               : item.svgBytes;
+            const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+            const exportCompressionControls = hasUsableOutput ? (
+              <ExportCompressionControls
+                id={`output-export-compression-${item.stamp}`}
+                level={exportCompressionLevel}
+                onLevelChange={(level) =>
+                  exportCompression.setLevel(item.stamp, level)
+                }
+              />
+            ) : null;
             const outputWarnings =
               !isActiveJob && !isFailedJob
                 ? mergeOutputWarnings(
@@ -745,9 +764,10 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                       buttonDisabled || isUpdating || !sourceAvailableForOutput
                     }
                     liveSectionTitle="Live Preview Edits"
-                    liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
+                    liveSectionDescription="These controls update the visible SVG right away. Export compression below only affects Copy SVG and Download SVG."
                     livePreviewLeadTitle="Post-processing"
                     livePreviewLead={appearanceControls}
+                    exportControls={exportCompressionControls}
                     convertSectionTitle="Click To Convert"
                     convertSectionDescription={
                       sourceAvailableForOutput
@@ -786,8 +806,15 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   displaySvgBytes={displaySvgBytes}
                   hasAppearanceChanges={hasOutputAppearanceChanges(appearance)}
                   onToggleCollapsed={() => toggleCollapsedOutput(item.stamp)}
-                  onCopySvg={onCopySvg}
-                  onDownloadSvg={() => downloadSvg(previewSvg, downloadFileName)}
+                  onCopySvg={(svg) =>
+                    onCopySvg(exportCompression.getExportSvg(item.stamp, svg))
+                  }
+                  onDownloadSvg={() =>
+                    downloadSvg(
+                      exportCompression.getExportSvg(item.stamp, previewSvg),
+                      downloadFileName,
+                    )
+                  }
                   onCancelOutputJob={onCancelOutputJob}
                   onRetryOutputJob={onRetryOutputJob}
                 />
@@ -861,14 +888,23 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                         <>
                           <button
                             type="button"
-                            onClick={() => downloadSvg(previewSvg, downloadFileName)}
+                            onClick={() =>
+                              downloadSvg(
+                                exportCompression.getExportSvg(item.stamp, previewSvg),
+                                downloadFileName,
+                              )
+                            }
                             className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
                             Download SVG
                           </button>
                           <button
                             type="button"
-                            onClick={() => void onCopySvg(previewSvg)}
+                            onClick={() =>
+                              void onCopySvg(
+                                exportCompression.getExportSvg(item.stamp, previewSvg),
+                              )
+                            }
                             className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
                             Copy SVG
@@ -944,10 +980,19 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 ) : (
                   <>
                 {!focused && (
-                <div data-output-action-row="true" className="my-2 flex flex-wrap gap-2">
+                <div
+                  data-output-action-row="true"
+                  data-export-compression-level={exportCompressionLevel}
+                  className="my-2 flex flex-wrap gap-2"
+                >
                   <button
                     type="button"
-                    onClick={() => downloadSvg(previewSvg, downloadFileName)}
+                    onClick={() =>
+                      downloadSvg(
+                        exportCompression.getExportSvg(item.stamp, previewSvg),
+                        downloadFileName,
+                      )
+                    }
                     className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 font-semibold text-white transition-colors hover:bg-sky-600"
                   >
                     <Icons
@@ -959,7 +1004,11 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void onCopySvg(previewSvg)}
+                    onClick={() =>
+                      void onCopySvg(
+                        exportCompression.getExportSvg(item.stamp, previewSvg),
+                      )
+                    }
                     className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 transition-colors hover:bg-slate-100"
                   >
                     <Icons name="copy" size={16} className="mr-1 inline-block" />

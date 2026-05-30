@@ -1,6 +1,10 @@
 import * as React from "react";
 import Icons from "~/client/assets/icons/Icons";
 import {
+  ExportCompressionSettingsSection,
+  useSvgExportCompression,
+} from "~/client/components/converter/ExportCompressionControls";
+import {
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
 import {
@@ -160,6 +164,11 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
   );
   const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<number | null>(null);
   const [appearanceVersion, setAppearanceVersion] = React.useState(0);
+  const exportCompressionKeys = React.useMemo(
+    () => history.map((item) => item.stamp),
+    [history],
+  );
+  const exportCompression = useSvgExportCompression(exportCompressionKeys);
   const focusedOutputHasSourcePreview = React.useMemo(
     () =>
       focusedOutputStamp != null &&
@@ -334,6 +343,16 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
               : displaySvg
                 ? getSvgByteSize(displaySvg)
                 : item.svgBytes;
+            const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+            const exportCompressionSection = hasUsableOutput ? (
+              <ExportCompressionSettingsSection
+                id={`output-export-compression-${item.stamp}`}
+                level={exportCompressionLevel}
+                onLevelChange={(level) =>
+                  exportCompression.setLevel(item.stamp, level)
+                }
+              />
+            ) : null;
             const outputWarnings =
               !active && !failed && !outputInvalidMessage
                 ? mergeOutputWarnings(
@@ -373,8 +392,15 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                   displaySvgBytes={displaySvgBytes}
                   hasAppearanceChanges={hasOutputAppearanceChanges(appearance)}
                   onToggleCollapsed={() => toggleCollapsedOutput(item.stamp)}
-                  onCopySvg={onCopySvg}
-                  onDownloadSvg={() => downloadSvg(displaySvg, downloadFileName)}
+                  onCopySvg={(svg) =>
+                    onCopySvg(exportCompression.getExportSvg(item.stamp, svg))
+                  }
+                  onDownloadSvg={() =>
+                    downloadSvg(
+                      exportCompression.getExportSvg(item.stamp, displaySvg),
+                      downloadFileName,
+                    )
+                  }
                   onCancelOutputJob={onCancelOutputJob}
                   onRetryOutputJob={onRetryOutputJob}
                 />
@@ -388,6 +414,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                   data-editor-settings-panel="true"
                   className="min-w-0 max-w-full overflow-x-hidden rounded-xl border border-sky-200 bg-sky-50/70 p-3 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
                 >
+                  {exportCompressionSection}
                   {renderSettings({
                     item,
                     displaySvg,
@@ -434,14 +461,23 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                         <>
                           <button
                             type="button"
-                            onClick={() => downloadSvg(displaySvg, downloadFileName)}
+                            onClick={() =>
+                              downloadSvg(
+                                exportCompression.getExportSvg(item.stamp, displaySvg),
+                                downloadFileName,
+                              )
+                            }
                             className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
                             Download SVG
                           </button>
                           <button
                             type="button"
-                            onClick={() => void onCopySvg(displaySvg)}
+                            onClick={() =>
+                              void onCopySvg(
+                                exportCompression.getExportSvg(item.stamp, displaySvg),
+                              )
+                            }
                             className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
                             Copy SVG
@@ -497,10 +533,19 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                 ) : (
                   <>
                     {!focused ? (
-                      <div data-output-action-row="true" className="my-2 flex flex-wrap gap-2">
+                      <div
+                        data-output-action-row="true"
+                        data-export-compression-level={exportCompressionLevel}
+                        className="my-2 flex flex-wrap gap-2"
+                      >
                         <button
                           type="button"
-                          onClick={() => downloadSvg(displaySvg, downloadFileName)}
+                          onClick={() =>
+                            downloadSvg(
+                              exportCompression.getExportSvg(item.stamp, displaySvg),
+                              downloadFileName,
+                            )
+                          }
                           disabled={!displaySvg}
                           className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 font-semibold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -509,7 +554,11 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                         </button>
                         <button
                           type="button"
-                          onClick={() => void onCopySvg(displaySvg)}
+                          onClick={() =>
+                            void onCopySvg(
+                              exportCompression.getExportSvg(item.stamp, displaySvg),
+                            )
+                          }
                           disabled={!displaySvg}
                           className="flex cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >

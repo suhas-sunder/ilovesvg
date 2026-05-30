@@ -9,6 +9,7 @@
     "test": "npm run test:conversion-cache && npm run test:trace-engine && npm run test:trace-quality",
     "test:conversion-actions": "node scripts/conversion-action-smoke.mjs",
     "test:conversion-cache": "node scripts/conversion-cache-audit.mjs",
+    "test:converter-export-compression": "node scripts/converter-export-compression-smoke.mjs",
     "test:conversion-speed": "node scripts/conversion-speed-smoke.mjs",
     "test:docs": "node scripts/docs-audit.mjs",
     "test:svg-compression-research": "node scripts/svg-compression-research.mjs",
