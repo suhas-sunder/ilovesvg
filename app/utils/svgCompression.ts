@@ -1,3 +1,5 @@
+import { optimize as optimizeSvg, type Config as SvgoConfig } from "svgo/browser";
+
 export type SvgCompressionLevel = "none" | "tiny" | "tiniest";
 
 export type SvgCompressionOptions = {
@@ -25,6 +27,7 @@ const EDITOR_DATA_ATTRS = [
   "data-editor-opacity",
   "data-layer-label",
   "data-layer-color",
+  "data-layer-name",
   "data-layer-id",
   "data-fill-layer-id",
   "data-stroke-layer-id",
@@ -47,6 +50,45 @@ const GEOMETRY_ATTRS = [
   "ry",
   "stroke-width",
 ];
+
+const TINY_PATH_OPTIMIZE_CONFIG: SvgoConfig = {
+  multipass: true,
+  plugins: [
+    {
+      name: "convertPathData",
+      params: {
+        applyTransforms: false,
+        floatPrecision: false,
+        straightCurves: false,
+        convertToQ: false,
+        curveSmoothShorthands: false,
+        convertToZ: false,
+        lineShorthands: true,
+        collapseRepeated: true,
+        removeUseless: true,
+        utilizeAbsolute: true,
+        leadingZero: true,
+        negativeExtraSpace: true,
+        noSpaceAfterFlags: true,
+      },
+    },
+  ],
+};
+
+const TINIEST_PATH_OPTIMIZE_CONFIG: SvgoConfig = {
+  multipass: true,
+  plugins: [
+    {
+      name: "convertPathData",
+      params: {
+        applyTransforms: false,
+        floatPrecision: 2,
+        transformPrecision: 5,
+        noSpaceAfterFlags: true,
+      },
+    },
+  ],
+};
 
 export function compressSvg(
   svgText: string,
@@ -104,6 +146,12 @@ export function compressSvg(
   svg = applyTransform(svg, "minify path spacing", appliedTransforms, (input) =>
     minifyAttributeValue(input, "d", minifyPathDataValue),
   );
+  svg = applyTransform(
+    svg,
+    "optimize path data conservatively",
+    appliedTransforms,
+    (input) => optimizePathData(input, TINY_PATH_OPTIMIZE_CONFIG, warnings),
+  );
   svg = applyTransform(svg, "remove empty attributes", appliedTransforms, removeEmptyAttrs);
   svg = applyTransform(svg, "collapse tag whitespace", appliedTransforms, collapseTagWhitespace);
   svg = applyTransform(svg, "remove empty containers", appliedTransforms, removeEmptyContainers);
@@ -118,6 +166,12 @@ export function compressSvg(
   if (level === "tiniest") {
     svg = applyTransform(svg, "round geometry to 2 decimals", appliedTransforms, (input) =>
       roundGeometryValues(input, 2),
+    );
+    svg = applyTransform(
+      svg,
+      "optimize path data for export",
+      appliedTransforms,
+      (input) => optimizePathData(input, TINIEST_PATH_OPTIMIZE_CONFIG, warnings),
     );
     svg = applyTransform(svg, "cleanup IDs with references", appliedTransforms, (input) =>
       cleanupIdsBestEffort(input, warnings),
@@ -312,6 +366,22 @@ function minifyPathDataValue(input: string) {
     .replace(/(\d)\s+(-)/g, "$1$2")
     .replace(/(\d)\s+(\.)/g, "$1$2")
     .trim();
+}
+
+function optimizePathData(svg: string, config: SvgoConfig, warnings: string[]) {
+  try {
+    const result = optimizeSvg(svg, config);
+    const optimized = typeof result.data === "string" ? result.data : svg;
+    validateSvg(optimized);
+    if (getSvgByteSize(optimized) > getSvgByteSize(svg)) {
+      warnings.push("Skipped path data optimization because it increased output size.");
+      return svg;
+    }
+    return optimized;
+  } catch {
+    warnings.push("Skipped path data optimization because the SVG path data could not be optimized safely.");
+    return svg;
+  }
 }
 
 function removeEmptyAttrs(svg: string) {
