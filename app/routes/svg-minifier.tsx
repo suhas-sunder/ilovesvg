@@ -10,6 +10,12 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  compressSvg,
+  getSvgByteSize,
+  type SvgCompressionLevel,
+  type SvgCompressionResult,
+} from "~/utils/svgCompression";
 
 /* ========================
    Meta
@@ -62,34 +68,7 @@ const FAQ_ITEMS = [
    Types
 ======================== */
 type Settings = {
-  stripXmlDecl: boolean;
-  stripDoctype: boolean;
-
-  removeComments: boolean;
-  removeCdataSections: boolean;
-
-  collapseWhitespaceBetweenTags: boolean;
-  collapseRunsOfSpacesInTags: boolean;
-  normalizeNewlines: boolean;
-
-  optimizeStyleAttr: boolean;
-  removeEmptyAttrs: boolean;
-
-  removeMetadataTag: boolean;
-  removeTitleDesc: boolean;
-
-  removeEditorsNamespaces: boolean;
-  removeEditorsAttrs: boolean;
-  removeXmlSpaceAttr: boolean;
-
-  removeEmptyContainers: boolean;
-
-  minifyPathDataSpacing: boolean;
-  minifyPointsSpacing: boolean;
-  minifyTransformSpacing: boolean;
-
-  trimTextNodes: boolean;
-
+  level: SvgCompressionLevel;
   fileName: string;
 };
 
@@ -101,36 +80,37 @@ type SvgInfo = {
 };
 
 const DEFAULTS: Settings = {
-  stripXmlDecl: true,
-  stripDoctype: true,
-
-  removeComments: true,
-  removeCdataSections: false,
-
-  collapseWhitespaceBetweenTags: true,
-  collapseRunsOfSpacesInTags: true,
-  normalizeNewlines: true,
-
-  optimizeStyleAttr: true,
-  removeEmptyAttrs: true,
-
-  removeMetadataTag: false,
-  removeTitleDesc: false,
-
-  removeEditorsNamespaces: true,
-  removeEditorsAttrs: true,
-  removeXmlSpaceAttr: false,
-
-  removeEmptyContainers: false,
-
-  minifyPathDataSpacing: true,
-  minifyPointsSpacing: true,
-  minifyTransformSpacing: true,
-
-  trimTextNodes: false,
-
+  level: "tiny",
   fileName: "minified",
 };
+
+const COMPRESSION_LEVEL_OPTIONS: Array<{
+  id: SvgCompressionLevel;
+  label: string;
+  badge: string;
+  description: string;
+}> = [
+  {
+    id: "none",
+    label: "None",
+    badge: "Original",
+    description: "Keep the SVG text unchanged after upload validation.",
+  },
+  {
+    id: "tiny",
+    label: "Tiny",
+    badge: "Default",
+    description:
+      "Safe cleanup for whitespace, comments, metadata, style spacing, path spacing, and unused defs while preserving edit metadata.",
+  },
+  {
+    id: "tiniest",
+    label: "Tiniest",
+    badge: "Export",
+    description:
+      "Stronger export-oriented compression with geometry rounding, ID cleanup, and selective editor metadata removal.",
+  },
+];
 
 /* ========================
    Page
@@ -149,6 +129,8 @@ export default function SvgMinify(_: Route.ComponentProps) {
   // Output
   const [outSvg, setOutSvg] = React.useState<string>("");
   const [outPreviewUrl, setOutPreviewUrl] = React.useState<string | null>(null);
+  const [compressionResult, setCompressionResult] =
+    React.useState<SvgCompressionResult | null>(null);
 
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [err, setErr] = React.useState<string | null>(null);
@@ -202,6 +184,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
   async function handleNewFile(f: File) {
     setErr(null);
     setOutSvg("");
+    setCompressionResult(null);
     setOutPreviewUrl((u) => {
       if (u) URL.revokeObjectURL(u);
       return null;
@@ -223,7 +206,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
     setSvgText(coerced);
 
     const parsed = parseSvgInfo(coerced);
-    setInfo({ ...parsed, bytes: new Blob([coerced]).size });
+    setInfo({ ...parsed, bytes: getSvgByteSize(coerced) });
 
     const baseName = stripExt(f.name) || "minified";
     setSettings((s) => ({
@@ -247,6 +230,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
     setInfo(null);
     setPreviewUrl(null);
     setOutSvg("");
+    setCompressionResult(null);
     setOutPreviewUrl(null);
     setErr(null);
   }
@@ -254,14 +238,17 @@ export default function SvgMinify(_: Route.ComponentProps) {
   function tryConvert(currentSvgText = svgText) {
     setErr(null);
     try {
-      const { svg } = minifySvg(currentSvgText, settings);
+      const result = compressSvg(currentSvgText, { level: settings.level });
+      const { svg } = result;
       setOutSvg(svg);
+      setCompressionResult(result);
 
       setOutPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
       });
     } catch (e: any) {
+      setCompressionResult(null);
       setErr(e?.message || "Minify failed.");
     }
   }
@@ -281,18 +268,16 @@ export default function SvgMinify(_: Route.ComponentProps) {
   }
 
   function sizeLabel(bytes?: number) {
-    if (!bytes || !Number.isFinite(bytes)) return "?";
+    if (bytes === undefined || !Number.isFinite(bytes)) return "?";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   }
 
-  const inBytes = info?.bytes ?? (svgText ? new Blob([svgText]).size : 0);
-  const outBytes = outSvg ? new Blob([outSvg]).size : 0;
-  const savingsPct =
-    inBytes > 0 && outBytes > 0
-      ? Math.max(0, Math.min(99.9, (1 - outBytes / inBytes) * 100))
-      : 0;
+  const inBytes = compressionResult?.originalBytes ?? info?.bytes ?? (svgText ? getSvgByteSize(svgText) : 0);
+  const outBytes = compressionResult?.outputBytes ?? (outSvg ? getSvgByteSize(outSvg) : 0);
+  const savedBytes = compressionResult?.savedBytes ?? Math.max(0, inBytes - outBytes);
+  const savingsPct = compressionResult?.savedPercent ?? 0;
 
   const crumbs = [
     { name: "Home", href: "/" },
@@ -324,10 +309,10 @@ export default function SvgMinify(_: Route.ComponentProps) {
                 SVG Minify
               </h1>
               <p className="mt-2 text-slate-600">
-                Minify an SVG by removing safe bloat like <b>comments</b> and
-                extra <b>whitespace</b>, cleaning <b>style</b>, and minifying
-                common attribute formatting (like <b>path d</b> spacing) without
-                changing geometry. This runs fully client-side.
+                Minify an SVG with <b>None</b>, <b>Tiny</b>, or{" "}
+                <b>Tiniest</b> compression. Tiny removes safe bloat while
+                preserving edit metadata; Tiniest is stronger and
+                export-oriented. This runs fully client-side.
               </p>
 
               {!file ? (
@@ -401,7 +386,7 @@ export default function SvgMinify(_: Route.ComponentProps) {
                         setInfo((prev) => ({
                           ...(prev || {}),
                           ...parseSvgInfo(v),
-                          bytes: new Blob([v]).size,
+                          bytes: getSvgByteSize(v),
                         }));
                       }}
                       className="mt-2 w-full h-[240px] rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
@@ -419,17 +404,73 @@ export default function SvgMinify(_: Route.ComponentProps) {
               </h2>
 
               <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-hidden">
-                <div className="mt-3 min-w-0">
+                <div className="mt-1 min-w-0">
+                  <div className="mb-2 text-[13px] font-semibold text-slate-800">
+                    Compression level
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {COMPRESSION_LEVEL_OPTIONS.map((option) => {
+                      const active = settings.level === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          data-compression-level={option.id}
+                          onClick={() =>
+                            setSettings((s) => ({ ...s, level: option.id }))
+                          }
+                          className={[
+                            "w-full rounded-lg border px-3 py-2 text-left transition-colors cursor-pointer",
+                            active
+                              ? "border-sky-500 bg-sky-50 shadow-[0_0_0_1px_rgba(14,165,233,0.25)]"
+                              : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50",
+                          ].join(" ")}
+                          aria-pressed={active}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-slate-950">
+                              {option.label}
+                            </span>
+                            <span
+                              className={[
+                                "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                                option.id === "tiniest"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : option.id === "tiny"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-slate-100 text-slate-700",
+                              ].join(" ")}
+                            >
+                              {option.badge}
+                            </span>
+                          </span>
+                          <span className="mt-1 block text-[12px] leading-5 text-slate-600">
+                            {option.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {settings.level === "tiniest" && (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-5 text-amber-900">
+                      Tiniest is export-oriented. It can reduce future
+                      editability by removing known editor metadata, while
+                      preserving the SVG viewBox, dimensions, and rendering
+                      references.
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => setShowAdvanced((v) => !v)}
-                    className="mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
+                    className="mt-3 mb-2 w-full inline-flex items-center justify-between px-3 py-1.5 rounded-md border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50"
                     aria-expanded={showAdvanced}
                     aria-controls="advanced-settings"
                   >
                     <span className="inline-flex items-center justify-center">
                       <Icons name="settings" size={16} className="mr-1" />
-                      Settings
+                      Output settings
                     </span>
                     <svg
                       className={[
@@ -453,329 +494,6 @@ export default function SvgMinify(_: Route.ComponentProps) {
                       id="advanced-settings"
                       className="flex flex-col gap-2 min-w-0"
                     >
-                      <Field label="Strip XML declaration">
-                        <input
-                          type="checkbox"
-                          checked={settings.stripXmlDecl}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              stripXmlDecl: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove {"<?xml ...?>"} header
-                        </span>
-                      </Field>
-
-                      <Field label="Strip DOCTYPE">
-                        <input
-                          type="checkbox"
-                          checked={settings.stripDoctype}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              stripDoctype: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove {"<!DOCTYPE ...>"}
-                        </span>
-                      </Field>
-
-                      <Field label="Remove comments">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeComments}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeComments: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove {"<!-- ... -->"}
-                        </span>
-                      </Field>
-
-                      <Field label="Remove CDATA blocks">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeCdataSections}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeCdataSections: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove {"<![CDATA[ ... ]]>"}
-                        </span>
-                      </Field>
-
-                      <Field label="Whitespace between tags">
-                        <input
-                          type="checkbox"
-                          checked={settings.collapseWhitespaceBetweenTags}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              collapseWhitespaceBetweenTags: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Collapse {">   <"} to {"><"} (safe for markup)
-                        </span>
-                      </Field>
-
-                      <Field label="Collapse spaces in tags">
-                        <input
-                          type="checkbox"
-                          checked={settings.collapseRunsOfSpacesInTags}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              collapseRunsOfSpacesInTags: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Reduce spacing inside {"<...>"} only
-                        </span>
-                      </Field>
-
-                      <Field label="Normalize newlines">
-                        <input
-                          type="checkbox"
-                          checked={settings.normalizeNewlines}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              normalizeNewlines: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Collapse repeated blank lines
-                        </span>
-                      </Field>
-
-                      <Field label="Optimize style attribute">
-                        <input
-                          type="checkbox"
-                          checked={settings.optimizeStyleAttr}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              optimizeStyleAttr: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Clean style="a:1; b:2 ;"
-                        </span>
-                      </Field>
-
-                      <Field label="Remove empty attributes">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeEmptyAttrs}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeEmptyAttrs: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove attr=""
-                        </span>
-                      </Field>
-
-                      <Field label="Remove metadata tag">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeMetadataTag}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeMetadataTag: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove {"<metadata>...</metadata>"}
-                        </span>
-                      </Field>
-
-                      <Field label="Remove title/desc">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeTitleDesc}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeTitleDesc: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove {"<title>"} / {"<desc>"} (a11y tradeoff)
-                        </span>
-                      </Field>
-
-                      <Field label="Remove editor namespaces">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeEditorsNamespaces}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeEditorsNamespaces: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove inkscape/sodipodi xmlns:*
-                        </span>
-                      </Field>
-
-                      <Field label="Remove editor attributes">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeEditorsAttrs}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeEditorsAttrs: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove inkscape/sodipodi:* attrs
-                        </span>
-                      </Field>
-
-                      <Field label="Remove xml:space">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeXmlSpaceAttr}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeXmlSpaceAttr: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove xml:space="preserve" (can affect text)
-                        </span>
-                      </Field>
-
-                      <Field label="Remove empty containers">
-                        <input
-                          type="checkbox"
-                          checked={settings.removeEmptyContainers}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              removeEmptyContainers: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove empty {"<g/>"} / {"<defs/>"} / {"<symbol/>"}
-                        </span>
-                      </Field>
-
-                      <Field label="Minify path d spacing">
-                        <input
-                          type="checkbox"
-                          checked={settings.minifyPathDataSpacing}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              minifyPathDataSpacing: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Remove redundant spaces/commas (no rounding)
-                        </span>
-                      </Field>
-
-                      <Field label="Minify points spacing">
-                        <input
-                          type="checkbox"
-                          checked={settings.minifyPointsSpacing}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              minifyPointsSpacing: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Clean points="x,y x,y"
-                        </span>
-                      </Field>
-
-                      <Field label="Minify transform spacing">
-                        <input
-                          type="checkbox"
-                          checked={settings.minifyTransformSpacing}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              minifyTransformSpacing: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          Clean transform="translate(1, 2) ..."
-                        </span>
-                      </Field>
-
-                      <Field label="Trim text nodes">
-                        <input
-                          type="checkbox"
-                          checked={settings.trimTextNodes}
-                          onChange={(e) =>
-                            setSettings((s) => ({
-                              ...s,
-                              trimTextNodes: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
-                        />
-                        <span className="text-[13px] text-slate-700 min-w-0">
-                          May affect {"<text>"} spacing
-                        </span>
-                      </Field>
-
                       <Field label="Output filename">
                         <input
                           value={settings.fileName}
@@ -811,23 +529,41 @@ export default function SvgMinify(_: Route.ComponentProps) {
 
                   {err && <span className="text-red-700 text-sm">{err}</span>}
 
-                  {!err && outSvg && (
-                    <span className="text-[13px] text-slate-600">
-                      Output size: <b>{sizeLabel(outBytes)}</b>
-                      {inBytes > 0 && outBytes > 0 ? (
-                        <span className="text-slate-500">
-                          {" "}
-                          • saved {savingsPct.toFixed(1)}%
-                        </span>
-                      ) : null}
-                    </span>
+                  {!err && outSvg && compressionResult && (
+                    <div className="grid w-full grid-cols-1 gap-2 text-[13px] text-slate-600 sm:grid-cols-2">
+                      <div>
+                        Original size: <b>{sizeLabel(inBytes)}</b>
+                      </div>
+                      <div>
+                        Compressed size: <b>{sizeLabel(outBytes)}</b>
+                      </div>
+                      <div>
+                        Bytes saved: <b>{sizeLabel(Math.max(0, savedBytes))}</b>
+                      </div>
+                      <div>
+                        Percent saved:{" "}
+                        <b>{Math.max(0, savingsPct).toFixed(1)}%</b>
+                      </div>
+                    </div>
                   )}
                 </div>
 
+                {compressionResult?.appliedTransforms.length ? (
+                  <div className="mt-3 text-[13px] text-slate-600">
+                    Applied: {compressionResult.appliedTransforms.join(", ")}
+                  </div>
+                ) : null}
+
+                {compressionResult?.warnings.length ? (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+                    {compressionResult.warnings.join(" ")}
+                  </div>
+                ) : null}
+
                 <div className="mt-3 text-[13px] text-slate-600">
-                  Notes: Defaults aim for meaningful size reduction without
-                  altering geometry. For bigger wins, you need an SVGO-style
-                  optimizer that rewrites path numbers, which can be risky.
+                  Default Tiny compression preserves viewBox, dimensions,
+                  rendering IDs, and editable layer metadata. Tiniest is
+                  stronger and export-oriented.
                 </div>
               </div>
 
@@ -916,155 +652,6 @@ export default function SvgMinify(_: Route.ComponentProps) {
 }
 
 /* ========================
-   Core minify logic (robust + conservative)
-======================== */
-function minifySvg(svgText: string, settings: Settings): { svg: string } {
-  let svg = ensureSvgHasXmlns(svgText);
-
-  // normalize newlines early (optional)
-  svg = svg.replace(/\r\n?/g, "\n");
-
-  if (settings.stripXmlDecl) {
-    // remove xml decl even if preceded by BOM/whitespace
-    svg = svg.replace(/^\uFEFF?\s*<\?xml[\s\S]*?\?>\s*/i, "");
-  }
-
-  if (settings.stripDoctype) {
-    // remove doctype near the top (common), but also handle stray occurrences
-    svg = svg.replace(/^\s*<!DOCTYPE[\s\S]*?>\s*/i, "");
-    svg = svg.replace(/<!DOCTYPE[\s\S]*?>/gi, "");
-  }
-
-  // remove CDATA (rare in SVG; more common with embedded CSS/scripts)
-  if (settings.removeCdataSections) {
-    svg = svg.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
-  }
-
-  // remove comments
-  if (settings.removeComments) {
-    svg = svg.replace(/<!--[\s\S]*?-->/g, "");
-  }
-
-  if (settings.removeMetadataTag) {
-    svg = svg.replace(/<metadata\b[\s\S]*?<\/metadata>/gi, "");
-  }
-
-  if (settings.removeTitleDesc) {
-    // Title/desc can be used for accessibility; leave off by default
-    svg = svg.replace(/<title\b[\s\S]*?<\/title>/gi, "");
-    svg = svg.replace(/<desc\b[\s\S]*?<\/desc>/gi, "");
-  }
-
-  if (settings.removeEditorsNamespaces) {
-    // common editor namespaces (not only inkscape/sodipodi)
-    svg = svg.replace(/\sxmlns:(inkscape|sodipodi)\s*=\s*["'][^"']*["']/gi, "");
-    svg = svg.replace(/\sxmlns:(cc|dc|rdf)\s*=\s*["'][^"']*["']/gi, "");
-  }
-
-  if (settings.removeEditorsAttrs) {
-    // editor attrs (InkScape/Sodipodi)
-    svg = svg.replace(
-      /\s(?:inkscape|sodipodi):[a-zA-Z0-9_.:-]+\s*=\s*["'][^"']*["']/gi,
-      "",
-    );
-    // some editor-only attrs without namespaces (safe-ish)
-    svg = svg.replace(/\s(?:enable-background)\s*=\s*["'][^"']*["']/gi, "");
-  }
-
-  if (settings.removeXmlSpaceAttr) {
-    svg = svg.replace(/\sxml:space\s*=\s*["'][^"']*["']/gi, "");
-  }
-
-  // style cleanup
-  if (settings.optimizeStyleAttr) {
-    svg = svg.replace(/\sstyle\s*=\s*["']([^"']*)["']/gi, (m, style) => {
-      const cleaned = String(style)
-        .split(";")
-        .map((x) => x.trim())
-        .filter(Boolean)
-        .map((decl) => {
-          const i = decl.indexOf(":");
-          if (i === -1) return decl.trim();
-          const k = decl.slice(0, i).trim();
-          const v = decl.slice(i + 1).trim();
-          return `${k}:${v}`;
-        })
-        .join(";");
-      return cleaned ? ` style="${escapeAttr(cleaned)}"` : "";
-    });
-  }
-
-  // Minify transform spacing (no numeric changes)
-  if (settings.minifyTransformSpacing) {
-    svg = svg.replace(/\stransform\s*=\s*["']([^"']*)["']/gi, (m, val) => {
-      const cleaned = minifyTransformValue(String(val));
-      return cleaned ? ` transform="${escapeAttr(cleaned)}"` : m;
-    });
-  }
-
-  // Minify points spacing (no numeric changes)
-  if (settings.minifyPointsSpacing) {
-    svg = svg.replace(/\spoints\s*=\s*["']([^"']*)["']/gi, (m, val) => {
-      const cleaned = minifyPointsValue(String(val));
-      return cleaned ? ` points="${escapeAttr(cleaned)}"` : m;
-    });
-  }
-
-  // Minify path "d" spacing (no numeric changes / no rounding)
-  if (settings.minifyPathDataSpacing) {
-    svg = svg.replace(/\sd\s*=\s*["']([^"']*)["']/gi, (m, val) => {
-      const cleaned = minifyPathDataValue(String(val));
-      return cleaned ? ` d="${escapeAttr(cleaned)}"` : m;
-    });
-  }
-
-  // remove empty attributes attr=""
-  if (settings.removeEmptyAttrs) {
-    svg = svg.replace(/\s[a-zA-Z_:][a-zA-Z0-9_.:-]*\s*=\s*["']\s*["']/g, "");
-  }
-
-  if (settings.collapseWhitespaceBetweenTags) {
-    // remove ONLY whitespace that exists between tag close/open boundaries
-    svg = svg.replace(/>\s+</g, "><");
-  }
-
-  if (settings.collapseRunsOfSpacesInTags) {
-    // collapse runs of spaces INSIDE tags only to avoid changing text nodes
-    svg = svg.replace(/<[^>]+>/g, (tag) =>
-      tag
-        .replace(/[ \t]{2,}/g, " ")
-        .replace(/\s*=\s*/g, "=") // safe inside tag: a = "b" -> a="b"
-        .replace(/\s+>/g, ">"),
-    );
-  }
-
-  if (settings.normalizeNewlines) {
-    svg = svg.replace(/\n{2,}/g, "\n");
-  }
-
-  if (settings.trimTextNodes) {
-    // This can change visual spacing in <text>. Off by default.
-    svg = svg.replace(/>([^<]+)</g, (m, text) => `>${String(text).trim()}<`);
-  }
-
-  if (settings.removeEmptyContainers) {
-    // conservative: remove truly empty containers (no text/children)
-    svg = svg.replace(/<g\b[^>]*>\s*<\/g>/gi, "");
-    svg = svg.replace(/<defs\b[^>]*>\s*<\/defs>/gi, "");
-    svg = svg.replace(/<symbol\b[^>]*>\s*<\/symbol>/gi, "");
-    svg = svg.replace(/<clipPath\b[^>]*>\s*<\/clipPath>/gi, "");
-    svg = svg.replace(/<mask\b[^>]*>\s*<\/mask>/gi, "");
-  }
-
-  svg = svg.trim();
-
-  const openMatch = svg.match(/<svg\b[^>]*>/i);
-  if (!openMatch) throw new Error("Could not find <svg> tag.");
-
-  return { svg };
-}
-
-/* ========================
    SVG parsing helpers
 ======================== */
 function parseSvgInfo(svg: string): SvgInfo {
@@ -1090,65 +677,6 @@ function ensureSvgHasXmlns(svg: string) {
   const hasXmlns = /<svg\b[^>]*\sxmlns\s*=\s*["'][^"']+["']/i.test(svg);
   if (hasXmlns) return svg;
   return svg.replace(/<svg\b/i, `<svg xmlns="http://www.w3.org/2000/svg"`);
-}
-
-function escapeAttr(v: string) {
-  return String(v).replace(/"/g, "&quot;");
-}
-
-/* ========================
-   Value minifiers (no numeric rounding)
-======================== */
-function minifyTransformValue(input: string) {
-  // Normalize commas/spaces but do not change numbers.
-  // Example: "translate(1, 2) rotate( 45 )" -> "translate(1 2) rotate(45)"
-  let s = input.trim();
-  // remove newlines/tabs
-  s = s.replace(/[\n\r\t]+/g, " ");
-  // remove spaces around parentheses
-  s = s.replace(/\s*\(\s*/g, "(").replace(/\s*\)\s*/g, ")");
-  // commas to spaces inside args
-  s = s.replace(/,/g, " ");
-  // collapse spaces
-  s = s.replace(/[ ]{2,}/g, " ");
-  // remove space between command and '(' already handled; ensure ")( " patterns
-  s = s.replace(/\)\s+(?=[a-zA-Z])/g, ") ");
-  return s.trim();
-}
-
-function minifyPointsValue(input: string) {
-  // points="x,y x,y" -> "x y ?? y" (commas not needed), collapse spaces
-  let s = input.trim();
-  s = s.replace(/[\n\r\t]+/g, " ");
-  s = s.replace(/,/g, " ");
-  s = s.replace(/[ ]{2,}/g, " ");
-  return s.trim();
-}
-
-function minifyPathDataValue(input: string) {
-  // Conservative path minify:
-  // - collapse whitespace
-  // - convert commas to spaces
-  // - remove spaces around +/- where safe
-  // - remove spaces before command letters
-  // No rounding, no number rewriting.
-  let s = input.trim();
-  s = s.replace(/[\n\r\t]+/g, " ");
-  s = s.replace(/,/g, " ");
-  s = s.replace(/[ ]{2,}/g, " ");
-
-  // Remove spaces before commands: "  L" -> "L"
-  s = s.replace(/\s+([a-zA-Z])/g, "$1");
-
-  // Remove space before minus sign when it separates numbers: "10 -5" -> "10-5"
-  // Keep space after command letters intact because we just removed it above.
-  s = s.replace(/(\d)\s+(-)/g, "$1$2");
-
-  // Remove space after minus sign? No.
-  // Remove space before decimal leading dot? "0 .5" is weird but handle ".5"
-  s = s.replace(/(\d)\s+(\.)/g, "$1$2");
-
-  return s.trim();
 }
 
 /* ========================

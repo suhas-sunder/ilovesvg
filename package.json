@@ -12,6 +12,7 @@
     "test:conversion-speed": "node scripts/conversion-speed-smoke.mjs",
     "test:docs": "node scripts/docs-audit.mjs",
     "test:svg-compression-research": "node scripts/svg-compression-research.mjs",
+    "test:svg-compression": "node scripts/svg-compression-smoke.mjs",
     "test:hybrid-browser": "node scripts/hybrid-browser-smoke.mjs",
     "test:image-complexity": "node scripts/image-complexity-audit.mjs",
     "test:input-compatibility": "node scripts/input-compatibility-smoke.mjs",
