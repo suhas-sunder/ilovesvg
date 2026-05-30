@@ -24,6 +24,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
+  ExportCompressionControls,
+  useSvgExportCompression,
+} from "~/client/components/converter/ExportCompressionControls";
+import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
@@ -1380,6 +1384,11 @@ export default function PngToLayeredSvgForCricut({
 
   const [hydrated, setHydrated] = React.useState(false);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const exportCompressionKeys = React.useMemo(
+    () => history.map((item) => item.stamp),
+    [history],
+  );
+  const exportCompression = useSvgExportCompression(exportCompressionKeys);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
@@ -2560,6 +2569,16 @@ export default function PngToLayeredSvgForCricut({
                       : displaySvg
                       ? getSvgByteSize(displaySvg)
                       : item.svgBytes;
+                    const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+                    const exportCompressionControls = canUseOutput ? (
+                      <ExportCompressionControls
+                        id={`output-export-compression-${item.stamp}`}
+                        level={exportCompressionLevel}
+                        onLevelChange={(level) =>
+                          exportCompression.setLevel(item.stamp, level)
+                        }
+                      />
+                    ) : null;
                     const focused = focusedOutputStamp === item.stamp;
                     const sourceAvailableForOutput =
                       outputMatchesActiveSource(item, file);
@@ -2660,9 +2679,10 @@ export default function PngToLayeredSvgForCricut({
                             buttonDisabled || !sourceAvailableForOutput
                           }
                           liveSectionTitle="Live Preview Edits"
-                          liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
+                          liveSectionDescription="These controls update the visible SVG right away. Export compression below only affects Copy SVG and Download SVG."
                           livePreviewLeadTitle="Post-processing"
                           livePreviewLead={appearanceControls}
+                          exportControls={exportCompressionControls}
                           convertSectionTitle="Click To Convert"
                           convertSectionDescription={
                             sourceAvailableForOutput
@@ -2820,7 +2840,11 @@ export default function PngToLayeredSvgForCricut({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const b = new Blob([displaySvg], {
+                                      const exportSvg = exportCompression.getExportSvg(
+                                        item.stamp,
+                                        displaySvg,
+                                      );
+                                      const b = new Blob([exportSvg], {
                                         type: "image/svg+xml;charset=utf-8",
                                       });
                                       const u = URL.createObjectURL(b);
@@ -2840,7 +2864,12 @@ export default function PngToLayeredSvgForCricut({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      handleCopySvg(displaySvg);
+                                      handleCopySvg(
+                                        exportCompression.getExportSvg(
+                                          item.stamp,
+                                          displaySvg,
+                                        ),
+                                      );
                                     }}
                                     className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                                   >
@@ -2986,12 +3015,20 @@ export default function PngToLayeredSvgForCricut({
                         ) : null}
 
                         {!focused && !outputInvalidMessage && canUseOutput && (
-                        <div data-output-action-row="true" className="flex gap-2 flex-wrap my-2">
+                        <div
+                          data-output-action-row="true"
+                          data-export-compression-level={exportCompressionLevel}
+                          className="flex gap-2 flex-wrap my-2"
+                        >
                           <button
                             type="button"
                             onClick={() => {
                               if (!canUseOutput) return;
-                              const b = new Blob([displaySvg], {
+                              const exportSvg = exportCompression.getExportSvg(
+                                item.stamp,
+                                displaySvg,
+                              );
+                              const b = new Blob([exportSvg], {
                                 type: "image/svg+xml;charset=utf-8",
                               });
                               const u = URL.createObjectURL(b);
@@ -3018,7 +3055,12 @@ export default function PngToLayeredSvgForCricut({
                             type="button"
                             onClick={() => {
                               if (!canUseOutput) return;
-                              handleCopySvg(displaySvg);
+                              handleCopySvg(
+                                exportCompression.getExportSvg(
+                                  item.stamp,
+                                  displaySvg,
+                                ),
+                              );
                             }}
                             disabled={!canUseOutput}
                             className="flex justify-center items-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 cursor-pointer"
@@ -3149,9 +3191,10 @@ export default function PngToLayeredSvgForCricut({
                                 buttonDisabled || !sourceAvailableForOutput
                               }
                               liveSectionTitle="Live Preview Edits"
-                              liveSectionDescription="These controls update the visible SVG right away. Copy, download, fullscreen, and batch use what you see here."
+                              liveSectionDescription="These controls update the visible SVG right away. Export compression below only affects Copy SVG and Download SVG."
                               livePreviewLeadTitle="Post-processing"
                               livePreviewLead={appearanceControls}
+                              exportControls={exportCompressionControls}
                               convertSectionTitle="Click To Convert"
                               convertSectionDescription={
                                 sourceAvailableForOutput
