@@ -12,6 +12,7 @@
     "test:conversion-speed": "node scripts/conversion-speed-smoke.mjs",
     "test:docs": "node scripts/docs-audit.mjs",
     "test:svg-compression-research": "node scripts/svg-compression-research.mjs",
+    "test:svg-compression": "node scripts/svg-compression-smoke.mjs",
     "test:hybrid-browser": "node scripts/hybrid-browser-smoke.mjs",
     "test:image-complexity": "node scripts/image-complexity-audit.mjs",
     "test:input-compatibility": "node scripts/input-compatibility-smoke.mjs",
@@ -81,6 +82,7 @@
     "react-dom": "^19.1.0",
     "react-router": "^7.14.2",
     "sharp": "^0.34.3",
+    "svgo": "^4.0.1",
     "wasm_vtracer": "^0.2.0"
   },
   "devDependencies": {
