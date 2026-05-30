@@ -14,6 +14,9 @@ const tmpDir = path.join(os.tmpdir(), "ilovesvg-hybrid-browser-smoke", String(de
 const profileDir = path.join(tmpDir, "profile");
 const fixturesDir = path.join(tmpDir, "fixtures");
 const downloadsDir = path.join(tmpDir, "downloads");
+const reportPath = process.env.HYBRID_BROWSER_SMOKE_REPORT_PATH
+  ? path.resolve(process.env.HYBRID_BROWSER_SMOKE_REPORT_PATH)
+  : path.join(rootDir, "tmp", "hybrid-browser-smoke-report.json");
 
 const RASTER_ROUTES = [
   { path: "/", id: "home", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true, hasCenterlinePreset: true, defaultEngine: "potrace" },
@@ -162,17 +165,55 @@ async function main() {
     svgInput,
   };
 
-  console.log(JSON.stringify(report, null, 2));
-
   const failures = results.filter((result) => !result.ok);
   if (batchZip && !batchZip.ok) failures.push(batchZip);
   if (queue && !queue.ok) failures.push(queue);
   if (outputUx && !outputUx.ok) failures.push(outputUx);
   if (utilityLayout && !utilityLayout.ok) failures.push(utilityLayout);
   if (svgInput && !svgInput.ok) failures.push(svgInput);
+  await fs.mkdir(path.dirname(reportPath), { recursive: true });
+  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  const consoleReport = process.env.OUTPUT_UX_SMOKE === "1"
+    ? summarizeOutputUxReport(report, failures)
+    : report;
+  console.log(JSON.stringify(consoleReport, null, 2));
   if (failures.length > 0) {
     process.exit(1);
   }
+}
+
+function summarizeOutputUxReport(report, failures) {
+  return {
+    baseUrl: report.baseUrl,
+    checkedAt: report.checkedAt,
+    browserPath: report.browserPath,
+    reportPath,
+    outputUx: report.outputUx
+      ? {
+          route: report.outputUx.route,
+          scenario: report.outputUx.scenario,
+          ok: report.outputUx.ok,
+          failure: report.outputUx.failure,
+          results: report.outputUx.results.map((result) => ({
+            route: result.route,
+            ok: result.ok,
+            failure: result.failure,
+            opened: result.opened,
+            topLevelSettingsOpen: result.focused?.topLevelSettingsOpen || null,
+            openSettingsSectionCount: result.focused?.openSettingsSectionCount ?? null,
+            controls: result.controls || null,
+            copyOk: result.copy?.ok ?? null,
+            downloadOk: result.download?.ok ?? null,
+            historyReplacementOk: result.historyReplacement?.ok ?? null,
+            responsiveOk: Array.isArray(result.responsive)
+              ? result.responsive.every((item) => item.ok)
+              : null,
+            consoleErrors: result.consoleErrors || [],
+          })),
+        }
+      : null,
+    failureCount: failures.length,
+  };
 }
 
 function buildSmokeScenarios() {
@@ -1483,8 +1524,11 @@ async function runOutputUxRouteSmoke(testCase) {
     await setFileInputAndWaitForSelection(client, testCase.fixture, 12_000);
     let output = await waitForOutput(client, 8_000, testCase.expectedEngine).catch(() => null);
     if (!output) {
-      await clickConvertButton(client);
-      output = await waitForOutput(client, 60_000, testCase.expectedEngine);
+      const convertState = await waitForConvertButtonReadyOrRunning(client, 12_000);
+      if (!convertState.running) {
+        await clickConvertButton(client);
+      }
+      output = await waitForOutput(client, 90_000, testCase.expectedEngine);
     }
     const historyReplacement = await verifyOutputHistoryPersistsAcrossInputReplacement(
       client,
@@ -3125,6 +3169,12 @@ function getRoutePotracePresetMatchers(route) {
 }
 
 async function clickConvertButton(client) {
+  try {
+    await trustedClickButtonMatching(client, "/Convert|Create/i", {
+      reject: "/batch|ZIP|Download/i",
+    });
+    return "trusted-click";
+  } catch {}
   const clicked = await evaluate(client, `(() => {
     const buttons = Array.from(document.querySelectorAll("button"));
     const button = buttons.find((candidate) => {
@@ -3171,6 +3221,39 @@ async function waitForConvertButtonEnabled(client, timeoutMs) {
     timeoutMs,
     (state) => state?.found === true && state.disabled === false,
   );
+}
+
+async function waitForConvertButtonReadyOrRunning(client, timeoutMs) {
+  return waitForValue(
+    client,
+    () => convertButtonStateExpression(),
+    timeoutMs,
+    (state) => state?.running === true || (state?.found === true && state.disabled === false),
+  );
+}
+
+function convertButtonStateExpression() {
+  return `(() => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const button = buttons.find((candidate) => {
+      const text = candidate.innerText || "";
+      const rect = candidate.getBoundingClientRect();
+      const visible =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        getComputedStyle(candidate).visibility !== "hidden" &&
+        getComputedStyle(candidate).display !== "none";
+      return /Convert|Create|Converting/i.test(text) && !/batch|ZIP|Download/i.test(text) && visible;
+    });
+    if (!button) return { found: false, disabled: true, running: false, label: null };
+    const label = button.innerText.trim();
+    return {
+      found: true,
+      disabled: Boolean(button.disabled),
+      running: /Converting/i.test(label),
+      label,
+    };
+  })()`;
 }
 
 async function waitForOutput(client, timeoutMs, expectedEngine = null) {

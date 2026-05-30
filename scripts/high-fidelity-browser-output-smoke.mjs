@@ -153,6 +153,7 @@ async function main() {
     ],
     { stdio: "ignore", windowsHide: true },
   );
+  browser.unref?.();
 
   const report = {
     checkedAt: new Date().toISOString(),
@@ -294,7 +295,9 @@ async function main() {
       console.error(`[preset] ${preset.label} ${result.completed ? "completed" : "not-complete"} ${Math.round(result.elapsedMs / 1000)}s`);
     }
   } finally {
-    browser.kill();
+    await stopSpawnedBrowser(browser).catch((error) => {
+      report.notes.push(`Browser cleanup warning: ${error instanceof Error ? error.message : String(error)}`);
+    });
     report.failures = collectFailures(report);
     await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   }
@@ -2312,6 +2315,37 @@ function hashString(value) {
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function stopSpawnedBrowser(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  child.kill();
+  if (await waitForChildExit(child, 2_000)) return;
+  if (process.platform === "win32" && child.pid) {
+    await new Promise((resolve) => {
+      const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+      killer.on("close", resolve);
+      killer.on("error", resolve);
+    });
+    if (await waitForChildExit(child, 2_000)) return;
+  }
+  child.kill("SIGKILL");
+  await waitForChildExit(child, 1_000);
+}
+
+function waitForChildExit(child, timeoutMs) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(false), timeoutMs);
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      resolve(true);
+    });
+    child.once("error", () => {
+      clearTimeout(timeout);
+      resolve(true);
+    });
+  });
 }
 
 await main().catch((error) => {
