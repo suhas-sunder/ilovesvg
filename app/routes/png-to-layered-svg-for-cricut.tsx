@@ -2624,6 +2624,9 @@ export default function PngToLayeredSvgForCricut({
                       ? getSvgByteSize(displaySvg)
                       : item.svgBytes;
                     const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+                    const exportCompressionResult = canUseOutput
+                      ? exportCompression.getExportResult(item.stamp, displaySvg)
+                      : null;
                     const exportCompressionControls = canUseOutput ? (
                       <ExportCompressionControls
                         id={`output-export-compression-${item.stamp}`}
@@ -2631,6 +2634,7 @@ export default function PngToLayeredSvgForCricut({
                         onLevelChange={(level) =>
                           exportCompression.setLevel(item.stamp, level)
                         }
+                        result={exportCompressionResult}
                       />
                     ) : null;
                     const focused = focusedOutputStamp === item.stamp;

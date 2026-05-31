@@ -4701,6 +4701,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       item.svg && previewData.svg && !isActiveJob && !isFailedJob,
                     );
                     const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+                    const exportCompressionResult = hasUsableOutput
+                      ? exportCompression.getExportResult(item.stamp, previewData.svg)
+                      : null;
                     const exportCompressionControls = hasUsableOutput ? (
                       <ExportCompressionControls
                         id={`output-export-compression-${item.stamp}`}
@@ -4708,6 +4711,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         onLevelChange={(level) =>
                           exportCompression.setLevel(item.stamp, level)
                         }
+                        result={exportCompressionResult}
                       />
                     ) : null;
                     const outputSettings =
