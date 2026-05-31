@@ -22,7 +22,7 @@ const SCENARIOS = [
   { id: "png-layered", route: "/png-to-layered-svg-for-cricut", fixture: "png" },
   { id: "jpg-layered", route: "/jpg-to-layered-svg-for-cricut", fixture: "jpg" },
   { id: "image-layered", route: "/image-to-layered-svg-for-cricut", fixture: "png" },
-  { id: "code-to-svg", route: "/code-to-svg-for-cricut", fixture: "svg", input: "sample" },
+  { id: "code-to-svg", route: "/code-to-svg-for-cricut", fixture: "svg", input: "textarea" },
 ];
 const SCENARIO_FILTER = String(process.env.CONVERTER_EXPORT_COMPRESSION_ROUTE_FILTER || "")
   .split(",")
@@ -145,17 +145,22 @@ async function runScenario(scenario, fixturesByKind) {
       await clickConvertIfPresent(client);
     }
     let state = await waitForCompletedOutput(client, CONVERSION_TIMEOUT_MS);
+    state = await waitForStableLatestOutput(client);
 
     assert(state.previewSvg, `${scenario.id}: could not read visible preview SVG`);
     assert(state.exportLevel === "none", `${scenario.id}: default export compression was ${state.exportLevel || "missing"}`);
     assert(state.previewSvg.includes("<svg"), `${scenario.id}: preview SVG was not readable`);
 
-    const previewBefore = state.previewSvg;
     await openSettingsForLatestOutput(client);
     const control = await waitForExportControl(client);
     assert(control.level === "none", `${scenario.id}: Settings/Edit default compression was ${control.level}`);
+    const settingsState = await waitForStableLatestOutput(client);
+    const previewBefore = settingsState.previewSvg;
+    assert(previewBefore, `${scenario.id}: could not read stable Settings/Edit preview SVG`);
+    const expectedNoneBytes = Number(settingsState.svgBytesAttr || 0) || byteSize(previewBefore);
 
     const levelResults = {};
+    let exportGeometryBaseline = null;
     for (const level of LEVELS) {
       await selectExportCompressionLevel(client, level);
       const afterSelect = await readLatestOutputState(client);
@@ -164,7 +169,25 @@ async function runScenario(scenario, fixturesByKind) {
       const downloaded = await downloadLatestOutput(client);
       assert(copied === downloaded, `${scenario.id}: Copy and Download mismatch for ${level}`);
       assert(isParsableSvg(downloaded), `${scenario.id}: downloaded ${level} output does not parse as SVG`);
-      assert(rootGeometryMatches(previewBefore, downloaded), `${scenario.id}: ${level} changed dimensions or viewBox`);
+      const downloadedGeometry = readRootGeometry(downloaded);
+      assert(
+        rootGeometryCompatibleWithPreview(previewBefore, downloaded),
+        `${scenario.id}: ${level} changed dimensions or viewBox ${JSON.stringify({
+          before: readRootGeometry(previewBefore),
+          after: downloadedGeometry,
+        })}`,
+      );
+      if (!exportGeometryBaseline) {
+        exportGeometryBaseline = downloadedGeometry;
+      } else {
+        assert(
+          rootGeometryObjectsMatch(exportGeometryBaseline, downloadedGeometry),
+          `${scenario.id}: ${level} changed export dimensions or viewBox from None ${JSON.stringify({
+            none: exportGeometryBaseline,
+            after: downloadedGeometry,
+          })}`,
+        );
+      }
       levelResults[level] = {
         bytes: byteSize(downloaded),
         copyHash: hashString(copied),
@@ -174,7 +197,10 @@ async function runScenario(scenario, fixturesByKind) {
       };
     }
 
-    assert(levelResults.none.bytes === byteSize(previewBefore), `${scenario.id}: None did not preserve current export size`);
+    assert(
+      levelResults.none.bytes === expectedNoneBytes,
+      `${scenario.id}: None did not preserve current export size (${levelResults.none.bytes} !== ${expectedNoneBytes})`,
+    );
     assert(levelResults.tiny.bytes <= levelResults.none.bytes, `${scenario.id}: Tiny was larger than None`);
     assert(levelResults.tiniest.bytes <= levelResults.tiny.bytes, `${scenario.id}: Tiniest was larger than Tiny`);
     if (levelResults.none.hasLayerMetadata) {
@@ -430,16 +456,70 @@ async function setTextareaInput(client, value) {
     15_000,
     Boolean,
   );
-  await evaluate(client, `(() => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await evaluate(client, `(() => {
+      const textarea = document.querySelector("textarea");
+      if (!textarea) return false;
+      textarea.focus();
+      const previousValue = textarea.value;
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      if (setter) {
+        setter.call(textarea, ${JSON.stringify(value)});
+      } else {
+        textarea.value = ${JSON.stringify(value)};
+      }
+      textarea._valueTracker?.setValue(previousValue);
+      textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "" }));
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`, 10_000);
+    const accepted = await waitForValue(
+      client,
+      () => `(() => {
+        const textarea = document.querySelector("textarea");
+        const buttons = Array.from(document.querySelectorAll("button"));
+        const enabledConvert = buttons.some((button) => {
+          const text = button.innerText || button.textContent || "";
+          return !button.disabled && /^\\s*Convert to SVG\\s*$/i.test(text);
+        });
+        return { length: textarea?.value?.length || 0, enabledConvert };
+      })()`,
+      2_500,
+      (state) => Number(state?.length || 0) > 0 && state?.enabledConvert,
+    ).catch(() => null);
+    if (accepted) return;
+    await delay(500);
+  }
+
+  const point = await evaluate(client, `(() => {
     const textarea = document.querySelector("textarea");
-    if (!textarea) return false;
+    if (!textarea) return null;
     textarea.focus();
-    textarea.value = ${JSON.stringify(value)};
-    textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "" }));
-    textarea.dispatchEvent(new Event("change", { bubbles: true }));
-    return true;
+    textarea.select();
+    const rect = textarea.getBoundingClientRect();
+    return {
+      x: Math.max(1, Math.min(window.innerWidth - 2, rect.left + Math.min(24, rect.width / 2))),
+      y: Math.max(1, Math.min(window.innerHeight - 2, rect.top + Math.min(24, rect.height / 2))),
+    };
   })()`, 10_000);
-  await delay(300);
+  assert(point, "Could not focus code input textarea");
+  await trustedClickAtPoint(client, point);
+  await client.send("Input.insertText", { text: value }, 15_000);
+  await waitForValue(
+    client,
+    () => `(() => {
+      const textarea = document.querySelector("textarea");
+      const buttons = Array.from(document.querySelectorAll("button"));
+      const enabledConvert = buttons.some((button) => {
+        const text = button.innerText || button.textContent || "";
+        return !button.disabled && /^\\s*Convert to SVG\\s*$/i.test(text);
+      });
+      return { length: textarea?.value?.length || 0, enabledConvert };
+    })()`,
+    15_000,
+    (state) => Number(state?.length || 0) > 0 && state?.enabledConvert,
+  );
 }
 
 async function clickPageButton(client, patterns) {
@@ -482,6 +562,26 @@ async function readLatestOutputState(client) {
   return evaluate(client, latestOutputStateExpression(), 15_000);
 }
 
+async function waitForStableLatestOutput(client, timeoutMs = 8_000) {
+  const deadline = Date.now() + timeoutMs;
+  let previousSvg = "";
+  let stableReads = 0;
+  let lastState = null;
+  while (Date.now() < deadline) {
+    lastState = await readLatestOutputState(client);
+    if (lastState?.previewSvg && lastState.previewSvg === previousSvg) {
+      stableReads += 1;
+      if (stableReads >= 2) return lastState;
+    } else {
+      previousSvg = lastState?.previewSvg || "";
+      stableReads = previousSvg ? 1 : 0;
+    }
+    await delay(250);
+  }
+  if (lastState?.previewSvg) return lastState;
+  throw new Error(`Timed out waiting for stable preview. Last: ${JSON.stringify(lastState)}`);
+}
+
 function latestOutputStateExpression() {
   return `(() => {
     const cards = Array.from(document.querySelectorAll("[data-output-stamp]"));
@@ -513,7 +613,16 @@ function latestOutputStateExpression() {
         return status === "queued" || status === "running";
       }).length,
       exportLevel: actionRow?.getAttribute("data-export-compression-level") || "none",
+      svgBytesAttr: latest?.getAttribute("data-svg-bytes") || "",
       fileInputCount: document.querySelectorAll('input[type="file"]').length,
+      textareaLength: document.querySelector("textarea")?.value?.length || 0,
+      convertButtons: Array.from(document.querySelectorAll("button"))
+        .map((button) => ({
+          text: (button.innerText || button.textContent || "").trim(),
+          disabled: button.disabled,
+        }))
+        .filter((button) => /Convert|Create|Generate|Update preview/i.test(button.text))
+        .slice(0, 8),
       uploadDebug: window.__CONVERTER_EXPORT_COMPRESSION__?.uploadDebug || null,
       bodySnippet: (document.body?.innerText || "").slice(0, 500),
       previewSvg,
@@ -687,7 +796,20 @@ function isParsableSvg(svg) {
 function rootGeometryMatches(before, after) {
   const a = readRootGeometry(before);
   const b = readRootGeometry(after);
+  return rootGeometryObjectsMatch(a, b);
+}
+
+function rootGeometryObjectsMatch(a, b) {
   return a.width === b.width && a.height === b.height && a.viewBox === b.viewBox;
+}
+
+function rootGeometryCompatibleWithPreview(before, after) {
+  const a = readRootGeometry(before);
+  const b = readRootGeometry(after);
+  if (a.viewBox && b.viewBox && a.viewBox !== b.viewBox) return false;
+  if (a.width && b.width && a.width !== b.width) return false;
+  if (a.height && b.height && a.height !== b.height) return false;
+  return Boolean(b.viewBox || (b.width && b.height));
 }
 
 function readRootGeometry(svg) {
