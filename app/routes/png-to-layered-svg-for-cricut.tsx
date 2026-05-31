@@ -115,6 +115,7 @@ const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 450;
 const LIVE_MED_MS = 1600;
+const UPLOAD_AUTO_SUBMIT_GRACE_MS = 1000;
 
 const MIN_LAYER_COUNT = 2;
 const MAX_LAYER_COUNT = 10;
@@ -1372,6 +1373,8 @@ export default function PngToLayeredSvgForCricut({
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>(DEFAULT_PRESET_ID);
+  const settingsRef = React.useRef(settings);
+  const activePresetRef = React.useRef(activePreset);
   const [presetMenuExpanded, setPresetMenuExpanded] = React.useState(false);
 
   const [err, setErr] = React.useState<string | null>(null);
@@ -1425,6 +1428,9 @@ export default function PngToLayeredSvgForCricut({
   }
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const uploadAutoSubmitRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const suppressLiveRef = React.useRef(false);
   const skipNextLiveSubmitRef = React.useRef(false);
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1434,6 +1440,8 @@ export default function PngToLayeredSvgForCricut({
   const clientRunIdCounterRef = React.useRef(0);
   const lastProcessedResultKeyRef = React.useRef("");
   const fileMeasureRunIdRef = React.useRef(0);
+  const submitSequenceRef = React.useRef(0);
+  const pendingUploadFileRef = React.useRef<File | null>(null);
   const busyRetryCountRef = React.useRef(0);
   const lastHandledBusyKeyRef = React.useRef("");
   const outputAppearanceSupportCacheRef = React.useRef(
@@ -1489,9 +1497,42 @@ export default function PngToLayeredSvgForCricut({
     number | null
   >(null);
 
+  function clearUploadAutoSubmit() {
+    if (!uploadAutoSubmitRef.current) return;
+    clearTimeout(uploadAutoSubmitRef.current);
+    uploadAutoSubmitRef.current = null;
+  }
+
+  function scheduleUploadAutoSubmit(targetFile: File, sequenceAtUpload: number) {
+    clearUploadAutoSubmit();
+    const mode = getAutoMode(targetFile.size);
+    if (mode === "off") return;
+    // Give immediate preset clicks a chance to replace the default upload submit.
+    const delay =
+      mode === "fast"
+        ? Math.max(LIVE_FAST_MS, UPLOAD_AUTO_SUBMIT_GRACE_MS)
+        : LIVE_MED_MS;
+    uploadAutoSubmitRef.current = setTimeout(() => {
+      uploadAutoSubmitRef.current = null;
+      if (submitSequenceRef.current !== sequenceAtUpload) return;
+      void submitConvert(targetFile, settingsRef.current, {
+        presetId: activePresetRef.current,
+        parentStamp: null,
+      });
+    }, delay);
+  }
+
   React.useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  React.useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  React.useEffect(() => {
+    activePresetRef.current = activePreset;
+  }, [activePreset]);
 
   React.useEffect(() => {
     const activeStamps = new Set(history.map((item) => item.stamp));
@@ -1800,6 +1841,7 @@ export default function PngToLayeredSvgForCricut({
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearUploadAutoSubmit();
       if (retryRef.current) clearTimeout(retryRef.current);
     };
   }, [previewUrl]);
@@ -1860,8 +1902,11 @@ export default function PngToLayeredSvgForCricut({
     lastHandledBusyKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
     fileMeasureRunIdRef.current = measureRunId;
+    const submitSequenceAtUpload = submitSequenceRef.current;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearUploadAutoSubmit();
+    pendingUploadFileRef.current = null;
     if (retryRef.current) clearTimeout(retryRef.current);
 
     setFile(null);
@@ -1891,6 +1936,8 @@ export default function PngToLayeredSvgForCricut({
       return;
     }
 
+    skipNextLiveSubmitRef.current = true;
+    pendingUploadFileRef.current = chosen;
     setFile(chosen);
     setAutoMode(getAutoMode(chosen.size));
 
@@ -1899,13 +1946,12 @@ export default function PngToLayeredSvgForCricut({
 
     await measureAndSet(chosen, measureRunId);
 
-    skipNextLiveSubmitRef.current = true;
     suppressLiveRef.current = false;
+    if (submitSequenceRef.current !== submitSequenceAtUpload) {
+      return;
+    }
 
-    void submitConvert(chosen, settings, {
-      presetId: activePreset,
-      parentStamp: null,
-    });
+    scheduleUploadAutoSubmit(chosen, submitSequenceAtUpload);
   }
 
   async function submitConvert(
@@ -1924,6 +1970,8 @@ export default function PngToLayeredSvgForCricut({
       setErr("Choose a PNG image first.");
       return;
     }
+    clearUploadAutoSubmit();
+    submitSequenceRef.current += 1;
 
     try {
       await validateBeforeSubmit(sourceFile);
@@ -2061,13 +2109,17 @@ export default function PngToLayeredSvgForCricut({
       ...DEFAULTS,
       ...preset.settings,
     } as Settings;
+    activePresetRef.current = preset.id;
+    settingsRef.current = nextSettings;
     setActivePreset((current) => (current === preset.id ? current : preset.id));
     setSettings((current) =>
       settingsEqual(current, nextSettings) ? current : nextSettings,
     );
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings, {
+    clearUploadAutoSubmit();
+    const sourceFile = file ?? pendingUploadFileRef.current;
+    if (sourceFile && getAutoMode(sourceFile.size) !== "off") {
+      void submitConvert(sourceFile, nextSettings, {
         presetId: preset.id,
         parentStamp: null,
       });
@@ -2420,6 +2472,8 @@ export default function PngToLayeredSvgForCricut({
                         if (debounceRef.current) {
                           clearTimeout(debounceRef.current);
                         }
+                        clearUploadAutoSubmit();
+                        pendingUploadFileRef.current = null;
                         if (retryRef.current) clearTimeout(retryRef.current);
                         setFile(null);
                         setPreviewUrl(null);

@@ -45,6 +45,7 @@ export function useSvgExportCompression(
     Map<string, SvgExportCompressionLevel>
   >(() => new Map());
   const cacheRef = React.useRef(new Map<string, CachedExportResult>());
+  const sourceCacheRef = React.useRef(new Map<string, CachedExportResult>());
   const activeKeySignature = activeKeys
     .map((key) => normalizeExportCompressionKey(key))
     .join("\u0001");
@@ -102,10 +103,18 @@ export function useSvgExportCompression(
     (key: string | number, svg: string): SvgCompressionResult => {
       const sourceSvg = String(svg || "");
       const level = getLevel(key);
+      const normalizedKey = normalizeExportCompressionKey(key);
+      const itemCacheKey = `${normalizedKey}\u0001${level}`;
+      const cached = cacheRef.current.get(itemCacheKey);
+      if (cached && cached.sourceSvg === sourceSvg) {
+        return cached;
+      }
+
       if (level === "none") {
         const bytes = getSvgByteSize(sourceSvg);
-        return {
+        const result: CachedExportResult = {
           svg: sourceSvg,
+          sourceSvg,
           level,
           originalBytes: bytes,
           outputBytes: bytes,
@@ -114,22 +123,26 @@ export function useSvgExportCompression(
           appliedTransforms: [],
           warnings: [],
         };
+        cacheRef.current.set(itemCacheKey, result);
+        pruneOldestCacheEntries(cacheRef.current);
+        return result;
       }
 
-      const normalizedKey = normalizeExportCompressionKey(key);
-      const cacheKey = `${normalizedKey}\u0001${level}`;
-      const cached = cacheRef.current.get(cacheKey);
-      if (cached && cached.sourceSvg === sourceSvg) {
-        return cached;
+      const sourceCacheKey = `${getSvgSourceSignature(sourceSvg)}\u0001${level}`;
+      const sourceCached = sourceCacheRef.current.get(sourceCacheKey);
+      if (sourceCached && sourceCached.sourceSvg === sourceSvg) {
+        cacheRef.current.set(itemCacheKey, sourceCached);
+        pruneOldestCacheEntries(cacheRef.current);
+        return sourceCached;
       }
 
       const result = compressSvg(sourceSvg, { level });
-      cacheRef.current.set(cacheKey, { ...result, sourceSvg });
-      if (cacheRef.current.size > MAX_EXPORT_COMPRESSION_CACHE_ENTRIES) {
-        const firstKey = cacheRef.current.keys().next().value;
-        if (firstKey) cacheRef.current.delete(firstKey);
-      }
-      return result;
+      const cachedResult: CachedExportResult = { ...result, sourceSvg };
+      cacheRef.current.set(itemCacheKey, cachedResult);
+      sourceCacheRef.current.set(sourceCacheKey, cachedResult);
+      pruneOldestCacheEntries(cacheRef.current);
+      pruneOldestCacheEntries(sourceCacheRef.current);
+      return cachedResult;
     },
     [getLevel],
   );
@@ -250,4 +263,23 @@ export function ExportCompressionSettingsSection({
 
 function normalizeExportCompressionKey(key: string | number): string {
   return String(key);
+}
+
+function pruneOldestCacheEntries(
+  cache: Map<string, CachedExportResult>,
+): void {
+  while (cache.size > MAX_EXPORT_COMPRESSION_CACHE_ENTRIES) {
+    const firstKey = cache.keys().next().value;
+    if (!firstKey) return;
+    cache.delete(firstKey);
+  }
+}
+
+function getSvgSourceSignature(sourceSvg: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < sourceSvg.length; index += 1) {
+    hash ^= sourceSvg.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${sourceSvg.length}:${hash >>> 0}`;
 }

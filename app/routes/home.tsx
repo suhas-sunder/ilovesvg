@@ -164,6 +164,7 @@ const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
 const LIVE_FAST_MS = 400;
 const LIVE_MED_MS = 1500;
+const UPLOAD_AUTO_SUBMIT_GRACE_MS = 1000;
 
 const PAGE_RATE_LIMITS = {
   perMinute: 120,
@@ -2659,6 +2660,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>(DEFAULT_PRESET_ID);
+  const settingsRef = React.useRef(settings);
+  const activePresetRef = React.useRef(activePreset);
   const [presetMenuExpanded, setPresetMenuExpanded] = React.useState(false);
   const [originalPreviewCollapsed, setOriginalPreviewCollapsed] =
     React.useState(false);
@@ -2711,6 +2714,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const lastProcessedResultKeyRef = React.useRef("");
   const fileMeasureRunIdRef = React.useRef(0);
   const busyRetryCountRef = React.useRef(0);
+  const submitSequenceRef = React.useRef(0);
+  const pendingUploadFileRef = React.useRef<File | null>(null);
   const lastSubmittedRef = React.useRef<{
     settings: Settings;
     presetId: string | null;
@@ -2774,6 +2779,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   React.useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  React.useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  React.useEffect(() => {
+    activePresetRef.current = activePreset;
+  }, [activePreset]);
 
   React.useEffect(() => {
     if (!hasActiveHistoryJob) return;
@@ -3190,7 +3203,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     lastProcessedResultKeyRef.current = "";
     const measureRunId = fileMeasureRunIdRef.current + 1;
     fileMeasureRunIdRef.current = measureRunId;
+    const submitSequenceAtUpload = submitSequenceRef.current;
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearUploadAutoSubmit();
+    pendingUploadFileRef.current = null;
 
     // Clear current file first so nothing submits with the old one
     setFile(null);
@@ -3208,6 +3224,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // ... keep ALL your existing compression logic and the rest unchanged ...
 
+    skipNextAutoSubmitRef.current = true;
+    pendingUploadFileRef.current = chosen;
     setFile(chosen);
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
@@ -3216,12 +3234,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     // Re-enable auto conversion and submit the selected file directly so the first upload
     // never depends on stale React state.
-    skipNextAutoSubmitRef.current = true;
     suppressLiveRef.current = false;
-    void submitConvertWith(chosen, settings, {
-      presetId: activePreset,
-      parentStamp: null,
-    });
+    if (submitSequenceRef.current !== submitSequenceAtUpload) {
+      return;
+    }
+    scheduleUploadAutoSubmit(chosen, submitSequenceAtUpload);
   }
 
   function getEffectiveSubmitSettings(targetSettings: Settings): Settings {
@@ -3332,6 +3349,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setErr("Choose an image first.");
       return false;
     }
+    clearUploadAutoSubmit();
+    submitSequenceRef.current += 1;
 
     // Client-side precheck
     try {
@@ -4079,8 +4098,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // ---- Tiered auto conversion for allowed upload sizes ----
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const uploadAutoSubmitRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const suppressLiveRef = React.useRef(false);
   const skipNextAutoSubmitRef = React.useRef(false);
+
+  function clearUploadAutoSubmit() {
+    if (!uploadAutoSubmitRef.current) return;
+    clearTimeout(uploadAutoSubmitRef.current);
+    uploadAutoSubmitRef.current = null;
+  }
+
+  function scheduleUploadAutoSubmit(targetFile: File, sequenceAtUpload: number) {
+    clearUploadAutoSubmit();
+    const mode = getAutoMode(targetFile.size);
+    if (mode === "off") return;
+    // Give immediate preset clicks a chance to replace the default upload submit.
+    const delay =
+      mode === "fast"
+        ? Math.max(LIVE_FAST_MS, UPLOAD_AUTO_SUBMIT_GRACE_MS)
+        : LIVE_MED_MS;
+    uploadAutoSubmitRef.current = setTimeout(() => {
+      uploadAutoSubmitRef.current = null;
+      if (submitSequenceRef.current !== sequenceAtUpload) return;
+      void submitConvertWith(targetFile, settingsRef.current, {
+        presetId: activePresetRef.current,
+        parentStamp: null,
+      });
+    }, delay);
+  }
 
   React.useEffect(() => {
     if (suppressLiveRef.current) return;
@@ -4108,6 +4155,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, autoMode]);
 
+  React.useEffect(() => {
+    return () => clearUploadAutoSubmit();
+  }, []);
+
   // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || !file;
 
@@ -4129,15 +4180,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   function applyPreset(preset: Preset) {
     const nextSettings = buildPresetSettings(settings, preset);
 
+    activePresetRef.current = preset.id;
+    settingsRef.current = nextSettings;
     setActivePreset((current) => (current === preset.id ? current : preset.id));
     setSettings((current) =>
       settingsEqual(current, nextSettings) ? current : nextSettings,
     );
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearUploadAutoSubmit();
 
-    if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWith(file, nextSettings, {
+    const sourceFile = file ?? pendingUploadFileRef.current;
+    if (sourceFile && getAutoMode(sourceFile.size) !== "off") {
+      void submitConvertWith(sourceFile, nextSettings, {
         presetId: preset.id,
         parentStamp: null,
       });
@@ -4549,6 +4604,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       type="button"
                       onClick={() => {
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
+                        clearUploadAutoSubmit();
+                        pendingUploadFileRef.current = null;
                         setFile(null);
                         setPreviewUrl(null);
                         setAutoMode("off");
