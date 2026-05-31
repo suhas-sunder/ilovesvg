@@ -78,6 +78,15 @@ const runTierComparison =
   process.env.HF_BROWSER_OUTPUT_RUN_TIER_COMPARISON === "1" ||
   (!requestedPresetIds && process.env.HF_BROWSER_OUTPUT_RUN_TIER_COMPARISON !== "0");
 const renderPreviews = process.env.HF_BROWSER_OUTPUT_RENDER !== "0";
+const measureExportCompression =
+  process.env.HF_BROWSER_OUTPUT_EXPORT_COMPRESSION === "1";
+const exportCompressionLevels = ["none", "tiny", "tiniest"];
+const selectPresetBeforeUpload =
+  process.env.HF_BROWSER_OUTPUT_PRESELECT_PRESET === "1";
+const initialAutoSettleMs =
+  process.env.HF_BROWSER_OUTPUT_INITIAL_SETTLE_MS == null
+    ? 20_000
+    : Number(process.env.HF_BROWSER_OUTPUT_INITIAL_SETTLE_MS);
 const qualityTierComparisonFamilies = [
   {
     label: "Layered - Flat Color",
@@ -169,6 +178,9 @@ async function main() {
       maxCriticalPresetSvgBytes,
       minHighDetailLayerCount,
       maxGroupedColors,
+      measureExportCompression,
+      selectPresetBeforeUpload,
+      initialAutoSettleMs,
     },
     flatColor: [],
     qualityTierComparison: [],
@@ -286,6 +298,7 @@ async function main() {
         layerColorsOpenMs: result.ui?.layerColorsOpenMs ?? result.interactionTimings?.layerColorsOpenMs ?? null,
         interactionTimings: result.interactionTimings || null,
         copyDownloadParity: result.copyDownloadParity || null,
+        exportCompression: result.exportCompression || null,
         pendingAfterTimeout: !result.completed ? result.pendingState : null,
         harnessError: result.harnessError || null,
         consoleErrors: result.consoleErrors || [],
@@ -380,6 +393,7 @@ function toQualityTierComparisonEntry(result) {
     layerColorsOpenMs: result.ui?.layerColorsOpenMs ?? result.interactionTimings?.layerColorsOpenMs ?? null,
     interactionTimings: result.interactionTimings || null,
     copyDownloadParity: result.copyDownloadParity || null,
+    exportCompression: result.exportCompression || null,
     copyHash: result.copyDownloadParity?.copyHash || null,
     downloadHash: result.copyDownloadParity?.downloadHash || null,
     harnessError: result.harnessError || null,
@@ -939,7 +953,7 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
   const client = await openTab(`${baseUrl}/`);
   const downloadDir = path.join(downloadRoot, scenarioId);
   await fs.mkdir(downloadDir, { recursive: true });
-  const startedAt = Date.now();
+  let startedAt = Date.now();
   let stage = "starting";
 
   try {
@@ -949,22 +963,44 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
     await waitForDocumentReady(client);
     stage = "verify clipboard access";
     await verifyClipboardAccess(client).catch(() => null);
-    stage = "upload fixture";
-    await uploadFixtureWithRetry(client, fixturePath);
-    stage = "settle initial conversion";
-    await settleInitialAutoConversion(client, 20_000).catch(() => null);
-    stage = "read state before preset";
-    const beforePresetState = await outputState(client).catch(() => ({ latestStamp: null }));
-    stage = "select preset";
-    const selectedPreset = await selectPreset(client, [preset.pattern], preset.label);
-    stage = "read state after preset";
-    const afterPresetState = await waitForValue(
-      client,
-      () => outputStateExpression(beforePresetState.latestStamp),
-      4_000,
-      (value) => value?.activeJobs > 0 || value?.latestChanged,
-    ).catch(() => outputState(client).catch(() => beforePresetState));
-    const beforeConvertState = afterPresetState || beforePresetState;
+    startedAt = Date.now();
+    let selectedPreset = null;
+    let beforeConvertState = null;
+    let beforePresetState = null;
+    if (selectPresetBeforeUpload) {
+      stage = "select preset before upload";
+      selectedPreset = await selectPreset(client, [preset.pattern], preset.label);
+      stage = "read state before upload";
+      beforePresetState = await outputState(client).catch(() => ({ latestStamp: null }));
+      stage = "upload fixture";
+      await uploadFixtureWithRetry(client, fixturePath);
+      stage = "read state after upload";
+      beforeConvertState = await waitForValue(
+        client,
+        () => outputStateExpression(beforePresetState.latestStamp),
+        8_000,
+        (value) => value?.activeJobs > 0 || value?.latestChanged,
+      ).catch(() => outputState(client).catch(() => beforePresetState));
+    } else {
+      stage = "upload fixture";
+      await uploadFixtureWithRetry(client, fixturePath);
+      if (initialAutoSettleMs > 0) {
+        stage = "settle initial conversion";
+        await settleInitialAutoConversion(client, initialAutoSettleMs).catch(() => null);
+      }
+      stage = "read state before preset";
+      beforePresetState = await outputState(client).catch(() => ({ latestStamp: null }));
+      stage = "select preset";
+      selectedPreset = await selectPreset(client, [preset.pattern], preset.label);
+      stage = "read state after preset";
+      beforeConvertState = await waitForValue(
+        client,
+        () => outputStateExpression(beforePresetState.latestStamp),
+        4_000,
+        (value) => value?.activeJobs > 0 || value?.latestChanged,
+      ).catch(() => outputState(client).catch(() => beforePresetState));
+    }
+    beforeConvertState = beforeConvertState || beforePresetState;
     let convertAction = { clicked: false, autoStarted: false, reason: "" };
     if (beforeConvertState?.activeJobs > 0) {
       convertAction = { clicked: false, autoStarted: true, reason: "preset selection started conversion before Convert could be clicked" };
@@ -1003,6 +1039,7 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
     let svg = null;
     let structure = null;
     let copyDownloadParity = null;
+    let exportCompression = null;
     let render = null;
     let settingsOpenMs = null;
     let settingsOpenResult = null;
@@ -1057,6 +1094,16 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
         stage = "render comparison";
         render = await renderComparison(fixturePath, download.path, scenarioId).catch((error) => ({ error: error.message }));
       }
+      if (measureExportCompression) {
+        stage = "measure export compression";
+        exportCompression = await measureExportCompressionLevels(
+          client,
+          downloadDir,
+          scenarioId,
+        ).catch((error) => ({
+          error: error instanceof Error ? error.message : String(error),
+        }));
+      }
       stage = "open layer colors";
       const layerColorsStartedAt = Date.now();
       layerColorsOpenResult = await ensureSettingsSectionOpen(client, /Layer colors/i, "layer-colors").catch((error) => {
@@ -1103,6 +1150,7 @@ async function runUiScenario({ fixturePath, preset, scenarioId, timeoutMs, colle
       structure,
       render,
       copyDownloadParity,
+      exportCompression,
       consoleErrors: logs.consoleErrors,
       networkErrors: logs.networkErrors,
     };
@@ -1957,6 +2005,204 @@ async function waitForClipboardSvg(client, previousHash) {
   );
 }
 
+async function measureExportCompressionLevels(client, downloadDir, scenarioId) {
+  const previewBefore = await latestPreviewSignature(client);
+  const levels = {};
+
+  for (const level of exportCompressionLevels) {
+    const selectStartedAt = Date.now();
+    const selected = await selectExportCompressionLevel(client, level);
+    const selectMs = Date.now() - selectStartedAt;
+    const previewAfterSelect = await latestPreviewSignature(client);
+
+    const beforeCopy = await primeClipboard(
+      client,
+      `${scenarioId}-${level}-copy`,
+    );
+    const copyStartedAt = Date.now();
+    const copyClick = await clickButtonInLatestOutput(
+      client,
+      [/Copy SVG/i, /^Copy$/i, /^Copied$/i],
+      [],
+      { clickTimeoutMs: 15_000 },
+    ).catch(() => null);
+    const copyCapture = copyClick
+      ? await waitForClipboardSvg(
+          client,
+          beforeCopy.latestClipboardHash,
+        ).catch(() => null)
+      : null;
+    const copyMs = Date.now() - copyStartedAt;
+
+    const downloadStartedAt = Date.now();
+    const download = await downloadLatestSvgFresh(client, downloadDir);
+    const downloadMs = Date.now() - downloadStartedAt;
+
+    let repeat = null;
+    if (level !== "none") {
+      const beforeRepeatCopy = await primeClipboard(
+        client,
+        `${scenarioId}-${level}-repeat-copy`,
+      );
+      const repeatCopyStartedAt = Date.now();
+      const repeatCopyClick = await clickButtonInLatestOutput(
+        client,
+        [/Copy SVG/i, /^Copy$/i, /^Copied$/i],
+        [],
+        { clickTimeoutMs: 15_000 },
+      ).catch(() => null);
+      const repeatCopyCapture = repeatCopyClick
+        ? await waitForClipboardSvg(
+            client,
+            beforeRepeatCopy.latestClipboardHash,
+          ).catch(() => null)
+        : null;
+      const repeatCopyMs = Date.now() - repeatCopyStartedAt;
+      const repeatDownloadStartedAt = Date.now();
+      const repeatDownload = await downloadLatestSvgFresh(client, downloadDir);
+      const repeatDownloadMs = Date.now() - repeatDownloadStartedAt;
+      repeat = {
+        copyMs: repeatCopyMs,
+        downloadMs: repeatDownloadMs,
+        copyHash: repeatCopyCapture?.latestClipboardHash || null,
+        copyBytes: repeatCopyCapture?.latestClipboardBytes || 0,
+        downloadHash: repeatDownload.hash,
+        downloadBytes: repeatDownload.bytes,
+        parityOk: Boolean(
+          repeatCopyCapture &&
+            repeatDownload &&
+            repeatCopyCapture.latestClipboardHash === repeatDownload.hash &&
+            repeatCopyCapture.latestClipboardBytes === repeatDownload.bytes,
+        ),
+        matchesFirst: Boolean(
+          copyCapture &&
+            repeatCopyCapture &&
+            repeatDownload &&
+            repeatCopyCapture.latestClipboardHash === copyCapture.latestClipboardHash &&
+            repeatCopyCapture.latestClipboardBytes === copyCapture.latestClipboardBytes &&
+            repeatDownload.hash === download.hash &&
+            repeatDownload.bytes === download.bytes,
+        ),
+      };
+    }
+
+    levels[level] = {
+      level,
+      selectMs,
+      selected,
+      previewUnchanged: previewSignaturesMatch(
+        previewBefore,
+        previewAfterSelect,
+      ),
+      previewBefore,
+      previewAfterSelect,
+      copyMs,
+      downloadMs,
+      copyClicked: Boolean(copyClick),
+      downloadClicked: Boolean(download),
+      parityOk: Boolean(
+        copyCapture &&
+          download &&
+          copyCapture.latestClipboardHash === download.hash &&
+          copyCapture.latestClipboardBytes === download.bytes,
+      ),
+      copyHash: copyCapture?.latestClipboardHash || null,
+      copyBytes: copyCapture?.latestClipboardBytes || 0,
+      downloadHash: download.hash,
+      downloadBytes: download.bytes,
+      repeat,
+    };
+  }
+
+  await selectExportCompressionLevel(client, "none").catch(() => null);
+  const previewAfterReset = await latestPreviewSignature(client);
+
+  return {
+    measured: true,
+    previewUnchanged: Object.values(levels).every(
+      (entry) => entry.previewUnchanged,
+    ),
+    previewResetUnchanged: previewSignaturesMatch(
+      previewBefore,
+      previewAfterReset,
+    ),
+    previewBefore,
+    previewAfterReset,
+    levels,
+  };
+}
+
+async function selectExportCompressionLevel(client, level) {
+  const clicked = await evaluate(client, `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return { ok: false, reason: "missing latest output card" };
+    const button = Array.from(latest.querySelectorAll("[data-export-compression-level-option]"))
+      .find((candidate) => candidate.getAttribute("data-export-compression-level-option") === ${JSON.stringify(level)});
+    if (!button) return { ok: false, reason: "missing export compression option" };
+    button.scrollIntoView({ block: "center", inline: "nearest" });
+    button.click();
+    return { ok: true };
+    ${browserLatestCardHelpers()}
+  })()`, 8_000);
+  if (!clicked?.ok) {
+    throw new Error(
+      `Could not select export compression ${level}: ${clicked?.reason || "unknown"}`,
+    );
+  }
+  await waitForValue(
+    client,
+    () => `(() => {
+      const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+      return latest?.querySelector("[data-export-compression-control='true']")?.getAttribute("data-export-compression-level") || "";
+      ${browserLatestCardHelpers()}
+    })()`,
+    8_000,
+    (value) => value === level,
+  );
+  return clicked;
+}
+
+async function latestPreviewSignature(client) {
+  return evaluate(client, `(() => {
+    const latest = latestCard(Array.from(document.querySelectorAll("[data-output-stamp]")));
+    if (!latest) return null;
+    const img = latest.querySelector('img[alt="SVG result"], img[alt*="result"]');
+    const inlineSvg = latest.querySelector("svg");
+    const value = img?.getAttribute("src") || inlineSvg?.outerHTML || "";
+    return {
+      kind: img ? "img" : inlineSvg ? "svg" : "none",
+      length: value.length,
+      hash: hashString(value),
+      svgBytes: numberOrNull(latest.getAttribute("data-svg-bytes")),
+      exportLevel:
+        latest.querySelector("[data-export-compression-control='true']")?.getAttribute("data-export-compression-level") ||
+        latest.querySelector("[data-output-action-row='true']")?.getAttribute("data-export-compression-level") ||
+        "",
+    };
+    function hashString(value) {
+      let hash = 2166136261;
+      const text = String(value || "");
+      for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(16);
+    }
+    ${browserLatestCardHelpers()}
+  })()`, 12_000);
+}
+
+function previewSignaturesMatch(before, after) {
+  return Boolean(
+    before &&
+      after &&
+      before.kind === after.kind &&
+      before.length === after.length &&
+      before.hash === after.hash &&
+      before.svgBytes === after.svgBytes,
+  );
+}
+
 function clipboardCaptureExpression() {
   return `(() => {
     return navigator.clipboard.readText()
@@ -2005,6 +2251,12 @@ async function downloadLatestSvg(client, downloadDir) {
   };
 }
 
+async function downloadLatestSvgFresh(client, downloadDir) {
+  await fs.rm(downloadDir, { recursive: true, force: true });
+  await fs.mkdir(downloadDir, { recursive: true });
+  return downloadLatestSvg(client, downloadDir);
+}
+
 async function waitForDownloadedFile(downloadDir, before, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   let last = [];
@@ -2030,17 +2282,27 @@ async function safeReaddir(dir) {
   }
 }
 
-async function clickButtonInLatestOutput(client, patterns, rejectPatterns = []) {
+async function clickButtonInLatestOutput(
+  client,
+  patterns,
+  rejectPatterns = [],
+  options = {},
+) {
   const target = await findButtonTarget(client, patterns, rejectPatterns, "latest");
   if (!target) return null;
-  await trustedClickAtPoint(client, target);
+  await trustedClickAtPoint(client, target, options.clickTimeoutMs);
   return target;
 }
 
-async function clickButtonIfPresent(client, patterns, rejectPatterns = []) {
+async function clickButtonIfPresent(
+  client,
+  patterns,
+  rejectPatterns = [],
+  options = {},
+) {
   const target = await findButtonTarget(client, patterns, rejectPatterns, "document");
   if (!target) return null;
-  await trustedClickAtPoint(client, target);
+  await trustedClickAtPoint(client, target, options.clickTimeoutMs);
   return target;
 }
 
@@ -2070,10 +2332,10 @@ async function findButtonTarget(client, patterns, rejectPatterns, scope) {
   })()`, 8_000);
 }
 
-async function trustedClickAtPoint(client, point) {
-  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "none" }, 6_000);
-  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", buttons: 1, clickCount: 1 }, 6_000);
-  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", buttons: 0, clickCount: 1 }, 6_000);
+async function trustedClickAtPoint(client, point, timeoutMs = 6_000) {
+  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "none" }, timeoutMs);
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", buttons: 1, clickCount: 1 }, timeoutMs);
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", buttons: 0, clickCount: 1 }, timeoutMs);
 }
 
 async function enablePage(client, downloadDir) {

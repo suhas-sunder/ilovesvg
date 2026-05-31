@@ -609,6 +609,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
               ? getSvgByteSize(previewSvg)
               : item.svgBytes;
             const exportCompressionLevel = exportCompression.getLevel(item.stamp);
+            const exportCompressionResult = hasUsableOutput
+              ? exportCompression.getExportResult(item.stamp, previewSvg)
+              : null;
             const exportCompressionControls = hasUsableOutput ? (
               <ExportCompressionControls
                 id={`output-export-compression-${item.stamp}`}
@@ -616,6 +619,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 onLevelChange={(level) =>
                   exportCompression.setLevel(item.stamp, level)
                 }
+                result={exportCompressionResult}
               />
             ) : null;
             const outputWarnings =

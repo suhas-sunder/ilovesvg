@@ -163,6 +163,7 @@ async function runScenario(scenario, fixturesByKind) {
     let exportGeometryBaseline = null;
     for (const level of LEVELS) {
       await selectExportCompressionLevel(client, level);
+      const sizeSummary = await waitForExportCompressionSizeSummary(client, level);
       const afterSelect = await readLatestOutputState(client);
       assert(afterSelect.previewSvg === previewBefore, `${scenario.id}: preview changed after selecting ${level}`);
       const copied = await copyLatestOutput(client);
@@ -194,6 +195,7 @@ async function runScenario(scenario, fixturesByKind) {
         downloadHash: hashString(downloaded),
         hasLayerMetadata: hasLayerMetadata(downloaded),
         warningVisible: await hasTiniestWarning(client),
+        sizeSummary,
       };
     }
 
@@ -673,6 +675,34 @@ async function selectExportCompressionLevel(client, level) {
     8_000,
     (value) => value === level,
   );
+}
+
+async function waitForExportCompressionSizeSummary(client, level) {
+  return waitForValue(
+    client,
+    () => `(() => {
+      const summary = document.querySelector("[data-export-compression-size-summary='true']");
+      const selectedSize = document.querySelector("[data-export-compression-selected-size='${level}']");
+      const summaryText = (summary?.innerText || summary?.textContent || "").trim();
+      const selectedText = (selectedSize?.innerText || selectedSize?.textContent || "").trim();
+      return {
+        visible: Boolean(summary && selectedSize),
+        summaryText,
+        selectedText,
+      };
+    })()`,
+    12_000,
+    (state) =>
+      state?.visible &&
+      /\b(None|Tiny|Tiniest)\s+export:/i.test(state.summaryText) &&
+      /\b(B|KB|MB|GB)\b/.test(`${state.summaryText} ${state.selectedText}`),
+  ).then((state) => {
+    assert(
+      state.summaryText.length <= 180,
+      `Export compression size summary is too long: ${state.summaryText}`,
+    );
+    return state;
+  });
 }
 
 async function copyLatestOutput(client) {

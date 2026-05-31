@@ -45,6 +45,7 @@ export function useSvgExportCompression(
     Map<string, SvgExportCompressionLevel>
   >(() => new Map());
   const cacheRef = React.useRef(new Map<string, CachedExportResult>());
+  const sourceCacheRef = React.useRef(new Map<string, CachedExportResult>());
   const activeKeySignature = activeKeys
     .map((key) => normalizeExportCompressionKey(key))
     .join("\u0001");
@@ -102,10 +103,18 @@ export function useSvgExportCompression(
     (key: string | number, svg: string): SvgCompressionResult => {
       const sourceSvg = String(svg || "");
       const level = getLevel(key);
+      const normalizedKey = normalizeExportCompressionKey(key);
+      const itemCacheKey = `${normalizedKey}\u0001${level}`;
+      const cached = cacheRef.current.get(itemCacheKey);
+      if (cached && cached.sourceSvg === sourceSvg) {
+        return cached;
+      }
+
       if (level === "none") {
         const bytes = getSvgByteSize(sourceSvg);
-        return {
+        const result: CachedExportResult = {
           svg: sourceSvg,
+          sourceSvg,
           level,
           originalBytes: bytes,
           outputBytes: bytes,
@@ -114,22 +123,26 @@ export function useSvgExportCompression(
           appliedTransforms: [],
           warnings: [],
         };
+        cacheRef.current.set(itemCacheKey, result);
+        pruneOldestCacheEntries(cacheRef.current);
+        return result;
       }
 
-      const normalizedKey = normalizeExportCompressionKey(key);
-      const cacheKey = `${normalizedKey}\u0001${level}`;
-      const cached = cacheRef.current.get(cacheKey);
-      if (cached && cached.sourceSvg === sourceSvg) {
-        return cached;
+      const sourceCacheKey = `${getSvgSourceSignature(sourceSvg)}\u0001${level}`;
+      const sourceCached = sourceCacheRef.current.get(sourceCacheKey);
+      if (sourceCached && sourceCached.sourceSvg === sourceSvg) {
+        cacheRef.current.set(itemCacheKey, sourceCached);
+        pruneOldestCacheEntries(cacheRef.current);
+        return sourceCached;
       }
 
       const result = compressSvg(sourceSvg, { level });
-      cacheRef.current.set(cacheKey, { ...result, sourceSvg });
-      if (cacheRef.current.size > MAX_EXPORT_COMPRESSION_CACHE_ENTRIES) {
-        const firstKey = cacheRef.current.keys().next().value;
-        if (firstKey) cacheRef.current.delete(firstKey);
-      }
-      return result;
+      const cachedResult: CachedExportResult = { ...result, sourceSvg };
+      cacheRef.current.set(itemCacheKey, cachedResult);
+      sourceCacheRef.current.set(sourceCacheKey, cachedResult);
+      pruneOldestCacheEntries(cacheRef.current);
+      pruneOldestCacheEntries(sourceCacheRef.current);
+      return cachedResult;
     },
     [getLevel],
   );
@@ -151,13 +164,20 @@ export function ExportCompressionControls({
   id,
   level,
   onLevelChange,
+  result = null,
   disabled = false,
 }: {
   id: string;
   level: SvgExportCompressionLevel;
   onLevelChange: (level: SvgExportCompressionLevel) => void;
+  result?: SvgCompressionResult | null;
   disabled?: boolean;
 }) {
+  const selectedLabel =
+    EXPORT_COMPRESSION_LEVEL_OPTIONS.find((option) => option.id === level)
+      ?.label ?? "Selected";
+  const sizeSummary = result ? getExportCompressionSizeSummary(result) : null;
+
   return (
     <div
       data-export-compression-control="true"
@@ -204,10 +224,36 @@ export function ExportCompressionControls({
               <span className="mt-0.5 block text-[11px] leading-4 text-slate-600">
                 {option.description}
               </span>
+              {selected && sizeSummary ? (
+                <span
+                  data-export-compression-selected-size={option.id}
+                  className="mt-1.5 block rounded-md bg-white/80 px-2 py-1 text-[11px] font-semibold leading-4 text-slate-700"
+                >
+                  {sizeSummary.outputSize}
+                  {sizeSummary.savedSummary ? (
+                    <span className="block font-medium text-emerald-700">
+                      {sizeSummary.savedSummary}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
             </button>
           );
         })}
       </div>
+      {sizeSummary ? (
+        <p
+          data-export-compression-size-summary="true"
+          className="m-0 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-[12px] leading-5 text-emerald-950"
+        >
+          <span className="font-bold">{selectedLabel} export:</span>{" "}
+          {sizeSummary.outputSize}
+          {sizeSummary.savedSummary ? ` (${sizeSummary.savedSummary})` : ""}
+          <span className="block text-emerald-800">
+            Original editable SVG: {sizeSummary.originalSize}.
+          </span>
+        </p>
+      ) : null}
       {level === "tiniest" ? (
         <p
           data-export-compression-warning="tiniest"
@@ -225,11 +271,13 @@ export function ExportCompressionSettingsSection({
   id,
   level,
   onLevelChange,
+  result = null,
   disabled = false,
 }: {
   id: string;
   level: SvgExportCompressionLevel;
   onLevelChange: (level: SvgExportCompressionLevel) => void;
+  result?: SvgCompressionResult | null;
   disabled?: boolean;
 }) {
   return (
@@ -242,6 +290,7 @@ export function ExportCompressionSettingsSection({
         id={id}
         level={level}
         onLevelChange={onLevelChange}
+        result={result}
         disabled={disabled}
       />
     </section>
@@ -250,4 +299,59 @@ export function ExportCompressionSettingsSection({
 
 function normalizeExportCompressionKey(key: string | number): string {
   return String(key);
+}
+
+function pruneOldestCacheEntries(
+  cache: Map<string, CachedExportResult>,
+): void {
+  while (cache.size > MAX_EXPORT_COMPRESSION_CACHE_ENTRIES) {
+    const firstKey = cache.keys().next().value;
+    if (!firstKey) return;
+    cache.delete(firstKey);
+  }
+}
+
+function getSvgSourceSignature(sourceSvg: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < sourceSvg.length; index += 1) {
+    hash ^= sourceSvg.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${sourceSvg.length}:${hash >>> 0}`;
+}
+
+function getExportCompressionSizeSummary(result: SvgCompressionResult): {
+  originalSize: string;
+  outputSize: string;
+  savedSummary: string;
+} {
+  return {
+    originalSize: formatExportBytes(result.originalBytes),
+    outputSize: formatExportBytes(result.outputBytes),
+    savedSummary:
+      result.savedBytes > 0
+        ? `${formatExportBytes(result.savedBytes)} saved, ${formatExportPercent(
+            result.savedPercent,
+          )} smaller`
+        : "",
+  };
+}
+
+function formatExportBytes(bytes: number): string {
+  const value = Number.isFinite(bytes) ? Math.max(0, bytes) : 0;
+  if (value < 1024) return `${value} B`;
+  const units = ["KB", "MB", "GB"];
+  let scaled = value / 1024;
+  let unitIndex = 0;
+  while (scaled >= 1024 && unitIndex < units.length - 1) {
+    scaled /= 1024;
+    unitIndex += 1;
+  }
+  const digits = scaled >= 10 || unitIndex === 0 ? 0 : 1;
+  return `${scaled.toFixed(digits)} ${units[unitIndex]}`;
+}
+
+function formatExportPercent(percent: number): string {
+  const value = Number.isFinite(percent) ? Math.max(0, percent) : 0;
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}%`;
 }

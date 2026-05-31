@@ -91,6 +91,9 @@ const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/jpg", "image/web
 
 const LIVE_FAST_MAX = 10 * 1024 * 1024;
 const LIVE_MED_MAX = 25 * 1024 * 1024;
+const LIVE_FAST_MS = 450;
+const LIVE_MED_MS = 1600;
+const UPLOAD_AUTO_SUBMIT_GRACE_MS = 1000;
 
 const MIN_LAYER_COUNT = 2;
 const MAX_LAYER_COUNT = 10;
@@ -1509,6 +1512,8 @@ export default function JpgToLayeredSvgForCricut({
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
     React.useState<string>("layered-color");
+  const settingsRef = React.useRef(settings);
+  const activePresetRef = React.useRef(activePreset);
 
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1548,7 +1553,12 @@ export default function JpgToLayeredSvgForCricut({
   );
 
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const uploadAutoSubmitRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const retryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submitSequenceRef = React.useRef(0);
+  const pendingUploadFileRef = React.useRef<File | null>(null);
   const lastSubmitRef = React.useRef<{
     file: File;
     settings: Settings;
@@ -1557,7 +1567,37 @@ export default function JpgToLayeredSvgForCricut({
 
   const busy = fetcher.state !== "idle";
 
+  function clearUploadAutoSubmit() {
+    if (!uploadAutoSubmitRef.current) return;
+    clearTimeout(uploadAutoSubmitRef.current);
+    uploadAutoSubmitRef.current = null;
+  }
+
+  function scheduleUploadAutoSubmit(targetFile: File, sequenceAtUpload: number) {
+    clearUploadAutoSubmit();
+    const mode = getAutoMode(targetFile.size);
+    if (mode === "off") return;
+    // Give immediate preset clicks a chance to replace the default upload submit.
+    const delay =
+      mode === "fast"
+        ? Math.max(LIVE_FAST_MS, UPLOAD_AUTO_SUBMIT_GRACE_MS)
+        : LIVE_MED_MS;
+    uploadAutoSubmitRef.current = setTimeout(() => {
+      uploadAutoSubmitRef.current = null;
+      if (submitSequenceRef.current !== sequenceAtUpload) return;
+      submitConvert(targetFile, settingsRef.current, null, activePresetRef.current);
+    }, delay);
+  }
+
   React.useEffect(() => setHydrated(true), []);
+
+  React.useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  React.useEffect(() => {
+    activePresetRef.current = activePreset;
+  }, [activePreset]);
 
   React.useEffect(() => {
     historyRef.current = history;
@@ -1737,6 +1777,7 @@ export default function JpgToLayeredSvgForCricut({
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearUploadAutoSubmit();
       if (retryRef.current) clearTimeout(retryRef.current);
     };
   }, [previewUrl]);
@@ -1776,7 +1817,10 @@ export default function JpgToLayeredSvgForCricut({
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearUploadAutoSubmit();
+    pendingUploadFileRef.current = null;
     if (retryRef.current) clearTimeout(retryRef.current);
+    const submitSequenceAtUpload = submitSequenceRef.current;
 
     setFile(null);
 
@@ -1804,6 +1848,7 @@ export default function JpgToLayeredSvgForCricut({
       return;
     }
 
+    pendingUploadFileRef.current = chosen;
     setFile(chosen);
     setAutoMode(getAutoMode(chosen.size));
 
@@ -1812,7 +1857,10 @@ export default function JpgToLayeredSvgForCricut({
 
     await measureAndSet(chosen);
 
-    submitConvert(chosen, settings);
+    if (submitSequenceRef.current !== submitSequenceAtUpload) {
+      return;
+    }
+    scheduleUploadAutoSubmit(chosen, submitSequenceAtUpload);
   }
 
   async function submitConvert(
@@ -1828,6 +1876,8 @@ export default function JpgToLayeredSvgForCricut({
       setErr("Choose a JPG image first.");
       return;
     }
+    clearUploadAutoSubmit();
+    submitSequenceRef.current += 1;
 
     try {
       await validateBeforeSubmit(sourceFile);
@@ -1970,13 +2020,17 @@ export default function JpgToLayeredSvgForCricut({
     };
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearUploadAutoSubmit();
     if (retryRef.current) clearTimeout(retryRef.current);
 
+    activePresetRef.current = preset.id;
+    settingsRef.current = nextSettings;
     setActivePreset(preset.id);
     setSettings(nextSettings);
 
-    if (file) {
-      submitConvert(file, nextSettings, null, preset.id);
+    const sourceFile = file ?? pendingUploadFileRef.current;
+    if (sourceFile) {
+      submitConvert(sourceFile, nextSettings, null, preset.id);
     }
   }
 
@@ -2123,6 +2177,8 @@ export default function JpgToLayeredSvgForCricut({
                         if (debounceRef.current) {
                           clearTimeout(debounceRef.current);
                         }
+                        clearUploadAutoSubmit();
+                        pendingUploadFileRef.current = null;
                         if (retryRef.current) clearTimeout(retryRef.current);
                         setFile(null);
                         setPreviewUrl(null);
