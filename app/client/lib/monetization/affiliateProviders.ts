@@ -23,8 +23,8 @@ export const AFFILIATE_PROVIDERS: AffiliateProvider[] = [
   {
     id: "stickerMule",
     label: "Sticker Mule",
-    enabled: true,
-    status: "active",
+    enabled: false,
+    status: "disabled",
   },
   {
     id: "cricut",
@@ -34,10 +34,7 @@ export const AFFILIATE_PROVIDERS: AffiliateProvider[] = [
   },
 ];
 
-export const ACTIVE_AFFILIATE_PROVIDER_IDS: AffiliateProviderId[] = [
-  "printify",
-  "stickerMule",
-];
+export const ACTIVE_AFFILIATE_PROVIDER_IDS: AffiliateProviderId[] = ["printify"];
 
 const activeProviderIdSet = new Set<string>(ACTIVE_AFFILIATE_PROVIDER_IDS);
 

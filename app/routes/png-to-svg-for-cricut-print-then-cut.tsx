@@ -24,6 +24,7 @@ import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversio
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import { PRINTIFY_URL } from "~/client/lib/monetization/affiliateOffers";
 import {
   FullscreenOutputPreview,
 } from "~/client/components/converter/FullscreenOutputPreview";
@@ -1836,22 +1837,22 @@ function AffiliateCta() {
             Print then cut next step
           </p>
           <h2 className="mt-1 text-xl md:text-2xl font-extrabold text-sky-950">
-            Turning this design into printed stickers or labels?
+            Turning this design into product mockups or samples?
           </h2>
           <p className="mt-2 text-sm text-slate-700 max-w-[78ch]">
-            After creating your Print Then Cut file, check that the artwork
-            stays clear at the final print size and that the cut preview leaves
-            enough breathing room before ordering stickers, labels, or decals.
+            After creating your Print Then Cut file, use Printify to place the
+            artwork on products, build listing images, and order a sample when
+            the design is ready.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <a
-              href="https://www.stickermule.com/unlock?ref_id=3327990701&utm_source=invite"
+              href={PRINTIFY_URL}
               target="_blank"
               rel="nofollow sponsored noopener noreferrer"
               className="inline-flex items-center justify-center rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white border border-sky-600 cursor-pointer transition-colors hover:bg-sky-600"
             >
-              Get $10 Sticker Mule credit
+              Create Printify mockups
             </a>
             <span className="text-xs text-slate-500">
               Affiliate link. iLoveSVG may earn a commission at no extra cost to

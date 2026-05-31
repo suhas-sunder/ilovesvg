@@ -4,7 +4,6 @@ import { AdSenseDelayed } from "./AdsenseDelayed";
 import {
   AFFILIATE_OFFERS,
   PRINTIFY_URL,
-  STICKER_MULE_URL,
   type AffiliateOffer,
 } from "~/client/lib/monetization/affiliateOffers";
 import type { AffiliateProviderId } from "~/client/lib/monetization/affiliateProviders";
@@ -19,11 +18,6 @@ const CONTEXTUAL_AFFILIATE_SLOT_ID = "converter-below-tool";
 const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "8102088582";
 const CONTEXTUAL_AFFILIATE_RESERVE_CLASS = "min-h-[39rem]";
 const CONTEXTUAL_ADSENSE_RESERVE_CLASS = "min-h-[11rem]";
-
-type ActiveAffiliateProviderId = Extract<
-  AffiliateProviderId,
-  "printify" | "stickerMule"
->;
 
 type AffiliatePlacement = {
   provider: AffiliateProviderId;
@@ -75,16 +69,6 @@ const PRINTIFY_IMAGE = {
   height: 724,
   wrapperClass:
     "block border-t border-emerald-100 bg-emerald-50/80 transition-opacity hover:opacity-95",
-  className: "h-auto w-full object-cover",
-};
-
-const STICKER_MULE_IMAGE = {
-  src: "https://cdn.stickermule.com/content/core/assets/banners/stickermule-invite-friends-large.png",
-  alt: "Sticker Mule custom sticker printing offer",
-  width: 728,
-  height: 90,
-  wrapperClass:
-    "block border-t border-orange-100 bg-orange-500 transition-opacity hover:opacity-95",
   className: "h-auto w-full object-cover",
 };
 
@@ -535,103 +519,17 @@ const PRINTIFY_ROUTE_MESSAGES: Record<string, AffiliateMessage> = {
   },
 };
 
-function basePlacement(provider: ActiveAffiliateProviderId): AffiliatePlacementBase {
-  if (provider === "printify") {
-    return {
-      href: PRINTIFY_URL,
-      borderClass: "border-emerald-200",
-      eyebrowClass: "text-emerald-700",
-      headingClass: "text-sky-950",
-      buttonClass: "bg-emerald-600 hover:bg-emerald-700",
-      surfaceClass: "bg-gradient-to-br from-emerald-50 via-white to-sky-50",
-      maxWidthClass: "max-w-[1120px]",
-      benefits: PRINTIFY_BENEFITS,
-      image: PRINTIFY_IMAGE,
-    };
-  }
-
-  if (provider === "stickerMule") {
-    return {
-      href: STICKER_MULE_URL,
-      borderClass: "border-orange-200",
-      eyebrowClass: "text-orange-700",
-      headingClass: "text-sky-950",
-      buttonClass: "bg-orange-600 hover:bg-orange-700",
-      surfaceClass: "bg-white",
-      maxWidthClass: "max-w-[760px]",
-      image: STICKER_MULE_IMAGE,
-    };
-  }
-
+function basePlacement(): AffiliatePlacementBase {
   return {
-    href: STICKER_MULE_URL,
-    borderClass: "border-orange-200",
-    eyebrowClass: "text-orange-700",
+    href: PRINTIFY_URL,
+    borderClass: "border-emerald-200",
+    eyebrowClass: "text-emerald-700",
     headingClass: "text-sky-950",
-    buttonClass: "bg-orange-600 hover:bg-orange-700",
-    surfaceClass: "bg-white",
-    maxWidthClass: "max-w-[760px]",
-    image: STICKER_MULE_IMAGE,
-  };
-}
-
-function stickerMulePlacement(pathname: string): AffiliatePlacement {
-  const base = basePlacement("stickerMule");
-
-  if (
-    pathname.includes("cricut-stickers") ||
-    pathname.includes("for-stickers")
-  ) {
-    return {
-      provider: "stickerMule",
-      eyebrow: "Sticker printing next step",
-      heading: "Ready to print your sticker design?",
-      body: "Check final size, edge spacing, and transparent areas before ordering stickers, decals, or labels.",
-      cta: "Check Sticker Mule offer",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("print-then-cut")) {
-    return {
-      provider: "stickerMule",
-      eyebrow: "Print then cut next step",
-      heading: "Turning this design into printed stickers or labels?",
-      body: "Make sure the artwork stays clear at print size and that the cut border has enough breathing room.",
-      cta: "Check Sticker Mule offer",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("logo")) {
-    return {
-      provider: "stickerMule",
-      eyebrow: "Logo printing next step",
-      heading: "Turn your logo into stickers or labels",
-      body: "Check that the edges stay clean and the logo remains readable at small sizes.",
-      cta: "Check Sticker Mule offer",
-      ...base,
-    };
-  }
-
-  if (pathname.includes("sticker")) {
-    return {
-      provider: "stickerMule",
-      eyebrow: "Sticker artwork next step",
-      heading: "Preparing sticker artwork for printing?",
-      body: "Review the cut edge, transparent areas, and final size before printing.",
-      cta: "Check Sticker Mule offer",
-      ...base,
-    };
-  }
-
-  return {
-    provider: "stickerMule",
-    eyebrow: "Design printing next step",
-    heading: "Turning this design into stickers or labels?",
-    body: "Inspect the edges, final size, and background before using it for physical prints.",
-    cta: "Check Sticker Mule offer",
-    ...base,
+    buttonClass: "bg-emerald-600 hover:bg-emerald-700",
+    surfaceClass: "bg-gradient-to-br from-emerald-50 via-white to-sky-50",
+    maxWidthClass: "max-w-[1120px]",
+    benefits: PRINTIFY_BENEFITS,
+    image: PRINTIFY_IMAGE,
   };
 }
 
@@ -674,7 +572,7 @@ function polishPrintifyPlacement(
 }
 
 function printifyPlacement(pathname: string): AffiliatePlacement {
-  const base = basePlacement("printify");
+  const base = basePlacement();
 
   if (pathname.includes("print-on-demand")) {
     return {
@@ -803,7 +701,7 @@ function explicitPrintifyPlacement(
 
   return polishPrintifyPlacement(pathname, {
     provider: "printify",
-    ...basePlacement("printify"),
+    ...basePlacement(),
     ...message,
   });
 }
@@ -818,8 +716,6 @@ function getAffiliatePlacement(
     placement =
       explicitPrintifyPlacement(pathname) ??
       polishPrintifyPlacement(pathname, printifyPlacement(pathname));
-  } else if (offer.providerId === "stickerMule") {
-    placement = stickerMulePlacement(pathname);
   }
 
   if (!placement) return null;
@@ -1053,10 +949,16 @@ export function ContextualAffiliateCard() {
     return null;
   }
 
-  if (!selectedOffer || !placement || !monetizationPolicy.affiliate) {
+  if (!selectedOffer || !monetizationPolicy.affiliate) {
     return shouldShowAdsense &&
       monetizationPolicy.ads &&
       !shouldSuppressAdsenseFallback ? (
+      <ContextualAdsenseFallback reserveMode="compact" />
+    ) : null;
+  }
+
+  if (!placement) {
+    return monetizationPolicy.ads && !shouldSuppressAdsenseFallback ? (
       <ContextualAdsenseFallback reserveMode="compact" />
     ) : null;
   }
