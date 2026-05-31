@@ -130,14 +130,15 @@ for (const route of unsupportedRoutes) {
 }
 
 assertOfferEnabled(files.affiliateOffers, "printify-product-mockups", true);
-assertOfferEnabled(files.affiliateOffers, "sticker-mule-custom-stickers", true);
+assertNotIncludes(files.affiliateOffers, "sticker-mule-custom-stickers", "Sticker Mule affiliate offer");
 assertNotIncludes(files.affiliateOffers, removedOfferId, "removed affiliate offer");
 assertNotIncludes(files.affiliateOffers, "cricut-project-workflow", "Cricut affiliate offer");
 assertNotIncludes(files.affiliateOffers, "NAME" + "CHEAP", "removed affiliate constant");
 assertNotIncludes(files.affiliateProviders, removedProviderId, "removed provider metadata");
 assertIncludes(files.affiliateProviders, "ACTIVE_AFFILIATE_PROVIDER_IDS", "active affiliate provider allowlist");
 assertIncludes(files.affiliateProviders, '"printify"', "Printify provider");
-assertIncludes(files.affiliateProviders, '"stickerMule"', "Sticker Mule provider");
+assertIncludes(files.affiliateProviders, 'id: "stickerMule"', "disabled Sticker Mule provider metadata");
+assertIncludes(files.affiliateProviders, 'status: "disabled"', "disabled non-Printify provider status");
 
 assertNoDuplicateJsonLd("FAQPage", files.utilities, "OtherToolsLinks FAQ schema");
 assertNoDuplicateRouteUtility(indexableRoutes, files.utilities);

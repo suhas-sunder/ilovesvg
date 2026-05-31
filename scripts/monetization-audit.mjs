@@ -291,8 +291,8 @@ function runStorageParserTests() {
 
   const clickStore = new MemoryStorage();
   const clicked = storage.markAffiliateClicked(clickStore, {
-    providerId: "stickerMule",
-    offerId: "sticker-mule-custom-stickers",
+    providerId: "printify",
+    offerId: "printify-product-mockups",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-cricut-stickers",
     now: 300,
@@ -302,6 +302,35 @@ function runStorageParserTests() {
   });
   assert.equal(clicked?.clicked, true, "click stores clicked flag");
   assert.equal(clicked?.timedOut, true, "click immediately times out offer");
+
+  const expiredClickStore = new MemoryStorage();
+  writeState(
+    expiredClickStore,
+    stateFor([
+      entry({
+        providerId: "printify",
+        offerId: "printify-product-mockups",
+        clicked: true,
+        timedOut: true,
+        lastClickedAt: Date.now() - storage.AFFILIATE_CLICK_SUPPRESSION_MS - 1000,
+      }),
+    ]),
+  );
+  const expiredEntry = storage.readAffiliateWaterfallState(expiredClickStore, {
+    validOfferIds: offers.getActiveAffiliateOfferIds(),
+    validOffers: activeOfferRefs(),
+    validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
+  }).entries[0];
+  assert.equal(
+    expiredEntry?.clicked,
+    false,
+    "clicked affiliate suppression expires after 30 days",
+  );
+  assert.equal(
+    expiredEntry?.timedOut,
+    false,
+    "expired clicked state no longer suppresses the affiliate",
+  );
 
   const inactiveView = storage.incrementAffiliateView(new MemoryStorage(), {
     providerId: "cricut",
@@ -335,8 +364,8 @@ function runWaterfallSelectionTests() {
   });
   assert.deepEqual(
     relevant.map((offer) => offer.id),
-    ["sticker-mule-custom-stickers", "printify-product-mockups"],
-    "sticker and print routes prioritize Sticker Mule before Printify",
+    ["printify-product-mockups"],
+    "sticker and print routes use Printify as the only affiliate",
   );
 
   assert.equal(
@@ -409,14 +438,14 @@ function runWaterfallSelectionTests() {
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).selectedOffer?.id,
-    "sticker-mule-custom-stickers",
+    "printify-product-mockups",
     "one relevant affiliate shows before AdSense",
   );
 
   const timedOutFirst = stateFor([
       entry({
-      providerId: "stickerMule",
-      offerId: "sticker-mule-custom-stickers",
+      providerId: "printify",
+      offerId: "printify-product-mockups",
       routeContext: "/png-to-svg-for-cricut-stickers",
       viewCount: 5,
       timedOut: true,
@@ -428,19 +457,12 @@ function runWaterfallSelectionTests() {
       state: timedOutFirst,
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-cricut-stickers",
-    }).selectedOffer?.id,
-    "printify-product-mockups",
-    "timed-out offer 1 advances to offer 2",
+    }).shouldShowAdsense,
+    true,
+    "timed-out Printify offer falls back to AdSense",
   );
 
   const timedOutBoth = stateFor([
-      entry({
-      providerId: "stickerMule",
-      offerId: "sticker-mule-custom-stickers",
-      routeContext: "/png-to-svg-for-cricut-stickers",
-      viewCount: 5,
-      timedOut: true,
-    }),
       entry({
       providerId: "printify",
       offerId: "printify-product-mockups",
@@ -457,15 +479,15 @@ function runWaterfallSelectionTests() {
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).shouldShowAdsense,
     true,
-    "timed-out first two offers fall back to AdSense",
+    "clicked Printify offer falls back to AdSense",
   );
 }
 
 function runProviderCleanupTests() {
   assert.deepEqual(
     providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
-    ["printify", "stickerMule"],
-    "active provider allowlist contains Printify and Sticker Mule only",
+    ["printify"],
+    "active provider allowlist contains Printify only",
   );
 
   assert.equal(
@@ -476,8 +498,8 @@ function runProviderCleanupTests() {
 
   assert.equal(
     providers.isAffiliateProviderActive("stickerMule"),
-    true,
-    "Sticker Mule is active",
+    false,
+    "Sticker Mule is not active",
   );
 
   assert.equal(
@@ -500,8 +522,8 @@ function runProviderCleanupTests() {
 
   assert.deepEqual(
     offers.getActiveAffiliateOfferIds(),
-    ["printify-product-mockups", "sticker-mule-custom-stickers"],
-    "active offer IDs are Printify and Sticker Mule only",
+    ["printify-product-mockups"],
+    "active offer IDs are Printify only",
   );
 
   assert.equal(
@@ -539,8 +561,8 @@ function runRouteRelevanceTests() {
         ),
       })
       .map((offer) => offer.id),
-    ["sticker-mule-custom-stickers", "printify-product-mockups"],
-    "sticker printing routes prioritize Sticker Mule before Printify",
+    ["printify-product-mockups"],
+    "sticker printing routes use Printify as the only affiliate",
   );
 
   assert.equal(
@@ -750,8 +772,8 @@ function runActiveAffiliateTests() {
 
   assert.deepEqual(
     activeOfferIds,
-    ["printify-product-mockups", "sticker-mule-custom-stickers"],
-    "only Printify and Sticker Mule are active affiliate offers",
+    ["printify-product-mockups"],
+    "only Printify is an active affiliate offer",
   );
 
   assert.equal(

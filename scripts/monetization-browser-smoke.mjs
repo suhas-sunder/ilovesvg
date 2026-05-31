@@ -16,9 +16,18 @@ const suppressionStorageKey = "ilovesvg:affiliate-suppression:v1";
 const stickerRoute = "/png-to-svg-for-cricut-stickers";
 const routeAfterSuppression = "/png-to-svg-converter";
 const legacyCompactFallbackSlot = "7336722354";
-const legalTrustRoutes = ["/privacy-policy", "/terms-of-service", "/cookies"];
+const printifyRouteCoverageRoutes = [
+  "/",
+  "/png-to-svg-converter",
+  "/png-to-svg-for-cricut",
+  "/png-to-svg-for-silhouette",
+  "/sticker-to-svg-converter",
+  "/logo-to-svg-converter",
+];
+const legalTrustRoutes = ["/privacy-policy", "/terms-of-service", "/cookies", "/sitemap"];
 const docsHelpRoutes = ["/how-it-works", "/how-it-works/troubleshooting"];
 const compactPolicyRoutes = [
+  "/svg-minifier",
   "/svg-cleaner",
   "/svg-resize-and-scale-editor",
   "/svg-to-base64",
@@ -62,6 +71,7 @@ async function main() {
     compactPolicy: [],
     mobile: [],
     desktop: [],
+    printifyRouteCoverage: [],
     tracking: {},
     consoleMessages: [],
   };
@@ -126,6 +136,16 @@ async function main() {
       }
     }
 
+    for (const route of printifyRouteCoverageRoutes) {
+      const client = await openPage(route, 1280, 900);
+      try {
+        const result = await checkPrintifyAffiliateRoute(client, route);
+        results.printifyRouteCoverage.push(result);
+      } finally {
+        await client.close().catch(() => {});
+      }
+    }
+
     const trackingClient = await openPage(stickerRoute, 1280, 900);
     try {
       results.tracking = await checkTrackingAndFallback(trackingClient);
@@ -159,6 +179,7 @@ async function main() {
     ...results.compactPolicy.filter((result) => !result.ok),
     ...results.mobile.filter((result) => !result.ok),
     ...results.desktop.filter((result) => !result.ok),
+    ...results.printifyRouteCoverage.filter((result) => !result.ok),
   ];
   if (results.tracking?.ok === false) failures.push(results.tracking);
   if (results.crossRouteSuppression?.ok === false) {
@@ -402,7 +423,7 @@ async function checkMobileAffiliate(client, width) {
     };
   })()`);
 
-  await markStickerOffersTimedOut(client);
+  await markPrintifyOfferTimedOut(client);
   await reload(client);
   await delay(1300);
 
@@ -472,10 +493,86 @@ async function checkDesktopAffiliate(client, width) {
     ok:
       state.affiliateCount === 1 &&
       state.adsenseCount === 0 &&
-      state.offerId === "sticker-mule-custom-stickers" &&
+      state.offerId === "printify-product-mockups" &&
       state.visible &&
       state.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
+  };
+}
+
+async function checkPrintifyAffiliateRoute(client, route) {
+  await clearAffiliateStorage(client);
+  await reload(client);
+
+  const eligible = await waitForValue(
+    client,
+    () => `(() => {
+      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+      const affiliateLinks = Array.from(document.querySelectorAll('[data-monetization-kind="affiliate"] a[href]'))
+        .map((link) => link.getAttribute('href') || "");
+      const bodyText = document.body?.innerText || "";
+      const rect = affiliate?.getBoundingClientRect?.();
+      return {
+        route: window.location.pathname,
+        affiliateCount: affiliate ? 1 : 0,
+        adsenseCount: adsense ? 1 : 0,
+        offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
+        visible: Boolean(rect && rect.width > 0 && rect.height > 0),
+        hasStickerMuleText: /Sticker Mule/i.test(bodyText),
+        hasStickerMuleHref: affiliateLinks.some((href) => /stickermule\\.com/i.test(href)),
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+      };
+    })()`,
+    8000,
+    (state) => state?.affiliateCount === 1 || state?.adsenseCount === 1,
+  );
+
+  await markPrintifyOfferTimedOut(client, route);
+  await reload(client);
+
+  const fallback = await waitForValue(
+    client,
+    () => `(() => {
+      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const fallback = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+      const rect = fallback?.getBoundingClientRect?.();
+      const fallbackSlot = fallback?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
+      return {
+        affiliateCount: affiliate ? 1 : 0,
+        adsenseCount: fallback ? 1 : 0,
+        reserve: fallback?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
+        height: rect?.height || 0,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+      };
+    })()`,
+    8000,
+    (state) => state?.adsenseCount === 1,
+  );
+
+  await clearAffiliateStorage(client);
+
+  return {
+    scenario: "printify-route-coverage",
+    route,
+    eligible,
+    fallback,
+    ok:
+      eligible.route === route &&
+      eligible.affiliateCount === 1 &&
+      eligible.adsenseCount === 0 &&
+      eligible.offerId === "printify-product-mockups" &&
+      eligible.visible &&
+      !eligible.hasStickerMuleText &&
+      !eligible.hasStickerMuleHref &&
+      !eligible.overflow &&
+      fallback.affiliateCount === 0 &&
+      fallback.adsenseCount === 1 &&
+      fallback.reserve === "compact" &&
+      fallback.fallbackSlot !== legacyCompactFallbackSlot &&
+      fallback.height <= 260 &&
+      !fallback.overflow,
   };
 }
 
@@ -485,7 +582,7 @@ async function checkTrackingAndFallback(client) {
 
   await waitForValue(
     client,
-    () => `(() => Boolean(document.querySelector('[data-affiliate-offer-id="sticker-mule-custom-stickers"]')))()`,
+    () => `(() => Boolean(document.querySelector('[data-affiliate-offer-id="printify-product-mockups"]')))()`,
     8000,
   );
   await evaluate(client, `(() => {
@@ -493,16 +590,16 @@ async function checkTrackingAndFallback(client) {
     return true;
   })()`);
 
-  const afterView = await waitForWaterfallEntry(client, "sticker-mule-custom-stickers", (entry) => entry?.viewCount === 1);
+  const afterView = await waitForWaterfallEntry(client, "printify-product-mockups", (entry) => entry?.viewCount === 1);
 
   await evaluate(client, `(() => {
-    const link = document.querySelector('[data-affiliate-offer-id="sticker-mule-custom-stickers"] a[href]');
+    const link = document.querySelector('[data-affiliate-offer-id="printify-product-mockups"] a[href]');
     if (!link) return false;
     link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
     return true;
   })()`);
 
-  const afterClick = await waitForWaterfallEntry(client, "sticker-mule-custom-stickers", (entry) => entry?.clicked === true && entry?.timedOut === true);
+  const afterClick = await waitForWaterfallEntry(client, "printify-product-mockups", (entry) => entry?.clicked === true && entry?.timedOut === true);
 
   await reload(client);
   const fallback = await waitForValue(
@@ -550,7 +647,7 @@ async function checkTrackingAndFallback(client) {
 
 async function checkCrossRouteSuppressionAndFallbackLayout(client) {
   await clearAffiliateStorage(client);
-  await markStickerOffersTimedOut(client);
+  await markPrintifyOfferTimedOut(client);
   await reload(client);
 
   const fallback = await waitForValue(
@@ -622,7 +719,7 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
   };
 }
 
-async function markStickerOffersTimedOut(client) {
+async function markPrintifyOfferTimedOut(client, routeContext = stickerRoute) {
   await evaluate(client, `(() => {
     const state = {
       version: 1,
@@ -631,17 +728,7 @@ async function markStickerOffersTimedOut(client) {
           providerId: "printify",
           offerId: "printify-product-mockups",
           slotId: "converter-below-tool",
-          routeContext: ${JSON.stringify(stickerRoute)},
-          viewCount: 5,
-          clicked: false,
-          timedOut: true,
-          lastViewedAt: Date.now()
-        },
-        {
-          providerId: "stickerMule",
-          offerId: "sticker-mule-custom-stickers",
-          slotId: "converter-below-tool",
-          routeContext: ${JSON.stringify(stickerRoute)},
+          routeContext: ${JSON.stringify(routeContext)},
           viewCount: 5,
           clicked: false,
           timedOut: true,

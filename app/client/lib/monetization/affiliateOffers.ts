@@ -19,9 +19,6 @@ export type AffiliateOffer = {
 export const PRINTIFY_URL =
   "https://try.printify.com/ilovesvg?utm_source=ilovesvg&utm_medium=affiliate&utm_campaign=printify_pod";
 
-export const STICKER_MULE_URL =
-  "https://www.stickermule.com/ca/unlock?ref_id=1974725801&utm_medium=embed&utm_source=invite&utm_content=728x90";
-
 export const AFFILIATE_OFFERS: AffiliateOffer[] = [
   {
     id: "printify-product-mockups",
@@ -31,8 +28,11 @@ export const AFFILIATE_OFFERS: AffiliateOffer[] = [
     categories: [
       "stickers",
       "print-then-cut",
+      "cricut-cut",
+      "silhouette-vinyl",
       "print-on-demand",
       "ecommerce-selling",
+      "general-svg-conversion",
       "logo-icon",
       "line-art-sketch",
       "photo-color-conversion",
@@ -40,15 +40,6 @@ export const AFFILIATE_OFFERS: AffiliateOffer[] = [
     ],
     enabled: true,
     priority: 10,
-  },
-  {
-    id: "sticker-mule-custom-stickers",
-    providerId: "stickerMule",
-    label: "Sticker Mule custom stickers",
-    href: STICKER_MULE_URL,
-    categories: ["stickers", "print-then-cut", "silhouette-vinyl"],
-    enabled: true,
-    priority: 5,
   },
 ];
 

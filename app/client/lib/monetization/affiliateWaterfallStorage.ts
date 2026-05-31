@@ -6,6 +6,7 @@ export const AFFILIATE_SUPPRESSION_STORAGE_KEY =
 export const AFFILIATE_WATERFALL_SCHEMA_VERSION = 1;
 export const AFFILIATE_SUPPRESSION_SCHEMA_VERSION = 1;
 export const AFFILIATE_TIMEOUT_VIEW_COUNT = 5;
+export const AFFILIATE_CLICK_SUPPRESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type AffiliateStorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -114,9 +115,16 @@ function normalizeEntry(value: unknown): AffiliateWaterfallEntry | null {
       ? value.viewCount
       : 0;
   const viewCount = Math.max(0, Math.floor(rawViewCount));
-  const clicked = value.clicked === true;
+  const lastClickedAt = cleanTimestamp(value.lastClickedAt);
+  const clickExpired =
+    value.clicked === true &&
+    lastClickedAt !== undefined &&
+    Date.now() - lastClickedAt >= AFFILIATE_CLICK_SUPPRESSION_MS;
+  const clicked = value.clicked === true && !clickExpired;
   const timedOut =
-    value.timedOut === true || clicked || viewCount >= AFFILIATE_TIMEOUT_VIEW_COUNT;
+    (value.timedOut === true && !clickExpired) ||
+    clicked ||
+    viewCount >= AFFILIATE_TIMEOUT_VIEW_COUNT;
 
   return {
     providerId,
@@ -127,7 +135,7 @@ function normalizeEntry(value: unknown): AffiliateWaterfallEntry | null {
     clicked,
     timedOut,
     lastViewedAt: cleanTimestamp(value.lastViewedAt),
-    lastClickedAt: cleanTimestamp(value.lastClickedAt),
+    lastClickedAt,
   };
 }
 
