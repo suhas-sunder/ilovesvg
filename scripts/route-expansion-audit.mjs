@@ -86,6 +86,7 @@ const files = {
   routes: await read("app/routes.ts"),
   utilities: await read("app/client/components/navigation/OtherToolsLinks.tsx"),
   nav: await read("app/client/components/navigation/NavBar.tsx"),
+  searchableNav: await read("app/client/components/navigation/toolNavSections.ts"),
   htmlSitemap: await read("app/routes/sitemap.tsx"),
   xmlSitemap: await read("public/sitemap.xml"),
   capabilities: await read("app/client/lib/converter/routeCapabilities.ts"),
@@ -98,12 +99,15 @@ const failures = [];
 const removedProviderId = "name" + "cheap";
 const removedOfferId = `${removedProviderId}-domain-hosting`;
 
+assertIncludes(files.nav, "TOOL_NAV_SECTIONS", "NavBar uses searchable nav sections");
+assertIncludes(files.nav, "TOOL_NAV_ITEMS", "NavBar uses searchable nav items");
+
 for (const route of indexableRoutes) {
   const slug = route.slice(1);
   await assertFile(`app/routes/${slug}.tsx`, `${route} route file`);
   assertIncludes(files.routes, `route("${slug}"`, `${route} in routes.ts`);
   assertIncludes(files.utilities, `to: "${route}"`, `${route} in all-tools registry`);
-  assertIncludes(files.nav, `href: "${route}"`, `${route} in searchable nav`);
+  assertIncludes(files.searchableNav, `href: "${route}"`, `${route} in searchable nav`);
   assertIncludes(files.htmlSitemap, `path: "${route}"`, `${route} in HTML sitemap`);
   assertIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} in XML sitemap`);
   assertIncludes(files.capabilities, `"${slug}":`, `${route} in route capabilities`);
@@ -124,7 +128,7 @@ for (const route of unsupportedRoutes) {
   await assertNoFile(`app/routes/${slug}.tsx`, `${route} unsupported route file`);
   assertNotIncludes(files.routes, `route("${slug}"`, `${route} route registration`);
   assertNotIncludes(files.utilities, `to: "${route}"`, `${route} all-tools registry entry`);
-  assertNotIncludes(files.nav, `href: "${route}"`, `${route} searchable nav entry`);
+  assertNotIncludes(files.searchableNav, `href: "${route}"`, `${route} searchable nav entry`);
   assertNotIncludes(files.htmlSitemap, `path: "${route}"`, `${route} HTML sitemap entry`);
   assertNotIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} XML sitemap entry`);
 }

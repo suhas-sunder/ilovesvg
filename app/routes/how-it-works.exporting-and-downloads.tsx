@@ -11,7 +11,7 @@ import {
 import { SITE_URL } from "~/client/lib/docs/howItWorksContent";
 import { EXPORTING_DOWNLOADS_COPY } from "~/content/docs/howItWorksRouteContent";
 
-const title = "Exporting and Downloading SVG Results | iLoveSVG";
+const title = "Exporting and Downloads | iLoveSVG";
 const description =
   "Learn Copy SVG, Download SVG, output file size, dimensions, fullscreen preview, batch ZIP behavior, SVG naming, PNG/JPG/WebP/PDF export routes, transparency, and why detailed SVGs can be large.";
 const canonical = `${SITE_URL}/how-it-works/exporting-and-downloads`;

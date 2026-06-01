@@ -41,7 +41,7 @@ function assert(condition, message) {
 }
 
 async function main() {
-  await fs.rm(TMP_DIR, { recursive: true, force: true });
+  await removePathWithRetry(TMP_DIR);
   await fs.mkdir(DOWNLOADS_DIR, { recursive: true });
   await fs.mkdir(PROFILE_DIR, { recursive: true });
 
@@ -84,7 +84,7 @@ async function main() {
     }
   } finally {
     browser.kill();
-    await fs.rm(TMP_DIR, { recursive: true, force: true }).catch(() => {});
+    await removePathWithRetry(TMP_DIR).catch(() => {});
   }
 
   const metadataCases = results.filter((result) => result.none.hasLayerMetadata);
@@ -721,7 +721,7 @@ async function copyLatestOutput(client) {
 }
 
 async function downloadLatestOutput(client) {
-  await fs.rm(DOWNLOADS_DIR, { recursive: true, force: true });
+  await removePathWithRetry(DOWNLOADS_DIR);
   await fs.mkdir(DOWNLOADS_DIR, { recursive: true });
   await clickLatestOutputButton(client, [/Download.*SVG/i, /^Download$/i]);
   const file = await waitForDownloadedSvg(10_000);
@@ -1045,6 +1045,20 @@ async function findBrowserExecutable() {
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function removePathWithRetry(targetPath) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      await fs.rm(targetPath, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      await delay(100 + attempt * 150);
+    }
+  }
+  throw lastError;
 }
 
 await main();

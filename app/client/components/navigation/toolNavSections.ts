@@ -113,6 +113,9 @@ export const TOOL_NAV_SECTIONS: ToolNavSection[] = [
       { label: "AVIF to SVG", href: "/avif-to-svg-converter" },
       { label: "BMP to SVG", href: "/bmp-to-svg-converter" },
       { label: "TIFF to SVG", href: "/tiff-to-svg-converter", keywords: ["tif to svg"] },
+      { label: "Image to Layered SVG", href: "/image-to-layered-svg-converter" },
+      { label: "JPG to Layered SVG", href: "/jpg-to-layered-svg-converter" },
+      { label: "Logo to Layered SVG", href: "/logo-to-layered-svg-converter" },
     ],
   },
   {
