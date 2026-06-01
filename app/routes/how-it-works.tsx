@@ -12,7 +12,7 @@ import {
 import { DOCS_PAGES, SITE_URL } from "~/client/lib/docs/howItWorksContent";
 import { HOW_IT_WORKS_HUB_COPY } from "~/content/docs/howItWorksRouteContent";
 
-const title = "How the Image to SVG Converter Works | iLoveSVG";
+const title = "How It Works | iLoveSVG";
 const description =
   "Learn the iLoveSVG workflow for image-to-SVG conversion, presets, settings, filled paths, optional centerline strokes, queueing, output history, source previews, copy, download, and limits.";
 const canonical = `${SITE_URL}/how-it-works`;
