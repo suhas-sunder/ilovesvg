@@ -10,6 +10,7 @@ import type { AffiliateProviderId } from "~/client/lib/monetization/affiliatePro
 import {
   getAffiliateRouteCategories,
   normalizeAffiliatePathname,
+  type AffiliateCategory,
 } from "~/client/lib/monetization/affiliateRouteIntents";
 import { getRouteMonetizationPolicy } from "~/client/lib/monetization/monetizationPolicy";
 import { useAffiliateWaterfall } from "~/client/lib/monetization/useAffiliateWaterfall";
@@ -18,6 +19,8 @@ const CONTEXTUAL_AFFILIATE_SLOT_ID = "converter-below-tool";
 const CONTEXTUAL_ADSENSE_FALLBACK_SLOT = "8102088582";
 const CONTEXTUAL_AFFILIATE_RESERVE_CLASS = "min-h-[39rem]";
 const CONTEXTUAL_ADSENSE_RESERVE_CLASS = "min-h-[11rem]";
+const EMPTY_AFFILIATE_CATEGORIES: readonly AffiliateCategory[] = [];
+const EMPTY_AFFILIATE_OFFERS: readonly AffiliateOffer[] = [];
 
 type AffiliatePlacement = {
   provider: AffiliateProviderId;
@@ -899,7 +902,12 @@ export function ContextualAffiliateCard() {
   const rootData = useRouteLoaderData("root") as RootAffiliateLoaderData;
   const pathname = normalizeAffiliatePathname(location.pathname);
   const monetizationPolicy = getRouteMonetizationPolicy(pathname);
-  const routeCategories = getAffiliateRouteCategories(pathname);
+  const routeCategories = monetizationPolicy.affiliate
+    ? getAffiliateRouteCategories(pathname)
+    : EMPTY_AFFILIATE_CATEGORIES;
+  const affiliateOffers = monetizationPolicy.affiliate
+    ? AFFILIATE_OFFERS
+    : EMPTY_AFFILIATE_OFFERS;
   const {
     selectedOffer,
     relevantOffers,
@@ -913,7 +921,7 @@ export function ContextualAffiliateCard() {
     slotId: CONTEXTUAL_AFFILIATE_SLOT_ID,
     routeContext: pathname,
     routeCategories,
-    offers: AFFILIATE_OFFERS,
+    offers: affiliateOffers,
     suppressAffiliateOnMobileWhenAdjacentAdExists: true,
   });
   const placement = selectedOffer
@@ -949,7 +957,13 @@ export function ContextualAffiliateCard() {
     return null;
   }
 
-  if (!selectedOffer || !monetizationPolicy.affiliate) {
+  if (!monetizationPolicy.affiliate) {
+    return monetizationPolicy.ads && !shouldSuppressAdsenseFallback ? (
+      <ContextualAdsenseFallback reserveMode="compact" />
+    ) : null;
+  }
+
+  if (!selectedOffer) {
     return shouldShowAdsense &&
       monetizationPolicy.ads &&
       !shouldSuppressAdsenseFallback ? (

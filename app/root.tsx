@@ -12,6 +12,7 @@ import type { LoaderFunction } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { PHProvider } from "./provider";
+import { UltraWideSidebarAds } from "./client/components/ads/UltraWideSidebarAds";
 import NavBar from "./client/components/navigation/NavBar";
 import { logAppError } from "./client/lib/errorLogging";
 import { shouldRenderAdsForPath } from "./client/lib/monetization/monetizationPolicy";
@@ -92,6 +93,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <PHProvider>
           <ClientRuntimeErrorLogger />
           <NavBar />
+          <UltraWideSidebarAds />
           {children}
           <ScrollRestoration />
           <Scripts />

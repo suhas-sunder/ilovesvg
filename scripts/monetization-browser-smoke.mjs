@@ -379,9 +379,10 @@ async function checkContextualCompactAdRoute(client, route, width) {
 async function checkServerReservedShell() {
   const response = await fetch(`${baseUrl}${stickerRoute}`);
   const html = await response.text();
-  const hasReserve = html.includes('data-monetization-kind="pending"');
+  const hasAdsense = html.includes('data-monetization-kind="adsense"');
+  const hasPending = html.includes('data-monetization-kind="pending"');
   const hasSlot = html.includes('data-monetization-slot="converter-below-tool"');
-  const reserveStart = html.indexOf('data-monetization-kind="pending"');
+  const reserveStart = html.indexOf('data-monetization-kind="adsense"');
   const reserveMarkup =
     reserveStart >= 0
       ? html.slice(Math.max(0, reserveStart - 500), reserveStart + 500)
@@ -390,10 +391,11 @@ async function checkServerReservedShell() {
     /\bhidden\b/.test(reserveMarkup) && /\blg:block\b/.test(reserveMarkup);
   return {
     scenario: "server-reserved-shell",
-    hasReserve,
+    hasAdsense,
+    hasPending,
     hasSlot,
     mobileHidden,
-    ok: response.ok && hasReserve && hasSlot && mobileHidden,
+    ok: response.ok && hasAdsense && !hasPending && hasSlot && mobileHidden,
   };
 }
 
@@ -405,6 +407,8 @@ async function checkMobileAffiliate(client, width) {
   const state = await evaluate(client, `(() => {
     const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
     const slotAdsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+    const slotAdsenseRect = slotAdsense?.getBoundingClientRect?.();
+    const slotAdsenseStyle = slotAdsense ? window.getComputedStyle(slotAdsense) : null;
     const ads = Array.from(document.querySelectorAll('[aria-label="Advertisement"]'));
     const visibleAdSlots = ${visibleAdSlotsExpression()};
     const stored = window.localStorage.getItem(${JSON.stringify(storageKey)});
@@ -414,6 +418,7 @@ async function checkMobileAffiliate(client, width) {
       width: viewportWidth,
       affiliateCount: affiliate ? 1 : 0,
       slotAdsenseCount: slotAdsense ? 1 : 0,
+      slotAdsenseVisible: Boolean(slotAdsenseRect && slotAdsenseRect.width > 0 && slotAdsenseRect.height > 0 && slotAdsenseStyle?.display !== "none" && slotAdsenseStyle?.visibility !== "hidden"),
       adCount: ads.length,
       visibleAdSlots,
       duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
@@ -430,11 +435,14 @@ async function checkMobileAffiliate(client, width) {
   const fallbackState = await evaluate(client, `(() => {
     const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
     const slotAdsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+    const slotAdsenseRect = slotAdsense?.getBoundingClientRect?.();
+    const slotAdsenseStyle = slotAdsense ? window.getComputedStyle(slotAdsense) : null;
     const ads = Array.from(document.querySelectorAll('[aria-label="Advertisement"]'));
     const visibleAdSlots = ${visibleAdSlotsExpression()};
     return {
       affiliateCount: affiliate ? 1 : 0,
       slotAdsenseCount: slotAdsense ? 1 : 0,
+      slotAdsenseVisible: Boolean(slotAdsenseRect && slotAdsenseRect.width > 0 && slotAdsenseRect.height > 0 && slotAdsenseStyle?.display !== "none" && slotAdsenseStyle?.visibility !== "hidden"),
       adCount: ads.length,
       visibleAdSlots,
       duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
@@ -449,12 +457,12 @@ async function checkMobileAffiliate(client, width) {
     fallbackState,
     ok:
       state.affiliateCount === 0 &&
-      state.slotAdsenseCount === 0 &&
+      state.slotAdsenseVisible === false &&
       state.adCount >= 1 &&
       state.duplicateVisibleAdSlots.length === 0 &&
       !state.stored &&
       fallbackState.affiliateCount === 0 &&
-      fallbackState.slotAdsenseCount === 0 &&
+      fallbackState.slotAdsenseVisible === false &&
       fallbackState.adCount >= 1 &&
       fallbackState.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
@@ -469,13 +477,17 @@ async function checkDesktopAffiliate(client, width) {
     () => `(() => {
       const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
-      const rect = affiliate?.getBoundingClientRect?.();
+      const rect = adsense?.getBoundingClientRect?.();
+      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
       const visibleAdSlots = ${visibleAdSlotsExpression()};
       return {
         width: window.innerWidth,
         affiliateCount: affiliate ? 1 : 0,
         adsenseCount: adsense ? 1 : 0,
         offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
+        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
+        height: rect?.height || 0,
         visible: Boolean(rect && rect.width > 0 && rect.height > 0),
         visibleAdSlots,
         duplicateVisibleAdSlots: visibleAdSlots.filter((slot, index) => visibleAdSlots.indexOf(slot) !== index),
@@ -483,17 +495,20 @@ async function checkDesktopAffiliate(client, width) {
       };
     })()`,
     8000,
-    (state) => state?.affiliateCount === 1,
+    (state) => state?.adsenseCount === 1,
   );
 
   return {
-    scenario: "desktop-affiliate",
+    scenario: "desktop-adsense-default",
     width,
     ...state,
     ok:
-      state.affiliateCount === 1 &&
-      state.adsenseCount === 0 &&
-      state.offerId === "printify-product-mockups" &&
+      state.affiliateCount === 0 &&
+      state.adsenseCount === 1 &&
+      state.offerId === null &&
+      state.reserve === "compact" &&
+      state.fallbackSlot !== legacyCompactFallbackSlot &&
+      state.height <= 260 &&
       state.visible &&
       state.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
@@ -512,12 +527,16 @@ async function checkPrintifyAffiliateRoute(client, route) {
       const affiliateLinks = Array.from(document.querySelectorAll('[data-monetization-kind="affiliate"] a[href]'))
         .map((link) => link.getAttribute('href') || "");
       const bodyText = document.body?.innerText || "";
-      const rect = affiliate?.getBoundingClientRect?.();
+      const rect = adsense?.getBoundingClientRect?.();
+      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
       return {
         route: window.location.pathname,
         affiliateCount: affiliate ? 1 : 0,
         adsenseCount: adsense ? 1 : 0,
         offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
+        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
+        height: rect?.height || 0,
         visible: Boolean(rect && rect.width > 0 && rect.height > 0),
         hasStickerMuleText: /Sticker Mule/i.test(bodyText),
         hasStickerMuleHref: affiliateLinks.some((href) => /stickermule\\.com/i.test(href)),
@@ -525,7 +544,7 @@ async function checkPrintifyAffiliateRoute(client, route) {
       };
     })()`,
     8000,
-    (state) => state?.affiliateCount === 1 || state?.adsenseCount === 1,
+    (state) => state?.adsenseCount === 1,
   );
 
   await markPrintifyOfferTimedOut(client, route);
@@ -554,15 +573,18 @@ async function checkPrintifyAffiliateRoute(client, route) {
   await clearAffiliateStorage(client);
 
   return {
-    scenario: "printify-route-coverage",
+    scenario: "adsense-default-route-coverage",
     route,
     eligible,
     fallback,
     ok:
       eligible.route === route &&
-      eligible.affiliateCount === 1 &&
-      eligible.adsenseCount === 0 &&
-      eligible.offerId === "printify-product-mockups" &&
+      eligible.affiliateCount === 0 &&
+      eligible.adsenseCount === 1 &&
+      eligible.offerId === null &&
+      eligible.reserve === "compact" &&
+      eligible.fallbackSlot !== legacyCompactFallbackSlot &&
+      eligible.height <= 260 &&
       eligible.visible &&
       !eligible.hasStickerMuleText &&
       !eligible.hasStickerMuleHref &&
@@ -580,29 +602,31 @@ async function checkTrackingAndFallback(client) {
   await clearAffiliateStorage(client);
   await reload(client);
 
-  await waitForValue(
+  const initial = await waitForValue(
     client,
-    () => `(() => Boolean(document.querySelector('[data-affiliate-offer-id="printify-product-mockups"]')))()`,
+    () => `(() => {
+      const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
+      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const rect = adsense?.getBoundingClientRect?.();
+      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
+      return {
+        adsense: Boolean(adsense),
+        affiliate: Boolean(affiliate),
+        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
+        fallbackSlot,
+        height: rect?.height || 0,
+        storedWaterfall: window.localStorage.getItem(${JSON.stringify(storageKey)}),
+        storedSuppression: window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)}),
+      };
+    })()`,
     8000,
+    (state) => state?.adsense === true,
   );
-  await evaluate(client, `(() => {
-    document.querySelector('[data-monetization-kind="affiliate"]')?.scrollIntoView({ block: "center" });
-    return true;
-  })()`);
 
-  const afterView = await waitForWaterfallEntry(client, "printify-product-mockups", (entry) => entry?.viewCount === 1);
-
-  await evaluate(client, `(() => {
-    const link = document.querySelector('[data-affiliate-offer-id="printify-product-mockups"] a[href]');
-    if (!link) return false;
-    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-    return true;
-  })()`);
-
-  const afterClick = await waitForWaterfallEntry(client, "printify-product-mockups", (entry) => entry?.clicked === true && entry?.timedOut === true);
-
+  await markPrintifyOfferTimedOut(client);
   await reload(client);
-  const fallback = await waitForValue(
+
+  const afterSeededViewCap = await waitForValue(
     client,
     () => `(() => {
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
@@ -623,25 +647,28 @@ async function checkTrackingAndFallback(client) {
       };
     })()`,
     8000,
-    (state) => state?.adsense === true && Boolean(state.storedSuppression),
+    (state) => state?.adsense === true,
   );
 
   return {
-    scenario: "tracking-and-fallback",
-    afterView,
-    afterClick,
-    fallback,
+    scenario: "adsense-default-bypasses-waterfall",
+    initial,
+    afterSeededViewCap,
     ok:
-      afterView?.viewCount === 1 &&
-      afterClick?.clicked === true &&
-      afterClick?.timedOut === true &&
-      fallback.adsense === true &&
-      fallback.affiliate === false &&
-      fallback.reserve === "compact" &&
-      fallback.fallbackSlot !== legacyCompactFallbackSlot &&
-      fallback.height <= 260 &&
-      Boolean(fallback.storedSuppression) &&
-      fallback.duplicateVisibleAdSlots.length === 0,
+      initial.adsense === true &&
+      initial.affiliate === false &&
+      initial.reserve === "compact" &&
+      initial.fallbackSlot !== legacyCompactFallbackSlot &&
+      initial.height <= 260 &&
+      !initial.storedWaterfall &&
+      !initial.storedSuppression &&
+      afterSeededViewCap.adsense === true &&
+      afterSeededViewCap.affiliate === false &&
+      afterSeededViewCap.reserve === "compact" &&
+      afterSeededViewCap.fallbackSlot !== legacyCompactFallbackSlot &&
+      afterSeededViewCap.height <= 260 &&
+      !afterSeededViewCap.storedSuppression &&
+      afterSeededViewCap.duplicateVisibleAdSlots.length === 0,
   };
 }
 
@@ -668,7 +695,7 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
       };
     })()`,
     8000,
-    (state) => state?.adsense === true && Boolean(state.storedSuppression),
+    (state) => state?.adsense === true,
   );
 
   await navigate(client, `${baseUrl}${routeAfterSuppression}`);
@@ -692,11 +719,11 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
       };
     })()`,
     8000,
-    (state) => (state?.adsense === true || state?.affiliate === true) && Boolean(state.storedSuppression),
+    (state) => state?.adsense === true,
   );
 
   return {
-    scenario: "cross-route-suppression-and-compact-fallback",
+    scenario: "cross-route-waterfall-bypass-and-compact-fallback",
     firstRoute: stickerRoute,
     nextRoute: routeAfterSuppression,
     fallback,
@@ -707,14 +734,14 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
       fallback.reserve === "compact" &&
       fallback.fallbackSlot !== legacyCompactFallbackSlot &&
       fallback.height <= 260 &&
-      Boolean(fallback.storedSuppression) &&
+      !fallback.storedSuppression &&
       afterNavigation.route === routeAfterSuppression &&
       afterNavigation.adsense === true &&
       afterNavigation.affiliate === false &&
       afterNavigation.reserve === "compact" &&
       afterNavigation.fallbackSlot !== legacyCompactFallbackSlot &&
       afterNavigation.height <= 260 &&
-      Boolean(afterNavigation.storedSuppression) &&
+      !afterNavigation.storedSuppression &&
       !afterNavigation.overflow,
   };
 }
@@ -808,6 +835,7 @@ async function openPage(pathname, width, height) {
     ws.addEventListener("error", reject, { once: true });
   });
   const client = new CdpClient(ws);
+  client.targetId = target.id;
   await client.send("Runtime.enable");
   await client.send("Page.enable");
   await client.send("Emulation.setDeviceMetricsOverride", {
@@ -886,20 +914,52 @@ class CdpClient {
     await this.send("Page.navigate", { url });
     await waitForValue(
       this,
-      () => `(() => document.readyState)()`,
+      () => `(() => ({
+        readyState: document.readyState,
+        href: window.location.href,
+        bodyChildCount: document.body?.children.length || 0
+      }))()`,
       20_000,
-      (state) => state === "interactive" || state === "complete",
+      (state) =>
+        state.readyState === "interactive" ||
+        state.readyState === "complete" ||
+        (state.href === url && state.bodyChildCount > 0),
     );
     await delay(500);
   }
 
   close() {
-    return new Promise((resolve) => {
+    return (async () => {
+      if (this.targetId) {
+        await closeCdpTarget(this.targetId).catch(() => {});
+        this.targetId = null;
+      }
+      await new Promise((resolve) => {
       this.ws.addEventListener("close", resolve, { once: true });
       this.ws.close();
       setTimeout(resolve, 500).unref?.();
-    });
+      });
+    })();
   }
+}
+
+async function closeCdpTarget(targetId) {
+  const browserInfo = await cdpJson("/json/version");
+  if (!browserInfo.webSocketDebuggerUrl) return;
+
+  const browserWs = new WebSocket(browserInfo.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    browserWs.addEventListener("open", resolve, { once: true });
+    browserWs.addEventListener("error", reject, { once: true });
+  });
+
+  const browserClient = new CdpClient(browserWs);
+  await browserClient.send("Target.closeTarget", { targetId }).catch(() => {});
+  await new Promise((resolve) => {
+    browserWs.addEventListener("close", resolve, { once: true });
+    browserWs.close();
+    setTimeout(resolve, 500).unref?.();
+  });
 }
 
 async function evaluate(client, expression) {

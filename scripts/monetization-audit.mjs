@@ -439,7 +439,7 @@ function runWaterfallSelectionTests() {
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).selectedOffer?.id,
     "printify-product-mockups",
-    "one relevant affiliate shows before AdSense",
+    "waterfall selector can still resolve one relevant affiliate when called directly",
   );
 
   const timedOutFirst = stateFor([
@@ -892,12 +892,12 @@ function runMonetizationPolicyTests() {
   assert.deepEqual(
     policy.getRouteMonetizationPolicy("/png-to-svg-converter"),
     {
-      mode: "affiliate-with-fallback",
+      mode: "compact-ad",
       ads: true,
-      affiliate: true,
-      placement: "contextual-affiliate-with-compact-fallback",
+      affiliate: false,
+      placement: "contextual-compact-ad",
     },
-    "converter routes remain monetization eligible",
+    "converter routes default to AdSense-only monetization",
   );
 
   for (const entry of routeManifest.ROUTE_MANIFEST) {
@@ -955,11 +955,14 @@ function runMonetizationPolicyTests() {
       continue;
     }
 
-    assert.ok(
-      ["affiliate-with-fallback", "compact-ad"].includes(routePolicy.mode),
-      `${entry.path} has a monetized route policy`,
-    );
+    assert.equal(routePolicy.mode, "compact-ad", `${entry.path} uses compact AdSense monetization`);
     assert.equal(routePolicy.ads, true, `${entry.path} remains ad eligible`);
+    assert.equal(routePolicy.affiliate, false, `${entry.path} does not show affiliate cards`);
+    assert.equal(
+      routePolicy.placement,
+      "contextual-compact-ad",
+      `${entry.path} uses the contextual compact AdSense placement`,
+    );
   }
 }
 

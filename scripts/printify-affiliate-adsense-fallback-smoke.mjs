@@ -120,17 +120,22 @@ for (const route of affiliateRoutes) {
   assert.deepEqual(
     policy.getRouteMonetizationPolicy(route),
     {
-      mode: "affiliate-with-fallback",
+      mode: "compact-ad",
       ads: true,
-      affiliate: true,
-      placement: "contextual-affiliate-with-compact-fallback",
+      affiliate: false,
+      placement: "contextual-compact-ad",
     },
-    `${route} remains eligible for affiliate plus AdSense fallback`,
+    `${route} defaults to AdSense-only monetization`,
+  );
+  assert.equal(
+    policy.shouldRenderAffiliateForPath(route),
+    false,
+    `${route} does not render affiliate placements`,
   );
   assert.deepEqual(
     relevantOfferIdsForRoute(route),
     [printifyOfferId],
-    `${route} resolves to the Printify affiliate only`,
+    `${route} keeps Printify mapped only in dormant affiliate config`,
   );
 
   const eligibleSelection = selection.selectAffiliateWaterfallOffer({
@@ -145,12 +150,7 @@ for (const route of affiliateRoutes) {
   assert.equal(
     eligibleSelection.selectedOffer?.id,
     printifyOfferId,
-    `${route} shows Printify when affiliate is eligible`,
-  );
-  assert.equal(
-    eligibleSelection.shouldShowAdsense,
-    false,
-    `${route} does not show AdSense while Printify is eligible`,
+    `${route} can still resolve Printify when the dormant selector is called directly`,
   );
 
   for (const [label, routeState] of [

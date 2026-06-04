@@ -181,10 +181,10 @@ export function getRouteMonetizationPolicy(
   }
 
   return {
-    mode: "affiliate-with-fallback",
+    mode: "compact-ad",
     ads: true,
-    affiliate: true,
-    placement: "contextual-affiliate-with-compact-fallback",
+    affiliate: false,
+    placement: "contextual-compact-ad",
   };
 }
 
