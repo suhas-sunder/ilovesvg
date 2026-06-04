@@ -183,7 +183,7 @@ function SidebarAdRail({
   return (
     <aside
       aria-label="Sponsored advertisement"
-      className="pointer-events-auto fixed z-20 hidden overflow-hidden rounded-xl border border-slate-200 bg-white/85 p-2 shadow-sm min-[2400px]:block"
+      className="pointer-events-auto fixed z-20 hidden min-[2400px]:block"
       style={{
         top: SIDE_AD_TOP_PX,
         [side]: offset,
@@ -202,6 +202,7 @@ function SidebarAdRail({
         format="auto"
         fullWidth={true}
         className="mx-auto"
+        showPlaceholder={false}
       />
     </aside>
   );
