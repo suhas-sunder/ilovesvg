@@ -10,6 +10,11 @@ import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput"
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 const isServer = typeof document === "undefined";
 const SITE_URL = "https://www.ilovesvg.com";
@@ -213,6 +218,9 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
 
     if (/^<svg[\s>]/i.test(trimmed)) {
       e.preventDefault();
+      trackToolEngagement("paste_input", {
+        input_format: "svg_markup",
+      });
       setErr(null);
       setFileName("pasted.svg");
 
@@ -239,9 +247,18 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
       f.type === "";
 
     if (!isSvg) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "upload",
+      });
       setErr("Please upload an SVG file.");
       return;
     }
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "svg",
+    });
 
     const text = await f.text();
     const trimmed = text.trim();
@@ -272,11 +289,19 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
       f.type === "";
 
     if (!isSvg) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "underlay_upload",
+      });
       setErr("Underlay must be an SVG file.");
       return;
     }
 
     try {
+      trackToolEngagement("file_upload", {
+        ...getFileEngagementProps(f),
+        input_kind: "svg_underlay",
+      });
       const raw = (await f.text()).trim();
       const normalized = normalizeAndValidateSvg(raw);
       setSettings((s) => ({
@@ -361,6 +386,9 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
         setOutSvg(result);
         setOutPreviewSrc(makeSvgDataUrl(result));
       });
+      trackToolEngagementOnce("svg-background-preview-generated", "preview_generated", {
+        output_format: "svg",
+      });
       setErr(null);
     } catch (e: any) {
       React.startTransition(() => {
@@ -373,6 +401,10 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
 
   function downloadSvg() {
     if (!inputSvgValid) return;
+    trackToolEngagement("download_export", {
+      output_format: "svg",
+      surface: "svg_background",
+    });
     let exportSvg = "";
     try {
       exportSvg = applyBackgroundEdits(inputSvgValid, settings);
@@ -395,6 +427,10 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
 
   function copySvg() {
     if (!inputSvgValid) return;
+    trackToolEngagement("copy_output", {
+      output_format: "svg",
+      surface: "svg_background",
+    });
     try {
       const exportSvg = applyBackgroundEdits(inputSvgValid, settings);
       navigator.clipboard.writeText(exportSvg).then(() => showToast("Copied"));
@@ -442,6 +478,9 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={() => {
+                      trackToolEngagement("sample_loaded", {
+                        surface: "svg_background_example",
+                      });
                       const t =
                         `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">` +
                         `<rect x="0" y="0" width="120" height="120" fill="#ffffff"/>` +
@@ -488,6 +527,9 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                     aria-label="Input SVG code"
                     value={inputText}
                     onChange={(e) => {
+                      trackToolEngagementOnce("svg-background-source-edited", "input_changed", {
+                        surface: "svg_source_editor",
+                      });
                       const next = e.target.value;
                       setInputText(next);
 
@@ -515,7 +557,11 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
               </details>
 
               {!inputText ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  accept="image/svg+xml,.svg"
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900">
@@ -582,7 +628,10 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                   <Field label="Mode">
                     <select
                       value={settings.mode}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        trackToolEngagementOnce("svg-background-settings-changed", "settings_changed", {
+                          setting_group: "background_mode",
+                        });
                         setSettings((s) => ({
                           ...s,
                           mode: e.target.value as Mode,
@@ -591,8 +640,8 @@ export default function SvgBackgroundPage({}: Route.ComponentProps) {
                             e.target.value === "remove"
                               ? s.manualRemoveKey
                               : "",
-                        }))
-                      }
+                        }));
+                      }}
                       className="w-full min-w-0 max-w-full px-2 py-1.5 rounded-md border border-[#dbe3ef] bg-white text-slate-900 cursor-pointer"
                     >
                       <option value="remove">Remove background</option>

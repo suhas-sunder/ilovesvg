@@ -19,6 +19,10 @@ import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffil
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
+import {
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /* ========================
    Meta
@@ -2146,6 +2150,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
 
     lastRasterSubmitKey.current = key;
     setLayeredRaster(null);
+    trackToolEngagementOnce("base64-raster-conversion-started", "conversion_started", {
+      input_kind: parsed.kind,
+      output_format: "svg",
+    });
 
     const formData = new FormData();
     formData.append("rasterDataUrl", parsed.content);
@@ -2222,6 +2230,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
         pathTags: layer.pathTags,
       })),
     });
+    trackToolEngagementOnce("base64-raster-conversion-completed", "conversion_completed", {
+      output_format: "svg",
+      trace_mode: fetcher.data.layers?.length ? "layered" : "single",
+    });
   }, [
     fetcher.data?.height,
     fetcher.data?.layers,
@@ -2230,6 +2242,15 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
     isRasterInput,
     localDecoded.kind,
   ]);
+
+  React.useEffect(() => {
+    if (!decoded.svg || decoded.error) return;
+
+    trackToolEngagementOnce("base64-preview-generated", "preview_generated", {
+      input_kind: decoded.kind,
+      output_format: "svg",
+    });
+  }, [decoded.error, decoded.kind, decoded.svg]);
 
   React.useEffect(() => {
     if (!isRasterInput || !fetcher.data?.svg) return;
@@ -2355,6 +2376,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function applyPreset(preset: Preset) {
+    trackToolEngagement("settings_changed", {
+      control: "preset",
+      preset_id: preset.id,
+    });
     setActivePreset(preset.id);
     setLayeredRaster(null);
     lastRasterSubmitKey.current = "";
@@ -2392,6 +2417,9 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function loadSample() {
+    trackToolEngagement("sample_loaded", {
+      surface: "base64_textarea",
+    });
     setSettings((current) => ({
       ...current,
       input: SAMPLE_BASE64_SVG,
@@ -2399,6 +2427,9 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function clearInput() {
+    trackToolEngagement("input_cleared", {
+      surface: "base64_textarea",
+    });
     setSettings((current) => ({
       ...current,
       input: "",
@@ -2410,6 +2441,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function copySvgContent(svg: string, successMessage = "SVG copied") {
+    trackToolEngagement("copy_output", {
+      output_format: "svg",
+      surface: "base64",
+    });
     navigator.clipboard.writeText(svg).then(
       () => showToastMessage(successMessage),
       () => showToastMessage("Copy failed. Use download instead."),
@@ -2435,6 +2470,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function downloadSvgContent(svg: string) {
+    trackToolEngagement("download_export", {
+      output_format: "svg",
+      surface: "base64",
+    });
     const blob = new Blob([svg], {
       type: "image/svg+xml;charset=utf-8",
     });
@@ -2461,6 +2500,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function downloadCsv() {
+    trackToolEngagement("download_export", {
+      output_format: "csv",
+      surface: "base64_report",
+    });
     const rows = [
       ["Field", "Value"],
       ["Detected input type", decoded.kind],
@@ -2509,6 +2552,10 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
   }
 
   function printResult() {
+    trackToolEngagement("download_export", {
+      output_format: "pdf_print",
+      surface: "base64_report",
+    });
     window.print();
   }
 
@@ -2741,7 +2788,12 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
 
                 <textarea
                   value={settings.input}
-                  onChange={(event) => update("input", event.target.value)}
+                  onChange={(event) => {
+                    trackToolEngagementOnce("base64-input-changed", "input_changed", {
+                      surface: "base64_textarea",
+                    });
+                    update("input", event.target.value);
+                  }}
                   rows={9}
                   spellCheck={false}
                   placeholder="Paste data:image/svg+xml;base64,..., plain Base64 SVG, or data:image/png;base64,... here"

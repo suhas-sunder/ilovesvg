@@ -9,6 +9,11 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /* ========================
    Meta
@@ -224,6 +229,9 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
           (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
         ) {
           e.preventDefault();
+          trackToolEngagement("paste_input", {
+            input_format: "svg_file",
+          });
           await handleNewFile(f);
           return;
         }
@@ -239,9 +247,18 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     if (
       !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
     ) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "upload",
+      });
       setErr("Please choose an SVG file.");
       return;
     }
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "svg",
+    });
 
     setFile(f);
     const text = await f.text();
@@ -291,6 +308,12 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
     try {
       const safe = buildSafeSvg(raw, s);
       setSafeSvg(safe);
+      if (safe) {
+        trackToolEngagementOnce("svg-viewer-preview-generated", "preview_generated", {
+          output_format: "svg",
+          sanitized: true,
+        });
+      }
       setInfo((prev) => (parsedInfo ? parsedInfo : prev));
       requestAnimationFrame(() => {
         if (!safe) return;
@@ -482,6 +505,9 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
   }
 
   function zoomAtCenter(nextScaleRaw: number) {
+    trackToolEngagementOnce("svg-viewer-settings-changed", "settings_changed", {
+      setting_group: "viewer",
+    });
     const vp = viewportRef.current;
     if (!vp) return;
     const r = vp.getBoundingClientRect();
@@ -618,6 +644,10 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   function downloadSource() {
     if (!svgText) return;
+    trackToolEngagement("download_export", {
+      output_format: "svg",
+      surface: "viewer_source",
+    });
     const name = (settings.fileName || "svg").trim() || "svg";
     downloadText(svgText, `${safeFileName(name)}.svg`);
     showToast("Downloaded");
@@ -625,6 +655,10 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
 
   function copy(text: string) {
     if (!text) return;
+    trackToolEngagement("copy_output", {
+      output_format: "svg",
+      surface: "viewer",
+    });
     navigator.clipboard.writeText(text).then(() => showToast("Copied"));
   }
 
@@ -637,6 +671,9 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
   }
 
   function setFitMode(m: FitMode) {
+    trackToolEngagementOnce("svg-viewer-settings-changed", "settings_changed", {
+      setting_group: "viewer",
+    });
     setSettings((s) => ({ ...s, fitMode: m }));
     requestAnimationFrame(() => {
       if (m === "actual") setActual();
@@ -787,6 +824,11 @@ export default function SvgPreviewViewer(_: Route.ComponentProps) {
                   </label>
 
                   <div className="min-w-0">
+                    {!file ? (
+                      <div className="text-[15px] font-extrabold text-sky-900">
+                        SVG Preview Viewer
+                      </div>
+                    ) : null}
                     <div className="text-[14px] font-semibold text-slate-900 truncate">
                       {file ? file.name : "No file loaded"}
                     </div>

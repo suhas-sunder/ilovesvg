@@ -12,6 +12,11 @@ import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversio
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
 import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { useNativeColorFinalCommit } from "~/client/hooks/useThrottledCommit";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /* ========================
    Limits
@@ -997,6 +1002,9 @@ export default function FreeColorPicker() {
   }
 
   async function copy(text: string, msg: string) {
+    trackToolEngagement("copy_output", {
+      surface: "color_value",
+    });
     await navigator.clipboard.writeText(text);
     showToast(msg);
   }
@@ -1103,6 +1111,9 @@ export default function FreeColorPicker() {
     const sourceSwatch = palette[index];
     if (!sourceSwatch) return;
 
+    trackToolEngagementOnce("free-color-picker-swatch-selected", "settings_changed", {
+      setting_group: "palette",
+    });
     flushPendingColorCommit();
     flushPendingAlphaCommit();
 
@@ -1125,6 +1136,11 @@ export default function FreeColorPicker() {
       showToast("Upload a file first");
       return;
     }
+
+    trackToolEngagement("settings_changed", {
+      setting_group: "palette",
+      control: "reset",
+    });
 
     if (colorCommitTimeoutRef.current) {
       window.clearTimeout(colorCommitTimeoutRef.current);
@@ -1160,6 +1176,11 @@ export default function FreeColorPicker() {
 
   async function handlePickedFile(f: File | null) {
     if (!f) return;
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "palette_source",
+    });
 
     setExtractErr(null);
     setExtracting(true);
@@ -1252,6 +1273,10 @@ export default function FreeColorPicker() {
           setAlpha(1);
         }
 
+        trackToolEngagement("preview_generated", {
+          input_kind: "svg",
+          palette_count: trimmed.length,
+        });
         return;
       }
 
@@ -1276,7 +1301,15 @@ export default function FreeColorPicker() {
       colorPickerDraftRef.current = sw[0].hex;
       setHex(sw[0].hex);
       setAlpha(1);
+      trackToolEngagement("preview_generated", {
+        input_kind: "image",
+        palette_count: sw.length,
+      });
     } catch (err: any) {
+      trackToolEngagement("validation_error", {
+        reason: "palette_extract_failed",
+        surface: "palette_upload",
+      });
       setExtractErr(err?.message || "Failed to extract palette.");
     } finally {
       setExtracting(false);
@@ -1410,6 +1443,10 @@ export default function FreeColorPicker() {
       return;
     }
 
+    trackToolEngagement("copy_output", {
+      output_format: "svg",
+      surface: "palette_output",
+    });
     await navigator.clipboard.writeText(svg);
     showToast("SVG copied");
   }
@@ -1425,6 +1462,10 @@ export default function FreeColorPicker() {
       return;
     }
 
+    trackToolEngagement("download_export", {
+      output_format: "svg",
+      surface: "palette_output",
+    });
     downloadTextFile(
       svg,
       `${getExportBaseName()}-recolored.svg`,
@@ -1443,6 +1484,10 @@ export default function FreeColorPicker() {
     flushPendingColorCommit();
     flushPendingAlphaCommit();
 
+    trackToolEngagement("download_export", {
+      output_format: "png",
+      surface: "palette_output",
+    });
     const a = document.createElement("a");
     a.href = outputImageUrl || preview.url;
     a.download = `${getExportBaseName()}-recolored.png`;
@@ -1657,6 +1702,10 @@ export default function FreeColorPicker() {
   async function downloadReportPng() {
     try {
       const blob = await createReportPngBlob();
+      trackToolEngagement("download_export", {
+        output_format: "png",
+        surface: "palette_report",
+      });
       downloadBlob(blob, `${getExportBaseName()}-color-report.png`);
       showToast("Report image downloaded");
     } catch (err: any) {
@@ -1679,6 +1728,10 @@ export default function FreeColorPicker() {
       return;
     }
 
+    trackToolEngagement("download_export", {
+      output_format: "pdf_print",
+      surface: "palette_report",
+    });
     reportWindow.document.write(`<!doctype html>
 <html>
 <head>
@@ -2490,7 +2543,7 @@ function DragArea({
     >
       <input
         type="file"
-        accept="image/svg+xml,image/png,image/jpeg,image/webp"
+        accept="image/svg+xml,image/png,image/jpeg,image/webp,.svg,.png,.jpg,.jpeg,.webp"
         onChange={onPick}
         className="hidden"
       />
@@ -2544,8 +2597,8 @@ function CopyRow({
   onCopy: () => void | Promise<void>;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-[64px] text-[12px] font-semibold text-slate-500">
+    <div className="grid grid-cols-[56px,minmax(0,1fr)] items-center gap-2 sm:grid-cols-[64px,minmax(0,1fr),auto]">
+      <div className="text-[12px] font-semibold text-slate-500">
         {label}
       </div>
 
@@ -2558,7 +2611,7 @@ function CopyRow({
       <button
         type="button"
         onClick={onCopy}
-        className="flex items-center justify-center px-3 py-2 rounded-lg font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-900 cursor-pointer"
+        className="col-start-2 flex w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 font-medium text-slate-900 hover:bg-slate-50 cursor-pointer sm:col-start-auto sm:w-auto"
       >
         <Icons name="copy" size={16} className="inline-block mr-1" />
         Copy

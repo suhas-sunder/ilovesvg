@@ -9,6 +9,11 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /* ========================
    Meta
@@ -245,6 +250,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
           (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
         ) {
           e.preventDefault();
+          trackToolEngagement("paste_input", {
+            input_format: "svg_file",
+          });
           await handleNewFile(f);
           return;
         }
@@ -257,9 +265,18 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
     if (
       !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
     ) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "upload",
+      });
       setErr("Please choose an SVG file.");
       return;
     }
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "svg",
+    });
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
@@ -297,6 +314,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
   }
 
   function loadExample() {
+    trackToolEngagement("sample_loaded", {
+      surface: "svg_embed_example",
+    });
     const example = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><circle cx="64" cy="64" r="48" fill="#0b2dff"/><path d="M42 66h44" stroke="#fff" stroke-width="12" stroke-linecap="round"/></svg>`;
     setFile(null);
     setErr(null);
@@ -320,11 +340,19 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
 
   function copyCode() {
     if (!outCode) return;
+    trackToolEngagement("copy_output", {
+      output_format: guessSnippetExt(settings.embedKind),
+      surface: "embed_code",
+    });
     navigator.clipboard.writeText(outCode).then(() => showToast("Copied"));
   }
 
   function downloadSnippet() {
     if (!outCode) return;
+    trackToolEngagement("download_export", {
+      output_format: guessSnippetExt(settings.embedKind),
+      surface: "embed_code",
+    });
     const name = (settings.fileName || "snippet").trim() || "snippet";
     const ext = guessSnippetExt(settings.embedKind);
     const filename = `${safeFileName(name)}.${ext}`;
@@ -345,6 +373,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
       const { code } = generateEmbed(prepared, settings);
       setOutCode(code);
       setInfo(parseSvgInfo(prepared));
+      trackToolEngagementOnce("svg-embed-code-generated", "preview_generated", {
+        output_format: guessSnippetExt(settings.embedKind),
+      });
     } catch (e: any) {
       setErr(e?.message || "Generate failed.");
       setOutCode("");
@@ -424,7 +455,11 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
               </div>
 
               {!file && !svgText.trim() ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  accept="image/svg+xml,.svg"
+                />
               ) : (
                 <>
                   {file ? (
@@ -1228,9 +1263,12 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
                   </p>
                   <textarea
                     value={svgText}
-                    onChange={(e) =>
-                      setSvgText(ensureSvgHasXmlns(e.target.value))
-                    }
+                    onChange={(e) => {
+                      trackToolEngagementOnce("svg-embed-source-edited", "input_changed", {
+                        surface: "svg_source_editor",
+                      });
+                      setSvgText(ensureSvgHasXmlns(e.target.value));
+                    }}
                     className="mt-2 w-full h-[300px] rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-[12px] text-slate-900"
                     spellCheck={false}
                     placeholder="<svg ...>...</svg>"

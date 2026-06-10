@@ -10,6 +10,11 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /* ========================
    Meta
@@ -154,6 +159,9 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
           (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
         ) {
           e.preventDefault();
+          trackToolEngagement("paste_input", {
+            input_format: "svg_file",
+          });
           await handleNewFile(f);
           return;
         }
@@ -184,9 +192,18 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
     if (
       !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
     ) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "upload",
+      });
       setErr("Please choose an SVG file.");
       return;
     }
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "svg",
+    });
 
     setFile(f);
 
@@ -248,6 +265,9 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
       });
+      trackToolEngagementOnce("svg-resize-preview-generated", "preview_generated", {
+        output_format: "svg",
+      });
     } catch (e: any) {
       setErr(e?.message || "Resize failed.");
     }
@@ -261,6 +281,9 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
   }, [settings, svgText]);
 
   function onWidthChange(v: number) {
+    trackToolEngagementOnce("svg-resize-settings-changed", "settings_changed", {
+      setting_group: "dimensions",
+    });
     setSettings((s) => {
       const width = clampInt(v, 1, 100000);
       if (!s.lockAspect) return { ...s, width };
@@ -271,6 +294,9 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
   }
 
   function onHeightChange(v: number) {
+    trackToolEngagementOnce("svg-resize-settings-changed", "settings_changed", {
+      setting_group: "dimensions",
+    });
     setSettings((s) => {
       const height = clampInt(v, 1, 100000);
       if (!s.lockAspect) return { ...s, height };
@@ -281,6 +307,9 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
   }
 
   function applyScalePct(pct: number) {
+    trackToolEngagementOnce("svg-resize-settings-changed", "settings_changed", {
+      setting_group: "dimensions",
+    });
     setSettings((s) => {
       const scale = Math.max(1, Math.min(1000, Math.round(pct)));
       const baseW = info?.width ?? info?.vb?.w ?? s.width;
@@ -294,6 +323,10 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
 
   function downloadResized() {
     if (!outSvg) return;
+    trackToolEngagement("download_export", {
+      output_format: "svg",
+      surface: "resized_svg",
+    });
     const name = (settings.fileName || "resized").trim() || "resized";
     const filename = `${safeFileName(name)}.svg`;
     downloadText(outSvg, filename);
@@ -331,7 +364,11 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
               </h1>
 
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  accept="image/svg+xml,.svg"
+                />
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -399,6 +436,9 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                     <textarea
                       value={svgText}
                       onChange={(e) => {
+                        trackToolEngagementOnce("svg-resize-source-edited", "input_changed", {
+                          surface: "svg_source_editor",
+                        });
                         const next = ensureSvgHasXmlns(e.target.value);
                         setSvgText(next);
                         const parsed = parseSvgInfo(next);
@@ -755,6 +795,10 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
                     <button
                       type="button"
                       onClick={() => {
+                        trackToolEngagement("copy_output", {
+                          output_format: "svg",
+                          surface: "resized_svg",
+                        });
                         navigator.clipboard
                           .writeText(outSvg)
                           .then(() => showToast("Copied"));

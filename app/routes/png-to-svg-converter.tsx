@@ -115,6 +115,9 @@ const MAX_SIDE = 8000; // max width or height in pixels
 
 // Keep common raster inputs flexible while preserving the PNG route intent.
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+const ACCEPTED_UPLOAD_TYPES = "PNG, JPG, JPEG, or WebP";
+const ACCEPTED_UPLOAD_ACCEPT =
+  "image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp";
 
 // Dark background default for invert "white on dark" output.
 const DARK_BG_DEFAULT = "#0b1020";
@@ -1136,6 +1139,9 @@ function autoModeDetail(mode: AutoMode): string {
 
 export default function PngToSvgConverter({}: Route.ComponentProps) {
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-converter" });
+  const [conversionPhase, setConversionPhase] = React.useState<
+    "idle" | "preparing" | "converting"
+  >("idle");
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -1145,7 +1151,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   const [activePreset, setActivePreset] =
     React.useState<string>("line-accurate");
   const [presetMenuExpanded, setPresetMenuExpanded] = React.useState(false);
-  const busy = fetcher.state !== "idle";
+  const busy = fetcher.state !== "idle" || conversionPhase !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
 
@@ -1166,6 +1172,12 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const clientRunIdCounterRef = React.useRef(0);
+  const submitInProgressRef = React.useRef(false);
+  const queuedConversionRef = React.useRef<{
+    file: File;
+    settings: Settings;
+    presetId: string;
+  } | null>(null);
   const submittedByRunIdRef = React.useRef(
     new Map<
       string,
@@ -1191,14 +1203,37 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
   }, [history]);
 
   React.useEffect(() => {
-    if (fetcher.data?.error) setErr(fetcher.data.error);
+    if (busy) return;
+
+    const queued = queuedConversionRef.current;
+    if (!queued) return;
+
+    queuedConversionRef.current = null;
+    if (queued.file !== file) return;
+
+    const presetLabel = getPresetLabelById(DISPLAY_PRESETS, queued.presetId);
+    setInfo(`Applying ${presetLabel} preset now...`);
+    void submitConvertForFile(queued.file, queued.settings, queued.presetId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, file]);
+
+  React.useEffect(() => {
+    if (fetcher.data?.retryAfterMs) setErr(null);
+    else if (fetcher.data?.error) setErr(fetcher.data.error);
     else setErr(null);
 
     if (fetcher.data?.retryAfterMs) {
       const ms = Math.max(800, fetcher.data.retryAfterMs);
       setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
+      const retryFile = file;
+      const retrySettings = settings;
+      const retryPreset = activePreset;
       const t = setTimeout(() => {
-        if (file) submitConvert();
+        if (retryFile) {
+          void submitConvertForFile(retryFile, retrySettings, retryPreset, {
+            allowWhileBusy: true,
+          });
+        }
       }, ms);
       return () => clearTimeout(t);
     } else {
@@ -1289,6 +1324,13 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
       setUpdatingOutputStamp(null);
+      submitInProgressRef.current = false;
+      setConversionPhase("idle");
+      setInfo(
+        replaceStamp
+          ? "Preview updated. Download SVG is ready in the result card."
+          : "SVG ready. Use Download SVG or Copy SVG in the result card.",
+      );
     }
   }, [
     fetcher.data?.svg,
@@ -1309,7 +1351,11 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     }
     const replaceStamp = submitted?.replaceStamp ?? pendingReplaceStampRef.current;
     const pendingStamp = submitted?.stamp ?? null;
-    if (!replaceStamp && !pendingStamp) return;
+    if (!replaceStamp && !pendingStamp) {
+      submitInProgressRef.current = false;
+      setConversionPhase("idle");
+      return;
+    }
     const message =
       fetcher.data.error ||
       "Could not finish this conversion. The current preview was preserved.";
@@ -1336,6 +1382,8 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
     setUpdatingOutputStamp(null);
+    submitInProgressRef.current = false;
+    setConversionPhase("idle");
   }, [fetcher.data?.error, fetcher.data?.clientRunId]);
 
   React.useEffect(() => {
@@ -1376,12 +1424,14 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
-      setErr("Please choose a PNG, JPG, JPEG, or WebP image.");
+      setInfo(null);
+      setErr(`Please choose a ${ACCEPTED_UPLOAD_TYPES} image.`);
       return;
     }
 
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    queuedConversionRef.current = null;
 
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -1391,6 +1441,8 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     setInfo(null);
     setDims(null);
     setOriginalFileSize(f.size);
+    setConversionPhase("preparing");
+    setInfo("Preparing image for SVG conversion...");
 
     let chosen = f;
 
@@ -1407,6 +1459,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
         setPreviewUrl(null);
         setAutoMode("off");
         setOriginalFileSize(null);
+        setConversionPhase("idle");
         suppressLiveRef.current = false;
         return;
       }
@@ -1437,6 +1490,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
       setPreviewUrl(null);
       setAutoMode("off");
       setOriginalFileSize(null);
+      setConversionPhase("idle");
       suppressLiveRef.current = false;
       return;
     }
@@ -1448,7 +1502,9 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
     try {
       await measureAndSet(chosen);
-    await submitConvertForFile(chosen, settings, activePreset);
+      await submitConvertForFile(chosen, settings, activePreset, {
+        allowWhileBusy: true,
+      });
     } finally {
       suppressLiveRef.current = false;
     }
@@ -1479,10 +1535,23 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     targetFile: File,
     inputSettings: Settings,
     presetIdForSubmit: string = activePreset,
+    options: { allowWhileBusy?: boolean } = {},
   ) {
+    if ((submitInProgressRef.current || busy) && !options.allowWhileBusy) {
+      setInfo("Conversion already running. The SVG will appear below automatically.");
+      return;
+    }
+
+    submitInProgressRef.current = true;
+    setConversionPhase("preparing");
+    setInfo("Preparing image for SVG conversion...");
+
     try {
       await validateBeforeSubmit(targetFile);
     } catch (e: any) {
+      submitInProgressRef.current = false;
+      setConversionPhase("idle");
+      setInfo(null);
       setErr(e?.message || "Image is too large.");
       return;
     }
@@ -1517,6 +1586,8 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     const clientRunId = `png-to-svg-${Date.now()}-${++clientRunIdCounterRef.current}`;
     fd.append("clientRunId", clientRunId);
     setErr(null);
+    setConversionPhase("converting");
+    setInfo("Processing image. The SVG result will appear below automatically.");
     const replaceStamp = pendingReplaceStampRef.current;
     const startedAt = Date.now();
     const presetLabel = getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit);
@@ -1573,7 +1644,13 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
   async function submitConvert() {
     if (!file) {
-      setErr("Choose an image first.");
+      setInfo(null);
+      setErr(`Choose a ${ACCEPTED_UPLOAD_TYPES} image first.`);
+      return;
+    }
+
+    if (submitInProgressRef.current || busy) {
+      setInfo("Conversion already running. The SVG will appear below automatically.");
       return;
     }
 
@@ -1601,7 +1678,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, autoMode]);
 
-  const buttonDisabled = isServer || !hydrated || !file;
+  const buttonDisabled = isServer || !hydrated || !file || busy;
 
   function buildPresetSettings(preset: Preset): Settings {
     return {
@@ -1618,7 +1695,24 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && getAutoMode(file.size) !== "off") {
+      if (submitInProgressRef.current || busy) {
+        queuedConversionRef.current = {
+          file,
+          settings: nextSettings,
+          presetId: preset.id,
+        };
+        setInfo(
+          `${preset.label} selected. It will convert after the current job finishes.`,
+        );
+        return;
+      }
+
       void submitConvertForFile(file, nextSettings, preset.id);
+      return;
+    }
+
+    if (file) {
+      setInfo(`${preset.label} selected. Click Convert PNG to SVG to apply it.`);
     }
   }
 
@@ -1843,6 +1937,14 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
     );
   }
 
+  const convertButtonLabel = !file
+    ? "Choose an image first"
+    : conversionPhase === "preparing"
+      ? "Preparing image..."
+      : busy
+        ? "Converting..."
+        : "Convert PNG to SVG";
+
   return (
     <>
       <main className="bg-slate-50 text-[#0f2537]">
@@ -1874,13 +1976,21 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
               />
 
               {!file ? (
-                <DragArea
-                  onPick={onPick}
-                  onDrop={onDrop}
-                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
-                  MAX_MP={MAX_MP}
-                  MAX_SIDE={MAX_SIDE}
-                />
+                <>
+                  <DragArea
+                    onPick={onPick}
+                    onDrop={onDrop}
+                    MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                    MAX_MP={MAX_MP}
+                    MAX_SIDE={MAX_SIDE}
+                    accept={ACCEPTED_UPLOAD_ACCEPT}
+                  />
+                  <p className="mt-2 text-center text-[12px] font-medium leading-5 text-slate-600 sm:text-[13px]">
+                    Upload {ACCEPTED_UPLOAD_TYPES} up to{" "}
+                    {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB,{" "}
+                    {MAX_MP} MP, and {MAX_SIDE}px on the longest side.
+                  </p>
+                </>
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1893,7 +2003,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                         />
                       )}
                       <span title={file?.name || ""} className="truncate">
-                        {file?.name} • {prettyBytes(file?.size || 0)}
+                        {file?.name} - {prettyBytes(file?.size || 0)}
                         {originalFileSize &&
                           originalFileSize > file.size &&
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
@@ -1901,6 +2011,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                     </div>
                     <button
                       type="button"
+                      aria-label="Remove selected image"
                       onClick={() => {
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
@@ -1910,17 +2021,20 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
+                        setConversionPhase("idle");
+                        submitInProgressRef.current = false;
+                        queuedConversionRef.current = null;
                       }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff]"
+                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
-                      ×
+                      x
                     </button>
                   </div>
                   {dims && (
                     <div className="mt-2 text-[13px] text-slate-700">
                       Detected size:{" "}
                       <b>
-                        {dims.w}×{dims.h}
+                        {dims.w} x {dims.h}
                       </b>{" "}
                       (~{dims.mp.toFixed(1)} MP)
                     </div>
@@ -1933,15 +2047,16 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                   type="button"
                   onClick={() => void submitConvert()}
                   disabled={buttonDisabled}
+                  aria-busy={busy}
                   suppressHydrationWarning
                   className={[
                     "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
-                    "disabled:opacity-70 disabled:cursor-not-allowed",
+                    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-[#0b2dff] disabled:hover:border-[#0a24da]",
                   ].join(" ")}
                 >
                   <Icons name="convert" size={16} className="mr-1" />
-                  {busy ? "Converting..." : "Convert PNG to SVG"}
+                  {convertButtonLabel}
                 </button>
 
                 {file && autoMode !== "fast" && (
@@ -1950,9 +2065,22 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
                   </span>
                 )}
 
-                {err && <span className="text-red-700 text-sm">{err}</span>}
+                {err && (
+                  <p
+                    role="alert"
+                    className="m-0 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-5 text-red-700"
+                  >
+                    {err}
+                  </p>
+                )}
                 {!err && info && (
-                  <span className="text-[13px] text-slate-600">{info}</span>
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="m-0 w-full rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[13px] font-medium leading-5 text-slate-700"
+                  >
+                    {info}
+                  </p>
                 )}
               </div>
 
@@ -1995,6 +2123,7 @@ export default function PngToSvgConverter({}: Route.ComponentProps) {
               onOutputSizeChange={setHistorySize}
               onCancelOutputJob={cancelOutputJob}
               onRetryOutputJob={retryOutputJob}
+              onDownloadSvg={() => showToast("SVG download started")}
             />
           </section>
         </div>

@@ -302,6 +302,7 @@ type TraceOutputPanelProps<TSettings extends MixedTraceSettings> = {
   ) => void;
   onCancelOutputJob?: (jobId: string, stamp: number) => void;
   onRetryOutputJob?: (stamp: number) => void;
+  onDownloadSvg?: () => void;
 };
 
 export function FocusedEditorPreviewComparison({
@@ -420,6 +421,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   onOutputSizeChange,
   onCancelOutputJob,
   onRetryOutputJob,
+  onDownloadSvg,
 }: TraceOutputPanelProps<TSettings>) {
   const hasActiveJob = history.some((item) => isTraceJobActive(item.jobStatus));
   const [nowMs, setNowMs] = React.useState(() => Date.now());
@@ -532,6 +534,11 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
       next.delete(stamp);
       return next;
     });
+  }
+
+  function handleDownloadSvg(svg: string, filename: string) {
+    downloadSvg(svg, filename);
+    onDownloadSvg?.();
   }
 
   function toggleCollapsedOutput(stamp: number) {
@@ -814,7 +821,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                     onCopySvg(exportCompression.getExportSvg(item.stamp, svg))
                   }
                   onDownloadSvg={() =>
-                    downloadSvg(
+                    handleDownloadSvg(
                       exportCompression.getExportSvg(item.stamp, previewSvg),
                       downloadFileName,
                     )
@@ -893,7 +900,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                           <button
                             type="button"
                             onClick={() =>
-                              downloadSvg(
+                              handleDownloadSvg(
                                 exportCompression.getExportSvg(item.stamp, previewSvg),
                                 downloadFileName,
                               )
@@ -992,7 +999,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                   <button
                     type="button"
                     onClick={() =>
-                      downloadSvg(
+                      handleDownloadSvg(
                         exportCompression.getExportSvg(item.stamp, previewSvg),
                         downloadFileName,
                       )
@@ -1148,10 +1155,17 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
 }) {
   const status = item.jobStatus ?? "running";
   const failed = status === "failed" || status === "canceled";
-  const title = failed ? "Conversion did not finish" : "Converting...";
+  const title = failed ? "Conversion did not finish" : "Converting image...";
   const statusText = getTraceJobStatusText(status);
   return (
-    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div
+      role={failed ? "alert" : "status"}
+      aria-live={failed ? "assertive" : "polite"}
+      className={[
+        "mt-2 rounded-xl border p-4",
+        failed ? "border-red-200 bg-red-50" : "border-sky-200 bg-sky-50/80",
+      ].join(" ")}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="m-0 text-sm font-bold text-slate-900">{title}</p>
@@ -1159,6 +1173,12 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
             {label}
             {item.sourceFileName ? ` from ${item.sourceFileName}` : ""}
           </p>
+          {!failed && (
+            <p className="m-0 mt-1 text-[13px] leading-5 text-slate-600">
+              Processing is underway. The SVG preview and download buttons will
+              appear here automatically.
+            </p>
+          )}
         </div>
         {!failed && (
           <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[12px] font-bold text-sky-800">

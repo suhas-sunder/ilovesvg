@@ -12,6 +12,11 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /* ========================
    Meta
@@ -165,6 +170,9 @@ export default function SvgToPdf(_: Route.ComponentProps) {
           (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
         ) {
           e.preventDefault();
+          trackToolEngagement("paste_input", {
+            input_format: "svg_file",
+          });
           await handleNewFile(f);
           return;
         }
@@ -183,9 +191,18 @@ export default function SvgToPdf(_: Route.ComponentProps) {
     if (
       !(f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg"))
     ) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "upload",
+      });
       setErr("Please choose an SVG file.");
       return;
     }
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "svg",
+    });
 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
@@ -223,6 +240,9 @@ export default function SvgToPdf(_: Route.ComponentProps) {
   }
 
   function loadExample() {
+    trackToolEngagement("sample_loaded", {
+      surface: "svg_pdf_example",
+    });
     const example = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
   <rect x="0" y="0" width="600" height="400" fill="#ffffff"/>
   <circle cx="300" cy="200" r="140" fill="#0b2dff" opacity="0.12"/>
@@ -262,6 +282,10 @@ export default function SvgToPdf(_: Route.ComponentProps) {
     try {
       if (!svgText.trim()) throw new Error("Upload or paste an SVG first.");
 
+      trackToolEngagementOnce("svg-pdf-conversion-started", "conversion_started", {
+        output_format: "pdf",
+      });
+
       const cleaned = postprocessSvg(svgText, settings);
 
       const { bytes } = await renderSvgToPdf(cleaned, settings);
@@ -275,6 +299,9 @@ export default function SvgToPdf(_: Route.ComponentProps) {
         return URL.createObjectURL(blob);
       });
 
+      trackToolEngagementOnce("svg-pdf-conversion-completed", "conversion_completed", {
+        output_format: "pdf",
+      });
       showToast("PDF ready");
     } catch (e: any) {
       setErr(e?.message || "Conversion failed.");
@@ -290,6 +317,10 @@ export default function SvgToPdf(_: Route.ComponentProps) {
 
   function downloadPdf() {
     if (!pdfBytes) return;
+    trackToolEngagement("download_export", {
+      output_format: "pdf",
+      surface: "svg_pdf",
+    });
     const name = (settings.fileName || "converted").trim() || "converted";
     const filename = `${safeFileName(name)}.pdf`;
     downloadBytes(pdfBytes, filename, "application/pdf");
@@ -373,7 +404,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={loadExample}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
+                    className="inline-flex cursor-pointer items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900"
                   >
                     <Icons name="example" size={16} className="mr-1" />
                     Load example
@@ -381,7 +412,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
+                    className="inline-flex cursor-pointer items-center justify-center px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-900"
                   >
                     <Icons name="trash" size={16} className="mr-1" />
                     Clear
@@ -437,6 +468,9 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                       <textarea
                         value={svgText}
                         onChange={(e) => {
+                          trackToolEngagementOnce("svg-pdf-source-edited", "input_changed", {
+                            surface: "svg_source_editor",
+                          });
                           const v = ensureSvgHasXmlns(e.target.value);
                           setSvgText(v);
                           setInfo(parseSvgInfo(v));
@@ -663,7 +697,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                                   jpegQuality: Number(e.target.value),
                                 }))
                               }
-                              className="w-full"
+                              className="w-full cursor-pointer"
                             />
                           </Field>
                         )}
@@ -678,7 +712,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                                 sanitize: e.target.checked,
                               }))
                             }
-                            className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                           />
                           <span className="text-[13px] text-slate-700 min-w-0">
                             Strip risky SVG content
@@ -742,7 +776,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                                 showPdfPreview: e.target.checked,
                               }))
                             }
-                            className="h-4 w-4 accent-[#0b2dff] shrink-0"
+                            className="h-4 w-4 accent-[#0b2dff] shrink-0 cursor-pointer"
                           />
                           <span className="text-[13px] text-slate-700 min-w-0">
                             Show inline PDF preview
@@ -770,7 +804,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                           onClick={convertNow}
                           disabled={!hydrated || !svgText.trim() || isWorking}
                           className={[
-                            "inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border transition-colors",
+                            "inline-flex cursor-pointer items-center justify-center px-3.5 py-2 rounded-xl font-bold border transition-colors",
                             "text-white bg-sky-500 border-sky-600 hover:bg-sky-600",
                             "disabled:opacity-70 disabled:cursor-not-allowed",
                           ].join(" ")}
@@ -783,7 +817,7 @@ export default function SvgToPdf(_: Route.ComponentProps) {
                           type="button"
                           onClick={downloadPdf}
                           disabled={!hydrated || !pdfBytes || isWorking}
-                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
+                          className="inline-flex cursor-pointer items-center justify-center px-3.5 py-2 rounded-xl font-bold border border-slate-200 bg-sky-50 hover:bg-slate-100 text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                           <Icons name="download" size={20} className="mr-1" />
                           Download PDF

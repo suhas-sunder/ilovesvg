@@ -990,6 +990,24 @@ const RELATED_LINKS: Record<string, string[]> = {
     "/svg-cleaner",
     "/svg-preview-viewer",
   ],
+  "/svg-resize-and-scale-editor": [
+    "/svg-to-png-converter",
+    "/svg-dimensions-inspector",
+    "/svg-file-size-inspector",
+    "/svg-cleaner",
+  ],
+  "/svg-preview-viewer": [
+    "/svg-cleaner",
+    "/svg-minifier",
+    "/svg-dimensions-inspector",
+    "/svg-to-png-converter",
+  ],
+  "/svg-embed-code-generator": [
+    "/svg-to-base64",
+    "/base64-to-svg",
+    "/svg-cleaner",
+    "/svg-preview-viewer",
+  ],
   "/svg-background-editor": [
     "/svg-to-png-converter",
     "/svg-cleaner",
@@ -1008,8 +1026,14 @@ const RELATED_LINKS: Record<string, string[]> = {
     "/svg-to-base64",
     "/svg-cleaner",
     "/svg-preview-viewer",
-    "/svg-recolor",
+    "/svg-to-png-converter",
     "/base64-to-svg-for-cricut",
+  ],
+  "/free-color-picker": [
+    "/svg-recolor",
+    "/svg-background-editor",
+    "/svg-cleaner",
+    "/svg-to-png-converter",
   ],
   "/svg-cleaner": [
     "/svg-minifier",
@@ -1037,6 +1061,12 @@ const RELATED_LINKS: Record<string, string[]> = {
     "/png-to-svg-for-laser-cutting",
     "/scan-to-svg-converter",
     "/svg-to-png-converter",
+  ],
+  "/line-art-to-svg-converter": [
+    "/image-to-svg-outline",
+    "/black-and-white-image-to-svg-converter",
+    "/drawing-to-svg-converter",
+    "/png-to-svg-converter",
   ],
   "/photo-to-svg-outline": [
     "/image-to-svg-outline",

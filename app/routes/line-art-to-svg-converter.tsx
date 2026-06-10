@@ -55,6 +55,11 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  getFileEngagementProps,
+  trackToolEngagement,
+  trackToolEngagementOnce,
+} from "~/client/lib/analytics/toolEngagement";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1119,6 +1124,10 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
       setUpdatingOutputStamp(null);
+      trackToolEngagementOnce("line-art-conversion-completed", "conversion_completed", {
+        output_format: "svg",
+        trace_mode: settingsSnapshot.traceMode,
+      });
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
 
@@ -1197,9 +1206,18 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
 
   async function handleNewFile(f: File) {
     if (!ALLOWED_MIME.has(f.type)) {
+      trackToolEngagement("validation_error", {
+        reason: "unsupported_file_type",
+        surface: "upload",
+      });
       setErr("Please choose a PNG or JPEG.");
       return;
     }
+
+    trackToolEngagement("file_upload", {
+      ...getFileEngagementProps(f),
+      input_kind: "line_art_image",
+    });
 
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -1289,6 +1307,11 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
     appendAdvancedTraceSettings(fd, effective);
     fd.append("presetId", activePreset);
     setErr(null);
+    trackToolEngagement("conversion_started", {
+      output_format: "svg",
+      trace_mode: effective.traceMode,
+      preset_id: activePreset,
+    });
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1310,6 +1333,10 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
 
   function applyPreset(preset: Preset) {
     const nextSettings = buildPresetSettings(preset);
+    trackToolEngagement("settings_changed", {
+      control: "preset",
+      preset_id: preset.id,
+    });
     setActivePreset(preset.id);
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -1324,6 +1351,10 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
     setTimeout(() => setToast(null), 1500);
   }
   function handleCopySvg(svg: string) {
+    trackToolEngagement("copy_output", {
+      output_format: "svg",
+      surface: "line_art_output",
+    });
     navigator.clipboard.writeText(svg).then(() => showToast("SVG copied"));
   }
 
@@ -1504,13 +1535,21 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
 
               {/* Dropzone */}
               {!file ? (
-                <DragArea
-                  onPick={onPick}
-                  onDrop={onDrop}
-                  MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
-                  MAX_MP={MAX_MP}
-                  MAX_SIDE={MAX_SIDE}
-                />
+                <>
+                  <p className="mb-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[13px] leading-5 text-slate-700">
+                    Best with clean ink drawings, scanned line art, logos, or
+                    high-contrast sketches on a light background. Upload PNG or
+                    JPG.
+                  </p>
+                  <DragArea
+                    onPick={onPick}
+                    onDrop={onDrop}
+                    accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                    MAX_UPLOAD_BYTES={MAX_UPLOAD_BYTES}
+                    MAX_MP={MAX_MP}
+                    MAX_SIDE={MAX_SIDE}
+                  />
+                </>
               ) : (
                 <>
                   <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#f7faff] border border-[#dae6ff] text-slate-900 mt-0">
@@ -1566,7 +1605,7 @@ export default function LineArtToSvgConverter({}: Route.ComponentProps) {
                   disabled={buttonDisabled}
                   suppressHydrationWarning
                   className={[
-                    "flex items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
+                    "flex cursor-pointer items-center justify-center w-full px-3.5 py-2 rounded-lg font-bold border transition-colors",
                     "text-white bg-[#0b2dff] border-[#0a24da] hover:bg-[#0a24da] hover:border-[#091ec0]",
                     "disabled:opacity-70 disabled:cursor-not-allowed",
                   ].join(" ")}
