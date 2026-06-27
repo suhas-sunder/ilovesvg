@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useLocation, useRouteLoaderData } from "react-router";
 import { AdSenseDelayed } from "./AdsenseDelayed";
+import { DesktopMidPageAdWaterfall } from "./DesktopMidPageAdWaterfall";
 import {
   AFFILIATE_OFFERS,
   PRINTIFY_URL,
@@ -1034,7 +1035,7 @@ function ContextualAdsenseFallback({
       ? CONTEXTUAL_AFFILIATE_RESERVE_CLASS
       : CONTEXTUAL_ADSENSE_RESERVE_CLASS;
 
-  return (
+  const fallback = (
     <section
       className={`hidden bg-white px-4 py-4 sm:py-5 lg:block ${reserveHeightClass}`}
       aria-label="Sponsored advertisement"
@@ -1055,4 +1056,10 @@ function ContextualAdsenseFallback({
       </div>
     </section>
   );
+
+  if (reserveMode === "compact") {
+    return <DesktopMidPageAdWaterfall fallback={fallback} />;
+  }
+
+  return fallback;
 }
