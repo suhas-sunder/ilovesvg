@@ -82,7 +82,7 @@ export default function SiteFooter() {
           Privacy and affiliate disclosure: Uploaded files are used for
           conversion, processed in memory during the request, and not
           intentionally stored after processing. Some links on iLoveSVG may be
-          affiliate links, including links to Printify. If you buy through
+          affiliate links, including links to Amazon. If you buy through
           those links, iLoveSVG may earn a commission at no extra cost to you.
           Recommendations are included only where they are relevant to the tool
           or guide.
