@@ -16,27 +16,20 @@ export type AffiliateOffer = {
   priority: number;
 };
 
-export const PRINTIFY_URL =
-  "https://try.printify.com/ilovesvg?utm_source=ilovesvg&utm_medium=affiliate&utm_campaign=printify_pod";
+export const AMAZON_VINYL_AFFILIATE_URL = "https://amzn.to/4eyJt2K";
 
 export const AFFILIATE_OFFERS: AffiliateOffer[] = [
   {
-    id: "printify-product-mockups",
-    providerId: "printify",
-    label: "Printify product mockups",
-    href: PRINTIFY_URL,
+    id: "amazon-printable-vinyl-sticker-paper",
+    providerId: "amazon",
+    label: "Amazon printable vinyl sticker paper",
+    href: AMAZON_VINYL_AFFILIATE_URL,
     categories: [
       "stickers",
       "print-then-cut",
       "cricut-cut",
       "silhouette-vinyl",
-      "print-on-demand",
-      "ecommerce-selling",
       "general-svg-conversion",
-      "logo-icon",
-      "line-art-sketch",
-      "photo-color-conversion",
-      "layered-svg",
     ],
     enabled: true,
     priority: 10,

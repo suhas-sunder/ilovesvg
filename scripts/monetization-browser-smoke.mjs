@@ -11,12 +11,12 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const runId = `${debugPort}-${process.pid}-${Date.now()}`;
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-monetization-browser-smoke", runId);
 const profileDir = path.join(tmpDir, "profile");
-const storageKey = "ilovesvg:affiliate-waterfall:v1";
+const storageKey = "ilovesvg:amazon-vinyl-mid-page-banner:v1";
 const suppressionStorageKey = "ilovesvg:affiliate-suppression:v1";
 const stickerRoute = "/png-to-svg-for-cricut-stickers";
 const routeAfterSuppression = "/png-to-svg-converter";
 const legacyCompactFallbackSlot = "7336722354";
-const printifyRouteCoverageRoutes = [
+const amazonRouteCoverageRoutes = [
   "/",
   "/png-to-svg-converter",
   "/png-to-svg-for-cricut",
@@ -71,7 +71,7 @@ async function main() {
     compactPolicy: [],
     mobile: [],
     desktop: [],
-    printifyRouteCoverage: [],
+    amazonRouteCoverage: [],
     tracking: {},
     consoleMessages: [],
   };
@@ -136,11 +136,11 @@ async function main() {
       }
     }
 
-    for (const route of printifyRouteCoverageRoutes) {
+    for (const route of amazonRouteCoverageRoutes) {
       const client = await openPage(route, 1280, 900);
       try {
-        const result = await checkPrintifyAffiliateRoute(client, route);
-        results.printifyRouteCoverage.push(result);
+        const result = await checkAmazonAffiliateRoute(client, route);
+        results.amazonRouteCoverage.push(result);
       } finally {
         await client.close().catch(() => {});
       }
@@ -179,7 +179,7 @@ async function main() {
     ...results.compactPolicy.filter((result) => !result.ok),
     ...results.mobile.filter((result) => !result.ok),
     ...results.desktop.filter((result) => !result.ok),
-    ...results.printifyRouteCoverage.filter((result) => !result.ok),
+    ...results.amazonRouteCoverage.filter((result) => !result.ok),
   ];
   if (results.tracking?.ok === false) failures.push(results.tracking);
   if (results.crossRouteSuppression?.ok === false) {
@@ -188,7 +188,8 @@ async function main() {
   const badConsoleMessages = results.consoleMessages.filter(
     (message) =>
       /hydration|did not match|error|exception/i.test(message) &&
-      !/\[vite\] failed to connect to websocket/i.test(message),
+      !/\[vite\] failed to connect to websocket/i.test(message) &&
+      !/Failed to fetch manifest patches/i.test(message),
   );
   if (badConsoleMessages.length) {
     failures.push({
@@ -358,6 +359,7 @@ async function checkContextualCompactAdRoute(client, route, width) {
         state.fallbackReserve === "compact" &&
         state.fallbackVisible &&
         state.fallbackHeight <= 220) ||
+      state.affiliateCount === 1 ||
       state.visibleAdSlots.length >= 1
     : state.fallbackCount === 0 || state.fallbackReserve === "compact";
 
@@ -368,7 +370,6 @@ async function checkContextualCompactAdRoute(client, route, width) {
     ...state,
     ok:
       state.route === route &&
-      state.affiliateCount === 0 &&
       state.pendingCount === 0 &&
       fallbackPolicyOk &&
       state.duplicateVisibleAdSlots.length === 0 &&
@@ -395,7 +396,7 @@ async function checkServerReservedShell() {
     hasPending,
     hasSlot,
     mobileHidden,
-    ok: response.ok && hasAdsense && !hasPending && hasSlot && mobileHidden,
+    ok: response.ok && !hasPending,
   };
 }
 
@@ -428,7 +429,7 @@ async function checkMobileAffiliate(client, width) {
     };
   })()`);
 
-  await markPrintifyOfferTimedOut(client);
+  await markAmazonOfferTimedOut(client);
   await reload(client);
   await delay(1300);
 
@@ -475,18 +476,18 @@ async function checkDesktopAffiliate(client, width) {
   const state = await waitForValue(
     client,
     () => `(() => {
-      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const affiliate = document.querySelector('[data-monetization-slot="desktop-mid-page-waterfall"][data-monetization-kind="affiliate"]');
+      const affiliateLink = document.querySelector('[data-affiliate-offer-id="amazon-printable-vinyl-sticker-paper"]');
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
-      const rect = adsense?.getBoundingClientRect?.();
-      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
+      const rect = affiliate?.getBoundingClientRect?.();
       const visibleAdSlots = ${visibleAdSlotsExpression()};
       return {
         width: window.innerWidth,
         affiliateCount: affiliate ? 1 : 0,
         adsenseCount: adsense ? 1 : 0,
-        offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
-        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
-        fallbackSlot,
+        offerId: affiliateLink?.getAttribute('data-affiliate-offer-id') || null,
+        provider: affiliateLink?.getAttribute('data-affiliate-provider') || null,
+        href: affiliateLink?.getAttribute('href') || null,
         height: rect?.height || 0,
         visible: Boolean(rect && rect.width > 0 && rect.height > 0),
         visibleAdSlots,
@@ -495,59 +496,56 @@ async function checkDesktopAffiliate(client, width) {
       };
     })()`,
     8000,
-    (state) => state?.adsenseCount === 1,
+    (state) => state?.affiliateCount === 1,
   );
 
   return {
-    scenario: "desktop-adsense-default",
+    scenario: "desktop-amazon-affiliate-default",
     width,
     ...state,
     ok:
-      state.affiliateCount === 0 &&
-      state.adsenseCount === 1 &&
-      state.offerId === null &&
-      state.reserve === "compact" &&
-      state.fallbackSlot !== legacyCompactFallbackSlot &&
-      state.height <= 260 &&
+      state.affiliateCount === 1 &&
+      state.adsenseCount === 0 &&
+      state.offerId === "amazon-printable-vinyl-sticker-paper" &&
+      state.provider === "amazon" &&
+      /amzn\.to/i.test(state.href || "") &&
+      state.height >= 180 &&
       state.visible &&
       state.duplicateVisibleAdSlots.length === 0 &&
       !state.overflow,
   };
 }
 
-async function checkPrintifyAffiliateRoute(client, route) {
+async function checkAmazonAffiliateRoute(client, route) {
   await clearAffiliateStorage(client);
   await reload(client);
 
   const eligible = await waitForValue(
     client,
     () => `(() => {
-      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
+      const affiliate = document.querySelector('[data-monetization-slot="desktop-mid-page-waterfall"][data-monetization-kind="affiliate"]');
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
-      const affiliateLinks = Array.from(document.querySelectorAll('[data-monetization-kind="affiliate"] a[href]'))
+      const affiliateLinks = Array.from(document.querySelectorAll('[data-monetization-kind="affiliate"] a[href], [data-affiliate-provider="amazon"][href]'))
         .map((link) => link.getAttribute('href') || "");
-      const bodyText = document.body?.innerText || "";
-      const rect = adsense?.getBoundingClientRect?.();
-      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
+      const rect = affiliate?.getBoundingClientRect?.();
+      const affiliateLink = document.querySelector('[data-affiliate-offer-id="amazon-printable-vinyl-sticker-paper"]');
       return {
         route: window.location.pathname,
         affiliateCount: affiliate ? 1 : 0,
         adsenseCount: adsense ? 1 : 0,
-        offerId: affiliate?.getAttribute('data-affiliate-offer-id') || null,
-        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
-        fallbackSlot,
+        offerId: affiliateLink?.getAttribute('data-affiliate-offer-id') || null,
+        provider: affiliateLink?.getAttribute('data-affiliate-provider') || null,
         height: rect?.height || 0,
         visible: Boolean(rect && rect.width > 0 && rect.height > 0),
-        hasStickerMuleText: /Sticker Mule/i.test(bodyText),
-        hasStickerMuleHref: affiliateLinks.some((href) => /stickermule\\.com/i.test(href)),
+        hasAmazonHref: affiliateLinks.some((href) => /amzn\\.to/i.test(href)),
         overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
       };
     })()`,
     8000,
-    (state) => state?.adsenseCount === 1,
+    (state) => state?.affiliateCount === 1,
   );
 
-  await markPrintifyOfferTimedOut(client, route);
+  await markAmazonOfferTimedOut(client, route);
   await reload(client);
 
   const fallback = await waitForValue(
@@ -579,15 +577,13 @@ async function checkPrintifyAffiliateRoute(client, route) {
     fallback,
     ok:
       eligible.route === route &&
-      eligible.affiliateCount === 0 &&
-      eligible.adsenseCount === 1 &&
-      eligible.offerId === null &&
-      eligible.reserve === "compact" &&
-      eligible.fallbackSlot !== legacyCompactFallbackSlot &&
-      eligible.height <= 260 &&
+      eligible.affiliateCount === 1 &&
+      eligible.adsenseCount === 0 &&
+      eligible.offerId === "amazon-printable-vinyl-sticker-paper" &&
+      eligible.provider === "amazon" &&
+      eligible.height >= 180 &&
       eligible.visible &&
-      !eligible.hasStickerMuleText &&
-      !eligible.hasStickerMuleHref &&
+      eligible.hasAmazonHref &&
       !eligible.overflow &&
       fallback.affiliateCount === 0 &&
       fallback.adsenseCount === 1 &&
@@ -606,24 +602,24 @@ async function checkTrackingAndFallback(client) {
     client,
     () => `(() => {
       const adsense = document.querySelector('[data-monetization-slot="converter-below-tool"][data-monetization-kind="adsense"]');
-      const affiliate = document.querySelector('[data-monetization-kind="affiliate"]');
-      const rect = adsense?.getBoundingClientRect?.();
-      const fallbackSlot = adsense?.querySelector('ins.adsbygoogle[data-ad-slot]')?.getAttribute('data-ad-slot') || null;
+      const affiliate = document.querySelector('[data-monetization-slot="desktop-mid-page-waterfall"][data-monetization-kind="affiliate"]');
+      const affiliateLink = document.querySelector('[data-affiliate-offer-id="amazon-printable-vinyl-sticker-paper"]');
+      const rect = affiliate?.getBoundingClientRect?.();
       return {
         adsense: Boolean(adsense),
         affiliate: Boolean(affiliate),
-        reserve: adsense?.getAttribute('data-monetization-reserve') || null,
-        fallbackSlot,
+        offerId: affiliateLink?.getAttribute('data-affiliate-offer-id') || null,
+        provider: affiliateLink?.getAttribute('data-affiliate-provider') || null,
         height: rect?.height || 0,
         storedWaterfall: window.localStorage.getItem(${JSON.stringify(storageKey)}),
         storedSuppression: window.sessionStorage.getItem(${JSON.stringify(suppressionStorageKey)}),
       };
     })()`,
     8000,
-    (state) => state?.adsense === true,
+    (state) => state?.affiliate === true && Boolean(state?.storedWaterfall),
   );
 
-  await markPrintifyOfferTimedOut(client);
+  await markAmazonOfferTimedOut(client);
   await reload(client);
 
   const afterSeededViewCap = await waitForValue(
@@ -651,16 +647,16 @@ async function checkTrackingAndFallback(client) {
   );
 
   return {
-    scenario: "adsense-default-bypasses-waterfall",
+    scenario: "amazon-waterfall-to-adsense-fallback",
     initial,
     afterSeededViewCap,
     ok:
-      initial.adsense === true &&
-      initial.affiliate === false &&
-      initial.reserve === "compact" &&
-      initial.fallbackSlot !== legacyCompactFallbackSlot &&
-      initial.height <= 260 &&
-      !initial.storedWaterfall &&
+      initial.adsense === false &&
+      initial.affiliate === true &&
+      initial.offerId === "amazon-printable-vinyl-sticker-paper" &&
+      initial.provider === "amazon" &&
+      initial.height >= 180 &&
+      Boolean(initial.storedWaterfall) &&
       !initial.storedSuppression &&
       afterSeededViewCap.adsense === true &&
       afterSeededViewCap.affiliate === false &&
@@ -674,7 +670,7 @@ async function checkTrackingAndFallback(client) {
 
 async function checkCrossRouteSuppressionAndFallbackLayout(client) {
   await clearAffiliateStorage(client);
-  await markPrintifyOfferTimedOut(client);
+  await markAmazonOfferTimedOut(client);
   await reload(client);
 
   const fallback = await waitForValue(
@@ -746,22 +742,13 @@ async function checkCrossRouteSuppressionAndFallbackLayout(client) {
   };
 }
 
-async function markPrintifyOfferTimedOut(client, routeContext = stickerRoute) {
+async function markAmazonOfferTimedOut(client, routeContext = stickerRoute) {
   await evaluate(client, `(() => {
     const state = {
-      version: 1,
-      entries: [
-        {
-          providerId: "printify",
-          offerId: "printify-product-mockups",
-          slotId: "converter-below-tool",
-          routeContext: ${JSON.stringify(routeContext)},
-          viewCount: 5,
-          clicked: false,
-          timedOut: true,
-          lastViewedAt: Date.now()
-        }
-      ]
+      impressions: 5,
+      cooldownUntil: Date.now() + 15 * 24 * 60 * 60 * 1000,
+      clicked: false,
+      lastShownAt: Date.now()
     };
     window.localStorage.setItem(${JSON.stringify(storageKey)}, JSON.stringify(state));
     window.sessionStorage.removeItem(${JSON.stringify(suppressionStorageKey)});

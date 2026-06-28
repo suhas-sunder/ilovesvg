@@ -1,7 +1,6 @@
 import type { MouseEventHandler } from "react";
 import vinylBannerImage from "~/client/assets/images/amazon-affiliate-vinyl-banner-final.jpg";
-
-export const AMAZON_VINYL_AFFILIATE_URL = "https://amzn.to/4eyJt2K";
+import { AMAZON_VINYL_AFFILIATE_URL } from "~/client/lib/monetization/affiliateOffers";
 
 type AmazonVinylAffiliateBannerProps = {
   onClick?: MouseEventHandler<HTMLAnchorElement>;

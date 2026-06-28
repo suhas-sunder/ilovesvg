@@ -133,16 +133,18 @@ for (const route of unsupportedRoutes) {
   assertNotIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} XML sitemap entry`);
 }
 
-assertOfferEnabled(files.affiliateOffers, "printify-product-mockups", true);
+assertOfferEnabled(files.affiliateOffers, "amazon-printable-vinyl-sticker-paper", true);
 assertNotIncludes(files.affiliateOffers, "sticker-mule-custom-stickers", "Sticker Mule affiliate offer");
 assertNotIncludes(files.affiliateOffers, removedOfferId, "removed affiliate offer");
 assertNotIncludes(files.affiliateOffers, "cricut-project-workflow", "Cricut affiliate offer");
 assertNotIncludes(files.affiliateOffers, "NAME" + "CHEAP", "removed affiliate constant");
+assertNotIncludes(files.affiliateOffers, "try." + "print" + "ify.com", "removed POD affiliate link");
+assertNotIncludes(files.affiliateOffers, "print" + "ify-product-mockups", "removed POD affiliate offer");
 assertNotIncludes(files.affiliateProviders, removedProviderId, "removed provider metadata");
 assertIncludes(files.affiliateProviders, "ACTIVE_AFFILIATE_PROVIDER_IDS", "active affiliate provider allowlist");
-assertIncludes(files.affiliateProviders, '"printify"', "Printify provider");
-assertIncludes(files.affiliateProviders, 'id: "stickerMule"', "disabled Sticker Mule provider metadata");
-assertIncludes(files.affiliateProviders, 'status: "disabled"', "disabled non-Printify provider status");
+assertIncludes(files.affiliateProviders, '"amazon"', "Amazon provider");
+assertNotIncludes(files.affiliateProviders, '"print' + 'ify"', "removed POD provider");
+assertNotIncludes(files.affiliateProviders, 'id: "stickerMule"', "Sticker Mule provider metadata");
 
 assertNoDuplicateJsonLd("FAQPage", files.utilities, "OtherToolsLinks FAQ schema");
 assertNoDuplicateRouteUtility(indexableRoutes, files.utilities);

@@ -7,7 +7,7 @@ import ts from "typescript";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = path.join(rootDir, "app", "client", "lib", "monetization");
-const tmpDir = path.join(os.tmpdir(), "ilovesvg-printify-affiliate-smoke");
+const tmpDir = path.join(os.tmpdir(), "ilovesvg-amazon-vinyl-affiliate-smoke");
 
 const moduleFiles = [
   "affiliateProviders",
@@ -58,13 +58,12 @@ const affiliateRoutes = [
   "/png-to-svg-for-cricut",
   "/png-to-svg-for-silhouette",
   "/sticker-to-svg-converter",
-  "/logo-to-svg-converter",
 ];
 
 const compactAdRoutes = ["/svg-minifier", "/svg-cleaner"];
 const noAdRoutes = ["/privacy-policy", "/cookies", "/sitemap"];
 const slotId = "converter-below-tool";
-const printifyOfferId = "printify-product-mockups";
+const amazonOfferId = "amazon-printable-vinyl-sticker-paper";
 
 function stateFor(entries) {
   return {
@@ -73,10 +72,10 @@ function stateFor(entries) {
   };
 }
 
-function printifyEntry(routeContext, overrides = {}) {
+function amazonEntry(routeContext, overrides = {}) {
   return {
-    providerId: "printify",
-    offerId: printifyOfferId,
+    providerId: "amazon",
+    offerId: amazonOfferId,
     slotId,
     routeContext,
     viewCount: 0,
@@ -97,8 +96,8 @@ function relevantOfferIdsForRoute(route) {
 
 assert.deepEqual(
   providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
-  ["printify"],
-  "Printify is the only active affiliate provider",
+  ["amazon"],
+  "Amazon vinyl stickers is the only active affiliate provider",
 );
 assert.equal(
   providers.isAffiliateProviderActive("stickerMule"),
@@ -107,13 +106,13 @@ assert.equal(
 );
 assert.deepEqual(
   offers.getActiveAffiliateOfferIds(),
-  [printifyOfferId],
-  "Printify is the only active affiliate offer",
+  [amazonOfferId],
+  "Amazon vinyl stickers is the only active affiliate offer",
 );
 assert.equal(
-  offers.AFFILIATE_OFFERS.some((offer) => offer.providerId !== "printify"),
+  offers.AFFILIATE_OFFERS.some((offer) => offer.providerId !== "amazon"),
   false,
-  "non-Printify affiliate offers are absent from the active offer list",
+  "non-Amazon vinyl stickers affiliate offers are absent from the active offer list",
 );
 
 for (const route of affiliateRoutes) {
@@ -134,8 +133,8 @@ for (const route of affiliateRoutes) {
   );
   assert.deepEqual(
     relevantOfferIdsForRoute(route),
-    [printifyOfferId],
-    `${route} keeps Printify mapped only in dormant affiliate config`,
+    [amazonOfferId],
+    `${route} keeps Amazon vinyl stickers mapped only in dormant affiliate config`,
   );
 
   const eligibleSelection = selection.selectAffiliateWaterfallOffer({
@@ -149,15 +148,15 @@ for (const route of affiliateRoutes) {
   });
   assert.equal(
     eligibleSelection.selectedOffer?.id,
-    printifyOfferId,
-    `${route} can still resolve Printify when the dormant selector is called directly`,
+    amazonOfferId,
+    `${route} can still resolve Amazon vinyl stickers when the dormant selector is called directly`,
   );
 
   for (const [label, routeState] of [
     [
       "clicked",
       stateFor([
-        printifyEntry(route, {
+        amazonEntry(route, {
           clicked: true,
           timedOut: true,
           lastClickedAt: Date.now(),
@@ -167,7 +166,7 @@ for (const route of affiliateRoutes) {
     [
       "view-capped",
       stateFor([
-        printifyEntry(route, {
+        amazonEntry(route, {
           viewCount: storage.AFFILIATE_TIMEOUT_VIEW_COUNT,
           timedOut: true,
         }),
@@ -186,7 +185,7 @@ for (const route of affiliateRoutes) {
     assert.equal(
       fallbackSelection.selectedOffer,
       null,
-      `${route} hides Printify after ${label} suppression`,
+      `${route} hides Amazon vinyl stickers after ${label} suppression`,
     );
     assert.equal(
       fallbackSelection.shouldShowAdsense,
@@ -241,7 +240,7 @@ for (const route of noAdRoutes) {
 
 const expiredClickState = storage.sanitizeAffiliateWaterfallState(
   stateFor([
-    printifyEntry("/png-to-svg-converter", {
+    amazonEntry("/png-to-svg-converter", {
       clicked: true,
       timedOut: true,
       lastClickedAt: Date.now() - storage.AFFILIATE_CLICK_SUPPRESSION_MS - 1000,
@@ -249,7 +248,7 @@ const expiredClickState = storage.sanitizeAffiliateWaterfallState(
   ]),
   {
     validOfferIds: offers.getActiveAffiliateOfferIds(),
-    validOffers: [{ id: printifyOfferId, providerId: "printify" }],
+    validOffers: [{ id: amazonOfferId, providerId: "amazon" }],
     validProviderIds: providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
     validSlotIds: [slotId],
   },
@@ -272,10 +271,13 @@ const activeUiFiles = [
 ];
 for (const relativePath of activeUiFiles) {
   const source = await fs.readFile(path.join(rootDir, relativePath), "utf8");
+  const removedPodProviderPattern = new RegExp(
+    "try" + "\\." + "print" + "ify" + "\\.com|PRINT" + "IFY_URL|Print" + "ify affiliate|Create Print" + "ify mockups",
+  );
   assert.equal(
-    /stickermule\.com|Sticker Mule|sticker-mule-custom-stickers/.test(source),
+    removedPodProviderPattern.test(source),
     false,
-    `${relativePath} does not render or link to Sticker Mule`,
+    `${relativePath} does not render or link to the removed POD affiliate content`,
   );
 }
 

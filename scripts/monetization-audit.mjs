@@ -132,7 +132,7 @@ function stateFor(entries) {
 
 function entry(overrides) {
   return {
-    offerId: "printify-product-mockups",
+    offerId: "amazon-printable-vinyl-sticker-paper",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-etsy",
     viewCount: 0,
@@ -232,8 +232,8 @@ function runStorageParserTests() {
       entry({ offerId: removedOfferId, providerId: removedProviderId }),
       entry({ offerId: "cricut-project-workflow", providerId: "cricut" }),
       entry({ offerId: "unknown-provider-offer", providerId: "unknown" }),
-      entry({ offerId: "printify-product-mockups", viewCount: 2 }),
-      entry({ offerId: "printify-product-mockups", viewCount: 4 }),
+      entry({ offerId: "amazon-printable-vinyl-sticker-paper", viewCount: 2 }),
+      entry({ offerId: "amazon-printable-vinyl-sticker-paper", viewCount: 4 }),
     ]),
   );
   assert.deepEqual(
@@ -248,14 +248,14 @@ function runStorageParserTests() {
         offerId: storedEntry.offerId,
         viewCount: storedEntry.viewCount,
       })),
-    [{ providerId: "printify", offerId: "printify-product-mockups", viewCount: 4 }],
+    [{ providerId: "amazon", offerId: "amazon-printable-vinyl-sticker-paper", viewCount: 4 }],
     "inactive, removed, and unknown provider entries are ignored while active duplicates are deduped",
   );
 
   const store = new MemoryStorage();
   const firstView = storage.incrementAffiliateView(store, {
-    providerId: "printify",
-    offerId: "printify-product-mockups",
+    providerId: "amazon",
+    offerId: "amazon-printable-vinyl-sticker-paper",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-etsy",
     now: 100,
@@ -268,8 +268,8 @@ function runStorageParserTests() {
 
   for (let index = 0; index < 4; index += 1) {
     storage.incrementAffiliateView(store, {
-      providerId: "printify",
-      offerId: "printify-product-mockups",
+      providerId: "amazon",
+      offerId: "amazon-printable-vinyl-sticker-paper",
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-etsy",
       now: 200 + index,
@@ -281,7 +281,7 @@ function runStorageParserTests() {
   const afterFive = storage.getAffiliateWaterfallEntry(
     storage.readAffiliateWaterfallState(store),
     {
-      offerId: "printify-product-mockups",
+      offerId: "amazon-printable-vinyl-sticker-paper",
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-etsy",
     },
@@ -291,8 +291,8 @@ function runStorageParserTests() {
 
   const clickStore = new MemoryStorage();
   const clicked = storage.markAffiliateClicked(clickStore, {
-    providerId: "printify",
-    offerId: "printify-product-mockups",
+    providerId: "amazon",
+    offerId: "amazon-printable-vinyl-sticker-paper",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-cricut-stickers",
     now: 300,
@@ -308,8 +308,8 @@ function runStorageParserTests() {
     expiredClickStore,
     stateFor([
       entry({
-        providerId: "printify",
-        offerId: "printify-product-mockups",
+        providerId: "amazon",
+        offerId: "amazon-printable-vinyl-sticker-paper",
         clicked: true,
         timedOut: true,
         lastClickedAt: Date.now() - storage.AFFILIATE_CLICK_SUPPRESSION_MS - 1000,
@@ -364,8 +364,8 @@ function runWaterfallSelectionTests() {
   });
   assert.deepEqual(
     relevant.map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "sticker and print routes use Printify as the only affiliate",
+    ["amazon-printable-vinyl-sticker-paper"],
+    "sticker and print routes use Amazon vinyl stickers as the only affiliate",
   );
 
   assert.equal(
@@ -404,7 +404,7 @@ function runWaterfallSelectionTests() {
         routeCategories: ["stickers"],
       })
       .map((offer) => offer.id),
-    ["printify-product-mockups"],
+    ["amazon-printable-vinyl-sticker-paper"],
     "duplicate offer IDs are displayed only once",
   );
 
@@ -438,14 +438,14 @@ function runWaterfallSelectionTests() {
       slotId: "converter-below-tool",
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).selectedOffer?.id,
-    "printify-product-mockups",
+    "amazon-printable-vinyl-sticker-paper",
     "waterfall selector can still resolve one relevant affiliate when called directly",
   );
 
   const timedOutFirst = stateFor([
       entry({
-      providerId: "printify",
-      offerId: "printify-product-mockups",
+      providerId: "amazon",
+      offerId: "amazon-printable-vinyl-sticker-paper",
       routeContext: "/png-to-svg-for-cricut-stickers",
       viewCount: 5,
       timedOut: true,
@@ -459,13 +459,13 @@ function runWaterfallSelectionTests() {
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).shouldShowAdsense,
     true,
-    "timed-out Printify offer falls back to AdSense",
+    "timed-out Amazon vinyl offer falls back to AdSense",
   );
 
   const timedOutBoth = stateFor([
       entry({
-      providerId: "printify",
-      offerId: "printify-product-mockups",
+      providerId: "amazon",
+      offerId: "amazon-printable-vinyl-sticker-paper",
       routeContext: "/png-to-svg-for-cricut-stickers",
       clicked: true,
       timedOut: true,
@@ -479,21 +479,21 @@ function runWaterfallSelectionTests() {
       routeContext: "/png-to-svg-for-cricut-stickers",
     }).shouldShowAdsense,
     true,
-    "clicked Printify offer falls back to AdSense",
+    "clicked Amazon vinyl offer falls back to AdSense",
   );
 }
 
 function runProviderCleanupTests() {
   assert.deepEqual(
     providers.ACTIVE_AFFILIATE_PROVIDER_IDS,
-    ["printify"],
-    "active provider allowlist contains Printify only",
+    ["amazon"],
+    "active provider allowlist contains Amazon only",
   );
 
   assert.equal(
-    providers.isAffiliateProviderActive("printify"),
+    providers.isAffiliateProviderActive("amazon"),
     true,
-    "Printify is active",
+    "Amazon is active",
   );
 
   assert.equal(
@@ -522,8 +522,8 @@ function runProviderCleanupTests() {
 
   assert.deepEqual(
     offers.getActiveAffiliateOfferIds(),
-    ["printify-product-mockups"],
-    "active offer IDs are Printify only",
+    ["amazon-printable-vinyl-sticker-paper"],
+    "active offer IDs are Amazon only",
   );
 
   assert.equal(
@@ -561,8 +561,8 @@ function runRouteRelevanceTests() {
         ),
       })
       .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "sticker printing routes use Printify as the only affiliate",
+    ["amazon-printable-vinyl-sticker-paper"],
+    "sticker printing routes use Amazon vinyl stickers as the only affiliate",
   );
 
   assert.equal(
@@ -586,21 +586,21 @@ function runRouteRelevanceTests() {
           routeIntents.getAffiliateRouteCategories("/png-to-svg-converter"),
       })
       .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "general PNG conversion can show Printify first",
+    ["amazon-printable-vinyl-sticker-paper"],
+    "general PNG conversion can show Amazon vinyl stickers first",
   );
 
   assert.deepEqual(
     offers
       .getRelevantAffiliateOffers({
         offers: offers.AFFILIATE_OFFERS,
-        routeCategories: routeIntents.getAffiliateRouteCategories(
+    routeCategories: routeIntents.getAffiliateRouteCategories(
           "/svg-to-png-for-printify",
         ),
       })
       .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "Printify-specific routes can show the Printify offer",
+    [],
+    "POD-specific routes do not show an affiliate offer",
   );
 
   assert.deepEqual(
@@ -612,8 +612,8 @@ function runRouteRelevanceTests() {
         ),
       })
       .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "creator-focused SVG background editor route can show Printify",
+    [],
+    "creator-focused SVG background editor route does not show an affiliate offer",
   );
 
   assert.deepEqual(
@@ -625,8 +625,8 @@ function runRouteRelevanceTests() {
         ),
       })
       .map((offer) => offer.id),
-    ["printify-product-mockups"],
-    "creator-focused SVG recolor route can show Printify",
+    [],
+    "creator-focused SVG recolor route does not show an affiliate offer",
   );
 
   for (const route of [
@@ -757,7 +757,7 @@ function runClickAndSuppressionTests() {
 
   const clickStore = new MemoryStorage();
   const clicked = storage.markAffiliateClicked(clickStore, {
-    offerId: "printify-product-mockups",
+    offerId: "amazon-printable-vinyl-sticker-paper",
     slotId: "converter-below-tool",
     routeContext: "/png-to-svg-for-etsy",
     now: 400,
@@ -772,8 +772,8 @@ function runActiveAffiliateTests() {
 
   assert.deepEqual(
     activeOfferIds,
-    ["printify-product-mockups"],
-    "only Printify is an active affiliate offer",
+    ["amazon-printable-vinyl-sticker-paper"],
+    "only Amazon vinyl stickers is an active affiliate offer",
   );
 
   assert.equal(

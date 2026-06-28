@@ -50,7 +50,7 @@
     "test:links": "node scripts/responsive-nav-example-audit.mjs links",
     "test:monetization": "node scripts/monetization-audit.mjs",
     "test:monetization-browser": "node scripts/monetization-browser-smoke.mjs",
-    "test:printify-affiliate-adsense-fallback": "node scripts/printify-affiliate-adsense-fallback-smoke.mjs",
+    "test:amazon-vinyl-affiliate-adsense-fallback": "node scripts/amazon-vinyl-affiliate-adsense-fallback-smoke.mjs",
     "test:pro-waitlist": "node scripts/pro-waitlist-audit.mjs",
     "test:pro-waitlist-browser": "node scripts/pro-waitlist-browser-smoke.mjs",
     "test:manifest-bundle": "node scripts/manifest-bundle-audit.mjs",

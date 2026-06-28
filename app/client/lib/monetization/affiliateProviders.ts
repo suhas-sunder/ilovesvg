@@ -1,4 +1,4 @@
-export type AffiliateProviderId = "printify" | "stickerMule" | "cricut";
+export type AffiliateProviderId = "amazon";
 
 export type AffiliateProviderStatus =
   | "active"
@@ -15,26 +15,14 @@ export type AffiliateProvider = {
 
 export const AFFILIATE_PROVIDERS: AffiliateProvider[] = [
   {
-    id: "printify",
-    label: "Printify",
+    id: "amazon",
+    label: "Amazon",
     enabled: true,
     status: "active",
   },
-  {
-    id: "stickerMule",
-    label: "Sticker Mule",
-    enabled: false,
-    status: "disabled",
-  },
-  {
-    id: "cricut",
-    label: "Cricut",
-    enabled: false,
-    status: "pending",
-  },
 ];
 
-export const ACTIVE_AFFILIATE_PROVIDER_IDS: AffiliateProviderId[] = ["printify"];
+export const ACTIVE_AFFILIATE_PROVIDER_IDS: AffiliateProviderId[] = ["amazon"];
 
 const activeProviderIdSet = new Set<string>(ACTIVE_AFFILIATE_PROVIDER_IDS);
 
