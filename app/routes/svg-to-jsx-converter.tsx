@@ -5,6 +5,7 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 
 export function meta({}: Route.MetaArgs) {
   const title = "SVG to JSX Converter - React SVG Component Markup | iLoveSVG";
@@ -315,6 +316,7 @@ export default function SvgToJsxConverter(_: Route.ComponentProps) {
         </div>
         <OtherToolsLinks />
       </main>
+      <ContextualAdCard />
       <RelatedSites />
       <SocialLinks />
       <SiteFooter />

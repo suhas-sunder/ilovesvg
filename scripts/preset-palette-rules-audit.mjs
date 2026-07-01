@@ -356,7 +356,7 @@ async function main() {
     nonGoals: [
       "No production conversion changes outside focused 8 Color and Poster guardrails.",
       "No unrelated preset changes.",
-      "No route URL, SEO, navigation, sitemap, monetization, affiliate, compression, or settings UI changes.",
+      "No route URL, SEO, navigation, sitemap, monetization, compression, or settings UI changes.",
       "No binary fixture commits.",
     ],
   };

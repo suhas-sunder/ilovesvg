@@ -21,7 +21,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
@@ -1653,7 +1653,7 @@ export default function PngToSvgForCricutPrintThenCut({
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
 
       <SeoSections />
       <OtherToolsLinks />

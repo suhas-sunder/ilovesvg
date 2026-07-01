@@ -15,7 +15,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ThrottledColorInput as SharedThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
@@ -3448,7 +3448,7 @@ export default function Base64ToSvgForCricut({}: Route.ComponentProps) {
         />
       </div>
 
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

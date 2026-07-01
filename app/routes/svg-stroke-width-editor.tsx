@@ -9,7 +9,7 @@ import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 
 /* ========================
    Meta
@@ -998,7 +998,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
       <SeoSections />
       <JsonLdBreadcrumbs />
 

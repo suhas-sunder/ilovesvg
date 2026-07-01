@@ -19,7 +19,7 @@ import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ChevronDownIcon, PresetPicker } from "~/client/components/converter/PresetSelector";
 import {
@@ -2690,7 +2690,7 @@ export default function CodeToSvgForCricut({}: Route.ComponentProps) {
         />
       </div>
 
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
 
       <SeoSections />
       <OtherToolsLinks />

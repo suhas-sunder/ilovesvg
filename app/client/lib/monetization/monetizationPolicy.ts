@@ -2,15 +2,12 @@ export type RouteMonetizationPolicy = {
   mode:
     | "excluded"
     | "focused-no-monetization"
-    | "compact-ad"
-    | "affiliate-with-fallback";
+    | "compact-ad";
   ads: boolean;
-  affiliate: boolean;
   placement:
     | "none"
     | "docs-compact-ad"
-    | "contextual-compact-ad"
-    | "contextual-affiliate-with-compact-fallback";
+    | "contextual-compact-ad";
   exclusionReason?:
     | "legal-trust"
     | "api"
@@ -116,7 +113,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "excluded",
       ads: false,
-      affiliate: false,
       placement: "none",
       exclusionReason: "legal-trust",
     };
@@ -126,7 +122,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "excluded",
       ads: false,
-      affiliate: false,
       placement: "none",
       exclusionReason: "api",
     };
@@ -136,7 +131,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "excluded",
       ads: false,
-      affiliate: false,
       placement: "none",
       exclusionReason: "redirect",
     };
@@ -146,7 +140,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "excluded",
       ads: false,
-      affiliate: false,
       placement: "none",
       exclusionReason: "sitemap-meta",
     };
@@ -156,7 +149,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "focused-no-monetization",
       ads: false,
-      affiliate: false,
       placement: "none",
       exclusionReason: "owned-funnel",
     };
@@ -166,7 +158,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "compact-ad",
       ads: true,
-      affiliate: false,
       placement: "docs-compact-ad",
     };
   }
@@ -175,7 +166,6 @@ export function getRouteMonetizationPolicy(
     return {
       mode: "compact-ad",
       ads: true,
-      affiliate: false,
       placement: "contextual-compact-ad",
     };
   }
@@ -183,15 +173,10 @@ export function getRouteMonetizationPolicy(
   return {
     mode: "compact-ad",
     ads: true,
-    affiliate: false,
     placement: "contextual-compact-ad",
   };
 }
 
 export function shouldRenderAdsForPath(pathname: string) {
   return getRouteMonetizationPolicy(pathname).ads;
-}
-
-export function shouldRenderAffiliateForPath(pathname: string) {
-  return getRouteMonetizationPolicy(pathname).affiliate;
 }

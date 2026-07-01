@@ -9,7 +9,7 @@ import DragArea from "~/client/components/ui/DragArea";
 import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 
 const isServer = typeof document === "undefined";
 
@@ -1158,7 +1158,7 @@ export default function SvgRecolorPage({}: Route.ComponentProps) {
               className="mx-auto w-full max-w-[360px]"
             />
           </div>
-          <ContextualAffiliateCard />
+          <ContextualAdCard />
 
           <SeoSections />
         </div>

@@ -17,10 +17,6 @@ import NavBar from "./client/components/navigation/NavBar";
 import { logAppError } from "./client/lib/errorLogging";
 import { shouldRenderAdsForPath } from "./client/lib/monetization/monetizationPolicy";
 
-function createAffiliateVariantSeed() {
-  return Math.floor(Math.random() * 1_000_000_000);
-}
-
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -45,10 +41,9 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const url = new URL(request.url);
   const p0 = url.pathname;
-  const affiliateVariantSeed = createAffiliateVariantSeed();
 
   // Homepage does not need normalization, but it still receives render data.
-  if (p0 === "/") return { affiliateVariantSeed };
+  if (p0 === "/") return null;
 
   // Skip common static prefixes
   if (
@@ -77,7 +72,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     });
   }
 
-  return { affiliateVariantSeed };
+  return null;
 };
 
 export function Layout({ children }: { children: React.ReactNode }) {

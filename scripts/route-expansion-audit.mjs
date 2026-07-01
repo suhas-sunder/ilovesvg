@@ -90,14 +90,9 @@ const files = {
   htmlSitemap: await read("app/routes/sitemap.tsx"),
   xmlSitemap: await read("public/sitemap.xml"),
   capabilities: await read("app/client/lib/converter/routeCapabilities.ts"),
-  affiliates: await read("app/client/lib/monetization/affiliateRouteIntents.ts"),
-  affiliateOffers: await read("app/client/lib/monetization/affiliateOffers.ts"),
-  affiliateProviders: await read("app/client/lib/monetization/affiliateProviders.ts"),
 };
 
 const failures = [];
-const removedProviderId = "name" + "cheap";
-const removedOfferId = `${removedProviderId}-domain-hosting`;
 
 assertIncludes(files.nav, "TOOL_NAV_SECTIONS", "NavBar uses searchable nav sections");
 assertIncludes(files.nav, "TOOL_NAV_ITEMS", "NavBar uses searchable nav items");
@@ -111,7 +106,6 @@ for (const route of indexableRoutes) {
   assertIncludes(files.htmlSitemap, `path: "${route}"`, `${route} in HTML sitemap`);
   assertIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} in XML sitemap`);
   assertIncludes(files.capabilities, `"${slug}":`, `${route} in route capabilities`);
-  assertIncludes(files.affiliates, `"${route}":`, `${route} in affiliate intent map`);
 }
 
 for (const route of redirectRoutes) {
@@ -119,7 +113,6 @@ for (const route of redirectRoutes) {
   await assertFile(`app/routes/${slug}.tsx`, `${route} redirect route file`);
   assertIncludes(files.routes, `route("${slug}"`, `${route} in routes.ts`);
   assertIncludes(files.capabilities, `"${slug}":`, `${route} in route capabilities`);
-  assertIncludes(files.affiliates, `"${route}":`, `${route} in affiliate intent map`);
   assertNotIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} excluded from XML sitemap`);
 }
 
@@ -132,19 +125,6 @@ for (const route of unsupportedRoutes) {
   assertNotIncludes(files.htmlSitemap, `path: "${route}"`, `${route} HTML sitemap entry`);
   assertNotIncludes(files.xmlSitemap, `<loc>https://www.ilovesvg.com/${slug}</loc>`, `${route} XML sitemap entry`);
 }
-
-assertOfferEnabled(files.affiliateOffers, "amazon-printable-vinyl-sticker-paper", true);
-assertNotIncludes(files.affiliateOffers, "sticker-mule-custom-stickers", "Sticker Mule affiliate offer");
-assertNotIncludes(files.affiliateOffers, removedOfferId, "removed affiliate offer");
-assertNotIncludes(files.affiliateOffers, "cricut-project-workflow", "Cricut affiliate offer");
-assertNotIncludes(files.affiliateOffers, "NAME" + "CHEAP", "removed affiliate constant");
-assertNotIncludes(files.affiliateOffers, "try." + "print" + "ify.com", "removed POD affiliate link");
-assertNotIncludes(files.affiliateOffers, "print" + "ify-product-mockups", "removed POD affiliate offer");
-assertNotIncludes(files.affiliateProviders, removedProviderId, "removed provider metadata");
-assertIncludes(files.affiliateProviders, "ACTIVE_AFFILIATE_PROVIDER_IDS", "active affiliate provider allowlist");
-assertIncludes(files.affiliateProviders, '"amazon"', "Amazon provider");
-assertNotIncludes(files.affiliateProviders, '"print' + 'ify"', "removed POD provider");
-assertNotIncludes(files.affiliateProviders, 'id: "stickerMule"', "Sticker Mule provider metadata");
 
 assertNoDuplicateJsonLd("FAQPage", files.utilities, "OtherToolsLinks FAQ schema");
 assertNoDuplicateRouteUtility(indexableRoutes, files.utilities);
@@ -201,25 +181,6 @@ function assertIncludes(text, needle, label) {
 function assertNotIncludes(text, needle, label) {
   if (text.includes(needle)) {
     failures.push(`${label} should not be present`);
-  }
-}
-
-function assertOfferEnabled(text, offerId, expectedEnabled) {
-  const escapedOfferId = offerId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = text.match(
-    new RegExp(`id:\\s*"${escapedOfferId}"[\\s\\S]*?enabled:\\s*(true|false)`),
-  );
-
-  if (!match) {
-    failures.push(`${offerId} offer block missing enabled flag`);
-    return;
-  }
-
-  const actualEnabled = match[1] === "true";
-  if (actualEnabled !== expectedEnabled) {
-    failures.push(
-      `${offerId} enabled expected ${expectedEnabled} but found ${actualEnabled}`,
-    );
   }
 }
 

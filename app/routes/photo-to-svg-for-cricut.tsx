@@ -21,7 +21,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import {
   LayerPaletteEditor,
   LayeredTraceControls,
@@ -1693,7 +1693,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
       <SeoSections />
       <OtherToolsLinks />
       <RelatedSites />

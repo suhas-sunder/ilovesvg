@@ -31,7 +31,7 @@ import {
 } from "~/client/components/svg/LayerPaletteEditor";
 import { ensureSvgRootNamespace } from "~/client/components/svg/EditedSvgPreviewImage";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import {
   ChevronDownIcon,
   PresetPicker,
@@ -5864,7 +5864,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="mx-auto w-full max-w-[360px]"
         />
       </div>
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
       <SeoSections />
       <AdvancedSettingsHelpSection />
       <OtherToolsLinks />

@@ -9,7 +9,7 @@ import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
-import { ContextualAffiliateCard } from "~/client/components/ads/ContextualAffiliateCard";
+import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import { ThrottledColorInput } from "~/client/components/ui/ThrottledColorInput";
 import { useNativeColorFinalCommit } from "~/client/hooks/useThrottledCommit";
 import {
@@ -2462,7 +2462,7 @@ export default function FreeColorPicker() {
         />
       </div>
 
-      <ContextualAffiliateCard />
+      <ContextualAdCard />
       <OtherToolsLinks />
 
       <nav
