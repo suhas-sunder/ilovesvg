@@ -33,12 +33,13 @@ const routes = read("app/routes.ts");
 const sitemap = read("app/routes/sitemap.tsx");
 const routeCapabilities = read("app/client/lib/converter/routeCapabilities.ts");
 const waitlist = read("app/routes/pro-waitlist.tsx");
-const privacy = read("app/routes/privacy-policy.tsx");
+const privacy = [
+  read("app/routes/privacy-policy.tsx"),
+  read("app/content/legal/privacyPolicyContent.tsx"),
+].join("\n");
 
-assertIncludes(nav, "Go Pro", "header Go Pro CTA");
-assertIncludes(nav, waitlistPath, "header Go Pro href");
-assertIncludes(nav, "focus-visible", "header CTA focus state");
-assertIncludes(nav, "cursor-pointer", "header CTA pointer cursor");
+assertNotIncludes(nav, "Go Pro", "header Go Pro CTA hidden");
+assertNotIncludes(nav, waitlistPath, "header Go Pro href hidden");
 
 assertIncludes(footer, `to="${waitlistPath}"`, "footer waitlist link");
 assertIncludes(footer, "Pro Waitlist", "footer waitlist label");

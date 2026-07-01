@@ -19,7 +19,6 @@ type NavGroup = ToolNavSection;
 
 type Rect = { top: number; left: number; width: number; height: number };
 
-const PRO_WAITLIST_PATH = "/pro-waitlist";
 const DEFAULT_MOBILE_PREVIEW_LIMIT = 10;
 const MOBILE_PREVIEW_LIMITS: Record<string, number> = {
   "craft-cut-files": 12,
@@ -455,8 +454,6 @@ export default function NavBar() {
                 More <IconChevronDown />
               </button>
             )}
-
-            <DesktopProLink href={PRO_WAITLIST_PATH} onClick={closeAll} />
           </nav>
         </div>
       </div>
@@ -598,12 +595,10 @@ export default function NavBar() {
               </div>
 
               <div className="px-4 pb-3">
-                <MobileProLink href={PRO_WAITLIST_PATH} onClick={closeAll} />
-
                 <label className="sr-only" htmlFor="mobile-tool-search">
                   Search tools
                 </label>
-                <div className="relative mt-3">
+                <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sky-200/70">
                     <IconSearch />
                   </span>
@@ -798,43 +793,6 @@ function DesktopLink({
                  text-slate-200 transition-colors hover:bg-sky-900/25 hover:text-sky-200`}
     >
       {children}
-    </a>
-  );
-}
-
-function DesktopProLink({
-  href,
-  onClick,
-}: {
-  href: string;
-  onClick: () => void;
-}) {
-  return (
-    <a
-      href={href}
-      onClick={onClick}
-      className="ml-1 inline-flex min-h-10 cursor-pointer select-none items-center justify-center rounded-full border border-sky-200/80 bg-sky-200 px-4 py-2 text-sm font-extrabold text-sky-950 shadow-sm transition-colors hover:border-white hover:bg-white hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-sky-950"
-    >
-      Go Pro
-    </a>
-  );
-}
-
-function MobileProLink({
-  href,
-  onClick,
-}: {
-  href: string;
-  onClick: () => void;
-}) {
-  return (
-    <a
-      href={href}
-      onClick={onClick}
-      className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-sky-300/70 bg-sky-200 px-4 py-3 text-sm font-extrabold text-sky-950 shadow-sm transition-colors hover:border-white hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-sky-950"
-    >
-      <span>Go Pro</span>
-      <span className="text-xs font-bold text-sky-800">Early access</span>
     </a>
   );
 }

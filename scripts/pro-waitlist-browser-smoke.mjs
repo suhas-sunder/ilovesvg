@@ -142,6 +142,8 @@ async function checkLayout(client, width) {
     };
     const proLinks = Array.from(document.querySelectorAll('a[href="/pro-waitlist"]'));
     const visibleProLinks = proLinks.filter(visible);
+    const headerProLinks = Array.from(document.querySelectorAll('header a[href="/pro-waitlist"]'));
+    const visibleHeaderProLinks = headerProLinks.filter(visible);
     const form = document.querySelector('form');
     const formRect = form?.getBoundingClientRect();
     const checkbox = document.querySelector('input[type="checkbox"]:not([name="botcheck"])');
@@ -157,6 +159,8 @@ async function checkLayout(client, width) {
       canonical,
       proLinkCount: proLinks.length,
       visibleProLinkCount: visibleProLinks.length,
+      headerProLinkCount: headerProLinks.length,
+      visibleHeaderProLinkCount: visibleHeaderProLinks.length,
       formTop: formRect ? Math.round(formRect.top) : null,
       formVisible: visible(form),
       visibleNameFieldCount: visibleNameFields.length,
@@ -178,7 +182,9 @@ async function checkLayout(client, width) {
       state.title === "iLoveSVG Pro Waitlist" &&
       state.h1.includes("Request early access to iLoveSVG Pro") &&
       state.canonical === "https://www.ilovesvg.com/pro-waitlist" &&
-      state.proLinkCount >= 2 &&
+      state.headerProLinkCount === 0 &&
+      state.visibleHeaderProLinkCount === 0 &&
+      state.proLinkCount >= 1 &&
       state.visibleProLinkCount >= 1 &&
       state.formVisible &&
       state.formTop !== null &&
