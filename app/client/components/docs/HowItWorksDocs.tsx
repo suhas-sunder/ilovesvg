@@ -109,7 +109,7 @@ function DocsCompactAd({ currentPath }: { currentPath: string }) {
 
   return (
     <section
-      aria-label="Sponsored advertisement"
+      aria-label="Advertisements"
       className="mx-auto max-w-6xl overflow-hidden px-4 pb-8 sm:px-6 sm:pb-10 lg:px-8"
       style={{ maxHeight: 180, overflow: "hidden" }}
       data-monetization-kind="adsense"

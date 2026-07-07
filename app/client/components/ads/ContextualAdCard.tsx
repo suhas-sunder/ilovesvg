@@ -25,7 +25,7 @@ function ContextualAdsenseFallback() {
   return (
     <section
       className={`hidden bg-white px-4 py-4 sm:py-5 lg:block ${CONTEXTUAL_ADSENSE_RESERVE_CLASS}`}
-      aria-label="Sponsored advertisement"
+      aria-label="Advertisements"
       data-monetization-kind="adsense"
       data-monetization-slot={CONTEXTUAL_AD_SLOT_ID}
       data-monetization-reserve="compact"

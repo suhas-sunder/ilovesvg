@@ -432,7 +432,7 @@ function RouteIntentGuide({ guide }: { guide: RouteGuide }) {
 function LongContentAd() {
   return (
     <aside
-      aria-label="Sponsored"
+      aria-label="Advertisements"
       className="mx-auto w-full max-w-[360px] rounded-xl border border-slate-200 bg-white/80 p-2 shadow-sm sm:p-3 2xl:mx-0 2xl:justify-self-end"
     >
       <div className="mx-auto flex min-h-[336px] w-full max-w-[336px] items-center justify-center overflow-hidden">

@@ -18,7 +18,7 @@ type Props = {
   maxHeight?: number;
 
   showPlaceholder?: boolean;
-  sponsoredText?: string;
+  placeholderLabel?: string;
 };
 
 export function AdSenseDelayed({
@@ -32,7 +32,7 @@ export function AdSenseDelayed({
   maxHeight,
 
   showPlaceholder = true,
-  sponsoredText = "Sponsored",
+  placeholderLabel = "Advertisements",
 }: Props) {
   const pushedSlotRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -203,7 +203,7 @@ export function AdSenseDelayed({
         overflow: "hidden",
         width: "100%",
       }}
-      aria-label="Advertisement"
+      aria-label="Advertisements"
     >
       {showPlaceholder && (
         <div
@@ -216,7 +216,7 @@ export function AdSenseDelayed({
         >
           <div className="flex flex-col items-center gap-2">
             <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12px] text-slate-500">
-              {sponsoredText}
+              {placeholderLabel}
             </span>
 
             <div className="w-[220px] max-w-[70vw]">

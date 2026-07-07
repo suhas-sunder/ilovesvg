@@ -182,7 +182,7 @@ function SidebarAdRail({
 }) {
   return (
     <aside
-      aria-label="Sponsored advertisement"
+      aria-label="Advertisements"
       className="pointer-events-auto fixed z-20 hidden min-[2400px]:block"
       style={{
         top: SIDE_AD_TOP_PX,
