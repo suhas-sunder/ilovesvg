@@ -1,4 +1,8 @@
 import * as React from "react";
+import {
+  getOrCreateBoundedStoreEntry,
+  ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
+} from "~/utils/boundedStore";
 import type { Route } from "./+types/black-and-white-image-to-svg-for-cricut";
 import {
   json,
@@ -195,8 +199,37 @@ function checkBackendRateLimit(
   const now = Date.now();
   const store = getRateLimitStore();
   const key = getBackendRateLimitKey(request, routeSlug, actionName);
-  const record = store.get(key) || createRateLimitRecord(now);
   const windowNames = Object.keys(RATE_LIMIT_WINDOWS) as RateLimitWindowName[];
+  const admission = getOrCreateBoundedStoreEntry({
+    store,
+    key,
+    now,
+    maxEntries: ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
+    create: () => createRateLimitRecord(now),
+    isExpired: (record, at) =>
+      windowNames.every(
+        (name) =>
+          at >= record[name].windowStart + RATE_LIMIT_WINDOWS[name].ms,
+      ),
+    getExpiresAt: (record) =>
+      Math.max(
+        ...windowNames.map(
+          (name) =>
+            record[name].windowStart + RATE_LIMIT_WINDOWS[name].ms,
+        ),
+      ),
+  });
+  if (!admission.admitted) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil(admission.retryAfterMs / 1000),
+      ),
+      remaining: { minute: 0, fiveMinutes: 0, hour: 0, day: 0 },
+    };
+  }
+  const record = admission.value;
 
   for (const name of windowNames) {
     const cfg = RATE_LIMIT_WINDOWS[name];

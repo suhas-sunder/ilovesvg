@@ -8,6 +8,10 @@ import {
   startTimer,
   withTimer,
 } from "./conversionDiagnostics.server";
+import {
+  classifyMemoryDiagnosticError,
+  createMemoryDiagnosticJob,
+} from "./memoryDiagnostics.server";
 
 type RGB = { r: number; g: number; b: number };
 
@@ -37,6 +41,13 @@ export async function normalizeRasterForTrace(
   input: Buffer,
   opts: RasterTracePreprocessOptions,
 ): Promise<Buffer> {
+  const memoryDiagnostics = createMemoryDiagnosticJob({
+    routeId: "shared-raster-normalize",
+    conversionFamily: "raster-preprocessing",
+    conversionMode:
+      opts.preprocess === "edge" ? "edge-trace" : "single-trace",
+    inputBytes: input.length,
+  });
   const diagnostics = createConversionDiagnostics({
     routeId: "shared-raster-normalize",
     mode: opts.preprocess === "edge" ? "edge-trace" : "single-trace",
@@ -45,6 +56,7 @@ export async function normalizeRasterForTrace(
       ? opts.removeColors.length
       : 0,
   });
+  memoryDiagnostics?.checkpoint("conversion-start");
 
   try {
     const sharp = await getSharp();
@@ -122,9 +134,19 @@ export async function normalizeRasterForTrace(
     }
 
     if (opts.preprocess === "edge") {
-      return await withTimer(diagnostics, "edgeMask", () =>
+      const output = await withTimer(diagnostics, "edgeMask", () =>
         buildEdgeTraceMask(base, sourceInput, opts, sharp),
       );
+      memoryDiagnostics?.checkpoint("preprocessing-complete", {
+        sourceWidth: diagnostics.sourceWidth,
+        sourceHeight: diagnostics.sourceHeight,
+        processingWidth: diagnostics.traceWidth,
+        processingHeight: diagnostics.traceHeight,
+      });
+      memoryDiagnostics?.checkpoint("output-created", {
+        outputBytes: output.length,
+      });
+      return output;
     }
 
     const prepared = await withTimer(diagnostics, "grayscaleRaw", () =>
@@ -148,12 +170,25 @@ export async function normalizeRasterForTrace(
     gray = applyBinaryCleanup(gray, width, height, opts);
     endTimer(diagnostics, "maskCleanup");
 
-    return await withTimer(diagnostics, "encodeMaskPng", () =>
+    const output = await withTimer(diagnostics, "encodeMaskPng", () =>
       sharp(gray, { raw: { width, height, channels: 1 } })
         .png()
         .toBuffer(),
     );
+    memoryDiagnostics?.checkpoint("preprocessing-complete", {
+      sourceWidth: diagnostics.sourceWidth,
+      sourceHeight: diagnostics.sourceHeight,
+      processingWidth: width,
+      processingHeight: height,
+    });
+    memoryDiagnostics?.checkpoint("output-created", {
+      outputBytes: output.length,
+    });
+    return output;
   } catch (error) {
+    memoryDiagnostics?.checkpoint("conversion-error", {
+      errorClass: classifyMemoryDiagnosticError(error),
+    });
     if (isTraceDimensionError(error)) throw error;
     addConversionWarning(
       diagnostics,
@@ -161,6 +196,12 @@ export async function normalizeRasterForTrace(
     );
     return input;
   } finally {
+    memoryDiagnostics?.finish({
+      sourceWidth: diagnostics.sourceWidth,
+      sourceHeight: diagnostics.sourceHeight,
+      processingWidth: diagnostics.traceWidth,
+      processingHeight: diagnostics.traceHeight,
+    });
     maybeLogConversionDiagnostics(diagnostics);
   }
 }

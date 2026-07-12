@@ -13,6 +13,10 @@ import {
   type MixedTraceSettings,
 } from "~/client/components/converter/AdvancedSettingsPanel";
 import type { ConverterRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
+import {
+  releaseOwnedCacheKeys,
+  syncOwnedCacheKeys,
+} from "~/client/lib/lifecycleCleanup";
 import type { TraceResult } from "~/shared/tracing/types";
 import {
   EditedSvgPreviewImage,
@@ -107,6 +111,7 @@ export type TraceOutputLayerPatch = {
 };
 
 const outputAppearanceStore = new Map<string, OutputAppearanceSettings>();
+const outputAppearanceOwnerCounts = new Map<string, number>();
 type OutputAppearanceSvgCacheEntry = {
   baseSvg: string;
   settingsKey: string;
@@ -438,6 +443,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     Map<number, string | null>
   >(() => new Map());
   const [appearanceVersion, setAppearanceVersion] = React.useState(0);
+  const ownedAppearanceKeysRef = React.useRef(new Set<string>());
   const exportCompressionKeys = React.useMemo(
     () => history.map((item) => item.stamp),
     [history],
@@ -492,8 +498,22 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   }, [file, focusedOutputHasSourcePreview, focusedOutputStamp]);
 
   React.useEffect(() => {
-    pruneOutputAppearanceState(history.map((item) => getOutputAppearanceKey(item)));
+    syncOwnedCacheKeys(
+      ownedAppearanceKeysRef.current,
+      history.map((item) => getOutputAppearanceKey(item)),
+      outputAppearanceOwnerCounts,
+      deleteOutputAppearanceState,
+    );
   }, [history]);
+
+  React.useEffect(() => {
+    return () =>
+      releaseOwnedCacheKeys(
+        ownedAppearanceKeysRef.current,
+        outputAppearanceOwnerCounts,
+        deleteOutputAppearanceState,
+      );
+  }, []);
 
   function closeFocusedEditor(stamp: number) {
     setFocusedOutputStamp(null);
@@ -2620,14 +2640,9 @@ function serializeOutputAppearance(
   return JSON.stringify(normalizeOutputAppearance(appearance));
 }
 
-function pruneOutputAppearanceState(keys: Iterable<string>) {
-  const activeKeys = new Set(keys);
-  for (const key of outputAppearanceStore.keys()) {
-    if (!activeKeys.has(key)) outputAppearanceStore.delete(key);
-  }
-  for (const key of outputAppearanceSvgCache.keys()) {
-    if (!activeKeys.has(key)) outputAppearanceSvgCache.delete(key);
-  }
+function deleteOutputAppearanceState(key: string) {
+  outputAppearanceStore.delete(key);
+  outputAppearanceSvgCache.delete(key);
 }
 
 function getOutputAppearanceKey<TSettings extends MixedTraceSettings>(

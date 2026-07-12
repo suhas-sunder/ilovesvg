@@ -1,5 +1,10 @@
 import { createRequire } from "node:module";
 import { Potrace } from "@kcaitech/potrace-ts";
+import {
+  classifyMemoryDiagnosticError,
+  createMemoryDiagnosticJob,
+  type MemoryDiagnosticJob,
+} from "./memoryDiagnostics.server.ts";
 
 const TRACE_CACHE_TTL_MS = 10 * 60 * 1000;
 const TRACE_CACHE_MAX_ITEMS = 32;
@@ -74,20 +79,49 @@ export async function traceBitmapToSvg(
   input: Buffer,
   options: Record<string, unknown>,
 ): Promise<string> {
-  validateTraceInputBasics(input);
+  const memoryDiagnostics = createMemoryDiagnosticJob({
+    routeId: "shared-potrace",
+    conversionFamily: "raster-to-svg",
+    conversionMode: "potrace",
+    inputBytes: input.length,
+  });
+  memoryDiagnostics?.checkpoint("conversion-start");
 
-  const cacheKey = createTraceCacheKey(input, options);
-  const cached = readTraceCache(cacheKey);
-  if (cached) return cached;
+  try {
+    validateTraceInputBasics(input);
 
-  const svg = await withTraceTimeout(traceBitmapToSvgUncached(input, options));
-  writeTraceCache(cacheKey, svg);
-  return svg;
+    const cacheKey = createTraceCacheKey(input, options);
+    const cached = readTraceCache(cacheKey);
+    if (cached) {
+      memoryDiagnostics?.checkpoint("output-created", {
+        outputBytes: Buffer.byteLength(cached, "utf8"),
+      });
+      return cached;
+    }
+
+    const svg = await withTraceTimeout(
+      traceBitmapToSvgUncached(input, options, memoryDiagnostics),
+    );
+    memoryDiagnostics?.checkpoint("tracing-complete");
+    memoryDiagnostics?.checkpoint("output-created", {
+      outputBytes: Buffer.byteLength(svg, "utf8"),
+    });
+    writeTraceCache(cacheKey, svg);
+    return svg;
+  } catch (error) {
+    memoryDiagnostics?.checkpoint("conversion-error", {
+      errorClass: classifyMemoryDiagnosticError(error),
+    });
+    throw error;
+  } finally {
+    memoryDiagnostics?.finish();
+  }
 }
 
 async function traceBitmapToSvgUncached(
   input: Buffer,
   options: Record<string, unknown>,
+  memoryDiagnostics?: MemoryDiagnosticJob | null,
 ): Promise<string> {
   const sharp = await getSharpForTrace();
   const signature = detectRasterSignature(input);
@@ -125,6 +159,12 @@ async function traceBitmapToSvgUncached(
   if (channels !== 4) {
     throw new Error("Could not prepare the uploaded image for tracing.");
   }
+  memoryDiagnostics?.checkpoint("preprocessing-complete", {
+    sourceWidth: width,
+    sourceHeight: height,
+    processingWidth: rawWidth,
+    processingHeight: rawHeight,
+  });
 
   const normalized = normalizePotraceOptions(options, rawWidth, rawHeight);
   const imageData: ImageDataLike = {

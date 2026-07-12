@@ -1,4 +1,8 @@
 import * as React from "react";
+import {
+  getOrCreateBoundedStoreEntry,
+  ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
+} from "~/utils/boundedStore";
 import type { Route } from "./+types/base64-to-svg-for-cricut";
 import { json } from "@remix-run/node";
 import {
@@ -159,13 +163,35 @@ function checkRateLimit(
 ): RateLimitCheck {
   const now = Date.now();
   const key = `${getRateLimitKey(request)}:${keySuffix}`;
-  const existing = rateLimitStore.get(key) ?? {
-    minute: createWindow(now),
-    fiveMinutes: createWindow(now),
-    hour: createWindow(now),
-    day: createWindow(now),
-    lastSeen: now,
-  };
+  cleanupRateLimitStore(now);
+  const admission = getOrCreateBoundedStoreEntry({
+    store: rateLimitStore,
+    key,
+    now,
+    maxEntries: ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
+    create: (): RateLimitEntry => ({
+      minute: createWindow(now),
+      fiveMinutes: createWindow(now),
+      hour: createWindow(now),
+      day: createWindow(now),
+      lastSeen: now,
+    }),
+    isExpired: (entry, at) =>
+      at - entry.lastSeen > RATE_LIMIT_WINDOW_MS.day,
+    getExpiresAt: (entry) => entry.lastSeen + RATE_LIMIT_WINDOW_MS.day + 1,
+  });
+  if (!admission.admitted) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil(admission.retryAfterMs / 1000),
+      ),
+      limitName: "day",
+      remaining: { minute: 0, fiveMinutes: 0, hour: 0, day: 0 },
+    };
+  }
+  const existing = admission.value;
 
   const nextEntry: RateLimitEntry = {
     minute: updateRateLimitWindow(
@@ -184,7 +210,6 @@ function checkRateLimit(
   };
 
   rateLimitStore.set(key, nextEntry);
-  cleanupRateLimitStore(now);
 
   const remaining = {
     minute: Math.max(0, limits.perMinute - nextEntry.minute.count),

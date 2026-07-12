@@ -1,12 +1,23 @@
 import os from "node:os";
+import type { MemoryDiagnosticJob } from "./memoryDiagnostics.server";
 
 export type ReleaseFn = () => void;
 
 export type ConversionGate = {
-  acquireOrQueue: () => Promise<ReleaseFn>;
+  acquireOrQueue: (
+    diagnostics?: MemoryDiagnosticJob | null,
+  ) => Promise<ReleaseFn>;
+  getDiagnosticSnapshot: () => ConversionGateDiagnosticSnapshot;
   running: number;
   queued: number;
 };
+
+export type ConversionGateDiagnosticSnapshot = Readonly<{
+  activeJobs: number;
+  waitingJobs: number;
+  capacity: number;
+  queueCapacity: number;
+}>;
 
 type GateOptions = {
   maxRunning?: number;
@@ -60,11 +71,31 @@ class SharedConversionGate implements ConversionGate {
     return this.queue.length;
   }
 
-  acquireOrQueue(): Promise<ReleaseFn> {
+  getDiagnosticSnapshot(): ConversionGateDiagnosticSnapshot {
+    return Object.freeze({
+      activeJobs: this.running,
+      waitingJobs: this.queue.length,
+      capacity: this.maxRunning,
+      queueCapacity: this.maxQueued,
+    });
+  }
+
+  acquireOrQueue(diagnostics?: MemoryDiagnosticJob | null): Promise<ReleaseFn> {
+    const waitStartedAt = diagnostics ? Date.now() : 0;
+    diagnostics?.checkpoint("gate-wait-start", this.toDiagnosticMetadata());
+
     return new Promise((resolve, reject) => {
+      const resolveAcquired = (release: ReleaseFn) => {
+        diagnostics?.checkpoint("gate-acquired", {
+          ...this.toDiagnosticMetadata(),
+          gateWaitMs: Date.now() - waitStartedAt,
+        });
+        resolve(this.withDiagnosticRelease(release, diagnostics));
+      };
+
       if (this.running < this.maxRunning) {
         this.running += 1;
-        resolve(this.createRelease());
+        resolveAcquired(this.createRelease());
         return;
       }
 
@@ -75,12 +106,40 @@ class SharedConversionGate implements ConversionGate {
         };
         error.code = "BUSY";
         error.retryAfterMs = this.estimateRetryMs();
+        diagnostics?.checkpoint("conversion-error", {
+          ...this.toDiagnosticMetadata(),
+          errorClass: "busy",
+          gateWaitMs: Date.now() - waitStartedAt,
+        });
         reject(error);
         return;
       }
 
-      this.queue.push((release) => resolve(release));
+      this.queue.push(resolveAcquired);
     });
+  }
+
+  private withDiagnosticRelease(
+    release: ReleaseFn,
+    diagnostics?: MemoryDiagnosticJob | null,
+  ): ReleaseFn {
+    if (!diagnostics) return release;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      release();
+      diagnostics.checkpoint("gate-released", this.toDiagnosticMetadata());
+    };
+  }
+
+  private toDiagnosticMetadata() {
+    return {
+      gateActive: this.running,
+      gateQueued: this.queue.length,
+      gateCapacity: this.maxRunning,
+      gateQueueCapacity: this.maxQueued,
+    };
   }
 
   private createRelease(): ReleaseFn {

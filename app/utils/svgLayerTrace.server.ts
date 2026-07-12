@@ -33,6 +33,11 @@ import {
   type LayeredQualityTier,
 } from "~/shared/tracing/layeredQualityTier";
 import { normalizeBmpForSharp } from "./bmpDecode.server";
+import {
+  classifyMemoryDiagnosticError,
+  createMemoryDiagnosticJob,
+  type MemoryDiagnosticJob,
+} from "./memoryDiagnostics.server";
 
 export type TraceMode = "single" | "layered";
 export type SvgLayerKind = "fill" | "stroke";
@@ -312,6 +317,24 @@ function withLayeredDiagnostics<T extends LayeredColorSvgResult>(
     timings: finished.timings,
     diagnostics: finished,
   };
+}
+
+function recordLayeredMemoryResult<T extends LayeredColorSvgResult>(
+  result: T,
+  memoryDiagnostics: MemoryDiagnosticJob | null,
+): T {
+  memoryDiagnostics?.checkpoint("tracing-complete", {
+    layerCount: result.layers.length,
+    warningCount: result.warnings?.length ?? 0,
+  });
+  memoryDiagnostics?.checkpoint("optimization-complete", {
+    layerCount: result.layers.length,
+  });
+  memoryDiagnostics?.checkpoint("output-created", {
+    outputBytes: Buffer.byteLength(result.svg, "utf8"),
+    layerCount: result.layers.length,
+  });
+  return result;
 }
 
 export function sanitizeLayerHexColor(input: string, fallback = "#000000") {
@@ -1830,6 +1853,14 @@ export async function createLayeredColorSvg(
   input: Buffer,
   opts: LayeredColorSvgOptions,
 ): Promise<LayeredColorSvgResult> {
+  const memoryDiagnostics = createMemoryDiagnosticJob({
+    routeId: "shared-layered-trace",
+    conversionFamily: "layered-raster-to-svg",
+    conversionMode: "layered",
+    presetId: opts.presetId,
+    inputBytes: input.length,
+    layerCount: opts.layerCount,
+  });
   const diagnostics = createConversionDiagnostics({
     routeId: "shared-layered-trace",
     mode: "layered",
@@ -1840,6 +1871,7 @@ export async function createLayeredColorSvg(
       ? opts.removeColors.length
       : 0,
   });
+  memoryDiagnostics?.checkpoint("conversion-start");
 
   try {
     const sharp = await getSharp();
@@ -1899,6 +1931,12 @@ export async function createLayeredColorSvg(
         "Image is too small to trace safely. Please use an image at least 2x2 pixels.",
       );
     }
+    memoryDiagnostics?.checkpoint("preprocessing-complete", {
+      sourceWidth: sourceDimensions.width,
+      sourceHeight: sourceDimensions.height,
+      processingWidth: width,
+      processingHeight: height,
+    });
 
     if (shouldUseCompactFlatColorVTracer(safeOptions, sourceMatte)) {
       const compactResult = await withTimer(
@@ -1917,7 +1955,10 @@ export async function createLayeredColorSvg(
         }),
       );
       if (compactResult.layers.length >= 12) {
-        return withLayeredDiagnostics(compactResult, diagnostics);
+        return recordLayeredMemoryResult(
+          withLayeredDiagnostics(compactResult, diagnostics),
+          memoryDiagnostics,
+        );
       }
       diagnostics.warnings = [
         ...(diagnostics.warnings || []),
@@ -2143,11 +2184,12 @@ export async function createLayeredColorSvg(
       outputBasisHeight,
     );
 
-    return withLayeredDiagnostics({
-      svg,
-      width: outputDimensions.width,
-      height: outputDimensions.height,
-      layers: [
+    return recordLayeredMemoryResult(
+      withLayeredDiagnostics({
+        svg,
+        width: outputDimensions.width,
+        height: outputDimensions.height,
+        layers: [
         ...serializedLayers.map((layer) => ({
           id: layer.id,
           label: layer.label,
@@ -2181,9 +2223,26 @@ export async function createLayeredColorSvg(
               },
             ]
           : []),
-      ],
-    }, diagnostics);
+        ],
+      }, diagnostics),
+      memoryDiagnostics,
+    );
+  } catch (error) {
+    memoryDiagnostics?.checkpoint("conversion-error", {
+      errorClass: classifyMemoryDiagnosticError(error),
+    });
+    throw error;
   } finally {
+    memoryDiagnostics?.finish({
+      sourceWidth: diagnostics.sourceWidth,
+      sourceHeight: diagnostics.sourceHeight,
+      processingWidth: diagnostics.traceWidth,
+      processingHeight: diagnostics.traceHeight,
+      layerCount: diagnostics.layerCount,
+      outputBytes: diagnostics.finalSvgBytes,
+      pathCount: diagnostics.pathCount,
+      warningCount: diagnostics.warnings?.length ?? 0,
+    });
     maybeLogConversionDiagnostics(diagnostics);
   }
 }
