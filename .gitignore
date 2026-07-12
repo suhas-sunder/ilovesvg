@@ -54,6 +54,7 @@ playwright-report/
 .idea/
 *.swp
 *.swo
+AGENTS.md
 
 # Local system/cache files
 Thumbs.db
