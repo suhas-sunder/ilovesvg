@@ -1087,6 +1087,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const historyRef = React.useRef(history);
+  historyRef.current = history;
   const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
     number | null
   >(null);
@@ -1222,6 +1224,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     if (fetcher.data.code === "BUSY" && submitted?.sourceFile) {
       const retryAfterMs = Math.max(1000, fetcher.data.retryAfterMs ?? 1500);
+      if (submitted.replaceStamp) {
+        cleanupUnusedSourceSnapshots(
+          [submitted.sourceSnapshot],
+          historyRef.current,
+        );
+      }
+      if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
       setInfo("Server is busy. Retrying conversion automatically...");
       const t = setTimeout(
         () => {
@@ -1238,6 +1247,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
 
     setErr(fetcher.data.error);
+    if (submitted?.replaceStamp) {
+      cleanupUnusedSourceSnapshots(
+        [submitted.sourceSnapshot],
+        historyRef.current,
+      );
+    }
     if (pendingStamp) {
       setHistory((prev) =>
         prev.map((item) =>
@@ -1284,6 +1299,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => {
+      cleanupUnusedSourceSnapshots(
+        [
+          ...historyRef.current,
+          ...Array.from(submittedByRunIdRef.current.values()).map(
+            (submitted) => submitted.sourceSnapshot,
+          ),
+        ],
+        [],
+      );
+      submittedByRunIdRef.current.clear();
+    };
+  }, []);
 
   async function measureAndSet(f: File) {
     try {

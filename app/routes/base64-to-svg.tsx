@@ -1,5 +1,10 @@
 import * as React from "react";
+import {
+  getOrCreateBoundedStoreEntry,
+  ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
+} from "~/utils/boundedStore";
 import type { Route } from "./+types/base64-to-svg";
+import type { MemoryDiagnosticJob } from "~/utils/memoryDiagnostics.server";
 import { json } from "@remix-run/node";
 import {
   annotateSharedSingleTraceSvg as annotateSharedSingleTraceSvgShared,
@@ -163,13 +168,35 @@ function checkRateLimit(
 ): RateLimitCheck {
   const now = Date.now();
   const key = `${getRateLimitKey(request)}:${keySuffix}`;
-  const existing = rateLimitStore.get(key) ?? {
-    minute: createWindow(now),
-    fiveMinutes: createWindow(now),
-    hour: createWindow(now),
-    day: createWindow(now),
-    lastSeen: now,
-  };
+  cleanupRateLimitStore(now);
+  const admission = getOrCreateBoundedStoreEntry({
+    store: rateLimitStore,
+    key,
+    now,
+    maxEntries: ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
+    create: (): RateLimitEntry => ({
+      minute: createWindow(now),
+      fiveMinutes: createWindow(now),
+      hour: createWindow(now),
+      day: createWindow(now),
+      lastSeen: now,
+    }),
+    isExpired: (entry, at) =>
+      at - entry.lastSeen > RATE_LIMIT_WINDOW_MS.day,
+    getExpiresAt: (entry) => entry.lastSeen + RATE_LIMIT_WINDOW_MS.day + 1,
+  });
+  if (!admission.admitted) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil(admission.retryAfterMs / 1000),
+      ),
+      limitName: "day",
+      remaining: { minute: 0, fiveMinutes: 0, hour: 0, day: 0 },
+    };
+  }
+  const existing = admission.value;
 
   const nextEntry: RateLimitEntry = {
     minute: updateRateLimitWindow(
@@ -188,7 +215,6 @@ function checkRateLimit(
   };
 
   rateLimitStore.set(key, nextEntry);
-  cleanupRateLimitStore(now);
 
   const remaining = {
     minute: Math.max(0, limits.perMinute - nextEntry.minute.count),
@@ -316,6 +342,7 @@ const BASE64_RASTER_TRACE_DEFAULTS: LayeredOptions = {
 };
 
 export async function action({ request }: ActionFunctionArgs) {
+  let memoryDiagnostics: MemoryDiagnosticJob | null = null;
   try {
     if (request.method.toUpperCase() !== "POST") {
       return json(
@@ -448,13 +475,28 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     if (signatureError) return signatureError;
 
+    if (process.env.ILOVESVG_MEMORY_DIAGNOSTICS === "1") {
+      const { createMemoryDiagnosticJob } = await import(
+        "~/utils/memoryDiagnostics.server"
+      );
+      memoryDiagnostics = createMemoryDiagnosticJob({
+        routeId: "base64-to-svg",
+        conversionFamily: "base64-raster-to-svg",
+        conversionMode: rasterMode,
+        presetId: getFormValue(formValues, "presetId", ""),
+        inputBytes: parsed.buffer.length,
+      });
+    }
+    memoryDiagnostics?.checkpoint("request-received-after-parse");
+
     const { getConversionGate } = await import("~/utils/conversionGate.server");
     const gate = await getConversionGate();
     let release: (() => void) | null = null;
     try {
-      release = await gate.acquireOrQueue();
+      release = await gate.acquireOrQueue(memoryDiagnostics);
     } catch (gateError: any) {
       if (gateError?.code === "BUSY") {
+        memoryDiagnostics?.finish();
         const retryAfterSeconds = Math.ceil(
           Number(gateError.retryAfterMs || 3000) / 1000,
         );
@@ -476,13 +518,30 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     try {
-      await validateRasterInputForLayering(parsed.buffer);
+      memoryDiagnostics?.checkpoint("conversion-start");
+      const sourceDimensions = await validateRasterInputForLayering(
+        parsed.buffer,
+      );
+      memoryDiagnostics?.checkpoint("preprocessing-complete", {
+        sourceWidth: sourceDimensions.width,
+        sourceHeight: sourceDimensions.height,
+      });
 
       if (rasterMode === "single") {
         const result = await rasterToSingleColorSvg(
           parsed.buffer,
           readSingleTraceOptions(formValues, transparent, bgColor),
         );
+        memoryDiagnostics?.checkpoint("tracing-complete");
+        memoryDiagnostics?.checkpoint("optimization-complete", {
+          processingWidth: result.width,
+          processingHeight: result.height,
+        });
+        memoryDiagnostics?.checkpoint("output-created", {
+          outputBytes: Buffer.byteLength(result.svg, "utf8"),
+          layerCount: result.layers.length,
+        });
+        memoryDiagnostics?.checkpoint("response-ready");
         return json(result);
       }
 
@@ -491,11 +550,45 @@ export async function action({ request }: ActionFunctionArgs) {
         readLayeredTraceOptions(formValues, transparent, bgColor),
       );
 
+      memoryDiagnostics?.checkpoint("tracing-complete", {
+        layerCount: result.layers.length,
+      });
+      memoryDiagnostics?.checkpoint("optimization-complete", {
+        processingWidth: result.width,
+        processingHeight: result.height,
+        layerCount: result.layers.length,
+      });
+      memoryDiagnostics?.checkpoint("output-created", {
+        outputBytes: Buffer.byteLength(result.svg, "utf8"),
+        layerCount: result.layers.length,
+      });
+      memoryDiagnostics?.checkpoint("response-ready");
+
       return json(result);
+    } catch (error) {
+      if (memoryDiagnostics) {
+        const { classifyMemoryDiagnosticError } = await import(
+          "~/utils/memoryDiagnostics.server"
+        );
+        memoryDiagnostics.checkpoint("conversion-error", {
+          errorClass: classifyMemoryDiagnosticError(error),
+        });
+      }
+      throw error;
     } finally {
       release?.();
+      memoryDiagnostics?.finish();
     }
   } catch (err: any) {
+    if (memoryDiagnostics) {
+      const { classifyMemoryDiagnosticError } = await import(
+        "~/utils/memoryDiagnostics.server"
+      );
+      memoryDiagnostics.checkpoint("conversion-error", {
+        errorClass: classifyMemoryDiagnosticError(err),
+      });
+      memoryDiagnostics.finish();
+    }
     const { safeErrorMessage } = await import("~/utils/backendSecurity.server");
     return json(
       {
@@ -744,6 +837,7 @@ async function validateRasterInputForLayering(input: Buffer) {
         )} MP). Max ${MAX_RASTER_TRACE_SIDE}px per side or ${MAX_RASTER_TRACE_MP} MP.`,
       );
     }
+    return { width: w, height: h };
   } catch (error: any) {
     if (error?.message) throw error;
     throw new Error(

@@ -58,7 +58,7 @@ checks.push(assertIncludes(worker, "getSafeLayeredPaletteCount", "worker applies
 const presetSource = await read("app/client/lib/converter/presetAdditions.ts");
 checks.push(assertPresetToken(presetSource, "filled-layers-separate-colors", "requestedPaletteCount: 16"));
 checks.push(assertPresetToken(presetSource, "filled-layers-separate-colors", "layerMaxTraceSide: 1400"));
-checks.push(assertPresetToken(presetSource, "photo-many-colors", 'layerBuildMode: "raw-vtracer"'));
+checks.push(assertPresetToken(presetSource, "photo-many-colors", 'layerBuildMode: "per-color-cutout"'));
 
 const report = {
   checkedAt: new Date().toISOString(),

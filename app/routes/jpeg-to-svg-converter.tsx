@@ -1,4 +1,9 @@
 import {
+  createRateLimitCapacityHeaders,
+  getOrCreateResetAtRateLimitEntry,
+  SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
+} from "~/utils/boundedStore";
+import {
   getPresetLabelById,
   PresetPicker,
 } from "~/client/components/converter/PresetSelector";
@@ -251,7 +256,26 @@ function checkBackendConversionRateLimit(
   const now = Date.now();
   const store = getRateLimitStore();
   const key = getBackendRateLimitKey(request, routeName, actionName);
-  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+  const admission = getOrCreateResetAtRateLimitEntry(
+    store,
+    key,
+    now,
+    SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
+    RATE_LIMIT_WINDOWS,
+    () => createFreshRateLimitRecord(now),
+  );
+  if (!admission.admitted) {
+    return {
+      allowed: false,
+      headers: createRateLimitCapacityHeaders(
+        RATE_LIMIT_WINDOWS,
+        admission.retryAfterMs,
+      ),
+      retryAfterMs: admission.retryAfterMs,
+      retryAfterText: formatRetryAfter(admission.retryAfterMs),
+    };
+  }
+  const record = admission.value;
 
   for (const windowConfig of RATE_LIMIT_WINDOWS) {
     const state = record[windowConfig.name];

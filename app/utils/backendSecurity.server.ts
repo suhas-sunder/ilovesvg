@@ -1,3 +1,8 @@
+import {
+  getOrCreateBoundedStoreEntry,
+  SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
+} from "~/utils/boundedStore";
+
 export type SafeErrorCode =
   | "INVALID_FILE"
   | "FILE_TOO_LARGE"
@@ -144,7 +149,37 @@ export function checkBackendConversionRateLimit(
     normalizeKeyPart(actionName),
   ].join(":");
   const store = getRateLimitStore();
-  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+  const admission = getOrCreateBoundedStoreEntry({
+    store,
+    key,
+    now,
+    maxEntries: SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
+    create: () => createFreshRateLimitRecord(now),
+    isExpired: (candidate, at) =>
+      WINDOW_DEFS.every((def) => at >= candidate[def.name].resetAt),
+    getExpiresAt: (candidate) =>
+      Math.max(...WINDOW_DEFS.map((def) => candidate[def.name].resetAt)),
+  });
+
+  if (!admission.admitted) {
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil(admission.retryAfterMs / 1000),
+    );
+    const headers = new Headers({ "Retry-After": String(retryAfterSeconds) });
+    for (const def of WINDOW_DEFS) {
+      headers.set(def.limitHeader, String(limits[def.limitKey]));
+      headers.set(def.remainingHeader, "0");
+    }
+    return {
+      allowed: false,
+      headers,
+      retryAfterSeconds,
+      retryAfterText: formatRetryAfter(retryAfterSeconds),
+    };
+  }
+
+  const record = admission.value;
 
   for (const def of WINDOW_DEFS) {
     const state = record[def.name];

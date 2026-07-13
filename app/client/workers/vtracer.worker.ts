@@ -10,6 +10,7 @@ import {
 } from "wasm_vtracer/wasm_vtracer_bg.js";
 import * as vtracerRuntime from "wasm_vtracer/wasm_vtracer_bg.js";
 import vtracerWasmUrl from "wasm_vtracer/wasm_vtracer_bg.wasm?url";
+import { runWithBestEffortCleanup } from "../lib/lifecycleCleanup";
 import {
   applyPaletteSync,
   buildPaletteSync,
@@ -192,15 +193,22 @@ async function runTrace(request: WorkerRequest) {
 
     postProgress(request.id, 0.52, "Tracing SVG...");
     const config = buildVTracerConfig(request.settings, prepared.requestedPaletteCount);
-    const rawSvg = timedSync(timings, "vtracer", () =>
-      convertImageToSvg(
-        new Uint8Array(prepared.data.buffer, prepared.data.byteOffset, prepared.data.byteLength),
-        decoded.width,
-        decoded.height,
-        config,
-      ),
+    const rawSvg = runWithBestEffortCleanup(
+      () =>
+        timedSync(timings, "vtracer", () =>
+          convertImageToSvg(
+            new Uint8Array(
+              prepared.data.buffer,
+              prepared.data.byteOffset,
+              prepared.data.byteLength,
+            ),
+            decoded.width,
+            decoded.height,
+            config,
+          ),
+        ),
+      () => config.free(),
     );
-    config.free();
 
     postProgress(request.id, 0.86, "Finishing SVG...");
     const svg = timedSync(timings, "postprocessSvg", () =>

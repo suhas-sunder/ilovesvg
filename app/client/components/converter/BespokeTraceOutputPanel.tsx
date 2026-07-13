@@ -16,6 +16,10 @@ import {
 } from "~/client/components/converter/TraceOutputPanel";
 import { EditedSvgPreviewImage } from "~/client/components/svg/EditedSvgPreviewImage";
 import {
+  releaseOwnedCacheKeys,
+  syncOwnedCacheKeys,
+} from "~/client/lib/lifecycleCleanup";
+import {
   DEFAULT_OUTPUT_APPEARANCE,
   applyOutputAppearanceToSvg,
   detectOutputAppearanceSupport,
@@ -88,6 +92,7 @@ type BespokeTraceOutputPanelProps<TItem extends BespokeTraceOutputItem> = {
 };
 
 const appearanceStore = new Map<string, OutputAppearanceSettings>();
+const appearanceOwnerCounts = new Map<string, number>();
 type AppearanceSvgCacheEntry = {
   rawSvg: string;
   settingsKey: string;
@@ -164,6 +169,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
   );
   const [highlightedOutputStamp, setHighlightedOutputStamp] = React.useState<number | null>(null);
   const [appearanceVersion, setAppearanceVersion] = React.useState(0);
+  const ownedAppearanceKeysRef = React.useRef(new Set<string>());
   const exportCompressionKeys = React.useMemo(
     () => history.map((item) => item.stamp),
     [history],
@@ -215,8 +221,22 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
   }, [file, focusedOutputHasSourcePreview, focusedOutputStamp]);
 
   React.useEffect(() => {
-    pruneAppearanceState(history.map((item) => getAppearanceKey(item)));
+    syncOwnedCacheKeys(
+      ownedAppearanceKeysRef.current,
+      history.map((item) => getAppearanceKey(item)),
+      appearanceOwnerCounts,
+      deleteAppearanceState,
+    );
   }, [history]);
+
+  React.useEffect(() => {
+    return () =>
+      releaseOwnedCacheKeys(
+        ownedAppearanceKeysRef.current,
+        appearanceOwnerCounts,
+        deleteAppearanceState,
+      );
+  }, []);
 
   function openFocusedEditor(item: TItem) {
     const stamp = item.stamp;
@@ -901,14 +921,9 @@ function serializeAppearance(
   return JSON.stringify(normalizeOutputAppearance(appearance));
 }
 
-function pruneAppearanceState(keys: Iterable<string>) {
-  const activeKeys = new Set(keys);
-  for (const key of appearanceStore.keys()) {
-    if (!activeKeys.has(key)) appearanceStore.delete(key);
-  }
-  for (const key of appearanceSvgCache.keys()) {
-    if (!activeKeys.has(key)) appearanceSvgCache.delete(key);
-  }
+function deleteAppearanceState(key: string) {
+  appearanceStore.delete(key);
+  appearanceSvgCache.delete(key);
 }
 
 function getAppearanceKey(item: BespokeTraceOutputItem) {

@@ -1,5 +1,11 @@
 import * as React from "react";
+import {
+  BATCH_SESSION_STORE_MAX_ENTRIES,
+  getOrCreateBoundedStoreEntry,
+  SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
+} from "~/utils/boundedStore";
 import type { Route } from "./+types/home";
+import type { MemoryDiagnosticJob } from "~/utils/memoryDiagnostics.server";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -302,7 +308,45 @@ function checkBackendConversionRateLimit(
   const now = Date.now();
   const store = getRateLimitStore();
   const key = getBackendRateLimitKey(request, routeName, actionName);
-  const record = store.get(key) ?? createFreshRateLimitRecord(now);
+  const admission = getOrCreateBoundedStoreEntry({
+    store,
+    key,
+    now,
+    maxEntries: SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
+    create: () => createFreshRateLimitRecord(now),
+    isExpired: (candidate, at) =>
+      RATE_LIMIT_WINDOWS.every(
+        (windowConfig) => at >= candidate[windowConfig.name].resetAt,
+      ),
+    getExpiresAt: (candidate) =>
+      Math.max(
+        ...RATE_LIMIT_WINDOWS.map(
+          (windowConfig) => candidate[windowConfig.name].resetAt,
+        ),
+      ),
+  });
+
+  if (!admission.admitted) {
+    const retryAfterMs = admission.retryAfterMs;
+    const headers = new Headers({
+      "Retry-After": String(Math.ceil(retryAfterMs / 1000)),
+    });
+    for (const windowConfig of RATE_LIMIT_WINDOWS) {
+      headers.set(
+        windowConfig.limitHeader,
+        String(limits[windowConfig.limitKey]),
+      );
+      headers.set(windowConfig.remainingHeader, "0");
+    }
+    return {
+      allowed: false,
+      headers,
+      retryAfterMs,
+      retryAfterText: formatRetryAfter(retryAfterMs),
+    };
+  }
+
+  const record = admission.value;
 
   for (const windowConfig of RATE_LIMIT_WINDOWS) {
     const state = record[windowConfig.name];
@@ -448,12 +492,12 @@ function checkBatchConversionSession(
 
   const now = Date.now();
   const store = getBatchSessionStore();
-  for (const [key, record] of store) {
-    if (record.expiresAt <= now) store.delete(key);
-  }
-
   const key = getBatchSessionKey(request, sessionId);
   let session = store.get(key);
+  if (session && session.expiresAt <= now) {
+    store.delete(key);
+    session = undefined;
+  }
   const isNewSession =
     !session || String(form.get("batchIndex") || "0") === "0";
 
@@ -475,12 +519,34 @@ function checkBatchConversionSession(
     }
 
     const speedTier = getServerBatchSpeedFromForm(form);
-    session = {
+    const freshSession: BatchSessionRecord = {
       count: 0,
       max: getBatchMaxForSpeedTier(speedTier),
       speedTier,
       expiresAt: now + BATCH_SESSION_TTL_MS,
     };
+    const admission = getOrCreateBoundedStoreEntry({
+      store,
+      key,
+      now,
+      maxEntries: BATCH_SESSION_STORE_MAX_ENTRIES,
+      create: () => freshSession,
+      isExpired: (record, at) => record.expiresAt <= at,
+      getExpiresAt: (record) => record.expiresAt,
+    });
+    if (!admission.admitted) {
+      const retryAfterMs = admission.retryAfterMs;
+      return {
+        allowed: false,
+        status: 429,
+        headers: new Headers({
+          "Retry-After": String(Math.ceil(retryAfterMs / 1000)),
+        }),
+        retryAfterMs,
+        error: "The conversion server is busy. Please try again in a moment.",
+      };
+    }
+    session = freshSession;
     store.set(key, session);
   }
 
@@ -523,7 +589,9 @@ function checkBatchConversionSession(
 // -------- Concurrency gate (server) --------
 type ReleaseFn = () => void;
 type Gate = {
-  acquireOrQueue: () => Promise<ReleaseFn>;
+  acquireOrQueue: (
+    diagnostics?: MemoryDiagnosticJob | null,
+  ) => Promise<ReleaseFn>;
   running: number;
   queued: number;
 };
@@ -534,6 +602,7 @@ async function getGate(): Promise<Gate> {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  let memoryDiagnostics: MemoryDiagnosticJob | null = null;
   try {
     // --- Guard: method ---
     if (request.method.toUpperCase() !== "POST") {
@@ -651,13 +720,35 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
+    const diagnosticTraceMode =
+      String(form.get("traceMode") ?? "single") === "layered"
+        ? "layered"
+        : "single";
+    if (process.env.ILOVESVG_MEMORY_DIAGNOSTICS === "1") {
+      const { createMemoryDiagnosticJob } = await import(
+        "~/utils/memoryDiagnostics.server"
+      );
+      memoryDiagnostics = createMemoryDiagnosticJob({
+        routeId: "home",
+        conversionFamily:
+          diagnosticTraceMode === "layered"
+            ? "layered-raster-to-svg"
+            : "raster-to-svg",
+        conversionMode: diagnosticTraceMode,
+        presetId,
+        inputBytes: webFile.size || 0,
+      });
+    }
+    memoryDiagnostics?.checkpoint("request-received-after-parse");
+
     // ----- Acquire concurrency slot BEFORE reading bytes into RAM -----
     const gate = await getGate();
     let release: ReleaseFn | null = null;
 
     try {
-      release = await gate.acquireOrQueue();
+      release = await gate.acquireOrQueue(memoryDiagnostics);
     } catch (e: any) {
+      memoryDiagnostics?.finish();
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
@@ -677,6 +768,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     try {
+      memoryDiagnostics?.checkpoint("conversion-start");
       // NOW read original bytes into Buffer (RAM-heavy)
       const ab = await webFile.arrayBuffer();
       // @ts-ignore Buffer exists in Remix node runtime
@@ -687,12 +779,16 @@ export async function action({ request }: ActionFunctionArgs) {
       if (signatureError) return signatureError;
 
       // --- Authoritative megapixel/side guard (cheap header decode via sharp) ---
+      let diagnosticSourceWidth = 0;
+      let diagnosticSourceHeight = 0;
       try {
         const { getSharp } = await import("~/utils/conversionModules.server");
       const sharp = await getSharp();
         const meta = await sharp(input).metadata();
         const w = meta.width ?? 0;
         const h = meta.height ?? 0;
+        diagnosticSourceWidth = w;
+        diagnosticSourceHeight = h;
 
         if (!w || !h) {
           return json(
@@ -886,6 +982,23 @@ export async function action({ request }: ActionFunctionArgs) {
           fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
+        memoryDiagnostics?.checkpoint("tracing-complete", {
+          sourceWidth: diagnosticSourceWidth,
+          sourceHeight: diagnosticSourceHeight,
+          processingWidth: layered.width,
+          processingHeight: layered.height,
+          layerCount: layered.layers.length,
+          warningCount: layered.warnings?.length ?? 0,
+        });
+        memoryDiagnostics?.checkpoint("optimization-complete", {
+          layerCount: layered.layers.length,
+        });
+        memoryDiagnostics?.checkpoint("output-created", {
+          outputBytes: Buffer.byteLength(layered.svg, "utf8"),
+          layerCount: layered.layers.length,
+        });
+        memoryDiagnostics?.checkpoint("response-ready");
+
         return json({
           svg: layered.svg,
           layers: layered.layers,
@@ -924,6 +1037,10 @@ export async function action({ request }: ActionFunctionArgs) {
         minIslandPx: advancedTraceSettings.minIslandPx,
         holeFillPx: advancedTraceSettings.holeFillPx,
       });
+      memoryDiagnostics?.checkpoint("preprocessing-complete", {
+        sourceWidth: diagnosticSourceWidth,
+        sourceHeight: diagnosticSourceHeight,
+      });
 
       // Potrace (CJS API)
       const routePotraceTrace = runSharedPotraceSvgTraceShared;
@@ -941,6 +1058,7 @@ export async function action({ request }: ActionFunctionArgs) {
       };
 
       const svgRaw: string = await routePotraceTrace(prepped, opts);
+      memoryDiagnostics?.checkpoint("tracing-complete");
 
       // Post-process SVG safely (defensive)
       const safeSvg = coerceSvg(svgRaw);
@@ -966,6 +1084,15 @@ export async function action({ request }: ActionFunctionArgs) {
         advancedTraceSettings,
         { width: ensured.width, height: ensured.height },
       );
+      memoryDiagnostics?.checkpoint("optimization-complete", {
+        processingWidth: adjustedSingle.width,
+        processingHeight: adjustedSingle.height,
+      });
+      memoryDiagnostics?.checkpoint("output-created", {
+        outputBytes: Buffer.byteLength(adjustedSingle.svg, "utf8"),
+        layerCount: editableSingle.layers.length,
+      });
+      memoryDiagnostics?.checkpoint("response-ready");
 
       return json({
         svg: adjustedSingle.svg,
@@ -979,12 +1106,32 @@ export async function action({ request }: ActionFunctionArgs) {
           queued: gate.queued,
         },
       });
+    } catch (error) {
+      if (memoryDiagnostics) {
+        const { classifyMemoryDiagnosticError } = await import(
+          "~/utils/memoryDiagnostics.server"
+        );
+        memoryDiagnostics.checkpoint("conversion-error", {
+          errorClass: classifyMemoryDiagnosticError(error),
+        });
+      }
+      throw error;
     } finally {
       try {
         release?.();
       } catch {}
+      memoryDiagnostics?.finish();
     }
   } catch (err: any) {
+    if (memoryDiagnostics) {
+      const { classifyMemoryDiagnosticError } = await import(
+        "~/utils/memoryDiagnostics.server"
+      );
+      memoryDiagnostics.checkpoint("conversion-error", {
+        errorClass: classifyMemoryDiagnosticError(err),
+      });
+      memoryDiagnostics.finish();
+    }
     const {
       createInvalidUploadDecodeResponse,
       isInvalidUploadDecodeError,
@@ -2710,6 +2857,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const activeHistoryStampRef = React.useRef<number | null>(null);
   const latestSubmittedRunIdRef = React.useRef("");
   const clientRunIdCounterRef = React.useRef(0);
+  const mountedRef = React.useRef(true);
+  const componentAbortControllerRef = React.useRef<AbortController | null>(null);
   const clientAbortControllersRef = React.useRef(new Map<string, AbortController>());
   const lastProcessedResultKeyRef = React.useRef("");
   const fileMeasureRunIdRef = React.useRef(0);
@@ -3130,6 +3279,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }, []);
 
   React.useEffect(() => {
+    mountedRef.current = true;
+    const componentController = new AbortController();
+    componentAbortControllerRef.current = componentController;
+    return () => {
+      mountedRef.current = false;
+      componentController.abort();
+      if (componentAbortControllerRef.current === componentController) {
+        componentAbortControllerRef.current = null;
+      }
+      for (const controller of clientAbortControllersRef.current.values()) {
+        controller.abort();
+      }
+      clientAbortControllersRef.current.clear();
+      cleanupUnusedSourceSnapshots(
+        Array.from(submittedByRunIdRef.current.values())
+          .map((submitted) => submitted.sourceSnapshot)
+          .filter((snapshot): snapshot is OutputSourceSnapshot => Boolean(snapshot)),
+        [],
+      );
+      submittedByRunIdRef.current.clear();
+      lastSubmittedRef.current = {
+        settings: DEFAULTS,
+        presetId: DEFAULT_PRESET_ID,
+        parentStamp: null,
+        replaceStamp: null,
+      };
+    };
+  }, []);
+
+  React.useEffect(() => {
     const activeStamps = new Set(history.map((item) => item.stamp));
     for (const [stamp, entry] of historyPreviewObjectUrlsRef.current) {
       if (activeStamps.has(stamp)) continue;
@@ -3521,12 +3700,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         sourceWidth: dims?.w ?? null,
         sourceHeight: dims?.h ?? null,
         onProgress: (_progress, message) => {
-          if (message) {
+          if (mountedRef.current && message) {
             setInfo(message);
           }
         },
         signal: abortController.signal,
       });
+
+      if (!mountedRef.current || abortController.signal.aborted) return false;
 
       if (clientTrace.ok) {
         handleSuccessfulTraceData({
@@ -3576,9 +3757,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         return false;
       }
     } finally {
-      setActiveClientTraceCount((count) => Math.max(0, count - 1));
+      if (mountedRef.current) {
+        setActiveClientTraceCount((count) => Math.max(0, count - 1));
+      }
     }
 
+    if (!mountedRef.current) return false;
     // Target this route's index action
     fetcher.submit(fd, {
       method: "POST",
@@ -3592,6 +3776,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     stamp: number,
     updater: (item: HistoryItem) => HistoryItem,
   ) {
+    if (!mountedRef.current) return;
     setHistory((prev) =>
       prev.map((item) => (item.stamp === stamp ? updater(item) : item)),
     );
@@ -3601,6 +3786,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     stamp: number,
     updater: (batch: OutputBatchState) => OutputBatchState,
   ) {
+    if (!mountedRef.current) return;
     patchHistoryItem(stamp, (item) => ({
       ...item,
       batch: updater(item.batch || createOutputBatchState()),
@@ -3912,14 +4098,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             presetId: submittedPresetId,
             presetBackendIntensity: runPreview.presetBackendIntensity,
             onProgress: (_progress, message) => {
-              if (message) {
+              if (mountedRef.current && message) {
                 patchOutputBatchState(stamp, (current) => ({
                   ...current,
                   info: `${message} (${index + 1}/${filesToConvert.length})`,
                 }));
               }
             },
+            signal: componentAbortControllerRef.current?.signal,
           });
+
+          if (
+            !mountedRef.current ||
+            componentAbortControllerRef.current?.signal.aborted
+          ) {
+            return;
+          }
 
           if (clientBatchTrace.ok) {
             const svgWithLayerEdits = sourceLayerEdits?.length

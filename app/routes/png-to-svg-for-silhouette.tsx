@@ -1139,6 +1139,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   // Attempts history
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
+  const historyRef = React.useRef(history);
+  historyRef.current = history;
   const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
     number | null
   >(null);
@@ -1303,6 +1305,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       (clientRunId && submittedByRunIdRef.current.get(clientRunId)) || null;
     const pendingStamp = submitted?.stamp;
     if (!pendingStamp) {
+      if (submitted?.replaceStamp) {
+        cleanupUnusedSourceSnapshots(
+          [submitted.sourceSnapshot],
+          historyRef.current,
+        );
+      }
       if (clientRunId) submittedByRunIdRef.current.delete(clientRunId);
       return;
     }
@@ -1330,6 +1338,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    return () => {
+      cleanupUnusedSourceSnapshots(
+        [
+          ...historyRef.current,
+          ...Array.from(submittedByRunIdRef.current.values()).map(
+            (submitted) => submitted.sourceSnapshot,
+          ),
+        ],
+        [],
+      );
+      submittedByRunIdRef.current.clear();
+    };
+  }, []);
 
   async function measureAndSet(f: File) {
     try {
@@ -1372,6 +1395,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setPreviewUrl(null);
 
     // Keep any preset/settings the user selected before upload.
+    for (const clientRunId of submittedByRunIdRef.current.keys()) {
+      fetcher.cancelClientJob(clientRunId);
+    }
+    cleanupUnusedSourceSnapshots(
+      [
+        ...historyRef.current,
+        ...Array.from(submittedByRunIdRef.current.values()).map(
+          (submitted) => submitted.sourceSnapshot,
+        ),
+      ],
+      [],
+    );
+    submittedByRunIdRef.current.clear();
     setHistory((prev) => {
       cleanupUnusedSourceSnapshots(prev, []);
       return [];

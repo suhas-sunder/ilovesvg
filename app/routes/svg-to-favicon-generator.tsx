@@ -141,14 +141,21 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
   const [err, setErr] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
   const [isWorking, setIsWorking] = React.useState(false);
+  const ownedPreviewUrlsRef = React.useRef<{
+    srcImageUrl: string | null;
+    previewUrl: string | null;
+    resultPreviewUrl: string | null;
+  }>({ srcImageUrl: null, previewUrl: null, resultPreviewUrl: null });
+  ownedPreviewUrlsRef.current = { srcImageUrl, previewUrl, resultPreviewUrl };
 
   React.useEffect(() => {
     return () => {
-      if (srcImageUrl) URL.revokeObjectURL(srcImageUrl);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl);
+      const urls = new Set(Object.values(ownedPreviewUrlsRef.current));
+      for (const url of urls) {
+        if (url) URL.revokeObjectURL(url);
+      }
     };
-  }, [srcImageUrl, previewUrl, resultPreviewUrl]);
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -1509,24 +1516,32 @@ async function loadAsImage(
     const svg = ensureSvgHasXmlns(srcSvgText || "");
     const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Failed to load SVG image."));
-      img.src = url;
-    });
-
-    URL.revokeObjectURL(url);
-    return img;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to load SVG image."));
+        img.src = url;
+      });
+      return img;
+    } finally {
+      img.onload = null;
+      img.onerror = null;
+      URL.revokeObjectURL(url);
+    }
   }
 
   if (!srcUrl) throw new Error("Missing image source.");
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("Failed to load image."));
-    img.src = srcUrl;
-  });
-  return img;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to load image."));
+      img.src = srcUrl;
+    });
+    return img;
+  } finally {
+    img.onload = null;
+    img.onerror = null;
+  }
 }
 
 /* ========================

@@ -63,6 +63,7 @@ export function useHybridTraceFetcher<
   const fetcher = useFetcher<TData>();
   const [clientData, setClientData] = React.useState<TData | undefined>();
   const [activeClientJobs, setActiveClientJobs] = React.useState(0);
+  const mountedRef = React.useRef(true);
   const runIdRef = React.useRef(0);
   const fallbackWarningRef = React.useRef<string | null>(null);
   const clientCancelHandlersRef = React.useRef(new Map<string, () => void>());
@@ -115,6 +116,9 @@ export function useHybridTraceFetcher<
       setActiveClientJobs((count) => count + 1);
       let cleanupInFlightConsumer: (() => void) | null = null;
       let currentAbortController: AbortController | null = null;
+      const isActiveClientRun = () =>
+        mountedRef.current &&
+        !canceledClientRunIdsRef.current.has(clientRunId);
 
       const registerCancelHandler = (cancel: () => void) => {
         clientCancelHandlersRef.current.set(clientRunId, () => {
@@ -150,7 +154,9 @@ export function useHybridTraceFetcher<
           settings,
           presetId: settings.presetId,
           presetBackendIntensity: settings.presetBackendIntensity,
-          onProgress: options.onProgress,
+          onProgress: (progress, message) => {
+            if (isActiveClientRun()) options.onProgress?.(progress, message);
+          },
           signal,
         });
 
@@ -170,7 +176,7 @@ export function useHybridTraceFetcher<
           return clientAttempt.result;
         }
 
-        const isLatest = runIdRef.current === runId;
+        const isLatest = mountedRef.current && runIdRef.current === runId;
         recordHybridTraceDebug({
           routeId: options.routeId,
           stage: "client-attempt-failed",
@@ -241,6 +247,7 @@ export function useHybridTraceFetcher<
           routeId: options.routeId,
           settings,
         });
+        if (!isActiveClientRun()) return;
         const cacheKey = keyInfo?.key ?? null;
 
         if (cacheKey) {
@@ -254,6 +261,7 @@ export function useHybridTraceFetcher<
               conversionCacheKey: cacheKey,
               engineUsed: cached.engineUsed,
             });
+            if (!isActiveClientRun()) return;
             setClientData(
               traceResultToFetcherData<TData>(cached, {
                 clientRunId,
@@ -280,7 +288,7 @@ export function useHybridTraceFetcher<
             });
           }
           const result = await inFlight.promise;
-          if (canceledClientRunIdsRef.current.has(clientRunId)) return;
+          if (!isActiveClientRun()) return;
           setClientData(
             traceResultToFetcherData<TData>(result, {
               clientRunId,
@@ -297,7 +305,7 @@ export function useHybridTraceFetcher<
           null,
           localAbortController.signal,
         );
-        if (canceledClientRunIdsRef.current.has(clientRunId)) return;
+        if (!isActiveClientRun()) return;
         setClientData(
           traceResultToFetcherData<TData>(result, {
             clientRunId,
@@ -306,12 +314,13 @@ export function useHybridTraceFetcher<
         );
       })()
         .catch((error) => {
+          if (!mountedRef.current) return;
           const message =
             error instanceof Error && error.message
               ? error.message
               : "Browser tracing failed.";
           if (message === SERVER_FALLBACK_SUBMITTED) return;
-          const isLatest = runIdRef.current === runId;
+          const isLatest = mountedRef.current && runIdRef.current === runId;
           if (
             currentAbortController?.signal.aborted ||
             canceledClientRunIdsRef.current.has(clientRunId) ||
@@ -369,7 +378,9 @@ export function useHybridTraceFetcher<
           cleanupInFlightConsumer?.();
           clientCancelHandlersRef.current.delete(clientRunId);
           canceledClientRunIdsRef.current.delete(clientRunId);
-          setActiveClientJobs((count) => Math.max(0, count - 1));
+          if (mountedRef.current) {
+            setActiveClientJobs((count) => Math.max(0, count - 1));
+          }
         });
     },
     [fetcher, options.enabled, options.onProgress, options.routeId],
@@ -419,11 +430,23 @@ export function useHybridTraceFetcher<
   }, [fetcher.data, options.routeId]);
 
   React.useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      runIdRef.current += 1;
+      for (const cancel of clientCancelHandlersRef.current.values()) {
+        try {
+          cancel();
+        } catch {
+          // Continue canceling other component-owned jobs during unmount.
+        }
+      }
+      clientCancelHandlersRef.current.clear();
       for (const pending of pendingServerCacheRef.current.values()) {
         pending.reject(new Error("Conversion cache waiter was released."));
       }
       pendingServerCacheRef.current.clear();
+      canceledClientRunIdsRef.current.clear();
     };
   }, []);
 
