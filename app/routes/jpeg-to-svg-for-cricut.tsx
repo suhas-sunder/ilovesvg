@@ -1780,7 +1780,7 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "cricut-clean-cut",
+    id: "jpeg-cricut-clean-cut",
     label: "Cricut - Clean cut file",
     settings: {
       traceMode: "single",
@@ -2023,6 +2023,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
 };
 
 // ---- tiering helpers (client) ----
@@ -2052,7 +2053,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("cricut-clean-cut");
+    React.useState<string>("jpeg-cricut-clean-cut");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2075,6 +2076,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingPresetIdentityRef = React.useRef<{
+    id: string;
+    label: string;
+  } | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -2097,6 +2102,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
       const replaceStamp = pendingReplaceStampRef.current;
+      const presetIdentity = pendingPresetIdentityRef.current ?? {
+        id: activePreset,
+        label: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+      };
       const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         layers: fetcher.data.layers?.map((layer) => ({
@@ -2117,7 +2126,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        presetId: presetIdentity.id,
+        presetLabel: presetIdentity.label,
 
         settingsSnapshot,
         draftSettings: settingsSnapshot,
@@ -2139,6 +2149,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingPresetIdentityRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [
@@ -2172,6 +2183,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingPresetIdentityRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -2274,6 +2286,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
+    presetIdForSubmit: string = activePreset,
   ) {
     if (!targetFile) {
       setErr("Choose an image first.");
@@ -2323,7 +2336,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
     fd.append("traceMode", effective.traceMode);
     fd.append("colorLayerCount", String(effective.colorLayerCount));
     fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
@@ -2335,6 +2348,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fd.append("removeWhite", String(effective.removeWhite));
     fd.append("removeTransparent", String(effective.removeTransparent));
     setErr(null);
+    pendingOutputSettingsRef.current = effective;
+    pendingPresetIdentityRef.current = {
+      id: presetIdForSubmit,
+      label:
+        getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit) ??
+        "Custom settings",
+    };
 
     // Target this route's index action
     fetcher.submit(fd, {
@@ -2397,7 +2417,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWith(file, nextSettings);
+      void submitConvertWith(file, nextSettings, preset.id);
     }
   }
 
@@ -2462,6 +2482,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return getTraceOutputSvg(item as HistoryItem & TraceOutputItem<Settings>);
   }
 
+  function selectHistoryOutput(index: number | null) {
+    setFullscreenPreviewIndex(index);
+    if (index == null) return;
+    const presetId = history[index]?.presetId;
+    if (presetId && DISPLAY_PRESETS.some((preset) => preset.id === presetId)) {
+      setActivePreset(presetId);
+    }
+  }
+
   function toggleOutputSettings(stamp: number) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -2511,7 +2540,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     pendingReplaceStampRef.current = stamp;
     pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    void submitConvertWith(file, nextSettings);
+    void submitConvertWith(file, nextSettings, item.presetId ?? activePreset);
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {
@@ -2746,7 +2775,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               emptyTitle="Converted Cricut SVG files appear here..."
               emptyDescription="Convert your input to preview, copy, or download the result."
               fullscreenPreviewIndex={fullscreenPreviewIndex}
-              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              setFullscreenPreviewIndex={selectHistoryOutput}
               onCopySvg={handleCopySvg}
               onToggleSettings={toggleOutputSettings}
               onDraftSettingsChange={updateOutputDraftSettings}
@@ -2764,7 +2793,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <FullscreenOutputPreview
           items={history}
           activeIndex={fullscreenPreviewIndex}
-          setActiveIndex={setFullscreenPreviewIndex}
+          setActiveIndex={selectHistoryOutput}
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,

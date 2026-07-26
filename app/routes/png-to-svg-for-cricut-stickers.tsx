@@ -1022,6 +1022,7 @@ type HistoryItem = {
   cutSource: string;
   settingsSnapshot: Settings;
   name?: string;
+  presetId?: string;
   presetLabel?: string;
   sourceFileName?: string;
   sourceMimeType?: string;
@@ -1084,6 +1085,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
   const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const lastSubmittedPresetIdentityRef = React.useRef({
+    id: "white-border",
+    label: getPresetLabelById("white-border"),
+  });
   const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const historyRef = React.useRef<HistoryItem[]>([]);
@@ -1101,6 +1106,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   React.useEffect(() => {
     if (fetcher.data?.svg) {
+      const presetIdentity = lastSubmittedPresetIdentityRef.current;
       const item: HistoryItem = {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
@@ -1118,8 +1124,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         stamp: Date.now(),
         cutSource: fetcher.data.cutSource ?? settings.cutSource,
         settingsSnapshot: lastSubmittedSettingsRef.current,
-        name: `Output - ${getPresetLabelById(activePreset)}`,
-        presetLabel: getPresetLabelById(activePreset),
+        name: `Output - ${presetIdentity.label}`,
+        presetId: presetIdentity.id,
+        presetLabel: presetIdentity.label,
         sourceFileName: lastSubmittedSourceSnapshotRef.current.sourceFileName,
         sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
         sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
@@ -1156,7 +1163,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fetcher.data?.width,
     fetcher.data?.height,
     fetcher.data?.cutSource,
-    activePreset,
   ]);
 
   React.useEffect(() => {
@@ -1164,7 +1170,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (fetcher.data.code === "BUSY" && file) {
       const retryAfterMs = Math.max(1000, fetcher.data.retryAfterMs ?? 1500);
       setInfo("Server is busy. Retrying sticker conversion automatically...");
-      const t = setTimeout(() => submitConvert(file, settings), retryAfterMs);
+      const t = setTimeout(
+        () =>
+          submitConvert(
+            file,
+            lastSubmittedSettingsRef.current,
+            null,
+            lastSubmittedPresetIdentityRef.current.id,
+          ),
+        retryAfterMs,
+      );
       return () => clearTimeout(t);
     }
     setErr(fetcher.data.error);
@@ -1274,6 +1289,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fileOverride?: File | null,
     settingsOverride?: Settings,
     replaceStamp?: number | null,
+    presetIdForSubmit: string = activePreset,
   ) {
     const targetFile = fileOverride ?? file;
     const targetSettings = settingsOverride ?? settings;
@@ -1312,13 +1328,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     lastSubmittedSourceSnapshotRef.current =
       createOutputSourceSnapshot(targetFile);
     pendingReplaceStampRef.current = replaceStamp ?? null;
+    lastSubmittedPresetIdentityRef.current = {
+      id: presetIdForSubmit,
+      label: getPresetLabelById(presetIdForSubmit),
+    };
 
-    fd.append("presetId", activePreset);
-
-
-    
-
-
+    fd.append("presetId", presetIdForSubmit);
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
@@ -1340,7 +1355,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, null, preset.id);
     }
   }
 
@@ -1535,7 +1550,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       </div>
                       <button
                         type="button"
-                        onClick={() => void submitConvert(file, settings, item.stamp)}
+                        onClick={() =>
+                          void submitConvert(
+                            file,
+                            settings,
+                            item.stamp,
+                            item.presetId ?? activePreset,
+                          )
+                        }
                         disabled={buttonDisabled || !sourceAvailableForOutput}
                         className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >

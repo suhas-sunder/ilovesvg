@@ -1934,6 +1934,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -1985,6 +1986,10 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingPresetIdentityRef = React.useRef<{
+    id: string;
+    label: string;
+  } | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -1999,7 +2004,13 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
       const ms = Math.max(800, fetcher.data.retryAfterMs);
       setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
       const t = setTimeout(() => {
-        if (file) void submitConvertWith(file, settings);
+        if (file) {
+          void submitConvertWith(
+            file,
+            pendingOutputSettingsRef.current ?? settings,
+            pendingPresetIdentityRef.current?.id ?? activePreset,
+          );
+        }
       }, ms);
       return () => clearTimeout(t);
     }
@@ -2016,6 +2027,10 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
 
       const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
       const replaceStamp = pendingReplaceStampRef.current;
+      const presetIdentity = pendingPresetIdentityRef.current ?? {
+        id: activePreset,
+        label: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+      };
       const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         layers: fetcher.data.layers?.map((layer) => ({
@@ -2036,7 +2051,8 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        presetId: presetIdentity.id,
+        presetLabel: presetIdentity.label,
 
         settingsSnapshot,
         draftSettings: settingsSnapshot,
@@ -2058,6 +2074,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingPresetIdentityRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
@@ -2080,6 +2097,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingPresetIdentityRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -2204,6 +2222,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
+    presetIdForSubmit: string = activePreset,
   ) {
     if (!targetFile) {
       setErr("Choose a JPG first.");
@@ -2264,9 +2283,16 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
 
     setErr(null);
+    pendingOutputSettingsRef.current = effective;
+    pendingPresetIdentityRef.current = {
+      id: presetIdForSubmit,
+      label:
+        getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit) ??
+        "Custom settings",
+    };
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
@@ -2324,7 +2350,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWith(file, nextSettings);
+      void submitConvertWith(file, nextSettings, preset.id);
     }
   }
 
@@ -2437,7 +2463,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
     pendingReplaceStampRef.current = stamp;
     pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    void submitConvertWith(file, nextSettings);
+    void submitConvertWith(file, nextSettings, item.presetId ?? activePreset);
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {

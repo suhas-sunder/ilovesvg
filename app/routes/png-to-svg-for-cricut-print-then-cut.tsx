@@ -1044,6 +1044,7 @@ type HistoryItem = {
   stamp: number;
   settingsSnapshot: Settings;
   name?: string;
+  presetId?: string;
   presetLabel?: string;
   sourceFileName?: string;
   sourceMimeType?: string;
@@ -1145,6 +1146,10 @@ export default function PngToSvgForCricutPrintThenCut({
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLiveRef = React.useRef(false);
   const lastSubmittedSettingsRef = React.useRef<Settings>(DEFAULTS);
+  const lastSubmittedPresetIdentityRef = React.useRef({
+    id: "sticker-clean-offset",
+    label: getPresetLabelById("sticker-clean-offset"),
+  });
   const lastSubmittedSourceSnapshotRef = React.useRef<OutputSourceSnapshot>({});
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const historyRef = React.useRef<HistoryItem[]>([]);
@@ -1182,6 +1187,7 @@ export default function PngToSvgForCricutPrintThenCut({
 
   React.useEffect(() => {
     if (fetcher.data?.svg) {
+      const presetIdentity = lastSubmittedPresetIdentityRef.current;
       const item: HistoryItem = {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
@@ -1198,8 +1204,9 @@ export default function PngToSvgForCricutPrintThenCut({
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
         settingsSnapshot: lastSubmittedSettingsRef.current,
-        name: `Output - ${getPresetLabelById(activePreset)}`,
-        presetLabel: getPresetLabelById(activePreset),
+        name: `Output - ${presetIdentity.label}`,
+        presetId: presetIdentity.id,
+        presetLabel: presetIdentity.label,
         sourceFileName: lastSubmittedSourceSnapshotRef.current.sourceFileName,
         sourceMimeType: lastSubmittedSourceSnapshotRef.current.sourceMimeType,
         sourceFileSize: lastSubmittedSourceSnapshotRef.current.sourceFileSize,
@@ -1231,7 +1238,7 @@ export default function PngToSvgForCricutPrintThenCut({
         );
       }
     }
-  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height, activePreset]);
+  }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
 
   React.useEffect(() => {
     if (fetcher.data?.error) {
@@ -1342,6 +1349,7 @@ export default function PngToSvgForCricutPrintThenCut({
     targetFile?: File | null,
     settingsOverride?: Settings,
     replaceStamp?: number | null,
+    presetIdForSubmit: string = activePreset,
   ) {
     const currentFile = targetFile || file;
     const currentSettings = settingsOverride ?? settings;
@@ -1381,13 +1389,12 @@ export default function PngToSvgForCricutPrintThenCut({
     lastSubmittedSourceSnapshotRef.current =
       createOutputSourceSnapshot(currentFile);
     pendingReplaceStampRef.current = replaceStamp ?? null;
+    lastSubmittedPresetIdentityRef.current = {
+      id: presetIdForSubmit,
+      label: getPresetLabelById(presetIdForSubmit),
+    };
 
-    fd.append("presetId", activePreset);
-
-
-    
-
-
+    fd.append("presetId", presetIdForSubmit);
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
@@ -1404,7 +1411,7 @@ export default function PngToSvgForCricutPrintThenCut({
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, null, preset.id);
     }
   }
 
@@ -1603,7 +1610,14 @@ export default function PngToSvgForCricutPrintThenCut({
                       </div>
                       <button
                         type="button"
-                        onClick={() => void submitConvert(file, settings, item.stamp)}
+                        onClick={() =>
+                          void submitConvert(
+                            file,
+                            settings,
+                            item.stamp,
+                            item.presetId ?? activePreset,
+                          )
+                        }
                         disabled={buttonDisabled || !sourceAvailableForOutput}
                         className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >

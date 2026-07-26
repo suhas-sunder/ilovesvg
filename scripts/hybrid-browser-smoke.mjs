@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,6 +15,8 @@ const tmpDir = path.join(os.tmpdir(), "ilovesvg-hybrid-browser-smoke", String(de
 const profileDir = path.join(tmpDir, "profile");
 const fixturesDir = path.join(tmpDir, "fixtures");
 const downloadsDir = path.join(tmpDir, "downloads");
+const routeViewportWidth = Number(process.env.ROUTE_VIEWPORT_WIDTH || 0);
+const routeViewportHeight = Number(process.env.ROUTE_VIEWPORT_HEIGHT || 900);
 const reportPath = process.env.HYBRID_BROWSER_SMOKE_REPORT_PATH
   ? path.resolve(process.env.HYBRID_BROWSER_SMOKE_REPORT_PATH)
   : path.join(rootDir, "tmp", "hybrid-browser-smoke-report.json");
@@ -309,6 +312,15 @@ async function runRouteSmoke(route, fixturePath) {
     await client.send("Page.enable");
     await client.send("DOM.enable");
     await client.send("Network.enable");
+    if (routeViewportWidth > 0) {
+      await client.send("Emulation.setDeviceMetricsOverride", {
+        width: routeViewportWidth,
+        height: routeViewportHeight,
+        deviceScaleFactor: 1,
+        mobile: routeViewportWidth < 768,
+      });
+      await client.navigate(`${baseUrl}${route.path}`);
+    }
     await waitForDocumentReady(client);
     await evaluate(client, `(() => { window.__ILOVESVG_HYBRID_TRACE_DEBUG__ = []; return true; })()`);
     await delay(1_500);
@@ -400,6 +412,10 @@ async function runRouteSmoke(route, fixturePath) {
 
     return {
       route: route.path,
+      viewport:
+        routeViewportWidth > 0
+          ? { width: routeViewportWidth, height: routeViewportHeight }
+          : null,
       scenario: route.scenario,
       mode: route.mode,
       expectedEngine: route.expectedEngine,
@@ -1469,6 +1485,12 @@ async function runOutputUxSmoke(fixtures) {
     { route: "/png-to-svg-converter", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
     { route: "/sketch-to-svg-converter", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
     { route: "/photo-to-svg-outline", fixture: fixtures.jpg, replacementFixture: fixtures.png, expectedEngine: null },
+    {
+      route: "/jpeg-to-svg-converter",
+      fixture: fixtures.jpg,
+      replacementFixture: fixtures.jpgAlt,
+      expectedEngine: null,
+    },
     { route: "/png-to-svg-for-cricut", fixture: fixtures.png, replacementFixture: fixtures.jpg, expectedEngine: null },
     {
       route: "/png-to-layered-svg-for-cricut",
@@ -2415,10 +2437,12 @@ async function verifyOutputActions(client, route, expectedEngine) {
     return {
       copyOk: copy.ok,
       copyLength: copy.length,
+      copySha256: copy.sha256,
       copyHasStrokeWidth: copy.hasStrokeWidth,
       downloadOk: download.ok,
       downloadFile: download.file,
       downloadBytes: download.bytes,
+      downloadSha256: download.sha256,
       downloadHasStrokeWidth: download.hasStrokeWidth,
       updatePreviewOk: updatePreview.ok,
       updatePreview: updatePreview.status,
@@ -2441,6 +2465,7 @@ async function verifyCopySvg(client) {
     () => `navigator.clipboard.readText()
       .then((text) => ({
         ok: /<svg[\\s>]/i.test(text),
+        text,
         length: typeof text === "string" ? text.length : 0,
         hasFillSpread: typeof text === "string" ? /data-fill-spread=|paint-order=["']stroke fill markers/i.test(text) : false,
         hasStrokeWidth: typeof text === "string" ? /stroke-width=/i.test(text) : false,
@@ -2452,6 +2477,10 @@ async function verifyCopySvg(client) {
   return {
     ok: Boolean(result?.ok),
     length: Number(result?.length || 0),
+    sha256:
+      typeof result?.text === "string"
+        ? createHash("sha256").update(result.text).digest("hex")
+        : "",
     hasFillSpread: Boolean(result?.hasFillSpread),
     hasStrokeWidth: Boolean(result?.hasStrokeWidth),
   };
@@ -2470,6 +2499,7 @@ async function verifySvgDownload(client, label) {
     ok: /<svg[\s>]/i.test(text),
     file: `${label}:${file}`,
     bytes: Buffer.byteLength(text),
+    sha256: createHash("sha256").update(text).digest("hex"),
     hasFillSpread: /data-fill-spread=|paint-order=["']stroke fill markers/i.test(text),
     hasStrokeWidth: /stroke-width=/i.test(text),
   };
@@ -3538,12 +3568,14 @@ async function createFixtures() {
     svg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.svg`),
     png: path.join(fixturesDir, path.basename(sourcePng)),
     jpg: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.jpg`),
+    jpgAlt: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}-alternate.jpg`),
     webp: path.join(fixturesDir, `${path.basename(sourcePng, path.extname(sourcePng))}.webp`),
   };
   await fs.writeFile(files.homeSvg, buildHomeSvgInputFixture());
   await fs.writeFile(files.svg, `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><circle cx="72" cy="78" r="38" fill="#0ea5e9"/><path d="M32 132 C58 102, 94 150, 126 118 S190 126, 210 78" fill="none" stroke="#111827" stroke-width="9" stroke-linecap="round"/></svg>`);
   await fs.writeFile(files.png, png);
   await fs.writeFile(files.jpg, jpg);
+  await fs.writeFile(files.jpgAlt, await sharp(png).flop().jpeg({ quality: 92 }).toBuffer());
   await fs.writeFile(files.webp, webp);
   return files;
   }
@@ -3565,12 +3597,14 @@ async function createFixtures() {
     svg: path.join(fixturesDir, "hybrid-smoke.svg"),
     png: path.join(fixturesDir, "hybrid-smoke.png"),
     jpg: path.join(fixturesDir, "hybrid-smoke.jpg"),
+    jpgAlt: path.join(fixturesDir, "hybrid-smoke-alternate.jpg"),
     webp: path.join(fixturesDir, "hybrid-smoke.webp"),
   };
   await fs.writeFile(files.homeSvg, buildHomeSvgInputFixture());
   await fs.writeFile(files.svg, svg);
   await fs.writeFile(files.png, png);
   await fs.writeFile(files.jpg, jpg);
+  await fs.writeFile(files.jpgAlt, await sharp(png).flop().jpeg({ quality: 92 }).toBuffer());
   await fs.writeFile(files.webp, webp);
   return files;
 }

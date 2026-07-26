@@ -12,21 +12,33 @@ const debugPort = Number(
   process.env.CDP_PORT || 10650 + Math.floor(Math.random() * 300),
 );
 const timeoutMs = Number(process.env.CONVERTER_ROUTE_PARITY_TIMEOUT_MS || 300_000);
-const runDir = path.join(rootDir, "tmp", "converter-route-parity-smoke");
+const presetIdentityMode = process.env.PRESET_IDENTITY_BROWSER_SMOKE === "1";
+const presetIdentityRouteFilter = new Set(
+  (process.env.PRESET_IDENTITY_ROUTE_FILTER || "")
+    .split(",")
+    .map((route) => route.trim())
+    .filter(Boolean),
+);
+const presetIdentityRoot = path.join(
+  os.tmpdir(),
+  "ilovesvg-preset-identity-browser-smoke",
+);
+const profileRoot = path.join(os.tmpdir(), "ilovesvg-converter-route-parity-smoke");
+const runDir = presetIdentityMode
+  ? path.join(presetIdentityRoot, String(process.pid))
+  : path.join(rootDir, "tmp", "converter-route-parity-smoke");
 const downloadRoot = path.join(runDir, "downloads");
 const fixtureRoot = path.join(runDir, "fixtures");
 const profileDir = path.join(
-  os.tmpdir(),
-  "ilovesvg-converter-route-parity-smoke",
+  profileRoot,
   String(debugPort),
 );
 const reportPath = process.env.CONVERTER_ROUTE_PARITY_REPORT_PATH
   ? path.resolve(process.env.CONVERTER_ROUTE_PARITY_REPORT_PATH)
   : path.join(runDir, "report.json");
 
-const criticalFixture =
-  process.env.CONVERTER_ROUTE_PARITY_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG";
+const requestedCriticalFixture =
+  process.env.CONVERTER_ROUTE_PARITY_FIXTURE?.trim() || null;
 
 const presets = {
   flatAmazing: {
@@ -50,17 +62,29 @@ const presets = {
 };
 
 async function main() {
+  if (presetIdentityMode) {
+    await fs.rm(presetIdentityRoot, { recursive: true, force: true });
+    await fs.rm(profileRoot, { recursive: true, force: true });
+  }
   await fs.rm(runDir, { recursive: true, force: true });
   await fs.rm(profileDir, { recursive: true, force: true });
   await fs.mkdir(downloadRoot, { recursive: true });
   await fs.mkdir(fixtureRoot, { recursive: true });
   await fs.mkdir(profileDir, { recursive: true });
 
-  if (!(await fileExists(criticalFixture))) {
-    throw new Error(`Required route-parity fixture is missing: ${criticalFixture}`);
+  if (
+    !presetIdentityMode &&
+    requestedCriticalFixture &&
+    !(await fileExists(requestedCriticalFixture))
+  ) {
+    throw new Error("The CONVERTER_ROUTE_PARITY_FIXTURE path does not exist.");
   }
 
   const routineFixture = await createRoutineFixture();
+  const criticalFixture = requestedCriticalFixture || routineFixture;
+  const identityFixtures = presetIdentityMode
+    ? await createPresetIdentityFixtures(routineFixture)
+    : null;
   const server = await serverState();
   if (!server.looksLikeIlovesvg) {
     throw new Error(`Expected iLoveSVG at ${baseUrl}; saw ${server.title || server.status}`);
@@ -84,7 +108,13 @@ async function main() {
     { stdio: "ignore", windowsHide: true },
   );
 
-  const scenarios = [
+  const scenarios = presetIdentityMode
+    ? createPresetIdentityScenarios(identityFixtures).filter(
+        (scenario) =>
+          !presetIdentityRouteFilter.size ||
+          presetIdentityRouteFilter.has(scenario.route),
+      )
+    : [
     {
       route: "/",
       preset: presets.flatAmazing,
@@ -129,7 +159,11 @@ async function main() {
       preset: presets.genericAmazing,
       fixturePath: routineFixture,
     },
-  ];
+      ];
+
+  if (!scenarios.length) {
+    throw new Error("The preset-identity route filter selected no browser scenarios.");
+  }
 
   const report = {
     checkedAt: new Date().toISOString(),
@@ -138,8 +172,9 @@ async function main() {
     server,
     browserPath,
     timeoutMs,
-    criticalFixture,
-    routineFixture,
+    criticalFixture: presetIdentityMode ? null : fixtureSummary(criticalFixture),
+    routineFixture: fixtureSummary(routineFixture),
+    presetIdentityMode,
     routes: [],
     failures: [],
   };
@@ -173,6 +208,10 @@ async function main() {
 
   await writeReport(report);
   console.log(JSON.stringify(summarizeReport(report), null, 2));
+  if (presetIdentityMode) {
+    await fs.rm(presetIdentityRoot, { recursive: true, force: true }).catch(() => null);
+    await fs.rm(profileRoot, { recursive: true, force: true }).catch(() => null);
+  }
   if (report.failures.length) {
     process.exitCode = 1;
   }
@@ -183,6 +222,10 @@ async function runRouteScenario({
   preset,
   fixturePath,
   requireVisible = false,
+  expectedDefaultLabel = null,
+  verifySecondUpload = false,
+  secondFixturePath = null,
+  mobile = false,
 }) {
   const scenarioId = `${slug(route || "home")}-${preset.id}`;
   const downloadDir = path.join(downloadRoot, scenarioId);
@@ -193,11 +236,12 @@ async function runRouteScenario({
 
   try {
     stage = "enable page";
-    await enablePage(client, downloadDir);
+    await enablePage(client, downloadDir, mobile);
     await waitForDocumentReady(client);
     await verifyClipboardAccess(client).catch(() => null);
     stage = "wait for route document";
     await waitForRouteDocument(client, `${baseUrl}${route}`);
+    const defaultActivePreset = await activePresetState(client);
     stage = "seed stale settings localStorage";
     await seedStaleSettingsTopLevelStorage(client);
 
@@ -218,11 +262,13 @@ async function runRouteScenario({
         fixture: fixtureSummary(fixturePath),
         supported: "hidden",
         requireVisible,
+        defaultActivePreset,
         ok: !requireVisible,
         selectedPreset,
         elapsedMs: Date.now() - startedAt,
       };
     }
+    const selectedActivePreset = await activePresetState(client);
 
     stage = "start selected conversion";
     const afterPreset = await waitForValue(
@@ -233,7 +279,9 @@ async function runRouteScenario({
     ).catch(() => outputState(client).catch(() => beforePreset));
     const conversionStartedFromPreset =
       afterPreset?.activeJobs > 0 ||
-      (beforePreset.latestStamp != null && afterPreset?.latestChanged);
+      (beforePreset.latestStamp != null
+        ? afterPreset?.latestChanged
+        : afterPreset?.latestStamp != null);
     if (!conversionStartedFromPreset) {
       await clickConvert(client);
     }
@@ -307,6 +355,33 @@ async function runRouteScenario({
       };
     }
 
+    let secondUpload = null;
+    if (verifySecondUpload && terminal.latestReady) {
+      stage = "second upload";
+      const beforeSecondUpload = await outputState(client);
+      await uploadFixtureWithRetry(client, secondFixturePath || fixturePath);
+      const secondTerminal = await waitForTerminalOutput(
+        client,
+        beforeSecondUpload.latestStamp,
+        timeoutMs,
+      );
+      const secondActivePreset = await activePresetState(client);
+      secondUpload = {
+        expectedPresetLabel: expectedDefaultLabel || preset.label,
+        ok:
+          secondTerminal.latestReady &&
+          normalizeText(secondTerminal.latestBodyText).includes(
+            normalizeText(expectedDefaultLabel || preset.label),
+          ) &&
+          secondActivePreset.activeCount === 1 &&
+          normalizeText(secondActivePreset.labels[0] || "").includes(
+            normalizeText(expectedDefaultLabel || preset.label),
+          ),
+        terminal: secondTerminal,
+        activePreset: secondActivePreset,
+      };
+    }
+
     const result = {
       route,
       presetId: preset.id,
@@ -315,6 +390,11 @@ async function runRouteScenario({
       supported: "visible",
       ok: true,
       selectedPreset,
+      viewport: mobile ? "390x844 mobile" : "1440x1050 desktop",
+      expectedDefaultLabel,
+      defaultActivePreset,
+      selectedActivePreset,
+      secondUpload,
       elapsedMs: Date.now() - startedAt,
       terminal,
       settingsOpened,
@@ -380,6 +460,32 @@ function validateScenarioResult(result, scenario) {
     return failures;
   }
   if (!result.selectedPreset?.selected) add("preset was visible check failed or not selected");
+  if (
+    scenario.expectedDefaultLabel &&
+    !(
+      result.defaultActivePreset?.activeCount === 1 &&
+      normalizeText(result.defaultActivePreset.labels[0] || "").includes(
+        normalizeText(scenario.expectedDefaultLabel),
+      )
+    )
+  ) {
+    add(
+      `default preset identity changed; saw ${JSON.stringify(result.defaultActivePreset)}`,
+    );
+  }
+  if (
+    result.selectedActivePreset &&
+    !(
+      result.selectedActivePreset.activeCount === 1 &&
+      normalizeText(result.selectedActivePreset.labels[0] || "").includes(
+        normalizeText(scenario.preset.label),
+      )
+    )
+  ) {
+    add(
+      `selected preset did not leave exactly one matching active card; saw ${JSON.stringify(result.selectedActivePreset)}`,
+    );
+  }
   if (result.terminal?.activeJobs > 0) add("pending output remained active");
   if (result.terminal?.latestFailed) {
     add(`selected preset ended in failed output: ${result.terminal.latestFailureText || ""}`);
@@ -418,7 +524,19 @@ function validateScenarioResult(result, scenario) {
   if (scenario.preset.layered && result.layerColors && result.layerColors.ok === false) {
     add(`Layer colors did not open for layered output: ${result.layerColors.reason || "unknown"}`);
   }
-  if (!result.copyDownloadParity?.ok) add("Copy SVG and Download SVG did not match");
+  if (presetIdentityMode) {
+    if (
+      !result.copyDownloadParity?.copyClicked ||
+      !result.copyDownloadParity?.downloadClicked
+    ) {
+      add("Copy SVG or Download SVG did not initiate from the latest output");
+    }
+  } else if (!result.copyDownloadParity?.ok) {
+    add("Copy SVG and Download SVG did not match");
+  }
+  if (scenario.verifySecondUpload && !result.secondUpload?.ok) {
+    add("second upload did not restore the route's established default preset identity and label");
+  }
   if (!result.preview?.visible) add("SVG preview was not visible in the latest output");
   if (
     Number(result.svgBytes || 0) >= 1_000_000 &&
@@ -436,7 +554,7 @@ function summarizeReport(report) {
     gitHead: report.gitHead,
     routeCount: report.routes.length,
     failed: report.failures.length,
-    reportPath,
+    reportPath: presetIdentityMode ? null : path.relative(rootDir, reportPath),
     routes: report.routes.map((route) => ({
       route: route.route,
       preset: route.presetLabel,
@@ -453,9 +571,167 @@ function summarizeReport(report) {
       settingsOpen: route.settingsOpened?.open ?? null,
       layerColors: route.layerColors?.ok ?? null,
       copyDownloadParity: route.copyDownloadParity?.ok ?? null,
+      viewport: route.viewport || null,
+      defaultActivePreset: route.defaultActivePreset || null,
+      selectedActivePreset: route.selectedActivePreset || null,
+      secondUpload: route.secondUpload
+        ? {
+            ok: route.secondUpload.ok,
+            expectedPresetLabel: route.secondUpload.expectedPresetLabel,
+            outputTitle: route.secondUpload.terminal?.latestOutputTitle || null,
+            outputReady: route.secondUpload.terminal?.latestReady || false,
+            activePreset: route.secondUpload.activePreset || null,
+          }
+        : null,
     })),
     failures: report.failures,
   };
+}
+
+async function createPresetIdentityFixtures(routinePng) {
+  const jpg = path.join(fixtureRoot, "preset-identity.jpg");
+  const jpeg = path.join(fixtureRoot, "preset-identity.jpeg");
+  const webp = path.join(fixtureRoot, "preset-identity.webp");
+  await sharp(routinePng).jpeg({ quality: 92 }).toFile(jpg);
+  await sharp(routinePng).jpeg({ quality: 92 }).toFile(jpeg);
+  await sharp(routinePng).webp({ quality: 92 }).toFile(webp);
+  const second = {
+    png: path.join(fixtureRoot, "preset-identity-second.png"),
+    jpg: path.join(fixtureRoot, "preset-identity-second.jpg"),
+    jpeg: path.join(fixtureRoot, "preset-identity-second.jpeg"),
+    webp: path.join(fixtureRoot, "preset-identity-second.webp"),
+  };
+  await Promise.all([
+    fs.copyFile(routinePng, second.png),
+    fs.copyFile(jpg, second.jpg),
+    fs.copyFile(jpeg, second.jpeg),
+    fs.copyFile(webp, second.webp),
+  ]);
+  return { png: routinePng, jpg, jpeg, webp, second };
+}
+
+function createPresetIdentityScenarios(fixtures) {
+  const pairs = [
+    {
+      route: "/icon-to-svg-converter",
+      fixturePath: fixtures.png,
+      secondFixturePath: fixtures.second.png,
+      defaultLabel: "Layered color SVG",
+      local: {
+        id: "icon-bold-fill",
+        label: "Icon - Bold fill",
+        pattern: /^Icon - Bold fill\b/i,
+      },
+      shared: {
+        id: "icon-bold",
+        label: "Icon - Bold",
+        pattern: /^Icon - Bold(?! fill)\b/i,
+      },
+    },
+    {
+      route: "/logo-to-svg-converter",
+      fixturePath: fixtures.png,
+      secondFixturePath: fixtures.second.png,
+      defaultLabel: "Logo - Clean shapes (default)",
+      local: {
+        id: "logo-extra-smooth",
+        label: "Logo - Extra smooth (fewer nodes)",
+        pattern: /^Logo - Extra smooth \(fewer nodes\)(?:\s|$)/i,
+      },
+      shared: {
+        id: "logo-smooth",
+        label: "Logo - Smooth",
+        pattern: /^Logo - Smooth\b/i,
+      },
+    },
+    {
+      route: "/webp-to-svg-for-cricut",
+      fixturePath: fixtures.webp,
+      secondFixturePath: fixtures.second.webp,
+      defaultLabel: "Cricut - Clean cut file",
+      local: {
+        id: "webp-cricut-clean-cut",
+        label: "Cricut - Clean cut file",
+        pattern: /^Cricut - Clean cut file\b/i,
+      },
+      shared: {
+        id: "cricut-clean-cut",
+        label: "Cricut - Clean Cut",
+        pattern: /^Cricut - Clean Cut(?! file| \(default\))\b/i,
+      },
+    },
+    {
+      route: "/jpeg-to-svg-for-cricut",
+      fixturePath: fixtures.jpeg,
+      secondFixturePath: fixtures.second.jpeg,
+      defaultLabel: "Cricut - Clean cut file",
+      local: {
+        id: "jpeg-cricut-clean-cut",
+        label: "Cricut - Clean cut file",
+        pattern: /^Cricut - Clean cut file\b/i,
+      },
+      shared: {
+        id: "cricut-clean-cut",
+        label: "Cricut - Clean Cut",
+        pattern: /^Cricut - Clean Cut(?! file| \(default\))\b/i,
+      },
+    },
+    {
+      route: "/jpg-to-svg-for-cricut",
+      fixturePath: fixtures.jpg,
+      secondFixturePath: fixtures.second.jpg,
+      defaultLabel: "Cricut - Clean cut file",
+      local: {
+        id: "jpg-cricut-clean-cut",
+        label: "Cricut - Clean cut file",
+        pattern: /^Cricut - Clean cut file\b/i,
+      },
+      shared: {
+        id: "cricut-clean-cut",
+        label: "Cricut - Clean Cut",
+        pattern: /^Cricut - Clean Cut(?! file| \(default\))\b/i,
+      },
+    },
+    {
+      route: "/png-to-svg-for-cricut",
+      fixturePath: fixtures.png,
+      secondFixturePath: fixtures.second.png,
+      defaultLabel: "Cricut - Clean Cut (default)",
+      local: {
+        id: "png-cricut-clean-cut",
+        label: "Cricut - Clean Cut (default)",
+        pattern: /^Cricut - Clean Cut \(default\)(?:\s|$)/i,
+      },
+      shared: {
+        id: "cricut-clean-cut",
+        label: "Cricut - Clean Cut",
+        pattern: /^Cricut - Clean Cut(?! file| \(default\))\b/i,
+      },
+    },
+  ];
+
+  return pairs.flatMap((pair) => [
+    {
+      route: pair.route,
+      preset: pair.local,
+      fixturePath: pair.fixturePath,
+      expectedDefaultLabel: pair.defaultLabel,
+      requireVisible: true,
+      verifySecondUpload: true,
+      secondFixturePath: pair.secondFixturePath,
+      mobile: false,
+    },
+    {
+      route: pair.route,
+      preset: pair.shared,
+      fixturePath: pair.fixturePath,
+      expectedDefaultLabel: pair.defaultLabel,
+      requireVisible: true,
+      verifySecondUpload: true,
+      secondFixturePath: pair.secondFixturePath,
+      mobile: true,
+    },
+  ]);
 }
 
 async function createRoutineFixture() {
@@ -494,7 +770,7 @@ async function gitHead() {
 }
 
 function fixtureSummary(filePath) {
-  return { path: filePath, basename: path.basename(filePath) };
+  return { basename: path.basename(filePath) };
 }
 
 async function setFileInput(client, filePath) {
@@ -508,6 +784,7 @@ async function setFileInput(client, filePath) {
 
   try {
     await setFileInputViaChooser(client, filePath);
+    await dispatchFileInputChange(client);
     const accepted = await waitForUploadAccepted(client, basename, 25_000).catch(
       () => null,
     );
@@ -576,8 +853,9 @@ async function waitForUploadAccepted(client, filename, waitTimeoutMs) {
     waitTimeoutMs,
     (value) =>
       value?.bodyHasName ||
+      value?.enabledConvert ||
       value?.routeBusy ||
-      value?.outputCards > 0,
+      (!filename && value?.outputCards > 0),
   );
 }
 
@@ -779,6 +1057,29 @@ async function waitForTerminalOutput(client, previousLatestStamp, waitTimeoutMs)
 
 async function outputState(client) {
   return evaluate(client, outputStateExpression(null));
+}
+
+async function activePresetState(client) {
+  return evaluate(client, `(() => {
+    const buttons = Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
+      .filter((button) => {
+        const parent = button.parentElement;
+        if (!parent) return false;
+        return Boolean(
+          parent.querySelector(
+            'button[aria-label="Pin preset"], button[aria-label="Unpin preset"]',
+          ),
+        );
+      });
+    return {
+      activeCount: buttons.length,
+      labels: buttons.map((button) =>
+        (button.getAttribute("aria-label") || button.textContent || "")
+          .replace(/\\s+/g, " ")
+          .trim(),
+      ),
+    };
+  })()`);
 }
 
 function outputStateExpression(previousLatestStamp) {
@@ -1194,7 +1495,7 @@ async function trustedClickAtPoint(client, point) {
   });
 }
 
-async function enablePage(client, downloadDir) {
+async function enablePage(client, downloadDir, mobile = false) {
   await client.send("Runtime.enable").catch(() => {});
   await client.send("Log.enable").catch(() => {});
   await client.send("Page.enable").catch(() => {});
@@ -1213,10 +1514,10 @@ async function enablePage(client, downloadDir) {
     downloadPath: downloadDir,
   }).catch(() => {});
   await client.send("Emulation.setDeviceMetricsOverride", {
-    width: 1440,
-    height: 1050,
+    width: mobile ? 390 : 1440,
+    height: mobile ? 844 : 1050,
     deviceScaleFactor: 1,
-    mobile: false,
+    mobile,
   }).catch(() => {});
 }
 
@@ -1509,7 +1810,12 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-await main().catch((error) => {
+await main().catch(async (error) => {
+  await fs.rm(profileDir, { recursive: true, force: true }).catch(() => null);
+  if (presetIdentityMode) {
+    await fs.rm(presetIdentityRoot, { recursive: true, force: true }).catch(() => null);
+    await fs.rm(profileRoot, { recursive: true, force: true }).catch(() => null);
+  }
   console.error(error instanceof Error ? error.stack || error.message : String(error));
-  process.exit(1);
+  process.exitCode = 1;
 });
