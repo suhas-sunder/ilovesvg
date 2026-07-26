@@ -10,9 +10,7 @@ Task: Locate the exact complex trading-card/fish fixture needed to reproduce the
 
 The exact complex trading-card/fish fixture was not found locally.
 
-The requested handoff path also does not exist:
-
-`C:\Users\Suhas\Downloads\region-fidelity-card-fixture.png`
+No explicit `COLOR_REGION_FIDELITY_FIXTURE` path was supplied for the requested handoff fixture.
 
 No binary fixture, screenshot, or generated image was added or committed in this pass.
 
@@ -22,10 +20,10 @@ Searched local roots:
 
 | Root | Result |
 | --- | --- |
-| `C:\Users\Suhas\Downloads` | No exact card/fish fixture found. |
-| `D:\PROJECTS-and-WORK\work-projects\all_projects\ilovesvg\tests\fixtures` | Only `IMG_8487.PNG`, a UI mockup fixture, not the reported card/fish image. |
-| `D:\PROJECTS-and-WORK\work-projects\all_projects\ilovesvg\tmp` | Existing generated audit fixtures only, including screenshot proxy derivatives. |
-| `D:\PROJECTS-and-WORK\work-projects\all_projects\ilovesvg\test-artifacts` | No exact card/fish fixture found. |
+| Explicit external fixture directory used for the original audit | No exact card/fish fixture found. |
+| `tests/fixtures/` | Only `IMG_8487.PNG`, a UI mockup fixture, not the reported card/fish image. |
+| `tmp/` | Existing generated audit fixtures only, including screenshot proxy derivatives. |
+| `test-artifacts/` | No exact card/fish fixture found. |
 
 Searched filename and metadata terms:
 
@@ -39,10 +37,10 @@ These are not the exact reported card/fish fixture and should not be used to cla
 
 | Fixture | Dimensions | Bytes | Notes |
 | --- | ---: | ---: | --- |
-| `C:\Users\Suhas\Downloads\Screenshot 2026-05-06 194041.png` | 1751 x 1522 | 411,632 | Existing complex proxy from the prior audit. Visual inspection shows an iLoveSVG output screenshot with a bee-style image, not a trading card/fish image. |
-| `C:\Users\Suhas\Downloads\Screenshot 2026-05-06 193954.png` | 1760 x 728 | 190,123 | Related iLoveSVG output screenshot, not a trading card/fish image. |
-| `D:\PROJECTS-and-WORK\work-projects\all_projects\ilovesvg\tmp\color-region-fidelity-fixtures\screenshot-complex-png.jpg` | 1751 x 1522 | 361,011 | Generated JPG derivative of the prior screenshot proxy. Not committed. |
-| `D:\PROJECTS-and-WORK\work-projects\all_projects\ilovesvg\tests\fixtures\IMG_8487.PNG` | not remeasured in this pass | 37,658 | Existing UI mockup fixture, not a card/fish image. |
+| External `Screenshot 2026-05-06 194041.png` fixture (not retained) | 1751 x 1522 | 411,632 | Existing complex proxy from the prior audit. Visual inspection shows an iLoveSVG output screenshot with a bee-style image, not a trading card/fish image. |
+| External `Screenshot 2026-05-06 193954.png` fixture (not retained) | 1760 x 728 | 190,123 | Related iLoveSVG output screenshot, not a trading card/fish image. |
+| `tmp/color-region-fidelity-fixtures/screenshot-complex-png.jpg` | 1751 x 1522 | 361,011 | Generated JPG derivative of the prior screenshot proxy. Not committed. |
+| `tests/fixtures/IMG_8487.PNG` | not remeasured in this pass | 37,658 | Existing UI mockup fixture, not a card/fish image. |
 
 ## 4. Diagnostic Routes And Presets
 
@@ -85,15 +83,11 @@ That evidence supports the risk model, but it does not reproduce the exact tradi
 
 ## 7. Required User Action
 
-Place the exact reported card/fish image at:
-
-`C:\Users\Suhas\Downloads\region-fidelity-card-fixture.png`
-
-Alternatively, provide the exact local path to the image.
+Provide the exact reported card/fish image as an explicit fixture path. The audit does not search personal folders automatically.
 
 After that, rerun:
 
-`$env:BASE_URL='http://localhost:3000'; $env:COLOR_REGION_FIDELITY_FIXTURE='C:\Users\Suhas\Downloads\region-fidelity-card-fixture.png'; npm.cmd run test:color-region-fidelity-audit`
+`$env:BASE_URL='http://localhost:3000'; $env:COLOR_REGION_FIDELITY_FIXTURE='<explicit fixture path>'; npm.cmd run test:color-region-fidelity-audit`
 
 Then inspect the generated diagnostic output and browser artifacts without committing screenshots or binary fixtures.
 

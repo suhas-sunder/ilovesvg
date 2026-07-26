@@ -12,7 +12,7 @@ Evidence precedence: Sections 1-21 preserve the first browser-pass record. Secti
 
 ## 1. Executive summary
 
-This pass verified the local application at `http://localhost:3000` with the in-app browser and the repository's existing headless-browser smoke harness. The runtime route system still reports 157 registered routes, 156 public routes, 28 redirects, and 125 XML-sitemap entries. The wrong-application sentinel did not appear. Sixty public routes were opened directly or exercised through a production-path browser smoke; representative desktop and mobile states were inspected at 1440 x 1000 and 390 x 844, and 27 evidence screenshots were archived under `docs/audits/runtime-verification/`.
+This pass verified the local application at `http://localhost:3000` with the in-app browser and the repository's existing headless-browser smoke harness. The runtime route system still reports 157 registered routes, 156 public routes, 28 redirects, and 125 XML-sitemap entries. The wrong-application sentinel did not appear. Sixty public routes were opened directly or exercised through a production-path browser smoke; representative desktop and mobile states were inspected at 1440 x 1000 and 390 x 844. Twenty-seven temporary screenshots were reviewed during the audit but are intentionally not retained in the current repository tree.
 
 The most important verified facts are:
 
@@ -190,8 +190,8 @@ The attempted JPG/JPEG SHA-256 rerun hit `attach-file: Timed out waiting for bro
 | Priority | Exact rendered/runtime text | Route/state | Evidence | Classification |
 | --- | --- | --- | --- | --- |
 | High | `Browser VTracer was not used: This preset keeps Potrace for current line-art/cut-file parity.` (route variant also reproduced) | Potrace results on PNG, JPG/JPEG, sketch, Cricut, B/W, outline, logo, Etsy | Production browser reports in `warnings` | User-facing output warning; rewrite later without engine/parity details |
-| High | Both same-ID preset cards appear active | icon/logo/WebP Cricut expanded preset state | `logo-to-svg-converter-desktop-preset-collision.png` plus runtime DOM | Internal ID collision leaking into interaction state |
-| Medium | `UI flag only unless you wire uploads` | Favicon Settings, Include in gallery | `svg-to-favicon-generator-desktop-settings.png` | Direct developer note in visible UI |
+| High | Both same-ID preset cards appear active | icon/logo/WebP Cricut expanded preset state | Runtime DOM and pressed-state inspection | Internal ID collision leaking into interaction state |
+| Medium | `UI flag only unless you wire uploads` | Favicon Settings, Include in gallery | Runtime settings-panel inspection | Direct developer note in visible UI |
 | Medium | `Speed tags estimate backend processing cost and do not change output.` | Preset tooltips | Runtime button titles | User-visible implementation/cost wording |
 | Medium | `Only backend conversion work is rate limited` and detailed backend limits | Numerous trace/code/Base64 route lower sections | Runtime body text on tested routes | Security facts should remain, but backend/React/pipeline wording is internal |
 | Medium | `The converter supports two distinct pipelines`, `Text -> SVG (Twemoji pipeline)`, `Image -> SVG (Tracing pipeline)` | Emoji lower help | Runtime body text | User-visible; Twemoji attribution may remain but pipeline framing should be rewritten |
@@ -205,11 +205,11 @@ All static findings below are runtime-visible, indexable route content:
 
 | Route | Exact text | State/evidence | Rewrite purpose for later pass |
 | --- | --- | --- | --- |
-| `/png-to-svg-converter` | `PNG to SVG keyword cluster` | Always-visible lower guide; screenshot archived | Describe PNG vectorization workflows/users |
+| `/png-to-svg-converter` | `PNG to SVG keyword cluster` | Always-visible lower guide; verified by runtime DOM/text inspection | Describe PNG vectorization workflows/users |
 | `/png-to-svg-converter` | `Transparent PNG to SVG and png to svg converter free searches.` | Same guide | Describe transparent logos, icons, stickers, and graphics |
-| `/jpg-to-svg-converter` | `JPG to SVG keyword cluster` | Always-visible lower guide; screenshot archived | Describe JPG photo/scan workflows |
+| `/jpg-to-svg-converter` | `JPG to SVG keyword cluster` | Always-visible lower guide; verified by runtime DOM/text inspection | Describe JPG photo/scan workflows |
 | `/jpg-to-svg-converter` | `Use JPEG to SVG if your search intent or source wording specifically says JPEG.` | Lower route guide | Explain actual accepted formats or meaningful route difference |
-| `/sitemap` | `Additional SEO-safe converter, seller, print, design handoff, favicon, and developer routes built on supported iLoveSVG tools.` | HTML sitemap; screenshot archived | Describe the tools rather than editorial safety |
+| `/sitemap` | `Additional SEO-safe converter, seller, print, design handoff, favicon, and developer routes built on supported iLoveSVG tools.` | HTML sitemap; verified by runtime DOM/text inspection | Describe the tools rather than editorial safety |
 | `/sitemap` | `Expanded SVG workflow routes` | HTML sitemap heading | Use a user navigation heading |
 
 Ordinary `SEO` wording in the Inline SVG versus IMG comparison remains outside this finding because it describes a real embed tradeoff.
@@ -218,11 +218,11 @@ Ordinary `SEO` wording in the Inline SVG versus IMG comparison remains outside t
 
 | Severity | Route | Verified content/behavior | Evidence | Preservation/correction requirement |
 | --- | --- | --- | --- | --- |
-| High | `/sketch-to-svg-converter` | The full budgeting/365-day/rental-agreement disclaimer is always visible below the FAQ and above the All SVG tools section | `sketch-to-svg-converter-desktop-content-bug.png` | Remove or replace only in a later content pass; preserve surrounding sketch guidance |
-| High | `/png-to-svg-for-shopify` | Active default visibly reads `Etsy PNG - Accurate trace (default)` | `png-to-svg-for-shopify-desktop-default-preset.png` | Determine intended Shopify preset mapping before any copy/preset change |
+| High | `/sketch-to-svg-converter` | The full budgeting/365-day/rental-agreement disclaimer is always visible below the FAQ and above the All SVG tools section | Runtime DOM/text inspection | Remove or replace only in a later content pass; preserve surrounding sketch guidance |
+| High | `/png-to-svg-for-shopify` | Active default visibly reads `Etsy PNG - Accurate trace (default)` | Runtime active-preset inspection | Determine intended Shopify preset mapping before any copy/preset change |
 | Medium | `/svg-to-favicon-generator` | Intro says the generator supports SVG/PNG/JPG/WEBP, while lower guidance says `This generator starts from SVG and does not vectorize raster logos.` | Runtime body text | Clarify raster acceptance versus vectorization without changing accepted inputs |
-| Medium | `/svg-to-favicon-generator` family | `Include in gallery - UI flag only unless you wire uploads` appears in Settings | Settings screenshot | Rewrite/remove developer note without removing the control until ownership/function is decided |
-| Medium | PNG/JPG guides and sitemap | Editorial/query text listed above | Three screenshots | Content-only rewrite later; no route/metadata change in the same step |
+| Medium | `/svg-to-favicon-generator` family | `Include in gallery - UI flag only unless you wire uploads` appears in Settings | Runtime settings-panel inspection | Rewrite/remove developer note without removing the control until ownership/function is decided |
+| Medium | PNG/JPG guides and sitemap | Editorial/query text listed above | Runtime DOM/text inspection on all three pages | Content-only rewrite later; no route/metadata change in the same step |
 
 ## 13. Canonical/schema/breadcrumb runtime findings
 
@@ -247,39 +247,9 @@ Ordinary `SEO` wording in the Inline SVG versus IMG comparison remains outside t
 - `test:navigation-browser` failed twice on its pre-hydration menu click; direct hydrated browser interaction passed.
 - One hash-only rerun failed attaching its fixture. The earlier route conversions passed.
 
-## 15. Screenshot evidence index
+## 15. Temporary visual evidence
 
-All files are PNGs captured from the local app with no private data or filesystem paths in the viewport.
-
-| Screenshot | Route | Viewport | State/finding |
-| --- | --- | --- | --- |
-| `home-desktop-initial.png` | `/` | desktop | Upload-first initial layout/default presets |
-| `home-mobile-initial.png` | `/` | mobile | Initial mobile converter |
-| `home-mobile-menu-open.png` | `/` | mobile | Open 123-tool navigation/search dialog |
-| `png-to-svg-converter-desktop-presets-expanded.png` | PNG base | desktop | 170-preset expanded selector |
-| `png-to-svg-converter-desktop-editorial-copy.png` | PNG base | desktop | Public keyword-cluster content |
-| `png-to-svg-for-shopify-desktop-default-preset.png` | Shopify PNG | desktop | Etsy-named active default |
-| `jpg-to-svg-converter-desktop-editorial-copy.png` | JPG | desktop | Public keyword/search-intent content |
-| `logo-to-svg-converter-desktop-preset-collision.png` | Logo | desktop | Both `logo-smooth` cards pressed |
-| `svg-to-png-converter-desktop-settings.png` | SVG-to-PNG | desktop | Size/quality/background controls |
-| `svg-to-png-converter-mobile-settings.png` | SVG-to-PNG | mobile | Live Preview and Click To Convert groups |
-| `svg-to-favicon-generator-desktop-settings.png` | Favicon base | desktop | Default package and background settings |
-| `svg-to-favicon-generator-desktop-result.png` | Favicon base | desktop | Generated 24-file package/previews and visible UI-only gallery note |
-| `svg-to-favicon-generator-mobile-result.png` | Favicon base | mobile | Generated 24-file state and output previews on mobile |
-| `svg-to-favicon-for-shopify-desktop-result.png` | Shopify favicon | desktop | Equivalent generator result, distinct route identity |
-| `svg-to-favicon-generator-desktop-breadcrumb.png` | Favicon base | desktop | Invalid visible breadcrumb |
-| `svg-stroke-width-editor-desktop-breadcrumb.png` | Stroke editor | desktop | Invalid visible breadcrumb |
-| `svg-flip-and-rotate-editor-desktop-breadcrumb.png` | Flip/rotate | desktop | Invalid visible breadcrumb |
-| `sketch-to-svg-converter-desktop-content-bug.png` | Sketch | desktop | Always-visible rental/budget disclaimer |
-| `svg-dimensions-inspector-desktop-result.png` | Dimensions | desktop | Example sizing/viewBox report |
-| `svg-file-size-inspector-desktop-result.png` | File size | desktop | Example byte/minified-size report |
-| `svg-resize-and-scale-editor-mobile-initial.png` | Resize | mobile | Mobile initial utility layout |
-| `base64-to-svg-desktop-sample-result.png` | Base64 | desktop | Decoded SVG result and layer tools |
-| `base64-to-svg-mobile-sample-result.png` | Base64 | mobile | Sample input/result workflow on mobile |
-| `code-to-svg-for-cricut-desktop-sample-result.png` | Code/Cricut | desktop | Data-URI sample and traced output |
-| `emoji-to-svg-converter-desktop-result.png` | Emoji | desktop | Three-emoji output/layer editing |
-| `text-to-svg-converter-desktop-result.png` | Text | desktop | Font-outline output actions |
-| `sitemap-desktop-editorial-copy.png` | Sitemap | desktop | SEO/editorial labels |
+Twenty-seven local PNG captures supported the original desktop/mobile review. They contained no private data or filesystem paths and were checked against the route and state descriptions recorded throughout this document. They were disposable runtime artifacts, not automated-test fixtures, and are intentionally not retained in the current repository tree. The durable evidence is the textual runtime record, production-path browser results, deterministic audit reports, source locations, and reproduction steps preserved here.
 
 ## 16. Corrected static assumptions
 
@@ -509,7 +479,7 @@ The direct action comparisons prove conversion determinism for specified inputs/
 | `node scripts/route-coverage-audit.mjs` | Passed: correct app, 157 registered routes, 156 public routes, 125 sitemap paths, zero coverage failures. |
 | UTF-8 validation | Passed for all three audit documents and the parity script. |
 | Trailing-whitespace scan | Passed for all audit/script files. |
-| Screenshot PNG validation | Passed for all 27 evidence screenshots after three mislabeled captures were replaced with evidence-bearing states. |
+| Temporary screenshot validation | Passed for all 27 captures after three mislabeled captures were replaced with evidence-bearing states; the captures were later removed as disposable audit artifacts. |
 | `git diff --check` | Passed. |
 
 An initial parallel wrapper around the schema and route-coverage audits timed out at 124 seconds before returning either child result. Both audits were rerun independently with their supported longer allowance and passed; the wrapper timeout is not reported as an application failure. The final milestone pass also ran typecheck, production build, and the full test suite successfully.
@@ -528,7 +498,7 @@ This follow-up changed only audit documentation and a read-only audit script. It
 
 ### Full audit verdict and artifact set
 
-The site-inventory and capability-audit milestone is ready as an evidence-backed planning baseline. Its claims now distinguish static verification, production-action comparison, browser runtime evidence, source inference, confirmed defects, unresolved timing questions, and fixture limitations. The milestone contains the route/component inventory, this runtime verification, the output-quality regression plan, 27 indexed runtime PNG screenshots, and `scripts/converter-parity-audit.mjs`. No production application file is part of the milestone.
+The site-inventory and capability-audit milestone is ready as an evidence-backed planning baseline. Its claims now distinguish static verification, production-action comparison, browser runtime evidence, source inference, confirmed defects, unresolved timing questions, and fixture limitations. The durable milestone artifacts are the route/component inventory, this runtime verification, the output-quality regression plan, and `scripts/converter-parity-audit.mjs`; the 27 temporary runtime captures were intentionally removed from the current repository tree. No production application file is part of the milestone.
 
 Coverage remains deliberately bounded: 157 registered routes, 156 public routes, 125 XML-sitemap paths, 60 directly opened or production-browser-smoked public routes, 67 routes/798 presets in the stage-one preset smoke, and focused deterministic comparisons for the families described in Section 22. These figures do not imply exhaustive input, setting, browser, or workflow coverage.
 
@@ -536,7 +506,7 @@ Coverage remains deliberately bounded: 157 registered routes, 156 public routes,
 
 Severity uses product impact, not audit inconvenience. No item qualifies as critical because the evidence does not show security loss, data loss, or broad application failure.
 
-| Defect ID | Route/family, exact behavior, severity | User/output/history impact | Source locations and runtime/script/screenshot evidence | Future milestone, preservation constraints, consolidation blocker |
+| Defect ID | Route/family, exact behavior, severity | User/output/history impact | Source locations and runtime/script evidence | Future milestone, preservation constraints, consolidation blocker |
 | --- | --- | --- | --- | --- |
 | `ILSVG-DEF-001` | `/icon-to-svg-converter`: two reachable cards used `icon-bold`; both could appear active/pinned. **Medium. Status: fixed in the converter-state remediation milestone.** | The route-local card is now `icon-bold-fill`; the shared card retains `icon-bold`. Exact submitted ID/label ownership removes active, pin, and history ambiguity while preserving both definitions and outputs. | `app/routes/icon-to-svg-converter.tsx`; focused preset audit; parity collision hashes; 12-scenario browser matrix. | Corrected in this milestone. Preserve both labels/settings/output and the documented shared-ID legacy-pin fallback. |
 | `ILSVG-DEF-002` | `/logo-to-svg-converter`: two reachable cards used `logo-smooth`; both could appear active/pinned. **Medium. Status: fixed in the converter-state remediation milestone.** | The route-local card is now `logo-extra-smooth`; the shared card retains `logo-smooth`. The simple-fixture output match remains fixture-limited and is not generalized. | `app/routes/logo-to-svg-converter.tsx`; focused preset audit; parity logo row; 12-scenario browser matrix. | Corrected in this milestone. Preserve both definitions and the tested output relationship. |
@@ -545,14 +515,14 @@ Severity uses product impact, not audit inconvenience. No item qualifies as crit
 | `ILSVG-DEF-005` | `/jpg-to-svg-for-cricut`: duplicate reachable `cricut-clean-cut` identity. **Medium. Status: fixed in the converter-state remediation milestone.** | The route-local default is now `jpg-cricut-clean-cut`; the shared identity remains unchanged. Submitted ID/label metadata and history navigation are exact. | `app/routes/jpg-to-svg-for-cricut.tsx`; focused preset audit; parity collision row; browser matrix. | Corrected in this milestone; both effective settings and outputs are preserved. |
 | `ILSVG-DEF-006` | `/png-to-svg-for-cricut`: duplicate reachable `cricut-clean-cut` identity. **Medium. Status: fixed in the converter-state remediation milestone.** | The route-local default is now `png-cricut-clean-cut`; the shared identity remains unchanged. Existing per-run metadata ownership is retained and history selection now restores the exact card. | `app/routes/png-to-svg-for-cricut.tsx`; focused preset audit; parity collision row; browser matrix. | Corrected in this milestone; default behavior, both definitions, and output are preserved. |
 | `ILSVG-DEF-007` | `/jpeg-to-svg-converter`: one captured VTracer completion added the new result while active actions remained on the prior Potrace output. **High. Status: fixed in the converter-state remediation milestone.** | Users could copy/download the wrong prior SVG; conversion bytes themselves completed. The proven cause was completion-ordered history plus implicit first-item selection and singular request metadata under concurrent completions. Per-submission ownership now commits and selects one stable result ID, while stale upload/reset generations cannot activate. | `app/routes/jpeg-to-svg-converter.tsx`; `app/client/lib/converter/traceResultOwnership.ts`; `TraceOutputPanel.tsx`; captured 15,241-byte VTracer metrics versus 11,052-byte prior-action evidence; 26 focused ownership checks; four desktop and one mobile JPEG production-browser runs with stable VTracer/Potrace action hashes. No screenshot asserts the race. | Corrected in this milestone; preserve JPG behavior, bounded history, editing, filenames, intentional concurrency, and both engines. The original timing symptom was not deterministic in clean retries, so direct state-path and controlled ordering regressions remain required. |
-| `ILSVG-DEF-008` | `/png-to-svg-for-shopify` exposes `Etsy PNG - Accurate trace (default)`. **Medium.** | Misleading platform default; output changes only through the selected preset/settings; no separate history corruption shown. | `app/routes/png-to-svg-for-shopify.tsx` wrapper behavior and `png-to-svg-for-shopify-desktop-default-preset.png`. | Default-identity/content remediation; preserve current conversion until an intentional baseline is approved. Blocks PNG-wrapper consolidation. |
-| `ILSVG-DEF-009` | `/svg-to-favicon-generator` visible breadcrumb and BreadcrumbList target `/svg-favicon-generator`, which returns 404. **Medium.** | Broken navigation/schema; no generated package or history impact. | `app/routes/svg-to-favicon-generator.tsx`; runtime 404/schema audit; `svg-to-favicon-generator-desktop-breadcrumb.png`. | Navigation/schema remediation; preserve generator inputs, package manifest/snippet, canonical, and route. Blocks favicon consolidation. |
-| `ILSVG-DEF-010` | `/svg-stroke-width-editor` targets invalid `/svg-stroke-width-adjust`. **Medium.** | Broken visible/schema navigation; no SVG output/history corruption shown. | `app/routes/svg-stroke-width-editor.tsx`; runtime 404/schema evidence; `svg-stroke-width-editor-desktop-breadcrumb.png`. | Navigation/schema remediation; preserve editor behavior and canonical. Blocks related route consolidation. |
-| `ILSVG-DEF-011` | `/svg-flip-and-rotate-editor` targets invalid `/svg-flip-rotate-editor`. **Medium.** | Broken visible/schema navigation; no transformed output/history corruption shown. | `app/routes/svg-flip-and-rotate-editor.tsx`; runtime 404/schema evidence; `svg-flip-and-rotate-editor-desktop-breadcrumb.png`. | Navigation/schema remediation; preserve transform behavior and canonical. Blocks related consolidation. |
-| `ILSVG-DEF-012` | `/sketch-to-svg-converter` renders rental-agreement/budgeting content. **Low.** | Confusing unrelated public guidance; no output/history impact. | `app/routes/sketch-to-svg-converter.tsx`; `sketch-to-svg-converter-desktop-content-bug.png`. | Focused public-content remediation; preserve the converter and useful sketch guidance. Content blocks consolidation. |
+| `ILSVG-DEF-008` | `/png-to-svg-for-shopify` exposes `Etsy PNG - Accurate trace (default)`. **Medium.** | Misleading platform default; output changes only through the selected preset/settings; no separate history corruption shown. | `app/routes/png-to-svg-for-shopify.tsx` wrapper behavior and runtime active-preset inspection. | Default-identity/content remediation; preserve current conversion until an intentional baseline is approved. Blocks PNG-wrapper consolidation. |
+| `ILSVG-DEF-009` | `/svg-to-favicon-generator` visible breadcrumb and BreadcrumbList target `/svg-favicon-generator`, which returns 404. **Medium.** | Broken navigation/schema; no generated package or history impact. | `app/routes/svg-to-favicon-generator.tsx`; runtime DOM, direct 404, and schema audit evidence. | Navigation/schema remediation; preserve generator inputs, package manifest/snippet, canonical, and route. Blocks favicon consolidation. |
+| `ILSVG-DEF-010` | `/svg-stroke-width-editor` targets invalid `/svg-stroke-width-adjust`. **Medium.** | Broken visible/schema navigation; no SVG output/history corruption shown. | `app/routes/svg-stroke-width-editor.tsx`; runtime DOM, direct 404, and schema evidence. | Navigation/schema remediation; preserve editor behavior and canonical. Blocks related route consolidation. |
+| `ILSVG-DEF-011` | `/svg-flip-and-rotate-editor` targets invalid `/svg-flip-rotate-editor`. **Medium.** | Broken visible/schema navigation; no transformed output/history corruption shown. | `app/routes/svg-flip-and-rotate-editor.tsx`; runtime DOM, direct 404, and schema evidence. | Navigation/schema remediation; preserve transform behavior and canonical. Blocks related consolidation. |
+| `ILSVG-DEF-012` | `/sketch-to-svg-converter` renders rental-agreement/budgeting content. **Low.** | Confusing unrelated public guidance; no output/history impact. | `app/routes/sketch-to-svg-converter.tsx` and runtime DOM/text inspection. | Focused public-content remediation; preserve the converter and useful sketch guidance. Content blocks consolidation. |
 | `ILSVG-DEF-013` | Raster-converter UI exposes internal Potrace/VTracer/parity/backend notes. **Low.** | Internal terminology confuses users; no measured output/history impact. | `useHybridTraceFetcher.ts`, `enginePolicy.ts`, `TraceOutputPanel.tsx`, relevant converter routes; runtime report text/console evidence. | Focused public-content remediation; preserve honest limitation/error information and engine behavior. Content blocks consolidation where inherited. |
-| `ILSVG-DEF-014` | Public converter/sitemap content includes SEO/editorial terminology such as keyword cluster and search intent. **Low.** | Editorial implementation language is user-visible; no output/history impact. | `OtherToolsLinks.tsx`, route guide sources, `app/routes/sitemap.tsx`; PNG/JPG/sitemap editorial screenshots. | Focused public-content remediation; preserve useful route links and do not alter All Tools. Content blocks consolidation mapping. |
-| `ILSVG-DEF-015` | Favicon guidance simultaneously describes raster input support and an SVG-only/non-vectorizing limitation. **Medium.** | Users receive contradictory accepted-input guidance; package output/history is not shown corrupt. | `app/routes/svg-to-favicon-generator.tsx` and wrappers; favicon settings/result screenshots and accepted-input runtime checks. | Favicon content/capability clarification; preserve accepted inputs, 24-file manifest, snippets, ICO sizes, and route-specific workflows. Blocks favicon consolidation. |
+| `ILSVG-DEF-014` | Public converter/sitemap content includes SEO/editorial terminology such as keyword cluster and search intent. **Low.** | Editorial implementation language is user-visible; no output/history impact. | `OtherToolsLinks.tsx`, route guide sources, `app/routes/sitemap.tsx`, and runtime DOM/text inspection. | Focused public-content remediation; preserve useful route links and do not alter All Tools. Content blocks consolidation mapping. |
+| `ILSVG-DEF-015` | Favicon guidance simultaneously describes raster input support and an SVG-only/non-vectorizing limitation. **Medium.** | Users receive contradictory accepted-input guidance; package output/history is not shown corrupt. | `app/routes/svg-to-favicon-generator.tsx` and wrappers, plus accepted-input and settings/result runtime checks. | Favicon content/capability clarification; preserve accepted inputs, 24-file manifest, snippets, ICO sizes, and route-specific workflows. Blocks favicon consolidation. |
 
 ### Evidence verdicts
 
@@ -567,7 +537,7 @@ Severity uses product impact, not audit inconvenience. No item qualifies as crit
 
 ### Privacy, screenshots, and script review
 
-The milestone text contains no absolute repository/user path, username, email address, cookie, session ID, credential, secret, token, environment value, browser-profile path, Downloads path, or private uploaded filename. Repository-relative source and deterministic fixture names are intentional. All 27 screenshots were visually reviewed, decode as PNG, are individually indexed, and contain no private desktop/browser/terminal material. Dimensions are 19 at 1425 x 990, four at 375 x 811, two at 1410 x 980, one at 390 x 843, and one at 360 x 778. Three mislabeled captures were replaced: expanded PNG presets, the code-to-Cricut sample result, and the mobile favicon result.
+The milestone text contains no absolute repository/user path, username, email address, cookie, session ID, credential, secret, token, environment value, browser-profile path, personal fixture-directory path, or private uploaded filename. Repository-relative source and deterministic fixture names are intentional. All 27 temporary screenshots were visually reviewed, decoded as PNG, and contained no private desktop/browser/terminal material. Dimensions were 19 at 1425 x 990, four at 375 x 811, two at 1410 x 980, one at 390 x 843, and one at 360 x 778. Three mislabeled captures were replaced during the audit: expanded PNG presets, the code-to-Cricut sample result, and the mobile favicon result. The captures are intentionally not retained in the current repository tree.
 
 The parity script invokes production actions and browser behavior; its fixtures are deterministic/local, comparisons distinguish bytes, normalized SVG, decoded pixels, package entries, and raw ZIP metadata, and assertions exit nonzero on a comparison regression. Temporary fixtures live below the OS temporary directory, cleanup is in `finally`, browser shutdown is awaited with a Windows fallback, no external website or user Downloads folder is used, and the summary omits nondeterministic timestamps/ZIP hashes. Two independent full runs produced byte-identical JSON summaries with SHA-256 `178bc8bc60c44df440396b0fb6aa7fd63f9f44419d082c5990d2ff811b5834c0` and left no parity child processes or fixture children.
 

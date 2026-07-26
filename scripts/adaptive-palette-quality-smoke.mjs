@@ -21,21 +21,16 @@ const currentFlatColorRequestedBudget = 16;
 const preferredCeiling = 30;
 const allowedCeiling = 32;
 
+const explicitFixturePaths = String(process.env.ADAPTIVE_PALETTE_QUALITY_FIXTURES || "")
+  .split(";")
+  .map((fixture) => fixture.trim())
+  .filter(Boolean);
 const userFixtureSpecs = [
-  { id: "img-8846", role: "high-detail-card", requested: "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG" },
-  { id: "img-9288", role: "high-detail-card", requested: "C:\\Users\\Suhas\\Downloads\\IMG_9288.JPEG" },
-  { id: "img-9404", role: "high-detail-card", requested: "C:\\Users\\Suhas\\Downloads\\IMG_9404.JPEG" },
-  { id: "img-9448", role: "high-detail-card", requested: "C:\\Users\\Suhas\\Downloads\\IMG_9448.JPEG" },
-  {
-    id: "screenshot-2026-05-06",
-    role: "screenshot-or-card",
-    requested: "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png",
-  },
-  {
-    id: "charming-tomato",
-    role: "simple-transparent-sticker",
-    requested: "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png",
-  },
+  ...explicitFixturePaths.map((requested, index) => ({
+    id: `explicit-${index + 1}`,
+    role: "explicit-external-fixture",
+    requested: path.resolve(requested),
+  })),
   {
     id: "img-8487",
     role: "blue-card-fixture",
@@ -281,8 +276,6 @@ function findForbiddenFixtureTokens(...sources) {
     "IMG_8487",
     "charming-tomato",
     "Screenshot 2026",
-    "D:\\eBay",
-    "C:\\Users\\Suhas",
   ];
   return forbidden.filter((token) => sources.some((source) => source.includes(token)));
 }

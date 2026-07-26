@@ -18,9 +18,9 @@ const fixturesDir = path.join(rootDir, "tmp", "transparent-layer-boundary-fixtur
 const reportPath = process.env.TRANSPARENT_LAYER_BOUNDARY_REPORT_PATH
   ? path.resolve(process.env.TRANSPARENT_LAYER_BOUNDARY_REPORT_PATH)
   : path.join(rootDir, "tmp", "transparent-layer-boundary-report.json");
-const userFixturePath =
-  process.env.TRANSPARENT_LAYER_BOUNDARY_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\tomato-transparent-sticker.png";
+const userFixturePath = process.env.TRANSPARENT_LAYER_BOUNDARY_FIXTURE
+  ? path.resolve(process.env.TRANSPARENT_LAYER_BOUNDARY_FIXTURE)
+  : null;
 
 const scenarios = [
   {
@@ -1971,7 +1971,9 @@ async function gitState() {
 }
 
 async function prepareFixture() {
-  const exists = await fs.stat(userFixturePath).then((stat) => stat.isFile()).catch(() => false);
+  const exists = userFixturePath
+    ? await fs.stat(userFixturePath).then((stat) => stat.isFile()).catch(() => false)
+    : false;
   const pngPath = exists
     ? userFixturePath
     : path.join(fixturesDir, "transparent-tomato-sticker.png");

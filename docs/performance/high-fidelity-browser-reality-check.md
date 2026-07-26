@@ -39,10 +39,10 @@ Flow used for each fixture:
 
 | Fixture | Source bytes | Dimensions | Selected UI preset | Completion | Elapsed | UI layer count | Downloaded SVG | Engine path | Quality note |
 | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | --- |
-| `C:\Users\Suhas\Downloads\IMG_8846.JPEG` | 1,149,142 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 273,744 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
-| `C:\Users\Suhas\Downloads\IMG_9404.JPEG` | 1,154,339 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 272,706 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
-| `C:\Users\Suhas\Downloads\IMG_9288.JPEG` | 1,195,385 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 272,340 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
-| `C:\Users\Suhas\Downloads\IMG_9448.JPEG` | 952,151 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 273,477 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
+| External `IMG_8846.JPEG` fixture (not retained) | 1,149,142 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 273,744 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
+| External `IMG_9404.JPEG` fixture (not retained) | 1,154,339 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 272,706 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
+| External `IMG_9288.JPEG` fixture (not retained) | 1,195,385 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 272,340 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
+| External `IMG_9448.JPEG` fixture (not retained) | 952,151 | 1536 x 2048 | `Layered - Flat Color Insanely Slow` | Failed to become usable | 273,477 ms | Not reachable | Not reachable | Not reachable | Browser stalled before visual review/download. |
 
 The fresh-browser run did not reproduce the exact `Showing 10 of 10 layer colors`
 text because the UI failed earlier: Settings / Edit and Layer colors never became
@@ -118,7 +118,7 @@ Visual review of the direct-action renders:
 
 ## Preset stuck-loading findings
 
-Fixture: `C:\Users\Suhas\Downloads\IMG_8846.JPEG`
+Fixture: external `IMG_8846.JPEG` fixture (not retained)
 
 Each preset was tested in an isolated fresh browser process through the homepage
 UI. None reached a usable completed output within the 4-minute gate.

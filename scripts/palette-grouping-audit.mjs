@@ -17,12 +17,12 @@ const coverageReportPath = process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH
   ? path.resolve(process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH)
   : path.join(rootDir, "tmp", "settings-color-coverage-audit.json");
 
-const screenshotFixturePath =
-  process.env.PALETTE_GROUPING_SCREENSHOT_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
-const tomatoFixturePath =
-  process.env.PALETTE_GROUPING_TOMATO_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png";
+const screenshotFixturePath = process.env.PALETTE_GROUPING_SCREENSHOT_FIXTURE
+  ? path.resolve(process.env.PALETTE_GROUPING_SCREENSHOT_FIXTURE)
+  : null;
+const tomatoFixturePath = process.env.PALETTE_GROUPING_TOMATO_FIXTURE
+  ? path.resolve(process.env.PALETTE_GROUPING_TOMATO_FIXTURE)
+  : null;
 
 const fixtureOutputDir = path.join(rootDir, "tmp", "palette-grouping-audit-fixtures");
 const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
@@ -341,9 +341,13 @@ function parseSourceLiteral(value) {
 
 async function prepareFixtures() {
   const fixtures = [];
-  const screenshot = await fixtureInfo(screenshotFixturePath, "screenshot-ui", "real-user-screenshot");
+  const screenshot = screenshotFixturePath
+    ? await fixtureInfo(screenshotFixturePath, "screenshot-ui", "explicit-screenshot-fixture")
+    : null;
   if (screenshot) fixtures.push(screenshot);
-  const tomato = await fixtureInfo(tomatoFixturePath, "transparent-tomato", "real-user-transparent-sticker");
+  const tomato = tomatoFixturePath
+    ? await fixtureInfo(tomatoFixturePath, "transparent-tomato", "explicit-transparent-sticker")
+    : null;
   if (tomato) fixtures.push(tomato);
   fixtures.push(await createSimpleLogoFixture());
   fixtures.push(await createNoisyPhotoFixture());

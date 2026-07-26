@@ -23,9 +23,9 @@ const fixturesDir = path.join(rootDir, "tmp", "sticker-border-fixtures");
 const reportPath = process.env.STICKER_BORDER_REPORT_PATH
   ? path.resolve(process.env.STICKER_BORDER_REPORT_PATH)
   : path.join(rootDir, "tmp", "sticker-border-correctness-report.json");
-const userFixturePath =
-  process.env.STICKER_BORDER_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png";
+const userFixturePath = process.env.STICKER_BORDER_FIXTURE
+  ? path.resolve(process.env.STICKER_BORDER_FIXTURE)
+  : null;
 const runBrowserScenarios = process.env.STICKER_BORDER_BROWSER !== "0";
 
 const scenarios = [
@@ -1529,8 +1529,10 @@ async function findBrowserExecutable() {
 
 async function prepareFixture() {
   await fs.mkdir(fixturesDir, { recursive: true });
-  const userFixture = path.resolve(userFixturePath);
-  const userExists = await fs.access(userFixture).then(() => true).catch(() => false);
+  const userFixture = userFixturePath;
+  const userExists = userFixture
+    ? await fs.access(userFixture).then(() => true).catch(() => false)
+    : false;
   const pngPath = userExists
     ? userFixture
     : path.join(fixturesDir, "generated-transparent-sticker.png");

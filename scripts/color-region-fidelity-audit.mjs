@@ -19,12 +19,15 @@ const reportPath = process.env.COLOR_REGION_FIDELITY_REPORT_PATH
   ? path.resolve(process.env.COLOR_REGION_FIDELITY_REPORT_PATH)
   : path.join(rootDir, "tmp", "color-region-fidelity-audit.json");
 
-const screenshotFixturePath =
-  process.env.COLOR_REGION_SCREENSHOT_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
-const tomatoFixturePath =
-  process.env.COLOR_REGION_TOMATO_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png";
+const screenshotFixturePath = process.env.COLOR_REGION_SCREENSHOT_FIXTURE
+  ? path.resolve(process.env.COLOR_REGION_SCREENSHOT_FIXTURE)
+  : null;
+const tomatoFixturePath = process.env.COLOR_REGION_TOMATO_FIXTURE
+  ? path.resolve(process.env.COLOR_REGION_TOMATO_FIXTURE)
+  : null;
+const fixtureSearchDir = process.env.COLOR_REGION_FIXTURE_DIRECTORY
+  ? path.resolve(process.env.COLOR_REGION_FIXTURE_DIRECTORY)
+  : null;
 const existingLogoFixturePath = path.join(rootDir, "tests", "fixtures", "IMG_8487.PNG");
 
 const presetDefinitions = {
@@ -903,11 +906,11 @@ async function prepareFixtures() {
   } else {
     unavailable.push({
       requested: "trading-card/fish/Magikarp-style image",
-      reason: "No filename match for fish, magikarp, card, trading, pokemon, tcg, silver, or water was found in Downloads.",
+      reason: "No explicit fixture-directory filename matched fish, magikarp, card, trading, pokemon, tcg, silver, or water.",
     });
   }
 
-  if (await pathExists(screenshotFixturePath)) {
+  if (screenshotFixturePath && await pathExists(screenshotFixturePath)) {
     inputs.push(await fixtureInfo("screenshot-complex-png", screenshotFixturePath, "complex-card-proxy", {
       source: "real-user-screenshot-fixture",
     }));
@@ -915,7 +918,7 @@ async function prepareFixtures() {
     unavailable.push({ requested: screenshotFixturePath, reason: "File was not present." });
   }
 
-  if (await pathExists(tomatoFixturePath)) {
+  if (tomatoFixturePath && await pathExists(tomatoFixturePath)) {
     inputs.push(await fixtureInfo("transparent-tomato-png", tomatoFixturePath, "simple-transparent-object", {
       source: "real-user-tomato-fixture",
     }));
@@ -984,14 +987,13 @@ async function fixtureInfo(id, filePath, role, extra = {}) {
 }
 
 async function findTradingCardCandidates() {
-  const downloads = "C:\\Users\\Suhas\\Downloads";
-  if (!(await pathExists(downloads))) return [];
-  const names = await fs.readdir(downloads);
+  if (!fixtureSearchDir || !(await pathExists(fixtureSearchDir))) return [];
+  const names = await fs.readdir(fixtureSearchDir);
   const pattern = /(fish|magikarp|card|trading|pokemon|tcg|silver|water)/i;
   const candidates = [];
   for (const name of names) {
     if (!pattern.test(name) || !/\.(png|jpe?g|webp)$/i.test(name)) continue;
-    const filePath = path.join(downloads, name);
+    const filePath = path.join(fixtureSearchDir, name);
     const stat = await fs.stat(filePath).catch(() => null);
     if (!stat?.isFile()) continue;
     candidates.push({
