@@ -24,8 +24,7 @@ const minHighDetailLayerCount = Number(process.env.HF_BROWSER_OUTPUT_MIN_LAYERS 
 const maxGroupedColors = Number(process.env.HF_BROWSER_OUTPUT_MAX_GROUPS || 32);
 
 const defaultFlatFixtures = [
-  "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG",
-  "C:\\Users\\Suhas\\Downloads\\IMG_9404.JPEG",
+  path.join(rootDir, "tests", "fixtures", "IMG_8487.PNG"),
 ];
 const extraFlatFixtures = (process.env.HF_BROWSER_OUTPUT_EXTRA_FIXTURES || "")
   .split(/[;\n]/)
@@ -59,11 +58,11 @@ const allPresetChecks = [
   { id: "layered-8-color", label: "Layered - 8 Color", pattern: /^Layered - 8 Color\b/i },
 ];
 
-const img8846 = "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG";
 const flatFixtures = process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME
   ? allFlatFixtures.filter((fixture) => path.basename(fixture).toLowerCase() === process.env.HF_BROWSER_OUTPUT_FIXTURE_BASENAME.toLowerCase())
   : allFlatFixtures;
-const presetMatrixFixture = flatFixtures[0] || img8846;
+const presetMatrixFixture =
+  flatFixtures[0] || path.join(rootDir, "tests", "fixtures", "IMG_8487.PNG");
 const requestedPresetIds = process.env.HF_BROWSER_OUTPUT_PRESET_IDS
   ? new Set(process.env.HF_BROWSER_OUTPUT_PRESET_IDS.split(",").map((id) => id.trim()).filter(Boolean))
   : process.env.HF_BROWSER_OUTPUT_PRESET_ID

@@ -14,12 +14,6 @@ const generatedFixturePaths = {
   highColorNoisy: path.join(generatedFixtureDir, "generated-high-color-noisy.png"),
 };
 const defaultFixturePaths = [
-  "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG",
-  "C:\\Users\\Suhas\\Downloads\\IMG_9288.JPEG",
-  "C:\\Users\\Suhas\\Downloads\\IMG_9404.JPEG",
-  "C:\\Users\\Suhas\\Downloads\\IMG_9448.JPEG",
-  "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png",
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png",
   path.join(repoRoot, "tests", "fixtures", "IMG_8487.PNG"),
   generatedFixturePaths.simpleLogo,
   generatedFixturePaths.lowColor,

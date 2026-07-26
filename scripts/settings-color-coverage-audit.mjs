@@ -20,9 +20,9 @@ const reportPath = process.env.SETTINGS_COLOR_COVERAGE_REPORT_PATH
   : path.join(rootDir, "tmp", "settings-color-coverage-audit.json");
 const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
 const FLAT_COLOR_RAW_EXPOSURE_REGRESSION_THRESHOLD = 160;
-const userFixturePath =
-  process.env.SETTINGS_COLOR_COVERAGE_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
+const userFixturePath = process.env.SETTINGS_COLOR_COVERAGE_FIXTURE
+  ? path.resolve(process.env.SETTINGS_COLOR_COVERAGE_FIXTURE)
+  : null;
 
 const scenarios = [
   {
@@ -2307,10 +2307,9 @@ async function gitState() {
 }
 
 async function prepareFixture() {
-  const userFixtureAvailable = await fs
-    .access(userFixturePath)
-    .then(() => true)
-    .catch(() => false);
+  const userFixtureAvailable = userFixturePath
+    ? await fs.access(userFixturePath).then(() => true).catch(() => false)
+    : false;
   const pngFixturePath = userFixtureAvailable
     ? userFixturePath
     : path.join(fixturesDir, "generated-heavy-layered-input.png");

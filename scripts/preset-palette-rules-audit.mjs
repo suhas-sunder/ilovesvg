@@ -28,37 +28,16 @@ const targetSourceFiles = [
   "scripts/layer-color-correctness-smoke.mjs",
 ];
 
+const explicitFixturePaths = String(process.env.PRESET_PALETTE_RULES_FIXTURES || "")
+  .split(";")
+  .map((fixture) => fixture.trim())
+  .filter(Boolean);
 const requiredFixtureSpecs = [
-  {
-    id: "img-8846",
-    role: "real-user-high-detail",
-    requested: "C:\\Users\\Suhas\\Downloads\\IMG_8846.JPEG",
-  },
-  {
-    id: "img-9288",
-    role: "real-user-high-detail",
-    requested: "C:\\Users\\Suhas\\Downloads\\IMG_9288.JPEG",
-  },
-  {
-    id: "img-9404",
-    role: "real-user-high-detail",
-    requested: "C:\\Users\\Suhas\\Downloads\\IMG_9404.JPEG",
-  },
-  {
-    id: "img-9448",
-    role: "real-user-high-detail",
-    requested: "C:\\Users\\Suhas\\Downloads\\IMG_9448.JPEG",
-  },
-  {
-    id: "screenshot-2026-05-06",
-    role: "complex-ui-screenshot",
-    requested: "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png",
-  },
-  {
-    id: "charming-tomato",
-    role: "transparent-sticker",
-    requested: "C:\\Users\\Suhas\\Downloads\\charming-tomato-512x512.png",
-  },
+  ...explicitFixturePaths.map((requested, index) => ({
+    id: `explicit-${index + 1}`,
+    role: "explicit-external-fixture",
+    requested: path.resolve(requested),
+  })),
   {
     id: "img-8487",
     role: "blue-light-neutral-regression",

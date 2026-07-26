@@ -28,7 +28,7 @@ The root cause is not the `Layer colors` component slicing its row list. The mis
 
 Fixture used:
 
-- `C:\Users\Suhas\Downloads\Screenshot 2026-05-06 194041.png`
+- External `Screenshot 2026-05-06 194041.png` fixture (not retained)
 - PNG metadata: 1751 x 1522, 411,632 bytes
 - JPG route used a diagnostic JPG derivative at `tmp/settings-color-coverage-fixtures/settings-color-coverage-fixture.jpg`
 

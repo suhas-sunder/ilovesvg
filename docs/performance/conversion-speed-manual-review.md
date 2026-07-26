@@ -30,11 +30,11 @@ Amazing Quality remains compute-heavy. It should not hang, but it may still be s
 
 Use these local files:
 
-- `C:\Users\Suhas\Downloads\IMG_8846.JPEG`
-- `C:\Users\Suhas\Downloads\IMG_9404.JPEG`
-- `C:\Users\Suhas\Downloads\IMG_9288.JPEG`
-- `C:\Users\Suhas\Downloads\IMG_9448.JPEG`
-- `C:\Users\Suhas\Downloads\charming-tomato-512x512.png` if available
+- External `IMG_8846.JPEG` fixture (not retained)
+- External `IMG_9404.JPEG` fixture (not retained)
+- External `IMG_9288.JPEG` fixture (not retained)
+- External `IMG_9448.JPEG` fixture (not retained)
+- External `charming-tomato-512x512.png` fixture if explicitly supplied
 
 ## Presets To Test First
 

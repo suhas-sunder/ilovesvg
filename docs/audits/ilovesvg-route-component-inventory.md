@@ -661,7 +661,7 @@ This plan records the handoff from the static inventory. It was subsequently exe
 | P2 | Representative layered routes | Layer count/detail presets, colors, history layer edits, copy/download/update/reset | Shared versus route-local layered behavior |
 | P2 | SVG cleaner, minifier, recolor, background, viewer, JSX/embed utilities and wrappers | Upload/paste, every conditional accordion/tab, output/copy/download/reset | Local-meta truth, content, platform wrapper parity |
 
-Use http://localhost:3000 as the canonical URL. Before browser work, confirm that no stale node server.js process is occupying another port. The later runtime pass captured the 27 indexed desktop/mobile screenshots; the initial static pass itself created none.
+Use http://localhost:3000 as the canonical URL. Before browser work, confirm that no stale node server.js process is occupying another port. The later runtime pass used 27 temporary desktop/mobile captures that were reviewed and subsequently removed as disposable audit artifacts; the initial static pass itself created none.
 
 ## 13. Initial recommended runtime pass
 
@@ -693,7 +693,7 @@ Limitations: rendered conditional UI, actual accepted file behavior, JavaScript-
 
 ## Runtime verification status - 2026-07-13
 
-The planned browser pass is complete and is documented in [ilovesvg-runtime-capability-verification.md](./ilovesvg-runtime-capability-verification.md). Twenty-seven evidence screenshots are indexed there and stored in `docs/audits/runtime-verification/`. The runtime pass changed no application source, route, metadata, schema, canonical, sitemap, preset, setting, behavior, or public content.
+The planned browser pass is complete and is documented in [ilovesvg-runtime-capability-verification.md](./ilovesvg-runtime-capability-verification.md). The temporary screenshots used during that pass were reviewed for evidence and privacy, then intentionally removed from the current repository tree as disposable audit artifacts. The runtime pass changed no application source, route, metadata, schema, canonical, sitemap, preset, setting, behavior, or public content.
 
 Annotations to the original static findings:
 

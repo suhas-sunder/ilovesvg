@@ -7,9 +7,9 @@ import ts from "typescript";
 import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 
 const ROOT = process.cwd();
-const EXACT_FAILURE_SVG =
-  process.env.SVG_COMPRESSION_REAL_FILE ||
-  "C:\\Users\\Suhas\\Downloads\\jpg-to-layered-svg-for-cricut (8).svg";
+const EXACT_FAILURE_SVG = process.env.SVG_COMPRESSION_REAL_FILE
+  ? path.resolve(process.env.SVG_COMPRESSION_REAL_FILE)
+  : null;
 
 const readText = (relativePath) =>
   fs.readFile(path.join(ROOT, relativePath), "utf8");
@@ -407,19 +407,22 @@ async function runBrowserUploadSmoke() {
 
 async function browserFixturePath() {
   const requested = process.env.SVG_COMPRESSION_BROWSER_FIXTURE || EXACT_FAILURE_SVG;
-  try {
-    await fs.access(requested);
-    return requested;
-  } catch {
-    const fixturePath = path.join(
-      ROOT,
-      "tmp",
-      "svg-compression-generated-path-heavy.svg",
-    );
-    await fs.mkdir(path.dirname(fixturePath), { recursive: true });
-    await fs.writeFile(fixturePath, makePathHeavyLayeredFixture(), "utf8");
-    return fixturePath;
+  if (requested) {
+    try {
+      await fs.access(requested);
+      return requested;
+    } catch {
+      // Fall through to the deterministic generated fixture.
+    }
   }
+  const fixturePath = path.join(
+    ROOT,
+    "tmp",
+    "svg-compression-generated-path-heavy.svg",
+  );
+  await fs.mkdir(path.dirname(fixturePath), { recursive: true });
+  await fs.writeFile(fixturePath, makePathHeavyLayeredFixture(), "utf8");
+  return fixturePath;
 }
 
 async function setFileInput(client, filePath) {

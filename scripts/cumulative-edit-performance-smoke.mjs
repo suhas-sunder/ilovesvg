@@ -19,9 +19,9 @@ const downloadsDir = path.join(tmpDir, "downloads");
 const reportPath = process.env.CUMULATIVE_EDIT_REPORT_PATH
   ? path.resolve(process.env.CUMULATIVE_EDIT_REPORT_PATH)
   : path.join(rootDir, "tmp", "cumulative-edit-performance-smoke.json");
-const userFixturePath =
-  process.env.CUMULATIVE_EDIT_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
+const userFixturePath = process.env.CUMULATIVE_EDIT_FIXTURE
+  ? path.resolve(process.env.CUMULATIVE_EDIT_FIXTURE)
+  : null;
 const rounds = Math.max(2, Number(process.env.CUMULATIVE_EDIT_ROUNDS || 2));
 
 const thresholds = {
@@ -1988,10 +1988,9 @@ async function gitState() {
 }
 
 async function prepareFixture() {
-  const userFixtureAvailable = await fs
-    .access(userFixturePath)
-    .then(() => true)
-    .catch(() => false);
+  const userFixtureAvailable = userFixturePath
+    ? await fs.access(userFixturePath).then(() => true).catch(() => false)
+    : false;
   const pngFixturePath = userFixtureAvailable
     ? userFixturePath
     : path.join(fixturesDir, "generated-heavy-layered-input.png");

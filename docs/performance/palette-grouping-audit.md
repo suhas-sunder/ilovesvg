@@ -38,8 +38,8 @@ The diagnostic used these fixtures:
 
 | Fixture | Source | Purpose | Sampled unique colors | Suggested grouping risk |
 | --- | --- | --- | ---: | --- |
-| `screenshot-ui` | `C:\Users\Suhas\Downloads\Screenshot 2026-05-06 194041.png` | Current user-reported high-row fixture | 970 | Many tiny and edge colors |
-| `transparent-tomato` | `C:\Users\Suhas\Downloads\charming-tomato-512x512.png` | Transparent sticker-style object | 1287 | Saturated colors need stricter mid-tone grouping |
+| `screenshot-ui` | External screenshot fixture (not retained) | Current user-reported high-row fixture | 970 | Many tiny and edge colors |
+| `transparent-tomato` | External transparent-object fixture (not retained) | Transparent sticker-style object | 1287 | Saturated colors need stricter mid-tone grouping |
 | `simple-logo` | Generated in `tmp` | Clean logo/icon shape | 232 | Mostly edge colors around few major colors |
 | `noisy-photo-like` | Generated in `tmp` | Photo/noise stress case | 89288 | Needs preset-specific pruning |
 

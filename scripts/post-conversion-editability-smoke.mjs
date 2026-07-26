@@ -19,9 +19,9 @@ const downloadsDir = path.join(tmpDir, "downloads");
 const reportPath = process.env.POST_CONVERSION_EDITABILITY_REPORT_PATH
   ? path.resolve(process.env.POST_CONVERSION_EDITABILITY_REPORT_PATH)
   : path.join(rootDir, "tmp", "post-conversion-editability-smoke.json");
-const userFixturePath =
-  process.env.POST_CONVERSION_EDITABILITY_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
+const userFixturePath = process.env.POST_CONVERSION_EDITABILITY_FIXTURE
+  ? path.resolve(process.env.POST_CONVERSION_EDITABILITY_FIXTURE)
+  : null;
 
 const thresholds = {
   settingsOpenMs: Number(process.env.POST_CONVERSION_SETTINGS_OPEN_MS || 1500),
@@ -2507,10 +2507,9 @@ async function gitState() {
 }
 
 async function prepareFixture() {
-  const userFixtureAvailable = await fs
-    .access(userFixturePath)
-    .then(() => true)
-    .catch(() => false);
+  const userFixtureAvailable = userFixturePath
+    ? await fs.access(userFixturePath).then(() => true).catch(() => false)
+    : false;
   const fixturePath = userFixtureAvailable
     ? userFixturePath
     : path.join(fixturesDir, "generated-screenshot-like.png");

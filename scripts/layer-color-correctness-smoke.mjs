@@ -19,9 +19,9 @@ const reportPath = process.env.LAYER_COLOR_CORRECTNESS_REPORT_PATH
   ? path.resolve(process.env.LAYER_COLOR_CORRECTNESS_REPORT_PATH)
   : path.join(rootDir, "tmp", "layer-color-correctness-report.json");
 const FLAT_COLOR_MAX_EDITABLE_GROUPS = 32;
-const userFixturePath =
-  process.env.LAYER_COLOR_CORRECTNESS_FIXTURE ||
-  "C:\\Users\\Suhas\\Downloads\\Screenshot 2026-05-06 194041.png";
+const userFixturePath = process.env.LAYER_COLOR_CORRECTNESS_FIXTURE
+  ? path.resolve(process.env.LAYER_COLOR_CORRECTNESS_FIXTURE)
+  : path.join(rootDir, "tests", "fixtures", "IMG_8487.PNG");
 
 const scenarios = [
   {

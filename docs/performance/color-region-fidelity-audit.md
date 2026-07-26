@@ -18,13 +18,13 @@ The next implementation batch should stay scoped to Layered - Flat Color and add
 
 | Fixture | Source | Role | Notes |
 | --- | --- | --- | --- |
-| `Screenshot 2026-05-06 194041.png` | `C:\Users\Suhas\Downloads` | Complex/card-like proxy | Used as the closest available complex fixture. |
+| `Screenshot 2026-05-06 194041.png` | External local fixture (not retained) | Complex/card-like proxy | Used as the closest available complex fixture. |
 | `screenshot-complex-png.jpg` | generated in `tmp/color-region-fidelity-fixtures` | JPG derivative | Used for the JPG layered route. |
-| `charming-tomato-512x512.png` | `C:\Users\Suhas\Downloads` | Transparent object/sticker | Used for simple object behavior. |
+| `charming-tomato-512x512.png` | External local fixture (not retained) | Transparent object/sticker | Used for simple object behavior. |
 | `IMG_8487.PNG` | `tests/fixtures` | Existing logo/sticker fixture | Used as a simple fixture with multiple color families. |
 | `generated-simple-logo.png` | generated in `tmp/color-region-fidelity-fixtures` | Diagnostic fallback | Generated only under `tmp`, not committed. |
 
-The exact trading-card/fish/Magikarp-style image was not found in Downloads or test fixtures by filename search for `fish`, `magikarp`, `card`, `trading`, `pokemon`, `tcg`, `silver`, or `water`. Exact fish-fin, small-fish, silver-region, and water-region claims cannot be verified from this run.
+The exact trading-card/fish/Magikarp-style image was not found in the explicitly supplied external fixture set or repository test fixtures by filename search for `fish`, `magikarp`, `card`, `trading`, `pokemon`, `tcg`, `silver`, or `water`. Exact fish-fin, small-fish, silver-region, and water-region claims cannot be verified from this run.
 
 ## 3. Routes And Presets Tested
 

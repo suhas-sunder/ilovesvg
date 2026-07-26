@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { validateMeaningfulSvgOutput } from "./meaningful-output.mjs";
 import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
@@ -6,7 +7,7 @@ import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 const baseUrl = getSmokeBaseUrl();
 const exactRegressionPath =
   process.env.REGRESSION_PNG_PATH ||
-  "C:/Users/Suhas/Downloads/iCloud Photos (1)/iCloud Photos/IMG_8487.PNG";
+  fileURLToPath(new URL("../tests/fixtures/IMG_8487.PNG", import.meta.url));
 
 const regressionPng = await loadRegressionPng();
 const regressionMeta = await sharp(regressionPng).metadata();
