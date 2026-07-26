@@ -3171,7 +3171,10 @@ function SeoSections() {
               {[
                 { k: "Icon presets", v: "Crisp, thin, bold, glyph simplify" },
                 { k: "Live preview", v: "Fast ≤10 MB, throttled ≤25 MB" },
-                { k: "Droplet safe", v: "RAM-only + backend safeguards" },
+                {
+                  k: "Protected processing",
+                  v: "Upload, size, and conversion safeguards",
+                },
                 { k: "Editable output", v: "Responsive viewBox paths" },
               ].map((x) => (
                 <div
@@ -3297,7 +3300,7 @@ function SeoSections() {
                 ],
                 [
                   "429 response",
-                  "If backend conversion limits or server workload controls are reached, the app shows the Retry-After timing and retries when appropriate.",
+                  "If conversion limits or capacity controls are reached, the app shows the Retry-After timing and retries when appropriate.",
                 ],
                 [
                   "Photo icon",

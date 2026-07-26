@@ -1605,10 +1605,10 @@ export default function SketchToSvgConverter({
           </section>
 
           <div className="text-[12px] text-slate-600 mt-6 bg-white border border-slate-200 rounded-xl p-4">
-            Tools on this site are for budgeting and comparison. Calculations
-            use standard time-period assumptions, including a 365-day year and
-            average month length. Always confirm payment schedules and lease
-            terms in your rental agreement.
+            Clean, high-contrast scans and photos produce the clearest paths.
+            Improve contrast before tracing, choose a filled or outline preset
+            for the intended result, and inspect small details before editing,
+            printing, or cutting the SVG.
           </div>
         </div>
 

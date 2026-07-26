@@ -517,7 +517,7 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "Favicon Generator", href: "/svg-favicon-generator" },
+    { name: "Favicon Generator", href: "/svg-to-favicon-generator" },
   ];
 
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -2012,7 +2012,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "Favicon Generator",
-        item: `${baseUrl}/svg-favicon-generator`,
+        item: `${baseUrl}/svg-to-favicon-generator`,
       },
     ],
   };

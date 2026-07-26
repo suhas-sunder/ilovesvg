@@ -176,7 +176,7 @@ async function runTrace(request: WorkerRequest) {
   const warnings: string[] = [];
 
   try {
-    postProgress(request.id, 0.05, "Loading VTracer...");
+    postProgress(request.id, 0.05, "Loading detailed color tracing...");
     const t = performance.now();
     await ensureVTracerWasmReady();
     timings.initWasm = performance.now() - t;
@@ -264,7 +264,7 @@ async function runTrace(request: WorkerRequest) {
       message:
         error instanceof Error && error.message
           ? error.message
-          : "VTracer could not process this image in the browser.",
+          : "Detailed color tracing could not process this image in the browser.",
     } satisfies WorkerError);
   }
 }

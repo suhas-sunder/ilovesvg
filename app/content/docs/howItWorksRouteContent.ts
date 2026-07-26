@@ -101,7 +101,7 @@ export const CONVERSION_WORKFLOW_COPY = {
   },
   basicWorkflowSteps: [
     "Upload an image. PNG, JPG, JPEG, WebP, and route-specific formats are supported on the relevant converter pages.",
-    "Choose a preset. Speed tags estimate backend processing cost and do not change output by themselves.",
+    "Choose a preset. Speed tags estimate conversion time and do not change output by themselves.",
     "Click Convert. On queued routes, a pending output card appears immediately and may become running before it finishes.",
     "Review the output. Most raster-to-SVG results are filled paths, which is normal for logos, cut files, scans, and stickers.",
     "Open Settings/Edit if the completed card needs local output edits or click-to-convert setting changes.",
@@ -244,7 +244,7 @@ export const SETTINGS_GUIDE_COPY = {
       body: "Fill spread expands filled regions by adding a same-color under-stroke where safe. It is manual, off by default, disabled for precision cut outputs, and can increase file size or make tight details heavier.",
     },
     {
-      title: "File size and parity",
+      title: "Consistent output actions",
       body: "Preview, Copy SVG, Download SVG, fullscreen review, and file size display should use the same finalized SVG for the selected output card.",
     },
   ] satisfies DocsCardCopy[],

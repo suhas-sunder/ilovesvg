@@ -581,7 +581,7 @@ function fallbackGuideByGroup(group: UtilityGroup) {
         "Preview the raster output before downloading.",
       ],
       limitations: [
-        "SVG export routes render with browser canvas or PDF libraries, not Potrace tracing.",
+        "SVG export routes create image or PDF files from existing SVG artwork; they do not trace raster images into SVG paths.",
         "External fonts or linked images may render differently unless embedded.",
         "Use SVG cleanup first if the source markup is messy or unsafe.",
       ],
@@ -860,7 +860,7 @@ function fallbackGuideByGroup(group: UtilityGroup) {
         a: "Use the related links below when you need a different input type, output format, cleanup step, or craft-file workflow.",
       },
       {
-        q: "Will this change the conversion engine?",
+        q: "Will this change the tracing method?",
         a: "No. These notes explain the current route behavior and point you toward the right existing tool.",
       },
     ],
@@ -1136,7 +1136,7 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
     eyebrow: "Image to SVG vectorizer",
     heading: "Free SVG converter for PNG, JPG, WebP, logos, scans, and creator artwork",
     intro:
-      "Use the home converter when you want one flexible image-to-SVG workflow with searchable presets, backend speed tags, advanced trace controls, editable layer metadata, output history, copy/download actions, and full-screen preview. Uploaded images are processed for conversion and are not stored after conversion.",
+      "Use the home converter when you want one flexible image-to-SVG workflow with searchable presets, speed tags, advanced trace controls, editable layer metadata, output history, copy/download actions, and full-screen preview. Uploaded images are processed for conversion and are not stored after conversion.",
     bestFor: [
       "General image to SVG searches like png to svg, jpg to svg, convert to svg, and image to svg converter.",
       "Creators preparing logos, icons, classroom graphics, Etsy files, stickers, or small-business artwork.",
@@ -1148,9 +1148,9 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       "Use Live Preview edits for layer styling and Click to Convert settings for threshold, cleanup, trace detail, and layers.",
     ],
     limitations: [
-      "Raster-to-SVG tracing is server-assisted and protected by upload, dimension, rate, and concurrency limits.",
+      "Raster-to-SVG tracing is protected by upload, dimension, rate, and concurrency limits.",
       "Photos and busy backgrounds may need outline, scan, or cleanup presets instead of a simple trace.",
-      "No AI background removal is claimed; color and background controls work within the supported SVG/raster pipeline.",
+      "No AI background removal is claimed; color and background controls work within the supported conversion workflow.",
     ],
     related: [
       { to: "/png-to-svg-converter", label: "PNG to SVG Converter", reason: "Best for transparent PNG logos, icons, and sticker artwork." },
@@ -1163,19 +1163,19 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
     questions: [
       {
         q: "Does the home converter upload files?",
-        a: "Yes. Raster-to-SVG tracing is server-assisted, protected by upload and concurrency limits, and files are not stored after conversion.",
+        a: "Yes. Uploaded raster images are processed for tracing, protected by upload and concurrency limits, and are not stored after conversion.",
       },
       {
         q: "What do the preset speed tags mean?",
-        a: "Speed tags estimate backend processing cost. They help you choose between quick single-trace presets and heavier layered or high-detail presets.",
+        a: "Speed tags estimate conversion time. They help you choose between quick single-trace presets and more detailed layered or high-detail presets.",
       },
     ],
   },
   "/png-to-svg-converter": {
-    eyebrow: "PNG to SVG keyword cluster",
+    eyebrow: "Related PNG to SVG tools",
     heading: "PNG to SVG for transparent logos, icons, stickers, and web graphics",
     intro:
-      "This page targets PNG sources: transparent logos, flat icons, screenshots, sticker artwork, and clean web graphics. It uses server-assisted tracing with route-aware presets, searchable speed filters, editable layer output, and copy/download controls.",
+      "This page is designed for PNG sources: transparent logos, flat icons, screenshots, sticker artwork, and clean web graphics. It includes route-aware presets, searchable speed filters, editable layer output, and copy/download controls.",
     bestFor: [
       "Transparent PNG to SVG and png to svg converter free searches.",
       "Logos, icons, decals, clipart, flat marks, and sticker-style art.",
@@ -1211,7 +1211,7 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
     ],
   },
   "/jpg-to-svg-converter": {
-    eyebrow: "JPG to SVG keyword cluster",
+    eyebrow: "Choose the right JPG tracing workflow",
     heading: "JPG to SVG for photos, screenshots, scans, and non-transparent images",
     intro:
       "JPG files usually contain compression noise and no transparency, so this page emphasizes photo outline, scan cleanup, contrast, threshold, and edge presets instead of treating JPG like a clean logo PNG.",
@@ -1228,10 +1228,10 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
     limitations: [
       "JPG tracing is interpretive; it will not reproduce every photo tone as editable vector art.",
       "Low-contrast photos may need cleanup or an outline preset.",
-      "Use JPEG to SVG if your search intent or source wording specifically says JPEG.",
+      "Use JPEG to SVG when your source file uses the .jpeg extension or you prefer JPEG wording.",
     ],
     related: [
-      { to: "/jpeg-to-svg-converter", label: "JPEG to SVG", reason: "Camera-file wording and JPEG-specific search intent." },
+      { to: "/jpeg-to-svg-converter", label: "JPEG to SVG", reason: "Use the JPEG-named workflow for .jpeg camera and image files." },
       { to: "/photo-to-svg-outline", label: "Photo to SVG Outline", reason: "Simplify photos into contour-style SVG output." },
       { to: "/scan-to-svg-converter", label: "Scan to SVG", reason: "Better for paper shadows, ink, and scanned documents." },
       { to: "/image-to-svg-outline", label: "Image to SVG Outline", reason: "Use an outline-first workflow for line extraction." },
@@ -1281,7 +1281,7 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
         a: "Yes. Keep the transparent background option when you need icons, overlays, product graphics, or social assets with alpha.",
       },
       {
-        q: "Does SVG to PNG use the tracing engine?",
+        q: "Does SVG to PNG trace raster images?",
         a: "No. It renders the SVG in the browser and exports pixels, so raster tracing presets are intentionally not shown here.",
       },
     ],
@@ -1828,29 +1828,29 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
   },
   "/svg-to-favicon-generator": {
     eyebrow: "Favicon workflow",
-    heading: "SVG to favicon generator for browser icons, app icons, and web projects",
+    heading: "Favicon generator for SVG and raster logos",
     intro:
-      "Use this route when an SVG logo or icon needs favicon output: browser icon sizes, favicon.ico, touch icons, manifest snippets, and preview assets.",
+      "Upload an SVG, PNG, JPG, or WebP logo or icon to create browser icon sizes, favicon.ico, touch icons, manifest snippets, and preview assets.",
     bestFor: [
-      "svg to favicon, favicon from SVG, favicon generator from SVG, and create favicon from SVG searches.",
+      "Creating favicon and app icon packages from SVG or raster artwork.",
       "Website launches, landing pages, portfolios, small-business sites, and app icon handoff.",
-      "Users who need browser icon assets from an existing SVG mark.",
+      "Users who need browser icon assets from an existing logo or icon.",
     ],
     settings: [
-      "Start with a simple square SVG for best small-size readability.",
+      "Start with a simple square source for best small-size readability.",
+      "SVG sources retain scalable source quality before bitmap icons are generated. Raster sources are resized directly and are not converted into vector artwork.",
       "Generate the icon sizes your project needs rather than every possible file.",
-      "Use SVG cleaner first if the source logo has extra editor markup.",
     ],
     limitations: [
       "Tiny favicons need simple shapes; detailed logos can become unreadable at 16 px.",
       "Different browsers may choose different favicon assets from your markup.",
-      "This generator starts from SVG and does not vectorize raster logos.",
+      "PNG, JPG, and WebP inputs are resized into PNG and ICO assets; they are not vectorized.",
     ],
     related: [
       { to: "/svg-to-png-converter", label: "SVG to PNG", reason: "Create PNG exports for icons and previews." },
       { to: "/svg-resize-and-scale-editor", label: "SVG Resize and Scale", reason: "Fix square canvas and viewBox sizing." },
       { to: "/svg-cleaner", label: "SVG Cleaner", reason: "Clean logo markup before icon generation." },
-      { to: "/logo-to-svg-converter", label: "Logo to SVG", reason: "Vectorize a raster logo before making favicons." },
+      { to: "/logo-to-svg-converter", label: "Logo to SVG", reason: "Create editable vector artwork first when the logo needs tracing or cleanup." },
     ],
     questions: [
       {
@@ -1859,7 +1859,7 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       },
       {
         q: "Can I make a favicon from a PNG logo?",
-        a: "First convert or trace the PNG with Logo to SVG, then use this favicon generator from the SVG result.",
+        a: "Yes. Upload the PNG directly. The generator resizes it into favicon assets without converting it into vector artwork.",
       },
     ],
   },

@@ -62,6 +62,8 @@ import {
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import {
   FocusedEditorPreviewComparison,
+  getPublicTraceMethodLabel,
+  getPublicTracePathLabel,
   getSvgByteSize,
   hasVisibleOutputAppearanceControls,
   OutputAppearanceControls,
@@ -3730,7 +3732,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         setInfo(
           clientTrace.result.engineUsed === "centerline"
             ? "Converted in your browser with centerline stroke tracing."
-            : "Converted in your browser with VTracer.",
+            : "Detailed color tracing completed in your browser.",
         );
         return true;
       }
@@ -5283,7 +5285,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                       ? "Canceled"
                                       : "Failed"
                                     : `${item.width} x ${item.height} px`}
-                                {item.engineUsed ? ` - ${item.engineUsed}` : ""}
+                                {item.engineUsed
+                                  ? ` - ${getPublicTraceMethodLabel(item.engineUsed)}`
+                                  : ""}
                                 {displaySvgBytes ? ` - ${prettyBytes(displaySvgBytes)}` : ""}
                                 {hasOutputAppearanceChanges(appearance)
                                   ? " - appearance adjusted"
@@ -5369,7 +5373,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               Editing {displayName}
                             </p>
                             <p className="m-0 mt-0.5 text-[12px] text-slate-600">
-                              {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
+                              Trace method: {getPublicTraceMethodLabel(item.engineUsed)}
                               {item.width > 0 && item.height > 0
                                 ? ` - ${item.width} x ${item.height} px`
                                 : ""}
@@ -5529,8 +5533,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               </div>
                             </div>
                             <div>
-                              <span className="font-semibold text-slate-900">Engine path</span>
-                              <div>{item.enginePathLabel || "Hybrid trace"}</div>
+                              <span className="font-semibold text-slate-900">
+                                Trace method
+                              </span>
+                              <div>
+                                {getPublicTracePathLabel(item.enginePathLabel)}
+                              </div>
                             </div>
                           </div>
                           {item.jobError && (
@@ -6569,7 +6577,7 @@ function SeoSections() {
               {[
                 {
                   title: "Upload a supported image",
-                  body: "Drag and drop or use the picker. Oversized raster files may be compressed on your device before backend conversion when that can preserve a usable result.",
+                  body: "Drag and drop or use the picker. Oversized raster files may be compressed on your device before tracing when that can preserve a usable result.",
                 },
                 {
                   title: "Pick a preset that matches your art",
@@ -6707,18 +6715,17 @@ function SeoSections() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-                <div className="text-sm font-semibold">Server stability</div>
+                <div className="text-sm font-semibold">Conversion limits</div>
                 <p className="mt-2 text-sm text-slate-700">
-                  This SVG converter only rate limits backend raster tracing and
-                  server-side conversion work. Preview rendering, copy, local
-                  download generation, and setting changes that only update
-                  React state are not rate limited.
+                  New raster-to-SVG traces are rate limited. Preview rendering,
+                  copy, local download generation, and settings that only
+                  change the current preview do not count against those limits.
                 </p>
                 <p className="mt-3 text-sm text-slate-700">
-                  Backend conversions allow up to 120 conversions per minute,
-                  400 conversions every 5 minutes, 1500 conversions per hour,
-                  and 3000 conversions per day for the same connection and
-                  browser profile.
+                  Tracing allows up to 120 conversions per minute, 400
+                  conversions every 5 minutes, 1500 conversions per hour, and
+                  3000 conversions per day for the same connection and browser
+                  profile.
                 </p>
               </div>
             </div>
@@ -6738,7 +6745,7 @@ function SeoSections() {
                 ],
                 [
                   "429 server busy",
-                  "Backend conversion limit or concurrency protection. Wait for the Retry-After time, then try again.",
+                  "Conversion limit or capacity protection. Wait for the Retry-After time, then try again.",
                 ],
                 ["Blank or too light", "Lower threshold or disable invert."],
                 ["Jagged edges", "Increase curve tolerance slightly."],
@@ -6778,7 +6785,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this tool have usage limits?",
-                  a: "Only backend conversion work is rate limited. Preview rendering, copy, local download generation, and setting changes that only update the current React state are not rate limited because they do not use server conversion compute. Backend conversions, such as raster image tracing, allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new raster image traces are rate limited. Preview rendering, copy, local download generation, and settings that only change the current preview do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "What happens with files over 25 MB?",

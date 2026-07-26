@@ -2700,7 +2700,7 @@ function SeoSections() {
     },
     {
       q: "Does this sketch to SVG for Cricut page have usage limits?",
-      a: "Only backend sketch conversion work is rate limited. Preview rendering, layer recoloring, layer visibility changes, copying SVG, and browser download generation are not rate limited because they do not use server conversion compute. Backend conversions allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+      a: "Only new sketch conversions are rate limited. Preview rendering, layer recoloring, layer visibility changes, copying SVG, and browser download generation do not count against those limits. Conversion allows up to 120 requests per minute, 400 every 5 minutes, 1500 per hour, and 3000 per day for the same connection and browser profile.",
     },
     {
       q: "Is this affiliated with Cricut?",
@@ -3053,27 +3053,25 @@ function SeoSections() {
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  Backend conversion limits
+                  Conversion limits
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  This sketch to SVG for Cricut conversion page only rate limits
-                  backend raster tracing and server-side image processing work.
-                  Preview rendering, layer recoloring, layer visibility changes,
-                  copy actions, and browser download generation are not rate
-                  limited.
+                  New sketch conversions are rate limited. Preview rendering,
+                  layer recoloring, layer visibility changes, copy actions, and
+                  browser download generation do not count against those
+                  limits.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  Current backend quota
+                  Current conversion quota
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Backend conversions allow up to 120 conversions per minute,
-                  400 conversions every 5 minutes, 1500 conversions per hour,
-                  and 3000 conversions per day for the same connection and
-                  browser profile. If the server is busy or a limit is reached,
-                  the response includes a Retry-After time.
+                  Conversion allows up to 120 requests per minute, 400 every 5
+                  minutes, 1500 per hour, and 3000 per day for the same
+                  connection and browser profile. If capacity is busy or a
+                  limit is reached, the response includes a Retry-After time.
                 </p>
               </div>
             </div>

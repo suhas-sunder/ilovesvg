@@ -11,6 +11,8 @@ import {
   FocusedEditorPreviewComparison,
   OutputAppearanceControls,
   OutputWarningList,
+  getPublicTraceMethodLabel,
+  getPublicTracePathLabel,
   getSvgByteSize,
   prettyBytes,
 } from "~/client/components/converter/TraceOutputPanel";
@@ -686,7 +688,9 @@ function OutputMetadataLine({
             ? `${item.width} x ${item.height} px`
             : "size unknown"}
       </span>
-      {item.engineUsed ? <span>{item.engineUsed}</span> : null}
+      {item.engineUsed ? (
+        <span>{getPublicTraceMethodLabel(item.engineUsed)}</span>
+      ) : null}
       {!active && displaySvgBytes ? (
         <span data-output-file-size="true">{prettyBytes(displaySvgBytes)}</span>
       ) : null}
@@ -767,8 +771,10 @@ function BespokeJobStateCard<TItem extends BespokeTraceOutputItem>({
           <dd className="m-0">{formatElapsed(elapsedMs)}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-slate-900">Engine path</dt>
-          <dd className="m-0">{item.enginePathLabel || "Hybrid trace"}</dd>
+          <dt className="font-semibold text-slate-900">Trace method</dt>
+          <dd className="m-0">
+            {getPublicTracePathLabel(item.enginePathLabel)}
+          </dd>
         </div>
       </dl>
       {item.jobError ? (

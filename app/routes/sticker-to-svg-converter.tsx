@@ -2069,9 +2069,10 @@ function SeoSections({ faqItems }: { faqItems: FaqItem[] }) {
                 Sticker to SVG converter for clean, cuttable vectors
               </h2>
               <p className="text-slate-600">
-                Turn sticker art into crisp SVG paths using Potrace. This page
-                is tuned for sticker-style graphics like bold outlines, flat
-                colors, transparent PNG artwork, and logo-like shapes. It is
+                Turn sticker art into crisp SVG paths with clean shape tracing.
+                This page is tuned for sticker-style graphics like bold
+                outlines, flat colors, transparent PNG artwork, and logo-like
+                shapes. It is
                 not Cricut-only; use it for broad sticker prep, decal artwork,
                 labels, and simple graphics that need editable SVG paths.
               </p>

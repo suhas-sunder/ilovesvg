@@ -4729,21 +4729,21 @@ function SeoSections() {
 
           <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h3 className="text-lg font-bold text-sky-950">
-              Backend conversion usage limits
+              Raster tracing usage limits
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Client-side actions on this Base64 to SVG for Cricut conversion
               page are not rate limited. Plain Base64 SVG decoding, SVG cleanup,
               preview updates, copy, CSV export, and print-to-PDF run in the
-              browser after the page loads, so they do not use server conversion
-              compute.
+              browser after the page loads, so they do not count against
+              tracing limits.
             </p>
 
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Rate limits apply only when the input is a Base64 PNG, JPG, JPEG,
-              or WEBP image that needs backend raster tracing into SVG paths.
-              That server-side conversion allows up to{" "}
+              or WEBP image that needs tracing into SVG paths. Raster tracing
+              allows up to{" "}
               {BACKEND_CONVERSION_RATE_LIMITS.perMinute} conversions per minute,{" "}
               {BACKEND_CONVERSION_RATE_LIMITS.perFiveMinutes} conversions every
               5 minutes, {BACKEND_CONVERSION_RATE_LIMITS.perHour} conversions
@@ -4801,7 +4801,7 @@ function SeoSections() {
                 },
                 {
                   q: "What are the usage limits?",
-                  a: `Client-side SVG decoding and cleanup are not rate limited because they run in your browser. Backend raster tracing is rate limited to ${BACKEND_CONVERSION_RATE_LIMITS.perMinute} conversions per minute, ${BACKEND_CONVERSION_RATE_LIMITS.perFiveMinutes} every 5 minutes, ${BACKEND_CONVERSION_RATE_LIMITS.perHour} per hour, and ${BACKEND_CONVERSION_RATE_LIMITS.perDay} per day per IP and browser profile.`,
+                  a: `SVG decoding and cleanup do not count against tracing limits. Raster-to-SVG tracing is limited to ${BACKEND_CONVERSION_RATE_LIMITS.perMinute} conversions per minute, ${BACKEND_CONVERSION_RATE_LIMITS.perFiveMinutes} every 5 minutes, ${BACKEND_CONVERSION_RATE_LIMITS.perHour} per hour, and ${BACKEND_CONVERSION_RATE_LIMITS.perDay} per day per IP and browser profile.`,
                 },
               ].map((item) => (
                 <article

@@ -3337,7 +3337,7 @@ function JpgSeoSections() {
                 <div className="text-sm font-semibold">JPG vs JPEG</div>
                 <p className="mt-1 text-sm text-slate-600">
                   They are the same format. If your file ends in .jpg or .jpeg,
-                  it uses the same decoder and the same tracing pipeline here.
+                  it uses the same file handling and tracing workflow here.
                 </p>
               </div>
             </div>
@@ -3369,7 +3369,7 @@ function JpgSeoSections() {
                 },
                 {
                   q: "Does this JPG to SVG conversion page have usage limits?",
-                  a: "Only backend conversion work is rate limited. Preview rendering, copy, local download generation, layer color edits, and local setting changes are not rate limited because they do not use server conversion compute. Backend raster tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new JPG traces are rate limited. Preview rendering, copy, local download generation, layer color edits, and local setting changes do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
               ].map((x) => (
                 <article

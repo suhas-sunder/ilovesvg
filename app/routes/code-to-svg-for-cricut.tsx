@@ -4648,7 +4648,7 @@ function SeoSections() {
                 },
                 {
                   q: "Are there usage limits for conversions?",
-                  a: "Backend raster tracing on this Code to SVG for Cricut conversion page is rate limited to 120 conversions per minute, 400 per five minutes, 1500 per hour, and 3000 per day from the same connection and browser profile. Client-side actions such as Base64 SVG cleanup, preview rendering, layer color edits, copy, local downloads, and CSV export are not rate limited because they do not use server conversion compute.",
+                  a: "Raster-to-SVG tracing on this page is limited to 120 conversions per minute, 400 per five minutes, 1500 per hour, and 3000 per day from the same connection and browser profile. Base64 SVG cleanup, preview rendering, layer color edits, copy, local downloads, and CSV export do not count against those limits.",
                 },
               ].map((item) => (
                 <article

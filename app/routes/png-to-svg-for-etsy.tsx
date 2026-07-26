@@ -998,6 +998,23 @@ const PRESETS: Preset[] = [
 
 const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 
+const SHOPIFY_PRESET_LABELS: Readonly<Record<string, string>> = {
+  "line-accurate": "Shopify PNG - Accurate trace (default)",
+  "line-bold": "Shopify Brand - Bold outline",
+  "line-fine": "Shopify Detail - Fine lines",
+  "logo-clean": "Shopify Logo - Clean shapes",
+  "logo-thin": "Shopify Logo - Thin details",
+};
+
+function getRouteDisplayPresets(pathname: string): Preset[] {
+  if (pathname !== "/png-to-svg-for-shopify") return DISPLAY_PRESETS;
+
+  return DISPLAY_PRESETS.map((preset) => {
+    const label = SHOPIFY_PRESET_LABELS[preset.id];
+    return label ? { ...preset, label } : preset;
+  });
+}
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
@@ -1086,6 +1103,11 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const { pathname } = useLocation();
+  const routeDisplayPresets = React.useMemo(
+    () => getRouteDisplayPresets(pathname),
+    [pathname],
+  );
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-etsy" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1168,7 +1190,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        presetLabel: getPresetLabelById(routeDisplayPresets, activePreset),
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
 
         settingsSnapshot,
@@ -1589,7 +1611,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </h1>
 
               <PresetPicker
-                presets={DISPLAY_PRESETS}
+                presets={routeDisplayPresets}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
               />
@@ -2582,15 +2604,15 @@ function SeoSections() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="text-sm font-semibold">Server stability</div>
+                <div className="text-sm font-semibold">Conversion limits</div>
                 <p className="mt-2 text-sm text-slate-700">
-                  Vectorization is CPU heavy. We cap concurrent conversions.
-                  When busy, you may get <code>429</code> with{" "}
-                  <code>Retry-After</code>, and the client retries smoothly.
+                  Detailed vector tracing can take longer for complex images.
+                  Concurrent conversions are limited to keep processing
+                  reliable, and the converter retries when capacity is busy.
                 </p>
                 <p className="mt-3 text-sm text-slate-700">
-                  Batch conversion is off because this site is free and the load
-                  is not feasible.
+                  Batch conversion is unavailable on this route. Convert one
+                  file at a time.
                 </p>
               </div>
             </div>

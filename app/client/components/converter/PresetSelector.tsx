@@ -291,7 +291,7 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
                         ? speedFilterBadge.className
                         : "border-slate-200 bg-white text-slate-700",
                     ].join(" ")}
-                    title="Speed tags estimate backend processing cost and do not change output."
+                    title="Speed tags estimate conversion time and do not change output."
                   >
                     <span className="mr-1.5 hidden text-[11px] font-bold uppercase tracking-wide opacity-70 sm:inline">
                       Speed
@@ -452,7 +452,7 @@ function PresetButton<TPreset extends ConverterPresetOption>({
   const title = [
     preset.help || preset.description || preset.label,
     intensityBadge.title,
-    "Speed tags estimate backend processing cost and do not change output.",
+    "Speed tags estimate conversion time and do not change output.",
   ]
     .filter(Boolean)
     .join(" ");

@@ -3780,19 +3780,16 @@ function SeoSections() {
 
           <section className="mt-12">
             <h3 className="text-lg font-bold text-sky-950">
-              Backend conversion limits
+              Conversion limits
             </h3>
 
             <p className="mt-2 max-w-[85ch] text-sm leading-6 text-slate-600">
-              This drawing to SVG for Cricut conversion page only rate limits
-              backend raster tracing, uploaded SVG processing, and server-side
-              conversion work. Preview rendering, layer color edits, visibility
-              toggles, copy actions, SVG downloads, settings CSV export, and
-              print actions are not rate limited because they run in your
-              browser. Backend conversion actions allow up to 120 conversions
-              per minute, 400 conversions every 5 minutes, 1500 conversions per
-              hour, and 3000 conversions per day for the same connection and
-              browser profile.
+              New image traces and uploaded SVG processing are rate limited.
+              Preview rendering, layer color edits, visibility toggles, copy
+              actions, SVG downloads, settings CSV export, and print actions do
+              not count against those limits. Conversion allows up to 120
+              requests per minute, 400 every 5 minutes, 1500 per hour, and 3000
+              per day for the same connection and browser profile.
             </p>
           </section>
 
@@ -3843,7 +3840,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this drawing to SVG for Cricut tool have usage limits?",
-                  a: "Only backend conversion work is rate limited. Client-side preview, layer edits, copy, download, CSV export, print actions, and local setting changes are not rate limited because they run in your browser. Backend conversions, such as raster image tracing and uploaded SVG processing, allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new image traces and uploaded SVG processing are rate limited. Preview, layer edits, copy, download, CSV export, print actions, and local setting changes do not count against those limits. Conversion allows up to 120 requests per minute, 400 every 5 minutes, 1500 per hour, and 3000 per day for the same connection and browser profile.",
                 },
               ].map((x) => (
                 <article

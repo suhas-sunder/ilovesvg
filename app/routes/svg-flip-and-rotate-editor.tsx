@@ -240,7 +240,7 @@ export default function SvgFlipRotateEditor(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "Flip & Rotate", href: "/svg-flip-rotate-editor" },
+    { name: "Flip & Rotate", href: "/svg-flip-and-rotate-editor" },
   ];
 
   async function applyNow() {
@@ -1235,7 +1235,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG Flip & Rotate Editor",
-        item: `${baseUrl}/svg-flip-rotate-editor`,
+        item: `${baseUrl}/svg-flip-and-rotate-editor`,
       },
     ],
   };

@@ -456,8 +456,8 @@ const sitemapSections: SitemapSection[] = [
     ],
   },
   {
-    title: "Expanded SVG workflow routes",
-    description: "Additional SEO-safe converter, seller, print, design handoff, favicon, and developer routes built on supported iLoveSVG tools.",
+    title: "More SVG conversion and editing tools",
+    description: "Browse additional converter, seller, print, design handoff, favicon, and developer tools for supported SVG workflows.",
     links: [
       {
         title: "GIF to SVG Converter",
