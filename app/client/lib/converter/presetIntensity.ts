@@ -26,8 +26,7 @@ const INTENSITY_BADGES: Record<PresetBackendIntensity, PresetIntensityBadge> = {
     label: "Lightning Fast",
     rank: 0,
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    title:
-      "Lightning Fast: very light backend work or local output styling.",
+    title: "Lightning Fast: very light conversion work or local output styling.",
   },
   "extreme-speed": {
     id: "extreme-speed",

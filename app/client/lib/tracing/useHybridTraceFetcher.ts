@@ -201,7 +201,7 @@ export function useHybridTraceFetcher<
         }
         if (requestedEngine === "vtracer") {
           throw new Error(
-            `VTracer could not convert this image in your browser. ${clientAttempt.reason}`,
+            "Detailed color tracing could not convert this image in your browser. Try another preset or a simpler image.",
           );
         }
         if (settings.strokeOutputMode === "centerline") {
@@ -335,7 +335,7 @@ export function useHybridTraceFetcher<
             return;
           }
           if (
-            message.startsWith("VTracer could not convert") ||
+            message.startsWith("Detailed color tracing could not convert") ||
             message.startsWith("Centerline stroke tracing could not convert") ||
             message.startsWith("An earlier browser trace did not finish")
           ) {
@@ -350,7 +350,8 @@ export function useHybridTraceFetcher<
           if (!isLatest) return;
           if (requestedEngine === "vtracer") {
             setClientData({
-              error: `VTracer could not convert this image in your browser. ${message}`,
+              error:
+                "Detailed color tracing could not convert this image in your browser. Try another preset or a simpler image.",
               clientRunId,
               traceJobId: String(runId),
             } as TData);
@@ -527,7 +528,8 @@ function withServerFallbackMetadata<TData extends HybridTracePayload>(
 
   const warnings = Array.isArray(data.warnings) ? [...data.warnings] : [];
   if (fallbackReason) {
-    const warning = `Browser VTracer was not used: ${fallbackReason}`;
+    const warning =
+      "A compatible tracing method was used to complete this conversion.";
     if (!warnings.includes(warning)) warnings.push(warning);
   }
 

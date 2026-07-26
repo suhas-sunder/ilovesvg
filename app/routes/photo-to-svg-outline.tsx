@@ -1790,7 +1790,7 @@ function SeoSections() {
 
             <p className="mt-3 text-slate-700 max-w-[88ch] leading-relaxed">
               This tool is tuned for photographs, not logos. It runs an{" "}
-              <strong>edge-first</strong> pipeline to extract contours and
+              <strong>edge-first</strong> tracing process to extract contours and
               suppress texture, then vectorizes the result into SVG paths. The
               goal is a clean outline you can edit, recolor, and scale without
               the “hairy” line noise that happens when you trace a photo

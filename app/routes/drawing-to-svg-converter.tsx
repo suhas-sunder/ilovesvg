@@ -3134,16 +3134,15 @@ function SeoSections() {
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
               <div className="text-sm font-semibold">
-                Backend conversion limits
+                Conversion limits
               </div>
               <p className="mt-2 text-sm text-slate-600">
-                This drawing to SVG conversion page only rate limits backend
-                raster tracing and server-side image processing. Preview
-                rendering, layer color edits, copy actions, and local downloads
-                are not rate limited because they run in your browser. Backend
-                conversions allow up to 120 conversions per minute, 400
-                conversions every 5 minutes, 1500 conversions per hour, and 3000
-                conversions per day for the same connection and browser profile.
+                New drawing traces are rate limited. Preview rendering, layer
+                color edits, copy actions, and local downloads do not count
+                against those limits. Tracing allows up to 120 conversions per
+                minute, 400 conversions every 5 minutes, 1500 conversions per
+                hour, and 3000 conversions per day for the same connection and
+                browser profile.
               </p>
             </div>
 
@@ -3233,7 +3232,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this drawing to SVG converter have usage limits?",
-                  a: "Only backend conversion work is rate limited. Browser-side preview, layer edits, copy actions, and local downloads are not rate limited because they do not use server conversion compute. Backend conversions, such as raster tracing and image processing, allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new image traces are rate limited. Preview, layer edits, copy actions, and local downloads do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
               ].map((x) => (
                 <article

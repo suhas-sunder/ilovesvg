@@ -2683,11 +2683,11 @@ function SeoSections() {
     },
     {
       q: "Can I recolor each SVG layer?",
-      a: "Yes. Each result includes layer controls that let you recolor or hide individual SVG groups before downloading. These preview edits happen in the browser and do not use backend conversion quota.",
+      a: "Yes. Each result includes layer controls that let you recolor or hide individual SVG groups before downloading. These preview edits do not count against conversion limits.",
     },
     {
       q: "Does this tool have usage limits?",
-      a: "Only backend conversion work is rate limited. Preview rendering, layer recoloring, layer visibility changes, copy actions, and browser download generation are not rate limited because they do not use server conversion compute. Backend conversions on this layered SVG for Cricut page allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+      a: "Only new layered SVG conversions are rate limited. Preview rendering, layer recoloring, layer visibility changes, copy actions, and browser download generation do not count against those limits. Conversion allows up to 120 requests per minute, 400 every 5 minutes, 1500 per hour, and 3000 per day for the same connection and browser profile.",
     },
     {
       q: "Should I remove the white background?",
@@ -3027,27 +3027,25 @@ function SeoSections() {
             <div className="mt-3 grid md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  Backend conversion limits
+                  Conversion limits
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  This layered SVG for Cricut conversion page only rate limits
-                  backend raster tracing and server-side image processing work.
-                  Preview rendering, layer recoloring, layer visibility changes,
-                  copy actions, and browser download generation are not rate
-                  limited.
+                  New layered SVG conversions are rate limited. Preview
+                  rendering, layer recoloring, layer visibility changes, copy
+                  actions, and browser download generation do not count against
+                  those limits.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="font-semibold text-sm">
-                  Current backend quota
+                  Current conversion quota
                 </div>
                 <p className="mt-1 text-sm text-slate-600">
-                  Backend conversions allow up to 120 conversions per minute,
-                  400 conversions every 5 minutes, 1500 conversions per hour,
-                  and 3000 conversions per day for the same connection and
-                  browser profile. If the server is busy or a limit is reached,
-                  the response includes a Retry-After time.
+                  Conversion allows up to 120 requests per minute, 400 every 5
+                  minutes, 1500 per hour, and 3000 per day for the same
+                  connection and browser profile. If capacity is busy or a
+                  limit is reached, the response includes a Retry-After time.
                 </p>
               </div>
             </div>

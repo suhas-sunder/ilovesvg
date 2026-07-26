@@ -2620,16 +2620,15 @@ function SeoSections() {
             </h3>
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-sm text-slate-700">
-                This image to SVG outline conversion page only rate limits
-                backend raster tracing and server-side image processing. Preview
-                rendering, copy, local download generation, and setting changes
-                that only update React state are not rate limited.
+                New image-outline traces are rate limited. Preview rendering,
+                copy, local download generation, and settings that only change
+                the current preview do not count against those limits.
               </p>
               <p className="mt-3 text-sm text-slate-700">
-                Backend outline conversions allow up to 120 conversions per
-                minute, 400 conversions every 5 minutes, 1500 conversions per
-                hour, and 3000 conversions per day for the same connection and
-                browser profile.
+                Outline tracing allows up to 120 conversions per minute, 400
+                conversions every 5 minutes, 1500 conversions per hour, and
+                3000 conversions per day for the same connection and browser
+                profile.
               </p>
             </div>
           </section>
@@ -2663,7 +2662,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this outline converter have usage limits?",
-                  a: "Only backend outline conversion work is rate limited. Preview rendering, copy, local download generation, and advanced setting changes that only update React state are not rate limited. Backend conversions allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new image-outline traces are rate limited. Preview rendering, copy, local download generation, and advanced settings that only change the current preview do not count against those limits. Outline tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "Can I use this for logos?",

@@ -144,12 +144,12 @@ export function AdvancedSettingsHelpSection() {
               Preset speed tags
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Preset tags estimate backend processing intensity. Lightning Fast
-              and Extreme Speed presets are expected to be the lightest; Low
-              Speed, Slow Speed, Very Slow, and Insanely Slow presets usually
-              request more detail, edge cleanup, larger palettes, or layered
-              color tracing. The tag is informational and does not change the
-              SVG by itself.
+              Preset tags estimate conversion time. Lightning Fast and Extreme
+              Speed presets usually finish with less detail work; Low Speed,
+              Slow Speed, Very Slow, and Insanely Slow presets usually request
+              more detail, edge cleanup, larger palettes, or layered color
+              tracing. The tag is informational and does not change the SVG by
+              itself.
             </p>
           </section>
 
@@ -169,7 +169,7 @@ export function AdvancedSettingsHelpSection() {
                 "If a cream or white background becomes its own output layer, hide that output layer directly from Layer colors.",
                 "If tiny fragments appear, increase Remove tiny specks or Remove small color regions. Use modest values for detailed illustrations.",
                 "If preserve aspect ratio is enabled and you change the width, the height updates automatically so the artwork does not stretch.",
-                "If you only recolor, hide, resize, or adjust opacity on output layers, copy and download should match the preview without another backend trace.",
+                "If you only recolor, hide, resize, or adjust opacity on output layers, copy and download should match the preview without tracing the source again.",
               ].map((body) => (
                 <p
                   key={body}

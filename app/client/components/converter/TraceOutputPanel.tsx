@@ -105,6 +105,34 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   appearance?: OutputAppearanceSettings;
 };
 
+export function getPublicTraceMethodLabel(
+  engineUsed?: TraceResult["engineUsed"],
+): string {
+  if (engineUsed === "vtracer") return "Detailed color trace";
+  if (engineUsed === "centerline") return "Centerline stroke trace";
+  if (engineUsed === "potrace") return "Clean shape trace";
+  return "Trace pending";
+}
+
+export function getPublicTracePathLabel(label?: string): string {
+  const normalized = String(label || "").toLowerCase();
+  if (normalized.includes("svg cleanup")) return "SVG cleanup";
+  if (normalized.includes("centerline")) return "Centerline stroke trace";
+  if (normalized.includes("layered") || normalized.includes("vtracer")) {
+    return "Detailed color trace";
+  }
+  return "Clean shape trace";
+}
+
+export function getPublicTraceWarning(warning: unknown): string {
+  const text = String(warning || "").trim();
+  if (!text) return "";
+  if (/\b(?:vtracer|potrace|backend|parity)\b/i.test(text)) {
+    return "A compatible tracing method was used to complete this conversion.";
+  }
+  return text.replace(/\bpipeline\b/gi, "workflow");
+}
+
 export type TraceOutputLayerPatch = {
   color?: string;
   visible?: boolean;
@@ -905,7 +933,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                         Editing {label}
                       </p>
                       <p className="m-0 mt-0.5 text-[12px] text-slate-600">
-                        {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
+                        Trace method: {getPublicTraceMethodLabel(item.engineUsed)}
                         {item.width > 0 && item.height > 0
                           ? ` - ${item.width} x ${item.height} px`
                           : ""}
@@ -1241,8 +1269,10 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
           <dd className="m-0">{formatTraceJobElapsed(elapsedMs)}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-slate-900">Engine path</dt>
-          <dd className="m-0">{item.enginePathLabel || "Hybrid trace"}</dd>
+          <dt className="font-semibold text-slate-900">Trace method</dt>
+          <dd className="m-0">
+            {getPublicTracePathLabel(item.enginePathLabel)}
+          </dd>
         </div>
       </dl>
 
@@ -1331,7 +1361,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
                 : item.width > 0 && item.height > 0
                   ? `${item.width} x ${item.height} px`
                   : "size unknown"}
-            {item.engineUsed ? ` - ${item.engineUsed}` : ""}
+            {` - ${getPublicTraceMethodLabel(item.engineUsed)}`}
             {displaySvgBytes ? (
               <>
                 {" - "}
@@ -2749,7 +2779,7 @@ export function OutputWarningList({
 }) {
   const visible = Array.from(
     new Set(
-      warnings.map((warning) => String(warning || "").trim()).filter(Boolean),
+      warnings.map(getPublicTraceWarning).filter(Boolean),
     ),
   ).slice(0, 3);
   if (visible.length === 0) return null;

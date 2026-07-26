@@ -33,6 +33,8 @@ import {
 } from "~/client/components/converter/FullscreenOutputPreview";
 import {
   FocusedEditorPreviewComparison,
+  getPublicTraceMethodLabel,
+  getPublicTracePathLabel,
   getSvgByteSize,
   OutputAppearanceControls,
 } from "~/client/components/converter/TraceOutputPanel";
@@ -2806,7 +2808,9 @@ export default function PngToLayeredSvgForCricut({
                                       ? "Canceled"
                                       : "Failed"
                                     : `${item.width} x ${item.height} px`}
-                                {item.engineUsed ? ` - ${item.engineUsed}` : ""}
+                                {item.engineUsed
+                                  ? ` - ${getPublicTraceMethodLabel(item.engineUsed)}`
+                                  : ""}
                                 {displaySvgBytes ? ` - ${prettyBytes(displaySvgBytes)}` : ""}
                                 {item.sourceFileName ? (
                                   <>
@@ -2867,7 +2871,7 @@ export default function PngToLayeredSvgForCricut({
                                 Editing {item.name || `Output ${index + 1}`}
                               </p>
                               <p className="m-0 mt-0.5 text-[12px] text-slate-600">
-                                {item.engineUsed ? `Engine: ${item.engineUsed}` : "Engine pending"}
+                                Trace method: {getPublicTraceMethodLabel(item.engineUsed)}
                                 {item.width > 0 && item.height > 0
                                   ? ` - ${item.width} x ${item.height} px`
                                   : ""}
@@ -3032,8 +3036,12 @@ export default function PngToLayeredSvgForCricut({
                                 </div>
                               </div>
                               <div>
-                                <span className="font-semibold text-slate-900">Engine path</span>
-                                <div>{item.enginePathLabel || "Hybrid layered trace"}</div>
+                                <span className="font-semibold text-slate-900">
+                                  Trace method
+                                </span>
+                                <div>
+                                  {getPublicTracePathLabel(item.enginePathLabel)}
+                                </div>
                               </div>
                             </div>
                             {item.jobError && (

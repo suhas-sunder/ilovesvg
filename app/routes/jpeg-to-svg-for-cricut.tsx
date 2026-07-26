@@ -3569,7 +3569,7 @@ function SeoSections() {
                 },
                 {
                   q: "What file limits apply?",
-                  a: "PNG/JPEG uploads can be up to 30 MB and about 30 megapixels. Preview is fastest at 10 MB or below and throttled for larger files. Backend JPEG to SVG conversions are rate limited to 120 per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection/browser profile. Local actions such as copying or downloading the generated SVG are not rate limited because they do not use server conversion compute.",
+                  a: "PNG/JPEG uploads can be up to 30 MB and about 30 megapixels. Preview is fastest at 10 MB or below and throttled for larger files. New JPEG-to-SVG traces are limited to 120 per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile. Copying or downloading the generated SVG does not count against those limits.",
                 },
                 {
                   q: "Can I use this for vinyl decals?",

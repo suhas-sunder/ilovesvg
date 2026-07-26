@@ -1694,9 +1694,9 @@ function SeoSections() {
             <p className="mt-3 text-slate-700 max-w-[92ch] leading-relaxed">
               This page is tuned for scans: pencil sketches, ink drawings,
               worksheets, and handwritten notes. Scans usually fail for two
-              reasons: uneven lighting and scanner dust. The pipeline here
-              normalizes the image, suppresses background paper texture, removes
-              speckles, and then traces the remaining ink into SVG paths. The
+              reasons: uneven lighting and scanner dust. The tracing controls
+              normalize the image, suppress background paper texture, remove
+              speckles, and then trace the remaining ink into SVG paths. The
               goal is an SVG you can actually edit, recolor, and scale without
               thousands of noisy points.
             </p>

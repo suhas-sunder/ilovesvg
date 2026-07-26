@@ -3414,14 +3414,12 @@ function SeoSections() {
                 thin strokes, or tiny floating shapes before cutting material.
               </p>
               <p className="mt-3 text-sm text-slate-700">
-                This Cricut SVG conversion page only rate limits backend raster
-                tracing and server-side conversion work. Preview rendering,
-                copy, local download generation, and browser-only layer or color
-                changes are not rate limited because they do not use server
-                conversion compute. Backend conversion actions allow up to 120
-                conversions per minute, 400 conversions every 5 minutes, 1500
-                conversions per hour, and 3000 conversions per day for the same
-                connection and browser profile.
+                New raster-to-SVG traces are rate limited. Preview rendering,
+                copy, local download generation, and browser-only layer or
+                color changes do not count against those limits. Tracing allows
+                up to 120 conversions per minute, 400 conversions every 5
+                minutes, 1500 conversions per hour, and 3000 conversions per
+                day for the same connection and browser profile.
               </p>
             </div>
           </section>
@@ -3663,7 +3661,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this Cricut SVG converter have usage limits?",
-                  a: "Only backend conversion work is rate limited. Preview rendering, copy, download, and local layer or color changes are not rate limited because they run in your browser. Backend raster tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new raster-to-SVG traces are rate limited. Preview rendering, copy, download, and local layer or color changes do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "Why does my Cricut SVG have too many pieces?",

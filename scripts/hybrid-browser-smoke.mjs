@@ -52,6 +52,7 @@ const RASTER_ROUTES = [
   { path: "/png-to-svg-for-cricut-stickers", id: "png-to-svg-for-cricut-stickers", file: "png", policy: "potrace" },
   { path: "/png-to-svg-for-cricut-vinyl", id: "png-to-svg-for-cricut-vinyl", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/png-to-svg-for-etsy", id: "png-to-svg-for-etsy", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
+  { path: "/png-to-svg-for-shopify", id: "png-to-svg-for-shopify", file: "png", policy: "client", hasVTracerPreset: true, hasPotracePreset: true },
   { path: "/png-to-svg-for-laser-cutting", id: "png-to-svg-for-laser-cutting", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/png-to-svg-for-silhouette", id: "png-to-svg-for-silhouette", file: "png", policy: "potrace", defaultEngine: "potrace" },
   { path: "/scan-to-svg-converter", id: "scan-to-svg-converter", file: "png", policy: "potrace", defaultEngine: "potrace" },
@@ -82,6 +83,22 @@ const UTILITY_LAYOUT_ROUTES = [
   { path: "/image-to-layered-svg-for-cricut", id: "image-to-layered-svg-for-cricut", file: "png", conversion: "raster" },
 ];
 const UTILITY_LAYOUT_WIDTHS = [320, 360, 390, 430, 768, 1024, 1280];
+const PUBLIC_CONTENT_ROUTES = [
+  "/png-to-svg-for-shopify",
+  "/png-to-svg-for-etsy",
+  "/svg-to-favicon-generator",
+  "/svg-stroke-width-editor",
+  "/svg-flip-and-rotate-editor",
+  "/sketch-to-svg-converter",
+  "/png-to-svg-converter",
+  "/jpg-to-svg-converter",
+  "/sitemap",
+  "/",
+];
+const PUBLIC_CONTENT_VIEWPORTS = [
+  { width: 390, height: 844 },
+  { width: 1280, height: 900 },
+];
 
 async function main() {
   const browserPath = await findBrowserExecutable();
@@ -111,9 +128,16 @@ async function main() {
   let outputUx = null;
   let utilityLayout = null;
   let svgInput = null;
+  let publicContent = null;
   try {
     await waitForCdp();
-    if (process.env.LAYOUT_SMOKE === "1") {
+    if (process.env.PUBLIC_CONTENT_SMOKE === "1") {
+      console.error("[hybrid-browser] public content and schema");
+      publicContent = await runPublicContentSmoke();
+      console.error(
+        `[hybrid-browser] public content and schema -> ${publicContent.ok ? "ok" : "failed"}`,
+      );
+    } else if (process.env.LAYOUT_SMOKE === "1") {
       console.error("[hybrid-browser] utility-first layout");
       utilityLayout = await runUtilityLayoutSmoke(fixtures);
       console.error(`[hybrid-browser] utility-first layout -> ${utilityLayout.ok ? "ok" : "failed"}`);
@@ -166,6 +190,7 @@ async function main() {
     outputUx,
     utilityLayout,
     svgInput,
+    publicContent,
   };
 
   const failures = results.filter((result) => !result.ok);
@@ -174,6 +199,7 @@ async function main() {
   if (outputUx && !outputUx.ok) failures.push(outputUx);
   if (utilityLayout && !utilityLayout.ok) failures.push(utilityLayout);
   if (svgInput && !svgInput.ok) failures.push(svgInput);
+  if (publicContent && !publicContent.ok) failures.push(publicContent);
   await fs.mkdir(path.dirname(reportPath), { recursive: true });
   await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   const consoleReport = process.env.OUTPUT_UX_SMOKE === "1"
@@ -1154,6 +1180,165 @@ async function clickCancelForSlowJob(client, sourceName = "") {
     button.click();
     return true;
   })()`);
+}
+
+async function runPublicContentSmoke() {
+  const results = [];
+
+  for (const route of PUBLIC_CONTENT_ROUTES) {
+    const client = await openTab(`${baseUrl}${route}`);
+    const consoleErrors = [];
+    client.onEvent((message) => {
+      if (message.method === "Runtime.exceptionThrown") {
+        const details = message.params?.exceptionDetails;
+        const text =
+          details?.exception?.description ||
+          details?.exception?.value ||
+          details?.text ||
+          "Runtime exception";
+        if (!isIgnorableDevConsoleMessage(text)) consoleErrors.push(text);
+      }
+      if (message.method === "Log.entryAdded") {
+        const entry = message.params?.entry;
+        const text = entry?.text || "Browser log error";
+        if (
+          entry?.level === "error" &&
+          !isIgnorableDevConsoleMessage(text)
+        ) {
+          consoleErrors.push(text);
+        }
+      }
+    });
+
+    try {
+      await client.send("Runtime.enable");
+      await client.send("Log.enable");
+      await client.send("Page.enable");
+
+      const viewports = [];
+      for (const viewport of PUBLIC_CONTENT_VIEWPORTS) {
+        await client.send("Emulation.setDeviceMetricsOverride", {
+          ...viewport,
+          deviceScaleFactor: 1,
+          mobile: viewport.width < 768,
+        });
+        await client.navigate(`${baseUrl}${route}`);
+        await waitForDocumentReady(client);
+        await delay(300);
+        viewports.push(await capturePublicContentState(client, route, viewport));
+      }
+
+      const failures = [
+        ...viewports.flatMap((state) =>
+          state.failures.map(
+            (failure) => `${state.width}x${state.height}: ${failure}`,
+          ),
+        ),
+        ...consoleErrors.map((error) => `console: ${error}`),
+      ];
+      results.push({
+        route,
+        viewports,
+        consoleErrors,
+        ok: failures.length === 0,
+        failures,
+      });
+    } catch (error) {
+      results.push({
+        route,
+        ok: false,
+        failures: [error instanceof Error ? error.message : String(error)],
+      });
+    } finally {
+      await client.close().catch(() => {});
+    }
+  }
+
+  return {
+    routes: results,
+    ok: results.every((result) => result.ok),
+  };
+}
+
+async function capturePublicContentState(client, route, viewport) {
+  return evaluate(
+    client,
+    `(() => {
+      const route = ${JSON.stringify(route)};
+      const viewport = ${JSON.stringify(viewport)};
+      const text = document.body.innerText || "";
+      const html = document.documentElement.innerHTML;
+      const jsonLd = Array.from(
+        document.querySelectorAll('script[type="application/ld+json"]'),
+      ).map((element) => element.textContent || "").join("\\n");
+      const failures = [];
+      const overflow = Math.max(
+        document.documentElement.scrollWidth - window.innerWidth,
+        document.body.scrollWidth - window.innerWidth,
+      );
+      if (overflow > 2) failures.push(\`horizontal overflow: \${overflow}px\`);
+      if (!document.querySelector("h1")) failures.push("missing H1");
+      if (/\\/svg-favicon-generator|\\/svg-stroke-width-adjust|\\/svg-flip-rotate-editor/.test(html)) {
+        failures.push("invalid breadcrumb target rendered");
+      }
+      if (/PNG to SVG keyword cluster|JPG to SVG keyword cluster|search intent|SEO-safe|Expanded SVG workflow routes/.test(text)) {
+        failures.push("editorial-planning terminology rendered");
+      }
+      if (/\\b(?:VTracer|Potrace)\\b/.test(text)) {
+        failures.push("raw trace-engine name rendered");
+      }
+      if (route === "/png-to-svg-for-shopify") {
+        if (!text.includes("Shopify PNG - Accurate trace (default)")) {
+          failures.push("Shopify default label missing");
+        }
+        if (text.includes("Etsy PNG")) failures.push("Etsy preset wording leaked");
+      }
+      if (
+        route === "/png-to-svg-for-etsy" &&
+        !/Etsy PNG\\s+-\\s+Accurate trace \\(default\\)/.test(text)
+      ) {
+        failures.push("Etsy default label missing");
+      }
+      if (
+        route === "/sketch-to-svg-converter" &&
+        (/rental agreement|budgeting/i.test(text) ||
+          !text.includes("Clean, high-contrast scans and photos"))
+      ) {
+        failures.push("sketch guidance is missing or unrelated");
+      }
+      const correctedBreadcrumbs = {
+        "/svg-to-favicon-generator": "/svg-to-favicon-generator",
+        "/svg-stroke-width-editor": "/svg-stroke-width-editor",
+        "/svg-flip-and-rotate-editor": "/svg-flip-and-rotate-editor",
+      };
+      const corrected = correctedBreadcrumbs[route];
+      if (corrected) {
+        const visibleMatch = Array.from(document.querySelectorAll("a"))
+          .some((link) => link.getAttribute("href") === corrected);
+        if (!visibleMatch) failures.push("visible breadcrumb target missing");
+        if (!jsonLd.includes(corrected)) {
+          failures.push("schema breadcrumb target missing");
+        }
+      }
+      if (
+        route === "/svg-to-favicon-generator" &&
+        (!text.includes("not vectorized") ||
+          !text.includes("SVG sources retain scalable source quality"))
+      ) {
+        failures.push("favicon input guidance missing");
+      }
+      return {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        requestedWidth: viewport.width,
+        requestedHeight: viewport.height,
+        path: location.pathname,
+        h1: document.querySelector("h1")?.textContent?.trim() || "",
+        overflow,
+        failures,
+      };
+    })()`,
+  );
 }
 
 async function runUtilityLayoutSmoke(fixtures) {

@@ -3590,7 +3590,7 @@ function JpegSeoSections() {
                 },
                 {
                   q: "Does this JPEG to SVG conversion page have usage limits?",
-                  a: "Only backend conversion work is rate limited. Preview rendering, copy, local download generation, and setting changes that only update the current React state are not rate limited because they do not use server conversion compute. Backend conversions, such as JPEG raster tracing, allow up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new JPEG traces are rate limited. Preview rendering, copy, local download generation, and settings that only change the current preview do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "Why do I see a server busy message?",

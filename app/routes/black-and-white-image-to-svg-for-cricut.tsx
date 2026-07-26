@@ -2011,7 +2011,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           color: layer.color || layer.originalColor,
           visible: layer.visible !== false,
         })),
-      
+
         settingsSnapshot,
         draftSettings: settingsSnapshot,
       };
@@ -3475,7 +3475,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this tool have usage limits?",
-                  a: "Only backend conversion work is rate limited. Preview rendering, copy, download, and layer color edits are not rate limited because they run in your browser. Backend raster tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new raster-to-SVG traces are rate limited. Preview rendering, copy, download, and layer color edits do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "What file limits apply?",

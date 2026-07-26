@@ -2061,7 +2061,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this preserve multiple colors?",
-                  a: "No. This produces a single filled shape color. If you need multi-color vectorization, you will need a different pipeline.",
+                  a: "No. This produces a single filled shape color. If you need multi-color vectorization, choose a layered color tracing option.",
                 },
               ].map((x) => (
                 <article

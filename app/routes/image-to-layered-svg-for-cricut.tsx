@@ -2820,7 +2820,7 @@ function SeoSections() {
     },
     {
       q: "Are layered SVG conversions rate limited?",
-      a: "Only backend layered SVG conversions are rate limited: up to 120 conversions per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile. Local downloads, copy actions, and layer color edits are not rate limited.",
+      a: "Only new layered SVG conversions are rate limited: up to 120 conversions per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile. Local downloads, copy actions, and layer color edits do not count against those limits.",
     },
   ];
 
@@ -3166,17 +3166,14 @@ function SeoSections() {
 
           <section className="mt-12 rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="text-lg font-bold text-sky-950">
-              Backend conversion limits
+              Conversion limits
             </h3>
             <p className="mt-2 text-sm text-slate-600 max-w-[80ch]">
-              This image to layered SVG for Cricut conversion page only limits
-              server-side layered SVG conversions. Upload tracing and image
-              processing can use backend compute, so those conversion requests
-              are limited to 120 per minute, 400 per five minutes, 1,500 per
-              hour, and 3,000 per day from the same connection and browser
-              profile. Browser-only actions like recoloring layers, toggling
-              layer visibility, copying SVG output, and downloading the current
-              result do not count against those backend conversion limits.
+              New layered SVG conversions are limited to 120 per minute, 400
+              per five minutes, 1,500 per hour, and 3,000 per day from the same
+              connection and browser profile. Recoloring layers, toggling layer
+              visibility, copying SVG output, and downloading the current
+              result do not count against those conversion limits.
             </p>
           </section>
 

@@ -491,7 +491,7 @@ async function auditTracingArchitecture() {
     "tryTraceRasterInClient",
     "formDataToTraceSettings",
     "requestedEngine === \"vtracer\"",
-    "Browser VTracer was not used",
+    "A compatible tracing method was used to complete this conversion.",
     "engineUsed: data.engineUsed || \"potrace\"",
   ]) {
     if (!hybridFetcher.includes(token)) {

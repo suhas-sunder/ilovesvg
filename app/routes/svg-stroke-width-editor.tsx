@@ -276,7 +276,7 @@ export default function SvgStrokeWidthAdjust(_: Route.ComponentProps) {
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "Stroke Width", href: "/svg-stroke-width-adjust" },
+    { name: "Stroke Width", href: "/svg-stroke-width-editor" },
   ];
 
   async function convertNow() {
@@ -1806,7 +1806,7 @@ function JsonLdBreadcrumbs() {
         "@type": "ListItem",
         position: 2,
         name: "SVG Stroke Width Adjuster",
-        item: `${baseUrl}/svg-stroke-width-adjust`,
+        item: `${baseUrl}/svg-stroke-width-editor`,
       },
     ],
   };

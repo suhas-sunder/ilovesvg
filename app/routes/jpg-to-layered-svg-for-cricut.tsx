@@ -2902,7 +2902,7 @@ function SeoSections() {
     },
     {
       q: "Are JPG layered SVG conversions rate limited?",
-      a: "Only backend JPG layered SVG conversions are rate limited. Local layer edits, recoloring, hiding layers, copying, and downloading do not count against conversion limits. This page allows up to 120 backend conversions per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile.",
+      a: "Only new JPG layered SVG conversions are rate limited. Local layer edits, recoloring, hiding layers, copying, and downloading do not count against conversion limits. This page allows up to 120 conversions per minute, 400 per five minutes, 1,500 per hour, and 3,000 per day from the same connection and browser profile.",
     },
   ];
 

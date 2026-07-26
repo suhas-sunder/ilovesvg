@@ -4137,16 +4137,16 @@ function SeoSections() {
 
               <div className="mt-4 space-y-5 text-slate-700 leading-relaxed">
                 <p>
-                  The converter supports two distinct pipelines: text-based
+                  The converter supports two distinct workflows: text-based
                   conversion using Twemoji SVG sources, and image-based tracing
-                  for PNG or JPEG uploads. Both pipelines produce a standards-
+                  for PNG or JPEG uploads. Both workflows produce a standards-
                   compliant SVG with a predictable viewBox, so the result can be
                   resized without distortion and aligned cleanly inside layouts.
                 </p>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="font-semibold text-slate-900">
-                    1) Text → SVG (Twemoji pipeline)
+                    1) Text → SVG (Twemoji artwork)
                   </p>
                   <p className="mt-2">
                     When you paste emoji characters, each emoji is resolved to
@@ -4166,7 +4166,7 @@ function SeoSections() {
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="font-semibold text-slate-900">
-                    2) Image → SVG (Tracing pipeline)
+                    2) Image → SVG (Image tracing)
                   </p>
                   <p className="mt-2">
                     When you upload an emoji image, the converter traces raster
@@ -4184,7 +4184,7 @@ function SeoSections() {
                 </div>
 
                 <p>
-                  Both pipelines output a single SVG file with explicit width,
+                  Both workflows output a single SVG file with explicit width,
                   height, and viewBox attributes. This ensures predictable
                   scaling when the SVG is used inline, as an{" "}
                   <code>{"<img />"}</code> source, or as a background asset in
@@ -4252,7 +4252,8 @@ function SeoSections() {
                 <p>
                   These layout controls are deterministic. The same inputs and
                   settings always produce the same geometry, which is important
-                  for reproducible assets in design systems and CI pipelines.
+                  for reproducible assets in design systems and automated
+                  workflows.
                 </p>
               </div>
             </section>
@@ -4324,15 +4325,12 @@ function SeoSections() {
                 </p>
 
                 <p>
-                  This emoji to SVG conversion page only rate limits backend
-                  conversion work, including Twemoji SVG generation and raster
-                  image tracing. Client-side preview rendering, colour layer
-                  edits, copy actions, and local download generation are not
-                  rate limited because they run in the browser after conversion.
-                  Backend conversion actions allow up to 120 conversions per
-                  minute, 400 conversions every 5 minutes, 1500 conversions per
-                  hour, and 3000 conversions per day for the same connection and
-                  browser profile.
+                  New emoji SVG generation and raster image tracing are rate
+                  limited. Preview rendering, colour layer edits, copy actions,
+                  and local download generation do not count against those
+                  limits. Conversion allows up to 120 requests per minute, 400
+                  every 5 minutes, 1500 per hour, and 3000 per day for the same
+                  connection and browser profile.
                 </p>
 
                 <p>

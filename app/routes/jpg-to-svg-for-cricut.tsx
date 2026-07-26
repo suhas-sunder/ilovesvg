@@ -3556,7 +3556,7 @@ function SeoSections() {
                 },
                 {
                   q: "Does this JPG to SVG for Cricut converter have usage limits?",
-                  a: "Only backend conversion work is rate limited. Preview rendering, copy, local SVG or PNG downloads, layer color edits, and browser-only setting changes are not rate limited because they run in your browser. Backend raster tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
+                  a: "Only new JPG traces are rate limited. Preview rendering, copy, local SVG or PNG downloads, layer color edits, and browser-only setting changes do not count against those limits. Tracing allows up to 120 conversions per minute, 400 conversions every 5 minutes, 1500 conversions per hour, and 3000 conversions per day for the same connection and browser profile.",
                 },
                 {
                   q: "Can I use this for vinyl decals?",
