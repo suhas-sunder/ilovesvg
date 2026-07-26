@@ -1803,7 +1803,7 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "icon-bold",
+    id: "icon-bold-fill",
     label: "Icon - Bold fill",
     settings: {
       traceMode: "single",
@@ -1939,6 +1939,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
   layers?: EditableSvgLayer[];
 };
 
@@ -1992,6 +1993,10 @@ export default function IconToSvgConverter({
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingPresetIdentityRef = React.useRef<{
+    id: string;
+    label: string;
+  } | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -2024,6 +2029,8 @@ export default function IconToSvgConverter({
           void submitConvert({
             targetFile: currentFile,
             targetSettings: latestSettingsRef.current,
+            targetPresetId:
+              pendingPresetIdentityRef.current?.id ?? activePreset,
           });
         }
       }, ms);
@@ -2042,6 +2049,10 @@ export default function IconToSvgConverter({
 
       const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
       const replaceStamp = pendingReplaceStampRef.current;
+      const presetIdentity = pendingPresetIdentityRef.current ?? {
+        id: activePreset,
+        label: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+      };
       const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
@@ -2057,7 +2068,8 @@ export default function IconToSvgConverter({
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        presetId: presetIdentity.id,
+        presetLabel: presetIdentity.label,
         layers: fetcher.data.layers,
 
         settingsSnapshot,
@@ -2080,6 +2092,7 @@ export default function IconToSvgConverter({
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingPresetIdentityRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [
@@ -2107,6 +2120,7 @@ export default function IconToSvgConverter({
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingPresetIdentityRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -2216,9 +2230,11 @@ export default function IconToSvgConverter({
   async function submitConvert(options?: {
     targetFile?: File | null;
     targetSettings?: Settings;
+    targetPresetId?: string;
   }) {
     const sourceFile = options?.targetFile ?? latestFileRef.current ?? file;
     const sourceSettings = options?.targetSettings ?? latestSettingsRef.current;
+    const sourcePresetId = options?.targetPresetId ?? activePreset;
 
     if (!sourceFile) {
       setErr("Choose an image first.");
@@ -2268,7 +2284,7 @@ export default function IconToSvgConverter({
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", sourcePresetId);
     fd.append("traceMode", effective.traceMode);
     fd.append("colorLayerCount", String(effective.colorLayerCount));
     fd.append("layerMaxTraceSide", String(effective.layerMaxTraceSide));
@@ -2281,6 +2297,13 @@ export default function IconToSvgConverter({
     fd.append("removeTransparent", String(effective.removeTransparent));
 
     setErr(null);
+    pendingOutputSettingsRef.current = effective;
+    pendingPresetIdentityRef.current = {
+      id: sourcePresetId,
+      label:
+        getPresetLabelById(DISPLAY_PRESETS, sourcePresetId) ??
+        "Custom settings",
+    };
 
     fetcher.submit(fd, {
       method: "POST",
@@ -2310,6 +2333,7 @@ export default function IconToSvgConverter({
       void submitConvert({
         targetFile: currentFile,
         targetSettings: nextSettings,
+        targetPresetId: preset.id,
       });
     }
   }
@@ -2371,6 +2395,15 @@ export default function IconToSvgConverter({
     return getTraceOutputSvg(item as HistoryItem & TraceOutputItem<Settings>);
   }
 
+  function selectHistoryOutput(index: number | null) {
+    setFullscreenPreviewIndex(index);
+    if (index == null) return;
+    const presetId = history[index]?.presetId;
+    if (presetId && DISPLAY_PRESETS.some((preset) => preset.id === presetId)) {
+      setActivePreset(presetId);
+    }
+  }
+
   function toggleOutputSettings(stamp: number) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -2420,7 +2453,11 @@ export default function IconToSvgConverter({
     pendingReplaceStampRef.current = stamp;
     pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    void submitConvert({ targetFile: file, targetSettings: nextSettings });
+    void submitConvert({
+      targetFile: file,
+      targetSettings: nextSettings,
+      targetPresetId: item.presetId ?? activePreset,
+    });
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {
@@ -2658,7 +2695,7 @@ export default function IconToSvgConverter({
               emptyTitle="Converted files appear here..."
               emptyDescription="Convert your input to preview, copy, or download the result."
               fullscreenPreviewIndex={fullscreenPreviewIndex}
-              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              setFullscreenPreviewIndex={selectHistoryOutput}
               onCopySvg={handleCopySvg}
               onToggleSettings={toggleOutputSettings}
               onDraftSettingsChange={updateOutputDraftSettings}
@@ -2675,7 +2712,7 @@ export default function IconToSvgConverter({
         <FullscreenOutputPreview
           items={history}
           activeIndex={fullscreenPreviewIndex}
-          setActiveIndex={setFullscreenPreviewIndex}
+          setActiveIndex={selectHistoryOutput}
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,

@@ -731,7 +731,7 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "logo-smooth",
+    id: "logo-extra-smooth",
     label: "Logo - Extra smooth (fewer nodes)",
     settings: {
       preprocess: "none",
@@ -849,6 +849,7 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
 };
 
 type AutoMode = "fast" | "medium" | "off";
@@ -900,6 +901,10 @@ export default function LogoToSvgConverter({
   >(null);
   const pendingReplaceStampRef = React.useRef<number | null>(null);
   const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
+  const pendingPresetIdentityRef = React.useRef<{
+    id: string;
+    label: string;
+  } | null>(null);
   const lastHandledResultKeyRef = React.useRef<string | null>(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
@@ -914,7 +919,13 @@ export default function LogoToSvgConverter({
       const ms = Math.max(800, fetcher.data.retryAfterMs);
       setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
       const t = setTimeout(() => {
-        if (file) submitConvert();
+        if (file) {
+          submitConvert(
+            file,
+            pendingOutputSettingsRef.current ?? settings,
+            pendingPresetIdentityRef.current?.id ?? activePreset,
+          );
+        }
       }, ms);
       return () => clearTimeout(t);
     } else {
@@ -931,6 +942,10 @@ export default function LogoToSvgConverter({
 
       const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
       const replaceStamp = pendingReplaceStampRef.current;
+      const presetIdentity = pendingPresetIdentityRef.current ?? {
+        id: activePreset,
+        label: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+      };
       const item: HistoryItem & TraceOutputItem<Settings> = {
         svg: fetcher.data.svg,
         width: fetcher.data.width ?? 0,
@@ -946,7 +961,8 @@ export default function LogoToSvgConverter({
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        presetId: presetIdentity.id,
+        presetLabel: presetIdentity.label,
         layers: (fetcher.data.layers ?? []).map((layer) => ({ ...layer })),
 
         settingsSnapshot,
@@ -969,6 +985,7 @@ export default function LogoToSvgConverter({
 
       pendingReplaceStampRef.current = null;
       pendingOutputSettingsRef.current = null;
+      pendingPresetIdentityRef.current = null;
       setUpdatingOutputStamp(null);
     }
   }, [fetcher.data?.svg, fetcher.data?.width, fetcher.data?.height]);
@@ -991,6 +1008,7 @@ export default function LogoToSvgConverter({
     );
     pendingReplaceStampRef.current = null;
     pendingOutputSettingsRef.current = null;
+    pendingPresetIdentityRef.current = null;
     setUpdatingOutputStamp(null);
   }, [fetcher.data?.error]);
 
@@ -1093,7 +1111,11 @@ export default function LogoToSvgConverter({
     await measureAndSet(chosen);
   }
 
-  async function submitConvert(targetFile = file, targetSettings = settings) {
+  async function submitConvert(
+    targetFile = file,
+    targetSettings = settings,
+    presetIdForSubmit = activePreset,
+  ) {
     if (!targetFile) {
       setErr("Choose an image first.");
       return;
@@ -1120,9 +1142,16 @@ export default function LogoToSvgConverter({
     fd.append("blurSigma", String(targetSettings.blurSigma));
     fd.append("edgeBoost", String(targetSettings.edgeBoost));
     appendAdvancedTraceSettings(fd, targetSettings);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
 
     setErr(null);
+    pendingOutputSettingsRef.current = targetSettings;
+    pendingPresetIdentityRef.current = {
+      id: presetIdForSubmit,
+      label:
+        getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit) ??
+        "Custom settings",
+    };
 
     fetcher.submit(fd, {
       method: "POST",
@@ -1163,7 +1192,7 @@ export default function LogoToSvgConverter({
     setSettings(nextSettings);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (file && autoMode !== "off") {
-      void submitConvert(file, nextSettings);
+      void submitConvert(file, nextSettings, preset.id);
     }
   }
 
@@ -1178,6 +1207,15 @@ export default function LogoToSvgConverter({
 
   function getHistoryItemSvg(item: HistoryItem): string {
     return getTraceOutputSvg(item as HistoryItem & TraceOutputItem<Settings>);
+  }
+
+  function selectHistoryOutput(index: number | null) {
+    setFullscreenPreviewIndex(index);
+    if (index == null) return;
+    const presetId = history[index]?.presetId;
+    if (presetId && DISPLAY_PRESETS.some((preset) => preset.id === presetId)) {
+      setActivePreset(presetId);
+    }
   }
 
   function toggleOutputSettings(stamp: number) {
@@ -1229,7 +1267,7 @@ export default function LogoToSvgConverter({
     pendingReplaceStampRef.current = stamp;
     pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    void submitConvert(file, nextSettings);
+    void submitConvert(file, nextSettings, item.presetId ?? activePreset);
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {
@@ -1484,7 +1522,7 @@ export default function LogoToSvgConverter({
               emptyTitle="Converted files appear here..."
               emptyDescription="Convert your input to preview, copy, or download the result."
               fullscreenPreviewIndex={fullscreenPreviewIndex}
-              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              setFullscreenPreviewIndex={selectHistoryOutput}
               onCopySvg={handleCopySvg}
               onToggleSettings={toggleOutputSettings}
               onDraftSettingsChange={updateOutputDraftSettings}
@@ -1501,7 +1539,7 @@ export default function LogoToSvgConverter({
         <FullscreenOutputPreview
           items={history}
           activeIndex={fullscreenPreviewIndex}
-          setActiveIndex={setFullscreenPreviewIndex}
+          setActiveIndex={selectHistoryOutput}
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,

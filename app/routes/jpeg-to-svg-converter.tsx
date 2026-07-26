@@ -21,6 +21,13 @@ import {
 } from "~/client/components/converter/TraceOutputPanel";
 import { EditedSvgPreviewImage, getEditedSvg } from "~/client/components/svg/EditedSvgPreviewImage";
 import { extendTracePresets } from "~/client/lib/converter/presetAdditions";
+import {
+  commitTraceResult,
+  createTraceResultOwnership,
+  resolveActiveTraceResult,
+  shouldActivateTraceResult,
+  type TraceResultOwnership,
+} from "~/client/lib/converter/traceResultOwnership";
 import { TraceAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
@@ -1941,6 +1948,8 @@ type ServerResult = {
   retryAfterMs?: number;
   code?: string;
   gate?: { running: number; queued: number };
+  clientRunId?: string;
+  traceJobId?: string;
 };
 
 type HistoryItem = {
@@ -1958,7 +1967,18 @@ type HistoryItem = {
   pathCount?: number;
   svgBytes?: number;
   stamp: number;
+  presetId?: string;
   layers?: EditableSvgLayer[];
+};
+
+type SubmittedTrace = {
+  ownership: TraceResultOwnership;
+  settings: Settings;
+  presetId: string;
+  presetLabel: string;
+  replaceStamp: number | null;
+  startedAt: number;
+  sourceFile: File;
 };
 
 // Tiering helpers (client)
@@ -2010,15 +2030,47 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
   const [updatingOutputStamp, setUpdatingOutputStamp] = React.useState<
     number | null
   >(null);
-  const pendingReplaceStampRef = React.useRef<number | null>(null);
-  const pendingOutputSettingsRef = React.useRef<Settings | null>(null);
-  const lastHandledResultKeyRef = React.useRef<string | null>(null);
+  const sourceGenerationRef = React.useRef(0);
+  const submissionSequenceRef = React.useRef(0);
+  const latestSubmittedSequenceRef = React.useRef(0);
+  const lastIssuedStampRef = React.useRef(0);
+  const submittedByRunIdRef = React.useRef(
+    new Map<string, SubmittedTrace>(),
+  );
+  const lastHandledLegacyResultKeyRef = React.useRef<string | null>(null);
+  const [activeHistoryStamp, setActiveHistoryStamp] = React.useState<
+    number | null
+  >(null);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = React.useState<
     number | null
   >(null);
 
   // Live preview tier
   const [autoMode, setAutoMode] = React.useState<AutoMode>("off");
+
+  function findSubmittedTrace(clientRunId?: string) {
+    if (clientRunId) {
+      return submittedByRunIdRef.current.get(clientRunId) ?? null;
+    }
+    if (submittedByRunIdRef.current.size !== 1) return null;
+    return submittedByRunIdRef.current.values().next().value ?? null;
+  }
+
+  function invalidatePendingTraces() {
+    sourceGenerationRef.current += 1;
+    latestSubmittedSequenceRef.current = 0;
+    for (const clientRunId of submittedByRunIdRef.current.keys()) {
+      fetcher.cancelClientJob(clientRunId);
+    }
+    submittedByRunIdRef.current.clear();
+    setUpdatingOutputStamp(null);
+  }
+
+  function nextResultStamp() {
+    const stamp = Math.max(Date.now(), lastIssuedStampRef.current + 1);
+    lastIssuedStampRef.current = stamp;
+    return stamp;
+  }
 
   React.useEffect(() => {
     if (fetcher.data?.error) {
@@ -2028,10 +2080,23 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
     // Server workload protection can retry automatically. Rate-limit errors
     // should display the returned 429 message without starting another request.
     if (fetcher.data?.retryAfterMs && fetcher.data?.code === "BUSY") {
+      const submitted = findSubmittedTrace(fetcher.data.clientRunId);
       const ms = Math.max(800, fetcher.data.retryAfterMs);
       setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
       const t = setTimeout(() => {
-        if (file) submitConvert();
+        if (
+          submitted &&
+          submitted.ownership.generation === sourceGenerationRef.current
+        ) {
+          submittedByRunIdRef.current.delete(submitted.ownership.resultId);
+          void submitConvertWith(
+            submitted.sourceFile,
+            submitted.settings,
+            submitted.presetId,
+            submitted.replaceStamp,
+            submitted,
+          );
+        }
       }, ms);
       return () => clearTimeout(t);
     }
@@ -2040,70 +2105,112 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.data]);
 
-  // When a new server SVG arrives, push to history
+  // Commit each result against the submission that created it. Submission
+  // identity, not completion order, owns active-output selection.
   React.useEffect(() => {
-    if (fetcher.data?.svg) {
-      const resultKey = `${fetcher.data.svg}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
-      if (lastHandledResultKeyRef.current === resultKey) return;
-      lastHandledResultKeyRef.current = resultKey;
+    if (!fetcher.data?.svg) return;
 
-      const settingsSnapshot = pendingOutputSettingsRef.current ?? settings;
-      const replaceStamp = pendingReplaceStampRef.current;
-      const item: HistoryItem & TraceOutputItem<Settings> = {
-        svg: fetcher.data.svg,
-        layers: fetcher.data.layers?.map((layer) => ({
-          ...layer,
-          color: layer.color || layer.originalColor,
-          visible: layer.visible !== false,
-        })),
-        width: fetcher.data.width ?? 0,
-        height: fetcher.data.height ?? 0,
-        engineUsed: fetcher.data.engineUsed,
-        sourceKind: fetcher.data.sourceKind,
-        warnings: fetcher.data.warnings,
-        timings: fetcher.data.timings,
-        layerBuildMode: fetcher.data.layerBuildMode,
-        requestedPaletteCount: fetcher.data.requestedPaletteCount,
-        actualPaletteCount: fetcher.data.actualPaletteCount,
-        outputDetectedColors: fetcher.data.outputDetectedColors,
-        pathCount: fetcher.data.pathCount,
-        svgBytes: fetcher.data.svgBytes,
-        stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
-
-        settingsSnapshot,
-        draftSettings: settingsSnapshot,
-      };
-      setHistory((prev) => {
-        if (replaceStamp) {
-          return prev.map((existing) =>
-            existing.stamp === replaceStamp
-              ? (replaceTraceOutputCurrent(
-                  existing as HistoryItem & TraceOutputItem<Settings>,
-                  item,
-                ) as HistoryItem)
-              : existing,
-          );
-        }
-
-        return [item, ...prev].slice(0, 10);
-      });
-
-      pendingReplaceStampRef.current = null;
-      pendingOutputSettingsRef.current = null;
-      setUpdatingOutputStamp(null);
+    const clientRunId = fetcher.data.clientRunId || "";
+    const submitted = findSubmittedTrace(clientRunId);
+    if (!submitted) return;
+    if (
+      submitted.ownership.generation !== sourceGenerationRef.current
+    ) {
+      submittedByRunIdRef.current.delete(submitted.ownership.resultId);
+      return;
     }
+
+    if (!clientRunId) {
+      const legacyResultKey = `${fetcher.data.svg}:${fetcher.data.width ?? ""}:${fetcher.data.height ?? ""}`;
+      if (lastHandledLegacyResultKeyRef.current === legacyResultKey) return;
+      lastHandledLegacyResultKeyRef.current = legacyResultKey;
+    }
+
+    const replaceStamp = submitted.replaceStamp;
+    const targetStamp = replaceStamp ?? submitted.ownership.stamp;
+    const item: HistoryItem & TraceOutputItem<Settings> = {
+      svg: fetcher.data.svg,
+      layers: fetcher.data.layers?.map((layer) => ({
+        ...layer,
+        color: layer.color || layer.originalColor,
+        visible: layer.visible !== false,
+      })),
+      width: fetcher.data.width ?? 0,
+      height: fetcher.data.height ?? 0,
+      engineUsed: fetcher.data.engineUsed,
+      sourceKind: fetcher.data.sourceKind,
+      warnings: fetcher.data.warnings,
+      timings: fetcher.data.timings,
+      layerBuildMode: fetcher.data.layerBuildMode,
+      requestedPaletteCount: fetcher.data.requestedPaletteCount,
+      actualPaletteCount: fetcher.data.actualPaletteCount,
+      outputDetectedColors: fetcher.data.outputDetectedColors,
+      pathCount: fetcher.data.pathCount,
+      svgBytes: fetcher.data.svgBytes,
+      stamp: targetStamp,
+      presetId: submitted.presetId,
+      presetLabel: submitted.presetLabel,
+      settingsSnapshot: submitted.settings,
+      draftSettings: submitted.settings,
+      jobId: submitted.ownership.resultId,
+      jobStatus: "succeeded",
+      jobStartedAt: submitted.startedAt,
+      jobCompletedAt: Date.now(),
+      jobError: null,
+      sourceFileName: submitted.sourceFile.name,
+      sourceMimeType: submitted.sourceFile.type,
+      sourceFileSize: submitted.sourceFile.size,
+      canCancel: false,
+    };
+
+    setHistory((prev) => {
+      let committedItem: HistoryItem = item;
+      if (replaceStamp != null) {
+        const existing = prev.find(
+          (candidate) => candidate.stamp === replaceStamp,
+        );
+        if (!existing) return prev;
+        committedItem = replaceTraceOutputCurrent(
+          existing as HistoryItem & TraceOutputItem<Settings>,
+          item,
+        ) as HistoryItem;
+      }
+      return commitTraceResult({
+        history: prev,
+        item: committedItem,
+        replaceStamp,
+        limit: 10,
+      });
+    });
+
+    if (
+      shouldActivateTraceResult({
+        ownership: submitted.ownership,
+        currentGeneration: sourceGenerationRef.current,
+        latestSubmittedSequence: latestSubmittedSequenceRef.current,
+      })
+    ) {
+      setActiveHistoryStamp(targetStamp);
+    }
+
+    submittedByRunIdRef.current.delete(submitted.ownership.resultId);
+    if (replaceStamp != null) setUpdatingOutputStamp(null);
   }, [
     fetcher.data?.svg,
     fetcher.data?.layers,
     fetcher.data?.width,
     fetcher.data?.height,
+    fetcher.data?.clientRunId,
   ]);
 
   React.useEffect(() => {
-    if (!fetcher.data?.error || !pendingReplaceStampRef.current) return;
-
-    const replaceStamp = pendingReplaceStampRef.current;
+    if (!fetcher.data?.error) return;
+    const submitted = findSubmittedTrace(fetcher.data.clientRunId);
+    if (!submitted) return;
+    submittedByRunIdRef.current.delete(submitted.ownership.resultId);
+    if (submitted.ownership.generation !== sourceGenerationRef.current) return;
+    const replaceStamp = submitted.replaceStamp;
+    if (replaceStamp == null) return;
     setHistory((prev) =>
       prev.map((item) =>
         item.stamp === replaceStamp
@@ -2113,19 +2220,60 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
                 fetcher.data?.error ||
                 "Could not update this output. The current preview was preserved.",
             }
-          : item,
+        : item,
       ),
     );
-    pendingReplaceStampRef.current = null;
-    pendingOutputSettingsRef.current = null;
     setUpdatingOutputStamp(null);
-  }, [fetcher.data?.error]);
+  }, [fetcher.data?.error, fetcher.data?.clientRunId]);
 
   React.useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  React.useEffect(() => {
+    if (history.length === 0) {
+      if (activeHistoryStamp != null) setActiveHistoryStamp(null);
+      return;
+    }
+    if (
+      activeHistoryStamp == null ||
+      !history.some((item) => item.stamp === activeHistoryStamp)
+    ) {
+      setActiveHistoryStamp(history[0].stamp);
+    }
+  }, [activeHistoryStamp, history]);
+
+  const activeHistoryItem = resolveActiveTraceResult(
+    history,
+    activeHistoryStamp,
+  );
+  const resolvedActiveHistoryStamp = activeHistoryItem?.stamp ?? null;
+
+  React.useEffect(() => {
+    if (
+      fullscreenPreviewIndex == null ||
+      resolvedActiveHistoryStamp == null
+    ) {
+      return;
+    }
+    const activeIndex = history.findIndex(
+      (item) => item.stamp === resolvedActiveHistoryStamp,
+    );
+    if (activeIndex >= 0 && activeIndex !== fullscreenPreviewIndex) {
+      setFullscreenPreviewIndex(activeIndex);
+    }
+  }, [fullscreenPreviewIndex, history, resolvedActiveHistoryStamp]);
+
+  React.useEffect(() => {
+    return () => {
+      for (const clientRunId of submittedByRunIdRef.current.keys()) {
+        fetcher.cancelClientJob(clientRunId);
+      }
+      submittedByRunIdRef.current.clear();
+    };
+  }, [fetcher.cancelClientJob]);
 
   async function measureAndSet(f: File) {
     if (isSvgFile(f)) {
@@ -2164,6 +2312,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
       return;
     }
 
+    invalidatePendingTraces();
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -2242,11 +2391,16 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
   async function submitConvertWith(
     targetFile: File | null,
     targetSettings: Settings,
+    presetIdForSubmit: string = activePreset,
+    replaceStamp: number | null = null,
+    retrySubmission: SubmittedTrace | null = null,
   ) {
     if (!targetFile) {
       setErr("Choose a JPEG first.");
       return;
     }
+    const sourceGeneration =
+      retrySubmission?.ownership.generation ?? sourceGenerationRef.current;
 
     // Client-side precheck
     try {
@@ -2255,6 +2409,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
       setErr(e?.message || "Image is too large.");
       return;
     }
+    if (sourceGeneration !== sourceGenerationRef.current) return;
 
     const effective = (() => {
       if (!targetSettings.invert || targetSettings.traceMode === "layered") {
@@ -2308,8 +2463,36 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
     fd.append("blurSigma", String(effective.blurSigma));
     fd.append("edgeBoost", String(effective.edgeBoost));
     appendAdvancedTraceSettings(fd, effective);
-    fd.append("presetId", activePreset);
+    fd.append("presetId", presetIdForSubmit);
+    const sequence =
+      retrySubmission?.ownership.sequence ??
+      submissionSequenceRef.current + 1;
+    if (!retrySubmission) {
+      submissionSequenceRef.current = sequence;
+      latestSubmittedSequenceRef.current = sequence;
+    }
+    const startedAt = retrySubmission?.startedAt ?? Date.now();
+    const ownership =
+      retrySubmission?.ownership ??
+      createTraceResultOwnership({
+        routeId: "jpeg-to-svg-converter",
+        generation: sourceGeneration,
+        sequence,
+        stamp: replaceStamp ?? nextResultStamp(),
+      });
+    fd.append("clientRunId", ownership.resultId);
     setErr(null);
+    submittedByRunIdRef.current.set(ownership.resultId, {
+      ownership,
+      settings: effective,
+      presetId: presetIdForSubmit,
+      presetLabel:
+        getPresetLabelById(DISPLAY_PRESETS, presetIdForSubmit) ??
+        "Custom settings",
+      replaceStamp,
+      startedAt,
+      sourceFile: targetFile,
+    });
 
     fetcher.submit(fd, {
       method: "POST",
@@ -2372,12 +2555,27 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (file && getAutoMode(file.size) !== "off") {
-      void submitConvertWith(file, nextSettings);
+      void submitConvertWith(file, nextSettings, preset.id);
     }
   }
 
   function getHistoryItemSvg(item: HistoryItem): string {
     return getTraceOutputSvg(item as HistoryItem & TraceOutputItem<Settings>);
+  }
+
+  function selectOutputStamp(stamp: number) {
+    setActiveHistoryStamp(stamp);
+    const presetId = history.find((item) => item.stamp === stamp)?.presetId;
+    if (presetId && DISPLAY_PRESETS.some((preset) => preset.id === presetId)) {
+      setActivePreset(presetId);
+    }
+  }
+
+  function selectHistoryOutput(index: number | null) {
+    setFullscreenPreviewIndex(index);
+    if (index == null) return;
+    const item = history[index];
+    if (item) selectOutputStamp(item.stamp);
   }
 
   function toggleOutputSettings(stamp: number) {
@@ -2426,10 +2624,13 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
 
     const nextSettings =
       item.draftSettings ?? item.settingsSnapshot ?? settings;
-    pendingReplaceStampRef.current = stamp;
-    pendingOutputSettingsRef.current = nextSettings;
     setUpdatingOutputStamp(stamp);
-    void submitConvertWith(file, nextSettings);
+    void submitConvertWith(
+      file,
+      nextSettings,
+      item.presetId ?? activePreset,
+      stamp,
+    );
   }
 
   function stepOutputVersion(stamp: number, direction: "previous" | "next") {
@@ -2592,6 +2793,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
                     <button
                       type="button"
                       onClick={() => {
+                        invalidatePendingTraces();
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
                         setPreviewUrl(null);
@@ -2675,7 +2877,9 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
               emptyTitle="Converted files appear here..."
               emptyDescription="Convert your input to preview, copy, or download the result."
               fullscreenPreviewIndex={fullscreenPreviewIndex}
-              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              setFullscreenPreviewIndex={selectHistoryOutput}
+              activeOutputStamp={resolvedActiveHistoryStamp}
+              onSelectOutput={selectOutputStamp}
               onCopySvg={handleCopySvg}
               onToggleSettings={toggleOutputSettings}
               onDraftSettingsChange={updateOutputDraftSettings}
@@ -2693,7 +2897,7 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
         <FullscreenOutputPreview
           items={history}
           activeIndex={fullscreenPreviewIndex}
-          setActiveIndex={setFullscreenPreviewIndex}
+          setActiveIndex={selectHistoryOutput}
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,

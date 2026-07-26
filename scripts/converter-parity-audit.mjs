@@ -102,7 +102,9 @@ const collisionCases = [
   {
     route: "/icon-to-svg-converter",
     fixture: "monoLogoPng",
-    id: "icon-bold",
+    previousCollisionId: "icon-bold",
+    localId: "icon-bold-fill",
+    sharedId: "icon-bold",
     localLabel: "Icon - Bold fill",
     sharedLabel: "Icon - Bold",
     local: { threshold: 198, turdSize: 3, optTolerance: 0.42, turnPolicy: "black" },
@@ -111,7 +113,9 @@ const collisionCases = [
   {
     route: "/logo-to-svg-converter",
     fixture: "monoLogoPng",
-    id: "logo-smooth",
+    previousCollisionId: "logo-smooth",
+    localId: "logo-extra-smooth",
+    sharedId: "logo-smooth",
     localLabel: "Logo - Extra smooth (fewer nodes)",
     sharedLabel: "Logo - Smooth",
     local: { threshold: 212, turdSize: 2, optTolerance: 0.55, turnPolicy: "majority" },
@@ -120,7 +124,9 @@ const collisionCases = [
   {
     route: "/webp-to-svg-for-cricut",
     fixture: "multiColorWebp",
-    id: "cricut-clean-cut",
+    previousCollisionId: "cricut-clean-cut",
+    localId: "webp-cricut-clean-cut",
+    sharedId: "cricut-clean-cut",
     localLabel: "Cricut - Clean cut file",
     sharedLabel: "Cricut - Clean Cut",
     local: { threshold: 224, turdSize: 3, optTolerance: 0.34, turnPolicy: "majority" },
@@ -137,7 +143,9 @@ const collisionCases = [
   {
     route: "/jpeg-to-svg-for-cricut",
     fixture: "photoJpeg",
-    id: "cricut-clean-cut",
+    previousCollisionId: "cricut-clean-cut",
+    localId: "jpeg-cricut-clean-cut",
+    sharedId: "cricut-clean-cut",
     localLabel: "Cricut - Clean cut file",
     sharedLabel: "Cricut - Clean Cut",
     local: { threshold: 224, turdSize: 3, optTolerance: 0.34, turnPolicy: "majority" },
@@ -154,7 +162,9 @@ const collisionCases = [
   {
     route: "/jpg-to-svg-for-cricut",
     fixture: "photoJpg",
-    id: "cricut-clean-cut",
+    previousCollisionId: "cricut-clean-cut",
+    localId: "jpg-cricut-clean-cut",
+    sharedId: "cricut-clean-cut",
     localLabel: "Cricut - Clean cut file",
     sharedLabel: "Cricut - Clean Cut",
     local: { threshold: 224, turdSize: 3, optTolerance: 0.34, turnPolicy: "majority" },
@@ -171,7 +181,9 @@ const collisionCases = [
   {
     route: "/png-to-svg-for-cricut",
     fixture: "opaquePng",
-    id: "cricut-clean-cut",
+    previousCollisionId: "cricut-clean-cut",
+    localId: "png-cricut-clean-cut",
+    sharedId: "cricut-clean-cut",
     localLabel: "Cricut - Clean Cut (default)",
     sharedLabel: "Cricut - Clean Cut",
     local: { threshold: 226, turdSize: 3, optTolerance: 0.32, turnPolicy: "majority" },
@@ -410,7 +422,7 @@ async function auditPresetCollisions(fixtures) {
   const selectorSemantics = {
     activeById: selectorSource.includes("activePreset === preset.id"),
     pinById: selectorSource.includes("togglePinnedPreset(preset.id)"),
-    labelFirstMatchById: selectorSource.includes(
+    labelLookupById: selectorSource.includes(
       "presets.find((preset) => preset.id === presetId)?.label",
     ),
     dedupeIncludesSettings: selectorSource.includes(
@@ -424,38 +436,48 @@ async function auditPresetCollisions(fixtures) {
       item.route,
       fixtures[item.fixture],
       { ...traceDefaults, ...item.local },
-      item.id,
+      item.localId,
     );
     const shared = await postTrace(
       item.route,
       fixtures[item.fixture],
       { ...traceDefaults, ...item.shared },
-      item.id,
+      item.sharedId,
     );
     rows.push({
       route: item.route,
-      id: item.id,
+      previousCollisionId: item.previousCollisionId,
+      localId: item.localId,
+      sharedId: item.sharedId,
       displayOrder: [item.localLabel, item.sharedLabel],
       selectorSemantics,
-      submittedPresetIdIsIndistinguishable: true,
+      idsAreDistinct: item.localId !== item.sharedId,
+      submittedPresetIdIsIndistinguishable: false,
       local: summarizeSvgResult(local, item.local),
       shared: summarizeSvgResult(shared, item.shared),
       byteIdentical: local.svg === shared.svg,
-      outputRisk: local.svg === shared.svg ? "not reproduced on this fixture" : "materially different output",
-      activeCardRisk: "both same-ID cards are active",
-      pinRisk: "pinning either same-ID card pins both",
-      historyLabelRisk: `ID lookup resolves the first card (${item.localLabel}) even after the shared card is selected`,
+      outputComparison:
+        local.svg === shared.svg
+          ? "matched on this fixture"
+          : "materially different output preserved",
+      activeCardVerdict: "unique IDs select only the exact card",
+      pinVerdict: "unique IDs pin only the exact card",
+      historyLabelVerdict: "unique ID lookup resolves the selected card label",
     });
   }
   const identicalRows = rows.filter((row) => row.byteIdentical);
   assertComparison(rows.length === 6, `Expected six preset collisions, found ${rows.length}.`);
+  assertComparison(
+    rows.every((row) => row.idsAreDistinct),
+    "Every former collision must use distinct local and shared preset IDs.",
+  );
   assertComparison(
     identicalRows.length === 1 && identicalRows[0].route === "/logo-to-svg-converter",
     "Expected five materially different collision outputs and only the simple logo fixture to match.",
   );
   assertComparison(
     Object.values(selectorSemantics).every(Boolean),
-    "PresetSelector identity semantics no longer match the audited active/pin/label/dedupe behavior.",
+    "PresetSelector identity semantics no longer support exact active/pin/label behavior.",
   );
   return rows;
 }

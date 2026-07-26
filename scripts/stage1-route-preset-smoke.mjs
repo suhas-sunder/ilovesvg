@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +18,12 @@ const maxPresetsPerRoute = fullMode
 const timeoutMs = Number(process.env.STAGE1_PRESET_TIMEOUT_MS || 30_000);
 const routeFilter = String(process.env.STAGE1_ROUTE_FILTER || "").trim();
 const presetFilter = String(process.env.STAGE1_PRESET_FILTER || "").trim();
+const presetFilters = presetFilter
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const allowDuplicatePresetIds =
+  process.env.STAGE1_ALLOW_DUPLICATE_PRESET_IDS === "1";
 const reportPath = process.env.STAGE1_REPORT_PATH
   ? path.resolve(rootDir, process.env.STAGE1_REPORT_PATH)
   : null;
@@ -159,11 +166,22 @@ for (const route of routeMappings) {
   const templateSource = await fs.readFile(path.join(routesDir, templateFile), "utf8");
   const presets = getDisplayPresets(templateSource, additions);
   if (presets.length === 0) continue;
+  const duplicatePresetIds = findDuplicatePresetIds(presets);
+  if (duplicatePresetIds.length > 0 && !allowDuplicatePresetIds) {
+    failures.push(
+      `${route.path}: duplicate reachable preset IDs: ${duplicatePresetIds.join(", ")}`,
+    );
+  }
 
   const routeGroup = classifyRoute(route.path, templateFile);
   const selectedPresets = selectPresetsForSmoke(
-    presetFilter
-      ? presets.filter((preset) => preset.id.includes(presetFilter) || preset.label.includes(presetFilter))
+    presetFilters.length > 0
+      ? presets.filter((preset) =>
+          presetFilters.some(
+            (filter) =>
+              preset.id.includes(filter) || preset.label.includes(filter),
+          ),
+        )
       : presets,
     maxPresetsPerRoute,
   );
@@ -175,6 +193,7 @@ for (const route of routeMappings) {
     visiblePresetCount: presets.length,
     testedPresetCount: selectedPresets.length,
     fullPresetMode: fullMode,
+    duplicatePresetIds,
     expectedPolicy: expectedPolicy(route.path, routeGroup),
   };
   inventory.push(routeEntry);
@@ -363,11 +382,41 @@ function dedupePresets(presets) {
   const seen = new Set();
   const result = [];
   for (const preset of presets) {
-    if (!preset?.id || seen.has(preset.id)) continue;
-    seen.add(preset.id);
+    if (!preset?.id) continue;
+    const signature = [
+      preset.id,
+      preset.label || "",
+      stableValueSignature(preset.settings || {}),
+    ].join("|");
+    if (seen.has(signature)) continue;
+    seen.add(signature);
     result.push(preset);
   }
   return result;
+}
+
+function findDuplicatePresetIds(presets) {
+  const counts = new Map();
+  for (const preset of presets) {
+    counts.set(preset.id, (counts.get(preset.id) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([id]) => id)
+    .sort();
+}
+
+function stableValueSignature(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableValueSignature).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${key}:${stableValueSignature(entry)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function selectPresetsForSmoke(presets, maxCount) {
@@ -478,6 +527,8 @@ async function runPresetSmoke(routePath, routeGroup, preset) {
         svgPresent,
         drawablePresent,
         engineUsed,
+        svgSha256: sha256(validation.svg),
+        normalizedSvgSha256: sha256(normalizeSvg(validation.svg)),
         rateLimitedRetries,
         error: ok
           ? null
@@ -493,6 +544,8 @@ async function runPresetSmoke(routePath, routeGroup, preset) {
         svgPresent: false,
         drawablePresent: false,
         engineUsed: null,
+        svgSha256: null,
+        normalizedSvgSha256: null,
         rateLimitedRetries,
         error: error instanceof Error ? error.message : "request failed",
       };
@@ -500,6 +553,18 @@ async function runPresetSmoke(routePath, routeGroup, preset) {
       clearTimeout(timeout);
     }
   }
+}
+
+function normalizeSvg(svg) {
+  return String(svg)
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/>\s+</g, "><")
+    .trim();
+}
+
+function sha256(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
 }
 
 function createSmokeIdentity(routePath, presetId) {

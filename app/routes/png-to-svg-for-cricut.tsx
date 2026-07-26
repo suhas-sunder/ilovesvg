@@ -791,7 +791,7 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    id: "cricut-clean-cut",
+    id: "png-cricut-clean-cut",
     label: "Cricut  -  Clean Cut (default)",
     settings: {
       preprocess: "none",
@@ -1069,7 +1069,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>("cricut-clean-cut");
+    React.useState<string>("png-cricut-clean-cut");
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -1574,6 +1574,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return getTraceOutputSvg(item as HistoryItem & TraceOutputItem<Settings>);
   }
 
+  function selectHistoryOutput(index: number | null) {
+    setFullscreenPreviewIndex(index);
+    if (index == null) return;
+    const presetId = history[index]?.presetId;
+    if (presetId && DISPLAY_PRESETS.some((preset) => preset.id === presetId)) {
+      setActivePreset(presetId);
+    }
+  }
+
   function toggleOutputSettings(stamp: number) {
     setHistory((prev) =>
       prev.map((item) =>
@@ -1899,7 +1908,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               emptyTitle="Converted Cricut SVG files appear here..."
               emptyDescription="Convert your input to preview, copy, or download the result."
               fullscreenPreviewIndex={fullscreenPreviewIndex}
-              setFullscreenPreviewIndex={setFullscreenPreviewIndex}
+              setFullscreenPreviewIndex={selectHistoryOutput}
               onCopySvg={handleCopySvg}
               onToggleSettings={toggleOutputSettings}
               onDraftSettingsChange={updateOutputDraftSettings}
@@ -1919,7 +1928,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <FullscreenOutputPreview
           items={history}
           activeIndex={fullscreenPreviewIndex}
-          setActiveIndex={setFullscreenPreviewIndex}
+          setActiveIndex={selectHistoryOutput}
           getPreviewImage={(item, index) => ({
             id: String(item.stamp),
             label: `Output ${index + 1}`,

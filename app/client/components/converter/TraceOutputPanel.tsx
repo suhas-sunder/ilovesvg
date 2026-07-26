@@ -73,6 +73,7 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   originalHeight?: number;
   stamp: number;
   name?: string;
+  presetId?: string | null;
   presetLabel?: string;
   settingsSnapshot?: TSettings;
   draftSettings?: TSettings;
@@ -286,6 +287,8 @@ type TraceOutputPanelProps<TSettings extends MixedTraceSettings> = {
   helpHref?: string;
   fullscreenPreviewIndex: number | null;
   setFullscreenPreviewIndex: (index: number | null) => void;
+  activeOutputStamp?: number | null;
+  onSelectOutput?: (stamp: number) => void;
   onCopySvg: (svg: string) => void | Promise<void>;
   onToggleSettings: (stamp: number) => void;
   onDraftSettingsChange: (
@@ -415,6 +418,8 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   helpHref = "#advanced-settings-help",
   fullscreenPreviewIndex,
   setFullscreenPreviewIndex,
+  activeOutputStamp,
+  onSelectOutput,
   onCopySvg,
   onToggleSettings,
   onDraftSettingsChange,
@@ -471,6 +476,13 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
     if (history.some((item) => item.stamp === focusedOutputStamp)) return;
     setFocusedOutputStamp(null);
   }, [focusedOutputStamp, history]);
+
+  React.useEffect(() => {
+    if (focusedOutputStamp == null || activeOutputStamp == null) return;
+    if (focusedOutputStamp === activeOutputStamp) return;
+    if (!history.some((item) => item.stamp === activeOutputStamp)) return;
+    setFocusedOutputStamp(activeOutputStamp);
+  }, [activeOutputStamp, focusedOutputStamp, history]);
 
   React.useEffect(() => {
     if (focusedOutputStamp == null) return;
@@ -546,6 +558,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
   }
 
   function openFocusedEditor(stamp: number, sectionId: string | null = null) {
+    onSelectOutput?.(stamp);
     setFocusedSettingsSection(stamp, sectionId);
     setFocusedOutputStamp(stamp);
     setCollapsedOutputStamps((current) => {
@@ -858,6 +871,9 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 tabIndex={-1}
                 data-output-stamp={item.stamp}
                 data-focused-editor={focused ? "true" : "false"}
+                data-active-output={
+                  activeOutputStamp === item.stamp ? "true" : "false"
+                }
                 data-collapse-state="expanded"
                 data-job-id={item.jobId || ""}
                 data-job-status={jobStatus}
@@ -1093,7 +1109,10 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                             onClick={() => onStepVersion(item.stamp, "next")}
                           />
                           <FullscreenPreviewButton
-                            onOpen={() => setFullscreenPreviewIndex(index)}
+                            onOpen={() => {
+                              onSelectOutput?.(item.stamp);
+                              setFullscreenPreviewIndex(index);
+                            }}
                             className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           />
                         </>
@@ -1117,7 +1136,10 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                           onClick={() => onStepVersion(item.stamp, "next")}
                         />
                         <FullscreenPreviewButton
-                          onOpen={() => setFullscreenPreviewIndex(index)}
+                          onOpen={() => {
+                            onSelectOutput?.(item.stamp);
+                            setFullscreenPreviewIndex(index);
+                          }}
                           className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                         />
                       </div>
