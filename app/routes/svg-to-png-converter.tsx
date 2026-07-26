@@ -1,7 +1,10 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-png-converter";
 import { useLocation } from "react-router";
-import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import {
+  CurrentRouteGuide,
+  OtherToolsLinks,
+} from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -15,6 +18,10 @@ import {
   FullscreenOutputPreview,
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
+import {
+  getSvgToPngRouteContext,
+  type SvgToPngSettings,
+} from "~/client/lib/converter/svgToPngRouteContexts";
 
 /* ========================
    Meta
@@ -43,16 +50,7 @@ export function meta({}: Route.MetaArgs) {
 /* ========================
    Types
 ======================== */
-type Settings = {
-  width: number;
-  height: number;
-  lockAspect: boolean;
-  dpiScale: number; // 1..4
-  background: "transparent" | "solid";
-  bgColor: string;
-  antiAlias: boolean;
-  fileName: string;
-};
+type Settings = SvgToPngSettings;
 
 type SvgInfo = {
   width: number;
@@ -68,20 +66,14 @@ type Result = {
   bytes: number;
 };
 
-const DEFAULTS: Settings = {
-  width: 1024,
-  height: 1024,
-  lockAspect: true,
-  dpiScale: 1,
-  background: "transparent",
-  bgColor: "#ffffff",
-  antiAlias: true,
-  fileName: "converted",
-};
-
 const MAX_CANVAS_PIXELS = 80_000_000;
 
 export default function SvgToPngConverter(_: Route.ComponentProps) {
+  const { pathname } = useLocation();
+  const routeContext = React.useMemo(
+    () => getSvgToPngRouteContext(pathname),
+    [pathname],
+  );
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -98,7 +90,9 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   // "Final" result (after Convert button) for download/toast, etc.
   const [result, setResult] = React.useState<Result | null>(null);
 
-  const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
+  const [settings, setSettings] = React.useState<Settings>(() => ({
+    ...routeContext.defaults,
+  }));
   const [busy, setBusy] = React.useState(false);
   const [liveBusy, setLiveBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -330,14 +324,19 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
   function downloadPng() {
     const src = result || liveResult;
     if (!src) return;
-    const name = (settings.fileName || "converted").trim() || "converted";
+    const fallbackName = routeContext.defaults.fileName;
+    const name =
+      (settings.fileName || fallbackName).trim() || fallbackName;
     const filename = `${safeFileName(name)}.png`;
     downloadObjectUrl(src.blobUrl, filename);
   }
 
   const crumbs = [
     { name: "Home", href: "/" },
-    { name: "SVG to PNG", href: "/svg-to-png-converter" },
+    {
+      name: routeContext.breadcrumb.name,
+      href: routeContext.breadcrumb.path,
+    },
   ];
 
   const buttonDisabled = !hydrated || busy || !svgText;
@@ -374,11 +373,15 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
             {/* INPUT */}
             <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] tracking-[-0.035em] text-sky-950 sm:text-[34px]">
-                <CurrentRouteTitle fallback="SVG to PNG Converter" />
+                {routeContext.h1}
               </h1>
 
               {!file ? (
-                <DragArea onPick={onPick} onDrop={onDrop} accept="image/svg+xml,.svg" />
+                <DragArea
+                  onPick={onPick}
+                  onDrop={onDrop}
+                  accept={routeContext.inputAccept}
+                />
               ) : (
                 <>
                   <div className="mt-0 flex items-center justify-between gap-2 rounded-xl border border-sky-100 bg-sky-50/70 px-3 py-2 text-slate-900">
@@ -633,7 +636,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
       <ContextualAdCard />
 
       <SeoSections />
-      <JsonLdBreadcrumbs />
+      <JsonLdBreadcrumbs context={routeContext} />
       {/* Removed JsonLdFaq to avoid duplicated FAQ schema if your app shell already injects it */}
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
@@ -967,7 +970,11 @@ function Breadcrumbs({
   );
 }
 
-function JsonLdBreadcrumbs() {
+function JsonLdBreadcrumbs({
+  context,
+}: {
+  context: ReturnType<typeof getSvgToPngRouteContext>;
+}) {
   const baseUrl = "https://www.ilovesvg.com";
 
   const data = {
@@ -978,8 +985,8 @@ function JsonLdBreadcrumbs() {
       {
         "@type": "ListItem",
         position: 2,
-        name: "SVG to PNG",
-        item: `${baseUrl}/svg-to-png-converter`,
+        name: context.schema.name,
+        item: `${baseUrl}${context.schema.path}`,
       },
     ],
   };

@@ -324,6 +324,9 @@ async function createFixtures() {
     fillsSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64"><rect width="96" height="64" fill="#ffffff"/><rect x="8" y="8" width="32" height="48" rx="6" fill="#0b2dff"/><circle cx="68" cy="32" r="20" fill="#f97316"/></svg>`,
     strokesSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80"><path d="M8 60 C30 8 74 8 112 60" fill="none" stroke="#111827" stroke-width="5"/><path d="M14 68 H106" stroke="#0ea5e9" stroke-width="3"/></svg>`,
     nonSquareSvg: `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="10 20 120 80" preserveAspectRatio="xMidYMid meet"><rect x="10" y="20" width="120" height="80" fill="#f8fafc"/><path d="M20 88 L70 30 L120 88 Z" fill="#2563eb" stroke="#0f172a" stroke-width="4"/></svg>`,
+    widthOnlySvg: `<svg xmlns="http://www.w3.org/2000/svg" width="150" viewBox="0 0 150 60"><rect width="150" height="60" fill="#f8fafc"/><circle cx="30" cy="30" r="22" fill="#7c3aed"/><path d="M62 12 H140 V48 H62 Z" fill="#f59e0b"/></svg>`,
+    viewBoxOnlySvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 140"><rect width="90" height="140" fill="#ffffff"/><path d="M8 130 L45 10 L82 130 Z" fill="#0891b2" fill-opacity="0.7"/></svg>`,
+    edgeSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72" viewBox="0 0 128 72"><rect x="0" y="0" width="45" height="72" fill="#dc2626"/><rect x="83" y="0" width="45" height="72" fill="#2563eb"/><path d="M0 36 H128" stroke="#111827" stroke-width="5"/></svg>`,
     monoLogoSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"><rect width="160" height="96" fill="white"/><path d="M18 76 L50 18 L78 76 Z M88 20 H142 V38 H108 V50 H138 V68 H108 V78 H88 Z" fill="black"/></svg>`,
     multiColorSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"><rect width="160" height="96" fill="#ffffff"/><circle cx="44" cy="48" r="30" fill="#ef4444"/><rect x="76" y="18" width="62" height="60" rx="12" fill="#2563eb"/><path d="M18 82 H144" stroke="#16a34a" stroke-width="8"/></svg>`,
     sketchSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"><rect width="160" height="96" fill="white"/><g fill="none" stroke="#111" stroke-width="2"><path d="M8 70 C28 18 54 18 76 68"/><path d="M74 68 C94 16 124 16 150 70"/><path d="M12 76 C52 68 104 82 148 74"/></g></svg>`,
@@ -373,6 +376,9 @@ async function summarizeFixtures(fixtures) {
     strokesSvg: ["stroke SVG utilities"],
     transparentSvg: ["transparent raster export"],
     nonSquareSvg: ["resizer/viewBox"],
+    widthOnlySvg: ["SVG-to-PNG inferred height"],
+    viewBoxOnlySvg: ["SVG-to-PNG viewBox-only dimensions"],
+    edgeSvg: ["SVG-to-PNG canvas-edge preservation"],
   };
   const rows = [];
   for (const [name, uses] of Object.entries(intended)) {
@@ -586,19 +592,70 @@ async function auditPngWrappers(fixtures) {
 }
 
 async function auditSvgPngFamily(fixtures) {
-  const rows = [];
-  for (const route of svgPngRoutes) {
-    const file = await runSvgPngScenario(route, fixtures.transparentSvg, {
-      background: "transparent",
-    });
-    rows.push({ route, ...(await analyzePng(file)) });
+  const fixtureCases = [
+    ["transparent-and-partial-alpha", fixtures.transparentSvg],
+    ["opaque-fills", fixtures.fillsSvg],
+    ["strokes", fixtures.strokesSvg],
+    ["non-square-viewbox", fixtures.nonSquareSvg],
+    ["width-only", fixtures.widthOnlySvg],
+    ["viewbox-only", fixtures.viewBoxOnlySvg],
+    ["canvas-edges", fixtures.edgeSvg],
+  ];
+  const fixtureComparisons = [];
+  for (const [fixture, fixturePath] of fixtureCases) {
+    const rows = [];
+    for (const route of svgPngRoutes) {
+      const file = await runSvgPngScenario(route, fixturePath, {
+        background: "transparent",
+      });
+      rows.push({ route, ...(await analyzePng(file)) });
+    }
+    const comparison = {
+      fixture,
+      routes: rows,
+      allByteIdentical: new Set(rows.map((row) => row.sha256)).size === 1,
+      allPixelIdentical:
+        new Set(rows.map((row) => row.pixelSha256)).size === 1,
+      dimensions: [
+        ...new Set(rows.map((row) => `${row.width}x${row.height}`)),
+      ],
+      filenames: [...new Set(rows.map((row) => row.filename))],
+    };
+    assertComparison(
+      comparison.allByteIdentical && comparison.allPixelIdentical,
+      `SVG-to-PNG wrappers diverged for the ${fixture} fixture.`,
+    );
+    assertComparison(
+      comparison.filenames.length === 1,
+      `SVG-to-PNG wrapper filenames diverged for the ${fixture} fixture.`,
+    );
+    fixtureComparisons.push(comparison);
   }
+  const rows = fixtureComparisons[0].routes;
   const family = {
     routes: rows,
     allByteIdentical: new Set(rows.map((row) => row.sha256)).size === 1,
     allPixelIdentical: new Set(rows.map((row) => row.pixelSha256)).size === 1,
     dimensions: [...new Set(rows.map((row) => `${row.width}x${row.height}`))],
+    fixtureComparisons,
+    invalidInputs: [],
+    lifecycle: null,
+    mobile: [],
   };
+  for (const route of svgPngRoutes) {
+    family.invalidInputs.push(
+      await auditSvgPngInvalidInput(route, fixtures.opaquePng),
+    );
+  }
+  family.lifecycle = await auditSvgPngLifecycle(fixtures);
+  for (const route of [
+    "/svg-to-png-converter",
+    "/svg-to-png-for-shopify",
+    "/svg-to-transparent-png-for-printing",
+    "/svg-to-png-for-figma",
+  ]) {
+    family.mobile.push(await auditSvgPngMobileRoute(route));
+  }
 
   const transparent = await analyzePng(
     await runSvgPngScenario(
@@ -656,6 +713,175 @@ async function auditSvgPngFamily(fixtures) {
     family,
     background,
   };
+}
+
+async function auditSvgPngMobileRoute(route) {
+  const dir = path.join(downloadRoot, `png-mobile-${slug(route)}`);
+  const client = await openPage(route, dir, {
+    width: 390,
+    height: 844,
+    mobile: false,
+  });
+  try {
+    await clickButtonByText(client, "Settings");
+    const state = await evaluate(
+      client,
+      `(() => {
+        const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+        const buttons = Array.from(document.querySelectorAll('button')).map((button) => normalize(button.textContent));
+        const labels = Array.from(document.querySelectorAll('label')).map((label) => normalize(label.textContent));
+        return {
+          viewport: [window.innerWidth, window.innerHeight],
+          h1: normalize(document.querySelector('h1')?.textContent),
+          hasFileInput: Boolean(document.querySelector('input[type="file"]')),
+          hasConvert: buttons.some((value) => value.startsWith('Convert to PNG')),
+          hasDownload: buttons.some((value) => value.startsWith('Download PNG')),
+          hasWidth: labels.some((value) => value.startsWith('Output width (px)')),
+          hasBackground: labels.some((value) => value.startsWith('Background')),
+          clientWidth: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      })()`,
+    );
+    assertComparison(
+      state.viewport[0] === 390 &&
+        state.hasFileInput &&
+        state.hasConvert &&
+        state.hasDownload &&
+        state.hasWidth &&
+        state.hasBackground,
+      `${route} failed the 390px mobile control/layout gate: ${JSON.stringify(state)}.`,
+    );
+    return { route, ...state };
+  } finally {
+    collectClientLogs(client, route);
+    await closePage(client);
+  }
+}
+
+async function auditSvgPngInvalidInput(route, fixturePath) {
+  const dir = path.join(downloadRoot, `png-invalid-${slug(route)}`);
+  const client = await openPage(route, dir);
+  try {
+    await dropFile(client, fixturePath);
+    const state = await waitForValue(
+      client,
+      () => `(() => {
+        const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+        const download = Array.from(document.querySelectorAll('button')).find((button) => normalize(button.textContent).startsWith('Download PNG'));
+        return {
+          errorVisible: (document.body?.innerText || '').includes('Please choose an SVG file.'),
+          hasResult: Boolean(Array.from(document.querySelectorAll('img')).find((img) => img.alt === 'PNG result' && img.src)),
+          downloadDisabled: Boolean(download?.disabled),
+        };
+      })()`,
+      15_000,
+      (value) => Boolean(value?.errorVisible),
+    );
+    assertComparison(
+      state.errorVisible && !state.hasResult && state.downloadDisabled,
+      `${route} invalid-input behavior changed: ${JSON.stringify(state)}.`,
+    );
+    return { route, fixtureType: "image/png", ...state };
+  } finally {
+    collectClientLogs(client, route);
+    await closePage(client);
+  }
+}
+
+async function auditSvgPngLifecycle(fixtures) {
+  const route = "/svg-to-png-converter";
+  const dir = path.join(downloadRoot, "png-lifecycle-base");
+  const client = await openPage(route, dir);
+  try {
+    await setFileInput(client, fixtures.transparentSvg);
+    await waitForValue(
+      client,
+      () => `(() => Boolean(Array.from(document.querySelectorAll('img')).find((img) => img.alt === 'PNG result' && img.src)))()`,
+      30_000,
+      Boolean,
+    );
+    await clickButtonByText(client, "Settings");
+    await setLabeledControl(client, "Quality (pixel ratio)", 2);
+    await delay(500);
+
+    const cleared = await evaluate(
+      client,
+      `(() => {
+        const remove = document.querySelector('[aria-label="Remove selected file"]');
+        if (!remove) return { clicked: false };
+        remove.click();
+        return { clicked: true };
+      })()`,
+    );
+    assertComparison(cleared.clicked, "Could not clear the SVG-to-PNG input.");
+    const clearState = await waitForValue(
+      client,
+      () => `(() => {
+        const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+        const download = Array.from(document.querySelectorAll('button')).find((button) => normalize(button.textContent).startsWith('Download PNG'));
+        return {
+          hasFileInput: Boolean(document.querySelector('input[type="file"]')),
+          hasResult: Boolean(Array.from(document.querySelectorAll('img')).find((img) => img.alt === 'PNG result' && img.src)),
+          downloadDisabled: Boolean(download?.disabled),
+        };
+      })()`,
+      15_000,
+      (value) =>
+        Boolean(
+          value?.hasFileInput &&
+            !value?.hasResult &&
+            value?.downloadDisabled,
+        ),
+    );
+
+    await setFileInput(client, fixtures.fillsSvg);
+    const secondUploadState = await waitForValue(
+      client,
+      () => `(() => {
+        const image = Array.from(document.querySelectorAll('img')).find((img) => img.alt === 'PNG result' && img.src);
+        const text = document.body?.innerText || '';
+        return {
+          hasResult: Boolean(image),
+          previewNaturalWidth: image?.naturalWidth || 0,
+          previewNaturalHeight: image?.naturalHeight || 0,
+          outputTextMatches: text.includes('Output: 192 x 128'),
+        };
+      })()`,
+      30_000,
+      (value) =>
+        Boolean(
+          value?.hasResult &&
+            value?.previewNaturalWidth === 192 &&
+            value?.previewNaturalHeight === 128 &&
+            value?.outputTextMatches,
+        ),
+    );
+    await clickButtonByText(client, "Convert to PNG");
+    await waitForButtonEnabled(client, "Download PNG", 30_000);
+    const before = new Set(await safeReaddir(dir));
+    await clickButtonByText(client, "Download PNG");
+    const filePath = await waitForDownloadedFile(dir, before, ".png", 30_000);
+    const output = await analyzePng(filePath);
+    assertComparison(
+      output.width === 192 &&
+        output.height === 128 &&
+        output.filename === "fillsSvg.png",
+      `Second-upload output behavior changed: ${JSON.stringify(output)}.`,
+    );
+    return {
+      route,
+      clearState,
+      secondUploadState,
+      output,
+      settingsPersistence:
+        "Current clear action preserves the selected 2x quality setting.",
+    };
+  } finally {
+    collectClientLogs(client, route);
+    await closePage(client);
+  }
 }
 
 async function auditResizeFamily(fixtures) {
@@ -947,9 +1173,21 @@ async function runFaviconScenario(route, options) {
   const dir = path.join(downloadRoot, `favicon-${slug(route)}-${sha256(Buffer.from(JSON.stringify(options))).slice(0, 8)}`);
   const client = await openPage(route, dir);
   try {
-    await delay(2_500);
-    await clickButtonByText(client, "Load example");
-    await waitForButtonEnabled(client, "Generate icons", 15_000);
+    let exampleReady = false;
+    let exampleError = null;
+    for (let attempt = 0; attempt < 2 && !exampleReady; attempt += 1) {
+      await delay(attempt === 0 ? 2_500 : 750);
+      await clickButtonByText(client, "Load example");
+      try {
+        await waitForButtonEnabled(client, "Generate icons", 15_000);
+        exampleReady = true;
+      } catch (error) {
+        exampleError = error;
+      }
+    }
+    if (!exampleReady) {
+      throw exampleError || new Error("Favicon example did not become ready.");
+    }
     if (options.background || options.onlyIco16) {
       await clickButtonByText(client, "Settings");
       if (options.background) {
@@ -1014,6 +1252,7 @@ async function analyzePng(filePath, includePixels = false) {
     else partialAlphaPixels += 1;
   }
   return {
+    filename: path.basename(filePath),
     bytes: bytes.length,
     sha256: sha256(bytes),
     pixelSha256: sha256(data),
@@ -1121,7 +1360,11 @@ function parseIcoSizes(bytes) {
 const collectedConsoleErrors = [];
 const collectedNetworkErrors = [];
 
-async function openPage(route, downloadDir) {
+async function openPage(
+  route,
+  downloadDir,
+  viewport = { width: 1440, height: 1000, mobile: false },
+) {
   await fs.rm(downloadDir, { recursive: true, force: true });
   await fs.mkdir(downloadDir, { recursive: true });
   const target = await createCdpTarget("about:blank");
@@ -1136,7 +1379,14 @@ async function openPage(route, downloadDir) {
   await client.send("Page.enable");
   await client.send("DOM.enable");
   await client.send("Network.enable");
-  await client.send("Page.navigate", { url: `${baseUrl}${route}` });
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: viewport.width,
+    height: viewport.height,
+    screenWidth: viewport.width,
+    screenHeight: viewport.height,
+    deviceScaleFactor: 1,
+    mobile: viewport.mobile,
+  }).catch(() => null);
   await client.send("Browser.setDownloadBehavior", {
     behavior: "allow",
     downloadPath: downloadDir,
@@ -1145,12 +1395,7 @@ async function openPage(route, downloadDir) {
     behavior: "allow",
     downloadPath: downloadDir,
   }).catch(() => null);
-  await client.send("Emulation.setDeviceMetricsOverride", {
-    width: 1440,
-    height: 1000,
-    deviceScaleFactor: 1,
-    mobile: false,
-  }).catch(() => null);
+  await client.send("Page.navigate", { url: `${baseUrl}${route}` });
   await waitForDocumentReady(client);
   await waitForValue(
     client,
@@ -1183,22 +1428,9 @@ async function setFileInput(client, filePath) {
     15_000,
     Boolean,
   );
-  const bytes = await fs.readFile(filePath);
   let lastError = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const dropped = await evaluate(client, `(() => {
-      const input = document.querySelector('input[type="file"]');
-      const target = input?.closest('label') || input;
-      if (!target) return { ok: false, reason: 'missing drop target' };
-      const binary = atob(${JSON.stringify(bytes.toString("base64"))});
-      const data = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) data[index] = binary.charCodeAt(index);
-      const transfer = new DataTransfer();
-      transfer.items.add(new File([data], ${JSON.stringify(path.basename(filePath))}, { type: ${JSON.stringify(mimeTypeForPath(filePath))} }));
-      const event = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer });
-      target.dispatchEvent(event);
-      return { ok: true, files: Array.from(transfer.files).map((file) => file.name) };
-    })()`);
+    const dropped = await dropFile(client, filePath);
     if (!dropped?.ok) throw new Error(`Could not drop ${path.basename(filePath)}: ${dropped?.reason || "event canceled"}`);
     try {
       await waitForValue(
@@ -1214,6 +1446,23 @@ async function setFileInput(client, filePath) {
     }
   }
   throw lastError || new Error(`Could not attach ${path.basename(filePath)}.`);
+}
+
+async function dropFile(client, filePath) {
+  const bytes = await fs.readFile(filePath);
+  return evaluate(client, `(() => {
+    const input = document.querySelector('input[type="file"]');
+    const target = input?.closest('label') || input;
+    if (!target) return { ok: false, reason: 'missing drop target' };
+    const binary = atob(${JSON.stringify(bytes.toString("base64"))});
+    const data = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) data[index] = binary.charCodeAt(index);
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([data], ${JSON.stringify(path.basename(filePath))}, { type: ${JSON.stringify(mimeTypeForPath(filePath))} }));
+    const event = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer });
+    target.dispatchEvent(event);
+    return { ok: true, files: Array.from(transfer.files).map((file) => file.name) };
+  })()`);
 }
 
 async function clickButtonByText(client, label) {
