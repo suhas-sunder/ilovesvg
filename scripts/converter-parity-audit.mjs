@@ -76,6 +76,29 @@ const svgPngRoutes = [
   "/svg-to-png-for-figma",
 ];
 
+const svgPngResponsiveViewports = [
+  { width: 320, height: 800 },
+  { width: 360, height: 800 },
+  { width: 375, height: 812 },
+  { width: 390, height: 844 },
+  { width: 412, height: 915 },
+  { width: 768, height: 1024 },
+  { width: 1280, height: 720 },
+];
+
+const svgPngExpectedH1 = {
+  "/svg-to-png-converter": "SVG to PNG Converter",
+  "/svg-to-png-for-shopify": "SVG to PNG for Shopify",
+  "/svg-to-png-for-etsy": "SVG to PNG for Etsy",
+  "/svg-to-png-for-printify": "SVG to PNG for Printify",
+  "/svg-to-png-for-printful": "SVG to PNG for Printful",
+  "/sticker-to-png-for-printing": "Sticker SVG to PNG for Printing",
+  "/svg-to-transparent-png-for-printing":
+    "SVG to Transparent PNG for Printing",
+  "/svg-to-png-for-canva": "SVG to PNG for Canva",
+  "/svg-to-png-for-figma": "SVG to PNG for Figma",
+};
+
 const resizeRoutes = [
   "/svg-resize-and-scale-editor",
   "/svg-resizer-for-shopify",
@@ -215,6 +238,7 @@ async function main() {
     jpgJpeg: {},
     pngWrappers: {},
     svgToPng: {},
+    svgToPngResponsive: [],
     backgroundPixels: {},
     resizers: {},
     favicons: {},
@@ -245,7 +269,12 @@ async function main() {
       });
     }
 
-    const browserSections = ["svg-png", "resizers", "favicons"];
+    const browserSections = [
+      "svg-png",
+      "svg-png-responsive",
+      "resizers",
+      "favicons",
+    ];
     if (browserSections.some(shouldRun)) {
       const browserPath = await findBrowserExecutable();
       browser = spawn(
@@ -274,6 +303,16 @@ async function main() {
           report.backgroundPixels = svgPng.background;
         });
       }
+      if (shouldRun("svg-png-responsive")) {
+        await runReportSection(
+          report,
+          "svg-png-responsive",
+          async () => {
+            report.svgToPngResponsive =
+              await auditSvgPngResponsiveMatrix(fixtures);
+          },
+        );
+      }
       if (shouldRun("resizers")) {
         await runReportSection(report, "resizers", async () => {
           report.resizers = await auditResizeFamily(fixtures);
@@ -290,6 +329,22 @@ async function main() {
       );
       report.consoleErrors.sort(compareJson);
       report.networkErrors.sort(compareJson);
+      const expectedHarnessFailure =
+        /ERR_ADDRESS_INVALID|ERR_ABORTED|ERR_FILE_NOT_FOUND/;
+      const unexpectedConsoleErrors = report.consoleErrors.filter(
+        (entry) => !expectedHarnessFailure.test(entry.text || ""),
+      );
+      const unexpectedNetworkErrors = report.networkErrors.filter(
+        (entry) => !expectedHarnessFailure.test(entry.errorText || ""),
+      );
+      if (unexpectedConsoleErrors.length || unexpectedNetworkErrors.length) {
+        report.failures.push(
+          `Unexpected browser errors: ${JSON.stringify({
+            console: unexpectedConsoleErrors.slice(0, 8),
+            network: unexpectedNetworkErrors.slice(0, 8),
+          })}`,
+        );
+      }
     }
   } catch (error) {
     report.failures.push(error instanceof Error ? error.message : String(error));
@@ -327,6 +382,7 @@ async function createFixtures() {
     widthOnlySvg: `<svg xmlns="http://www.w3.org/2000/svg" width="150" viewBox="0 0 150 60"><rect width="150" height="60" fill="#f8fafc"/><circle cx="30" cy="30" r="22" fill="#7c3aed"/><path d="M62 12 H140 V48 H62 Z" fill="#f59e0b"/></svg>`,
     viewBoxOnlySvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 140"><rect width="90" height="140" fill="#ffffff"/><path d="M8 130 L45 10 L82 130 Z" fill="#0891b2" fill-opacity="0.7"/></svg>`,
     edgeSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72" viewBox="0 0 128 72"><rect x="0" y="0" width="45" height="72" fill="#dc2626"/><rect x="83" y="0" width="45" height="72" fill="#2563eb"/><path d="M0 36 H128" stroke="#111827" stroke-width="5"/></svg>`,
+    responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg: `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72" viewBox="0 0 128 72"><rect x="0" y="0" width="45" height="72" fill="#dc2626"/><rect x="83" y="0" width="45" height="72" fill="#2563eb"/><path d="M0 36 H128" stroke="#111827" stroke-width="5"/></svg>`,
     monoLogoSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"><rect width="160" height="96" fill="white"/><path d="M18 76 L50 18 L78 76 Z M88 20 H142 V38 H108 V50 H138 V68 H108 V78 H88 Z" fill="black"/></svg>`,
     multiColorSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"><rect width="160" height="96" fill="#ffffff"/><circle cx="44" cy="48" r="30" fill="#ef4444"/><rect x="76" y="18" width="62" height="60" rx="12" fill="#2563eb"/><path d="M18 82 H144" stroke="#16a34a" stroke-width="8"/></svg>`,
     sketchSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96"><rect width="160" height="96" fill="white"/><g fill="none" stroke="#111" stroke-width="2"><path d="M8 70 C28 18 54 18 76 68"/><path d="M74 68 C94 16 124 16 150 70"/><path d="M12 76 C52 68 104 82 148 74"/></g></svg>`,
@@ -641,6 +697,7 @@ async function auditSvgPngFamily(fixtures) {
     invalidInputs: [],
     lifecycle: null,
     mobile: [],
+    responsive: [],
   };
   for (const route of svgPngRoutes) {
     family.invalidInputs.push(
@@ -656,6 +713,7 @@ async function auditSvgPngFamily(fixtures) {
   ]) {
     family.mobile.push(await auditSvgPngMobileRoute(route));
   }
+  family.responsive = await auditSvgPngResponsiveMatrix(fixtures);
 
   const transparent = await analyzePng(
     await runSvgPngScenario(
@@ -740,6 +798,8 @@ async function auditSvgPngMobileRoute(route) {
           hasBackground: labels.some((value) => value.startsWith('Background')),
           clientWidth: document.documentElement.clientWidth,
           scrollWidth: document.documentElement.scrollWidth,
+          bodyClientWidth: document.body.clientWidth,
+          bodyScrollWidth: document.body.scrollWidth,
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         };
       })()`,
@@ -750,7 +810,10 @@ async function auditSvgPngMobileRoute(route) {
         state.hasConvert &&
         state.hasDownload &&
         state.hasWidth &&
-        state.hasBackground,
+        state.hasBackground &&
+        !state.horizontalOverflow &&
+        state.scrollWidth <= state.clientWidth + 1 &&
+        state.bodyScrollWidth <= state.bodyClientWidth + 1,
       `${route} failed the 390px mobile control/layout gate: ${JSON.stringify(state)}.`,
     );
     return { route, ...state };
@@ -758,6 +821,615 @@ async function auditSvgPngMobileRoute(route) {
     collectClientLogs(client, route);
     await closePage(client);
   }
+}
+
+async function auditSvgPngResponsiveMatrix(fixtures) {
+  const rows = [];
+  for (const route of svgPngRoutes) {
+    for (const viewport of svgPngResponsiveViewports) {
+      rows.push(
+        await auditSvgPngResponsiveViewport(route, viewport, fixtures),
+      );
+    }
+  }
+  assertComparison(
+    rows.length === svgPngRoutes.length * svgPngResponsiveViewports.length,
+    "SVG-to-PNG responsive route/viewport coverage is incomplete.",
+  );
+  return rows;
+}
+
+async function auditSvgPngResponsiveViewport(route, viewport, fixtures) {
+  const dir = path.join(
+    downloadRoot,
+    `png-responsive-${slug(route)}-${viewport.width}x${viewport.height}`,
+  );
+  const client = await openPage(route, dir, {
+    ...viewport,
+    mobile: false,
+  });
+  const states = [];
+  const expectedH1 = svgPngExpectedH1[route];
+  try {
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "initial",
+      ),
+    );
+
+    await clickButtonByText(client, "Settings");
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "settings-shell",
+      ),
+    );
+
+    await clickButtonByText(client, "SVG/raster export");
+    await delay(250);
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "dimensions",
+      ),
+    );
+
+    await clickButtonByText(client, "Appearance");
+    await delay(250);
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "transparent-background",
+      ),
+    );
+
+    await setLabeledControl(client, "Background", "solid");
+    await waitForValue(
+      client,
+      () =>
+        `(() => Array.from(document.querySelectorAll('label')).some((label) => String(label.textContent || '').replace(/\\s+/g, ' ').trim().startsWith('Background color')))()`,
+      10_000,
+      Boolean,
+    );
+    await setLabeledControl(client, "Background color", "#336699");
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "custom-background",
+      ),
+    );
+    await setLabeledControl(client, "Background", "transparent");
+
+    await setFileInput(
+      client,
+      fixtures
+        .responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg,
+    );
+    await waitForValue(
+      client,
+      () =>
+        `(() => { const image = Array.from(document.querySelectorAll('img')).find((item) => item.alt === 'PNG result'); return Boolean(image?.complete && image.naturalWidth > 0 && image.naturalHeight > 0); })()`,
+      30_000,
+      Boolean,
+    );
+    const openedSourceEditor = await evaluate(
+      client,
+      `(() => {
+        const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+        const summary = Array.from(document.querySelectorAll('summary')).find((item) => normalize(item.textContent).startsWith('Advanced: Edit SVG source'));
+        if (!summary) return false;
+        const details = summary.closest('details');
+        if (!details?.open) summary.click();
+        return Boolean(details?.open);
+      })()`,
+    );
+    assertComparison(
+      openedSourceEditor,
+      `${route} ${viewport.width}x${viewport.height} could not open the SVG source editor.`,
+    );
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "upload-and-source",
+      ),
+    );
+
+    await clickButtonByText(client, "Convert to PNG");
+    await waitForButtonEnabled(client, "Convert to PNG", 30_000);
+    await waitForButtonEnabled(client, "Download PNG", 30_000);
+    await waitForValue(
+      client,
+      () =>
+        `(() => { const image = Array.from(document.querySelectorAll('img')).find((item) => item.alt === 'PNG result'); return Boolean(image?.complete && image.naturalWidth === 128 && image.naturalHeight === 72); })()`,
+      30_000,
+      Boolean,
+    );
+    states.push(
+      await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "generated-result",
+      ),
+    );
+
+    let downloadedFilename = null;
+    let resetAndSecondUpload = null;
+    if (viewport.width === 390 || viewport.width === 1280) {
+      const before = new Set(await safeReaddir(dir));
+      await clickButtonByText(client, "Download PNG");
+      const downloadedPath = await waitForDownloadedFile(
+        dir,
+        before,
+        ".png",
+        30_000,
+      );
+      downloadedFilename = path.basename(downloadedPath);
+      const expectedFilename = `${path.basename(
+        fixtures
+          .responsiveLongUnbrokenFilenamePreservationFixture0123456789Svg,
+        ".svg",
+      )}.png`;
+      assertComparison(
+        downloadedFilename === expectedFilename,
+        `${route} ${viewport.width}x${viewport.height} responsive filename changed: ${downloadedFilename}.`,
+      );
+
+      const cleared = await evaluate(
+        client,
+        `(() => {
+          const button = document.querySelector('[aria-label="Remove selected file"]');
+          if (!button) return false;
+          button.click();
+          return true;
+        })()`,
+      );
+      assertComparison(
+        cleared,
+        `${route} ${viewport.width}x${viewport.height} clear action is missing.`,
+      );
+      await waitForValue(
+        client,
+        () =>
+          `(() => { const download = Array.from(document.querySelectorAll('button')).find((button) => String(button.textContent || '').replace(/\\s+/g, ' ').trim().startsWith('Download PNG')); return Boolean(document.querySelector('input[type="file"]') && download?.disabled && !Array.from(document.querySelectorAll('img')).some((image) => image.alt === 'PNG result' && image.src)); })()`,
+        15_000,
+        Boolean,
+      );
+      states.push(
+        await captureSvgPngResponsiveState(
+          client,
+          route,
+          viewport,
+          "reset",
+        ),
+      );
+
+      await setFileInput(client, fixtures.fillsSvg);
+      await waitForValue(
+        client,
+        () =>
+          `(() => { const image = Array.from(document.querySelectorAll('img')).find((item) => item.alt === 'PNG result'); return Boolean(image?.complete && image.naturalWidth === 96 && image.naturalHeight === 64); })()`,
+        30_000,
+        Boolean,
+      );
+      const secondUploadState = await captureSvgPngResponsiveState(
+        client,
+        route,
+        viewport,
+        "second-upload",
+      );
+      states.push(secondUploadState);
+      resetAndSecondUpload = {
+        resetPassed: true,
+        previewWidth: secondUploadState.preview.width,
+        previewHeight: secondUploadState.preview.height,
+        selectedFilename: secondUploadState.selectedFilename,
+      };
+      assertComparison(
+        resetAndSecondUpload.previewWidth === 96 &&
+          resetAndSecondUpload.previewHeight === 64 &&
+          resetAndSecondUpload.selectedFilename === "fillsSvg.svg",
+        `${route} ${viewport.width}x${viewport.height} second-upload behavior changed: ${JSON.stringify(resetAndSecondUpload)}.`,
+      );
+    }
+
+    for (const state of states) {
+      assertComparison(
+        state.h1 === expectedH1,
+        `${route} ${viewport.width}x${viewport.height} ${state.state} H1 changed.`,
+      );
+      assertComparison(
+        !state.pageOverflow &&
+          state.document.scrollWidth <= state.document.clientWidth + 1 &&
+          state.body.scrollWidth <= state.body.clientWidth + 1 &&
+          state.maximumVisibleRightEdge <= state.document.clientWidth + 1,
+        `${route} ${viewport.width}x${viewport.height} ${state.state} has page-level overflow: ${JSON.stringify(state)}.`,
+      );
+      assertComparison(
+        state.horizontalScrollContainers.every(
+          (container) => container.intentional,
+        ),
+        `${route} ${viewport.width}x${viewport.height} ${state.state} has an unexpected internal horizontal scroll container: ${JSON.stringify(state.horizontalScrollContainers)}.`,
+      );
+      assertComparison(
+        state.clippedFocusable.length === 0,
+        `${route} ${viewport.width}x${viewport.height} ${state.state} clips focusable controls: ${JSON.stringify(state.clippedFocusable)}.`,
+      );
+      assertComparison(
+        state.allToolsPresent &&
+          state.routeGuide.visible &&
+          state.routeGuide.heading,
+        `${route} ${viewport.width}x${viewport.height} ${state.state} lost route guidance or All Tools.`,
+      );
+      assertComparison(
+        state.platformLeaks.length === 0,
+        `${route} ${viewport.width}x${viewport.height} leaked another platform label into the converter: ${state.platformLeaks.join(", ")}.`,
+      );
+    }
+
+    const initial = states.find((state) => state.state === "initial");
+    const dimensions = states.find((state) => state.state === "dimensions");
+    const transparent = states.find(
+      (state) => state.state === "transparent-background",
+    );
+    const custom = states.find(
+      (state) => state.state === "custom-background",
+    );
+    const source = states.find(
+      (state) => state.state === "upload-and-source",
+    );
+    const generated = states.find(
+      (state) => state.state === "generated-result",
+    );
+    assertComparison(
+      initial?.controls.hasFileInput &&
+        initial?.controls.hasConvert &&
+        initial?.controls.hasDownload,
+      `${route} ${viewport.width}x${viewport.height} initial controls are missing.`,
+    );
+    assertComparison(
+      dimensions?.controls.hasWidth &&
+        dimensions?.controls.hasHeight &&
+        dimensions?.defaults.width === "1024" &&
+        dimensions?.defaults.height === "1024" &&
+        dimensions?.defaults.lockAspect &&
+        dimensions?.defaults.quality === "1",
+      `${route} ${viewport.width}x${viewport.height} defaults or dimension controls changed: ${JSON.stringify(dimensions?.defaults)}.`,
+    );
+    assertComparison(
+      transparent?.controls.hasBackground &&
+        transparent?.defaults.background === "transparent",
+      `${route} ${viewport.width}x${viewport.height} transparent-background control changed.`,
+    );
+    assertComparison(
+      custom?.controls.hasBackgroundColor &&
+        custom?.defaults.background === "solid" &&
+        custom?.defaults.backgroundColor.toLowerCase() === "#336699",
+      `${route} ${viewport.width}x${viewport.height} custom-background control changed.`,
+    );
+    assertComparison(
+      source?.controls.hasSourceEditor &&
+        source?.selectedFilename?.startsWith(
+          "responsiveLongUnbrokenFilenamePreservationFixture",
+        ),
+      `${route} ${viewport.width}x${viewport.height} upload/source state changed.`,
+    );
+    assertComparison(
+      generated?.preview.width === 128 &&
+        generated?.preview.height === 72 &&
+        generated?.preview.visible &&
+        generated?.preview.box &&
+        generated.preview.box.rect.left >= -1 &&
+        generated.preview.box.rect.right <=
+          generated.document.clientWidth + 1 &&
+        !generated.preview.box.clippedBy &&
+        generated?.controls.downloadEnabled,
+      `${route} ${viewport.width}x${viewport.height} generated preview changed: ${JSON.stringify(generated?.preview)}.`,
+    );
+
+    const layout = initial.layout;
+    if (viewport.width >= 768) {
+      assertComparison(
+        layout.input &&
+          layout.output &&
+          layout.output.left > layout.input.left + 100 &&
+          Math.abs(layout.output.top - layout.input.top) <= 2,
+        `${route} ${viewport.width}x${viewport.height} desktop/tablet two-column layout changed: ${JSON.stringify(layout)}.`,
+      );
+    } else {
+      assertComparison(
+        layout.input &&
+          layout.output &&
+          Math.abs(layout.output.left - layout.input.left) <= 2 &&
+          layout.output.top >= layout.input.bottom,
+        `${route} ${viewport.width}x${viewport.height} mobile stacked layout changed: ${JSON.stringify(layout)}.`,
+      );
+    }
+
+    return {
+      route,
+      requestedViewport: viewport,
+      measuredViewport: states[0].viewport,
+      stateCount: states.length,
+      maxDocumentScrollWidth: Math.max(
+        ...states.map((state) => state.document.scrollWidth),
+      ),
+      maxBodyScrollWidth: Math.max(
+        ...states.map((state) => state.body.scrollWidth),
+      ),
+      downloadedFilename,
+      resetAndSecondUpload,
+      states,
+    };
+  } catch (error) {
+    throw new Error(
+      `${route} ${viewport.width}x${viewport.height} responsive audit failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { cause: error },
+    );
+  } finally {
+    collectClientLogs(client, `${route}@${viewport.width}x${viewport.height}`);
+    await closePage(client);
+  }
+}
+
+async function captureSvgPngResponsiveState(
+  client,
+  route,
+  viewport,
+  state,
+) {
+  return evaluate(
+    client,
+    `(() => {
+      const route = ${JSON.stringify(route)};
+      const requestedViewport = ${JSON.stringify(viewport)};
+      const state = ${JSON.stringify(state)};
+      const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+      const visible = (element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      };
+      const selectorFor = (element) => {
+        if (!element) return '';
+        if (element.id) return \`\${element.tagName.toLowerCase()}#\${element.id}\`;
+        const classes = String(element.className || '').trim().split(/\\s+/).filter(Boolean).slice(0, 3);
+        return \`\${element.tagName.toLowerCase()}\${classes.length ? '.' + classes.join('.') : ''}\`;
+      };
+      const ownerFor = (element) => {
+        if (!element) return 'unknown';
+        if (element.closest('#other-tools')) return 'All Tools';
+        if (element.closest('[aria-labelledby="current-tool-guide-heading"]')) return 'route guidance';
+        if (element.closest('#advanced-settings')) return 'shared SVG raster settings';
+        if (element.closest('[data-layout-output-panel="true"]')) return 'SVG-to-PNG output panel';
+        if (element.closest('[aria-label="Advertisements"]')) return 'advertisement shell';
+        if (element.closest('main')) return 'SVG-to-PNG converter';
+        if (element.closest('header')) return 'shared navigation';
+        if (element.closest('footer')) return 'shared footer';
+        return 'supporting page content';
+      };
+      const clippingAncestor = (element) => {
+        const rect = element.getBoundingClientRect();
+        let parent = element.parentElement;
+        while (parent && parent !== document.body) {
+          const parentRect = parent.getBoundingClientRect();
+          const style = getComputedStyle(parent);
+          if (
+            /hidden|clip|auto|scroll/.test(style.overflowX) &&
+            (rect.left < parentRect.left - 1 || rect.right > parentRect.right + 1)
+          ) {
+            return selectorFor(parent);
+          }
+          parent = parent.parentElement;
+        }
+        return null;
+      };
+      const describe = (element) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          selector: selectorFor(element),
+          owner: ownerFor(element),
+          computedWidth: style.width,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          rect: {
+            left: Math.round(rect.left * 100) / 100,
+            right: Math.round(rect.right * 100) / 100,
+            top: Math.round(rect.top * 100) / 100,
+            bottom: Math.round(rect.bottom * 100) / 100,
+            width: Math.round(rect.width * 100) / 100,
+            height: Math.round(rect.height * 100) / 100,
+          },
+          rules: {
+            minWidth: style.minWidth,
+            width: style.width,
+            gridTemplateColumns: style.gridTemplateColumns,
+            flex: style.flex,
+            transform: style.transform,
+            overflowX: style.overflowX,
+            whiteSpace: style.whiteSpace,
+            position: style.position,
+          },
+          visible: visible(element),
+          clippedBy: clippingAncestor(element),
+        };
+      };
+      const rendered = Array.from(document.querySelectorAll('body *')).filter(visible);
+      const unclippedRendered = rendered.filter(
+        (element) => !clippingAncestor(element)
+      );
+      const widestElement = rendered
+        .slice()
+        .sort((left, right) => {
+          const leftRect = left.getBoundingClientRect();
+          const rightRect = right.getBoundingClientRect();
+          return Math.max(rightRect.width, right.scrollWidth) - Math.max(leftRect.width, left.scrollWidth);
+        })[0] || null;
+      const documentClientWidth = document.documentElement.clientWidth;
+      const overflowContributors = rendered
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return (
+            (rect.left < -1 || rect.right > documentClientWidth + 1) &&
+            !clippingAncestor(element)
+          );
+        })
+        .slice(0, 8)
+        .map(describe);
+      const maximumVisibleRightEdge = Math.max(
+        0,
+        ...unclippedRendered.map(
+          (element) => element.getBoundingClientRect().right
+        )
+      );
+      const horizontalScrollContainers = rendered
+        .filter((element) => {
+          const style = getComputedStyle(element);
+          return (
+            /auto|scroll/.test(style.overflowX) &&
+            element.scrollWidth > element.clientWidth + 1
+          );
+        })
+        .slice(0, 12)
+        .map((element) => ({
+          ...describe(element),
+          intentional: element.matches(
+            'textarea[aria-label="SVG source code"]'
+          ),
+        }));
+      const focusable = Array.from(
+        document.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]')
+      ).filter((element) => visible(element) && !element.disabled && element.getAttribute('tabindex') !== '-1');
+      const clippedFocusable = focusable
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return (
+            (rect.left < -1 || rect.right > documentClientWidth + 1) &&
+            !clippingAncestor(element)
+          );
+        })
+        .slice(0, 12)
+        .map(describe);
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const labels = Array.from(document.querySelectorAll('label'));
+      const findButton = (prefix) => buttons.find((button) => normalize(button.textContent).startsWith(prefix));
+      const findLabel = (prefix) => labels.find((label) => normalize(label.textContent).startsWith(prefix));
+      const controlFor = (prefix) => findLabel(prefix)?.querySelector('input, select, textarea') || null;
+      const preview = Array.from(document.querySelectorAll('img')).find((image) => image.alt === 'PNG result');
+      const selectedFilename = document.querySelector('[aria-label="Remove selected file"]')?.parentElement?.querySelector('[title]')?.getAttribute('title') || null;
+      const grid = Array.from(document.querySelectorAll('main section')).find((element) => String(element.className || '').includes('grid-cols-1')) || null;
+      const input = grid?.children?.[0] || null;
+      const output = grid?.querySelector('[data-layout-output-panel="true"]') || null;
+      const rectValue = (element) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          left: Math.round(rect.left * 100) / 100,
+          right: Math.round(rect.right * 100) / 100,
+          top: Math.round(rect.top * 100) / 100,
+          bottom: Math.round(rect.bottom * 100) / 100,
+          width: Math.round(rect.width * 100) / 100,
+          height: Math.round(rect.height * 100) / 100,
+        };
+      };
+      const guide = document.querySelector('[aria-labelledby="current-tool-guide-heading"]');
+      const mainText = normalize(document.querySelector('main')?.textContent);
+      const expectedH1 = ${JSON.stringify(svgPngExpectedH1[route])};
+      const platformNames = ['Shopify', 'Etsy', 'Printify', 'Printful', 'Canva', 'Figma'];
+      const platformLeaks = platformNames.filter((name) => !expectedH1.includes(name) && mainText.includes(name));
+      const widthControl = controlFor('Output width (px)');
+      const heightControl = controlFor('Output height (px)');
+      const lockControl = controlFor('Lock aspect ratio');
+      const qualityControl = controlFor('Quality (pixel ratio)');
+      const backgroundControl = controlFor('Background');
+      const backgroundColorControl = controlFor('Background color');
+      const download = findButton('Download PNG');
+      const documentMetrics = {
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      };
+      const bodyMetrics = {
+        clientWidth: document.body.clientWidth,
+        scrollWidth: document.body.scrollWidth,
+      };
+      return {
+        route,
+        state,
+        requestedViewport,
+        viewport: {
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+        },
+        h1: normalize(document.querySelector('h1')?.textContent),
+        document: documentMetrics,
+        body: bodyMetrics,
+        pageOverflow:
+          documentMetrics.scrollWidth > documentMetrics.clientWidth + 1 ||
+          bodyMetrics.scrollWidth > bodyMetrics.clientWidth + 1,
+        maximumVisibleRightEdge:
+          Math.round(maximumVisibleRightEdge * 100) / 100,
+        widestRenderedElement: describe(widestElement),
+        overflowContributors,
+        horizontalScrollContainers,
+        clippedFocusable,
+        focusableCount: focusable.length,
+        controls: {
+          hasFileInput: Boolean(document.querySelector('input[type="file"]')),
+          hasConvert: Boolean(findButton('Convert to PNG') && visible(findButton('Convert to PNG'))),
+          hasDownload: Boolean(download && visible(download)),
+          downloadEnabled: Boolean(download && !download.disabled),
+          hasWidth: Boolean(findLabel('Output width (px)') && visible(findLabel('Output width (px)'))),
+          hasHeight: Boolean(findLabel('Output height (px)') && visible(findLabel('Output height (px)'))),
+          hasBackground: Boolean(findLabel('Background') && visible(findLabel('Background'))),
+          hasBackgroundColor: Boolean(findLabel('Background color') && visible(findLabel('Background color'))),
+          hasSourceEditor: Boolean(document.querySelector('textarea[aria-label="SVG source code"]') && visible(document.querySelector('textarea[aria-label="SVG source code"]'))),
+        },
+        defaults: {
+          width: widthControl?.value || '',
+          height: heightControl?.value || '',
+          lockAspect: Boolean(lockControl?.checked),
+          quality: qualityControl?.value || '',
+          background: backgroundControl?.value || '',
+          backgroundColor: backgroundColorControl?.value || '',
+        },
+        selectedFilename,
+        preview: {
+          visible: Boolean(preview && visible(preview)),
+          width: preview?.naturalWidth || 0,
+          height: preview?.naturalHeight || 0,
+          box: describe(preview),
+        },
+        layout: {
+          input: rectValue(input),
+          output: rectValue(output),
+        },
+        routeGuide: {
+          visible: Boolean(guide && visible(guide)),
+          heading: normalize(guide?.querySelector('#current-tool-guide-heading')?.textContent),
+        },
+        allToolsPresent: Boolean(document.querySelector('#other-tools')),
+        platformLeaks,
+      };
+    })()`,
+  );
 }
 
 async function auditSvgPngInvalidInput(route, fixturePath) {

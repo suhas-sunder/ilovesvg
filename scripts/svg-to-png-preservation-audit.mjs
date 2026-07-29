@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -96,6 +97,176 @@ const expectedDefaults = {
   fileName: "converted",
 };
 
+const sharedContentSourceKeys = [
+  "base-converter:intro-controls",
+  "base-converter:dimensions-background",
+  "base-converter:output-download",
+  "base-converter:example-workflow",
+  "base-converter:faq-troubleshooting",
+];
+
+const expectedContentContracts = {
+  "/svg-to-png-converter": {
+    currentContentOwner: "app/routes/svg-to-png-converter.tsx",
+    guidanceCategory: "base-converter",
+    contentKinds: ["base-converter-guidance"],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:base-explicit-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "not-planned",
+  },
+  "/svg-to-png-for-shopify": {
+    currentContentOwner: "app/routes/svg-to-png-for-shopify.tsx",
+    guidanceCategory: "seller-platform",
+    contentKinds: [
+      "base-converter-guidance",
+      "platform-workflow-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/svg-to-png-for-etsy": {
+    currentContentOwner: "app/routes/svg-to-png-for-etsy.tsx",
+    guidanceCategory: "seller-platform",
+    contentKinds: [
+      "base-converter-guidance",
+      "platform-workflow-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/svg-to-png-for-printify": {
+    currentContentOwner: "app/routes/svg-to-png-for-printify.tsx",
+    guidanceCategory: "print-on-demand",
+    contentKinds: [
+      "base-converter-guidance",
+      "platform-workflow-guidance",
+      "printing-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "base-converter:printify-inline-guidance",
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/svg-to-png-for-printful": {
+    currentContentOwner: "app/routes/svg-to-png-for-printful.tsx",
+    guidanceCategory: "print-on-demand",
+    contentKinds: [
+      "base-converter-guidance",
+      "platform-workflow-guidance",
+      "printing-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "base-converter:printful-inline-guidance",
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/sticker-to-png-for-printing": {
+    currentContentOwner: "app/routes/sticker-to-png-for-printing.tsx",
+    guidanceCategory: "sticker-printing",
+    contentKinds: [
+      "base-converter-guidance",
+      "printing-guidance",
+      "sticker-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/svg-to-transparent-png-for-printing": {
+    currentContentOwner:
+      "app/routes/svg-to-transparent-png-for-printing.tsx",
+    guidanceCategory: "transparent-printing",
+    contentKinds: [
+      "base-converter-guidance",
+      "printing-guidance",
+      "transparency-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/svg-to-png-for-canva": {
+    currentContentOwner: "app/routes/svg-to-png-for-canva.tsx",
+    guidanceCategory: "design-platform",
+    contentKinds: [
+      "base-converter-guidance",
+      "platform-workflow-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+  "/svg-to-png-for-figma": {
+    currentContentOwner: "app/routes/svg-to-png-for-figma.tsx",
+    guidanceCategory: "design-platform",
+    contentKinds: [
+      "base-converter-guidance",
+      "platform-workflow-guidance",
+    ],
+    contentSourceKeys: [
+      ...sharedContentSourceKeys,
+      "other-tools:utility-derived-guide",
+      "other-tools:all-tools-entry",
+    ],
+    futureMigrationStatus: "blocked",
+  },
+};
+
+const unchangedContentHashes = {
+  "app/client/components/navigation/OtherToolsLinks.tsx":
+    "b1cea2a32ff7ee56d89d3cb86e02e355e05f32dbe1926a82f3305712dbb1b84a",
+  "app/routes/svg-to-png-for-shopify.tsx":
+    "38726d6ac2a65b9db5979e39d3dc9920d3d5a4a61d18d300ca8f3e5907d413c2",
+  "app/routes/svg-to-png-for-etsy.tsx":
+    "838cff56e8d10fadf08169793db2d29447a7fb78c4a7c170be38eb7e51c6e424",
+  "app/routes/svg-to-png-for-printify.tsx":
+    "9d361cfdbe5fa56f2ccb8522afd6ec33d77f7217917f875f3f5c4e98167d2dd9",
+  "app/routes/svg-to-png-for-printful.tsx":
+    "2daa88aebb76816affb840b6abb3ed1be1d1dd38161c3b81e28662856c3342fc",
+  "app/routes/sticker-to-png-for-printing.tsx":
+    "44caa348ed67b971c98b771c70229eff1c1eb62d7e7c34c3611f87a68dc9e8f4",
+  "app/routes/svg-to-transparent-png-for-printing.tsx":
+    "c82e4ce6a909e06653ccccdf8bfcff9c2126e280dc2c21a1b43f658484f70996",
+  "app/routes/svg-to-png-for-canva.tsx":
+    "5aae57bed574ad243ef1e8bc76a22415fed4eff65dd2e91c29f3e6929f53e079",
+  "app/routes/svg-to-png-for-figma.tsx":
+    "9e3d2cb657b3fe2c3453533e03879698033adb8202660147fd8a9561f0ce02d3",
+  "app/data/routeMeta/marketplaceExport.ts":
+    "36ca91ca015ada449fc41c79f89eb78a262e567773b31a76b76e8316059e92fb",
+  "app/data/routeMeta/canvaFigma.ts":
+    "569b8fc7aacfae424dcd67ee7ba0dce0647cfff5774a4c6fcdfbc5a0295da2c8",
+  "app/client/components/ads/ContextualAdCard.tsx":
+    "f29fce11bcd43c0986cf7706d441e80b378fa0594940c4ef134ea2062b33394b",
+  "app/client/components/navigation/RelatedSites.tsx":
+    "3889f1093de7effd701457bd1962c3b4165b672dac5db2eeedbc007d628d9d54",
+};
+
 const preChangeBaselines = {
   "transparent-and-partial-alpha": {
     sha256:
@@ -173,10 +344,14 @@ async function main() {
     "app/client/lib/converter/routeCapabilities.ts",
   );
   const baseSource = await read("app/routes/svg-to-png-converter.tsx");
+  const contextSource = await read(
+    "app/client/lib/converter/svgToPngRouteContexts.ts",
+  );
   const sitemapXml = await read("public/sitemap.xml");
   const sitemapRouteSource = await read("app/routes/sitemap.tsx");
 
   auditContexts(contexts);
+  await auditUnchangedContentFiles();
   auditRegistration(
     manifestModule.ROUTE_MANIFEST,
     routesSource,
@@ -184,7 +359,7 @@ async function main() {
     sitemapXml,
     sitemapRouteSource,
   );
-  await auditRouteSources(baseSource);
+  await auditRouteSources(baseSource, contextSource);
   const rendered = await auditRenderedIdentity(
     manifestModule.ROUTE_MANIFEST,
     contexts,
@@ -194,6 +369,10 @@ async function main() {
   const summary = {
     familyRoutes: expected.map((item) => item.path),
     routeContextKeys: expected.map((item) => item.key),
+    contentContracts: expected.map((item) => ({
+      path: item.path,
+      ...expectedContentContracts[item.path],
+    })),
     defaults: expectedDefaults,
     renderedIdentity: rendered,
     parity: {
@@ -216,6 +395,7 @@ async function main() {
       invalidInputs: parity.invalidInputs,
       lifecycle: parity.lifecycle,
       mobile: parity.mobile,
+      responsive: parity.responsive,
       preChangeBaselines,
     },
     preservation: {
@@ -245,21 +425,23 @@ function auditContexts(module) {
   assert(contexts && typeof contexts === "object", "Missing route contexts.");
   assert(paths.length === expected.length, "Unexpected route path count.");
   assert(
+    Object.keys(contexts).length === expected.length &&
+      Object.keys(contexts).every((path) => paths.includes(path)),
+    "An unrelated route has an SVG-to-PNG context.",
+  );
+  assert(Object.isFrozen(contexts), "Route contexts must remain immutable.");
+  assert(
     new Set(paths).size === paths.length,
     "Duplicate SVG-to-PNG route path.",
   );
 
   const keys = [];
+  const contentOwners = [];
   for (const item of expected) {
     const context = contexts[item.path];
     assert(context, `Missing route context for ${item.path}.`);
     assert(context.key === item.key, `${item.path} context key changed.`);
     assert(context.path === item.path, `${item.path} path changed.`);
-    assert(context.h1 === item.h1, `${item.path} H1 changed.`);
-    assert(
-      context.platformName === item.platformName,
-      `${item.path} platform name changed.`,
-    );
     assert(
       context.canonicalPath === item.path,
       `${item.path} canonical was consolidated.`,
@@ -286,12 +468,127 @@ function auditContexts(module) {
         item.hasDedicatedInlineSeoCopy,
       `${item.path} SEO-copy ownership changed.`,
     );
+    const contentContract = context.contentContract;
+    const expectedContract = expectedContentContracts[item.path];
+    assert(contentContract, `${item.path} content contract is missing.`);
+    assert(
+      Object.isFrozen(context) &&
+        Object.isFrozen(context.defaults) &&
+        Object.isFrozen(contentContract) &&
+        Object.isFrozen(contentContract.contentKinds) &&
+        Object.isFrozen(contentContract.contentSourceKeys),
+      `${item.path} route/content contract is mutable.`,
+    );
+    assert(
+      contentContract.retainedDestinationCandidate ===
+        "/svg-to-png-converter",
+      `${item.path} retained destination candidate changed.`,
+    );
+    assert(
+      contentContract.currentContentOwner ===
+        expectedContract.currentContentOwner,
+      `${item.path} content owner changed.`,
+    );
+    assert(
+      contentContract.guidanceCategory ===
+        expectedContract.guidanceCategory,
+      `${item.path} guidance category changed.`,
+    );
+    assert(
+      contentContract.titleH1Identity.h1 === item.h1,
+      `${item.path} content-contract H1 changed.`,
+    );
+    assert(
+      JSON.stringify(contentContract.defaultDimensions) ===
+        JSON.stringify({ width: 1024, height: 1024 }),
+      `${item.path} content-contract default dimensions changed.`,
+    );
+    assert(
+      JSON.stringify(contentContract.outputFilenamePolicy) ===
+        JSON.stringify({
+          mode: "source-basename",
+          fallbackBasename: "converted",
+        }),
+      `${item.path} content-contract filename policy changed.`,
+    );
+    assert(
+      contentContract.exampleBehavior ===
+        "shared-static-example-workflow",
+      `${item.path} example behavior changed.`,
+    );
+    assert(
+      contentContract.breadcrumbSchemaOwner ===
+        "base-svg-to-png-converter",
+      `${item.path} breadcrumb/schema owner changed.`,
+    );
+    assert(
+      JSON.stringify(contentContract.contentKinds) ===
+        JSON.stringify(expectedContract.contentKinds),
+      `${item.path} content-kind inventory changed.`,
+    );
+    assert(
+      JSON.stringify(contentContract.contentSourceKeys) ===
+        JSON.stringify(expectedContract.contentSourceKeys),
+      `${item.path} content-source inventory changed.`,
+    );
+    assert(
+      contentContract.futureMigrationStatus ===
+        expectedContract.futureMigrationStatus,
+      `${item.path} future migration status changed.`,
+    );
     keys.push(context.key);
+    contentOwners.push(contentContract.currentContentOwner);
   }
   assert(new Set(keys).size === keys.length, "Duplicate route-context key.");
+  assert(
+    contentOwners.length === expected.length,
+    "Every route must have exactly one content-contract entry.",
+  );
   assertThrows(
     () => module.getSvgToPngRouteContext("/not-a-family-route"),
     "Unknown route context must fail instead of falling back.",
+  );
+  assertThrows(
+    () =>
+      module.getSvgToPngRouteContext(
+        "/svg-to-png-converter?context=shopify",
+      ),
+    "Query strings must not select an SVG-to-PNG route context.",
+  );
+}
+
+async function auditUnchangedContentFiles() {
+  for (const [relativePath, expectedHash] of Object.entries(
+    unchangedContentHashes,
+  )) {
+    const source = await fs.readFile(path.join(rootDir, relativePath));
+    const actualHash = createHash("sha256").update(source).digest("hex");
+    assert(
+      actualHash === expectedHash,
+      `${relativePath} changed from the approved content/All Tools baseline.`,
+    );
+  }
+  const examplePath =
+    "app/client/components/layout/ExampleSvgConversion.tsx";
+  const exampleSource = await read(examplePath);
+  const responsiveClass =
+    "min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4";
+  assert(
+    count(exampleSource, responsiveClass) === 1,
+    `${examplePath} must contain exactly one scoped responsive containment correction.`,
+  );
+  const preFixEquivalentSource = exampleSource
+    .replace(
+      responsiveClass,
+      "rounded-xl border border-slate-200 bg-slate-50 p-4",
+    )
+    .replace(/\r\n/g, "\n");
+  assert(
+    createHash("sha256")
+      .update(preFixEquivalentSource)
+      .digest("hex") ===
+      "4345ef981e64c97a969f27d4af58534308cff57f56f0bfeb5c39876e51726b1b",
+    `${examplePath} changed beyond the approved min-width containment correction.`,
   );
 }
 
@@ -348,7 +645,7 @@ function auditRegistration(
   );
 }
 
-async function auditRouteSources(baseSource) {
+async function auditRouteSources(baseSource, contextSource) {
   assert(
     baseSource.includes("getSvgToPngRouteContext(pathname)"),
     "Base converter is not using the bounded context lookup.",
@@ -376,6 +673,15 @@ async function auditRouteSources(baseSource) {
       baseSource.includes("setLiveResult(null)") &&
       baseSource.includes("setResult(null)"),
     "Current clear/result cleanup behavior changed.",
+  );
+  assert(
+    !/URLSearchParams|searchParams|\?context=|redirect\s*\(/.test(
+      contextSource,
+    ) &&
+      !/URLSearchParams|searchParams|\?context=|redirect\s*\(/.test(
+        baseSource,
+      ),
+    "Context query, redirect, or URL-state behavior was introduced.",
   );
 
   for (const item of expected.slice(1)) {
@@ -410,9 +716,17 @@ async function auditRenderedIdentity(manifest, contextModule) {
     const ogUrl = getMeta(html, "property", "og:url");
     const breadcrumbs = getBreadcrumbJsonLd(html);
     const inputAccept = getFileInputAccept(html);
+    const expectedGuideHeading =
+      item.path === "/svg-to-png-converter"
+        ? "SVG to PNG with transparency, size control, and browser raster export"
+        : `${item.h1}: practical workflow notes`;
 
     assert(title === entry.title, `${item.path} title changed.`);
     assert(h1 === context.h1, `${item.path} rendered H1 changed.`);
+    assert(
+      context.contentContract.titleH1Identity.title === entry.title,
+      `${item.path} content-contract title changed.`,
+    );
     assert(
       description === entry.description,
       `${item.path} description changed.`,
@@ -440,6 +754,22 @@ async function auditRenderedIdentity(manifest, contextModule) {
         html.includes("Transparent backgrounds stay transparent"),
       `${item.path} converter actions or guidance missing.`,
     );
+    assert(
+      html.includes(expectedGuideHeading),
+      `${item.path} route-specific guidance heading is missing.`,
+    );
+    if (item.path === "/svg-to-png-for-printify") {
+      assert(
+        html.includes("Prepare Printify print-on-demand PNG artwork"),
+        "Printify inline guidance is missing.",
+      );
+    }
+    if (item.path === "/svg-to-png-for-printful") {
+      assert(
+        html.includes("Prepare Printful print-on-demand PNG artwork"),
+        "Printful inline guidance is missing.",
+      );
+    }
     results.push({
       path: item.path,
       title,
@@ -447,7 +777,33 @@ async function auditRenderedIdentity(manifest, contextModule) {
       canonical,
       schemaPath: context.schema.path,
       inputAccept,
+      guideHeading: expectedGuideHeading,
     });
+  }
+  for (const queryCase of [
+    {
+      url: "/svg-to-png-converter?context=shopify",
+      path: "/svg-to-png-converter",
+    },
+    {
+      url: "/svg-to-png-for-shopify?context=figma",
+      path: "/svg-to-png-for-shopify",
+    },
+  ]) {
+    const response = await fetch(`${baseUrl}${queryCase.url}`, {
+      redirect: "manual",
+    });
+    const html = await response.text();
+    const expectedItem = expected.find(
+      (item) => item.path === queryCase.path,
+    );
+    assert(response.status === 200, `${queryCase.url} did not return 200.`);
+    assert(!response.headers.get("location"), `${queryCase.url} redirected.`);
+    assert(
+      textContent(matchTag(html, "h1")) === expectedItem.h1 &&
+        getLink(html, "canonical") === `${origin}${queryCase.path}`,
+      `${queryCase.url} activated query-based context behavior.`,
+    );
   }
   return results;
 }
@@ -518,10 +874,62 @@ async function runParityAudit() {
           item.hasDownload &&
           item.hasWidth &&
           item.hasBackground &&
-          typeof item.horizontalOverflow === "boolean",
+          item.horizontalOverflow === false &&
+          item.scrollWidth <= item.clientWidth + 1 &&
+          item.bodyScrollWidth <= item.bodyClientWidth + 1,
       ),
     "SVG-to-PNG mobile coverage failed.",
   );
+  assert(
+    family.responsive.length === expected.length * 7,
+    "SVG-to-PNG responsive route/viewport matrix is incomplete.",
+  );
+  const requiredViewportKeys = new Set([
+    "320x800",
+    "360x800",
+    "375x812",
+    "390x844",
+    "412x915",
+    "768x1024",
+    "1280x720",
+  ]);
+  for (const item of expected) {
+    const routeRows = family.responsive.filter(
+      (row) => row.route === item.path,
+    );
+    assert(
+      routeRows.length === requiredViewportKeys.size &&
+        new Set(
+          routeRows.map(
+            (row) =>
+              `${row.requestedViewport.width}x${row.requestedViewport.height}`,
+          ),
+        ).size === requiredViewportKeys.size,
+      `${item.path} responsive viewport coverage is incomplete.`,
+    );
+    for (const row of routeRows) {
+      assert(
+        row.states.length >= 7 &&
+          row.states.every(
+            (state) =>
+              !state.pageOverflow &&
+              state.document.scrollWidth <=
+                state.document.clientWidth + 1 &&
+              state.body.scrollWidth <= state.body.clientWidth + 1 &&
+              state.maximumVisibleRightEdge <=
+                state.document.clientWidth + 1 &&
+              state.horizontalScrollContainers.every(
+                (container) => container.intentional,
+              ) &&
+              state.clippedFocusable.length === 0 &&
+              state.h1 === item.h1 &&
+              state.routeGuide.visible &&
+              state.allToolsPresent,
+          ),
+        `${item.path} responsive preservation failed at ${row.requestedViewport.width}x${row.requestedViewport.height}.`,
+      );
+    }
+  }
   for (const comparison of family.fixtureComparisons) {
     const baseline = preChangeBaselines[comparison.fixture];
     assert(baseline, `Missing pre-change baseline for ${comparison.fixture}.`);
@@ -568,6 +976,7 @@ async function runParityAudit() {
     invalidInputs: family.invalidInputs,
     lifecycle: family.lifecycle,
     mobile: family.mobile,
+    responsive: family.responsive,
   };
 }
 

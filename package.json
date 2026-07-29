@@ -35,6 +35,7 @@
     "test:settings-color-coverage": "node scripts/settings-color-coverage-audit.mjs",
     "test:converter-route-parity": "node scripts/converter-route-parity-smoke.mjs",
     "test:svg-to-png-preservation": "node scripts/svg-to-png-preservation-audit.mjs",
+    "test:svg-to-png-responsive": "node scripts/svg-to-png-responsive-audit.mjs",
     "test:high-fidelity-browser-output": "node scripts/high-fidelity-browser-output-smoke.mjs",
     "test:adaptive-palette-quality": "node scripts/adaptive-palette-quality-smoke.mjs",
     "test:palette-grouping-audit": "node scripts/palette-grouping-audit.mjs",

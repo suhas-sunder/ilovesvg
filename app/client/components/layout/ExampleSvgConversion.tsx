@@ -439,7 +439,7 @@ function ExampleImagePanel({
   }, [src]);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="mb-2 text-sm font-semibold text-slate-900">{label}</div>
 
       <div className="relative grid aspect-square place-items-center overflow-hidden rounded-lg border border-slate-200 bg-white">
