@@ -241,22 +241,6 @@ const expectedContentContracts = {
 const unchangedContentHashes = {
   "app/client/components/navigation/OtherToolsLinks.tsx":
     "b1cea2a32ff7ee56d89d3cb86e02e355e05f32dbe1926a82f3305712dbb1b84a",
-  "app/routes/svg-to-png-for-shopify.tsx":
-    "38726d6ac2a65b9db5979e39d3dc9920d3d5a4a61d18d300ca8f3e5907d413c2",
-  "app/routes/svg-to-png-for-etsy.tsx":
-    "838cff56e8d10fadf08169793db2d29447a7fb78c4a7c170be38eb7e51c6e424",
-  "app/routes/svg-to-png-for-printify.tsx":
-    "9d361cfdbe5fa56f2ccb8522afd6ec33d77f7217917f875f3f5c4e98167d2dd9",
-  "app/routes/svg-to-png-for-printful.tsx":
-    "2daa88aebb76816affb840b6abb3ed1be1d1dd38161c3b81e28662856c3342fc",
-  "app/routes/sticker-to-png-for-printing.tsx":
-    "44caa348ed67b971c98b771c70229eff1c1eb62d7e7c34c3611f87a68dc9e8f4",
-  "app/routes/svg-to-transparent-png-for-printing.tsx":
-    "c82e4ce6a909e06653ccccdf8bfcff9c2126e280dc2c21a1b43f658484f70996",
-  "app/routes/svg-to-png-for-canva.tsx":
-    "5aae57bed574ad243ef1e8bc76a22415fed4eff65dd2e91c29f3e6929f53e079",
-  "app/routes/svg-to-png-for-figma.tsx":
-    "9e3d2cb657b3fe2c3453533e03879698033adb8202660147fd8a9561f0ce02d3",
   "app/data/routeMeta/marketplaceExport.ts":
     "36ca91ca015ada449fc41c79f89eb78a262e567773b31a76b76e8316059e92fb",
   "app/data/routeMeta/canvaFigma.ts":
@@ -443,6 +427,11 @@ function auditContexts(module) {
     assert(context.key === item.key, `${item.path} context key changed.`);
     assert(context.path === item.path, `${item.path} path changed.`);
     assert(
+      context.sharedImplementationOwner ===
+        "app/routes/svg-to-png-converter.tsx",
+      `${item.path} does not identify the shared production implementation.`,
+    );
+    assert(
       context.canonicalPath === item.path,
       `${item.path} canonical was consolidated.`,
     );
@@ -548,6 +537,16 @@ function auditContexts(module) {
     () => module.getSvgToPngRouteContext("/not-a-family-route"),
     "Unknown route context must fail instead of falling back.",
   );
+  for (const item of expected) {
+    assert(
+      module.getSvgToPngRouteContextByKey(item.key) === contexts[item.path],
+      `${item.path} does not resolve from its exact typed route key.`,
+    );
+  }
+  assertThrows(
+    () => module.getSvgToPngRouteContextByKey("unknown-route-key"),
+    "Unknown route keys must fail instead of falling back.",
+  );
   assertThrows(
     () =>
       module.getSvgToPngRouteContext(
@@ -647,8 +646,21 @@ function auditRegistration(
 
 async function auditRouteSources(baseSource, contextSource) {
   assert(
-    baseSource.includes("getSvgToPngRouteContext(pathname)"),
-    "Base converter is not using the bounded context lookup.",
+    baseSource.includes(
+      "export function SvgToPngRouteImplementation",
+    ) &&
+      count(
+        baseSource,
+        "export function SvgToPngRouteImplementation",
+      ) === 1 &&
+      baseSource.includes('routeKey="base"') &&
+      baseSource.includes("getSvgToPngRouteContextByKey(routeKey)"),
+    "Base route does not render the shared implementation with an explicit key.",
+  );
+  assert(
+    !baseSource.includes("useLocation") &&
+      !baseSource.includes("getSvgToPngRouteContext(pathname)"),
+    "Shared implementation still derives route identity from the URL.",
   );
   assert(
     baseSource.includes("accept={routeContext.inputAccept}"),
@@ -687,8 +699,20 @@ async function auditRouteSources(baseSource, contextSource) {
   for (const item of expected.slice(1)) {
     const source = await read(item.sourceFile);
     assert(
-      source.includes('from "./svg-to-png-converter"'),
-      `${item.path} no longer renders the production converter.`,
+      source.includes(
+        'import { SvgToPngRouteImplementation } from "./svg-to-png-converter";',
+      ) &&
+        source.includes(
+          `<SvgToPngRouteImplementation routeKey="${item.key}" />`,
+        ),
+      `${item.path} does not render the shared implementation with its explicit key.`,
+    );
+    assert(
+      !source.includes(
+        'import Template from "./svg-to-png-converter"',
+      ) &&
+        !/getSvgToPngRouteContext|useLocation|URLSearchParams/.test(source),
+      `${item.path} contains an overlapping or URL-derived route selection path.`,
     );
     assert(
       !/\bredirect\s*\(/.test(source),

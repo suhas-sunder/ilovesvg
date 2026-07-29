@@ -12,6 +12,17 @@ export const SVG_TO_PNG_ROUTE_PATHS = [
 
 export type SvgToPngRoutePath = (typeof SVG_TO_PNG_ROUTE_PATHS)[number];
 
+export type SvgToPngRouteKey =
+  | "base"
+  | "shopify"
+  | "etsy"
+  | "printify"
+  | "printful"
+  | "sticker-printing"
+  | "transparent-printing"
+  | "canva"
+  | "figma";
+
 export type SvgToPngSettings = {
   width: number;
   height: number;
@@ -91,17 +102,9 @@ export type SvgToPngContentContract = Readonly<{
 }>;
 
 export type SvgToPngRouteContext = {
-  key:
-    | "base"
-    | "shopify"
-    | "etsy"
-    | "printify"
-    | "printful"
-    | "sticker-printing"
-    | "transparent-printing"
-    | "canva"
-    | "figma";
+  key: SvgToPngRouteKey;
   path: SvgToPngRoutePath;
+  sharedImplementationOwner: "app/routes/svg-to-png-converter.tsx";
   h1: string;
   platformName: string | null;
   canonicalPath: SvgToPngRoutePath;
@@ -144,6 +147,7 @@ const SHARED_SCHEMA = Object.freeze({
 function defineContext(
   value: Omit<
     SvgToPngRouteContext,
+    | "sharedImplementationOwner"
     | "canonicalPath"
     | "inputAccept"
     | "defaults"
@@ -171,6 +175,7 @@ function defineContext(
   } = value;
   return Object.freeze({
     ...context,
+    sharedImplementationOwner: "app/routes/svg-to-png-converter.tsx",
     canonicalPath: context.path,
     inputAccept: "image/svg+xml,.svg",
     defaults: SHARED_DEFAULTS,
@@ -414,4 +419,14 @@ export function getSvgToPngRouteContext(pathname: string): SvgToPngRouteContext 
     ];
   }
   throw new Error(`Unknown SVG-to-PNG route context: ${normalized}`);
+}
+
+export function getSvgToPngRouteContextByKey(
+  key: string,
+): SvgToPngRouteContext {
+  const context = Object.values(SVG_TO_PNG_ROUTE_CONTEXTS).find(
+    (candidate) => candidate.key === key,
+  );
+  if (context) return context;
+  throw new Error(`Unknown SVG-to-PNG route key: ${key}`);
 }
