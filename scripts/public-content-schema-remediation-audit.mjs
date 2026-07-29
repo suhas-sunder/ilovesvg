@@ -41,6 +41,7 @@ const [
   navigationCopy,
   sitemapRoute,
   tracePanel,
+  publicTracePresentation,
   bespokeTracePanel,
   advancedHelp,
   presetSelector,
@@ -64,6 +65,7 @@ const [
   read("app/client/components/navigation/OtherToolsLinks.tsx"),
   read("app/routes/sitemap.tsx"),
   read("app/client/components/converter/TraceOutputPanel.tsx"),
+  read("app/client/lib/converter/publicTracePresentation.ts"),
   read("app/client/components/converter/BespokeTraceOutputPanel.tsx"),
   read("app/client/components/converter/AdvancedSettingsHelpSection.tsx"),
   read("app/client/components/converter/PresetSelector.tsx"),
@@ -202,19 +204,34 @@ excludes(
   "Public workflow help removes internal parity terminology",
 );
 includes(
-  tracePanel,
-  'if (engineUsed === "vtracer") return "Detailed color trace";',
+  publicTracePresentation,
+  '["vtracer", "Detailed color trace"]',
   "Internal trace identifiers map to user-facing method names",
 );
 includes(
-  tracePanel,
-  'normalized.includes("layered") || normalized.includes("vtracer")',
+  publicTracePresentation,
+  '["hybrid layered trace", "Detailed color trace"]',
   "Detailed color trace paths retain their user-facing distinction",
 );
 includes(
+  publicTracePresentation,
+  'replacement: "detailed color tracing"',
+  "Internal trace warning terms map to user-facing wording",
+);
+includes(
+  publicTracePresentation,
+  '"Trace method unavailable"',
+  "Unknown trace methods use a neutral public label",
+);
+includes(
   tracePanel,
-  "A compatible tracing method was used to complete this conversion.",
-  "Internal trace warnings map to user-facing wording",
+  "getVisiblePublicTraceWarnings",
+  "Shared trace output renders translated public warnings",
+);
+includes(
+  hybridFetcher,
+  "getPublicTraceWarning(fallbackReason)",
+  "Server fallback output preserves and translates its public reason",
 );
 excludes(
   hybridFetcher,

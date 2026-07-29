@@ -2816,8 +2816,14 @@ async function clickButtonIfPresent(client, patternSource, options = {}) {
     const reject = ${options.reject || "null"};
     const buttons = Array.from(document.querySelectorAll("button, a, [role='button'], summary"));
     const target = buttons.find((candidate) => {
-      const text = (candidate.textContent || candidate.getAttribute("aria-label") || "").trim();
-      if (!pattern.test(text) || (reject && reject.test(text)) || candidate.disabled) return false;
+      const accessibleName = (candidate.getAttribute("aria-label") || "").trim();
+      const visibleText = (candidate.textContent || "").trim();
+      const matches =
+        pattern.test(accessibleName) || pattern.test(visibleText);
+      const rejected =
+        reject &&
+        (reject.test(accessibleName) || reject.test(visibleText));
+      if (!matches || rejected || candidate.disabled) return false;
       const rect = candidate.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return false;
       const style = getComputedStyle(candidate);
@@ -2827,7 +2833,9 @@ async function clickButtonIfPresent(client, patternSource, options = {}) {
       return visible;
     });
     if (!target) return null;
-    const label = (target.textContent || "").trim() || target.getAttribute("aria-label") || "";
+    const label =
+      target.getAttribute("aria-label") ||
+      (target.textContent || "").trim();
     for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
       target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
     }

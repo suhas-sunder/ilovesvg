@@ -173,16 +173,39 @@ const hybridHook = await source(
   "app/client/lib/tracing/useHybridTraceFetcher.ts",
 );
 assert.match(hybridHook, /mountedRef\.current = false/);
-assert.match(hybridHook, /for \(const cancel of clientCancelHandlersRef\.current\.values\(\)\)/);
-assert.match(hybridHook, /clientCancelHandlersRef\.current\.clear\(\)/);
+assert.match(
+  hybridHook,
+  /for \(const runLifecycle of activeClientRunsRef\.current\.values\(\)\)/,
+);
+assert.match(hybridHook, /runLifecycle\.cleanup\("unmounted"\)/);
+assert.match(hybridHook, /activeClientRunsRef\.current\.clear\(\)/);
 assert.match(hybridHook, /runIdRef\.current \+= 1/);
-assert.match(hybridHook, /if \(!isActiveClientRun\(\)\) return/);
+assert.match(hybridHook, /createHybridTraceRunLifecycle\(/);
+assert.match(hybridHook, /createPendingServerFallback\(/);
+assert.match(hybridHook, /runLifecycle\.waitFor\(inFlight\.promise\)/);
+assert.match(
+  hybridHook,
+  /activeClientRunsRef\.current\.get\(clientRunId\)\?\.cleanup\("canceled"\)/,
+);
+assert.match(hybridHook, /\.cleanup\("superseded"\)/);
+assert.match(hybridHook, /resolvePendingServerFallback\(/);
+assert.match(hybridHook, /rejectPendingServerFallback\(/);
+assert.match(hybridHook, /traceResponseCorrelated === true/);
+assert.match(hybridHook, /canActivateClientResult/);
+assert.doesNotMatch(
+  hybridHook,
+  /pendingServerCacheRef\.current\.size === 1/,
+  "missing server response IDs must not resolve an unrelated waiter",
+);
 assert.doesNotMatch(
   hybridHook,
   /const isActiveClientRun = \(\) =>[\s\S]{0,120}runIdRef\.current === runId/,
   "active intentional jobs must keep their independent successful results",
 );
-assert.match(hybridHook, /if \(mountedRef\.current\) \{\s*setActiveClientJobs/);
+assert.match(
+  hybridHook,
+  /if \(mountedRef\.current\) \{\s*setActiveClientJobs/,
+);
 
 const home = await source("app/routes/home.tsx");
 assert.match(home, /componentAbortControllerRef/);

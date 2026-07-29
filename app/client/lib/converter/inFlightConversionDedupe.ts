@@ -15,6 +15,7 @@ export type InFlightConversionHandle = {
   promise: InFlightPromise;
   signal: AbortSignal;
   shared: boolean;
+  getConsumerCount: () => number;
   cancel: () => void;
   release: () => void;
 };
@@ -139,6 +140,7 @@ function createHandle(
     promise: entry.promise,
     signal: entry.controller.signal,
     shared,
+    getConsumerCount: () => entry.consumers,
     cancel: () => release(true),
     release: () => release(false),
   };

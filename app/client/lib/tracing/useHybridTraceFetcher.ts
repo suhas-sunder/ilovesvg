@@ -10,16 +10,30 @@ import {
 import {
   acquireInFlightConversion,
 } from "~/client/lib/converter/inFlightConversionDedupe";
+import { getPublicTraceWarning } from "~/client/lib/converter/publicTracePresentation";
 import type {
   NormalizedTraceSettings,
   TraceEngine,
   TraceResult,
 } from "~/shared/tracing/types";
+import {
+  createTraceActionUrl,
+  normalizeTraceClientRunId,
+} from "~/shared/tracing/traceResponseCorrelation";
 
 import {
   SERVER_FIRST_LAYERED_TRACE_REASON,
   tryTraceRasterInClient,
 } from "./vtracerWorkerClient";
+import {
+  createHybridTraceRunLifecycle,
+  createPendingServerFallback,
+  rejectPendingServerFallback,
+  resolvePendingServerFallback,
+  ServerFallbackResponseError,
+  type HybridTraceRunLifecycle,
+  type PendingServerFallback,
+} from "./hybridTraceFallbackLifecycle";
 
 type HybridTracePayload = {
   svg?: string;
@@ -32,6 +46,7 @@ type HybridTracePayload = {
   warnings?: string[];
   timings?: Record<string, number>;
   diagnostics?: Record<string, unknown>;
+  traceResponseCorrelated?: boolean;
   layerBuildMode?: string;
   requestedPaletteCount?: number;
   actualPaletteCount?: number;
@@ -51,7 +66,14 @@ type HybridTraceFetcherReturn<TData> = FetcherReturn<TData> & {
 };
 type FetcherSubmitTarget = Parameters<FetcherReturn<unknown>["submit"]>[0];
 type FetcherSubmitOptions = Parameters<FetcherReturn<unknown>["submit"]>[1];
-const SERVER_FALLBACK_SUBMITTED = "ILOVESVG_SERVER_FALLBACK_SUBMITTED";
+type ServerFallbackContext = Readonly<{
+  fallbackWarning: string | null;
+  canWriteCache: () => boolean;
+}>;
+type ServerFallbackWaiter = PendingServerFallback<
+  BaseConversionCacheResult,
+  ServerFallbackContext
+>;
 
 export function useHybridTraceFetcher<
   TData extends HybridTracePayload = HybridTracePayload,
@@ -65,19 +87,12 @@ export function useHybridTraceFetcher<
   const [activeClientJobs, setActiveClientJobs] = React.useState(0);
   const mountedRef = React.useRef(true);
   const runIdRef = React.useRef(0);
-  const fallbackWarningRef = React.useRef<string | null>(null);
-  const clientCancelHandlersRef = React.useRef(new Map<string, () => void>());
-  const canceledClientRunIdsRef = React.useRef(new Set<string>());
+  const activeClientRunsRef = React.useRef(
+    new Map<string, HybridTraceRunLifecycle>(),
+  );
   const suppressedServerDataRef = React.useRef<unknown>(undefined);
   const pendingServerCacheRef = React.useRef(
-    new Map<
-      string,
-      {
-        cacheKey: string;
-        resolve: (result: BaseConversionCacheResult) => void;
-        reject: (error: unknown) => void;
-      }
-    >(),
+    new Map<string, ServerFallbackWaiter>(),
   );
 
   const submit = React.useCallback(
@@ -86,7 +101,6 @@ export function useHybridTraceFetcher<
       runIdRef.current = runId;
       suppressedServerDataRef.current = fetcher.data;
       setClientData(undefined);
-      fallbackWarningRef.current = null;
 
       if (
         options.enabled === false ||
@@ -106,32 +120,103 @@ export function useHybridTraceFetcher<
       const settings = formDataToTraceSettings(target, options.routeId);
       const requestedEngine = settings.engine || "auto";
       const clientRunId =
-        readString(target, "clientRunId") ??
+        normalizeTraceClientRunId(readString(target, "clientRunId")) ??
         `${options.routeId}-${Date.now()}-${runId}`;
-      if (!readString(target, "clientRunId")) {
-        target.append("clientRunId", clientRunId);
-      }
-      canceledClientRunIdsRef.current.delete(clientRunId);
-
+      target.set("clientRunId", clientRunId);
+      const correlatedSubmitOptions: FetcherSubmitOptions = {
+        ...submitOptions,
+        action: createTraceActionUrl(
+          submitOptions?.action,
+          window.location.href,
+          clientRunId,
+        ),
+      };
+      activeClientRunsRef.current
+        .get(clientRunId)
+        ?.cleanup("superseded");
       setActiveClientJobs((count) => count + 1);
-      let cleanupInFlightConsumer: (() => void) | null = null;
+      let runLifecycle!: HybridTraceRunLifecycle;
+      runLifecycle = createHybridTraceRunLifecycle({
+        clientRunId,
+        onCleanup: () => {
+          if (activeClientRunsRef.current.get(clientRunId) === runLifecycle) {
+            activeClientRunsRef.current.delete(clientRunId);
+          }
+          if (mountedRef.current) {
+            setActiveClientJobs((count) => Math.max(0, count - 1));
+          }
+        },
+      });
+      activeClientRunsRef.current.set(clientRunId, runLifecycle);
       let currentAbortController: AbortController | null = null;
+      let getInFlightConsumerCount: (() => number) | null = null;
+      let fallbackWarning: string | null = null;
+      let serverFallbackSubmitted = false;
       const isActiveClientRun = () =>
-        mountedRef.current &&
-        !canceledClientRunIdsRef.current.has(clientRunId);
-
-      const registerCancelHandler = (cancel: () => void) => {
-        clientCancelHandlersRef.current.set(clientRunId, () => {
-          canceledClientRunIdsRef.current.add(clientRunId);
-          cancel();
-        });
+        mountedRef.current && runLifecycle.isActive();
+      const canActivateClientResult = () =>
+        isActiveClientRun() &&
+        (!serverFallbackSubmitted || runIdRef.current === runId);
+      const supersedeOlderServerFallbackRuns = () => {
+        for (const pendingClientRunId of pendingServerCacheRef.current.keys()) {
+          if (pendingClientRunId === clientRunId) continue;
+          activeClientRunsRef.current
+            .get(pendingClientRunId)
+            ?.cleanup("superseded");
+        }
       };
 
       const createLocalAbortController = () => {
         const controller = new AbortController();
         currentAbortController = controller;
-        registerCancelHandler(() => controller.abort());
+        runLifecycle.attachAbortController(controller);
         return controller;
+      };
+
+      const submitServerFallback = (
+        cacheKey: string | null,
+        signal: AbortSignal,
+        reason: string | null,
+      ): Promise<BaseConversionCacheResult> => {
+        if (signal.aborted) {
+          return Promise.reject(new Error("Conversion was canceled."));
+        }
+
+        pendingServerCacheRef.current
+          .get(clientRunId)
+          ?.reject(new Error("An obsolete server fallback waiter was released."));
+        fallbackWarning = reason;
+        serverFallbackSubmitted = true;
+
+        let pending!: ServerFallbackWaiter;
+        pending = createPendingServerFallback({
+          clientRunId,
+          cacheKey,
+          context: {
+            fallbackWarning: reason,
+            canWriteCache: () => {
+              const consumerCount = getInFlightConsumerCount?.() ?? 0;
+              return (
+                runIdRef.current === runId ||
+                consumerCount > 1 ||
+                (!runLifecycle.isActive() && consumerCount > 0)
+              );
+            },
+          },
+          signal,
+          onSettled: () => {
+            if (pendingServerCacheRef.current.get(clientRunId) === pending) {
+              pendingServerCacheRef.current.delete(clientRunId);
+            }
+          },
+        });
+        pendingServerCacheRef.current.set(clientRunId, pending);
+        try {
+          fetcher.submit(target, correlatedSubmitOptions);
+        } catch (error) {
+          pending.reject(error);
+        }
+        return pending.promise;
       };
 
       const runClientOrServerConversion = async (
@@ -171,7 +256,7 @@ export function useHybridTraceFetcher<
             warnings: clientAttempt.result.warnings,
             conversionCacheKey: cacheKey,
           });
-          fallbackWarningRef.current = null;
+          fallbackWarning = null;
           if (cacheKey) writeConversionCache(cacheKey, clientAttempt.result);
           return clientAttempt.result;
         }
@@ -214,7 +299,7 @@ export function useHybridTraceFetcher<
           throw new Error(`An earlier browser trace did not finish. ${clientAttempt.reason}`);
         }
 
-        fallbackWarningRef.current =
+        fallbackWarning =
           clientAttempt.reason === SERVER_FIRST_LAYERED_TRACE_REASON
             ? null
             : clientAttempt.reason;
@@ -227,19 +312,11 @@ export function useHybridTraceFetcher<
           conversionCacheKey: cacheKey,
         });
 
-        if (!cacheKey) {
-          fetcher.submit(target, submitOptions);
-          throw new Error(SERVER_FALLBACK_SUBMITTED);
-        }
-
-        return await new Promise<BaseConversionCacheResult>((resolve, reject) => {
-          pendingServerCacheRef.current.set(clientRunId, {
-            cacheKey,
-            resolve,
-            reject,
-          });
-          fetcher.submit(target, submitOptions);
-        });
+        return await submitServerFallback(
+          cacheKey,
+          signal,
+          fallbackWarning,
+        );
       };
 
       void (async () => {
@@ -253,6 +330,7 @@ export function useHybridTraceFetcher<
         if (cacheKey) {
           const cached = lookupConversionCache(cacheKey);
           if (cached) {
+            supersedeOlderServerFallbackRuns();
             recordHybridTraceDebug({
               routeId: options.routeId,
               stage: "cache-hit",
@@ -261,7 +339,7 @@ export function useHybridTraceFetcher<
               conversionCacheKey: cacheKey,
               engineUsed: cached.engineUsed,
             });
-            if (!isActiveClientRun()) return;
+            if (!canActivateClientResult()) return;
             setClientData(
               traceResultToFetcherData<TData>(cached, {
                 clientRunId,
@@ -276,8 +354,9 @@ export function useHybridTraceFetcher<
           const inFlight = acquireInFlightConversion(cacheKey, (signal) =>
             runClientOrServerConversion(cacheKey, signal),
           );
-          cleanupInFlightConsumer = inFlight.release;
-          registerCancelHandler(inFlight.cancel);
+          getInFlightConsumerCount = inFlight.getConsumerCount;
+          runLifecycle.attachInFlightConsumer(inFlight);
+          supersedeOlderServerFallbackRuns();
           if (inFlight.shared) {
             recordHybridTraceDebug({
               routeId: options.routeId,
@@ -287,8 +366,8 @@ export function useHybridTraceFetcher<
               conversionCacheKey: cacheKey,
             });
           }
-          const result = await inFlight.promise;
-          if (!isActiveClientRun()) return;
+          const result = await runLifecycle.waitFor(inFlight.promise);
+          if (!canActivateClientResult()) return;
           setClientData(
             traceResultToFetcherData<TData>(result, {
               clientRunId,
@@ -301,11 +380,12 @@ export function useHybridTraceFetcher<
         }
 
         const localAbortController = createLocalAbortController();
+        supersedeOlderServerFallbackRuns();
         const result = await runClientOrServerConversion(
           null,
           localAbortController.signal,
         );
-        if (!isActiveClientRun()) return;
+        if (!canActivateClientResult()) return;
         setClientData(
           traceResultToFetcherData<TData>(result, {
             clientRunId,
@@ -313,17 +393,16 @@ export function useHybridTraceFetcher<
           }),
         );
       })()
-        .catch((error) => {
+        .catch(async (error) => {
           if (!mountedRef.current) return;
           const message =
             error instanceof Error && error.message
               ? error.message
               : "Browser tracing failed.";
-          if (message === SERVER_FALLBACK_SUBMITTED) return;
           const isLatest = mountedRef.current && runIdRef.current === runId;
           if (
             currentAbortController?.signal.aborted ||
-            canceledClientRunIdsRef.current.has(clientRunId) ||
+            !runLifecycle.isActive() ||
             /canceled/i.test(message)
           ) {
             recordHybridTraceDebug({
@@ -332,6 +411,18 @@ export function useHybridTraceFetcher<
               clientRunId,
               traceJobId: String(runId),
             });
+            return;
+          }
+          if (
+            serverFallbackSubmitted ||
+            error instanceof ServerFallbackResponseError
+          ) {
+            if (!isLatest) return;
+            setClientData({
+              error: message,
+              clientRunId,
+              traceJobId: String(runId),
+            } as TData);
             return;
           }
           if (
@@ -365,7 +456,7 @@ export function useHybridTraceFetcher<
             } as TData);
             return;
           }
-          fallbackWarningRef.current = message;
+          fallbackWarning = message;
           recordHybridTraceDebug({
             routeId: options.routeId,
             stage: "server-fallback-submit",
@@ -373,15 +464,37 @@ export function useHybridTraceFetcher<
             traceJobId: String(runId),
             reason: message,
           });
-          fetcher.submit(target, submitOptions);
+          supersedeOlderServerFallbackRuns();
+          const fallbackController =
+            currentAbortController ?? createLocalAbortController();
+          try {
+            const fallbackResult = await submitServerFallback(
+              null,
+              fallbackController.signal,
+              fallbackWarning,
+            );
+            if (!canActivateClientResult()) return;
+            setClientData(
+              traceResultToFetcherData<TData>(fallbackResult, {
+                clientRunId,
+                traceJobId: String(runId),
+              }),
+            );
+          } catch (fallbackError) {
+            if (!canActivateClientResult()) return;
+            const fallbackMessage =
+              fallbackError instanceof Error && fallbackError.message
+                ? fallbackError.message
+                : message;
+            setClientData({
+              error: fallbackMessage,
+              clientRunId,
+              traceJobId: String(runId),
+            } as TData);
+          }
         })
         .finally(() => {
-          cleanupInFlightConsumer?.();
-          clientCancelHandlersRef.current.delete(clientRunId);
-          canceledClientRunIdsRef.current.delete(clientRunId);
-          if (mountedRef.current) {
-            setActiveClientJobs((count) => Math.max(0, count - 1));
-          }
+          runLifecycle.cleanup("completed");
         });
     },
     [fetcher, options.enabled, options.onProgress, options.routeId],
@@ -390,43 +503,74 @@ export function useHybridTraceFetcher<
   React.useEffect(() => {
     const rawData = fetcher.data;
     if (!rawData) return;
-    const clientRunId = rawData.clientRunId || "";
-    let pendingClientRunId = clientRunId;
-    let pending = clientRunId
+    const clientRunId =
+      typeof rawData.clientRunId === "string"
+        ? rawData.clientRunId.trim()
+        : "";
+    const pending = clientRunId
       ? pendingServerCacheRef.current.get(clientRunId)
       : null;
-    if (!pending && !clientRunId && pendingServerCacheRef.current.size === 1) {
-      const fallbackPending = pendingServerCacheRef.current.entries().next().value;
-      if (fallbackPending) {
-        pendingClientRunId = fallbackPending[0];
-        pending = fallbackPending[1];
-      }
-    }
     if (!pending) return;
+    if (
+      pending.cacheKey &&
+      rawData.conversionCacheKey &&
+      rawData.conversionCacheKey !== pending.cacheKey
+    ) {
+      rejectPendingServerFallback(
+        pendingServerCacheRef.current,
+        clientRunId,
+        new ServerFallbackResponseError(
+          "Server conversion returned a mismatched cache key.",
+        ),
+      );
+      return;
+    }
 
     if (rawData.svg) {
-      const enriched = withServerFallbackMetadata(rawData, fallbackWarningRef.current);
+      const enriched = withServerFallbackMetadata(
+        rawData,
+        pending.context.fallbackWarning,
+      );
       const result = fetcherDataToTraceResult(enriched);
       if (result) {
-        writeConversionCache(pending.cacheKey, result);
-        recordHybridTraceDebug({
-          routeId: options.routeId,
-          stage: "server-cache-write",
-          clientRunId: pendingClientRunId,
-          conversionCacheKey: pending.cacheKey,
-          engineUsed: result.engineUsed,
-        });
-        pending.resolve(result);
+        resolvePendingServerFallback(
+          pendingServerCacheRef.current,
+          clientRunId,
+          result,
+          (activePending) => {
+            if (
+              activePending.cacheKey &&
+              activePending.context.canWriteCache()
+            ) {
+              writeConversionCache(activePending.cacheKey, result);
+              recordHybridTraceDebug({
+                routeId: options.routeId,
+                stage: "server-cache-write",
+                clientRunId,
+                conversionCacheKey: activePending.cacheKey,
+                engineUsed: result.engineUsed,
+              });
+            }
+          },
+        );
       } else {
-        pending.reject(new Error("Server conversion returned an invalid cache result."));
+        rejectPendingServerFallback(
+          pendingServerCacheRef.current,
+          clientRunId,
+          new ServerFallbackResponseError(
+            "Server conversion returned an invalid cache result.",
+          ),
+        );
       }
-      pendingServerCacheRef.current.delete(pendingClientRunId);
       return;
     }
 
     if (rawData.error) {
-      pending.reject(new Error(rawData.error));
-      pendingServerCacheRef.current.delete(pendingClientRunId);
+      rejectPendingServerFallback(
+        pendingServerCacheRef.current,
+        clientRunId,
+        new ServerFallbackResponseError(rawData.error),
+      );
     }
   }, [fetcher.data, options.routeId]);
 
@@ -435,25 +579,19 @@ export function useHybridTraceFetcher<
     return () => {
       mountedRef.current = false;
       runIdRef.current += 1;
-      for (const cancel of clientCancelHandlersRef.current.values()) {
-        try {
-          cancel();
-        } catch {
-          // Continue canceling other component-owned jobs during unmount.
-        }
+      for (const runLifecycle of activeClientRunsRef.current.values()) {
+        runLifecycle.cleanup("unmounted");
       }
-      clientCancelHandlersRef.current.clear();
+      activeClientRunsRef.current.clear();
       for (const pending of pendingServerCacheRef.current.values()) {
         pending.reject(new Error("Conversion cache waiter was released."));
       }
       pendingServerCacheRef.current.clear();
-      canceledClientRunIdsRef.current.clear();
     };
   }, []);
 
   const cancelClientJob = React.useCallback((clientRunId: string) => {
-    const cancel = clientCancelHandlersRef.current.get(clientRunId);
-    cancel?.();
+    activeClientRunsRef.current.get(clientRunId)?.cleanup("canceled");
   }, []);
 
   const data = React.useMemo(() => {
@@ -461,7 +599,10 @@ export function useHybridTraceFetcher<
     if (fetcher.data && fetcher.data === suppressedServerDataRef.current) {
       return undefined;
     }
-    return withServerFallbackMetadata(fetcher.data, fallbackWarningRef.current);
+    if (fetcher.data?.traceResponseCorrelated === true) {
+      return undefined;
+    }
+    return fetcher.data;
   }, [clientData, fetcher.data]);
 
   return React.useMemo(
@@ -528,8 +669,7 @@ function withServerFallbackMetadata<TData extends HybridTracePayload>(
 
   const warnings = Array.isArray(data.warnings) ? [...data.warnings] : [];
   if (fallbackReason) {
-    const warning =
-      "A compatible tracing method was used to complete this conversion.";
+    const warning = getPublicTraceWarning(fallbackReason);
     if (!warnings.includes(warning)) warnings.push(warning);
   }
 

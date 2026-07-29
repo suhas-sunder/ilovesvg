@@ -35,6 +35,7 @@ import {
   FocusedEditorPreviewComparison,
   getPublicTraceMethodLabel,
   getPublicTracePathLabel,
+  getVisiblePublicTraceWarnings,
   getSvgByteSize,
   OutputAppearanceControls,
 } from "~/client/components/converter/TraceOutputPanel";
@@ -51,6 +52,10 @@ import {
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 import { logAppError } from "~/client/lib/errorLogging";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import {
+  createCorrelatedTraceAction,
+  createCorrelatedTraceJson,
+} from "~/shared/tracing/traceResponseCorrelation";
 import {
   DEFAULT_OUTPUT_APPEARANCE,
   applyOutputAppearanceToSvg,
@@ -138,10 +143,13 @@ async function getGate(): Promise<Gate> {
   return getConversionGate();
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export const action = createCorrelatedTraceAction(traceActionImplementation);
+
+async function traceActionImplementation({ request }: ActionFunctionArgs) {
+  const responseJson = createCorrelatedTraceJson(request, json);
   try {
     if (request.method.toUpperCase() !== "POST") {
-      return json(
+      return responseJson(
         { error: "Method not allowed" },
         { status: 405, headers: { Allow: "POST" } },
       );
@@ -149,7 +157,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.startsWith("multipart/form-data")) {
-      return json(
+      return responseJson(
         { error: "Unsupported content type. Use multipart/form-data." },
         { status: 415 },
       );
@@ -180,7 +188,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const MAX_OVERHEAD = 5 * 1024 * 1024;
 
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
-      return json(
+      return responseJson(
         {
           error:
             "Upload too large for live conversion. Please resize and try again.",
@@ -200,7 +208,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
-      return json({ error: "No PNG file uploaded." }, { status: 400 });
+      return responseJson({ error: "No PNG file uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
@@ -212,14 +220,14 @@ export async function action({ request }: ActionFunctionArgs) {
     if (uploadError) return uploadError;
 
     if (!ALLOWED_MIME.has(webFile.type)) {
-      return json(
+      return responseJson(
         { error: "Upload a PNG, JPG, JPEG, or WebP image." },
         { status: 415 },
       );
     }
 
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
-      return json(
+      return responseJson(
         {
           error: `File too large. Max ${Math.round(
             MAX_UPLOAD_BYTES / (1024 * 1024),
@@ -237,7 +245,7 @@ export async function action({ request }: ActionFunctionArgs) {
     } catch (e: any) {
       const retryAfterMs = Math.max(1500, Number(e?.retryAfterMs) || 2500);
 
-      return json(
+      return responseJson(
         {
           error:
             "Server is busy converting other PNG layered SVGs. Retrying automatically.",
@@ -270,14 +278,14 @@ export async function action({ request }: ActionFunctionArgs) {
         const h = meta.height ?? 0;
 
         if (!w || !h) {
-          return json(
+          return responseJson(
             { error: "Could not read PNG dimensions. Try a different file." },
             { status: 415 },
           );
         }
 
         if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
-          return json(
+          return responseJson(
             {
               error:
                 "Image is too small to trace safely. Please upload an image at least 2×2 pixels.",
@@ -288,7 +296,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
         const mp = (w * h) / 1_000_000;
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-          return json(
+          return responseJson(
             {
               error: `PNG too large: ${w}×${h} (~${mp.toFixed(
                 1,
@@ -390,7 +398,7 @@ export async function action({ request }: ActionFunctionArgs) {
           fillStrokeColor: advancedTraceSettings.fillStrokeColor,
       })
 
-      return json({
+      return responseJson({
         ...result,
         engineUsed: result.engineUsed || "potrace",
         sourceKind: result.sourceKind || "raster",
@@ -415,7 +423,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     void err;
-    return json(
+    return responseJson(
       {
         error:
           "Layered SVG conversion failed. Please try a smaller image or fewer color layers.",
@@ -2850,7 +2858,9 @@ export default function PngToLayeredSvgForCricut({
                         data-collapse-state="expanded"
                         data-engine-used={item.engineUsed || "unknown"}
                         data-source-kind={item.sourceKind || "unknown"}
-                        data-engine-warnings={(item.warnings || []).join(" | ")}
+                        data-engine-warnings={getVisiblePublicTraceWarnings(
+                          item.warnings || [],
+                        ).join(" | ")}
                         data-svg-bytes={displaySvgBytes ?? ""}
                         onDoubleClick={() => selectHistoryOutput(item.stamp)}
                         className={[

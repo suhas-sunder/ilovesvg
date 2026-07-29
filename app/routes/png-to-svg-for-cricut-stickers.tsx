@@ -42,6 +42,10 @@ import {
 } from "~/client/lib/converter/outputHistory";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import {
+  createCorrelatedTraceAction,
+  createCorrelatedTraceJson,
+} from "~/shared/tracing/traceResponseCorrelation";
 
 const isServer = typeof document === "undefined";
 
@@ -106,10 +110,13 @@ async function getGate(): Promise<Gate> {
   return getConversionGate();
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export const action = createCorrelatedTraceAction(traceActionImplementation);
+
+async function traceActionImplementation({ request }: ActionFunctionArgs) {
+  const responseJson = createCorrelatedTraceJson(request, json);
   try {
     if (request.method.toUpperCase() !== "POST") {
-      return json(
+      return responseJson(
         { error: "Method not allowed" },
         { status: 405, headers: { Allow: "POST" } },
       );
@@ -117,7 +124,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.startsWith("multipart/form-data")) {
-      return json(
+      return responseJson(
         { error: "Unsupported content type. Use multipart/form-data." },
         { status: 415 },
       );
@@ -147,7 +154,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
-      return json(
+      return responseJson(
         {
           error:
             "Upload too large for sticker conversion. Please resize and try again.",
@@ -166,7 +173,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
-      return json({ error: "No file uploaded." }, { status: 400 });
+      return responseJson({ error: "No file uploaded." }, { status: 400 });
     }
 
     const webFile = file as File;
@@ -177,13 +184,13 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     if (uploadError) return uploadError;
     if (!ALLOWED_MIME.has(webFile.type)) {
-      return json(
+      return responseJson(
         { error: "Only PNG or JPEG images are allowed." },
         { status: 415 },
       );
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
-      return json(
+      return responseJson(
         {
           error: `File too large. Max ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB per image.`,
         },
@@ -198,7 +205,7 @@ export async function action({ request }: ActionFunctionArgs) {
       release = await gate.acquireOrQueue();
     } catch (e: any) {
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
-      return json(
+      return responseJson(
         {
           error:
             "Server is busy creating other sticker SVG files. Retrying automatically.",
@@ -227,14 +234,14 @@ export async function action({ request }: ActionFunctionArgs) {
         const height = meta.height ?? 0;
 
         if (!width || !height) {
-          return json(
+          return responseJson(
             { error: "Could not read image dimensions. Try a different file." },
             { status: 415 },
           );
         }
 
         if (width < 2 || height < 2) {
-          return json(
+          return responseJson(
             {
               error:
                 "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
@@ -243,7 +250,7 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
       } catch {
-        return json(
+        return responseJson(
           { error: "Could not read image dimensions. Try a different file." },
           { status: 415 },
         );
@@ -292,7 +299,7 @@ export async function action({ request }: ActionFunctionArgs) {
       };
 
       const result = await buildStickerSvg(input, opts);
-      return json({
+      return responseJson({
         svg: result.svg,
         width: result.width,
         height: result.height,
@@ -315,7 +322,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (isInvalidUploadDecodeError(err)) {
       return createInvalidUploadDecodeResponse();
     }
-    return json(
+    return responseJson(
       { error: safeErrorMessage(err?.message || "Server error during sticker SVG conversion.", "Server error during sticker SVG conversion.") },
       { status: 500 },
     );

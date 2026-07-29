@@ -14,6 +14,11 @@ import {
 } from "~/client/components/converter/AdvancedSettingsPanel";
 import type { ConverterRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import {
+  getPublicTraceMethodLabel,
+  getPublicTracePathLabel,
+  getVisiblePublicTraceWarnings,
+} from "~/client/lib/converter/publicTracePresentation";
+import {
   releaseOwnedCacheKeys,
   syncOwnedCacheKeys,
 } from "~/client/lib/lifecycleCleanup";
@@ -105,33 +110,12 @@ export type TraceOutputItem<TSettings extends MixedTraceSettings> = {
   appearance?: OutputAppearanceSettings;
 };
 
-export function getPublicTraceMethodLabel(
-  engineUsed?: TraceResult["engineUsed"],
-): string {
-  if (engineUsed === "vtracer") return "Detailed color trace";
-  if (engineUsed === "centerline") return "Centerline stroke trace";
-  if (engineUsed === "potrace") return "Clean shape trace";
-  return "Trace pending";
-}
-
-export function getPublicTracePathLabel(label?: string): string {
-  const normalized = String(label || "").toLowerCase();
-  if (normalized.includes("svg cleanup")) return "SVG cleanup";
-  if (normalized.includes("centerline")) return "Centerline stroke trace";
-  if (normalized.includes("layered") || normalized.includes("vtracer")) {
-    return "Detailed color trace";
-  }
-  return "Clean shape trace";
-}
-
-export function getPublicTraceWarning(warning: unknown): string {
-  const text = String(warning || "").trim();
-  if (!text) return "";
-  if (/\b(?:vtracer|potrace|backend|parity)\b/i.test(text)) {
-    return "A compatible tracing method was used to complete this conversion.";
-  }
-  return text.replace(/\bpipeline\b/gi, "workflow");
-}
+export {
+  getPublicTraceMethodLabel,
+  getPublicTracePathLabel,
+  getPublicTraceWarning,
+  getVisiblePublicTraceWarnings,
+} from "~/client/lib/converter/publicTracePresentation";
 
 export type TraceOutputLayerPatch = {
   color?: string;
@@ -907,8 +891,12 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                 data-job-status={jobStatus}
                 data-engine-used={item.engineUsed || "unknown"}
                 data-source-kind={item.sourceKind || "unknown"}
-                data-engine-warnings={(item.warnings || []).join(" | ")}
-                data-output-warnings={outputWarnings.join(" | ")}
+                data-engine-warnings={getVisiblePublicTraceWarnings(
+                  item.warnings || [],
+                ).join(" | ")}
+                data-output-warnings={getVisiblePublicTraceWarnings(
+                  outputWarnings,
+                ).join(" | ")}
                 data-layer-build-mode={item.layerBuildMode || ""}
                 data-requested-palette-count={item.requestedPaletteCount ?? ""}
                 data-actual-palette-count={item.actualPaletteCount ?? ""}
@@ -2777,11 +2765,7 @@ export function OutputWarningList({
 }: {
   warnings: ReadonlyArray<string>;
 }) {
-  const visible = Array.from(
-    new Set(
-      warnings.map(getPublicTraceWarning).filter(Boolean),
-    ),
-  ).slice(0, 3);
+  const visible = getVisiblePublicTraceWarnings(warnings);
   if (visible.length === 0) return null;
   return (
     <div

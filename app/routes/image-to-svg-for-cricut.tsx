@@ -50,6 +50,10 @@ import { TraceAdvancedSettingsPanel } from "~/client/components/converter/Advanc
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 import {
+  createCorrelatedTraceAction,
+  createCorrelatedTraceJson,
+} from "~/shared/tracing/traceResponseCorrelation";
+import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
@@ -358,11 +362,14 @@ async function getGate(): Promise<Gate> {
   return getConversionGate();
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export const action = createCorrelatedTraceAction(traceActionImplementation);
+
+async function traceActionImplementation({ request }: ActionFunctionArgs) {
+  const responseJson = createCorrelatedTraceJson(request, json);
   try {
     // --- Guard: method ---
     if (request.method.toUpperCase() !== "POST") {
-      return json(
+      return responseJson(
         { error: "Method not allowed" },
         { status: 405, headers: { Allow: "POST" } },
       );
@@ -371,7 +378,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // --- Guard: content type ---
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.startsWith("multipart/form-data")) {
-      return json(
+      return responseJson(
         { error: "Unsupported content type. Use multipart/form-data." },
         { status: 415 },
       );
@@ -381,7 +388,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const contentLength = Number(request.headers.get("content-length") || "0");
     const MAX_OVERHEAD = 5 * 1024 * 1024;
     if (contentLength && contentLength > MAX_UPLOAD_BYTES + MAX_OVERHEAD) {
-      return json(
+      return responseJson(
         {
           error:
             "Upload too large for live conversion. Please resize and try again.",
@@ -401,7 +408,7 @@ export async function action({ request }: ActionFunctionArgs) {
         { allowed: false }
       >;
 
-      return json(
+      return responseJson(
         {
           error: `Too many conversions from this connection. Please try again in ${blockedRateLimit.retryAfterText}.`,
           retryAfterMs: blockedRateLimit.retryAfterMs,
@@ -419,19 +426,19 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const file = form.get("file");
     if (!file || typeof file === "string") {
-      return json({ error: "No file uploaded." }, { status: 400 });
+      return responseJson({ error: "No file uploaded." }, { status: 400 });
     }
 
     // Basic type/size checks (authoritative)
     const webFile = file as File;
     if (!isAllowedImageFile(webFile)) {
-      return json(
+      return responseJson(
         { error: `Only ${ACCEPTED_IMAGE_LABEL} images are allowed.` },
         { status: 415 },
       );
     }
     if ((webFile.size || 0) > MAX_UPLOAD_BYTES) {
-      return json(
+      return responseJson(
         {
           error: `File too large. Max ${Math.round(
             MAX_UPLOAD_BYTES / (1024 * 1024),
@@ -446,14 +453,14 @@ export async function action({ request }: ActionFunctionArgs) {
       const { sanitizeVisibleSvgMarkup } = await import("~/utils/svgSanitize.server");
       const sanitizedSvg = sanitizeVisibleSvgMarkup(svgText);
       if (!sanitizedSvg.ok) {
-        return json(
+        return responseJson(
           { error: sanitizedSvg.message, code: sanitizedSvg.code },
           { status: 415 },
         );
       }
       const layeredSvg = buildEditableSvgFromUploadedSvg(sanitizedSvg.svg);
 
-      return json({
+      return responseJson({
         svg: layeredSvg.svg,
         layers: layeredSvg.layers,
         width: layeredSvg.width,
@@ -470,7 +477,7 @@ export async function action({ request }: ActionFunctionArgs) {
       release = await gate.acquireOrQueue();
     } catch (e: any) {
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
-      return json(
+      return responseJson(
         {
           error:
             "Server is busy converting other images. We'll retry automatically.",
@@ -505,14 +512,14 @@ export async function action({ request }: ActionFunctionArgs) {
         const h = meta.height ?? 0;
 
         if (!w || !h) {
-          return json(
+          return responseJson(
             { error: "Could not read image dimensions. Try a different file." },
             { status: 415 },
           );
         }
 
         if (w < 2 || h < 2) {
-          return json(
+          return responseJson(
             {
               error:
                 "Image is too small to trace safely. Please upload an image at least 2x2 pixels.",
@@ -523,7 +530,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
         const mp = (w * h) / 1_000_000;
         if (w > MAX_SIDE || h > MAX_SIDE || mp > MAX_MP) {
-          return json(
+          return responseJson(
             {
               error: `Image too large: ${w}×${h} (~${mp.toFixed(
                 1,
@@ -684,7 +691,7 @@ export async function action({ request }: ActionFunctionArgs) {
           fillStrokeColor: advancedTraceSettings.fillStrokeColor,
         });
 
-        return json({
+        return responseJson({
           svg: layered.svg,
           layers: layered.layers,
           width: layered.width,
@@ -762,7 +769,7 @@ export async function action({ request }: ActionFunctionArgs) {
         { width: ensured.width, height: ensured.height },
       );
 
-      return json({
+      return responseJson({
         svg: adjustedSingle.svg,
         layers: editableSingle.layers,
         width: adjustedSingle.width,
@@ -788,7 +795,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (isInvalidUploadDecodeError(err)) {
       return createInvalidUploadDecodeResponse();
     }
-    return json(
+    return responseJson(
       { error: safeErrorMessage(err?.message || "Server error during conversion.", "Server error during conversion.") },
       { status: 500 },
     );

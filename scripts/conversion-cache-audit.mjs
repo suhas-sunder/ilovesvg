@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { rmSync } from "node:fs";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,6 +11,14 @@ const srcDir = path.join(rootDir, "app", "client", "lib", "converter");
 const tracingDir = path.join(rootDir, "app", "client", "lib", "tracing");
 const sharedTracingDir = path.join(rootDir, "app", "shared", "tracing");
 const tmpDir = path.join(os.tmpdir(), "ilovesvg-conversion-cache-audit");
+const cleanupTempDirectory = () => {
+  try {
+    rmSync(tmpDir, { recursive: true, force: true });
+  } catch {
+    // The audit result remains primary; final workspace checks report leftovers.
+  }
+};
+process.once("exit", cleanupTempDirectory);
 
 const moduleFiles = [
   "settings",
@@ -81,6 +90,8 @@ await testInFlightDedupe();
 await testHookIntegrationTokens();
 await testHomeIntegrationTokens();
 
+await fs.rm(tmpDir, { recursive: true, force: true });
+process.removeListener("exit", cleanupTempDirectory);
 console.log("[conversion-cache-audit] all checks passed");
 
 async function transpileModule(sourcePath, targetPath) {
@@ -395,6 +406,10 @@ async function testHookIntegrationTokens() {
     "cache-hit",
     "in-flight-join",
     "server-cache-write",
+    "createHybridTraceRunLifecycle",
+    "createPendingServerFallback",
+    "resolvePendingServerFallback",
+    "traceResponseCorrelated",
   ]) {
     assert.ok(
       hookSource.includes(token),

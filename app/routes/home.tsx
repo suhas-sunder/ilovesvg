@@ -64,6 +64,7 @@ import {
   FocusedEditorPreviewComparison,
   getPublicTraceMethodLabel,
   getPublicTracePathLabel,
+  getVisiblePublicTraceWarnings,
   getSvgByteSize,
   hasVisibleOutputAppearanceControls,
   OutputAppearanceControls,
@@ -5348,7 +5349,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       data-collapse-state="expanded"
                       data-engine-used={item.engineUsed || "unknown"}
                       data-source-kind={item.sourceKind || "unknown"}
-                      data-engine-warnings={(item.warnings || []).join(" | ")}
+                      data-engine-warnings={getVisiblePublicTraceWarnings(
+                        item.warnings || [],
+                      ).join(" | ")}
                       data-layer-build-mode={item.layerBuildMode || ""}
                       data-requested-palette-count={item.requestedPaletteCount ?? ""}
                       data-actual-palette-count={item.actualPaletteCount ?? ""}

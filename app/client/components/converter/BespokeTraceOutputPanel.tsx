@@ -13,6 +13,7 @@ import {
   OutputWarningList,
   getPublicTraceMethodLabel,
   getPublicTracePathLabel,
+  getVisiblePublicTraceWarnings,
   getSvgByteSize,
   prettyBytes,
 } from "~/client/components/converter/TraceOutputPanel";
@@ -462,8 +463,12 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                 data-job-status={jobStatus}
                 data-engine-used={item.engineUsed || "unknown"}
                 data-source-kind={item.sourceKind || "unknown"}
-                data-engine-warnings={(item.warnings || []).join(" | ")}
-                data-output-warnings={outputWarnings.join(" | ")}
+                data-engine-warnings={getVisiblePublicTraceWarnings(
+                  item.warnings || [],
+                ).join(" | ")}
+                data-output-warnings={getVisiblePublicTraceWarnings(
+                  outputWarnings,
+                ).join(" | ")}
                 data-svg-bytes={displaySvgBytes ?? ""}
                 className={[
                   "rounded-xl border border-slate-200 bg-white p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
