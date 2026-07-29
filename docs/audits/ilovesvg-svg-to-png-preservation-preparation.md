@@ -442,3 +442,35 @@ The remaining consolidation blockers are:
 - any future All Tools change, which requires separate explicit user approval
 
 No blocker is treated as implicitly approved by this milestone. The recommended next milestone is **SVG-to-PNG consolidation implementation or another separately approved low-risk wrapper family, depending on these blockers**. Do not begin redirects, canonical changes, sitemap changes, route deletion, content migration, or another route family as part of this closure.
+
+## 27. Shared implementation milestone
+
+### Existing architecture and remaining duplication
+
+The implementation review found that the family was already substantially shared. `app/routes/svg-to-png-converter.tsx` owned upload handling, SVG parsing and validation, width and height controls, aspect locking, scale, canvas background compositing, transparency, antialiasing, live and final previews, PNG export, download, clear/reset behavior, second upload, responsive layout, shared guidance, and the existing Printify/Printful inline guidance. The eight variant route modules imported that production route rather than copying its algorithms.
+
+The remaining duplication was route-selection wiring, not conversion logic. Each variant rendered the default base component unchanged, while the shared component read `useLocation().pathname` and looked up its route context at runtime. That was bounded and behavior-preserving, but it did not satisfy the approved architecture in which every public wrapper supplies an explicit finite typed route key.
+
+### Implementation change
+
+The shared component is now exported as `SvgToPngRouteImplementation` and accepts exactly one `SvgToPngRouteKey`. The base route supplies `base`; the Shopify, Etsy, Printify, Printful, sticker-printing, transparent-printing, Canva, and Figma wrappers each supply their matching explicit key. `getSvgToPngRouteContextByKey` resolves only the nine immutable entries in `SVG_TO_PNG_ROUTE_CONTEXTS` and throws for an unknown key. It creates no second map, fallback, query behavior, registry, persistence, environment dependency, redirect, or alias.
+
+All nine contexts declare the same immutable implementation owner, `app/routes/svg-to-png-converter.tsx`. Existing wrapper-owned metadata and the existing `currentContentOwner`, guidance category, title/H1 identity, defaults, filename policy, example behavior, breadcrumb/schema owner, content kinds, content source keys, and future migration status remain unchanged. The shared SEO section now selects the existing Printify or Printful inline copy from the explicit context path instead of reading browser location.
+
+### Content and identity preservation
+
+No public content moved. Base converter guidance, platform guidance, printing guidance, transparency guidance, sticker guidance, dimension/background/output help, FAQs, troubleshooting, examples, related-route guidance, metadata factories, and the All Tools implementation remain in their existing source locations. Route registration, manifest identity, title, description, H1, canonical, Open Graph URL, schema identity, breadcrumbs, HTML/XML sitemap membership, internal links, and public route paths are unchanged.
+
+The focused preservation audit verifies one implementation owner, one exact context, and one content contract for each route; unique paths and keys; explicit failure for unknown paths and keys; explicit wrapper keys; absence of URL-derived selection in the shared component and wrappers; and absence of converter algorithms in the wrappers. Wrapper source hashes were removed from the immutable public-content hash set because the wrappers are the intended implementation seam. Rendered identity checks and hashes for All Tools, metadata sources, related guidance, advertising placement, and the approved responsive example content continue to protect the public surface.
+
+### Output and browser comparison
+
+The seven deterministic fixtures were rendered on every route. Raw PNG bytes and decoded pixels were identical across all nine routes and matched the detached pre-change-main baselines. Dimensions, alpha, transparent and partial-alpha pixels, fully opaque artwork pixels, filenames, preview/download agreement, accepted-input and invalid-input behavior, background compositing, clear/reset, and second upload were unchanged.
+
+The production-browser preservation matrix covered all nine routes at 390 x 844 and 1280 x 720, plus the full nine-route matrix at 320 x 800, 360 x 800, 375 x 812, 412 x 915, and 768 x 1024. It recorded 63 route/viewport rows and 477 interaction states. The maximum measured document and body scroll width was 1265 px at the 1280 px requested viewport, whose browser client width was 1265 px. No state had page-level horizontal overflow, a clipped focusable control, a hidden preview, a route-identity leak, or an unexpected local console/network failure. Browser profiles, fixtures, downloads, and reports remained under OS temporary storage and were removed after validation.
+
+### Preservation result and redirect blockers
+
+The consolidation changes only how an already-shared production component receives its finite route identity. It does not change converter algorithms, exported pixels, filenames, defaults, public copy, metadata, navigation, deployment configuration, memory-diagnostic defaults, or All Tools.
+
+Redirect readiness remains **No**. Remaining redirect blockers are source-route content migration, destination context rendering, metadata and schema transition approval, redirect sequencing, canonical sequencing, sitemap sequencing, internal-link sequencing, observation and expiration policy, and separate explicit approval for any future All Tools change. This milestone does not implement or approve any of those transitions.

@@ -1,6 +1,5 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-png-converter";
-import { useLocation } from "react-router";
 import {
   CurrentRouteGuide,
   OtherToolsLinks,
@@ -19,7 +18,9 @@ import {
   FullscreenPreviewButton,
 } from "~/client/components/converter/FullscreenOutputPreview";
 import {
-  getSvgToPngRouteContext,
+  getSvgToPngRouteContextByKey,
+  type SvgToPngRouteContext,
+  type SvgToPngRouteKey,
   type SvgToPngSettings,
 } from "~/client/lib/converter/svgToPngRouteContexts";
 
@@ -69,10 +70,17 @@ type Result = {
 const MAX_CANVAS_PIXELS = 80_000_000;
 
 export default function SvgToPngConverter(_: Route.ComponentProps) {
-  const { pathname } = useLocation();
+  return <SvgToPngRouteImplementation routeKey="base" />;
+}
+
+export function SvgToPngRouteImplementation({
+  routeKey,
+}: {
+  routeKey: SvgToPngRouteKey;
+}) {
   const routeContext = React.useMemo(
-    () => getSvgToPngRouteContext(pathname),
-    [pathname],
+    () => getSvgToPngRouteContextByKey(routeKey),
+    [routeKey],
   );
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
@@ -635,7 +643,7 @@ export default function SvgToPngConverter(_: Route.ComponentProps) {
       </div>
       <ContextualAdCard />
 
-      <SeoSections />
+      <SeoSections routeContext={routeContext} />
       <JsonLdBreadcrumbs context={routeContext} />
       {/* Removed JsonLdFaq to avoid duplicated FAQ schema if your app shell already injects it */}
       <Breadcrumbs crumbs={crumbs} />
@@ -973,7 +981,7 @@ function Breadcrumbs({
 function JsonLdBreadcrumbs({
   context,
 }: {
-  context: ReturnType<typeof getSvgToPngRouteContext>;
+  context: SvgToPngRouteContext;
 }) {
   const baseUrl = "https://www.ilovesvg.com";
 
@@ -1047,9 +1055,12 @@ const svgToPngPlatformSeoCopyByPath: Record<
   },
 };
 
-function SeoSections() {
-  const { pathname } = useLocation();
-  const platformCopy = svgToPngPlatformSeoCopyByPath[pathname];
+function SeoSections({
+  routeContext,
+}: {
+  routeContext: SvgToPngRouteContext;
+}) {
+  const platformCopy = svgToPngPlatformSeoCopyByPath[routeContext.path];
 
   return (
     <section className="bg-white border-t border-slate-200">
