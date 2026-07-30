@@ -116,6 +116,12 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "not-planned",
+    consolidationReasons: [
+      "general-converter-intent",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+    ],
   },
   "/svg-to-png-for-shopify": {
     currentContentOwner: "app/routes/svg-to-png-for-shopify.tsx",
@@ -130,6 +136,13 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "commerce-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/svg-to-png-for-etsy": {
     currentContentOwner: "app/routes/svg-to-png-for-etsy.tsx",
@@ -144,6 +157,13 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "commerce-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/svg-to-png-for-printify": {
     currentContentOwner: "app/routes/svg-to-png-for-printify.tsx",
@@ -160,6 +180,14 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "print-on-demand-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "dedicated-inline-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/svg-to-png-for-printful": {
     currentContentOwner: "app/routes/svg-to-png-for-printful.tsx",
@@ -176,6 +204,14 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "print-on-demand-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "dedicated-inline-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/sticker-to-png-for-printing": {
     currentContentOwner: "app/routes/sticker-to-png-for-printing.tsx",
@@ -191,6 +227,13 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "sticker-printing-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/svg-to-transparent-png-for-printing": {
     currentContentOwner:
@@ -207,6 +250,13 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "transparent-printing-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/svg-to-png-for-canva": {
     currentContentOwner: "app/routes/svg-to-png-for-canva.tsx",
@@ -221,6 +271,13 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "design-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
   "/svg-to-png-for-figma": {
     currentContentOwner: "app/routes/svg-to-png-for-figma.tsx",
@@ -235,6 +292,13 @@ const expectedContentContracts = {
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationReasons: [
+      "design-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   },
 };
 
@@ -395,6 +459,12 @@ async function main() {
         "The current family has live and final results, not a multi-entry history.",
       copyModel: "No Copy PNG action is currently exposed.",
     },
+    consolidation: {
+      decision: "retain-all-independently",
+      redirectedRoutes: [],
+      retainedRoutes: expected.map((item) => item.path),
+      reconsiderationPolicy: "requires-new-evidence",
+    },
     redirectReady: false,
     ok: true,
   };
@@ -465,7 +535,9 @@ function auditContexts(module) {
         Object.isFrozen(context.defaults) &&
         Object.isFrozen(contentContract) &&
         Object.isFrozen(contentContract.contentKinds) &&
-        Object.isFrozen(contentContract.contentSourceKeys),
+        Object.isFrozen(contentContract.contentSourceKeys) &&
+        Object.isFrozen(contentContract.consolidation) &&
+        Object.isFrozen(contentContract.consolidation.reasons),
       `${item.path} route/content contract is mutable.`,
     );
     assert(
@@ -524,6 +596,20 @@ function auditContexts(module) {
       contentContract.futureMigrationStatus ===
         expectedContract.futureMigrationStatus,
       `${item.path} future migration status changed.`,
+    );
+    assert(
+      contentContract.consolidation.decision === "retain-independently",
+      `${item.path} final consolidation decision changed.`,
+    );
+    assert(
+      JSON.stringify(contentContract.consolidation.reasons) ===
+        JSON.stringify(expectedContract.consolidationReasons),
+      `${item.path} consolidation evidence changed.`,
+    );
+    assert(
+      contentContract.consolidation.reconsiderationPolicy ===
+        "requires-new-evidence",
+      `${item.path} reconsideration policy changed.`,
     );
     keys.push(context.key);
     contentOwners.push(contentContract.currentContentOwner);

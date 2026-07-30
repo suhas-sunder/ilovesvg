@@ -78,6 +78,25 @@ export type SvgToPngFutureMigrationStatus =
   | "blocked"
   | "ready-for-later-approval";
 
+export type SvgToPngConsolidationDecision =
+  | "retain-independently"
+  | "safe-to-redirect"
+  | "merge-content-first-then-redirect"
+  | "unresolved-blocker";
+
+export type SvgToPngConsolidationReason =
+  | "general-converter-intent"
+  | "commerce-platform-workflow"
+  | "print-on-demand-workflow"
+  | "sticker-printing-workflow"
+  | "transparent-printing-workflow"
+  | "design-platform-workflow"
+  | "distinct-public-metadata"
+  | "route-specific-guidance"
+  | "dedicated-inline-guidance"
+  | "meaningful-internal-navigation-role"
+  | "context-would-not-survive-direct-redirect";
+
 export type SvgToPngContentContract = Readonly<{
   retainedDestinationCandidate: "/svg-to-png-converter";
   currentContentOwner: SvgToPngRouteSourceFile;
@@ -99,6 +118,11 @@ export type SvgToPngContentContract = Readonly<{
   contentKinds: readonly SvgToPngContentKind[];
   contentSourceKeys: readonly SvgToPngContentSourceKey[];
   futureMigrationStatus: SvgToPngFutureMigrationStatus;
+  consolidation: Readonly<{
+    decision: SvgToPngConsolidationDecision;
+    reasons: readonly SvgToPngConsolidationReason[];
+    reconsiderationPolicy: "requires-new-evidence";
+  }>;
 }>;
 
 export type SvgToPngRouteContext = {
@@ -162,6 +186,8 @@ function defineContext(
     contentKinds: readonly SvgToPngContentKind[];
     contentSourceKeys: readonly SvgToPngContentSourceKey[];
     futureMigrationStatus: SvgToPngFutureMigrationStatus;
+    consolidationDecision: SvgToPngConsolidationDecision;
+    consolidationReasons: readonly SvgToPngConsolidationReason[];
   },
 ): SvgToPngRouteContext {
   const {
@@ -171,6 +197,8 @@ function defineContext(
     contentKinds,
     contentSourceKeys,
     futureMigrationStatus,
+    consolidationDecision,
+    consolidationReasons,
     ...context
   } = value;
   return Object.freeze({
@@ -203,6 +231,11 @@ function defineContext(
       contentKinds: Object.freeze([...contentKinds]),
       contentSourceKeys: Object.freeze([...contentSourceKeys]),
       futureMigrationStatus,
+      consolidation: Object.freeze({
+        decision: consolidationDecision,
+        reasons: Object.freeze([...consolidationReasons]),
+        reconsiderationPolicy: "requires-new-evidence",
+      }),
     }),
   });
 }
@@ -233,6 +266,13 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "not-planned",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "general-converter-intent",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+    ],
   }),
   "/svg-to-png-for-shopify": defineContext({
     key: "shopify",
@@ -253,6 +293,14 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "commerce-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/svg-to-png-for-etsy": defineContext({
     key: "etsy",
@@ -273,6 +321,14 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "commerce-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/svg-to-png-for-printify": defineContext({
     key: "printify",
@@ -295,6 +351,15 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "print-on-demand-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "dedicated-inline-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/svg-to-png-for-printful": defineContext({
     key: "printful",
@@ -317,6 +382,15 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "print-on-demand-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "dedicated-inline-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/sticker-to-png-for-printing": defineContext({
     key: "sticker-printing",
@@ -338,6 +412,14 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "sticker-printing-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/svg-to-transparent-png-for-printing": defineContext({
     key: "transparent-printing",
@@ -360,6 +442,14 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "transparent-printing-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/svg-to-png-for-canva": defineContext({
     key: "canva",
@@ -380,6 +470,14 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "design-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
   "/svg-to-png-for-figma": defineContext({
     key: "figma",
@@ -400,6 +498,14 @@ export const SVG_TO_PNG_ROUTE_CONTEXTS = Object.freeze({
       "other-tools:all-tools-entry",
     ],
     futureMigrationStatus: "blocked",
+    consolidationDecision: "retain-independently",
+    consolidationReasons: [
+      "design-platform-workflow",
+      "distinct-public-metadata",
+      "route-specific-guidance",
+      "meaningful-internal-navigation-role",
+      "context-would-not-survive-direct-redirect",
+    ],
   }),
 } as const satisfies Readonly<
   Record<SvgToPngRoutePath, SvgToPngRouteContext>
