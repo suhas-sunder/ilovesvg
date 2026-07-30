@@ -1,6 +1,10 @@
 import type { Route } from "./+types/png-to-svg-for-canva";
 import { createCanvaFigmaMeta } from "~/data/routeMeta/canvaFigma";
-import Template, { action, loader } from "./png-to-svg-converter";
+import {
+  action,
+  loader,
+  PngToSvgRouteImplementation,
+} from "./png-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   return createCanvaFigmaMeta("/png-to-svg-for-canva");
@@ -8,4 +12,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function PngToSvgForCanva(_: Route.ComponentProps) {
+  return <PngToSvgRouteImplementation routeKey="png-canva" />;
+}

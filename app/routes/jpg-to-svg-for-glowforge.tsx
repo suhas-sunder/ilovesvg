@@ -1,5 +1,9 @@
 import type { Route } from "./+types/jpg-to-svg-for-glowforge";
-import Template, { action, loader } from "./jpg-to-svg-converter";
+import {
+  action,
+  JpgToSvgRouteImplementation,
+  loader,
+} from "./jpg-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "JPG to SVG for Glowforge | iLoveSVG";
@@ -22,4 +26,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function JpgToSvgForGlowforge(_: Route.ComponentProps) {
+  return <JpgToSvgRouteImplementation routeKey="jpg-glowforge" />;
+}

@@ -1,5 +1,9 @@
 import type { Route } from "./+types/transparent-png-to-svg-converter";
-import Template, { action, loader } from "./png-to-svg-converter";
+import {
+  action,
+  loader,
+  PngToSvgRouteImplementation,
+} from "./png-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Transparent PNG to SVG Converter | iLoveSVG";
@@ -21,4 +25,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function TransparentPngToSvgConverter(_: Route.ComponentProps) {
+  return <PngToSvgRouteImplementation routeKey="png-transparent" />;
+}

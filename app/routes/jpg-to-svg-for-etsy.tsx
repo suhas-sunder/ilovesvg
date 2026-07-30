@@ -1,5 +1,9 @@
 import type { Route } from "./+types/jpg-to-svg-for-etsy";
-import Template, { action, loader } from "./jpg-to-svg-converter";
+import {
+  action,
+  JpgToSvgRouteImplementation,
+  loader,
+} from "./jpg-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "JPG to SVG for Etsy | iLoveSVG";
@@ -21,4 +25,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function JpgToSvgForEtsy(_: Route.ComponentProps) {
+  return <JpgToSvgRouteImplementation routeKey="jpg-etsy" />;
+}

@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { type ActionFunctionArgs, useLocation } from "react-router";
+import { type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -56,6 +56,10 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  getRasterToSvgRouteContextByKey,
+  type RasterToSvgRouteKeyForOwner,
+} from "~/client/lib/converter/rasterToSvgRouteContexts";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1091,7 +1095,16 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
+export default function Home(_: Route.ComponentProps) {
+  return <PngLaserRouteImplementation routeKey="png-laser" />;
+}
+
+export function PngLaserRouteImplementation({
+  routeKey,
+}: {
+  routeKey: RasterToSvgRouteKeyForOwner<"app/routes/png-to-svg-for-laser-cutting.tsx">;
+}) {
+  const routeContext = getRasterToSvgRouteContextByKey(routeKey);
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-laser-cutting" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1792,7 +1805,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       </div>
       <ContextualAdCard />
-      <SeoSections />
+      <SeoSections routePath={routeContext.path} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1986,9 +1999,8 @@ function prettyBytes(bytes: number) {
   return `${v.toFixed(1)} ${u[i]}`;
 }
 
-function SeoSections() {
-  const { pathname } = useLocation();
-  const isGlowforgeRoute = pathname === "/png-to-svg-for-glowforge";
+function SeoSections({ routePath }: { routePath: string }) {
+  const isGlowforgeRoute = routePath === "/png-to-svg-for-glowforge";
 
   return (
     <section className="bg-white border-t border-slate-200">

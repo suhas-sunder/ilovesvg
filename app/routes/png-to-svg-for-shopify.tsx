@@ -1,5 +1,9 @@
 import type { Route } from "./+types/png-to-svg-for-shopify";
-import Template, { action, loader } from "./png-to-svg-for-etsy";
+import {
+  action,
+  loader,
+  PngMarketplaceRouteImplementation,
+} from "./png-to-svg-for-etsy";
 
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Shopify | iLoveSVG";
@@ -22,4 +26,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function PngToSvgForShopify(_: Route.ComponentProps) {
+  return <PngMarketplaceRouteImplementation routeKey="png-shopify" />;
+}

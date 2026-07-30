@@ -12,7 +12,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs, useLocation } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -56,6 +56,10 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  getRasterToSvgRouteContextByKey,
+  type RasterToSvgRouteKeyForOwner,
+} from "~/client/lib/converter/rasterToSvgRouteContexts";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1006,8 +1010,10 @@ const SHOPIFY_PRESET_LABELS: Readonly<Record<string, string>> = {
   "logo-thin": "Shopify Logo - Thin details",
 };
 
-function getRouteDisplayPresets(pathname: string): Preset[] {
-  if (pathname !== "/png-to-svg-for-shopify") return DISPLAY_PRESETS;
+function getRouteDisplayPresets(
+  routeKey: RasterToSvgRouteKeyForOwner<"app/routes/png-to-svg-for-etsy.tsx">,
+): Preset[] {
+  if (routeKey !== "png-shopify") return DISPLAY_PRESETS;
 
   return DISPLAY_PRESETS.map((preset) => {
     const label = SHOPIFY_PRESET_LABELS[preset.id];
@@ -1102,11 +1108,19 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
-  const { pathname } = useLocation();
+export default function Home(_: Route.ComponentProps) {
+  return <PngMarketplaceRouteImplementation routeKey="png-etsy" />;
+}
+
+export function PngMarketplaceRouteImplementation({
+  routeKey,
+}: {
+  routeKey: RasterToSvgRouteKeyForOwner<"app/routes/png-to-svg-for-etsy.tsx">;
+}) {
+  const routeContext = getRasterToSvgRouteContextByKey(routeKey);
   const routeDisplayPresets = React.useMemo(
-    () => getRouteDisplayPresets(pathname),
-    [pathname],
+    () => getRouteDisplayPresets(routeKey),
+    [routeKey],
   );
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-etsy" });
   const [file, setFile] = React.useState<File | null>(null);
@@ -1782,7 +1796,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       </div>
       <ContextualAdCard />
-      <SeoSections />
+      <SeoSections routePath={routeContext.path} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -2382,10 +2396,9 @@ const pngToSvgSeoCopyByPath: Record<string, PngToSvgSeoCopy> = {
   },
 };
 
-function SeoSections() {
-  const { pathname } = useLocation();
+function SeoSections({ routePath }: { routePath: string }) {
   const copy =
-    pngToSvgSeoCopyByPath[pathname] ??
+    pngToSvgSeoCopyByPath[routePath] ??
     pngToSvgSeoCopyByPath["/png-to-svg-for-etsy"];
 
   return (
