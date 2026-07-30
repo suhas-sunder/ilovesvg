@@ -1,5 +1,9 @@
 import type { Route } from "./+types/png-to-svg-for-glowforge";
-import Template, { action, loader } from "./png-to-svg-for-laser-cutting";
+import {
+  action,
+  loader,
+  PngLaserRouteImplementation,
+} from "./png-to-svg-for-laser-cutting";
 
 export function meta({}: Route.MetaArgs) {
   const title = "PNG to SVG for Glowforge | iLoveSVG";
@@ -22,4 +26,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function PngToSvgForGlowforge(_: Route.ComponentProps) {
+  return <PngLaserRouteImplementation routeKey="png-glowforge" />;
+}

@@ -35,6 +35,7 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { getRasterToSvgRouteContextByKey } from "~/client/lib/converter/rasterToSvgRouteContexts";
 // app/routes/jpeg-to-svg-converter.tsx
 import * as React from "react";
 import type { Route } from "./+types/jpeg-to-svg-converter";
@@ -2001,6 +2002,7 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function JpegToSvgConverter({}: Route.ComponentProps) {
+  getRasterToSvgRouteContextByKey("jpeg-base");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "jpeg-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(

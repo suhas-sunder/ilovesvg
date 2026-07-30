@@ -17,7 +17,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs, useLocation } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -54,6 +54,10 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import {
+  getRasterToSvgRouteContextByKey,
+  type RasterToSvgRouteKeyForOwner,
+} from "~/client/lib/converter/rasterToSvgRouteContexts";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -2150,11 +2154,19 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function Home({ loaderData }: Route.ComponentProps) {
+export default function Home(_: Route.ComponentProps) {
+  return <BroadImageToSvgRouteImplementation routeKey="image-cricut" />;
+}
+
+export function BroadImageToSvgRouteImplementation({
+  routeKey,
+}: {
+  routeKey: RasterToSvgRouteKeyForOwner<"app/routes/image-to-svg-for-cricut.tsx">;
+}) {
+  const routeContext = getRasterToSvgRouteContextByKey(routeKey);
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "image-to-svg-for-cricut" });
-  const { pathname } = useLocation();
   const routeCopy =
-    imageToSvgSeoCopyByPath[pathname] ??
+    imageToSvgSeoCopyByPath[routeContext.path] ??
     imageToSvgSeoCopyByPath["/image-to-svg-for-cricut"];
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -2900,7 +2912,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         />
       </div>
       <ContextualAdCard />
-      <SeoSections />
+      <SeoSections routePath={routeContext.path} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -3890,10 +3902,9 @@ const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
   },
 };
 
-function SeoSections() {
-  const { pathname } = useLocation();
+function SeoSections({ routePath }: { routePath: string }) {
   const copy =
-    imageToSvgSeoCopyByPath[pathname] ??
+    imageToSvgSeoCopyByPath[routePath] ??
     imageToSvgSeoCopyByPath["/image-to-svg-for-cricut"];
 
   return (

@@ -43,7 +43,7 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs, useLocation } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -54,6 +54,10 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import {
+  getRasterToSvgRouteContextByKey,
+  type RasterToSvgRouteKeyForOwner,
+} from "~/client/lib/converter/rasterToSvgRouteContexts";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -1955,7 +1959,16 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function JpgToSvgConverter({}: Route.ComponentProps) {
+export default function JpgToSvgConverter(_: Route.ComponentProps) {
+  return <JpgToSvgRouteImplementation routeKey="jpg-base" />;
+}
+
+export function JpgToSvgRouteImplementation({
+  routeKey,
+}: {
+  routeKey: RasterToSvgRouteKeyForOwner<"app/routes/jpg-to-svg-converter.tsx">;
+}) {
+  const routeContext = getRasterToSvgRouteContextByKey(routeKey);
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "jpg-to-svg-converter" });
 
   const [file, setFile] = React.useState<File | null>(null);
@@ -2736,7 +2749,7 @@ const [activePreset, setActivePreset] = React.useState<string>("scan-clean");
         />
       </div>
       <ContextualAdCard />
-      <JpgSeoSections />
+      <JpgSeoSections routePath={routeContext.path} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -3217,9 +3230,8 @@ const jpgRouteSeoCopyByPath: Record<
   },
 };
 
-function JpgRouteIntentSection() {
-  const { pathname } = useLocation();
-  const routeCopy = jpgRouteSeoCopyByPath[pathname];
+function JpgRouteIntentSection({ routePath }: { routePath: string }) {
+  const routeCopy = jpgRouteSeoCopyByPath[routePath];
   if (!routeCopy) return null;
 
   return (
@@ -3252,7 +3264,7 @@ function JpgRouteIntentSection() {
   );
 }
 
-function JpgSeoSections() {
+function JpgSeoSections({ routePath }: { routePath: string }) {
   return (
     <section className="bg-white border-t border-slate-200">
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
@@ -3343,7 +3355,7 @@ function JpgSeoSections() {
             </div>
           </section>
 
-          <JpgRouteIntentSection />
+          <JpgRouteIntentSection routePath={routePath} />
 
           <CurrentRouteGuide />
 

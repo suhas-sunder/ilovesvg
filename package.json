@@ -34,6 +34,8 @@
     "test:cumulative-edit-performance": "node scripts/cumulative-edit-performance-smoke.mjs",
     "test:settings-color-coverage": "node scripts/settings-color-coverage-audit.mjs",
     "test:converter-route-parity": "node scripts/converter-route-parity-smoke.mjs",
+    "test:raster-to-svg-family": "node scripts/raster-to-svg-route-family-audit.mjs",
+    "test:raster-to-svg-browser": "node scripts/raster-to-svg-browser-audit.mjs",
     "test:svg-to-png-preservation": "node scripts/svg-to-png-preservation-audit.mjs",
     "test:svg-to-png-responsive": "node scripts/svg-to-png-responsive-audit.mjs",
     "test:high-fidelity-browser-output": "node scripts/high-fidelity-browser-output-smoke.mjs",

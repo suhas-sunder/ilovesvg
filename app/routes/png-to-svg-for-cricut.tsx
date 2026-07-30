@@ -55,6 +55,7 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { getRasterToSvgRouteContextByKey } from "~/client/lib/converter/rasterToSvgRouteContexts";
 import {
   cleanupUnusedSourceSnapshots,
   createOutputSourceSnapshot,
@@ -1061,6 +1062,7 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  getRasterToSvgRouteContextByKey("png-cricut");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-cricut" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(

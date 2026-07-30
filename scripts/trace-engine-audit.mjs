@@ -704,9 +704,23 @@ async function auditRouteEnginePaths(routeFiles, routeCapabilitiesSource) {
 async function readResolvedRouteText(file) {
   const text = await read(`app/routes/${file}`);
   const templateImport = text.match(/import\s+Template(?:\s*,\s*\{[^}]+\})?\s+from\s+"\.\/([^"]+)"/);
-  if (!templateImport) return text;
+  const implementationImport = [...text.matchAll(
+    /import\s*\{([\s\S]*?)\}\s*from\s*"(\.\/[^"]+)";/g,
+  )].find((match) => {
+    const importedNames = match[1]
+      .split(",")
+      .map((entry) => entry.trim().split(/\s+as\s+/).at(-1))
+      .filter(Boolean);
+    return importedNames.some(
+      (name) =>
+        name.endsWith("RouteImplementation") &&
+        new RegExp(`<${escapeRegExp(name)}\\b`).test(text),
+    );
+  });
+  const relativeImport = templateImport?.[1] || implementationImport?.[2]?.slice(2);
+  if (!relativeImport) return text;
 
-  const templateFile = `${templateImport[1]}.tsx`;
+  const templateFile = `${relativeImport}.tsx`;
   if (!(await exists(`app/routes/${templateFile}`))) return text;
   return `${text}\n${await read(`app/routes/${templateFile}`)}`;
 }

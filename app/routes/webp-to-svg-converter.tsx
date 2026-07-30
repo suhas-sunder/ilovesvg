@@ -50,6 +50,7 @@ import {
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
 } from "~/client/lib/converter/settings";
+import { getRasterToSvgRouteContextByKey } from "~/client/lib/converter/rasterToSvgRouteContexts";
 
 /** Stable server flag: true on SSR render, false in client bundle */
 const isServer = typeof document === "undefined";
@@ -911,6 +912,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function WebpToSvgConverter({
   loaderData,
 }: Route.ComponentProps) {
+  getRasterToSvgRouteContextByKey("webp-base");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "webp-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(

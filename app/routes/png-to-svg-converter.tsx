@@ -28,6 +28,10 @@ import {
   createOutputSourceSnapshot,
   type OutputSourceSnapshot,
 } from "~/client/lib/converter/sourceSnapshots";
+import {
+  getRasterToSvgRouteContextByKey,
+  type RasterToSvgRouteKeyForOwner,
+} from "~/client/lib/converter/rasterToSvgRouteContexts";
 // app/routes/png-to-svg-converter.tsx
 import * as React from "react";
 import type { Route } from "./+types/png-to-svg-converter";
@@ -1137,7 +1141,16 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function PngToSvgConverter({}: Route.ComponentProps) {
+export default function PngToSvgConverter(_: Route.ComponentProps) {
+  return <PngToSvgRouteImplementation routeKey="png-base" />;
+}
+
+export function PngToSvgRouteImplementation({
+  routeKey,
+}: {
+  routeKey: RasterToSvgRouteKeyForOwner<"app/routes/png-to-svg-converter.tsx">;
+}) {
+  getRasterToSvgRouteContextByKey(routeKey);
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-converter" });
   const [conversionPhase, setConversionPhase] = React.useState<
     "idle" | "preparing" | "converting"

@@ -1,5 +1,9 @@
 import type { Route } from "./+types/bmp-to-svg-converter";
-import Template, { action, loader } from "./image-to-svg-for-cricut";
+import {
+  action,
+  BroadImageToSvgRouteImplementation,
+  loader,
+} from "./image-to-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "BMP to SVG Converter | iLoveSVG";
@@ -21,4 +25,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function BmpToSvgConverter(_: Route.ComponentProps) {
+  return <BroadImageToSvgRouteImplementation routeKey="bmp-base" />;
+}

@@ -1,5 +1,9 @@
 import type { Route } from "./+types/image-to-svg-for-etsy";
-import Template, { action, loader } from "./image-to-svg-for-cricut";
+import {
+  action,
+  BroadImageToSvgRouteImplementation,
+  loader,
+} from "./image-to-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Image to SVG for Etsy | iLoveSVG";
@@ -22,4 +26,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function ImageToSvgForEtsy(_: Route.ComponentProps) {
+  return <BroadImageToSvgRouteImplementation routeKey="image-etsy" />;
+}
