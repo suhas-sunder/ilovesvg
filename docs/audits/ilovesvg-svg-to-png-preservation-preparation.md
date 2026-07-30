@@ -31,7 +31,7 @@ Each wrapper renders the base production converter. Every route remains public, 
 
 ## 3. Current route differences
 
-The nine routes intentionally retain distinct URLs, titles, descriptions, H1 values, canonical and Open Graph URLs, platform names, route guides, and public content. Printify and Printful also retain dedicated inline export content in their wrapper modules. The other wrappers obtain route-specific guidance through the current route-guide source.
+The nine routes intentionally retain distinct URLs, titles, descriptions, H1 values, canonical and Open Graph URLs, platform names, route guides, and public content. Printify and Printful also retain dedicated inline export content in the shared converter implementation, selected by their explicit route contexts. The other wrappers obtain route-specific guidance through the current route-guide source.
 
 All nine currently share the same converter defaults:
 
@@ -474,3 +474,69 @@ The production-browser preservation matrix covered all nine routes at 390 x 844 
 The consolidation changes only how an already-shared production component receives its finite route identity. It does not change converter algorithms, exported pixels, filenames, defaults, public copy, metadata, navigation, deployment configuration, memory-diagnostic defaults, or All Tools.
 
 Redirect readiness remains **No**. Remaining redirect blockers are source-route content migration, destination context rendering, metadata and schema transition approval, redirect sequencing, canonical sequencing, sitemap sequencing, internal-link sequencing, observation and expiration policy, and separate explicit approval for any future All Tools change. This milestone does not implement or approve any of those transitions.
+
+## 28. Final route-family consolidation decision
+
+### Milestone boundary
+
+This final decision starts from `main` commit `5bfda1a3ff33310bc29b76f0bac3a021fa50011a` on branch `milestone/svg-to-png-route-consolidation`. It supersedes the earlier provisional redirect-readiness language for this family. The decision is not that redirects remain vaguely pending: the evidence below establishes that all nine routes should remain independent. Reconsidering an individual route requires new evidence that its distinct public intent or guidance no longer exists; identical converter output alone is insufficient.
+
+The existing content contract now records one finite final classification for every route: `retain-independently`. It also records finite, route-specific reasons and the `requires-new-evidence` reconsideration policy. These values are descriptive only. They are not read by routing, rendering, metadata, schema, sitemap, navigation, or converter code.
+
+### Route identity inventory
+
+All nine routes remain public, indexable, self-canonical, present once in both HTML and XML sitemaps, and rendered by `app/routes/svg-to-png-converter.tsx`. Open Graph URL equals the self-canonical URL for each route. The current visible breadcrumb and `BreadcrumbList` identity remain the shared `SVG to PNG` identity at `/svg-to-png-converter`; this records current production behavior rather than changing schema ownership.
+
+| Public path / key | Audience and search intent | H1 | Title | Meta description |
+| --- | --- | --- | --- | --- |
+| `/svg-to-png-converter` / `base` | General SVG owners who need a browser PNG export with exact size or transparency | `SVG to PNG Converter` | `SVG to PNG Converter - Export Transparent PNG Files \| iLoveSVG` | `Export SVG files as PNG images in your browser with transparent or solid backgrounds, exact pixel size, scale controls, preview, and download.` |
+| `/svg-to-png-for-shopify` / `shopify` | Shopify merchants preparing store logos, badges, icons, and raster theme assets | `SVG to PNG for Shopify` | `SVG to PNG for Shopify \| iLoveSVG` | `Export Shopify-ready PNG copies from SVG assets with transparent backgrounds, exact sizing, and browser-side previews.` |
+| `/svg-to-png-for-etsy` / `etsy` | Etsy sellers preparing listing previews and digital-product visuals | `SVG to PNG for Etsy` | `SVG to PNG for Etsy \| iLoveSVG` | `Export Etsy listing preview images and digital product visuals from SVG with transparent or solid backgrounds.` |
+| `/svg-to-png-for-printify` / `printify` | Printify sellers preparing transparent product artwork, mockups, and previews | `SVG to PNG for Printify` | `SVG to PNG for Printify \| iLoveSVG` | `Export SVG artwork as transparent PNG for Printify product artwork, mockups, previews, and print-on-demand upload prep.` |
+| `/svg-to-png-for-printful` / `printful` | Printful sellers preparing transparent product artwork, mockups, and previews | `SVG to PNG for Printful` | `SVG to PNG for Printful \| iLoveSVG` | `Export SVG artwork as transparent PNG for Printful product artwork, mockups, previews, and print-on-demand upload prep.` |
+| `/sticker-to-png-for-printing` / `sticker-printing` | Sticker, label, and decal creators checking transparent print-preview artwork | `Sticker SVG to PNG for Printing` | `Sticker SVG to PNG for Printing \| iLoveSVG` | `Export sticker SVG artwork to transparent PNG for printing previews, labels, decals, and product mockups.` |
+| `/svg-to-transparent-png-for-printing` / `transparent-printing` | Print and mockup users whose primary requirement is preserved alpha | `SVG to Transparent PNG for Printing` | `SVG to Transparent PNG for Printing \| iLoveSVG` | `Export SVG artwork as a transparent PNG for print previews, product mockups, stickers, and clean handoff files.` |
+| `/svg-to-png-for-canva` / `canva` | Canva users preparing flattened uploads, transparent graphics, and design handoff | `SVG to PNG for Canva` | `SVG to PNG for Canva \| iLoveSVG` | `Export SVG artwork to PNG for Canva uploads, transparent graphics, predictable sizing, and design handoff.` |
+| `/svg-to-png-for-figma` / `figma` | Figma users preparing flattened previews, thumbnails, and sharing files | `SVG to PNG for Figma` | `SVG to PNG for Figma \| iLoveSVG` | `Export SVG assets to PNG for Figma handoff, previews, thumbnails, and flattened sharing files.` |
+
+Titles, descriptions, canonicals, and Open Graph URLs are owned by `app/routes/svg-to-png-converter.tsx`, `app/data/routeMeta/marketplaceExport.ts`, or `app/data/routeMeta/canvaFigma.ts` as recorded in the existing contracts. Route registration and public identity remain in `app/routes.ts` and `app/data/routeManifest.ts`. Sitemap identity remains in `app/routes/sitemap.tsx` and `public/sitemap.xml`.
+
+### Route-by-route classification evidence
+
+| Route | Meaningful content and workflow evidence | Availability at the base destination and redirect loss | Final classification |
+| --- | --- | --- | --- |
+| Base converter | General export intro; exact-size, aspect, scaling, canvas-background, transparency, antialiasing, preview, output/download, FAQ, troubleshooting, example, and general related-tool guidance | It is the family’s general utility and has no more general destination. Its broad internal-navigation role is not a substitute for the eight audience routes. | **Retain independently** |
+| Shopify | Shopify-specific title, description, H1, platform label, utility description, seller/ecommerce workflow guide, limitations, questions, and related Shopify asset tools | The base page does not identify Shopify store assets or preserve the Shopify guide. A direct redirect loses that audience context; restoring it would require prohibited route state or broad destination duplication. | **Retain independently** |
+| Etsy | Etsy listing-preview and digital-product identity, seller workflow guidance, marketplace limitations/questions, and Etsy-related export and asset links | The base page does not reproduce Etsy listing and digital-product intent. A redirect would discard meaningful seller terminology and navigation. | **Retain independently** |
+| Printify | Print-on-demand route guide plus a dedicated inline `Prepare Printify print-on-demand PNG artwork` section covering transparent product artwork, sizing, placement, and upload review | The base page has no equivalent Printify-specific inline section or product-workflow identity. Content migration would make the general destination platform-specific and still would not preserve source identity without context selection. | **Retain independently** |
+| Printful | Print-on-demand route guide plus a dedicated inline `Prepare Printful print-on-demand PNG artwork` section covering product-art sizing and transparent handoff | The base page has no equivalent Printful-specific inline section or product-workflow identity. Direct redirect loses unique public guidance and platform terminology. | **Retain independently** |
+| Sticker printing | Sticker-, label-, decal-, and mockup-specific identity; print/POD guidance; sticker keywords; transparent-edge and physical-output context; sticker-related tools | General transparency guidance does not reproduce sticker intent. Folding this into the base would make the destination overly broad, while redirect state is prohibited. | **Retain independently** |
+| Transparent printing | Alpha-first print-preview, product-mockup, sticker, and handoff identity with print limitations and background guidance | The base supports transparency technically but does not serve the same print-focused intent or guidance. Identical defaults and pixels do not preserve that context. | **Retain independently** |
+| Canva | Canva upload, predictable sizing, transparent-graphic, and design-handoff identity; design-platform limitations/questions; Canva-related conversion and resizing links | The base page does not reproduce Canva handoff intent or navigation. A redirect loses the platform label and guide with no allowed mechanism to restore them. | **Retain independently** |
+| Figma | Figma handoff, preview, thumbnail, flattened-sharing identity; design-platform limitations/questions; Figma cleanup, resize, and conversion links | The base page does not reproduce Figma handoff intent or navigation. A redirect loses distinct terminology and related workflow guidance. | **Retain independently** |
+
+Every wrapper therefore fails at least the content-completeness, meaningful-guidance, metadata-truthfulness, internal-link, context-restoration, and distinct-search-intent parts of the redirect standard. Printify and Printful additionally fail because their dedicated inline content exists only on their current routes. No route is classified `Safe to redirect`, `Merge content first, then redirect`, or `Unresolved blocker`.
+
+### Content, links, metadata, and sitemap outcome
+
+No content migration was performed. Shared intro, upload, dimensions, background, output/download, FAQ, troubleshooting, and example content remain in `app/routes/svg-to-png-converter.tsx`. Printify and Printful inline workflow blocks remain in that shared implementation but are selected only by their explicit typed contexts. Utility-derived platform, printing, transparency, sticker, questions, limitations, and related-tool guidance remains in `app/client/components/navigation/OtherToolsLinks.tsx`.
+
+The internal-link inventory found each route in the route registry, manifest, HTML/XML sitemaps, `toolNavSections.ts`, and All Tools/related guidance. The base route also has broader references in the navbar, how-it-works content, converter cross-links, and the existing `/svg-to-transparent-png-converter` alias. Because no redirect is approved, no ordinary internal link, related-tool link, schema reference, breadcrumb, metadata entry, canonical, sitemap entry, route import, or content owner changed. The All Tools source, entries, labels, ordering, links, search, placement, and behavior remain byte-for-byte unchanged.
+
+### Behavior and preservation outcome
+
+All retained routes continue to use the one shared implementation and preserve `1024 x 1024`, locked aspect behavior, `1x` scaling, transparent background, antialiasing, source-basename filenames with `converted` fallback, SVG acceptance and validation, canvas background compositing, preview/download agreement, clear/reset, and second upload. The final contract and audit changes do not affect the renderer and cannot alter PNG bytes or decoded pixels.
+
+No redirect mapping exists for this family. There are no canonical, Open Graph, metadata, schema, breadcrumb, sitemap, internal-link, content, route-registration, or route-import changes to apply.
+
+### Final validation record
+
+The focused production-browser preservation audit passed with nine routes, seven deterministic fixtures, 63 route/viewport rows, and 477 recorded interaction states. Every fixture was byte-identical and decoded-pixel-identical across all nine routes and against the detached pre-change baseline. Dimensions, alpha, fully opaque artwork pixels, transparent and partial-alpha pixels, background compositing, filenames, accepted-input and invalid-input behavior, preview/download agreement, clear/reset, and second upload remained unchanged. The complete, unfiltered converter-parity audit also passed with zero failures.
+
+The independent responsive audit passed the full nine-route matrix at 320 x 800, 360 x 800, 375 x 812, 390 x 844, 412 x 915, 768 x 1024, and 1280 x 720. Browser client and maximum document/body/right-edge widths were respectively 305, 345, 360, 375, 397, 753, and 1265 pixels. No state had page-level overflow, clipped focusable controls, hidden previews, or console/network errors. The audit retained no screenshots or downloads. One immediately preceding run encountered Edge `ERR_NO_BUFFER_SPACE` on the Figma route at 768 x 1024 after repeated large browser matrices; no layout assertion failed, all audit-owned processes had exited, and the unchanged clean rerun completed all 63 rows and 477 states with zero browser errors.
+
+The final validation set also passed typecheck, production build, `npm test`, output UX, conversion actions, schema, route coverage including HTML/XML sitemaps, SEO, navigation source, navigation browser/search, public content, client lifecycle, route expansion/redirect coverage, internal-link coverage, generic responsive coverage, route HTTP smoke, memory diagnostics, bounded-store, script syntax, and source-preservation checks. `test:ci`, the response-correlation audit, and the repository-validation workflow are absent on this `main` history and were not introduced by this route-family milestone.
+
+All Tools, `Dockerfile`, `server.js`, and `package-lock.json` remain byte-for-byte unchanged from the starting commit. Deployment configuration and memory-diagnostic defaults are unchanged. Temporary reports, browser profiles, fixtures, and logs used for verification stayed in OS temporary storage and were removed after inspection; no screenshot, browser download, report, profile, or generated artifact is tracked.
+
+Final route-family status: **No redirects approved: all nine routes are intentionally retained because they serve distinct public intent.**
