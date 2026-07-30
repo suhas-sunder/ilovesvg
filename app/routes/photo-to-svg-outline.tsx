@@ -8,6 +8,7 @@ import {
 } from "~/client/lib/converter/settings";
 import * as React from "react";
 import type { Route } from "./+types/photo-to-svg-outline";
+import { getSpecializedTraceRouteContextByKey } from "~/client/lib/converter/specializedTraceRouteContexts";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -868,6 +869,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function PhotoToSvgOutline({
   loaderData,
 }: Route.ComponentProps) {
+  getSpecializedTraceRouteContextByKey("outline-photo");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "photo-to-svg-outline" });
 
   const [file, setFile] = React.useState<File | null>(null);

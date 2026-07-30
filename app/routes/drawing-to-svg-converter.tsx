@@ -5,6 +5,7 @@ import {
   SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
 } from "~/utils/boundedStore";
 import type { Route } from "./+types/drawing-to-svg-converter";
+import { getSpecializedTraceRouteContextByKey } from "~/client/lib/converter/specializedTraceRouteContexts";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -1937,6 +1938,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function DrawingToSvgConverter({
   loaderData,
 }: Route.ComponentProps) {
+  getSpecializedTraceRouteContextByKey("drawing-base");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "drawing-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(

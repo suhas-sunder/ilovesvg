@@ -12,8 +12,12 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs, useLocation } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import {
+  getSpecializedTraceRouteContextByKey,
+  type SpecializedTraceRouteKeyForOwner,
+} from "~/client/lib/converter/specializedTraceRouteContexts";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -1042,8 +1046,17 @@ const STICKER_FAQ_ITEMS_BY_PATH: Record<string, FaqItem[]> = {
   ],
 };
 
-function getStickerFaqItems(pathname: string) {
-  return STICKER_FAQ_ITEMS_BY_PATH[pathname] ?? BASE_FAQ_ITEMS;
+function getStickerFaqItems(
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/sticker-to-svg-converter.tsx">,
+) {
+  switch (routeKey) {
+    case "sticker-base":
+      return BASE_FAQ_ITEMS;
+    case "sticker-etsy":
+      return STICKER_FAQ_ITEMS_BY_PATH["/sticker-to-svg-for-etsy"];
+    case "sticker-silhouette":
+      return STICKER_FAQ_ITEMS_BY_PATH["/sticker-to-svg-for-silhouette"];
+  }
 }
 
 function buildFaqJsonLd(faqItems: FaqItem[]) {
@@ -1100,9 +1113,20 @@ function JsonLd({ data }: { data: any }) {
   );
 }
 
-export default function StickerToSvgConverter({}: Route.ComponentProps) {
-  const { pathname } = useLocation();
-  const faqItems = React.useMemo(() => getStickerFaqItems(pathname), [pathname]);
+export default function StickerToSvgConverter(_: Route.ComponentProps) {
+  return <StickerToSvgRouteImplementation routeKey="sticker-base" />;
+}
+
+export function StickerToSvgRouteImplementation({
+  routeKey,
+}: {
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/sticker-to-svg-converter.tsx">;
+}) {
+  getSpecializedTraceRouteContextByKey(routeKey);
+  const faqItems = React.useMemo(
+    () => getStickerFaqItems(routeKey),
+    [routeKey],
+  );
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "sticker-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1816,7 +1840,7 @@ export default function StickerToSvgConverter({}: Route.ComponentProps) {
       </div>
       <ContextualAdCard />
 
-      <SeoSections faqItems={faqItems} />
+      <SeoSections faqItems={faqItems} routeKey={routeKey} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -2051,9 +2075,27 @@ const stickerRouteSeoCopyByPath: Record<
   },
 };
 
-function SeoSections({ faqItems }: { faqItems: FaqItem[] }) {
-  const { pathname } = useLocation();
-  const routeCopy = stickerRouteSeoCopyByPath[pathname];
+function getStickerRouteSeoCopy(
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/sticker-to-svg-converter.tsx">,
+) {
+  switch (routeKey) {
+    case "sticker-base":
+      return undefined;
+    case "sticker-etsy":
+      return stickerRouteSeoCopyByPath["/sticker-to-svg-for-etsy"];
+    case "sticker-silhouette":
+      return stickerRouteSeoCopyByPath["/sticker-to-svg-for-silhouette"];
+  }
+}
+
+function SeoSections({
+  faqItems,
+  routeKey,
+}: {
+  faqItems: FaqItem[];
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/sticker-to-svg-converter.tsx">;
+}) {
+  const routeCopy = getStickerRouteSeoCopy(routeKey);
 
   return (
     <section className="bg-white border-t border-slate-200">

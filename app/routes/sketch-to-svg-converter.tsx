@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/sketch-to-svg-converter";
+import { getSpecializedTraceRouteContextByKey } from "~/client/lib/converter/specializedTraceRouteContexts";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -910,6 +911,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function SketchToSvgConverter({
   loaderData,
 }: Route.ComponentProps) {
+  getSpecializedTraceRouteContextByKey("sketch-base");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "sketch-to-svg-converter" });
   const [file, setFile] = React.useState<File | null>(null);
   const fileRef = React.useRef<File | null>(null);

@@ -8,23 +8,35 @@ import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
 const baseUrl = getSmokeBaseUrl();
 const debugPort = Number(process.env.CDP_PORT || 9264);
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const auditLabel =
+  process.env.ROUTE_FAMILY_AUDIT_LABEL || "raster-family-browser";
+const contextRelativePath =
+  process.env.ROUTE_FAMILY_CONTEXT ||
+  "app/client/lib/converter/rasterToSvgRouteContexts.ts";
+const routePathTuple =
+  process.env.ROUTE_FAMILY_PATH_TUPLE || "RASTER_TO_SVG_ROUTE_PATHS";
 const tmpDir = path.join(
   os.tmpdir(),
-  "ilovesvg-raster-to-svg-browser-audit",
+  `ilovesvg-${auditLabel}`,
   String(debugPort),
 );
 const profileDir = path.join(tmpDir, "profile");
 const contextSource = await fs.readFile(
-  path.join(
-    rootDir,
-    "app/client/lib/converter/rasterToSvgRouteContexts.ts",
-  ),
+  path.join(rootDir, contextRelativePath),
   "utf8",
 );
-const pathBlock = contextSource.match(
-  /export const RASTER_TO_SVG_ROUTE_PATHS = \[([\s\S]*?)\] as const;/,
+const escapedRoutePathTuple = routePathTuple.replace(
+  /[.*+?^${}()|[\]\\]/g,
+  "\\$&",
 );
-if (!pathBlock) throw new Error("Raster-to-SVG route tuple not found.");
+const pathBlock = contextSource.match(
+  new RegExp(
+    `export const ${escapedRoutePathTuple} = \\[([\\s\\S]*?)\\] as const;`,
+  ),
+);
+if (!pathBlock) {
+  throw new Error(`${routePathTuple} route tuple not found.`);
+}
 const routePaths = [...pathBlock[1].matchAll(/"([^"]+)"/g)].map(
   (match) => match[1],
 );
@@ -33,30 +45,34 @@ const allRouteViewports = [
   { width: 390, height: 844 },
   { width: 1280, height: 720 },
 ];
-const representativeRoutes = [
-  "/png-to-svg-converter",
-  "/png-to-svg-for-cricut",
-  "/png-to-svg-for-etsy",
-  "/png-to-svg-for-silhouette",
-  "/png-to-svg-for-laser-cutting",
-  "/png-to-svg-for-cricut-vinyl",
-  "/cricut-svg-converter",
-  "/jpg-to-svg-converter",
-  "/jpeg-to-svg-converter",
-  "/webp-to-svg-converter",
-];
+const representativeRoutes = process.env.ROUTE_FAMILY_REPRESENTATIVES
+  ? process.env.ROUTE_FAMILY_REPRESENTATIVES.split(",").filter(Boolean)
+  : [
+      "/png-to-svg-converter",
+      "/png-to-svg-for-cricut",
+      "/png-to-svg-for-etsy",
+      "/png-to-svg-for-silhouette",
+      "/png-to-svg-for-laser-cutting",
+      "/png-to-svg-for-cricut-vinyl",
+      "/cricut-svg-converter",
+      "/jpg-to-svg-converter",
+      "/jpeg-to-svg-converter",
+      "/webp-to-svg-converter",
+    ];
 const representativeViewports = [
   { width: 320, height: 800 },
   { width: 412, height: 915 },
   { width: 768, height: 1024 },
   { width: 1440, height: 900 },
 ];
-const existingRedirects = [
-  ["/image-to-svg-converter", "/"],
-  ["/tif-to-svg-converter", "/tiff-to-svg-converter"],
-  ["/png-to-vector-converter", "/png-to-svg-converter"],
-  ["/jpg-to-vector-converter", "/jpg-to-svg-converter"],
-];
+const existingRedirects = process.env.ROUTE_FAMILY_REDIRECTS
+  ? JSON.parse(process.env.ROUTE_FAMILY_REDIRECTS)
+  : [
+      ["/image-to-svg-converter", "/"],
+      ["/tif-to-svg-converter", "/tiff-to-svg-converter"],
+      ["/png-to-vector-converter", "/png-to-svg-converter"],
+      ["/jpg-to-vector-converter", "/jpg-to-svg-converter"],
+    ];
 
 async function main() {
   await assertServerReachable();
@@ -268,7 +284,7 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
     newErrors.length === 0;
 
   console.error(
-    `[raster-family-browser] ${routePath} ${viewport.width}x${viewport.height} ` +
+    `[${auditLabel}] ${routePath} ${viewport.width}x${viewport.height} ` +
       `document=${state.documentClientWidth}/${state.documentScrollWidth} ` +
       `body=${state.bodyClientWidth}/${state.bodyScrollWidth} ${ok ? "ok" : "failed"}`,
   );

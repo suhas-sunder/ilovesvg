@@ -36,6 +36,8 @@
     "test:converter-route-parity": "node scripts/converter-route-parity-smoke.mjs",
     "test:raster-to-svg-family": "node scripts/raster-to-svg-route-family-audit.mjs",
     "test:raster-to-svg-browser": "node scripts/raster-to-svg-browser-audit.mjs",
+    "test:specialized-trace-family": "node scripts/specialized-trace-route-family-audit.mjs",
+    "test:specialized-trace-browser": "node scripts/specialized-trace-browser-audit.mjs",
     "test:svg-to-png-preservation": "node scripts/svg-to-png-preservation-audit.mjs",
     "test:svg-to-png-responsive": "node scripts/svg-to-png-responsive-audit.mjs",
     "test:high-fidelity-browser-output": "node scripts/high-fidelity-browser-output-smoke.mjs",

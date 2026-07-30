@@ -5,6 +5,7 @@ import {
   SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
 } from "~/utils/boundedStore";
 import type { Route } from "./+types/image-to-svg-outline";
+import { getSpecializedTraceRouteContextByKey } from "~/client/lib/converter/specializedTraceRouteContexts";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -1502,6 +1503,7 @@ function createClientRequestId(): string {
 export default function ImageToSvgOutline({
   loaderData,
 }: Route.ComponentProps) {
+  getSpecializedTraceRouteContextByKey("outline-image");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "image-to-svg-outline" });
 
   const [file, setFile] = React.useState<File | null>(null);
