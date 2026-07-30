@@ -20,8 +20,12 @@ import {
   runSharedPotraceSvgTrace as runSharedPotraceSvgTraceShared,
   runSharedRasterNormalization as runSharedRasterNormalizationShared,
 } from "~/shared/tracing/serverFallback";
-import { Link, type ActionFunctionArgs, useLocation } from "react-router";
+import { Link, type ActionFunctionArgs } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
+import {
+  getSpecializedTraceRouteContextByKey,
+  type SpecializedTraceRouteKeyForOwner,
+} from "~/client/lib/converter/specializedTraceRouteContexts";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
@@ -869,9 +873,16 @@ function autoModeDetail(mode: AutoMode): string {
   return "";
 }
 
-export default function LogoToSvgConverter({
-  loaderData,
-}: Route.ComponentProps) {
+export default function LogoToSvgConverter(_: Route.ComponentProps) {
+  return <LogoToSvgRouteImplementation routeKey="logo-base" />;
+}
+
+export function LogoToSvgRouteImplementation({
+  routeKey,
+}: {
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/logo-to-svg-converter.tsx">;
+}) {
+  getSpecializedTraceRouteContextByKey(routeKey);
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "logo-to-svg-converter" });
 
   const [file, setFile] = React.useState<File | null>(null);
@@ -1569,7 +1580,7 @@ export default function LogoToSvgConverter({
         />
       </div>
       <ContextualAdCard />
-      <SeoSections />
+      <SeoSections routeKey={routeKey} />
       <OtherToolsLinks />
       <RelatedSites />
       <SocialLinks />
@@ -1834,9 +1845,30 @@ const logoRouteSeoCopyByPath: Record<
   },
 };
 
-function SeoSections() {
-  const { pathname } = useLocation();
-  const routeCopy = logoRouteSeoCopyByPath[pathname];
+function getLogoRouteSeoCopy(
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/logo-to-svg-converter.tsx">,
+) {
+  switch (routeKey) {
+    case "logo-base":
+    case "logo-canva":
+      return undefined;
+    case "logo-etsy":
+      return logoRouteSeoCopyByPath["/logo-to-svg-for-etsy"];
+    case "logo-shopify":
+      return logoRouteSeoCopyByPath["/logo-to-svg-for-shopify"];
+    case "logo-silhouette":
+      return logoRouteSeoCopyByPath["/logo-to-svg-for-silhouette"];
+    case "logo-glowforge":
+      return logoRouteSeoCopyByPath["/logo-to-svg-for-glowforge"];
+  }
+}
+
+function SeoSections({
+  routeKey,
+}: {
+  routeKey: SpecializedTraceRouteKeyForOwner<"app/routes/logo-to-svg-converter.tsx">;
+}) {
+  const routeCopy = getLogoRouteSeoCopy(routeKey);
 
   return (
     <section className="bg-white border-t border-slate-200">

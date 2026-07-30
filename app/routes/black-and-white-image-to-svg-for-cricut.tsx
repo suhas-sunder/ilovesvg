@@ -4,6 +4,7 @@ import {
   ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
 } from "~/utils/boundedStore";
 import type { Route } from "./+types/black-and-white-image-to-svg-for-cricut";
+import { getSpecializedTraceRouteContextByKey } from "~/client/lib/converter/specializedTraceRouteContexts";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -1942,6 +1943,7 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  getSpecializedTraceRouteContextByKey("black-white-cricut");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "black-and-white-image-to-svg-for-cricut" });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(

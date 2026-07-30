@@ -1,6 +1,9 @@
 import type { Route } from "./+types/sticker-to-svg-for-silhouette";
 import { createMarketplaceCraftMeta } from "~/data/routeMeta/marketplaceCraft";
-import Template, { action } from "./sticker-to-svg-converter";
+import {
+  action,
+  StickerToSvgRouteImplementation,
+} from "./sticker-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   return createMarketplaceCraftMeta("/sticker-to-svg-for-silhouette");
@@ -8,4 +11,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action };
 
-export default Template;
+export default function StickerToSvgForSilhouette(_: Route.ComponentProps) {
+  return <StickerToSvgRouteImplementation routeKey="sticker-silhouette" />;
+}

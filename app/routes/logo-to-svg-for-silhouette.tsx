@@ -1,5 +1,9 @@
 import type { Route } from "./+types/logo-to-svg-for-silhouette";
-import Template, { action, loader } from "./logo-to-svg-converter";
+import {
+  action,
+  loader,
+  LogoToSvgRouteImplementation,
+} from "./logo-to-svg-converter";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Logo to SVG for Silhouette | iLoveSVG";
@@ -22,4 +26,6 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function LogoToSvgForSilhouette(_: Route.ComponentProps) {
+  return <LogoToSvgRouteImplementation routeKey="logo-silhouette" />;
+}

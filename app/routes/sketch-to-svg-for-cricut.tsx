@@ -5,6 +5,7 @@ import {
   SHARED_RATE_LIMIT_STORE_MAX_ENTRIES,
 } from "~/utils/boundedStore";
 import type { Route } from "./+types/sketch-to-svg-for-cricut";
+import { getSpecializedTraceRouteContextByKey } from "~/client/lib/converter/specializedTraceRouteContexts";
 import {
   json,
   unstable_createMemoryUploadHandler as createMemoryUploadHandler,
@@ -1477,6 +1478,7 @@ function autoModeDetail(mode: AutoMode): string {
 export default function SketchToSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
+  getSpecializedTraceRouteContextByKey("sketch-cricut");
   const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "sketch-to-svg-for-cricut" });
 
   const [file, setFile] = React.useState<File | null>(null);
