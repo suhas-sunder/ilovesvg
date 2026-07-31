@@ -2384,7 +2384,7 @@ export default function FreeColorPicker() {
                   <svg
                     viewBox="0 0 600 240"
                     width="100%"
-                    height="auto"
+                    className="h-auto"
                     role="img"
                     aria-label="Fill and stroke preview"
                   >

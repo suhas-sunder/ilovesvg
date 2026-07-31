@@ -417,9 +417,9 @@ export default function SvgAccessibilityAndContrastChecker() {
             </div>
           </section>
 
-          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <section className="lg:pt-0 lg:pb-8 grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-4 items-start min-w-0">
             {/* INPUT */}
-            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden min-w-0">
               <div className="flex items-start justify-between gap-3">
                 <h1 className="flex text-sky-800 text-[28px] text-xl sm:text-3xl w-full justify-center font-extrabold leading-tight m-0">
                   SVG Accessibility and Contrast Checker
@@ -448,7 +448,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       onChange={(e) =>
                         setPreviewMode(e.target.value as typeof previewMode)
                       }
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold cursor-pointer"
+                      className="w-full min-w-0 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold cursor-pointer"
                       disabled={!originalSvg.trim() && !workingSvg.trim()}
                     >
                       <option value="updated">Preview: Updated SVG</option>
@@ -541,10 +541,10 @@ export default function SvgAccessibilityAndContrastChecker() {
             </div>
 
             {/* RIGHT COLUMN */}
-            <div className="lg:col-span-7 grid gap-4 min-w-0">
+            <div className="grid grid-cols-1 gap-4 min-w-0">
               {/* CONTROLS */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm min-w-0">
-                <div className="grid gap-3">
+                <div className="grid grid-cols-1 gap-3 min-w-0">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 min-w-0">
                     <div className="lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
                       <ColorField
@@ -559,7 +559,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                       />
                     </div>
 
-                    <div className="mt-3 lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="mt-3 lg:pt-0 lg:pb-8 grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0">
                       <div className="min-w-0">
                         <label className="text-sm font-semibold text-slate-700">
                           Apply scope
@@ -569,7 +569,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                           onChange={(e) =>
                             setApplyScope(e.target.value as typeof applyScope)
                           }
-                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm cursor-pointer"
+                          className="mt-1 w-full min-w-0 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm cursor-pointer"
                         >
                           <option value="both">fill + stroke</option>
                           <option value="fill">fill only</option>
@@ -584,7 +584,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                         <select
                           value={blindMode}
                           onChange={(e) => setBlindMode(e.target.value as any)}
-                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm cursor-pointer"
+                          className="mt-1 w-full min-w-0 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm cursor-pointer"
                         >
                           <option value="none">None</option>
                           <option value="protanopia">
@@ -609,7 +609,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                         <button
                           type="button"
                           onClick={() => setShowCheckerSample((v) => !v)}
-                          className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold cursor-pointer"
+                          className="mt-1 w-full min-w-0 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold cursor-pointer"
                         >
                           {showCheckerSample
                             ? "Hide sample text"
@@ -620,7 +620,7 @@ export default function SvgAccessibilityAndContrastChecker() {
                   </div>
 
                   {/* WCAG table */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 min-w-0">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="text-sm font-semibold text-slate-900">
                         WCAG contrast checks
@@ -633,8 +633,8 @@ export default function SvgAccessibilityAndContrastChecker() {
                       </div>
                     </div>
 
-                    <div className="mt-3 overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="mt-3 w-full max-w-full overflow-x-auto">
+                      <table className="w-full table-fixed sm:table-auto text-sm">
                         <thead className="text-left text-slate-600">
                           <tr>
                             <th className="py-2 pr-2 font-semibold">Target</th>
@@ -1251,7 +1251,9 @@ function SeoSections() {
             </div>
           </section>
 
-          <CurrentRouteGuide />
+          <div className="accessibility-route-guide-containment min-w-0 max-w-full">
+            <CurrentRouteGuide />
+          </div>
 
           <section className="mt-12">
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
