@@ -11,7 +11,7 @@ export const PRIVACY_POLICY_COPY = {
   lastUpdated: "Last updated May 8, 2026",
   intro: (
     <>
-              <p>
+              <div>
                 <span>
                   This privacy notice for i🩵SVG (https://www.ilovesvg.com)
                   ("we", "us", or "our"), describes how and why we might
@@ -30,7 +30,7 @@ export const PRIVACY_POLICY_COPY = {
                     accounts, subscriptions, or purchases in the future)
                   </li>
                 </ul>
-              </p>
+              </div>
 
               <p>
                 Questions or concerns? Reading this privacy notice will help you

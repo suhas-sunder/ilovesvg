@@ -379,6 +379,18 @@ main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class]:hove
   }
 }
 
+@media (max-width: 639px) {
+  .accessibility-route-guide-containment > section,
+  .accessibility-route-guide-containment > section > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .accessibility-route-guide-containment > section > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 button[class*="bg-[#0b2dff]"],
 a[class*="bg-[#0b2dff]"] {
   background-color: #2563eb !important;

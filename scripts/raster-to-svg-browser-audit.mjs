@@ -21,25 +21,31 @@ const tmpDir = path.join(
   String(debugPort),
 );
 const profileDir = path.join(tmpDir, "profile");
-const contextSource = await fs.readFile(
-  path.join(rootDir, contextRelativePath),
-  "utf8",
-);
-const escapedRoutePathTuple = routePathTuple.replace(
-  /[.*+?^${}()|[\]\\]/g,
-  "\\$&",
-);
-const pathBlock = contextSource.match(
-  new RegExp(
-    `export const ${escapedRoutePathTuple} = \\[([\\s\\S]*?)\\] as const;`,
-  ),
-);
-if (!pathBlock) {
-  throw new Error(`${routePathTuple} route tuple not found.`);
+const routePaths = process.env.ROUTE_FAMILY_PATHS
+  ? process.env.ROUTE_FAMILY_PATHS.split(",").filter(Boolean)
+  : await readRoutePathsFromContext();
+
+async function readRoutePathsFromContext() {
+  const contextSource = await fs.readFile(
+    path.join(rootDir, contextRelativePath),
+    "utf8",
+  );
+  const escapedRoutePathTuple = routePathTuple.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  const pathBlock = contextSource.match(
+    new RegExp(
+      `export const ${escapedRoutePathTuple} = \\[([\\s\\S]*?)\\] as const;`,
+    ),
+  );
+  if (!pathBlock) {
+    throw new Error(`${routePathTuple} route tuple not found.`);
+  }
+  return [...pathBlock[1].matchAll(/"([^"]+)"/g)].map(
+    (match) => match[1],
+  );
 }
-const routePaths = [...pathBlock[1].matchAll(/"([^"]+)"/g)].map(
-  (match) => match[1],
-);
 
 const allRouteViewports = [
   { width: 390, height: 844 },

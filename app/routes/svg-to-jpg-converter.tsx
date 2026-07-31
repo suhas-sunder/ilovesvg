@@ -1,6 +1,9 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-jpg-converter";
-import { useLocation } from "react-router";
+import {
+  getSvgToJpgRouteContext,
+  type SvgToJpgRouteKey,
+} from "~/client/lib/converter/svgToJpgRouteContexts";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -104,8 +107,14 @@ const SVG_TO_JPG_FAQS: FaqItem[] = [
 ];
 
 export default function SvgToJpgConverter(_: Route.ComponentProps) {
-  const { pathname } = useLocation();
-  const shouldEmitFaqJsonLd = pathname === "/svg-to-jpg-converter";
+  return <SvgToJpgConverterImplementation routeKey="svg-jpg-base" />;
+}
+
+export function SvgToJpgConverterImplementation({
+  routeKey,
+}: Readonly<{ routeKey: SvgToJpgRouteKey }>) {
+  const routeContext = getSvgToJpgRouteContext(routeKey);
+  const shouldEmitFaqJsonLd = routeContext.faqSchemaOwner !== null;
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
