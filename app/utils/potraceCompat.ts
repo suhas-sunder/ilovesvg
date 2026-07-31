@@ -1,10 +1,10 @@
-import { createRequire } from "node:module";
 import { Potrace } from "@kcaitech/potrace-ts";
 import {
   classifyMemoryDiagnosticError,
   createMemoryDiagnosticJob,
   type MemoryDiagnosticJob,
 } from "./memoryDiagnostics.server.ts";
+import { getSharp } from "./sharpRuntime.server.ts";
 
 const TRACE_CACHE_TTL_MS = 10 * 60 * 1000;
 const TRACE_CACHE_MAX_ITEMS = 32;
@@ -55,9 +55,6 @@ type TraceCacheEntry = {
   lastUsedAt: number;
 };
 
-const requireFromHere = createRequire(import.meta.url);
-let sharpModule: SharpModule | null = null;
-
 function getTraceCache(): Map<string, TraceCacheEntry> {
   const globalState = globalThis as typeof globalThis & {
     __ilovesvg_trace_cache?: Map<string, TraceCacheEntry>;
@@ -66,13 +63,6 @@ function getTraceCache(): Map<string, TraceCacheEntry> {
     globalState.__ilovesvg_trace_cache = new Map<string, TraceCacheEntry>();
   }
   return globalState.__ilovesvg_trace_cache;
-}
-
-async function getSharpForTrace(): Promise<SharpModule> {
-  if (!sharpModule) {
-    sharpModule = requireFromHere("sharp") as SharpModule;
-  }
-  return sharpModule;
 }
 
 export async function traceBitmapToSvg(
@@ -123,7 +113,7 @@ async function traceBitmapToSvgUncached(
   options: Record<string, unknown>,
   memoryDiagnostics?: MemoryDiagnosticJob | null,
 ): Promise<string> {
-  const sharp = await getSharpForTrace();
+  const sharp = await getSharp();
   const signature = detectRasterSignature(input);
   if (!signature || !TRACE_ALLOWED_SIGNATURES.has(signature)) {
     throw new Error("Unsupported trace image type. Please upload a supported raster image.");
@@ -168,7 +158,11 @@ async function traceBitmapToSvgUncached(
 
   const normalized = normalizePotraceOptions(options, rawWidth, rawHeight);
   const imageData: ImageDataLike = {
-    data: new Uint8ClampedArray(raw.data),
+    data: new Uint8ClampedArray(
+      raw.data.buffer,
+      raw.data.byteOffset,
+      raw.data.byteLength,
+    ),
     width: rawWidth,
     height: rawHeight,
   };

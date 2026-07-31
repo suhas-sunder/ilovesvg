@@ -874,11 +874,6 @@ async function normalizeForSingleTrace(
     const { getSharp } = await import("~/utils/conversionModules.server");
       const sharp = await getSharp();
 
-    try {
-      (sharp as any).concurrency?.(1);
-      (sharp as any).cache?.({ files: 0, memory: 32 });
-    } catch {}
-
     const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
     const sourceInput = await routeNeutralizeTransparency(input);
 
@@ -1124,11 +1119,6 @@ async function rasterToLayeredSvg(
 }> {
   const { getSharp } = await import("~/utils/conversionModules.server");
       const sharp = await getSharp();
-
-  try {
-    (sharp as any).concurrency?.(1);
-    (sharp as any).cache?.({ files: 0, memory: 48 });
-  } catch {}
 
   const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
   const sourceInput = await routeNeutralizeTransparency(input);

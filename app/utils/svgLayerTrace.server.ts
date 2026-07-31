@@ -2702,7 +2702,7 @@ async function preprocessLayeredRasterInput(
   const channels = info.channels | 0;
   if (!width || !height || channels < 4) return input;
 
-  const raw = Buffer.from(data as Buffer);
+  const raw = data as Buffer;
   const removeColorTolerance = Number(options.removeColorTolerance ?? 18);
   const contrastFactor = Math.max(0.1, 1 + contrast / 100);
   const brightnessFactor = Math.max(0.05, 1 + brightness / 100);
