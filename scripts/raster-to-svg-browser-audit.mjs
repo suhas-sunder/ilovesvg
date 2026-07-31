@@ -58,6 +58,12 @@ const representativeRoutes = process.env.ROUTE_FAMILY_REPRESENTATIVES
       "/jpeg-to-svg-converter",
       "/webp-to-svg-converter",
     ];
+const inputOptionalRoutes = new Set(
+  String(process.env.ROUTE_FAMILY_INPUT_OPTIONAL_ROUTES || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
 const representativeViewports = [
   { width: 320, height: 800 },
   { width: 412, height: 915 },
@@ -301,7 +307,7 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
     state.title.length > 0 &&
     state.h1.length > 0 &&
     state.canonical === expectedCanonical &&
-    state.fileInputCount > 0 &&
+    (state.fileInputCount > 0 || inputOptionalRoutes.has(routePath)) &&
     state.documentScrollWidth <= state.documentClientWidth + 1 &&
     state.bodyScrollWidth <= state.bodyClientWidth + 1 &&
     state.clippedFocusable.length === 0 &&

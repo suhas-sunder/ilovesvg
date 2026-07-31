@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-dimensions-inspector";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -110,6 +111,7 @@ const DEFAULTS: Settings = {
    Page
 ======================== */
 export default function SvgDimensionsInspector(_: Route.ComponentProps) {
+  getNonTracingSvgUtilityRouteContextByKey("inspect-dimensions");
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 

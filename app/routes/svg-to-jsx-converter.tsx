@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-to-jsx-converter";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -105,6 +106,7 @@ const ATTRIBUTE_MAP: Record<string, string> = {
 };
 
 export default function SvgToJsxConverter(_: Route.ComponentProps) {
+  getNonTracingSvgUtilityRouteContextByKey("serialize-jsx");
   const [input, setInput] = React.useState(EXAMPLE_SVG);
   const [componentName, setComponentName] = React.useState("SvgIcon");
   const [wrapComponent, setWrapComponent] = React.useState(true);

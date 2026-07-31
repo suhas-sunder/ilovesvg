@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-embed-code-generator";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -198,6 +199,7 @@ const DEFAULTS: Settings = {
    Page
 ======================== */
 export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
+  getNonTracingSvgUtilityRouteContextByKey("serialize-embed-code");
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -395,12 +397,9 @@ export default function SvgEmbedCodeGenerator(_: Route.ComponentProps) {
       ? "bg-[linear-gradient(0deg,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[size:16px_16px]"
       : "bg-white";
 
-  const inputPreviewSrc =
-    previewUrl && settings.previewUseLocalBlobForFileEmbeds
-      ? previewUrl
-      : (settings.assetUrl || "").trim()
-        ? settings.assetUrl.trim()
-        : previewUrl;
+  const inputPreviewSrc = settings.previewUseLocalBlobForFileEmbeds
+    ? previewUrl
+    : (settings.assetUrl || "").trim() || previewUrl;
 
   const embedKindPills: Array<{ kind: EmbedKind; label: string }> = [
     { kind: "img", label: "HTML img" },

@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-file-size-inspector";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
@@ -82,6 +83,7 @@ const DEFAULTS: Settings = {
    Page
 ======================== */
 export default function SvgSizeInspector(_: Route.ComponentProps) {
+  getNonTracingSvgUtilityRouteContextByKey("inspect-file-size");
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 

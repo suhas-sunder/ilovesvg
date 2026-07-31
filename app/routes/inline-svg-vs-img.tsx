@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/inline-svg-vs-img";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -395,6 +396,7 @@ const DEFAULTS: Settings = {
    Page
 ======================== */
 export default function InlineSvgVsImg(_: Route.ComponentProps) {
+  getNonTracingSvgUtilityRouteContextByKey("serialize-inline-vs-img");
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 

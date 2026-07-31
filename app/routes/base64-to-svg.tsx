@@ -4,6 +4,7 @@ import {
   ROUTE_RATE_LIMIT_STORE_MAX_ENTRIES,
 } from "~/utils/boundedStore";
 import type { Route } from "./+types/base64-to-svg";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 import type { MemoryDiagnosticJob } from "~/utils/memoryDiagnostics.server";
 import { json } from "@remix-run/node";
 import {
@@ -2128,6 +2129,9 @@ const DISPLAY_PRESETS: Preset[] = [
    Page
 ======================== */
 export default function Base64ToSvg({}: Route.ComponentProps) {
+  const routeContext = getNonTracingSvgUtilityRouteContextByKey(
+    "serialize-base64-decode",
+  );
   const fetcher = useFetcher<RasterLayeredServerResult>();
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] = React.useState<string>("clean-svg");
@@ -2276,10 +2280,7 @@ export default function Base64ToSvg({}: Route.ComponentProps) {
     fetcher.submit(formData, {
       method: "POST",
       encType: "multipart/form-data",
-      action:
-        typeof window === "undefined"
-          ? "?index"
-          : `${window.location.pathname}?index`,
+      action: `${routeContext.path}?index`,
     });
   }, [
     activePreset,

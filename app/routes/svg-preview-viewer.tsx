@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-preview-viewer";
+import { getNonTracingSvgUtilityRouteContextByKey } from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 import { CurrentRouteGuide, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -151,6 +152,7 @@ const FAQ = [
    Page
 ======================== */
 export default function SvgPreviewViewer(_: Route.ComponentProps) {
+  getNonTracingSvgUtilityRouteContextByKey("inspect-preview");
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
