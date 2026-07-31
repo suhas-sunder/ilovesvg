@@ -1,4 +1,3 @@
-import os from "node:os";
 import type { MemoryDiagnosticJob } from "./memoryDiagnostics.server";
 
 export type ReleaseFn = () => void;
@@ -38,9 +37,7 @@ export async function getConversionGate(
     return globalState[GLOBAL_GATE_KEY];
   }
 
-  const cpuCount = Math.max(1, os.cpus()?.length || 1);
-  const maxRunning =
-    options.maxRunning ?? Math.max(1, Math.min(2, cpuCount));
+  const maxRunning = options.maxRunning ?? 1;
   const maxQueued = options.maxQueued ?? 8;
   const estimatedJobMs = options.estimatedJobMs ?? 3000;
 

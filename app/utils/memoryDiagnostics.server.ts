@@ -208,6 +208,9 @@ export function readMemoryDiagnosticStoreCounts(
     unknown
   >,
 ): Record<string, number> {
+  const gate = readConversionGateSnapshot(
+    globalObject.__ilovesvg_shared_conversion_gate,
+  );
   return {
     backendRateLimitStoreEntries: readStoreSize(
       globalObject.__ilovesvg_backend_rate_limits,
@@ -231,7 +234,13 @@ export function readMemoryDiagnosticStoreCounts(
       globalObject.__ilovesvg_batch_sessions,
     ),
     potraceCacheEntries: readStoreSize(globalObject.__ilovesvg_trace_cache),
+    potraceCacheBytes: readCacheBytes(globalObject.__ilovesvg_trace_cache),
     twemojiCacheEntries: readStoreSize(globalObject.__twemoji_cache),
+    activeConversionJobs: gate.activeJobs,
+    pendingConversionWaiters: gate.waitingJobs,
+    conversionGateCapacity: gate.capacity,
+    conversionQueueCapacity: gate.queueCapacity,
+    ...readSharpRuntimeSnapshot(globalObject),
   };
 }
 
@@ -333,7 +342,7 @@ function sanitizeMemoryUsage(memory: MemoryUsageSnapshot) {
 
 function sanitizeStoreSnapshot(snapshot: Record<string, number>) {
   const safe: Record<string, number> = {};
-  for (const [key, value] of Object.entries(snapshot).slice(0, 16)) {
+  for (const [key, value] of Object.entries(snapshot).slice(0, 32)) {
     const safeKey = String(key).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64);
     if (!safeKey) continue;
     safe[safeKey] = nonNegativeNumber(value);
@@ -345,6 +354,53 @@ function readStoreSize(value: unknown): number {
   if (!value || typeof value !== "object") return 0;
   const size = (value as { size?: unknown }).size;
   return typeof size === "number" ? nonNegativeNumber(size) : 0;
+}
+
+function readCacheBytes(value: unknown): number {
+  if (!(value instanceof Map)) return 0;
+  let total = 0;
+  for (const entry of value.values()) {
+    const bytes = (entry as { bytes?: unknown } | null)?.bytes;
+    if (typeof bytes === "number") total += nonNegativeNumber(bytes);
+  }
+  return nonNegativeNumber(total);
+}
+
+function readConversionGateSnapshot(value: unknown) {
+  const empty = {
+    activeJobs: 0,
+    waitingJobs: 0,
+    capacity: 0,
+    queueCapacity: 0,
+  };
+  if (!value || typeof value !== "object") return empty;
+  const readSnapshot = (value as {
+    getDiagnosticSnapshot?: () => Partial<typeof empty>;
+  }).getDiagnosticSnapshot;
+  if (typeof readSnapshot !== "function") return empty;
+  try {
+    const snapshot = readSnapshot.call(value);
+    return {
+      activeJobs: nonNegativeNumber(snapshot.activeJobs ?? 0),
+      waitingJobs: nonNegativeNumber(snapshot.waitingJobs ?? 0),
+      capacity: nonNegativeNumber(snapshot.capacity ?? 0),
+      queueCapacity: nonNegativeNumber(snapshot.queueCapacity ?? 0),
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function readSharpRuntimeSnapshot(globalObject: Record<string, unknown>) {
+  const readSnapshot = globalObject.__ilovesvg_sharp_runtime_snapshot_reader;
+  if (typeof readSnapshot !== "function") return {};
+  try {
+    const snapshot = readSnapshot();
+    if (!snapshot || typeof snapshot !== "object") return {};
+    return snapshot as Record<string, number>;
+  } catch {
+    return {};
+  }
 }
 
 function nonNegativeNumber(value: number): number {

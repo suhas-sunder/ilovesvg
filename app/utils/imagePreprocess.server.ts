@@ -165,7 +165,7 @@ export async function normalizeRasterForTrace(
     diagnostics.traceWidth = width;
     diagnostics.traceHeight = height;
     ensureTraceableDimensions(width, height);
-    let gray: Buffer<ArrayBufferLike> = Buffer.from(prepared.data as Buffer);
+    let gray: Buffer<ArrayBufferLike> = prepared.data as Buffer;
     startTimer(diagnostics, "maskCleanup");
     gray = applyBinaryCleanup(gray, width, height, opts);
     endTimer(diagnostics, "maskCleanup");
@@ -516,7 +516,7 @@ async function removeSelectedColorsFromRaster(
   const channels = info.channels | 0;
   if (!width || !height || channels < 4) return input;
 
-  const raw = Buffer.from(data as Buffer);
+  const raw = data as Buffer;
   for (let i = 0; i < width * height; i++) {
     const off = i * channels;
     const pixel = { r: raw[off], g: raw[off + 1], b: raw[off + 2] };

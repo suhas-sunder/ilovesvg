@@ -217,9 +217,33 @@ const aggregateCounts = readMemoryDiagnosticStoreCounts({
     ["private-session", {}],
     ["private-session-2", {}],
   ]),
+  __ilovesvg_trace_cache: new Map([
+    ["private-trace-1", { bytes: 1200 }],
+    ["private-trace-2", { bytes: 800 }],
+  ]),
+  __ilovesvg_shared_conversion_gate: {
+    getDiagnosticSnapshot: () => ({
+      activeJobs: 1,
+      waitingJobs: 2,
+      capacity: 1,
+      queueCapacity: 8,
+    }),
+  },
+  __ilovesvg_sharp_runtime_snapshot_reader: () => ({
+    sharpLoaded: 1,
+    sharpConcurrency: 1,
+    sharpCacheMemoryMaxMb: 16,
+  }),
 });
 assert.deepEqual(aggregateCounts.backendRateLimitStoreEntries, 1);
 assert.deepEqual(aggregateCounts.batchSessionStoreEntries, 2);
+assert.deepEqual(aggregateCounts.potraceCacheEntries, 2);
+assert.deepEqual(aggregateCounts.potraceCacheBytes, 2000);
+assert.deepEqual(aggregateCounts.activeConversionJobs, 1);
+assert.deepEqual(aggregateCounts.pendingConversionWaiters, 2);
+assert.deepEqual(aggregateCounts.conversionGateCapacity, 1);
+assert.deepEqual(aggregateCounts.sharpConcurrency, 1);
+assert.deepEqual(aggregateCounts.sharpCacheMemoryMaxMb, 16);
 assert.equal(JSON.stringify(aggregateCounts).includes("private"), false);
 assert.equal(classifyMemoryDiagnosticError({ code: "BUSY" }), "busy");
 assert.equal(classifyMemoryDiagnosticError({ name: "AbortError" }), "aborted");

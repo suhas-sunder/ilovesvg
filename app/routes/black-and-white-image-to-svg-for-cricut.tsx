@@ -796,11 +796,6 @@ async function traceLayeredRaster(
   const { getSharp } = await import("~/utils/conversionModules.server");
       const sharp = await getSharp();
 
-  try {
-    (sharp as any).concurrency?.(1);
-    (sharp as any).cache?.({ files: 0, memory: 48 });
-  } catch {}
-
   const routeNeutralizeTransparency = neutralizeTransparencyCheckerboardShared;
   const sourceInput = await routeNeutralizeTransparency(input);
 

@@ -1,14 +1,9 @@
-import { createRequire } from "node:module";
-
-type SharpModule = typeof import("sharp");
+import { getSharp } from "./sharpRuntime.server";
 
 const BMP_FILE_HEADER_BYTES = 14;
 const BITMAPINFOHEADER_BYTES = 40;
 const BI_RGB = 0;
 const SUPPORTED_BITS_PER_PIXEL = new Set([24, 32]);
-
-const requireFromHere = createRequire(import.meta.url);
-let sharpModule: SharpModule | null = null;
 
 export function isBmpBuffer(input: Buffer): boolean {
   return input.length >= BMP_FILE_HEADER_BYTES && input.slice(0, 2).toString("ascii") === "BM";
@@ -18,7 +13,7 @@ export async function normalizeBmpForSharp(input: Buffer): Promise<Buffer> {
   if (!isBmpBuffer(input)) return input;
 
   const decoded = decodeBmpToRgba(input);
-  const sharp = getSharpForBmp();
+  const sharp = await getSharp();
   return sharp(decoded.rgba, {
     raw: {
       width: decoded.width,
@@ -28,13 +23,6 @@ export async function normalizeBmpForSharp(input: Buffer): Promise<Buffer> {
   })
     .png()
     .toBuffer();
-}
-
-function getSharpForBmp(): SharpModule {
-  if (!sharpModule) {
-    sharpModule = requireFromHere("sharp") as SharpModule;
-  }
-  return sharpModule;
 }
 
 function decodeBmpToRgba(input: Buffer): {
