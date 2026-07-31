@@ -50,6 +50,10 @@ import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/Adva
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
 import {
+  getCricutOutputRouteContextByKey,
+  type CricutOutputRouteKeyForOwner,
+} from "~/client/lib/converter/cricutOutputRouteContexts";
+import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
   type TraceAdvancedSettings,
@@ -1518,10 +1522,32 @@ function autoModeDetail(mode: AutoMode): string {
 /* ========================
    Page
 ======================== */
+type ImageToLayeredSvgRouteProps = Readonly<{
+  loaderData: Route.ComponentProps["loaderData"];
+  routeKey: CricutOutputRouteKeyForOwner<
+    "app/routes/image-to-layered-svg-for-cricut.tsx"
+  >;
+}>;
+
 export default function ImageToLayeredSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "image-to-layered-svg-for-cricut" });
+  return (
+    <ImageToLayeredSvgRouteImplementation
+      loaderData={loaderData}
+      routeKey="layered-image-cricut"
+    />
+  );
+}
+
+export function ImageToLayeredSvgRouteImplementation({
+  loaderData,
+  routeKey,
+}: ImageToLayeredSvgRouteProps) {
+  const routeContext = getCricutOutputRouteContextByKey(routeKey);
+  const fetcher = useHybridTraceFetcher<ServerResult>({
+    routeId: routeContext.lifecycleRouteId,
+  });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1941,10 +1967,7 @@ export default function ImageToLayeredSvgForCricut({
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action:
-        typeof window === "undefined"
-          ? "?index"
-          : `${window.location.pathname}?index`,
+      action: `${routeContext.path}?index`,
     });
   }
 

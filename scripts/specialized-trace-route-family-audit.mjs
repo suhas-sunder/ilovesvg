@@ -538,13 +538,30 @@ for (const protectedPath of [
   "app/data/routeManifest.ts",
   "app/routes/sitemap.tsx",
   ALL_TOOLS_FILE,
-  "app/client/lib/converter/rasterToSvgRouteContexts.ts",
   "Dockerfile",
   "server.js",
   "package-lock.json",
 ]) {
   assertUnchanged(protectedPath);
 }
+
+const rasterRouteContextSource = read(
+  "app/client/lib/converter/rasterToSvgRouteContexts.ts",
+);
+const rasterRoutePathDeclaration =
+  rasterRouteContextSource.match(
+    /export const RASTER_TO_SVG_ROUTE_PATHS = \[(?<paths>[\s\S]*?)\] as const;/,
+  )?.groups?.paths ?? "";
+assert.doesNotMatch(
+  rasterRoutePathDeclaration,
+  /\/png-to-svg-for-cricut-vinyl/,
+  "The vinyl production workflow remains owned by the standard raster family.",
+);
+assert.match(
+  rasterRouteContextSource,
+  /path: "\/png-to-svg-for-cricut-vinyl",[\s\S]*?reason: "single-color-vinyl-production-workflow"/,
+  "The standard-family exclusion does not record the exact vinyl ownership transfer.",
+);
 
 assertUnchanged("app/routes/image-to-outline-converter.tsx");
 assertUnchanged("app/routes/black-and-white-png-to-svg-converter.tsx");

@@ -1,5 +1,9 @@
 import type { Route } from "./+types/logo-to-layered-svg-converter";
-import Template, { action, loader } from "./logo-to-layered-svg-for-cricut";
+import {
+  action,
+  loader,
+  LogoToLayeredSvgRouteImplementation,
+} from "./logo-to-layered-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Logo to Layered SVG Converter | iLoveSVG";
@@ -21,4 +25,13 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function LogoToLayeredSvgConverter({
+  loaderData,
+}: Route.ComponentProps) {
+  return (
+    <LogoToLayeredSvgRouteImplementation
+      loaderData={loaderData}
+      routeKey="layered-logo-general"
+    />
+  );
+}

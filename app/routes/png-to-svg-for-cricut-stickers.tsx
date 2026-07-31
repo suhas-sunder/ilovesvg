@@ -42,6 +42,7 @@ import {
 } from "~/client/lib/converter/outputHistory";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import { getCricutOutputRouteContextByKey } from "~/client/lib/converter/cricutOutputRouteContexts";
 
 const isServer = typeof document === "undefined";
 
@@ -1058,7 +1059,10 @@ function autoModeDetail(mode: AutoMode): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-cricut-stickers" });
+  const routeContext = getCricutOutputRouteContextByKey("cricut-stickers");
+  const fetcher = useHybridTraceFetcher<ServerResult>({
+    routeId: routeContext.lifecycleRouteId,
+  });
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -1337,7 +1341,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`,
+      action: `${routeContext.path}?index`,
     });
   }
 

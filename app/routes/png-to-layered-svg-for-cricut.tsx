@@ -51,6 +51,7 @@ import {
 import { AdvancedSettingsHelpSection } from "~/client/components/converter/AdvancedSettingsHelpSection";
 import { logAppError } from "~/client/lib/errorLogging";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import { getCricutOutputRouteContextByKey } from "~/client/lib/converter/cricutOutputRouteContexts";
 import {
   DEFAULT_OUTPUT_APPEARANCE,
   applyOutputAppearanceToSvg,
@@ -1365,7 +1366,12 @@ function autoModeDetail(mode: AutoMode): string {
 export default function PngToLayeredSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-layered-svg-for-cricut" });
+  const routeContext = getCricutOutputRouteContextByKey(
+    "layered-png-cricut",
+  );
+  const fetcher = useHybridTraceFetcher<ServerResult>({
+    routeId: routeContext.lifecycleRouteId,
+  });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -2064,10 +2070,7 @@ export default function PngToLayeredSvgForCricut({
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action:
-        typeof window === "undefined"
-          ? "?index"
-          : `${window.location.pathname}?index`,
+      action: `${routeContext.path}?index`,
     });
   }
 

@@ -48,6 +48,7 @@ import { extendLayeredPresets } from "~/client/lib/converter/presetAdditions";
 import { LayeredAdvancedSettingsPanel } from "~/client/components/converter/AdvancedSettingsPanel";
 import { getRouteCapabilities } from "~/client/lib/converter/routeCapabilities";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import { getCricutOutputRouteContextByKey } from "~/client/lib/converter/cricutOutputRouteContexts";
 import {
   DEFAULT_TRACE_ADVANCED_SETTINGS,
   appendAdvancedTraceSettings,
@@ -1415,7 +1416,10 @@ function autoModeDetail(mode: AutoMode): string {
 export default function LayeredSvgForCricut({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "layered-svg-for-cricut" });
+  const routeContext = getCricutOutputRouteContextByKey("layered-cricut");
+  const fetcher = useHybridTraceFetcher<ServerResult>({
+    routeId: routeContext.lifecycleRouteId,
+  });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1790,10 +1794,7 @@ export default function LayeredSvgForCricut({
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action:
-        typeof window === "undefined"
-          ? "?index"
-          : `${window.location.pathname}?index`,
+      action: `${routeContext.path}?index`,
     });
   }
 
