@@ -1,6 +1,5 @@
 import * as React from "react";
 import type { Route } from "./+types/svg-resize-and-scale-editor";
-import { useLocation } from "react-router";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
@@ -15,6 +14,10 @@ import {
   trackToolEngagement,
   trackToolEngagementOnce,
 } from "~/client/lib/analytics/toolEngagement";
+import {
+  getNonTracingSvgUtilityRouteContextByKey,
+  type NonTracingSvgUtilityRouteKeyForOwner,
+} from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 
 /* ========================
    Meta
@@ -102,7 +105,17 @@ const DEFAULTS: Settings = {
 /* ========================
    Page
 ======================== */
-export default function SvgResizeScale(_: Route.ComponentProps) {
+type ResizeRouteKey = NonTracingSvgUtilityRouteKeyForOwner<
+  "app/routes/svg-resize-and-scale-editor.tsx"
+>;
+
+export function ResizeRouteImplementation({
+  routeKey,
+}: {
+  routeKey: ResizeRouteKey;
+}) {
+  const routeContext =
+    getNonTracingSvgUtilityRouteContextByKey(routeKey);
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -835,7 +848,7 @@ export default function SvgResizeScale(_: Route.ComponentProps) {
       </div>
       <ContextualAdCard />
 
-      <SeoSections />
+      <SeoSections routePath={routeContext.path} />
       <JsonLdBreadcrumbs />
 
       {/* IMPORTANT: removed JsonLdFaq to prevent duplicated FAQ schema */}
@@ -1498,10 +1511,9 @@ function PlatformResizerSeoSection({ content }: { content: PlatformResizerSectio
   );
 }
 
-function SeoSections() {
-  const { pathname } = useLocation();
+function SeoSections({ routePath }: { routePath: string }) {
   const routeContent =
-    PLATFORM_RESIZER_CONTENT[normalizeSeoPath(pathname) as keyof typeof PLATFORM_RESIZER_CONTENT];
+    PLATFORM_RESIZER_CONTENT[normalizeSeoPath(routePath) as keyof typeof PLATFORM_RESIZER_CONTENT];
   const faqItems = routeContent?.faq ?? GENERIC_RESIZER_FAQ;
 
   return (
@@ -1681,4 +1693,8 @@ function SeoSections() {
       </div>
     </section>
   );
+}
+
+export default function SvgResizeScale(_: Route.ComponentProps) {
+  return <ResizeRouteImplementation routeKey="resize-base" />;
 }

@@ -3,7 +3,7 @@ import type { Route } from "./+types/svg-to-favicon-generator";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link, useLocation } from "react-router";
+import { Link } from "react-router";
 import { zipSync, strToU8 } from "fflate";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
@@ -11,6 +11,10 @@ import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
+import {
+  getNonTracingSvgUtilityRouteContextByKey,
+  type NonTracingSvgUtilityRouteKeyForOwner,
+} from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 
 /* ========================
    Meta
@@ -118,7 +122,17 @@ const DEFAULTS: Settings = {
 /* ========================
    Page
 ======================== */
-export default function SvgFaviconGenerator(_: Route.ComponentProps) {
+type FaviconRouteKey = NonTracingSvgUtilityRouteKeyForOwner<
+  "app/routes/svg-to-favicon-generator.tsx"
+>;
+
+export function FaviconRouteImplementation({
+  routeKey,
+}: {
+  routeKey: FaviconRouteKey;
+}) {
+  const routeContext =
+    getNonTracingSvgUtilityRouteContextByKey(routeKey);
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -1094,7 +1108,11 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
         />
       </div>
       <ContextualAdCard />
-      <SeoSections />
+      <SeoSections
+        shouldEmitFaqJsonLd={
+          routeContext.path === "/svg-to-favicon-generator"
+        }
+      />
       <JsonLdBreadcrumbs />
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
@@ -1111,9 +1129,11 @@ export default function SvgFaviconGenerator(_: Route.ComponentProps) {
 /* ========================
    SEO sections + FAQ JSON-LD
 ======================== */
-function SeoSections() {
-  const { pathname } = useLocation();
-  const shouldEmitFaqJsonLd = pathname === "/svg-to-favicon-generator";
+function SeoSections({
+  shouldEmitFaqJsonLd,
+}: {
+  shouldEmitFaqJsonLd: boolean;
+}) {
   const faqs = [
     {
       q: "Does this favicon generator upload my file?",
@@ -1433,6 +1453,10 @@ function SeoSections() {
       </div>
     </section>
   );
+}
+
+export default function SvgFaviconGenerator(_: Route.ComponentProps) {
+  return <FaviconRouteImplementation routeKey="favicon-svg" />;
 }
 
 /* ========================

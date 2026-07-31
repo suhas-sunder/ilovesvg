@@ -3,13 +3,17 @@ import type { Route } from "./+types/svg-cleaner";
 import { CurrentRouteGuide, CurrentRouteTitle, OtherToolsLinks } from "~/client/components/navigation/OtherToolsLinks";
 import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
-import { Link, useLocation } from "react-router";
+import { Link } from "react-router";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
 import DragArea from "~/client/components/ui/DragArea";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
+import {
+  getNonTracingSvgUtilityRouteContextByKey,
+  type NonTracingSvgUtilityRouteKeyForOwner,
+} from "~/client/lib/converter/nonTracingSvgUtilityRouteContexts";
 
 /* ========================
    Meta
@@ -149,7 +153,17 @@ const DEFAULTS: Settings = {
 /* ========================
    Page
 ======================== */
-export default function SvgCleaner(_: Route.ComponentProps) {
+type CleanerRouteKey = NonTracingSvgUtilityRouteKeyForOwner<
+  "app/routes/svg-cleaner.tsx"
+>;
+
+export function CleanerRouteImplementation({
+  routeKey,
+}: {
+  routeKey: CleanerRouteKey;
+}) {
+  const routeContext =
+    getNonTracingSvgUtilityRouteContextByKey(routeKey);
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
 
@@ -446,8 +460,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
     });
   }
 
-  const { pathname } = useLocation();
-  const cleanerPath = normalizeCleanerPath(pathname);
+  const cleanerPath = normalizeCleanerPath(routeContext.path);
   const cleanerTitle = getCleanerBreadcrumbTitle(cleanerPath);
   const crumbs = [
     { name: "Home", href: "/" },
@@ -1084,7 +1097,7 @@ export default function SvgCleaner(_: Route.ComponentProps) {
         />
       </div>
       <ContextualAdCard />
-      <SeoSections />
+      <SeoSections cleanerPath={cleanerPath} />
       <JsonLdBreadcrumbs crumbs={crumbs} />
       <Breadcrumbs crumbs={crumbs} />
       <OtherToolsLinks />
@@ -1976,9 +1989,7 @@ function PlatformCleanerSection({
   );
 }
 
-function SeoSections() {
-  const { pathname } = useLocation();
-  const cleanerPath = normalizeCleanerPath(pathname);
+function SeoSections({ cleanerPath }: { cleanerPath: string }) {
   const seoContent = getCleanerSeoContent(cleanerPath);
   const faq = seoContent.faq;
   const faqJsonLd = makeFaqJsonLd(faq);
@@ -2423,4 +2434,8 @@ function SeoSections() {
 
     </section>
   );
+}
+
+export default function SvgCleaner(_: Route.ComponentProps) {
+  return <CleanerRouteImplementation routeKey="cleanup-base" />;
 }

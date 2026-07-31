@@ -1,17 +1,11 @@
 import type { Route } from "./+types/png-to-ico-converter";
 import { createFaviconExportMeta } from "~/data/routeMeta/faviconExport";
-import { createTemplateWrapperRoute } from "./_shared/createTemplateWrapperRoute";
-import Template from "./svg-to-favicon-generator";
-
-const route = createTemplateWrapperRoute({
-  path: "/png-to-ico-converter",
-  createMeta: createFaviconExportMeta,
-  Component: Template,
-});
+import { FaviconRouteImplementation } from "./svg-to-favicon-generator";
 
 export function meta({}: Route.MetaArgs) {
-  return route.meta();
+  return createFaviconExportMeta("/png-to-ico-converter");
 }
 
-
-export default route.Component;
+export default function PngToIcoConverter() {
+  return <FaviconRouteImplementation routeKey="favicon-png-ico" />;
+}

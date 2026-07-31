@@ -40,6 +40,8 @@
     "test:specialized-trace-browser": "node scripts/specialized-trace-browser-audit.mjs",
     "test:cricut-output-family": "node scripts/cricut-output-route-family-audit.mjs",
     "test:cricut-output-browser": "node scripts/cricut-output-browser-audit.mjs",
+    "test:non-tracing-svg-utilities": "node scripts/non-tracing-svg-utility-family-audit.mjs",
+    "test:non-tracing-svg-utilities-browser": "node scripts/non-tracing-svg-utility-browser-audit.mjs",
     "test:svg-to-png-preservation": "node scripts/svg-to-png-preservation-audit.mjs",
     "test:svg-to-png-responsive": "node scripts/svg-to-png-responsive-audit.mjs",
     "test:high-fidelity-browser-output": "node scripts/high-fidelity-browser-output-smoke.mjs",
