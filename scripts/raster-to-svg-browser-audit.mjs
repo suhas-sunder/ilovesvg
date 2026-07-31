@@ -53,7 +53,6 @@ const representativeRoutes = process.env.ROUTE_FAMILY_REPRESENTATIVES
       "/png-to-svg-for-etsy",
       "/png-to-svg-for-silhouette",
       "/png-to-svg-for-laser-cutting",
-      "/png-to-svg-for-cricut-vinyl",
       "/cricut-svg-converter",
       "/jpg-to-svg-converter",
       "/jpeg-to-svg-converter",
@@ -224,10 +223,32 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
       };
       let widest = null;
       let maximumVisibleRightEdge = 0;
+      const overflowingElements = [];
       for (const element of document.querySelectorAll('body *')) {
         if (!visible(element)) continue;
         const rect = element.getBoundingClientRect();
         maximumVisibleRightEdge = Math.max(maximumVisibleRightEdge, rect.right);
+        if (rect.right > root.clientWidth + 1 || rect.left < -1) {
+          const style = getComputedStyle(element);
+          overflowingElements.push({
+            tag: element.tagName.toLowerCase(),
+            id: element.id || null,
+            className: typeof element.className === 'string'
+              ? element.className.slice(0, 160)
+              : null,
+            text: (element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 120),
+            width: Math.round(rect.width * 100) / 100,
+            left: Math.round(rect.left * 100) / 100,
+            right: Math.round(rect.right * 100) / 100,
+            minWidth: style.minWidth,
+            widthRule: style.width,
+            display: style.display,
+            position: style.position,
+            overflowX: style.overflowX,
+            whiteSpace: style.whiteSpace,
+            transform: style.transform,
+          });
+        }
         if (!widest || rect.width > widest.width) {
           widest = {
             tag: element.tagName.toLowerCase(),
@@ -266,6 +287,9 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
         maximumVisibleRightEdge:
           Math.round(maximumVisibleRightEdge * 100) / 100,
         widest,
+        overflowingElements: overflowingElements
+          .sort((left, right) => right.right - left.right)
+          .slice(0, 12),
         clippedFocusable,
       };
     })()`,

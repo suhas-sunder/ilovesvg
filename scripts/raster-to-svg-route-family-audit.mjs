@@ -75,7 +75,7 @@ const definitions = [
   outputFilename: match[7],
 }));
 
-assert.equal(routePaths.length, 30, "Unexpected confirmed family size.");
+assert.equal(routePaths.length, 29, "Unexpected confirmed family size.");
 assert.equal(
   definitions.length,
   routePaths.length,
@@ -230,6 +230,7 @@ assert.match(
 const excluded = [
   "/png-to-svg-for-cricut-print-then-cut",
   "/png-to-svg-for-cricut-stickers",
+  "/png-to-svg-for-cricut-vinyl",
 ];
 for (const routePath of excluded) {
   assert(
@@ -327,5 +328,5 @@ console.log(
   `Raster-to-SVG route-family audit passed: ${routePaths.length} retained routes, ` +
     `${new Set(definitions.map(({ implementationOwner }) => implementationOwner)).size} ` +
     "preserved route-configured implementations over shared trace/lifecycle/output primitives, " +
-    "2 specialized workflows excluded, 4 existing direct redirects verified.",
+    "3 specialized production workflows excluded, 4 existing direct redirects verified.",
 );

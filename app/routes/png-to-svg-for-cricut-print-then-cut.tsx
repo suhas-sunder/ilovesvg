@@ -38,6 +38,7 @@ import {
 } from "~/client/lib/converter/sourceSnapshots";
 import type { PresetBackendIntensity } from "~/client/lib/converter/presetIntensity";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import { getCricutOutputRouteContextByKey } from "~/client/lib/converter/cricutOutputRouteContexts";
 
 const isServer = typeof document === "undefined";
 
@@ -1116,7 +1117,10 @@ function autoModeDetail(mode: AutoMode): string {
 export default function PngToSvgForCricutPrintThenCut({
   loaderData,
 }: Route.ComponentProps) {
-  const fetcher = useHybridTraceFetcher<ServerResult>({ routeId: "png-to-svg-for-cricut-print-then-cut" });
+  const routeContext = getCricutOutputRouteContextByKey("print-then-cut");
+  const fetcher = useHybridTraceFetcher<ServerResult>({
+    routeId: routeContext.lifecycleRouteId,
+  });
 
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
@@ -1398,7 +1402,7 @@ export default function PngToSvgForCricutPrintThenCut({
     fetcher.submit(fd, {
       method: "POST",
       encType: "multipart/form-data",
-      action: `${window.location.pathname}?index`,
+      action: `${routeContext.path}?index`,
     });
   }
 
@@ -2051,7 +2055,9 @@ function SeoSections() {
             </p>
           </section>
 
-          <CurrentRouteGuide />
+          <div className="-mx-5 [&>section]:p-2 sm:mx-0 sm:[&>section]:p-6">
+            <CurrentRouteGuide />
+          </div>
 
           <section
             className="mt-12"

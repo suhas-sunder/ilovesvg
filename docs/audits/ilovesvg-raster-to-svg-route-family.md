@@ -17,7 +17,7 @@ image inspection workflows.
 
 ## Architecture found
 
-The standard family does not contain 30 independent engines. Its production
+The standard family does not contain 29 independent engines. Its production
 pipeline already shares:
 
 - `app/shared/tracing/serverFallback.server.ts` for raster normalization,
@@ -29,7 +29,7 @@ pipeline already shares:
 - the bounded conversion gate, cache, output ownership, source snapshot, and
   advanced-setting helpers used by the route modules.
 
-Fourteen route-configured implementations preserve the format/workflow
+Thirteen route-configured implementations preserve the format/workflow
 differences that are behaviorally significant. Sixteen small route wrappers
 inherit one of those implementations. Before this milestone, those wrappers
 exported a template component directly; three templates selected content or
@@ -40,7 +40,7 @@ labels from `useLocation().pathname`.
 `app/client/lib/converter/rasterToSvgRouteContexts.ts` is the single finite
 family contract. It defines:
 
-- 30 unique public paths and 30 unique typed route keys;
+- 29 unique public paths and 29 unique typed route keys;
 - the exact route source, implementation owner, content owner, metadata owner,
   preset owner, accepted-input policy, default preset, current filename, and
   guidance category;
@@ -65,7 +65,7 @@ not removal of an exact wrapper duplicate.
 
 ## Confirmed family and final classification
 
-All 30 confirmed routes are intentionally retained. "Same implementation"
+All 29 confirmed routes are intentionally retained. "Same implementation"
 below means the route inherits the implementation owner shown in the typed
 contract; a distinct owner means that the current route configuration is
 behaviorally significant.
@@ -82,7 +82,6 @@ behaviorally significant.
 | `/png-to-svg-for-silhouette` | `png-silhouette` | PNG Silhouette | Retain independently | Silhouette Studio workflow and route-configured copy |
 | `/png-to-svg-for-laser-cutting` | `png-laser` | PNG laser | Retain independently | `laser-cut-clean` default plus cut/score/engrave guidance |
 | `/png-to-svg-for-glowforge` | `png-glowforge` | PNG laser | Retain independently | Glowforge-specific laser review guidance and metadata |
-| `/png-to-svg-for-cricut-vinyl` | `png-vinyl` | PNG vinyl | Retain independently | `vinyl-clean-weed` default, weeding/material terminology, and filename |
 | `/jpg-to-svg-converter` | `jpg-base` | JPG base | Retain independently | General JPG intent, narrow accepted set, JPG presets/content, primary navigation role |
 | `/jpg-to-svg-for-etsy` | `jpg-etsy` | JPG base | Retain independently | Etsy JPG seller intent and metadata |
 | `/jpg-to-svg-for-silhouette` | `jpg-silhouette` | JPG base | Retain independently | Silhouette-specific JPG compression and cut-path guidance |
@@ -129,6 +128,10 @@ ordinary internal link points to these aliases.
   separate SVG cut-outline workflow.
 - `/png-to-svg-for-cricut-stickers` retains sticker-border generation and
   cut-outline-specific preview/output behavior.
+- `/png-to-svg-for-cricut-vinyl` retains a single-color cut-file contract,
+  vinyl-specific presets, weeding guidance, and its own output ownership. Its
+  finite context moved to the Cricut production-output family when that family
+  was completed; the public route and behavior did not change.
 - Layered, outline, line-art, sketch, drawing, logo, black-and-white, and
   favicon/ICO routes remain in their existing future families.
 
@@ -193,10 +196,10 @@ covered by its generated fixtures and related focused audits.
 
 ## Browser coverage
 
-The dedicated production-browser audit loads all 30 retained routes at
-`390 x 844` and `1280 x 720`. Ten representative routes additionally cover
+The dedicated production-browser audit loads all 29 retained routes at
+`390 x 844` and `1280 x 720`. Nine representative routes additionally cover
 `320 x 800`, `412 x 915`, `768 x 1024`, and `1440 x 900`: general PNG, PNG
-Cricut, Etsy, Silhouette, laser cutting, vinyl, JPG, JPEG, and WebP.
+Cricut, Etsy, Silhouette, laser cutting, JPG, JPEG, and WebP.
 
 It asserts each route's title, H1, self-canonical, upload control, document and
 body widths, visible focusable containment, and console state. It uses an OS
@@ -206,14 +209,14 @@ hybrid browser, lifecycle, correlation, and parity audits cover conversion,
 settings, preview, copy/download payloads, reset, second upload, cancellation,
 and newer-result ownership.
 
-The final run completed 100 route/viewport measurements with zero failures.
+The final run completed 94 route/viewport measurements with zero failures.
 Maximum measured page width was exactly the requested `1440` pixels; at every
 mobile/tablet measurement document and body scroll width equaled client width.
 
 ## Validation results and limitations
 
-The focused family audit passed with 30 retained routes, 14 route-configured
-implementation owners, two intentionally excluded specialized routes, and
+The focused family audit passed with 29 retained routes, 13 route-configured
+implementation owners, three intentionally excluded production routes, and
 four established direct redirects. The full converter parity audit passed
 with zero failures. It covered 17 deterministic fixtures, four JPG/JPEG
 comparisons, the PNG wrapper comparisons, and the existing SVG-to-PNG,

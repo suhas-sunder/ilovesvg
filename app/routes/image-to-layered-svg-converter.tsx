@@ -1,5 +1,9 @@
 import type { Route } from "./+types/image-to-layered-svg-converter";
-import Template, { action, loader } from "./image-to-layered-svg-for-cricut";
+import {
+  action,
+  ImageToLayeredSvgRouteImplementation,
+  loader,
+} from "./image-to-layered-svg-for-cricut";
 
 export function meta({}: Route.MetaArgs) {
   const title = "Image to Layered SVG Converter | iLoveSVG";
@@ -21,4 +25,13 @@ export function meta({}: Route.MetaArgs) {
 
 export { action, loader };
 
-export default Template;
+export default function ImageToLayeredSvgConverter({
+  loaderData,
+}: Route.ComponentProps) {
+  return (
+    <ImageToLayeredSvgRouteImplementation
+      loaderData={loaderData}
+      routeKey="layered-image-general"
+    />
+  );
+}

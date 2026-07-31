@@ -9,7 +9,6 @@ export const RASTER_TO_SVG_ROUTE_PATHS = [
   "/png-to-svg-for-silhouette",
   "/png-to-svg-for-laser-cutting",
   "/png-to-svg-for-glowforge",
-  "/png-to-svg-for-cricut-vinyl",
   "/jpg-to-svg-converter",
   "/jpg-to-svg-for-etsy",
   "/jpg-to-svg-for-silhouette",
@@ -45,7 +44,6 @@ export type RasterToSvgRouteKey =
   | "png-silhouette"
   | "png-laser"
   | "png-glowforge"
-  | "png-vinyl"
   | "jpg-base"
   | "jpg-etsy"
   | "jpg-silhouette"
@@ -72,7 +70,6 @@ export type RasterToSvgImplementationOwner =
   | "app/routes/png-to-svg-for-etsy.tsx"
   | "app/routes/png-to-svg-for-silhouette.tsx"
   | "app/routes/png-to-svg-for-laser-cutting.tsx"
-  | "app/routes/png-to-svg-for-cricut-vinyl.tsx"
   | "app/routes/jpg-to-svg-converter.tsx"
   | "app/routes/jpeg-to-svg-converter.tsx"
   | "app/routes/jpg-to-svg-for-cricut.tsx"
@@ -114,7 +111,6 @@ export type RasterToSvgGuidanceCategory =
   | "cricut"
   | "silhouette"
   | "laser"
-  | "vinyl"
   | "transparency"
   | "broad-image-format";
 
@@ -329,17 +325,6 @@ const definitions = [
     defaultPresetId: "laser-cut-clean",
     outputFilename: "png-to-svg-for-laser-cutting.svg",
     guidanceCategory: "laser",
-    reasons: WORKFLOW_REASONS,
-  },
-  {
-    key: "png-vinyl",
-    path: "/png-to-svg-for-cricut-vinyl",
-    routeSource: "app/routes/png-to-svg-for-cricut-vinyl.tsx",
-    implementationOwner: "app/routes/png-to-svg-for-cricut-vinyl.tsx",
-    inputPolicy: "png-common-raster-svg",
-    defaultPresetId: "vinyl-clean-weed",
-    outputFilename: "png-to-svg-for-cricut-vinyl.svg",
-    guidanceCategory: "vinyl",
     reasons: WORKFLOW_REASONS,
   },
   {
@@ -589,6 +574,10 @@ export const RASTER_TO_SVG_EXCLUDED_SPECIALIZED_ROUTES = Object.freeze([
   {
     path: "/png-to-svg-for-cricut-stickers",
     reason: "sticker-border-and-cut-outline-workflow",
+  },
+  {
+    path: "/png-to-svg-for-cricut-vinyl",
+    reason: "single-color-vinyl-production-workflow",
   },
 ] as const);
 
