@@ -1171,6 +1171,34 @@ const ROUTE_GUIDES: Record<string, RouteGuide> = {
       },
     ],
   },
+  "/avif-to-svg-converter": {
+    eyebrow: "AVIF to SVG workflow",
+    heading: "AVIF to SVG Converter: practical workflow notes",
+    intro:
+      "Convert AVIF graphics into SVG for modern web artwork, logos, icons, and illustration cleanup. Preview the traced vector output, refine the settings when needed, and download the SVG for a compatible editor or design workflow.",
+    bestFor: [
+      "Simple AVIF logos, icons, and flat illustrations",
+      "Scalable web and design assets",
+      "Previewing a traced vector before download",
+    ],
+    settings: [
+      "Start with Clean trace for clear, high-contrast artwork.",
+      "Try layered color for graphics with a small, distinct palette.",
+      "Adjust threshold, cleanup, and curve tolerance when edges need refinement.",
+    ],
+    limitations: [
+      "Automatic tracing interprets pixels as paths, so detailed photos and gradients may be simplified.",
+      "Browser AVIF previews can vary even when the server can decode the upload.",
+      "Inspect the result in the destination editor before using it in production artwork.",
+    ],
+    related: [
+      { to: "/", label: "Image to SVG Converter", reason: "Use the general converter for other supported raster formats." },
+      { to: "/png-to-svg-converter", label: "PNG to SVG Converter", reason: "Convert transparent PNG artwork into scalable SVG paths." },
+      { to: "/jpg-to-svg-converter", label: "JPG to SVG Converter", reason: "Trace JPG photos, screenshots, and camera images." },
+      { to: "/webp-to-svg-converter", label: "WebP to SVG Converter", reason: "Convert WebP graphics into editable vector output." },
+      { to: "/logo-to-svg-converter", label: "Logo to SVG Converter", reason: "Use a logo-focused workflow for simple brand marks." },
+    ],
+  },
   "/png-to-svg-converter": {
     eyebrow: "Related PNG to SVG tools",
     heading: "PNG to SVG for transparent logos, icons, stickers, and web graphics",

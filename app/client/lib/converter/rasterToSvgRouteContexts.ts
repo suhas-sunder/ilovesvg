@@ -522,7 +522,7 @@ const definitions = [
     implementationOwner: "app/routes/image-to-svg-for-cricut.tsx",
     inputPolicy: "broad-raster-svg",
     defaultPresetId: "line-accurate",
-    outputFilename: "image-to-svg-for-cricut.svg",
+    outputFilename: "avif-to-svg-converter.svg",
     guidanceCategory: "broad-image-format",
     reasons: FORMAT_REASONS,
   },

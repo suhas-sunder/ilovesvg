@@ -174,8 +174,33 @@ for (const definition of definitions) {
     `${definition.path} default preset is absent from its implementation owner.`,
   );
   assert(
-    implementationSource.includes(definition.outputFilename),
+    implementationSource.includes(definition.outputFilename) ||
+      implementationSource.includes(
+        "downloadFileName={routeContext.outputFilename}",
+      ),
     `${definition.path} output filename is absent from its implementation owner.`,
+  );
+}
+
+function assertOnlyAvifRouteGuideChanged() {
+  const relativePath =
+    "app/client/components/navigation/OtherToolsLinks.tsx";
+  const current = normalize(read(relativePath));
+  const avifGuideBlock = current.match(
+    /\n  "\/avif-to-svg-converter": \{[\s\S]*?\n  \},(?=\n  "\/png-to-svg-converter": \{)/,
+  );
+
+  assert(avifGuideBlock, "AVIF-specific route guide is missing.");
+  assert.match(avifGuideBlock[0], /AVIF to SVG workflow/);
+  assert.match(avifGuideBlock[0], /Preview the traced vector output/);
+  assert.doesNotMatch(
+    avifGuideBlock[0],
+    /cricut|design space|vinyl|stencil|cut(?:\s|-)?file/i,
+  );
+  assert.equal(
+    current.replace(avifGuideBlock[0], ""),
+    normalize(readAtBase(relativePath)),
+    `${relativePath} changed outside the AVIF-specific route guide`,
   );
 }
 
@@ -303,26 +328,91 @@ const currentImageRedirectLine = routeManifest
   .split(/\r?\n/)
   .find((line) => line.includes('path: "/image-to-svg-converter"'));
 assert(startingImageRedirectLine && currentImageRedirectLine);
+const startingAvifManifestLine = startingRouteManifest
+  .split(/\r?\n/)
+  .find((line) => line.includes('path: "/avif-to-svg-converter"'));
+const currentAvifManifestLine = routeManifest
+  .split(/\r?\n/)
+  .find((line) => line.includes('path: "/avif-to-svg-converter"'));
+assert(startingAvifManifestLine && currentAvifManifestLine);
 assert.equal(
   normalize(routeManifest).replace(
     normalize(currentImageRedirectLine),
     normalize(startingImageRedirectLine),
+  ).replace(
+    normalize(currentAvifManifestLine),
+    normalize(startingAvifManifestLine),
   ),
   normalize(startingRouteManifest),
-  "The route manifest contains changes beyond the approved image redirect record.",
+  "The route manifest contains changes beyond the approved image redirect and AVIF description records.",
 );
+
+const avifDefinition = definitions.find(
+  ({ path: routePath }) => routePath === "/avif-to-svg-converter",
+);
+assert(avifDefinition, "AVIF route context is missing.");
+assert.equal(avifDefinition.defaultPresetId, "line-accurate");
+assert.equal(avifDefinition.outputFilename, "avif-to-svg-converter.svg");
+
+const avifRouteSource = read("app/routes/avif-to-svg-converter.tsx");
+assert.match(avifRouteSource, /AVIF to SVG Converter \| iLoveSVG/);
+assert.match(
+  avifRouteSource,
+  /Convert AVIF images to SVG online\. Upload an AVIF image, trace it to vector SVG, preview the result, and download the SVG\./,
+);
+assert.match(
+  avifRouteSource,
+  /canonical = "https:\/\/www\.ilovesvg\.com\/avif-to-svg-converter"/,
+);
+
+const broadImageOwner = read("app/routes/image-to-svg-for-cricut.tsx");
+const avifCopyBlock = broadImageOwner.match(
+  /"\/avif-to-svg-converter": \{([\s\S]*?)\r?\n  \},\r?\n  "\/image-to-svg-for-cricut":/,
+);
+assert(avifCopyBlock, "AVIF route-specific converter copy is missing.");
+assert.match(avifCopyBlock[1], /Convert AVIF to SVG/);
+assert.match(avifCopyBlock[1], /Download SVG/);
+assert.match(avifCopyBlock[1], /AVIF image/);
+assert.match(avifCopyBlock[1], /vector SVG|SVG vector/);
+assert.doesNotMatch(
+  avifCopyBlock[1],
+  /cricut|design space|vinyl|stencil|cut(?:\s|-)?file/i,
+);
+assert.match(
+  broadImageOwner,
+  /defaultPresetId=\{routeContext\.defaultPresetId\}/,
+);
+assert.match(
+  broadImageOwner,
+  /downloadFileName=\{routeContext\.outputFilename\}/,
+);
+assert.match(
+  broadImageOwner,
+  /routeKey !== "avif-base"\) return DISPLAY_PRESETS/,
+);
+assert.match(
+  broadImageOwner,
+  /"line-accurate": "Clean trace \(default\)"/,
+);
+
+const cricutCopyBlock = broadImageOwner.match(
+  /"\/image-to-svg-for-cricut": \{([\s\S]*?)\r?\n  \},\r?\n  "\/image-to-svg-for-silhouette":/,
+);
+assert(cricutCopyBlock, "Cricut route copy is missing.");
+assert.match(cricutCopyBlock[1], /Download Cricut SVG/);
+assert.match(cricutCopyBlock[1], /Cricut Design Space/);
 
 for (const protectedPath of [
   "app/routes.ts",
   "app/routes/sitemap.tsx",
   "public/sitemap.xml",
-  "app/client/components/navigation/OtherToolsLinks.tsx",
   "Dockerfile",
   "server.js",
   "package-lock.json",
 ]) {
   assertUnchanged(protectedPath);
 }
+assertOnlyAvifRouteGuideChanged();
 
 console.log(
   `Raster-to-SVG route-family audit passed: ${routePaths.length} retained routes, ` +

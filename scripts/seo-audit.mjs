@@ -33,6 +33,22 @@ const selectedRoutes = [
     bodyTerms: ["webp", "svg"],
   },
   {
+    path: "/avif-to-svg-converter",
+    label: "avif-to-svg",
+    bodyTerms: ["avif", "vector", "download svg"],
+    descriptionTerms: ["avif", "svg", "trace", "preview", "download"],
+    headingTerms: ["avif", "svg"],
+    primaryBodyTerms: ["avif image", "vector", "preview", "download"],
+    forbiddenPrimaryBodyTerms: [
+      "cricut",
+      "design space",
+      "vinyl",
+      "stencil",
+      "cut file",
+      "cut-file",
+    ],
+  },
+  {
     path: "/svg-to-png-converter",
     label: "svg-to-png",
     bodyTerms: ["svg", "png", "transparent"],
@@ -454,6 +470,7 @@ async function fetchRoute(route) {
     const h1 = firstHeading(html, 1) || "";
     const h1Count = [...html.matchAll(/<h1\b/gi)].length;
     const bodyText = visibleText(html);
+    const primaryBodyText = primaryRouteText(html, route.path);
     const headings = headingText(html);
     const errors = [];
 
@@ -500,6 +517,20 @@ async function fetchRoute(route) {
     for (const term of route.forbiddenBodyTerms || []) {
       if (bodyText.includes(term.toLowerCase())) {
         errors.push(`${route.path} body text should not include "${term}"`);
+      }
+    }
+
+    for (const term of route.primaryBodyTerms || []) {
+      if (!primaryBodyText.includes(term.toLowerCase())) {
+        errors.push(`${route.path} primary route content should include "${term}"`);
+      }
+    }
+
+    for (const term of route.forbiddenPrimaryBodyTerms || []) {
+      if (primaryBodyText.includes(term.toLowerCase())) {
+        errors.push(
+          `${route.path} primary route content should not include "${term}"`,
+        );
       }
     }
 
@@ -671,6 +702,19 @@ function visibleText(html) {
       .replace(/\s+/g, " ")
       .trim(),
   ).toLowerCase();
+}
+
+function primaryRouteText(html, routePath) {
+  const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] || "";
+  const escapedPath = routePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const routeContent =
+    html.match(
+      new RegExp(
+        `<section\\b[^>]*data-route-content=["']${escapedPath}["'][^>]*>([\\s\\S]*?)<\\/section>`,
+        "i",
+      ),
+    )?.[1] || "";
+  return visibleText(`${main} ${routeContent}`);
 }
 
 function headingText(html) {

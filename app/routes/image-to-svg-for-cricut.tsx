@@ -2066,7 +2066,28 @@ const PRESETS: Preset[] = [
 
 const DISPLAY_PRESETS = extendTracePresets<Preset>(PRESETS);
 
-const DEFAULT_PRESET_ID = "line-accurate";
+const AVIF_PRESET_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
+  "line-accurate": "Clean trace (default)",
+  "line-bold": "Bold shapes",
+  "line-fine": "Fine detail",
+  "logo-clean": "Smooth logo shapes",
+  "logo-thin": "Thin logo details",
+};
+
+function getDisplayPresetsForRoute(routeKey: string): Preset[] {
+  if (routeKey !== "avif-base") return DISPLAY_PRESETS;
+
+  return DISPLAY_PRESETS.map((preset) => ({
+    ...preset,
+    label: AVIF_PRESET_LABEL_OVERRIDES[preset.id] ?? preset.label,
+  })).filter(
+    (preset) =>
+      !/\b(cricut|vinyl|stencil|silhouette|laser|cut(?:\s|-)?file|cut friendly)\b/i.test(
+        preset.label,
+      ),
+  );
+}
+
 const DEFAULTS: Settings = {
   ...DEFAULT_TRACE_ADVANCED_SETTINGS,
   threshold: 224,
@@ -2168,6 +2189,10 @@ export function BroadImageToSvgRouteImplementation({
   const routeCopy =
     imageToSvgSeoCopyByPath[routeContext.path] ??
     imageToSvgSeoCopyByPath["/image-to-svg-for-cricut"];
+  const displayPresets = React.useMemo(
+    () => getDisplayPresetsForRoute(routeContext.key),
+    [routeContext.key],
+  );
   const [file, setFile] = React.useState<File | null>(null);
   const [originalFileSize, setOriginalFileSize] = React.useState<number | null>(
     null,
@@ -2175,7 +2200,7 @@ export function BroadImageToSvgRouteImplementation({
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<Settings>(DEFAULTS);
   const [activePreset, setActivePreset] =
-    React.useState<string>(DEFAULT_PRESET_ID);
+    React.useState<string>(routeContext.defaultPresetId);
   const busy = fetcher.state !== "idle";
   const [err, setErr] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
@@ -2235,7 +2260,7 @@ export function BroadImageToSvgRouteImplementation({
         pathCount: fetcher.data.pathCount,
         svgBytes: fetcher.data.svgBytes,
         stamp: Date.now(),
-        presetLabel: getPresetLabelById(DISPLAY_PRESETS, activePreset),
+        presetLabel: getPresetLabelById(displayPresets, activePreset),
 
         settingsSnapshot,
         draftSettings: settingsSnapshot,
@@ -2737,9 +2762,10 @@ export function BroadImageToSvgRouteImplementation({
               </h1>
 
               <PresetPicker
-                presets={DISPLAY_PRESETS}
+                presets={displayPresets}
                 activePreset={activePreset}
                 applyPreset={applyPreset}
+                defaultPresetId={routeContext.defaultPresetId}
               />
 
               <p className="mb-3 text-center text-sm text-slate-600">
@@ -2822,7 +2848,9 @@ export function BroadImageToSvgRouteImplementation({
                     className="mr-1"
                     title="Convert"
                   />
-                  {busy ? "Converting…" : "Convert Image to SVG"}
+                  {busy
+                    ? "Converting…"
+                    : routeCopy.convertLabel ?? "Convert Image to SVG"}
                 </button>
 
                 {/* Live preview tier notice */}
@@ -2843,7 +2871,7 @@ export function BroadImageToSvgRouteImplementation({
             {previewUrl && (
               <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
                 <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
-                  Original image
+                  {routeCopy.sourceLabel ?? "Original image"}
                 </p>
                 <img
                   src={previewUrl}
@@ -2861,9 +2889,12 @@ export function BroadImageToSvgRouteImplementation({
               fallbackSettings={settings}
               routeCapabilities={routeCapabilities}
               downloadLabel={routeCopy.downloadLabel}
-              downloadFileName="image-to-svg-for-cricut.svg"
+              downloadFileName={routeContext.outputFilename}
               emptyTitle={routeCopy.emptyTitle}
-              emptyDescription="Convert your input to preview, copy, or download the result."
+              emptyDescription={
+                routeCopy.emptyDescription ??
+                "Convert your input to preview, copy, or download the result."
+              }
               fullscreenPreviewIndex={fullscreenPreviewIndex}
               setFullscreenPreviewIndex={setFullscreenPreviewIndex}
               onCopySvg={handleCopySvg}
@@ -3348,6 +3379,9 @@ type ImageToSvgSeoCopy = {
   supportText: string;
   downloadLabel: string;
   emptyTitle: string;
+  convertLabel?: string;
+  sourceLabel?: string;
+  emptyDescription?: string;
   eyebrow: string;
   heading: string;
   intro: string[];
@@ -3367,6 +3401,7 @@ type ImageToSvgSeoCopy = {
   sanityCards: SeoCard[];
   immediateReadyQuestion: string;
   immediateReadyAnswer: string;
+  faqItems?: SeoCard[];
 };
 
 const sharedImageIntro =
@@ -3400,6 +3435,169 @@ const sharedFormatCards: SeoCard[] = [
 ];
 
 const imageToSvgSeoCopyByPath: Record<string, ImageToSvgSeoCopy> = {
+  "/avif-to-svg-converter": {
+    supportText:
+      "Upload an AVIF image to trace it into scalable SVG vector paths. Other supported image formats remain available through the shared converter.",
+    downloadLabel: "Download SVG",
+    emptyTitle: "Your vector SVG preview will appear here...",
+    convertLabel: "Convert AVIF to SVG",
+    sourceLabel: "AVIF image",
+    emptyDescription:
+      "Convert an AVIF image to preview, copy, or download the SVG result.",
+    eyebrow: "AVIF to SVG converter",
+    heading: "Trace AVIF images into editable SVG vector output",
+    intro: [
+      "Use this converter to turn an AVIF image into SVG paths for web graphics, design work, illustrations, logos, and icons. The result is a traced vector interpretation, not the original AVIF pixels embedded inside an SVG wrapper.",
+      "AVIF is a raster format, so photographs, gradients, shadows, and fine texture may need a simplified or layered preset. Clean, high-contrast artwork usually produces the most editable vector result.",
+    ],
+    stats: [
+      { k: "Input", v: "AVIF image" },
+      { k: "Output", v: "Scalable SVG vector paths" },
+      { k: "Preview", v: "Review the traced result before download" },
+      { k: "Editing", v: "Adjust trace settings and SVG appearance" },
+    ],
+    bestForHeading: "When AVIF to SVG conversion is useful",
+    bestForTags: [
+      "Web artwork",
+      "Simple logos",
+      "Icons",
+      "Illustrations",
+      "High-contrast graphics",
+      "Design handoff",
+      "Scalable assets",
+      "Vector editing",
+    ],
+    bestForCards: [
+      {
+        title: "Vectorize simple AVIF artwork",
+        body: "Logos, icons, flat illustrations, and graphics with clear edges usually trace more cleanly than detailed photographs.",
+      },
+      {
+        title: "Preview the traced paths",
+        body: "Compare the SVG preview with the source image and adjust threshold, cleanup, or detail before downloading.",
+      },
+      {
+        title: "Use the SVG in design tools",
+        body: "Download the result for compatible vector editors, web projects, illustration workflows, or further path cleanup.",
+      },
+    ],
+    howToHeading: "How to convert AVIF to SVG",
+    howToSummary: "Upload AVIF -> choose preset -> preview -> download SVG",
+    howToSteps: [
+      {
+        title: "Upload an AVIF image",
+        body: "Choose or drag in your AVIF file. Browser preview support can vary, but the server will attempt to decode supported AVIF input.",
+      },
+      {
+        title: "Choose a tracing preset",
+        body: "Start with Clean trace, then try a logo, line-art, photo-edge, or layered-color preset that matches the image.",
+      },
+      {
+        title: "Adjust the vector trace",
+        body: "Use threshold, cleanup, curve tolerance, color layers, and background controls when the preview needs more or less detail.",
+      },
+      {
+        title: "Inspect the SVG preview",
+        body: "Zoom in and check edges, enclosed areas, small details, colors, and transparency before exporting.",
+      },
+      {
+        title: "Download the SVG",
+        body: "Save the traced SVG, then open it in your preferred vector editor or use it in a compatible web or design workflow.",
+      },
+    ],
+    formatHeading: "What to expect from AVIF vectorization",
+    formatIntro:
+      "AVIF stores pixels while SVG stores shapes and paths. Automatic tracing interprets the visible image, so output quality depends on edge clarity, contrast, detail, and the selected trace settings.",
+    formatCards: [
+      {
+        title: "Flat artwork and icons",
+        body: "High-contrast graphics with solid shapes are usually the strongest candidates for clean, compact SVG paths.",
+      },
+      {
+        title: "Logos and illustrations",
+        body: "Simple marks can work well, while anti-aliasing, soft shadows, and compression artifacts may need cleanup or smoothing.",
+      },
+      {
+        title: "Photos and gradients",
+        body: "A traced SVG simplifies photographic detail. Use photo-edge output for contours or layered color output for a stylized vector result.",
+      },
+      {
+        title: "Transparency",
+        body: "Keep the SVG background transparent when the artwork should remain separate from its canvas, or add a background intentionally.",
+      },
+    ],
+    settingsHeading: "Settings that affect AVIF tracing",
+    settingsCards: [
+      {
+        title: "Threshold",
+        body: "Controls which tones become shapes in single-color output. Raise it to include lighter areas or lower it to keep darker areas only.",
+      },
+      {
+        title: "Remove small regions",
+        body: "Increase cleanup when compression texture or small specks create unwanted paths; reduce it when small details matter.",
+      },
+      {
+        title: "Curve tolerance",
+        body: "Higher values smooth paths and reduce complexity. Lower values preserve more edge detail and may create more nodes.",
+      },
+      {
+        title: "Color layers",
+        body: "Layered tracing groups colors into editable SVG regions. Fewer layers simplify the result; more layers retain additional color variation.",
+      },
+      {
+        title: "Transparent background",
+        body: "Leave transparency on when you do not want a background rectangle included in the exported SVG.",
+      },
+      {
+        title: "Line and background color",
+        body: "Use these controls to preview a single-color vector or place it against a chosen background before download.",
+      },
+    ],
+    sanityHeading: "Check the SVG before downloading",
+    sanityCards: [
+      {
+        title: "Compare the silhouette",
+        body: "Make sure the main shapes and enclosed areas still match the source artwork.",
+      },
+      {
+        title: "Zoom into edges",
+        body: "Look for rough contours, missing details, or excess nodes around soft and compressed edges.",
+      },
+      {
+        title: "Review small regions",
+        body: "Tiny isolated paths may come from image texture rather than intentional artwork.",
+      },
+      {
+        title: "Test in your editor",
+        body: "Open the downloaded SVG in the destination vector or design tool to confirm it imports as expected.",
+      },
+    ],
+    immediateReadyQuestion: "Will the SVG match the AVIF image exactly?",
+    immediateReadyAnswer:
+      "Not always. AVIF is raster artwork and SVG tracing approximates visible regions with vector paths. Detailed photos, gradients, soft shadows, and texture may need different settings or manual vector editing.",
+    faqItems: [
+      {
+        title: "Does this convert AVIF pixels into real SVG paths?",
+        body: "Yes. Raster AVIF input is decoded and traced into SVG vector paths rather than simply embedded as the original image inside an SVG file.",
+      },
+      {
+        title: "Why might my AVIF preview not appear immediately?",
+        body: "AVIF preview support varies by browser. The server can still attempt conversion when the browser cannot display the source preview.",
+      },
+      {
+        title: "Will the SVG match the AVIF image exactly?",
+        body: "Not always. Automatic tracing approximates visible regions with vector paths, so detailed photos, gradients, shadows, and texture may look simplified.",
+      },
+      {
+        title: "Which AVIF images convert best?",
+        body: "Simple logos, icons, flat illustrations, and high-contrast graphics with clear edges generally produce cleaner SVG paths than detailed photographs.",
+      },
+      {
+        title: "What file limits apply?",
+        body: "Uploads are capped at 30 MB and about 30 megapixels. Preview is fastest below 10 MB, and some large files may need to be resized first.",
+      },
+    ],
+  },
   "/image-to-svg-for-cricut": {
     supportText:
       "Supports PNG, JPG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG files for Cricut SVG output.",
@@ -3908,7 +4106,10 @@ function SeoSections({ routePath }: { routePath: string }) {
     imageToSvgSeoCopyByPath["/image-to-svg-for-cricut"];
 
   return (
-    <section className="bg-white border-t border-slate-200">
+    <section
+      className="bg-white border-t border-slate-200"
+      data-route-content={routePath}
+    >
       <div className="max-w-[1180px] mx-auto px-4 py-8 text-slate-800">
         <article className="max-w-none">
           <header className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:p-8">
@@ -4090,37 +4291,37 @@ function SeoSections({ routePath }: { routePath: string }) {
             <h3 className="text-lg font-bold">Frequently asked questions</h3>
 
             <div className="mt-4 grid gap-3">
-              {[
+              {(copy.faqItems ?? [
                 {
-                  q: "Which image formats can I upload?",
-                  a: "This page accepts PNG, JPG, JPEG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG. Browser preview support varies, but the server attempts to parse the supported formats.",
+                  title: "Which image formats can I upload?",
+                  body: "This page accepts PNG, JPG, JPEG, WEBP, GIF, BMP, TIFF, AVIF, HEIC, HEIF, and SVG. Browser preview support varies, but the server attempts to parse the supported formats.",
                 },
                 {
-                  q: "What happens when I upload an SVG?",
-                  a: "SVG files are not retraced. The tool sanitizes the markup, removes risky active content, normalizes sizing with a viewBox, and exports the SVG again.",
+                  title: "What happens when I upload an SVG?",
+                  body: "SVG files are not retraced. The tool sanitizes the markup, removes risky active content, normalizes sizing with a viewBox, and exports the SVG again.",
                 },
                 {
-                  q: copy.immediateReadyQuestion,
-                  a: copy.immediateReadyAnswer,
+                  title: copy.immediateReadyQuestion,
+                  body: copy.immediateReadyAnswer,
                 },
                 {
-                  q: "Why does my photo look like a rough outline?",
-                  a: "This converter creates vector paths. Photos contain gradients and texture, so Photo Edge mode extracts contours rather than recreating the full photo as a clean cut file.",
+                  title: "Why does my photo look like a rough outline?",
+                  body: "This converter creates vector paths. Photos contain gradients and texture, so Photo Edge mode extracts contours rather than recreating the full photo as a clean cut file.",
                 },
                 {
-                  q: "What file limits apply?",
-                  a: "Uploads are capped at 30 MB and about 30 megapixels. Preview is fastest below 10 MB and throttled up to 25 MB. Some formats over 25 MB may need to be resized before upload.",
+                  title: "What file limits apply?",
+                  body: "Uploads are capped at 30 MB and about 30 megapixels. Preview is fastest below 10 MB and throttled up to 25 MB. Some formats over 25 MB may need to be resized before upload.",
                 },
-              ].map((x) => (
+              ]).map((x) => (
                 <article
-                  key={x.q}
+                  key={x.title}
                   itemScope
                   itemType="https://schema.org/Question"
                   itemProp="mainEntity"
                   className="rounded-2xl border border-slate-200 bg-white p-5"
                 >
                   <h4 itemProp="name" className="m-0 font-semibold">
-                    {x.q}
+                    {x.title}
                   </h4>
                   <p
                     itemScope
@@ -4128,7 +4329,7 @@ function SeoSections({ routePath }: { routePath: string }) {
                     itemProp="acceptedAnswer"
                     className="mt-2 text-sm text-slate-600"
                   >
-                    <span itemProp="text">{x.a}</span>
+                    <span itemProp="text">{x.body}</span>
                   </p>
                 </article>
               ))}

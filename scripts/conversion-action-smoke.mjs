@@ -13,6 +13,7 @@ const regressionPng = await loadRegressionPng();
 const regressionMeta = await sharp(regressionPng).metadata();
 const regressionJpg = await sharp(regressionPng).jpeg({ quality: 92 }).toBuffer();
 const regressionWebp = await sharp(regressionPng).webp({ quality: 90 }).toBuffer();
+const regressionAvif = await sharp(regressionPng).avif({ quality: 80 }).toBuffer();
 const basicPng = await makePng();
 const homeSvgCleanup = Buffer.from(makeHomeSvgCleanupFixture());
 const longSafePngFileName = `long-${"a".repeat(120)}.png`;
@@ -30,6 +31,19 @@ results.push(
     buffer: basicPng,
     fields: lineartAccurateFields({ maxTraceSide: "512" }),
     label: "upload-regression-long-safe-png-filename",
+  }),
+);
+
+results.push(
+  await expectSvgResponse({
+    route: "/avif-to-svg-converter",
+    fileName: "intent-alignment.avif",
+    mimeType: "image/avif",
+    buffer: regressionAvif,
+    fields: lineartAccurateFields({ maxTraceSide: "3000" }),
+    expectedWidth: regressionMeta.width,
+    expectedHeight: regressionMeta.height,
+    label: "avif-route-real-avif-conversion",
   }),
 );
 

@@ -41,6 +41,7 @@ const DEVELOPER_CODE_ROUTES = [
 ];
 
 const TARGET_ROUTES = uniqueValues([
+  "/avif-to-svg-converter",
   ...BLOCKER_ROUTES,
   ...FAVICON_ICO_ROUTES,
   ...STICKER_ROUTES,
@@ -126,6 +127,12 @@ for (const path of TARGET_ROUTES) {
   if (faqPages.length + faqPageMicrodataCount > 1) {
     failures.push(
       `${path} renders duplicate FAQPage structured data sources: ${faqPages.length} JSON-LD and ${faqPageMicrodataCount} microdata`,
+    );
+  }
+
+  if (path === "/avif-to-svg-converter" && faqPageMicrodataCount !== 1) {
+    failures.push(
+      `${path} expected one visible FAQPage microdata source, found ${faqPageMicrodataCount}`,
     );
   }
 

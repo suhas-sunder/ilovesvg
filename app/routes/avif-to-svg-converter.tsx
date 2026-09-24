@@ -7,7 +7,8 @@ import {
 
 export function meta({}: Route.MetaArgs) {
   const title = "AVIF to SVG Converter | iLoveSVG";
-  const description = "Convert AVIF graphics to SVG using the existing image tracing workflow for modern compressed web artwork, icons, logos, and illustration exports.";
+  const description =
+    "Convert AVIF images to SVG online. Upload an AVIF image, trace it to vector SVG, preview the result, and download the SVG.";
   const canonical = "https://www.ilovesvg.com/avif-to-svg-converter";
 
   return [

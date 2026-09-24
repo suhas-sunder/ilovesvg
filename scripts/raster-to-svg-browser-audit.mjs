@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -93,7 +93,12 @@ async function main() {
     ),
   );
   const browserPath = await findBrowserExecutable();
-  await fs.rm(tmpDir, { recursive: true, force: true });
+  await fs.rm(tmpDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 200,
+  });
 
   const browser = spawn(
     browserPath,
@@ -142,12 +147,18 @@ async function main() {
       await client.close().catch(() => {});
     }
   } finally {
-    browser.kill();
-    await Promise.race([
-      new Promise((resolve) => browser.once("exit", resolve)),
-      delay(2_000),
-    ]);
-    await fs.rm(tmpDir, { recursive: true, force: true });
+    await closeBrowserViaCdp().catch(() => {});
+    await terminateBrowserProcess(browser);
+    await fs
+      .rm(tmpDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 200,
+      })
+      .catch((error) => {
+        if (error?.code !== "EBUSY" && error?.code !== "EPERM") throw error;
+      });
   }
 
   const failures = rows.filter((row) => !row.ok);
@@ -291,6 +302,23 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
         title: document.title,
         h1: document.querySelector('h1')?.textContent?.trim() || '',
         canonical: document.querySelector('link[rel="canonical"]')?.href || '',
+        primaryText: [
+          document.querySelector('main')?.textContent || '',
+          document.querySelector('[data-route-content="' + ${JSON.stringify("/avif-to-svg-converter")} + '"]')?.textContent || '',
+        ].join(' ').replace(/\\s+/g, ' ').trim().toLowerCase(),
+        activePresetLabel:
+          document.querySelector('[aria-pressed="true"]')?.getAttribute('aria-label') || '',
+        breadcrumbIdentity: Array.from(
+          document.querySelectorAll('script[type="application/ld+json"]'),
+        ).flatMap((script) => {
+          try {
+            const value = JSON.parse(script.textContent || 'null');
+            const values = Array.isArray(value) ? value : [value];
+            return values.filter((item) => item && item['@type'] === 'BreadcrumbList');
+          } catch {
+            return [];
+          }
+        }).map((item) => item.itemListElement?.at(-1) || null).filter(Boolean),
         fileInputCount: document.querySelectorAll('input[type="file"]').length,
         documentClientWidth: root.clientWidth,
         documentScrollWidth: root.scrollWidth,
@@ -309,6 +337,20 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
 
   const newErrors = consoleErrors.slice(errorStart);
   const expectedCanonical = `https://www.ilovesvg.com${routePath}`;
+  const avifIntentOk =
+    routePath !== "/avif-to-svg-converter" ||
+    (state.h1 === "AVIF to SVG Converter" &&
+      state.primaryText.includes("convert avif to svg") &&
+      state.primaryText.includes("download svg") &&
+      !/cricut|design space|vinyl|stencil|cut(?:\s|-)?file/i.test(
+        state.primaryText,
+      ) &&
+      state.activePresetLabel.toLowerCase().includes("clean trace (default)") &&
+      state.breadcrumbIdentity.some(
+        (item) =>
+          item.name === "AVIF to SVG Converter" &&
+          item.item === expectedCanonical,
+      ));
   const ok =
     state.title.length > 0 &&
     state.h1.length > 0 &&
@@ -317,6 +359,7 @@ async function inspectRoute(client, consoleErrors, routePath, viewport) {
     state.documentScrollWidth <= state.documentClientWidth + 1 &&
     state.bodyScrollWidth <= state.bodyClientWidth + 1 &&
     state.clippedFocusable.length === 0 &&
+    avifIntentOk &&
     newErrors.length === 0;
 
   console.error(
@@ -557,6 +600,41 @@ function isIgnorableConsoleMessage(message) {
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function closeBrowserViaCdp() {
+  const browserInfo = await cdpJson("/json/version");
+  const ws = new WebSocket(browserInfo.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
+
+  const closed = new Promise((resolve) =>
+    ws.addEventListener("close", resolve, { once: true }),
+  );
+  ws.send(JSON.stringify({ id: 1, method: "Browser.close" }));
+  await Promise.race([closed, delay(2_000)]);
+  try {
+    ws.close();
+  } catch {}
+}
+
+async function terminateBrowserProcess(browser) {
+  if (browser.exitCode !== null) return;
+
+  const exitPromise = new Promise((resolve) => browser.once("exit", resolve));
+  if (process.platform === "win32") {
+    spawnSync(
+      "taskkill",
+      ["/pid", String(browser.pid), "/t", "/f"],
+      { stdio: "ignore", windowsHide: true },
+    );
+  } else {
+    browser.kill();
+  }
+
+  await Promise.race([exitPromise, delay(2_000)]);
 }
 
 await main();
