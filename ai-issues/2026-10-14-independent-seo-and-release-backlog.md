@@ -7,6 +7,15 @@
 **Status:** PLANNING ONLY — separate from implementations or SEO deployments.  
 **Owner's first-hand issues:** [ai-issues/README.md](./README.md) (untouched).  
 
+## Owner directive: AdSense placeholder overlap prevention (all ad-supported sites)
+
+**PRODUCTION-SAFETY REQUIREMENT — overrides cosmetic ad-placeholder proposals in this report.** The owner previously observed a serious production failure: loading/empty-ad placeholders visibly **overlaid actual rendered advertisements**, despite agent reports claiming the UI was fixed. Such overlap creates material advertising-account/policy risk. The owner's deliberate protective behavior is to **hide all placeholders once the first real advertisement renders**, accepting somewhat less polished empty-space UX in exchange for a safer production state. This policy applies across the owner's ad-supported sites, not just this repository.
+
+- **Preserve the existing global first-ad-render → hide-placeholders safety behavior** wherever placeholders exist. Do **not** reintroduce per-slot placeholders, placeholder overlays, independently reappearing fallbacks, or “fix” empty ad gaps by undoing the global suppression. Do not change ad fill detection, race handling, hydration transitions, or sitewide hiding as an incidental styling/SEO improvement.
+- Any ad layout/spacing adjustment is **investigation-only** unless it can demonstrably retain this invariant. Never overlay placeholders on creatives, permit ads to be confused with primary actions, cover a rendered ad with an element, or allow layout collapse/re-expansion to shift active creatives into controls. A genuinely absent/disabled ad may have unused wrapper spacing investigated, but speculative changes to temporarily empty or slow-loading ad slots are prohibited.
+- **Approval gate:** request an explicit owner decision before modifying placeholder display policy. To propose an alternative, first obtain real production-equivalent proof across ads blocked, pending, unfilled, first fill, multiple fills, delayed fills, navigation, resize, mobile/desktop, and site theme states; include screenshots/video/DOM stacking checks, actual ad-network behavior, and a rollback. Passing local mocks or an agent PASS report alone is **not** enough. Never represent any unverified implementation as guaranteed AdSense-compliant.
+- In release plans, prioritize **ad-account safety over minor whitespace/cosmetic gains**. This requirement does not prevent unrelated SEO/content/tool work; avoid touching the ad lifecycle for those tasks.
+
 ## 0. Scope, reliability and non-duplication
 
 The owner's issue log already requests a credible author/about profile, byline and footer attribution, with relevant experience. **Do not re-file that item here**. Implement from the owner README, not from this audit.
