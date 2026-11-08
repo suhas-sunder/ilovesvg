@@ -73,7 +73,66 @@ export async function readRasterHeader(file: Blob): Promise<RasterHeader> {
   if (!file.size || file.size > MAX_ORIGINAL_BYTES) {
     throw new Error("This image is too large to prepare safely. Resize or export it below 64 MB before uploading.");
   }
-  return parseRasterHeader(new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer()));
+  const prefix = new Uint8Array(await file.slice(0, 4096).arrayBuffer());
+  if (prefix[0] === 0xff && prefix[1] === 0xd8) {
+    return readJpegHeader(file, prefix);
+  }
+  return parseRasterHeader(prefix);
+}
+
+async function readJpegHeader(file: Blob, prefix: Uint8Array): Promise<RasterHeader> {
+  // JPEG metadata can precede dimensions by megabytes. Skip its payload by
+  // declared segment length; charge only bytes actually read to the header budget.
+  let bytesRead = prefix.byteLength;
+  let reads = 0;
+  const read = async (offset: number, length: number) => {
+    if (++reads > 2048) throw new Error("This image has too much metadata to inspect safely. Export a fresh PNG or JPEG and try again.");
+    if (offset < 0 || length < 0 || offset + length > file.size) {
+      throw new Error("Could not safely read image dimensions. Export a fresh PNG or JPEG and try again.");
+    }
+    if (offset + length <= prefix.byteLength) return prefix.subarray(offset, offset + length);
+    if (bytesRead + length > HEADER_BYTES) {
+      throw new Error("This image has too much metadata to inspect safely. Export a fresh PNG or JPEG and try again.");
+    }
+    bytesRead += length;
+    return new Uint8Array(await file.slice(offset, offset + length).arrayBuffer());
+  };
+  const exif: Uint8Array[] = [];
+  let dimensions: Uint8Array | null = null;
+  let offset = 2;
+  let fillBytes = 0;
+  for (let segment = 0; segment < 512 && offset + 2 <= file.size; segment++) {
+    let marker = await read(offset, 2);
+    if (marker[0] !== 0xff) break;
+    // Legal fill bytes must also be bounded independently of source file size.
+    while (marker[1] === 0xff) {
+      if (++fillBytes > 512) throw new Error("This image has too much metadata to inspect safely. Export a fresh PNG or JPEG and try again.");
+      marker = await read(++offset, 2);
+    }
+    const kind = marker[1];
+    if (kind === 0xda || kind === 0xd9) break;
+    if (kind === 0x01 || (kind >= 0xd0 && kind <= 0xd7)) { offset += 2; continue; }
+    const sizeBytes = await read(offset + 2, 2);
+    const size = sizeBytes[0] * 256 + sizeBytes[1];
+    if (size < 2 || offset + 2 + size > file.size) break;
+    if (kind === 0xe1 && size >= 8) {
+      const signature = await read(offset + 4, 6);
+      if (String.fromCharCode(...signature) === "Exif\0\0") exif.push(await read(offset, size + 2));
+    }
+    if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(kind)) {
+      if (dimensions) break;
+      dimensions = await read(offset, size + 2);
+    }
+    offset += size + 2;
+  }
+  if (!dimensions) throw new Error("Could not safely read image dimensions. Export a fresh PNG or JPEG and try again.");
+  // Reuse the bounds-checked EXIF/dimension parser without retaining metadata in
+  // the returned result or changing the original image. EXIF after SOF is honored.
+  const segments = [new Uint8Array([0xff, 0xd8]), ...exif, dimensions];
+  const header = new Uint8Array(segments.reduce((sum, part) => sum + part.byteLength, 0));
+  let cursor = 0;
+  for (const part of segments) { header.set(part, cursor); cursor += part.byteLength; }
+  return parseRasterHeader(header);
 }
 
 export function planRasterNormalization(header: RasterHeader, bytes: number, mobile: boolean) {
