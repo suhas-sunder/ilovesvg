@@ -1,0 +1,47 @@
+name: Technical reliability release validation
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reliability-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  node20-alpine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build and test in the repository-declared runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=$(git rev-parse HEAD)
+          mkdir -p .tmp/iphone-incident tmp logs
+          printf 'private-context-sentinel' > .tmp/iphone-incident/context-sentinel
+          printf 'test-context-sentinel' > tmp/context-sentinel
+          docker build --target development-dependencies-env -t ilovesvg-source-check .
+          docker run --rm --entrypoint sh ilovesvg-source-check -ec 'test ! -e /app/.tmp; test ! -e /app/tmp; test ! -e /app/.git; test ! -e /app/logs'
+          docker run --rm --entrypoint sh ilovesvg-source-check -ec 'npm run typecheck; npm test; node --check server.js'
+          docker build --label org.opencontainers.image.revision="${revision}" -t ilovesvg-release-check .
+          docker build --target build-env -t ilovesvg-built-check .
+          docker run --rm --entrypoint sh ilovesvg-built-check -ec 'node scripts/server-startup-collision-test.mjs; npm run test:native-memory'
+          docker run -d --name ilovesvg-release-runtime -p 127.0.0.1:3000:3000 ilovesvg-release-check
+          trap 'docker logs ilovesvg-release-runtime; docker rm -f ilovesvg-release-runtime >/dev/null 2>&1 || true' EXIT
+          for n in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:3000/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:3000/ >/dev/null
+          docker run --rm --network host --entrypoint sh -e BASE_URL=http://127.0.0.1:3000 ilovesvg-source-check -ec 'npm run test:conversion-actions; npm run test:input-compatibility; npm run test:seo; npm run test:schema; npm run test:routes'
+          test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' ilovesvg-release-runtime)" = "${revision}"
+      - name: Check source whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git diff --check "${BASE_SHA:-HEAD^}" HEAD
