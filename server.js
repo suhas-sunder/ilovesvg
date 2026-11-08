@@ -201,6 +201,11 @@ if (DEVELOPMENT) {
   app.use(reactRouterApp);
 }
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", (error) => {
+  if (error) {
+    console.error("[server] listen failed", sanitizeErrorForLog(error));
+    process.exitCode = 1;
+    return;
+  }
   console.log(`Server is running on http://0.0.0.0:${PORT}`);
 });
