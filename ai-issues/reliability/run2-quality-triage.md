@@ -4,7 +4,7 @@ Status: diagnostic and test corrections locally validated. The isolated preproce
 
 ## What the 39 original failures mean
 
-The immutable Run 1 report `tmp/baseline-high-fidelity-report.json` contains 39 failed assertions across 18 scenarios/17 unique SVG downloads of one 800x400 synthetic UI fixture. They are not 39 independent bugs or regressions. Run 1 baseline/candidate downloaded bytes remain unchanged. Original reports and baseline artifact folders are not overwritten by this pass.
+The immutable Run 1 report `tmp/baseline-high-fidelity-report.json` contains 39 failed assertions across 18 report rows, 17 distinct scenario IDs and eight distinct SVG byte sequences of one 800x400 synthetic UI fixture. They are not 39 independent bugs or regressions. Run 1 baseline/candidate downloaded bytes remain unchanged. Original reports and baseline artifact folders are not overwritten by this pass.
 
 | Original assertion category | Count | Classification and evidence |
 | --- | ---: | --- |
