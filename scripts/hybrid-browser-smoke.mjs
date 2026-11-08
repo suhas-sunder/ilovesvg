@@ -392,7 +392,7 @@ async function runRouteSmoke(route, fixturePath) {
 
     phase = "wait-for-output";
     const expectedOutputIdentity = selectedPreset
-      ? { presetLabel: selectedPreset.split(/\r?\n/)[0].trim(), startedAfter: presetSelectionStartedAt }
+      ? { presetLabel: selectedPreset.split(/\r?\n/)[0].trim(), startedAfter: presetSelectionStartedAt, routeId: route.id }
       : null;
     output = await waitForOutput(
       client,
@@ -3362,6 +3362,11 @@ function getRoutePresetMatchers(route) {
   if (process.env.VTRACER_PRESET_PATTERN) {
     return [process.env.VTRACER_PRESET_PATTERN];
   }
+  if (route.id === "icon-to-svg-converter") {
+    // Upload already runs the default layered preset. Selecting it again can
+    // reuse that identical output; exercise a distinct preset here.
+    return ["^Layered color SVG - Smoother\\b"];
+  }
   if (route.path === "/") {
     return ["^Layered color SVG\\b", "^Layered - "];
   }
@@ -3508,9 +3513,15 @@ async function waitForOutput(client, timeoutMs, expectedEngine = null, expectedI
           if (debug.length === 0) return true; // Homepage uses its own tracing orchestration.
           if (!selectedCompletion) return false;
           const jobId = candidate.getAttribute("data-job-id");
-          return jobId
-            ? jobId === selectedRun.clientRunId && candidate.getAttribute("data-job-status") === "succeeded"
-            : Number(candidate.getAttribute("data-output-stamp")) >= selectedCompletion.time;
+          if (jobId) return jobId === selectedRun.clientRunId && candidate.getAttribute("data-job-status") === "succeeded";
+          const stamp = Number(candidate.getAttribute("data-output-stamp"));
+          if (expectedIdentity.routeId === "png-to-layered-svg-for-cricut") {
+            // This route stamps its pending card at submission, before the
+            // worker starts. Only the card from that submission may match.
+            const submittedAt = Number(/^png-layered-(\\d+)-\\d+$/.exec(selectedRun.clientRunId || "")?.[1]);
+            return submittedAt >= expectedIdentity.startedAfter && stamp >= submittedAt && stamp <= selectedRun.time;
+          }
+          return stamp >= selectedCompletion.time;
         });
       const output = expectedEngine
         ? outputs.find((candidate) => candidate.getAttribute("data-engine-used") === expectedEngine)
