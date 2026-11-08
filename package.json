@@ -76,7 +76,7 @@
     "test:schema": "node scripts/schema-audit.mjs",
     "test:seo": "node scripts/seo-audit.mjs",
     "test:trace-engine": "node scripts/trace-engine-audit.mjs",
-    "test:trace-quality": "node scripts/trace-quality-smoke.mjs",
+    "test:trace-quality": "node --import ./scripts/register-typescript-test-loader.mjs scripts/trace-quality-smoke.mjs",
     "typecheck": "react-router typegen && tsc -b"
   },
   "dependencies": {
