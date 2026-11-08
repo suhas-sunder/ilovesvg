@@ -469,7 +469,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           error:
-            "Server is busy converting other images. We'll retry automatically.",
+            "Server is busy converting other images. Please wait and try again.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -2075,36 +2075,13 @@ export default function JpegToSvgConverter({}: Route.ComponentProps) {
   }
 
   React.useEffect(() => {
-    if (fetcher.data?.error) {
-      setErr(fetcher.data.error);
-    } else setErr(null);
-
-    // Server workload protection can retry automatically. Rate-limit errors
-    // should display the returned 429 message without starting another request.
-    if (fetcher.data?.retryAfterMs && fetcher.data?.code === "BUSY") {
-      const submitted = findSubmittedTrace(fetcher.data.clientRunId);
-      const ms = Math.max(800, fetcher.data.retryAfterMs);
-      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
-      const t = setTimeout(() => {
-        if (
-          submitted &&
-          submitted.ownership.generation === sourceGenerationRef.current
-        ) {
-          submittedByRunIdRef.current.delete(submitted.ownership.resultId);
-          void submitConvertWith(
-            submitted.sourceFile,
-            submitted.settings,
-            submitted.presetId,
-            submitted.replaceStamp,
-            submitted,
-          );
-        }
-      }, ms);
-      return () => clearTimeout(t);
+    if (fetcher.data?.retryAfterMs) {
+      const seconds = Math.max(1, Math.ceil(fetcher.data.retryAfterMs / 1000));
+      setErr(`${fetcher.data.error || "Server is busy."} Wait at least ${seconds}s, then try converting again.`);
+    } else {
+      setErr(fetcher.data?.error ?? null);
     }
-
     setInfo(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.data]);
 
   // Commit each result against the submission that created it. Submission

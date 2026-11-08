@@ -5,6 +5,7 @@ export type ReleaseFn = () => void;
 export type ConversionGate = {
   acquireOrQueue: (
     diagnostics?: MemoryDiagnosticJob | null,
+    signal?: AbortSignal,
   ) => Promise<ReleaseFn>;
   getDiagnosticSnapshot: () => ConversionGateDiagnosticSnapshot;
   running: number;
@@ -77,12 +78,25 @@ class SharedConversionGate implements ConversionGate {
     });
   }
 
-  acquireOrQueue(diagnostics?: MemoryDiagnosticJob | null): Promise<ReleaseFn> {
+  acquireOrQueue(diagnostics?: MemoryDiagnosticJob | null, signal?: AbortSignal): Promise<ReleaseFn> {
     const waitStartedAt = diagnostics ? Date.now() : 0;
     diagnostics?.checkpoint("gate-wait-start", this.toDiagnosticMetadata());
 
     return new Promise((resolve, reject) => {
+      const abortError = () => new DOMException("Conversion was canceled while waiting for the server.", "AbortError");
+      if (signal?.aborted) {
+        reject(abortError());
+        return;
+      }
+      const onAbort = () => {
+        const index = this.queue.indexOf(resolveAcquired);
+        if (index < 0) return;
+        this.queue.splice(index, 1);
+        signal?.removeEventListener("abort", onAbort);
+        reject(abortError());
+      };
       const resolveAcquired = (release: ReleaseFn) => {
+        signal?.removeEventListener("abort", onAbort);
         diagnostics?.checkpoint("gate-acquired", {
           ...this.toDiagnosticMetadata(),
           gateWaitMs: Date.now() - waitStartedAt,
@@ -113,6 +127,7 @@ class SharedConversionGate implements ConversionGate {
       }
 
       this.queue.push(resolveAcquired);
+      signal?.addEventListener("abort", onAbort, { once: true });
     });
   }
 
