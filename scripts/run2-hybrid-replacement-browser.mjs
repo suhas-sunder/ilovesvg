@@ -20,7 +20,17 @@ for(const browserName of (process.env.RUN2_HYBRID_BROWSERS||'chromium,firefox,we
  const page=await context.newPage(),errors=[];let posts=0,releaseHeld,downloadSha256;
  page.on('pageerror',e=>errors.push(e.message));
  await context.route('**/*',route=>new URL(route.request().url()).origin===new URL(base).origin?route.continue():route.abort());
- await page.addInitScript(({delayed})=>{window.__ILOVESVG_HYBRID_TRACE_DEBUG__=[];window.__run2Workers=[];if(delayed){const Original=window.Worker;window.Worker=new Proxy(Original,{construct(target,args){if(String(args[0]).includes('vtracer.worker')){const worker={onmessage:null,onerror:null,postMessage(){window.__run2Workers.push(()=>worker.onerror?.({message:'Synthetic delayed browser initialization failure'}));},terminate(){}};return worker;}return Reflect.construct(target,args);}});}}, {delayed:!scenario.startsWith('replace-')});
+ await page.addInitScript(({delayed})=>{
+  window.__ILOVESVG_HYBRID_TRACE_DEBUG__=[];window.__run2Workers=[];
+  window.__run2NativeOffscreenCanvas=typeof window.OffscreenCanvas!=='undefined';
+  if(!delayed)return;
+  // This fixture substitutes the worker, never draws to a canvas. Cached
+  // Windows WebKit lacks OffscreenCanvas, so force only the capability gate
+  // for these fault-injection cases. Replacement cases retain native capabilities.
+  if(!window.__run2NativeOffscreenCanvas)window.OffscreenCanvas=class SyntheticWorkerCapability{};
+  const Original=window.Worker;
+  window.Worker=new Proxy(Original,{construct(target,args){if(String(args[0]).includes('vtracer.worker')){const worker={onmessage:null,onerror:null,postMessage(){window.__run2Workers.push(()=>worker.onerror?.({message:'Synthetic delayed browser initialization failure'}));},terminate(){}};return worker;}return Reflect.construct(target,args);}});
+ },{delayed:!scenario.startsWith('replace-')});
  await page.route('**/*.data*',async route=>{if(route.request().method()!=='POST')return route.continue();posts++;if(scenario.startsWith('replace-')&&posts===1){await new Promise(resolve=>{releaseHeld=resolve;});return route.abort('aborted').catch(()=>{});}return route.continue();});
  try{
   await page.goto(base+'/png-to-svg-converter');
@@ -54,9 +64,10 @@ for(const browserName of (process.env.RUN2_HYBRID_BROWSERS||'chromium,firefox,we
    assert.equal(posts,1,'deduplicated consumer has one supported server fallback');
    assert.equal(await page.getByRole('button',{name:'Convert PNG to SVG',exact:true}).isEnabled(),true);
   }
-  assert.deepEqual(errors,[]);const screenshot=path.join(out,`${browserName}-${mobile?'mobile':'desktop'}-${scenario}.png`);await page.screenshot({path:screenshot});
-  report.push({browser:browserName,mobileEmulation:mobile,scenario,posts,downloadSha256,screenshot,status:'PASS'});
- }catch(error){const screenshot=path.join(out,`${browserName}-${mobile?'mobile':'desktop'}-${scenario}-FAILED.png`);await page.screenshot({path:screenshot});report.push({browser:browserName,mobileEmulation:mobile,scenario,posts,screenshot,status:'FAIL',error:error.message});}
+  assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=2,'no horizontal overflow');const screenshot=path.join(out,`${browserName}-${mobile?'mobile':'desktop'}-${scenario}.png`);await page.screenshot({path:screenshot});
+  const workerCapabilityShim=!scenario.startsWith('replace-')&&!(await page.evaluate(()=>window.__run2NativeOffscreenCanvas));
+  report.push({browser:browserName,mobileEmulation:mobile,scenario,workerCapabilityShim,posts,downloadSha256,screenshot,status:'PASS'});
+ }catch(error){const screenshot=path.join(out,`${browserName}-${mobile?'mobile':'desktop'}-${scenario}-FAILED.png`);await page.screenshot({path:screenshot});const traceStages=await page.evaluate(()=>window.__ILOVESVG_HYBRID_TRACE_DEBUG__?.map(({stage,reason})=>({stage,reason})));report.push({browser:browserName,mobileEmulation:mobile,scenario,posts,screenshot,status:'FAIL',error:error.message,traceStages});}
  finally{releaseHeld?.();await context.close();}
  console.log(JSON.stringify(report.at(-1)));
  }}}finally{await browser.close();}
