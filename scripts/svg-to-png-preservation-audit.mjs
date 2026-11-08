@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import ts from "typescript";
 import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
+import { assertCurrentMainPreserved, CURRENT_CONTRACT_FILES, CURRENT_MAIN_SHA } from "./current-main-preservation-contract.mjs";
 
 const execFileAsync = promisify(execFile);
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -415,6 +416,7 @@ async function main() {
   const parity = await runParityAudit();
 
   const summary = {
+    currentReleaseBase: CURRENT_MAIN_SHA,
     familyRoutes: expected.map((item) => item.path),
     routeContextKeys: expected.map((item) => item.key),
     contentContracts: expected.map((item) => ({
@@ -646,6 +648,10 @@ async function auditUnchangedContentFiles() {
   for (const [relativePath, expectedHash] of Object.entries(
     unchangedContentHashes,
   )) {
+    if (CURRENT_CONTRACT_FILES.has(relativePath)) {
+      assertCurrentMainPreserved(relativePath);
+      continue;
+    }
     const source = await fs.readFile(path.join(rootDir, relativePath));
     const actualHash = createHash("sha256").update(source).digest("hex");
     assert(

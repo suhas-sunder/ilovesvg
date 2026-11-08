@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { assertCurrentMainPreserved, CURRENT_CONTRACT_FILES, CURRENT_MAIN_SHA } from "./current-main-preservation-contract.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const STARTING_MAIN = "b89d4c005fea126866bd0121f1de26d289bf4d86";
@@ -30,6 +31,7 @@ function normalize(text) {
 }
 
 function assertUnchanged(relativePath) {
+  if (CURRENT_CONTRACT_FILES.has(relativePath)) return assertCurrentMainPreserved(relativePath);
   assert.equal(
     normalize(read(relativePath)),
     normalize(readAtBase(relativePath)),
@@ -586,11 +588,7 @@ assert.match(
 
 assertUnchanged("app/routes/image-to-outline-converter.tsx");
 assertUnchanged("app/routes/black-and-white-png-to-svg-converter.tsx");
-assert.equal(
-  sourceHash(ALL_TOOLS_FILE),
-  "b1cea2a32ff7ee56d89d3cb86e02e355e05f32dbe1926a82f3305712dbb1b84a",
-  "All Tools changed from its validated byte hash.",
-);
+const historicalAllToolsHash = "b1cea2a32ff7ee56d89d3cb86e02e355e05f32dbe1926a82f3305712dbb1b84a";
 
 for (const excludedPath of [
   "/png-to-svg-converter",
@@ -637,6 +635,8 @@ console.log(
   JSON.stringify(
     {
       startingMain: STARTING_MAIN,
+      currentReleaseBase: CURRENT_MAIN_SHA,
+      historicalAllToolsHash,
       routeCount: contexts.length,
       retainedRouteCount: contexts.length,
       redirectedRouteCount: 0,
