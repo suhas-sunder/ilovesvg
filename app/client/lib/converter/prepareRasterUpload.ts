@@ -1,5 +1,5 @@
 /** Header-only admission checks: never decode a raster just to discover its size. */
-export type RasterHeader = { width: number; height: number; mime: string };
+export type RasterHeader = { width: number; height: number; mime: string; hasExif?: true };
 const MIB = 1024 * 1024;
 const HEADER_BYTES = 256 * 1024;
 const MAX_ORIGINAL_BYTES = 64 * MIB;
@@ -9,7 +9,7 @@ let normalizationInProgress = false;
 export function parseRasterHeader(bytes: Uint8Array): RasterHeader {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const text = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
-  let width = 0, height = 0, mime = "";
+  let width = 0, height = 0, mime = "", hasExif = false;
   if (bytes.length >= 24 && text(0, 8) === "\x89PNG\r\n\x1a\n" && text(12, 16) === "IHDR") {
     width = view.getUint32(16); height = view.getUint32(20); mime = "image/png";
   } else if (bytes.length >= 12 && text(0, 4) === "RIFF" && text(8, 12) === "WEBP") {
@@ -18,6 +18,7 @@ export function parseRasterHeader(bytes: Uint8Array): RasterHeader {
     const u24 = (offset: number) => bytes[offset] + bytes[offset + 1] * 256 + bytes[offset + 2] * 65536;
     if (kind === "VP8X" && bytes.length >= 30) {
       width = u24(24) + 1; height = u24(27) + 1;
+      hasExif = Boolean(bytes[20] & 0x08);
     } else if (kind === "VP8L" && bytes.length >= 25 && bytes[20] === 0x2f) {
       const bits = view.getUint32(21, true);
       width = (bits & 0x3fff) + 1; height = ((bits >>> 14) & 0x3fff) + 1;
@@ -66,7 +67,7 @@ export function parseRasterHeader(bytes: Uint8Array): RasterHeader {
   if (!width || !height || !Number.isSafeInteger(width * height)) {
     throw new Error("Could not safely read image dimensions. Export a fresh PNG or JPEG and try again.");
   }
-  return { width, height, mime };
+  return { width, height, mime, ...(hasExif ? { hasExif: true as const } : {}) };
 }
 
 export async function readRasterHeader(file: Blob): Promise<RasterHeader> {
@@ -156,6 +157,11 @@ export async function prepareRasterUpload(file: File, onPreparing?: () => void):
   const mobile = typeof navigator !== "undefined" && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
   const target = planRasterNormalization(header, file.size, mobile);
   if (!target) return { file, header, normalized: false };
+  if (header.mime === "image/webp" && header.hasExif) {
+    // Browsers can ignore WebP EXIF orientation. Re-encoding would discard that
+    // metadata and silently change its meaning; leave ordinary inputs intact.
+    throw new Error("This WebP contains metadata that cannot be preserved safely while resizing in your browser. Export it as PNG or JPEG with the correct orientation, then upload it again.");
+  }
   if (normalizationInProgress) throw new Error("Another large image is being prepared. Wait for it to finish, then select this image again.");
   const canvas = document.createElement("canvas");
   normalizationInProgress = true;

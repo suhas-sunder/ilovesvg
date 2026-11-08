@@ -60,3 +60,10 @@ const manyFillBytes = new ProbedFile([jpeg.subarray(0,2), ...Array(511).fill(pad
 await assert.rejects(readRasterHeader(manyFillBytes), /metadata.*safely/);
 assert.ok(manyFillBytes.reads <= 2048, 'fill-byte inspection must bound asynchronous reads globally');
 console.log('PASS bounded JPEG segment skipping, preserved original file, late EXIF orientation and metadata scan budget.');
+const webpExif = await sharp({create:{width:9000,height:120,channels:4,background:'red'}}).webp().withMetadata({orientation:6}).toBuffer();
+const webpHeader = await readRasterHeader(new File([webpExif],'oriented.webp',{type:'image/webp'}));
+assert.equal(webpHeader.hasExif, true, 'WebP extended header must identify EXIF without decoding');
+await assert.rejects(prepareRasterUpload(new File([webpExif],'oriented.webp',{type:'image/webp'})), /correct orientation/);
+const validWebpExif = new File([await sharp(jpeg).webp().withMetadata({orientation:6}).toBuffer()],'valid.webp',{type:'image/webp'});
+assert.equal((await prepareRasterUpload(validWebpExif)).file, validWebpExif, 'valid WebP metadata and bytes remain untouched');
+console.log('PASS over-limit EXIF WebP rejects before decoding; ordinary EXIF WebP remains unchanged.');
