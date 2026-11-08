@@ -40,6 +40,8 @@ type HybridTracePayload = {
   svgBytes?: number;
   clientRunId?: string;
   traceJobId?: string;
+  requestId?: string;
+  presetId?: string;
   cacheHit?: boolean;
   conversionCacheKey?: string;
 };
@@ -52,6 +54,12 @@ type HybridTraceFetcherReturn<TData> = FetcherReturn<TData> & {
 type FetcherSubmitTarget = Parameters<FetcherReturn<unknown>["submit"]>[0];
 type FetcherSubmitOptions = Parameters<FetcherReturn<unknown>["submit"]>[1];
 const SERVER_FALLBACK_SUBMITTED = "ILOVESVG_SERVER_FALLBACK_SUBMITTED";
+
+class ServerFallbackError extends Error {
+  constructor(readonly data: HybridTracePayload) {
+    super(data.error || "Server conversion failed.");
+  }
+}
 
 export function useHybridTraceFetcher<
   TData extends HybridTracePayload = HybridTracePayload,
@@ -69,6 +77,8 @@ export function useHybridTraceFetcher<
   const clientCancelHandlersRef = React.useRef(new Map<string, () => void>());
   const canceledClientRunIdsRef = React.useRef(new Set<string>());
   const suppressedServerDataRef = React.useRef<unknown>(undefined);
+  const canceledServerRunIdRef = React.useRef<string | null>(null);
+  const serverRunIdRef = React.useRef<string | null>(null);
   const pendingServerCacheRef = React.useRef(
     new Map<
       string,
@@ -93,12 +103,14 @@ export function useHybridTraceFetcher<
         typeof window === "undefined" ||
         !(target instanceof FormData)
       ) {
+        serverRunIdRef.current = null;
         fetcher.submit(target, submitOptions);
         return;
       }
 
       const submittedFile = target.get("file");
       if (!(submittedFile instanceof File) || isUploadedSvg(submittedFile)) {
+        serverRunIdRef.current = null;
         fetcher.submit(target, submitOptions);
         return;
       }
@@ -108,6 +120,9 @@ export function useHybridTraceFetcher<
       const clientRunId =
         readString(target, "clientRunId") ??
         `${options.routeId}-${Date.now()}-${runId}`;
+      // These belong to this submission, never to a shared/cached result.
+      const requestId = readString(target, "requestId") ?? undefined;
+      const presetId = settings.presetId ?? undefined;
       if (!readString(target, "clientRunId")) {
         target.append("clientRunId", clientRunId);
       }
@@ -133,6 +148,10 @@ export function useHybridTraceFetcher<
         registerCancelHandler(() => controller.abort());
         return controller;
       };
+
+      // Hashing is asynchronous too: cancellation must work before a worker or
+      // an in-flight cache consumer has been created.
+      registerCancelHandler(() => currentAbortController?.abort());
 
       const runClientOrServerConversion = async (
         cacheKey: string | null,
@@ -228,16 +247,34 @@ export function useHybridTraceFetcher<
         });
 
         if (!cacheKey) {
+          serverRunIdRef.current = clientRunId;
           fetcher.submit(target, submitOptions);
           throw new Error(SERVER_FALLBACK_SUBMITTED);
         }
 
         return await new Promise<BaseConversionCacheResult>((resolve, reject) => {
+          const onAbort = () => {
+            canceledServerRunIdRef.current = clientRunId;
+            pendingServerCacheRef.current.delete(clientRunId);
+            reject(new Error("Conversion was canceled."));
+          };
+          if (signal.aborted) {
+            onAbort();
+            return;
+          }
+          signal.addEventListener("abort", onAbort, { once: true });
           pendingServerCacheRef.current.set(clientRunId, {
             cacheKey,
-            resolve,
-            reject,
+            resolve: (result) => {
+              signal.removeEventListener("abort", onAbort);
+              resolve(result);
+            },
+            reject: (error) => {
+              signal.removeEventListener("abort", onAbort);
+              reject(error);
+            },
           });
+          serverRunIdRef.current = clientRunId;
           fetcher.submit(target, submitOptions);
         });
       };
@@ -266,6 +303,8 @@ export function useHybridTraceFetcher<
               traceResultToFetcherData<TData>(cached, {
                 clientRunId,
                 traceJobId: String(runId),
+                requestId,
+                presetId,
                 cacheHit: true,
                 conversionCacheKey: cacheKey,
               }),
@@ -293,6 +332,8 @@ export function useHybridTraceFetcher<
             traceResultToFetcherData<TData>(result, {
               clientRunId,
               traceJobId: String(runId),
+              requestId,
+              presetId,
               cacheHit: false,
               conversionCacheKey: cacheKey,
             }),
@@ -310,6 +351,8 @@ export function useHybridTraceFetcher<
           traceResultToFetcherData<TData>(result, {
             clientRunId,
             traceJobId: String(runId),
+            requestId,
+            presetId,
           }),
         );
       })()
@@ -332,6 +375,21 @@ export function useHybridTraceFetcher<
               clientRunId,
               traceJobId: String(runId),
             });
+            return;
+          }
+          if (error instanceof ServerFallbackError) {
+            // This request already reached the server. Retrying here would
+            // duplicate failures, including permanent validation rejections.
+            // Keep retry/status metadata for the route's own recovery UI.
+            if (isLatest) {
+              setClientData({
+                ...error.data,
+                clientRunId,
+                traceJobId: String(runId),
+                requestId,
+                presetId,
+              } as TData);
+            }
             return;
           }
           if (
@@ -373,6 +431,7 @@ export function useHybridTraceFetcher<
             traceJobId: String(runId),
             reason: message,
           });
+          serverRunIdRef.current = clientRunId;
           fetcher.submit(target, submitOptions);
         })
         .finally(() => {
@@ -418,14 +477,17 @@ export function useHybridTraceFetcher<
         });
         pending.resolve(result);
       } else {
-        pending.reject(new Error("Server conversion returned an invalid cache result."));
+        pending.reject(new ServerFallbackError({
+          error: "Server conversion returned an invalid cache result. Try converting again.",
+          clientRunId: pendingClientRunId,
+        }));
       }
       pendingServerCacheRef.current.delete(pendingClientRunId);
       return;
     }
 
     if (rawData.error) {
-      pending.reject(new Error(rawData.error));
+      pending.reject(new ServerFallbackError(rawData));
       pendingServerCacheRef.current.delete(pendingClientRunId);
     }
   }, [fetcher.data, options.routeId]);
@@ -452,12 +514,25 @@ export function useHybridTraceFetcher<
   }, []);
 
   const cancelClientJob = React.useCallback((clientRunId: string) => {
+    // A fetcher can expose its response after its cache consumer is released.
+    // Only one server response can be current on this fetcher, so retain its
+    // canceled identity without accumulating a history of canceled jobs.
+    if (serverRunIdRef.current === clientRunId) {
+      canceledServerRunIdRef.current = clientRunId;
+    }
     const cancel = clientCancelHandlersRef.current.get(clientRunId);
     cancel?.();
   }, []);
 
   const data = React.useMemo(() => {
     if (clientData) return clientData;
+    if (
+      fetcher.data &&
+      canceledServerRunIdRef.current &&
+      (fetcher.data.clientRunId || serverRunIdRef.current) === canceledServerRunIdRef.current
+    ) {
+      return undefined;
+    }
     if (fetcher.data && fetcher.data === suppressedServerDataRef.current) {
       return undefined;
     }
@@ -493,6 +568,8 @@ function traceResultToFetcherData<TData extends HybridTracePayload>(
   metadata?: {
     clientRunId?: string;
     traceJobId?: string;
+    requestId?: string;
+    presetId?: string;
     cacheHit?: boolean;
     conversionCacheKey?: string;
   },
@@ -515,6 +592,8 @@ function traceResultToFetcherData<TData extends HybridTracePayload>(
     svgBytes: result.svgBytes,
     clientRunId: metadata?.clientRunId,
     traceJobId: metadata?.traceJobId,
+    requestId: metadata?.requestId,
+    presetId: metadata?.presetId,
     cacheHit: metadata?.cacheHit,
     conversionCacheKey: metadata?.conversionCacheKey,
   } as TData;
