@@ -351,11 +351,95 @@ async function detectCheckerboardBackground(
     (first.edgeCount + second.edgeCount) / Math.max(edgeCandidateCount, 1);
 
   if (topCoverage < 0.45 || edgeCoverage < 0.45) return null;
+  // Two common neutral colors also occur in ordinary UI screenshots, white
+  // artwork and solid bands. Only remove them automatically when repeated
+  // two-dimensional checker alternation is actually present.
+  if (!hasRepeatedCheckerAlternation(raw, width, height, channels, [first.rgb, second.rgb])) return null;
 
   return {
     colors: [first.rgb, second.rgb],
     tolerance: 20,
   };
+}
+
+function hasRepeatedCheckerAlternation(
+  raw: Buffer,
+  width: number,
+  height: number,
+  channels: number,
+  colors: RGB[],
+): boolean {
+  const label = (x: number, y: number) => {
+    const off = (y * width + x) * channels;
+    if (raw[off + 3] < 245) return -1;
+    const rgb = { r: raw[off], g: raw[off + 1], b: raw[off + 2] };
+    if (!isLightNeutral(rgb)) return -1;
+    const a = colorDistance(rgb, colors[0]);
+    const b = colorDistance(rgb, colors[1]);
+    return Math.min(a, b) <= 20 ? (a <= b ? 0 : 1) : -1;
+  };
+  const median = (values: number[]) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  };
+  const repeatedRunWidth = (length: number, read: (position: number) => number) => {
+    let runs: number[] = [];
+    let previous = -1;
+    const candidates: number[] = [];
+    const finish = () => {
+      // The two end cells may be clipped by the image/foreground boundary.
+      if (runs.length >= 4) {
+        const inner = runs.slice(1, -1);
+        const size = median(inner);
+        if (size >= 1 && inner.every((value) => Math.abs(value - size) <= Math.max(2, size * 0.3))) candidates.push(size);
+      }
+      runs = [];
+      previous = -1;
+    };
+    for (let position = 0; position < length; position++) {
+      const current = read(position);
+      if (current < 0) { finish(); continue; }
+      if (current !== previous) runs.push(1);
+      else runs[runs.length - 1]++;
+      previous = current;
+    }
+    finish();
+    return candidates.length ? median(candidates) : null;
+  };
+  const positions = (length: number) => [...new Set([1, length - 2, 0.1, 0.25, 0.5, 0.75, 0.9].map((value) =>
+    Math.max(0, Math.min(length - 1, value < 1 ? Math.floor(length * value) : value)),
+  ))];
+  const horizontal = positions(height).map((y) => repeatedRunWidth(width, (x) => label(x, y))).filter((value): value is number => value !== null);
+  const vertical = positions(width).map((x) => repeatedRunWidth(height, (y) => label(x, y))).filter((value): value is number => value !== null);
+  if (horizontal.length < 2 || vertical.length < 2) return false;
+  const cellWidth = Math.max(1, Math.round(median(horizontal)));
+  const cellHeight = Math.max(1, Math.round(median(vertical)));
+  let checked = 0;
+  let matched = 0;
+  let midpointChecked = 0;
+  let midpointMatched = 0;
+  const xStep = Math.max(1, Math.floor(width / 48), Math.floor(cellWidth / 2));
+  const yStep = Math.max(1, Math.floor(height / 48), Math.floor(cellHeight / 2));
+  for (let y = 0; y + cellHeight < height; y += yStep) {
+    for (let x = 0; x + cellWidth < width; x += xStep) {
+      const a = label(x, y), b = label(x + cellWidth, y);
+      const c = label(x, y + cellHeight), d = label(x + cellWidth, y + cellHeight);
+      if (Math.min(a, b, c, d) < 0) continue;
+      checked++;
+      if (a === d && b === c && a !== b) {
+        matched++;
+        // Diagonal stripes also flip after one cell in both axes. Their
+        // half-cell diagonal always flips; square checks retain both phases.
+        const middle = label(x + Math.floor(cellWidth / 2), y + Math.floor(cellHeight / 2));
+        if (middle >= 0) {
+          midpointChecked++;
+          if (middle === a) midpointMatched++;
+        }
+      }
+    }
+  }
+  return checked >= 8 && matched / checked >= 0.8 &&
+    midpointChecked >= 8 && midpointMatched / midpointChecked >= 0.25;
 }
 
 function findBorderConnectedCheckerPixels(

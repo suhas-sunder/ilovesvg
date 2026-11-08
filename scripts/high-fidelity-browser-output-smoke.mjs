@@ -8,7 +8,9 @@ import sharp from "sharp";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 const debugPort = Number(process.env.CDP_PORT || 10450 + Math.floor(Math.random() * 300));
-const runDir = path.join(rootDir, "tmp", "high-fidelity-browser-output-smoke");
+const runName = process.env.HF_BROWSER_OUTPUT_RUN_NAME || "high-fidelity-browser-output-smoke";
+if (!/^[a-zA-Z0-9_-]+$/.test(runName)) throw new Error("HF_BROWSER_OUTPUT_RUN_NAME must be a plain directory name");
+const runDir = path.join(rootDir, "tmp", runName);
 const downloadRoot = path.join(runDir, "downloads");
 const renderRoot = path.join(runDir, "renders");
 const reportPath = process.env.HF_BROWSER_OUTPUT_REPORT_PATH
@@ -455,7 +457,7 @@ function normalizeUiText(value) {
     .toLowerCase();
 }
 
-function validateHighFidelityFlatResult(result) {
+export function validateHighFidelityFlatResult(result) {
   const label = `${result.fixture?.basename || result.scenarioId} / ${result.presetLabel || "Layered - Flat Color"}`;
   const failures = [];
   const add = (reason) => failures.push({ scenarioId: result.scenarioId, fixture: result.fixture?.basename || null, preset: result.presetLabel || null, reason });
@@ -476,11 +478,21 @@ function validateHighFidelityFlatResult(result) {
   if (!result.download?.bytes) add("Download SVG did not produce a file");
   if (!result.copyDownloadParity?.ok) add("Copy SVG and Download SVG did not match");
   const layerCount = result.ui?.layerTotalCount ?? result.svg?.dataLayerColorCount ?? 0;
-  if (layerCount < minHighDetailLayerCount) add(`grouped layer count regressed below ${minHighDetailLayerCount}; saw ${layerCount} for ${label}`);
+  const tier = qualityTierForPresetId(result.presetId);
+  if (tier === "default") {
+    // The default preset currently requests 16 colors, and quantization can
+    // merge colors. A historical >=20-layer floor is not its product contract.
+    // Adaptive processing may legitimately choose a different target, so use
+    // the measured processing budget where exposed, not a stale preset copy.
+    const requested = Number(result.ui?.requestedPaletteCount || 0);
+    if (layerCount < 1) add(`default layered output has no editable layers for ${label}`);
+    if (requested > 0 && layerCount > Math.min(maxGroupedColors, requested)) add(`default layered output exceeds its current ${requested}-color processing budget; saw ${layerCount}`);
+  } else if (layerCount < minHighDetailLayerCount) {
+    add(`grouped layer count regressed below ${minHighDetailLayerCount}; saw ${layerCount} for ${label}`);
+  }
   if (layerCount > maxGroupedColors) add(`grouped layer count exceeded ${maxGroupedColors}; saw ${layerCount}`);
   const visibleColors = result.svg?.visibleColorCount ?? 0;
   if (visibleColors > maxGroupedColors) add(`visible color count exceeded ${maxGroupedColors}; saw ${visibleColors}`);
-  const tier = qualityTierForPresetId(result.presetId);
   const ratioCeiling = qualityTierRatioCeiling(tier);
   const fixtureBytes = Number(result.fixture?.bytes || 0);
   const sizeBudget = ratioCeiling && fixtureBytes > 0
@@ -513,9 +525,9 @@ function validateHighFidelityFlatResult(result) {
   return failures;
 }
 
-function validatePresetTriageResult(result) {
+export function validatePresetTriageResult(result) {
   const failures = [];
-  const add = (reason) => failures.push({ scenarioId: `preset-${result.presetId}`, fixture: path.basename(img8846), preset: result.presetLabel, reason });
+  const add = (reason) => failures.push({ scenarioId: `preset-${result.presetId}`, fixture: result.fixture?.basename || path.basename(presetMatrixFixture), preset: result.presetLabel, reason });
   if (result.harnessError) add(`harness error: ${result.harnessError}`);
   if (!result.selectedPreset?.selected) add(`requested preset was not selected: ${result.selectedPreset?.reason || "unknown reason"}`);
   if (!result.completed) add(`preset did not reach usable output within ${scenarioTimeoutMs} ms`);
@@ -559,7 +571,7 @@ function validatePresetTriageResult(result) {
   return failures;
 }
 
-function validateQualityTierResult(result) {
+export function validateQualityTierResult(result) {
   const failures = [];
   const add = (reason) => failures.push({
     scenarioId: result.scenarioId,
@@ -600,7 +612,7 @@ function validateQualityTierResult(result) {
   return failures;
 }
 
-function validateProgressiveQualityTierComparison(results) {
+export function validateProgressiveQualityTierComparison(results) {
   const failures = [];
   const byFixture = new Map();
   for (const result of results) {
@@ -791,7 +803,7 @@ function validateProgressiveQualityTierComparison(results) {
   return failures;
 }
 
-function validateQualityTierFamilyCollapse(results) {
+export function validateQualityTierFamilyCollapse(results) {
   const failures = [];
   const familySpecificIds = new Set(
     qualityTierComparisonFamilies
@@ -836,7 +848,7 @@ function validateQualityTierFamilyCollapse(results) {
   return failures;
 }
 
-function qualityTierSourceDetailScore(result) {
+export function qualityTierSourceDetailScore(result) {
   const paired = result.render?.pairedDetailMetrics;
   const output = result.render?.outputMetrics;
   if (!paired || !output) return 0;
@@ -860,7 +872,7 @@ function qualityTierSourceDetailScore(result) {
   );
 }
 
-function validateRenderMetrics(result, label) {
+export function validateRenderMetrics(result, label) {
   const failures = [];
   const source = result.render?.sourceMetrics;
   const output = result.render?.outputMetrics;
@@ -1187,7 +1199,18 @@ function orientedDimensions(meta) {
     : { width, height };
 }
 
-async function renderComparison(sourcePath, svgPath, scenarioId) {
+export async function displayRgb(input, width = 520, height = 520) {
+  // RGB quality metrics must see the same white-backed appearance as the
+  // comparison sheet. removeAlpha alone exposes invisible RGB (usually black).
+  return sharp(input)
+    .flatten({ background: "#ffffff" })
+    .resize(width, height, { fit: "contain", background: "#ffffff" })
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+}
+
+export async function renderComparison(sourcePath, svgPath, scenarioId) {
   const sourceOut = path.join(renderRoot, `${scenarioId}-source.png`);
   const svgOut = path.join(renderRoot, `${scenarioId}-svg.png`);
   const sheetOut = path.join(renderRoot, `${scenarioId}-comparison.png`);
@@ -1197,8 +1220,8 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
   await sharp(svgPath, { density: 72 }).resize({ width: 520, height: 520, fit: "inside", background: "#fff" }).png().toFile(svgOut);
   await sharp(sourcePath).ensureAlpha().resize({ width: 520, height: 520, fit: "inside", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(sourceAlphaOut);
   await sharp(svgPath, { density: 72 }).resize({ width: 520, height: 520, fit: "inside", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toFile(svgAlphaOut);
-  const source = await sharp(sourceOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).removeAlpha().raw().toBuffer();
-  const output = await sharp(svgOut).resize(520, 520, { fit: "contain", background: "#ffffff" }).removeAlpha().raw().toBuffer();
+  const source = await displayRgb(sourceOut);
+  const output = await displayRgb(svgOut);
   const sourceAlpha = await sharp(sourceAlphaOut).resize(520, 520, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).ensureAlpha().raw().toBuffer();
   const outputAlpha = await sharp(svgAlphaOut).resize(520, 520, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).ensureAlpha().raw().toBuffer();
   const sourceMetrics = imageDarkMetrics(source);
@@ -1227,7 +1250,7 @@ async function renderComparison(sourcePath, svgPath, scenarioId) {
   };
 }
 
-function imageDarkMetrics(raw) {
+export function imageDarkMetrics(raw) {
   let dark = 0;
   let nearBlack = 0;
   let contrastEdges = 0;
@@ -1258,7 +1281,7 @@ function imageDarkMetrics(raw) {
   };
 }
 
-function imageAlphaMetrics(raw) {
+export function imageAlphaMetrics(raw) {
   let painted = 0;
   const pixels = raw.length / 4;
   for (let i = 0; i < raw.length; i += 4) {
@@ -1271,7 +1294,7 @@ function imageAlphaMetrics(raw) {
   };
 }
 
-function pairedSourceOutputDetailMetrics(source, output, width, height) {
+export function pairedSourceOutputDetailMetrics(source, output, width, height) {
   let sourceSupportedDark = 0;
   let sourceSupportedDarkHit = 0;
   let sourceHighContrastDark = 0;
@@ -1953,6 +1976,8 @@ async function collectUi(client) {
       timings,
       engineWarnings: latest.getAttribute("data-engine-warnings") || null,
       layerBuildMode: latest.getAttribute("data-layer-build-mode") || null,
+      requestedPaletteCount: numberOrNull(latest.getAttribute("data-requested-palette-count")),
+      actualPaletteCount: numberOrNull(latest.getAttribute("data-actual-palette-count")),
       outputDetectedColors: numberOrNull(latest.getAttribute("data-output-detected-colors")),
       svgBytesAttr: numberOrNull(latest.getAttribute("data-svg-bytes")),
       fileSizeText,
@@ -2609,7 +2634,9 @@ function waitForChildExit(child, timeoutMs) {
   });
 }
 
-await main().catch((error) => {
-  console.error(error instanceof Error ? error.stack || error.message : String(error));
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main().catch((error) => {
+    console.error(error instanceof Error ? error.stack || error.message : String(error));
+    process.exit(1);
+  });
+}
