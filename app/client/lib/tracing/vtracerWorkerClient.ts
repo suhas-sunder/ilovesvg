@@ -169,6 +169,9 @@ export async function tryTraceRasterInClient(input: {
     }
     input.onProgress?.(0.05, "Tracing in your browser.");
     const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
+    if (input.signal?.aborted) {
+      return { ok: false, reason: "Conversion was canceled." };
+    }
     worker = new Worker(
       new URL("../../workers/vtracer.worker.ts", import.meta.url),
       { type: "module" },
@@ -328,6 +331,9 @@ async function tryTraceCenterlineInClient(input: {
       return { ok: false, reason: "Conversion was canceled." };
     }
     const buffer = await withTimeout(input.file.arrayBuffer(), 8_000);
+    if (input.signal?.aborted) {
+      return { ok: false, reason: "Conversion was canceled." };
+    }
     worker = new Worker(
       new URL("../../workers/centerline.worker.ts", import.meta.url),
       { type: "module" },

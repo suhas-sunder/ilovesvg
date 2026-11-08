@@ -61,6 +61,12 @@ class ServerFallbackError extends Error {
   }
 }
 
+class ServerRequestSupersededError extends Error {
+  constructor() {
+    super("This earlier server conversion was replaced by a newer conversion. Try again if you still need that output.");
+  }
+}
+
 export function useHybridTraceFetcher<
   TData extends HybridTracePayload = HybridTracePayload,
 >(options: {
@@ -70,9 +76,12 @@ export function useHybridTraceFetcher<
 }): HybridTraceFetcherReturn<TData> {
   const fetcher = useFetcher<TData>();
   const [clientData, setClientData] = React.useState<TData | undefined>();
+  const [clientOutcomeRevision, setClientOutcomeRevision] = React.useState(0);
+  const clientDataQueueRef = React.useRef<TData[]>([]);
   const [activeClientJobs, setActiveClientJobs] = React.useState(0);
   const mountedRef = React.useRef(true);
   const runIdRef = React.useRef(0);
+  const latestCacheKeyRef = React.useRef<{ runId: number; key: string | null } | null>(null);
   const fallbackWarningRef = React.useRef<string | null>(null);
   const clientCancelHandlersRef = React.useRef(new Map<string, () => void>());
   const canceledClientRunIdsRef = React.useRef(new Set<string>());
@@ -90,28 +99,49 @@ export function useHybridTraceFetcher<
     >(),
   );
 
+  const publishClientData = React.useCallback((data: TData) => {
+    if (!mountedRef.current) return;
+    // Shared promises can settle several consumers in one microtask batch.
+    // Publish each identity in its own render so route history effects see all
+    // outcomes rather than only the last setState call in that batch.
+    clientDataQueueRef.current.push(data);
+    setClientOutcomeRevision((revision) => revision + 1);
+  }, []);
+
   const submit = React.useCallback(
     (target: FetcherSubmitTarget, submitOptions?: FetcherSubmitOptions) => {
       const runId = runIdRef.current + 1;
       runIdRef.current = runId;
+      latestCacheKeyRef.current = { runId, key: null };
       suppressedServerDataRef.current = fetcher.data;
       setClientData(undefined);
       fallbackWarningRef.current = null;
+
+      const submitToServer = (nextClientRunId: string | null) => {
+        // React Router owns one server request per fetcher. Its replacement
+        // aborts the old request, which may never return a response to settle
+        // our cache waiter. Release that waiter before handing off the new one.
+        for (const [pendingId, pending] of pendingServerCacheRef.current) {
+          if (pendingId === nextClientRunId) continue;
+          pendingServerCacheRef.current.delete(pendingId);
+          pending.reject(new ServerRequestSupersededError());
+        }
+        serverRunIdRef.current = nextClientRunId;
+        fetcher.submit(target, submitOptions);
+      };
 
       if (
         options.enabled === false ||
         typeof window === "undefined" ||
         !(target instanceof FormData)
       ) {
-        serverRunIdRef.current = null;
-        fetcher.submit(target, submitOptions);
+        submitToServer(null);
         return;
       }
 
       const submittedFile = target.get("file");
       if (!(submittedFile instanceof File) || isUploadedSvg(submittedFile)) {
-        serverRunIdRef.current = null;
-        fetcher.submit(target, submitOptions);
+        submitToServer(target instanceof FormData ? readString(target, "clientRunId") : null);
         return;
       }
 
@@ -195,7 +225,11 @@ export function useHybridTraceFetcher<
           return clientAttempt.result;
         }
 
-        const isLatest = mountedRef.current && runIdRef.current === runId;
+        const isLatest = mountedRef.current && (
+          runIdRef.current === runId ||
+          (cacheKey !== null && latestCacheKeyRef.current?.runId === runIdRef.current &&
+            latestCacheKeyRef.current.key === cacheKey)
+        );
         recordHybridTraceDebug({
           routeId: options.routeId,
           stage: "client-attempt-failed",
@@ -247,8 +281,7 @@ export function useHybridTraceFetcher<
         });
 
         if (!cacheKey) {
-          serverRunIdRef.current = clientRunId;
-          fetcher.submit(target, submitOptions);
+          submitToServer(clientRunId);
           throw new Error(SERVER_FALLBACK_SUBMITTED);
         }
 
@@ -274,8 +307,7 @@ export function useHybridTraceFetcher<
               reject(error);
             },
           });
-          serverRunIdRef.current = clientRunId;
-          fetcher.submit(target, submitOptions);
+          submitToServer(clientRunId);
         });
       };
 
@@ -286,6 +318,7 @@ export function useHybridTraceFetcher<
         });
         if (!isActiveClientRun()) return;
         const cacheKey = keyInfo?.key ?? null;
+        if (runIdRef.current === runId) latestCacheKeyRef.current = { runId, key: cacheKey };
 
         if (cacheKey) {
           const cached = lookupConversionCache(cacheKey);
@@ -299,7 +332,7 @@ export function useHybridTraceFetcher<
               engineUsed: cached.engineUsed,
             });
             if (!isActiveClientRun()) return;
-            setClientData(
+            publishClientData(
               traceResultToFetcherData<TData>(cached, {
                 clientRunId,
                 traceJobId: String(runId),
@@ -328,7 +361,7 @@ export function useHybridTraceFetcher<
           }
           const result = await inFlight.promise;
           if (!isActiveClientRun()) return;
-          setClientData(
+          publishClientData(
             traceResultToFetcherData<TData>(result, {
               clientRunId,
               traceJobId: String(runId),
@@ -347,7 +380,7 @@ export function useHybridTraceFetcher<
           localAbortController.signal,
         );
         if (!isActiveClientRun()) return;
-        setClientData(
+        publishClientData(
           traceResultToFetcherData<TData>(result, {
             clientRunId,
             traceJobId: String(runId),
@@ -377,12 +410,18 @@ export function useHybridTraceFetcher<
             });
             return;
           }
+          if (error instanceof ServerRequestSupersededError) {
+            // Retain the prior job's identity so its history card can settle;
+            // this is not a failure of the replacement job or a reason to retry.
+            publishClientData({ error: message, clientRunId, requestId, presetId, traceJobId: String(runId) } as TData);
+            return;
+          }
           if (error instanceof ServerFallbackError) {
             // This request already reached the server. Retrying here would
             // duplicate failures, including permanent validation rejections.
             // Keep retry/status metadata for the route's own recovery UI.
             if (isLatest) {
-              setClientData({
+              publishClientData({
                 ...error.data,
                 clientRunId,
                 traceJobId: String(runId),
@@ -398,7 +437,7 @@ export function useHybridTraceFetcher<
             message.startsWith("An earlier browser trace did not finish")
           ) {
             if (!isLatest) return;
-            setClientData({
+            publishClientData({
               error: message,
               clientRunId,
               traceJobId: String(runId),
@@ -407,7 +446,7 @@ export function useHybridTraceFetcher<
           }
           if (!isLatest) return;
           if (requestedEngine === "vtracer") {
-            setClientData({
+            publishClientData({
               error:
                 "Detailed color tracing could not convert this image in your browser. Try another preset or a simpler image.",
               clientRunId,
@@ -416,7 +455,7 @@ export function useHybridTraceFetcher<
             return;
           }
           if (settings.strokeOutputMode === "centerline") {
-            setClientData({
+            publishClientData({
               error: `Centerline stroke tracing could not convert this image in your browser. ${message}`,
               clientRunId,
               traceJobId: String(runId),
@@ -431,19 +470,20 @@ export function useHybridTraceFetcher<
             traceJobId: String(runId),
             reason: message,
           });
-          serverRunIdRef.current = clientRunId;
-          fetcher.submit(target, submitOptions);
+          submitToServer(clientRunId);
         })
         .finally(() => {
           cleanupInFlightConsumer?.();
           clientCancelHandlersRef.current.delete(clientRunId);
-          canceledClientRunIdsRef.current.delete(clientRunId);
+          if (!clientDataQueueRef.current.some((data) => data.clientRunId === clientRunId)) {
+            canceledClientRunIdsRef.current.delete(clientRunId);
+          }
           if (mountedRef.current) {
             setActiveClientJobs((count) => Math.max(0, count - 1));
           }
         });
     },
-    [fetcher, options.enabled, options.onProgress, options.routeId],
+    [fetcher, options.enabled, options.onProgress, options.routeId, publishClientData],
   );
 
   React.useEffect(() => {
@@ -496,6 +536,7 @@ export function useHybridTraceFetcher<
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      clientDataQueueRef.current.length = 0;
       runIdRef.current += 1;
       for (const cancel of clientCancelHandlersRef.current.values()) {
         try {
@@ -513,6 +554,23 @@ export function useHybridTraceFetcher<
     };
   }, []);
 
+  React.useEffect(() => {
+    if (!mountedRef.current) return;
+    let next: TData | undefined;
+    while ((next = clientDataQueueRef.current.shift())) {
+      const id = next.clientRunId;
+      if (id && canceledClientRunIdsRef.current.has(id)) {
+        if (!clientCancelHandlersRef.current.has(id)) canceledClientRunIdsRef.current.delete(id);
+        continue;
+      }
+      setClientData(next);
+      if (clientDataQueueRef.current.length) {
+        setClientOutcomeRevision((revision) => revision + 1);
+      }
+      break;
+    }
+  }, [clientOutcomeRevision, clientData]);
+
   const cancelClientJob = React.useCallback((clientRunId: string) => {
     // A fetcher can expose its response after its cache consumer is released.
     // Only one server response can be current on this fetcher, so retain its
@@ -520,12 +578,24 @@ export function useHybridTraceFetcher<
     if (serverRunIdRef.current === clientRunId) {
       canceledServerRunIdRef.current = clientRunId;
     }
+    if (clientDataQueueRef.current.some((data) => data.clientRunId === clientRunId)) {
+      canceledClientRunIdsRef.current.add(clientRunId);
+      setClientOutcomeRevision((revision) => revision + 1);
+    }
     const cancel = clientCancelHandlersRef.current.get(clientRunId);
     cancel?.();
   }, []);
 
   const data = React.useMemo(() => {
     if (clientData) return clientData;
+    const rawClientRunId = fetcher.data?.clientRunId || serverRunIdRef.current;
+    if (rawClientRunId && canceledClientRunIdsRef.current.has(rawClientRunId)) {
+      return undefined;
+    }
+    if (fetcher.data?.clientRunId && serverRunIdRef.current &&
+        fetcher.data.clientRunId !== serverRunIdRef.current) {
+      return undefined;
+    }
     if (
       fetcher.data &&
       canceledServerRunIdRef.current &&
