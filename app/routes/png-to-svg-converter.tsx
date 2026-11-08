@@ -58,6 +58,7 @@ import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
 import { useHybridTraceFetcher } from "~/client/lib/tracing/useHybridTraceFetcher";
+import { prepareRasterUpload, readRasterHeader } from "~/client/lib/converter/prepareRasterUpload";
 import {
   LayerPaletteEditor,
   type EditableSvgLayer,
@@ -137,7 +138,7 @@ const LIVE_MED_MS = 1500;
 ======================== */
 type ReleaseFn = () => void;
 type Gate = {
-  acquireOrQueue: () => Promise<ReleaseFn>;
+  acquireOrQueue: (diagnostics?: null, signal?: AbortSignal) => Promise<ReleaseFn>;
   running: number;
   queued: number;
 };
@@ -243,13 +244,14 @@ export async function action({ request }: ActionFunctionArgs) {
     let release: ReleaseFn | null = null;
 
     try {
-      release = await gate.acquireOrQueue();
+      release = await gate.acquireOrQueue(null, request.signal);
     } catch (e: any) {
+      if (request.signal.aborted) return new Response(null, { status: 499 });
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
           error:
-            "Server is busy converting other images. We'll retry automatically.",
+            "Server is busy converting other images. Please wait and try again.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -1231,28 +1233,13 @@ export function PngToSvgRouteImplementation({
   }, [busy, file]);
 
   React.useEffect(() => {
-    if (fetcher.data?.retryAfterMs) setErr(null);
-    else if (fetcher.data?.error) setErr(fetcher.data.error);
-    else setErr(null);
-
     if (fetcher.data?.retryAfterMs) {
-      const ms = Math.max(800, fetcher.data.retryAfterMs);
-      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
-      const retryFile = file;
-      const retrySettings = settings;
-      const retryPreset = activePreset;
-      const t = setTimeout(() => {
-        if (retryFile) {
-          void submitConvertForFile(retryFile, retrySettings, retryPreset, {
-            allowWhileBusy: true,
-          });
-        }
-      }, ms);
-      return () => clearTimeout(t);
+      const seconds = Math.max(1, Math.ceil(fetcher.data.retryAfterMs / 1000));
+      setErr(`${fetcher.data.error || "Server is busy."} Wait at least ${seconds}s, then try converting again.`);
     } else {
-      setInfo(null);
+      setErr(fetcher.data?.error ?? null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setInfo(null);
   }, [fetcher.data]);
 
   React.useEffect(() => {
@@ -1409,16 +1396,6 @@ export function PngToSvgRouteImplementation({
     return () => cleanupUnusedSourceSnapshots(historyRef.current, []);
   }, []);
 
-  async function measureAndSet(f: File) {
-    try {
-      const { w, h } = await getImageSize(f);
-      const mp = (w * h) / 1_000_000;
-      setDims({ w, h, mp });
-    } catch {
-      setDims(null);
-    }
-  }
-
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const f = input.files?.[0];
@@ -1435,13 +1412,11 @@ export function PngToSvgRouteImplementation({
     await handleNewFile(f);
   }
 
-  async function handleNewFile(f: File) {
-    if (!ALLOWED_MIME.has(f.type)) {
-      setInfo(null);
-      setErr(`Please choose a ${ACCEPTED_UPLOAD_TYPES} image.`);
-      return;
-    }
+  const uploadPreparationRef = React.useRef(0);
+  React.useEffect(() => () => { uploadPreparationRef.current++; }, []);
 
+  async function handleNewFile(f: File) {
+    const preparationId = ++uploadPreparationRef.current;
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     queuedConversionRef.current = null;
@@ -1457,69 +1432,39 @@ export function PngToSvgRouteImplementation({
     setConversionPhase("preparing");
     setInfo("Preparing image for SVG conversion...");
 
-    let chosen = f;
-
-    if (f.size > MAX_UPLOAD_BYTES) {
-      setInfo("Huge file detected, compressing on your device...");
-      try {
-        chosen = await compressToTarget25MB(f);
-      } catch (e: any) {
-        setInfo(null);
-        setErr(
-          e?.message || "This image is too large. Please resize and try again.",
-        );
-        setFile(null);
-        setPreviewUrl(null);
-        setAutoMode("off");
-        setOriginalFileSize(null);
-        setConversionPhase("idle");
-        suppressLiveRef.current = false;
-        return;
-      }
-    } else if (f.size > LIVE_MED_MAX) {
-      setInfo("Large file detected, compressing on-device for preview...");
-      try {
-        const shrunk = await compressToTarget25MB(f);
-        chosen = shrunk;
-        setInfo(`Compressed on-device to ${prettyBytes(shrunk.size)}.`);
-      } catch (e: any) {
-        setErr(
-          e?.message ||
-            "Could not compress below 25 MB. Live preview will be disabled.",
-        );
-        setInfo(null);
-        chosen = f;
-      }
-    }
-
-    if (chosen.size > MAX_UPLOAD_BYTES) {
-      setErr(
-        `File too large. Max ${Math.round(
-          MAX_UPLOAD_BYTES / (1024 * 1024),
-        )} MB.`,
-      );
+    let prepared: Awaited<ReturnType<typeof prepareRasterUpload>>;
+    try {
+      prepared = await prepareRasterUpload(f, () => {
+        if (preparationId === uploadPreparationRef.current) setInfo("Your image is larger than the supported processing size. Preparing a smaller version on your device; some fine detail may be reduced.");
+      });
+    } catch (error) {
+      if (preparationId !== uploadPreparationRef.current) return;
+      setErr(error instanceof Error ? error.message : "Could not prepare this image. Export a PNG or JPEG and try again.");
       setInfo(null);
-      setFile(null);
-      setPreviewUrl(null);
       setAutoMode("off");
       setOriginalFileSize(null);
       setConversionPhase("idle");
       suppressLiveRef.current = false;
       return;
     }
+    if (preparationId !== uploadPreparationRef.current) return;
+    const chosen = prepared.file;
 
     setFile(chosen);
+    setDims({ w: prepared.header.width, h: prepared.header.height, mp: prepared.header.width * prepared.header.height / 1_000_000 });
     setAutoMode(getAutoMode(chosen.size));
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
 
     try {
-      await measureAndSet(chosen);
       await submitConvertForFile(chosen, settings, activePreset, {
         allowWhileBusy: true,
       });
+      if (prepared.normalized && preparationId === uploadPreparationRef.current) {
+        setInfo(`Prepared ${prepared.header.width}×${prepared.header.height} image on your device. Some fine detail may be reduced.`);
+      }
     } finally {
-      suppressLiveRef.current = false;
+      if (preparationId === uploadPreparationRef.current) suppressLiveRef.current = false;
     }
   }
 
@@ -2026,6 +1971,7 @@ export function PngToSvgRouteImplementation({
                       type="button"
                       aria-label="Remove selected image"
                       onClick={() => {
+                        uploadPreparationRef.current++;
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
                         setPreviewUrl(null);
@@ -2185,23 +2131,8 @@ export function PngToSvgRouteImplementation({
 
 /* ===== Client-side helpers ===== */
 async function getImageSize(file: File): Promise<{ w: number; h: number }> {
-  if ("createImageBitmap" in window) {
-    const bmp = await createImageBitmap(file);
-    try {
-      return { w: bmp.width, h: bmp.height };
-    } finally {
-      bmp.close?.();
-    }
-  }
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return { w: img.naturalWidth, h: img.naturalHeight };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const { width, height } = await readRasterHeader(file);
+  return { w: width, h: height };
 }
 
 async function validateBeforeSubmit(file: File) {
@@ -2220,94 +2151,6 @@ async function validateBeforeSubmit(file: File) {
         1,
       )} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
     );
-  }
-}
-
-/** Compress to ≤25MB (best effort). Converts PNG→JPEG if necessary for size. */
-async function compressToTarget25MB(file: File): Promise<File> {
-  const TARGET = LIVE_MED_MAX;
-  if (file.size <= TARGET) return file;
-  if (!file.type.startsWith("image/"))
-    throw new Error("Unsupported file type for compression.");
-
-  const img =
-    "createImageBitmap" in window
-      ? await createImageBitmap(file)
-      : await loadImageElement(file);
-
-  let w = img.width;
-  let h = img.height;
-
-  const encode = async (quality: number): Promise<Blob> => {
-    const canvas =
-      "OffscreenCanvas" in window
-        ? new OffscreenCanvas(w, h)
-        : (document.createElement("canvas") as HTMLCanvasElement);
-
-    if (!(canvas as any).getContext) throw new Error("Canvas unsupported.");
-    (canvas as any).width = w;
-    (canvas as any).height = h;
-    const ctx = (canvas as any).getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D unsupported.");
-    ctx.drawImage(img as any, 0, 0, w, h);
-
-    const mime = "image/jpeg";
-    const blob: Blob = await new Promise((res, rej) => {
-      if ("convertToBlob" in (canvas as any)) {
-        (canvas as any)
-          .convertToBlob({ type: mime, quality })
-          .then(res)
-          .catch(rej);
-      } else {
-        (canvas as HTMLCanvasElement).toBlob(
-          (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
-          mime,
-          quality,
-        );
-      }
-    });
-    return blob;
-  };
-
-  const qualities = [0.9, 0.8, 0.7, 0.6, 0.5];
-  for (const q of qualities) {
-    const b = await encode(q);
-    if (b.size <= TARGET) {
-      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
-  }
-
-  let scale = 0.9;
-  while (w > 64 && h > 64) {
-    w = Math.max(64, Math.floor(w * scale));
-    h = Math.max(64, Math.floor(h * scale));
-    const b = await encode(0.75);
-    if (b.size <= TARGET) {
-      return new File([b], renameToJpeg(file.name), { type: "image/jpeg" });
-    }
-    scale = Math.max(0.5, scale - 0.07);
-  }
-
-  throw new Error(
-    "This image cannot be reduced below 25 MB without excessive degradation.",
-  );
-}
-
-function renameToJpeg(name: string) {
-  const dot = name.lastIndexOf(".");
-  const base = dot > 0 ? name.slice(0, dot) : name;
-  return `${base}.jpg`;
-}
-
-async function loadImageElement(file: File): Promise<HTMLImageElement> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    return img;
-  } finally {
-    URL.revokeObjectURL(url);
   }
 }
 

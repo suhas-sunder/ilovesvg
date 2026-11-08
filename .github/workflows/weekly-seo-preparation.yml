@@ -1,0 +1,120 @@
+name: Weekly reviewed SEO draft preparation
+on:
+  schedule:
+    # 09:20 New York in winter; 10:20 in summer. Never publishes.
+    - cron: '20 14 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: weekly-seo-preparation
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      eligible: ${{ steps.plan.outputs.eligible }}
+      id: ${{ steps.plan.outputs.id }}
+      week: ${{ steps.plan.outputs.week }}
+      branch: ${{ steps.plan.outputs.branch }}
+      sha: ${{ steps.plan.outputs.sha }}
+      base: ${{ steps.plan.outputs.base }}
+      main: ${{ steps.plan.outputs.main }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/weekly-seo-pipeline-test.mjs
+      - run: node scripts/content-release-boundary.mjs
+      - id: plan
+        run: node scripts/weekly-seo-plan.mjs
+  validate:
+    needs: plan
+    if: needs.plan.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.main }}
+          path: trusted
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify current base and exact reviewed content boundary
+        working-directory: trusted
+        env:
+          CONTENT_ROOT: ${{ github.workspace }}/candidate
+          SEO_CANDIDATE_ID: ${{ needs.plan.outputs.id }}
+        run: |
+          node scripts/content-release-boundary.mjs
+      - name: Validate candidate using existing repository gates
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+          node --check server.js
+          git diff --check
+          npm test
+          node server.js > /tmp/ilovesvg-seo-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for n in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/ >/dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:seo
+          npm run test:routes
+          npm run test:schema
+          npm run test:route-coverage
+          npm run test:docs
+          npm run test:links
+          npm run test:monetization
+  draft:
+    needs: [plan, validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Prepare one idempotent draft PR; never merge or deploy
+        uses: actions/github-script@v7
+        env:
+          CANDIDATE_BRANCH: ${{ needs.plan.outputs.branch }}
+          CANDIDATE_SHA: ${{ needs.plan.outputs.sha }}
+          CANDIDATE_BASE: ${{ needs.plan.outputs.base }}
+          VALIDATED_MAIN: ${{ needs.plan.outputs.main }}
+          RELEASE_WEEK: ${{ needs.plan.outputs.week }}
+          CANDIDATE_ID: ${{ needs.plan.outputs.id }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const env = process.env;
+            const ref = await github.rest.git.getRef({ owner, repo, ref: `heads/${env.CANDIDATE_BRANCH}` });
+            const main = await github.rest.git.getRef({ owner, repo, ref: 'heads/main' });
+            if (ref.data.object.sha !== env.CANDIDATE_SHA || main.data.object.sha !== env.VALIDATED_MAIN) {
+              throw new Error('Candidate or base moved after validation; skip this week. Re-review before rescheduling.');
+            }
+            const marker = `[SEO ${env.RELEASE_WEEK}]`;
+            for await (const response of github.paginate.iterator(github.rest.pulls.list, { owner, repo, state: 'all', per_page: 100 })) {
+              if (response.data.some(pr => pr.title.startsWith(marker) || pr.head.ref === env.CANDIDATE_BRANCH)) {
+                core.info('A draft/release already exists for this week or branch; no duplicate.');
+                return;
+              }
+            }
+            await github.rest.pulls.create({ owner, repo, head: env.CANDIDATE_BRANCH, base: 'main', draft: true,
+              title: `${marker} ${env.CANDIDATE_ID}`,
+              body: `Reviewed content candidate ${env.CANDIDATE_ID}.\n\nValidated SHA: ${env.CANDIDATE_SHA}\nBase/rollback: ${env.CANDIDATE_BASE}\n\nThis scheduled workflow only prepares a draft. Publication requires final screenshot/output review, confirmation that the branch and base still match these SHAs, and the documented release gates. No automatic merge or deployment is enabled. Record the actual publication SHA/date and metrics in ai-issues/seo/release-history.json after a separately authorized release.` });

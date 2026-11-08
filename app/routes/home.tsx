@@ -593,6 +593,7 @@ type ReleaseFn = () => void;
 type Gate = {
   acquireOrQueue: (
     diagnostics?: MemoryDiagnosticJob | null,
+    signal?: AbortSignal,
   ) => Promise<ReleaseFn>;
   running: number;
   queued: number;
@@ -748,9 +749,10 @@ export async function action({ request }: ActionFunctionArgs) {
     let release: ReleaseFn | null = null;
 
     try {
-      release = await gate.acquireOrQueue(memoryDiagnostics);
+      release = await gate.acquireOrQueue(memoryDiagnostics, request.signal);
     } catch (e: any) {
       memoryDiagnostics?.finish();
+      if (request.signal.aborted) return new Response(null, { status: 499 });
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {

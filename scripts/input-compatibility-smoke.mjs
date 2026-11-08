@@ -286,7 +286,7 @@ async function expectNoUnsafeSvgPassThrough({ route, fixture, label }) {
 }
 
 async function expectSvgExportAcceptsSvg({ route, label }) {
-  const source = await readRouteSource(route);
+  const source = await readRouteUploadMarkup(route);
   if (!/accept\s*=\s*["'][^"']*(?:image\/svg\+xml|\.svg)/i.test(source)) {
     throw new Error(`${label} does not expose SVG upload accept markup.`);
   }
@@ -294,13 +294,13 @@ async function expectSvgExportAcceptsSvg({ route, label }) {
     label,
     route,
     routePath: route,
-    status: "source-audit",
+    status: "rendered-html-audit",
     outcome: "svg-upload-ui-present",
   };
 }
 
 async function expectSvgExportRejectsRaster({ route, fixture, label }) {
-  const source = await readRouteSource(route);
+  const source = await readRouteUploadMarkup(route);
   const acceptMatch = source.match(/accept\s*=\s*["']([^"']*)["']/i);
   const accept = acceptMatch?.[1] || "";
   if (/image\/png|\.png|image\/jpeg|\.jpe?g|image\/webp|\.webp/i.test(accept)) {
@@ -310,15 +310,21 @@ async function expectSvgExportRejectsRaster({ route, fixture, label }) {
     label,
     route,
     routePath: route,
-    status: "source-audit",
+    status: "rendered-html-audit",
     outcome: "raster-not-advertised",
     fixture: fixture.id,
   };
 }
 
-async function readRouteSource(route) {
-  const routeFile = `${route.replace(/^\//, "") || "home"}.tsx`;
-  return fs.readFile(path.join(rootDir, "app", "routes", routeFile), "utf8");
+async function readRouteUploadMarkup(route) {
+  const response = await fetch(`${baseUrl}${route}`);
+  if (!response.ok) throw new Error(`${route} returned ${response.status}.`);
+  const html = await response.text();
+  const inputs = [...html.matchAll(/<input\b[^>]*>/gi)]
+    .map(([input]) => input)
+    .filter((input) => /\btype\s*=\s*["']file["']/i.test(input));
+  if (!inputs.length) throw new Error(`${route} has no rendered file input.`);
+  return inputs.join("\n");
 }
 
 async function postFile(route, fixture) {
