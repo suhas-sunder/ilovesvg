@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { assertCurrentMainPreserved, CURRENT_CONTRACT_FILES, CURRENT_MAIN_SHA } from "./current-main-preservation-contract.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const STARTING_MAIN = "59053aaffa3bb5e96d03bd0e77976eff3dfcec11";
@@ -30,6 +31,7 @@ function normalize(text) {
 }
 
 function assertUnchanged(relativePath) {
+  if (CURRENT_CONTRACT_FILES.has(relativePath)) return assertCurrentMainPreserved(relativePath);
   assert.equal(
     normalize(read(relativePath)),
     normalize(readAtBase(relativePath)),
@@ -486,6 +488,7 @@ console.log(
   JSON.stringify(
     {
       startingMain: STARTING_MAIN,
+      currentReleaseBase: CURRENT_MAIN_SHA,
       retainedRoutes: retained.length,
       establishedRedirects: redirects.length,
       subfamilies: Object.fromEntries(
