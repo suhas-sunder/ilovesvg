@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { assertCurrentMainPreserved, assertRouteAndNavigationContracts, routeManifestContract, CURRENT_MAIN_SHA } from './current-main-preservation-contract.mjs';
+import { assertCurrentMainPreserved, assertRouteAndNavigationContracts, assertServerStartupPreserved, routeManifestContract, CURRENT_MAIN_SHA } from './current-main-preservation-contract.mjs';
 const manifest = fs.readFileSync('app/data/routeManifest.ts','utf8');
 const navigation = fs.readFileSync('app/client/components/navigation/OtherToolsLinks.tsx','utf8');
 const result = assertRouteAndNavigationContracts(manifest,navigation);
@@ -16,4 +16,8 @@ const redirect = entries.find(entry=>entry.redirectTo);
 assert.ok(redirect);
 assert.throws(()=>assertRouteAndNavigationContracts(source(entries.map(entry=>entry===redirect?{...entry,indexable:true}:entry)),navigation), /canonical|indexable/);
 assert.throws(()=>assertRouteAndNavigationContracts(source(entries.map(entry=>entry===redirect?{...entry,redirectTo:redirect.path}:entry)),navigation), /directly/);
-console.log(JSON.stringify({ok:true,currentMain:CURRENT_MAIN_SHA,...result,adversarialCases:5}));
+const startup = fs.readFileSync('server.js', 'utf8');
+assertServerStartupPreserved('historical fixture\r\n', 'historical fixture\n');
+assertServerStartupPreserved(startup, 'historical fixture');
+assert.throws(() => assertServerStartupPreserved(`${startup}\napp.disable("unexpected change");`, 'historical fixture'), /startup contracts/);
+console.log(JSON.stringify({ok:true,currentMain:CURRENT_MAIN_SHA,...result,adversarialCases:6}));

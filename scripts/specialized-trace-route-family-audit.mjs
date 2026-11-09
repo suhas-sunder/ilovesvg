@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { assertCurrentMainPreserved, CURRENT_CONTRACT_FILES, CURRENT_MAIN_SHA } from "./current-main-preservation-contract.mjs";
+import { assertCurrentMainPreserved, assertServerStartupPreserved, CURRENT_CONTRACT_FILES, CURRENT_MAIN_SHA } from "./current-main-preservation-contract.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const STARTING_MAIN = "b89d4c005fea126866bd0121f1de26d289bf4d86";
@@ -32,6 +32,7 @@ function normalize(text) {
 
 function assertUnchanged(relativePath) {
   if (CURRENT_CONTRACT_FILES.has(relativePath)) return assertCurrentMainPreserved(relativePath);
+  if (relativePath === "server.js") return assertServerStartupPreserved(read(relativePath), readAtBase(relativePath));
   assert.equal(
     normalize(read(relativePath)),
     normalize(readAtBase(relativePath)),

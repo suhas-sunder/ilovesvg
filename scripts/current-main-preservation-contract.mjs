@@ -16,6 +16,16 @@ export const CURRENT_CONTRACT_FILES = new Set([
 ]);
 const normalize = source => source.replace(/\r\n/g, "\n");
 
+export function assertServerStartupPreserved(current, historical) {
+  if (normalize(current) === normalize(historical)) return;
+  // This exact revision adds production error handling and failed-bind handling.
+  // Keep the historical gate for every other startup change.
+  const reviewed = execFileSync("git", ["show", "88e1942c12e8b968d7b7d393d778bf3cc3f91d30:server.js"], {
+    cwd: ROOT, encoding: "utf8",
+  });
+  assert.equal(normalize(current), normalize(reviewed), "server.js differs from historical and reviewed startup contracts");
+}
+
 function literal(node) {
   if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) return literal(node.expression);
   if (ts.isStringLiteralLike(node)) return node.text;
