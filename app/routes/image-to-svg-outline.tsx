@@ -396,7 +396,7 @@ export async function action({ request }: ActionFunctionArgs) {
           requestId,
           presetId,
           error:
-            "Server is busy converting other images. We'll retry automatically.",
+            "Server is busy converting other images. Please wait and try again.",
           retryAfterMs,
           code: "BUSY",
         },
@@ -1556,17 +1556,10 @@ export default function ImageToSvgOutline({
       retryTimeoutRef.current = null;
     }
 
-    if (data.retryAfterMs && data.code === "BUSY") {
-      const plan = latestPlanRef.current;
-      if (!plan) return;
-
-      const ms = Math.max(800, data.retryAfterMs);
-      setInfo(`Server busy, retrying in ${(ms / 1000).toFixed(1)}s`);
-      const requestIdForRetry = plan.requestId;
-      retryTimeoutRef.current = setTimeout(() => {
-        if (latestPlanRef.current?.requestId !== requestIdForRetry) return;
-        void submitPlan(plan, false);
-      }, ms);
+    if (data.retryAfterMs) {
+      const seconds = Math.max(1, Math.ceil(data.retryAfterMs / 1000));
+      setErr(`${data.error || "Server is busy."} Wait at least ${seconds}s, then try converting again.`);
+      setInfo(null);
       return;
     }
 

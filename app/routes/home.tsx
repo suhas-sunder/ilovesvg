@@ -593,6 +593,7 @@ type ReleaseFn = () => void;
 type Gate = {
   acquireOrQueue: (
     diagnostics?: MemoryDiagnosticJob | null,
+    signal?: AbortSignal,
   ) => Promise<ReleaseFn>;
   running: number;
   queued: number;
@@ -748,9 +749,10 @@ export async function action({ request }: ActionFunctionArgs) {
     let release: ReleaseFn | null = null;
 
     try {
-      release = await gate.acquireOrQueue(memoryDiagnostics);
+      release = await gate.acquireOrQueue(memoryDiagnostics, request.signal);
     } catch (e: any) {
       memoryDiagnostics?.finish();
+      if (request.signal.aborted) return new Response(null, { status: 499 });
       const retryAfterMs = Math.max(1000, Number(e?.retryAfterMs) || 1500);
       return json(
         {
@@ -4019,6 +4021,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
     if (batch.running) return;
+    const signal = componentAbortControllerRef.current?.signal;
+    if (!signal || signal.aborted) return;
 
     const effective = getEffectiveSubmitSettings(sourceItem.settingsSnapshot);
     const submittedPresetId = resolveSubmittedPresetId(
@@ -4071,6 +4075,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         .slice(2, 10)}`;
 
       for (let index = 0; index < filesToConvert.length; index += 1) {
+        if (signal.aborted) return;
         const batchFile = filesToConvert[index];
         const fd = new FormData();
         fd.append("intent", "batch-file");
@@ -4100,22 +4105,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             presetId: submittedPresetId,
             presetBackendIntensity: runPreview.presetBackendIntensity,
             onProgress: (_progress, message) => {
-              if (mountedRef.current && message) {
+              if (!signal.aborted && message) {
                 patchOutputBatchState(stamp, (current) => ({
                   ...current,
                   info: `${message} (${index + 1}/${filesToConvert.length})`,
                 }));
               }
             },
-            signal: componentAbortControllerRef.current?.signal,
+            signal,
           });
 
-          if (
-            !mountedRef.current ||
-            componentAbortControllerRef.current?.signal.aborted
-          ) {
-            return;
-          }
+          if (signal.aborted) return;
 
           if (clientBatchTrace.ok) {
             const svgWithLayerEdits = sourceLayerEdits?.length
@@ -4138,8 +4138,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             method: "POST",
             body: fd,
             headers: { Accept: "application/json" },
+            signal,
           });
           const data = await readBatchConversionResponse(response);
+          if (signal.aborted) return;
           if (!response.ok || data.error || !data.svg) {
             const message =
               data.error ||
@@ -4169,6 +4171,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             );
           }
         } catch (error) {
+          if (signal.aborted) return;
           logAppError(error, {
             flowStep: "home_batch_conversion_request",
             flowKind: "conversion",
@@ -4181,10 +4184,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             `${batchFile.name}: The batch request did not complete. Try fewer files or smaller images.`,
           );
         } finally {
-          patchOutputBatchState(stamp, (current) => ({
-            ...current,
-            progress: { done: index + 1, total: filesToConvert.length },
-          }));
+          if (!signal.aborted) {
+            patchOutputBatchState(stamp, (current) => ({
+              ...current,
+              progress: { done: index + 1, total: filesToConvert.length },
+            }));
+          }
         }
       }
 
@@ -4223,11 +4228,21 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         batchSpeedTier: runSpeedTier,
         batchDynamicMax: runDynamicMax,
       });
+    } catch {
+      if (!signal.aborted) {
+        patchOutputBatchState(stamp, (current) => ({
+          ...current,
+          info: null,
+          error: "Could not create the ZIP. Reload the page and try the batch again.",
+        }));
+      }
     } finally {
-      patchOutputBatchState(stamp, (current) => ({
-        ...current,
-        running: false,
-      }));
+      if (!signal.aborted) {
+        patchOutputBatchState(stamp, (current) => ({
+          ...current,
+          running: false,
+        }));
+      }
     }
   }
 

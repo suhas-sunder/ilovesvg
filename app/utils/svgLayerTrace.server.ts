@@ -1,4 +1,4 @@
-import * as serverVTracerRuntime from "wasm_vtracer";
+import { getServerVTracerRuntime } from "./vtracerRuntime.server";
 import {
   getSharp,
   traceBitmapToSvg as traceBitmapToSvgWithPotrace,
@@ -719,6 +719,7 @@ async function createCompactFlatColorVTracerSvg({
     options.layeredQualityTier,
     options.presetId,
   );
+  const serverVTracerRuntime = await getServerVTracerRuntime();
   const config = new serverVTracerRuntime.TracerConfig();
   try {
     config.setColorMode(serverVTracerRuntime.ColorMode.Color);
