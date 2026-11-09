@@ -4228,6 +4228,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         batchSpeedTier: runSpeedTier,
         batchDynamicMax: runDynamicMax,
       });
+    } catch {
+      if (!signal.aborted) {
+        patchOutputBatchState(stamp, (current) => ({
+          ...current,
+          info: null,
+          error: "Could not create the ZIP. Reload the page and try the batch again.",
+        }));
+      }
     } finally {
       if (!signal.aborted) {
         patchOutputBatchState(stamp, (current) => ({
