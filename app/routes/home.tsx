@@ -4021,6 +4021,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       return;
     }
     if (batch.running) return;
+    const signal = componentAbortControllerRef.current?.signal;
+    if (!signal || signal.aborted) return;
 
     const effective = getEffectiveSubmitSettings(sourceItem.settingsSnapshot);
     const submittedPresetId = resolveSubmittedPresetId(
@@ -4073,6 +4075,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         .slice(2, 10)}`;
 
       for (let index = 0; index < filesToConvert.length; index += 1) {
+        if (signal.aborted) return;
         const batchFile = filesToConvert[index];
         const fd = new FormData();
         fd.append("intent", "batch-file");
@@ -4102,22 +4105,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             presetId: submittedPresetId,
             presetBackendIntensity: runPreview.presetBackendIntensity,
             onProgress: (_progress, message) => {
-              if (mountedRef.current && message) {
+              if (!signal.aborted && message) {
                 patchOutputBatchState(stamp, (current) => ({
                   ...current,
                   info: `${message} (${index + 1}/${filesToConvert.length})`,
                 }));
               }
             },
-            signal: componentAbortControllerRef.current?.signal,
+            signal,
           });
 
-          if (
-            !mountedRef.current ||
-            componentAbortControllerRef.current?.signal.aborted
-          ) {
-            return;
-          }
+          if (signal.aborted) return;
 
           if (clientBatchTrace.ok) {
             const svgWithLayerEdits = sourceLayerEdits?.length
@@ -4140,8 +4138,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             method: "POST",
             body: fd,
             headers: { Accept: "application/json" },
+            signal,
           });
           const data = await readBatchConversionResponse(response);
+          if (signal.aborted) return;
           if (!response.ok || data.error || !data.svg) {
             const message =
               data.error ||
@@ -4171,6 +4171,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             );
           }
         } catch (error) {
+          if (signal.aborted) return;
           logAppError(error, {
             flowStep: "home_batch_conversion_request",
             flowKind: "conversion",
@@ -4183,10 +4184,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             `${batchFile.name}: The batch request did not complete. Try fewer files or smaller images.`,
           );
         } finally {
-          patchOutputBatchState(stamp, (current) => ({
-            ...current,
-            progress: { done: index + 1, total: filesToConvert.length },
-          }));
+          if (!signal.aborted) {
+            patchOutputBatchState(stamp, (current) => ({
+              ...current,
+              progress: { done: index + 1, total: filesToConvert.length },
+            }));
+          }
         }
       }
 
@@ -4226,10 +4229,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         batchDynamicMax: runDynamicMax,
       });
     } finally {
-      patchOutputBatchState(stamp, (current) => ({
-        ...current,
-        running: false,
-      }));
+      if (!signal.aborted) {
+        patchOutputBatchState(stamp, (current) => ({
+          ...current,
+          running: false,
+        }));
+      }
     }
   }
 
