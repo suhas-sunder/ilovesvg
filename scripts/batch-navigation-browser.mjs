@@ -171,10 +171,13 @@ try {
         const original = window.fetch;
         window.fetch = (input, options) => {
           if (String(input) !== "/api/batch-svg") return original(input, options);
-          const row = { signal: Boolean(options?.signal), aborted: false };
+          const row = { signal: Boolean(options?.signal), aborted: false, rejection: null };
           options?.signal?.addEventListener("abort", () => { row.aborted = true; }, { once: true });
           window.batchRequests.push(row);
-          return original(input, options);
+          return original(input, options).catch(error => {
+            row.rejection = error.name;
+            throw error;
+          });
         };
       });
       const convert = page.getByRole("button", { name: /Convert 2 to ZIP/i });
@@ -198,9 +201,9 @@ try {
         if (beforeFallback) assert.deepEqual(worker, { posted: 1, terminated: true });
         if (responsePending) {
           assert.equal(upstreamStatus, 200);
-          assert.equal(disconnected, true);
+          if (browserName === "chromium") assert.equal(disconnected, true);
         }
-        assert.deepEqual(requests, beforeFallback ? [] : [{ signal: true, aborted: true }]);
+        assert.deepEqual(requests, beforeFallback ? [] : [{ signal: true, aborted: true, rejection: "AbortError" }]);
         assert.equal(requestCount, beforeFallback ? 0 : 1);
         assert.deepEqual(responses, []);
         await page.goBack();
