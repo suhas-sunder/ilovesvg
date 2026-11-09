@@ -15,4 +15,6 @@ The homepage batch captures its route lifetime signal, passes it to both browser
 
 Browser evidence comes from actual desktop Chromium and WebKit iPhone viewport and touch emulation. The pre-upload worker probe is Chromium-only, since the cached WebKit lacks OffscreenCanvas. The mobile and desktop failure/output screenshots are in ignored tmp/run4 directories. No physical device or production upload was used.
 
+Run each browser against a fresh local server. The default suite stays within the existing four-session minute budget by checking the full two-entry ZIP during retry. The standalone success case remains available as BATCH_CASES=complete. A repeat against a warm shared test process reached HTTP 429, which confirmed that the limiter was still in effect.
+
 Local Node 20 typecheck, production build, npm test, server and browser script syntax, whitespace, conversion actions, and accessibility passed. The consolidated PR is configured to run the existing Node 20 Alpine release workflow against its exact head. Source application changes relative to PR #4 are confined to the homepage batch, including its existing delegation through /api/batch-svg. Review the exact candidate image and executable rollback on the actual deployment system before promoting the consolidated release.

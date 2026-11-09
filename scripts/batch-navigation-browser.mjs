@@ -107,10 +107,11 @@ async function startResponseGate(hold, onUpstream, onDisconnect) {
 }
 
 const allCases = ["before-fallback", "navigate", "response-pending", "complete", "partial", "retry-after-failure", "zip-unavailable"];
-// The cached WebKit build lacks native OffscreenCanvas support.
-const cases = process.env.BATCH_CASES ? process.env.BATCH_CASES.split(",") : browserName === "webkit"
-  ? allCases.filter(scenario => scenario !== "before-fallback")
-  : allCases;
+// Retry already checks the full two-entry ZIP. Omitting its duplicate keeps
+// the default run within four real batch sessions on a fresh server. The cached
+// WebKit build also lacks native OffscreenCanvas support.
+const cases = process.env.BATCH_CASES ? process.env.BATCH_CASES.split(",") : allCases.filter(scenario =>
+  scenario !== "complete" && (browserName !== "webkit" || scenario !== "before-fallback"));
 for (const scenario of cases) assert.ok(allCases.includes(scenario), `Unknown batch scenario ${scenario}`);
 
 try {
