@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createServer, request as httpRequest } from "node:http";
+import { once } from "node:events";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { unzipSync } from "fflate";
@@ -18,11 +20,7 @@ const files = images.map(buffer => ({ name: "same-name.png", mimeType: "image/pn
 const report = [];
 
 async function upload(input, files, trigger = input) {
-  if (browserName !== "webkit") {
-    await input.setInputFiles(files);
-    return;
-  }
-  // Use WebKit's picker path, including the input event sent for disk files.
+  // Exercise the actual picker and its input event on every browser.
   const paths = [];
   for (const [index, file] of [files].flat().entries()) {
     const dir = path.join(out, `picker-${index}`);
@@ -35,9 +33,15 @@ async function upload(input, files, trigger = input) {
   await chooser.setFiles(paths);
 }
 
-async function prepareBatch(page, batchFiles) {
-  await page.goto(base.href);
+async function prepareBatch(page, batchFiles, holdWorker, site) {
+  await page.goto(site.href, { waitUntil: "networkidle" });
   await page.waitForFunction(() => Object.keys(document.querySelector('input[type="file"]') || {}).some(key => key.startsWith("__reactProps$")));
+  if (holdWorker) {
+    await page.getByRole("button", { name: /^Show \d+ more presets/i }).click();
+    const preset = page.getByRole("button", { name: /^Layered - Flat Color\./i });
+    await preset.click();
+    assert.equal(await preset.getAttribute("aria-pressed"), "true");
+  }
   await upload(page.locator('input[type="file"]').first(), files[0]);
   const card = page.locator('[data-output-stamp][data-svg-bytes]:not([data-svg-bytes=""])').first();
   const download = card.getByRole("button", { name: "Download SVG", exact: true });
@@ -52,15 +56,71 @@ async function prepareBatch(page, batchFiles) {
   await page.getByRole("button", { name: /^Batch conversion/i }).click();
   await upload(page.locator('input[type="file"][multiple]'), batchFiles, page.getByRole("button", { name: "Choose batch files", exact: true }));
   await page.getByText("2 files selected", { exact: false }).first().waitFor();
-  await page.evaluate(() => {
-    window.Worker = class { constructor() { throw new Error("Test forces batch server fallback"); } };
-  });
+  await page.evaluate(holdWorker => {
+    const NativeWorker = window.Worker;
+    window.batchWorker = { posted: 0, terminated: false };
+    window.Worker = new Proxy(NativeWorker, {
+      construct(target, args) {
+        if (!String(args[0]).includes("vtracer.worker")) return Reflect.construct(target, args);
+        if (!holdWorker) throw new Error("Test forces batch server fallback");
+        return {
+          postMessage() { window.batchWorker.posted++; },
+          terminate() { window.batchWorker.terminated = true; },
+        };
+      },
+    });
+  }, holdWorker);
 }
 
+async function startResponseGate(hold, onUpstream, onDisconnect) {
+  const proxy = createServer((incoming, outgoing) => {
+    const batch = incoming.method === "POST" && incoming.url === "/api/batch-svg";
+    const upstream = httpRequest(new URL(incoming.url, base), {
+      method: incoming.method,
+      headers: incoming.headers,
+    }, async response => {
+      if (batch) {
+        onUpstream(response.statusCode);
+        await hold;
+      }
+      if (outgoing.destroyed) {
+        response.resume();
+        return;
+      }
+      outgoing.writeHead(response.statusCode, response.headers);
+      response.pipe(outgoing);
+    });
+    outgoing.on("close", () => {
+      if (!outgoing.writableEnded) {
+        if (batch) onDisconnect();
+        upstream.destroy();
+      }
+    });
+    upstream.on("error", () => {
+      if (!outgoing.destroyed) outgoing.writeHead(502).end();
+    });
+    incoming.pipe(upstream);
+  });
+  proxy.listen(0, "127.0.0.1");
+  await once(proxy, "listening");
+  return { proxy, url: new URL(`http://127.0.0.1:${proxy.address().port}/`) };
+}
+
+const allCases = ["before-fallback", "navigate", "response-pending", "complete", "partial", "retry-after-failure", "zip-unavailable"];
+// The cached WebKit build lacks native OffscreenCanvas support.
+const cases = process.env.BATCH_CASES ? process.env.BATCH_CASES.split(",") : browserName === "webkit"
+  ? allCases.filter(scenario => scenario !== "before-fallback")
+  : allCases;
+for (const scenario of cases) assert.ok(allCases.includes(scenario), `Unknown batch scenario ${scenario}`);
+
 try {
-  for (const scenario of ["navigate", "complete", "partial"]) {
-    const navigate = scenario === "navigate";
+  for (const scenario of cases) {
+    const beforeFallback = scenario === "before-fallback";
+    const responsePending = scenario === "response-pending";
+    const navigate = beforeFallback || responsePending || scenario === "navigate";
     const partial = scenario === "partial";
+    const retry = scenario === "retry-after-failure";
+    const zipUnavailable = scenario === "zip-unavailable";
     const page = await browser.newPage({
       acceptDownloads: true,
       ...(process.env.BATCH_MOBILE === "1" ? { ...playwright.devices["iPhone 13"], browserName: undefined } : {}),
@@ -73,12 +133,20 @@ try {
     const hold = new Promise(resolve => { release = resolve; });
     const firstRequest = new Promise(resolve => { arrive = resolve; });
     const responses = [];
+    let upstreamStatus;
+    let disconnected = false;
+    let failedZipAssets = 0;
+    const gate = responsePending ? await startResponseGate(hold, status => {
+      upstreamStatus = status;
+      arrive();
+    }, () => { disconnected = true; }) : null;
+    const site = gate?.url || base;
     await page.route("**/*", async route => {
       const url = new URL(route.request().url());
-      if (url.origin !== base.origin) return route.abort();
+      if (url.origin !== site.origin) return route.abort();
       if (url.pathname !== "/api/batch-svg") return route.continue();
       requestCount++;
-      if (navigate && requestCount === 1) {
+      if (scenario === "navigate" && requestCount === 1) {
         arrive();
         await hold;
       }
@@ -89,7 +157,14 @@ try {
     });
     try {
       const invalid = { name: "invalid.png", mimeType: "image/png", buffer: Buffer.from("invalid PNG") };
-      await prepareBatch(page, partial ? [files[0], invalid] : files);
+      await prepareBatch(page, retry ? [invalid, invalid] : partial ? [files[0], invalid] : files, beforeFallback, site);
+      if (zipUnavailable) {
+        // fflate is loaded lazily from its browser entry when the batch starts.
+        await page.route(/\/assets\/browser-[\w-]+\.js$/, route => {
+          failedZipAssets++;
+          return route.fulfill({ status: 503, body: "Synthetic ZIP asset failure" });
+        });
+      }
       await page.evaluate(() => {
         window.batchRequests = [];
         const original = window.fetch;
@@ -101,9 +176,15 @@ try {
           return original(input, options);
         };
       });
-      await page.getByRole("button", { name: /Convert 2 to ZIP/i }).click();
+      const convert = page.getByRole("button", { name: /Convert 2 to ZIP/i });
+      await convert.click();
       if (navigate) {
-        await Promise.race([firstRequest, page.waitForTimeout(10000).then(() => { throw new Error("Batch request never started"); })]);
+        if (beforeFallback) {
+          await page.waitForFunction(() => window.batchWorker.posted === 1, undefined, { timeout: 10000 });
+          assert.equal(requestCount, 0);
+        } else {
+          await Promise.race([firstRequest, page.waitForTimeout(10000).then(() => { throw new Error("Batch request never started"); })]);
+        }
         await page.locator('a[href="/how-it-works"]').filter({ visible: true }).first().click();
         await page.waitForURL("**/how-it-works");
         await page.waitForFunction(() => !document.querySelector('input[type="file"]'));
@@ -111,12 +192,40 @@ try {
         release();
         await page.waitForTimeout(600);
         const requests = await page.evaluate(() => window.batchRequests);
-        report.push({ scenario, requestCount, requests, responses, errors });
-        assert.deepEqual(requests, [{ signal: true, aborted: true }]);
-        assert.equal(requestCount, 1);
+        const worker = await page.evaluate(() => window.batchWorker);
+        report.push({ scenario, requestCount, requests, responses, upstreamStatus, disconnected, worker, errors });
+        if (beforeFallback) assert.deepEqual(worker, { posted: 1, terminated: true });
+        if (responsePending) {
+          assert.equal(upstreamStatus, 200);
+          assert.equal(disconnected, true);
+        }
+        assert.deepEqual(requests, beforeFallback ? [] : [{ signal: true, aborted: true }]);
+        assert.equal(requestCount, beforeFallback ? 0 : 1);
         assert.deepEqual(responses, []);
+        await page.goBack();
+        await page.waitForURL(site.href);
+        await page.locator('input[type="file"]').first().waitFor();
+        assert.equal(await page.getByRole("button", { name: "Download ZIP", exact: true }).count(), 0);
+        assert.equal(await page.getByText(/Converting \d+\/2/).count(), 0);
+      } else if (zipUnavailable) {
+        const batchError = page.getByText("Could not create the ZIP. Reload the page and try the batch again.", { exact: true });
+        await batchError.waitFor({ timeout: 5000 });
+        assert.equal(failedZipAssets, 1);
+        assert.equal(requestCount, 0);
+        assert.equal(await page.getByRole("button", { name: "Download ZIP", exact: true }).count(), 0);
+        assert.ok(await page.getByRole("button", { name: /Convert 2 to ZIP/i }).isEnabled());
+        await page.screenshot({ path: path.join(out, `${scenario}.png`) });
+        report.push({ scenario, requestCount, failedZipAssets, errors });
       } else {
         const button = page.getByRole("button", { name: "Download ZIP", exact: true });
+        if (retry) {
+          await page.getByText(/^invalid\.png:/).first().waitFor();
+          await convert.waitFor();
+          assert.deepEqual(responses, [415, 415]);
+          assert.equal(await button.count(), 0);
+          await upload(page.locator('input[type="file"][multiple]'), files, page.getByRole("button", { name: "Choose batch files", exact: true }));
+          await convert.click();
+        }
         await button.waitFor({ timeout: 45000 });
         await page.screenshot({ path: path.join(out, `${scenario}.png`) });
         const [download] = await Promise.all([page.waitForEvent("download"), button.click()]);
@@ -134,19 +243,21 @@ try {
         } else {
           assert.equal(alpha(pixels[1], 20, 20), 0);
           assert.equal(alpha(pixels[1], 63, 45), 255);
-          assert.deepEqual(responses, [200, 200]);
+          assert.deepEqual(responses, retry ? [415, 415, 200, 200] : [200, 200]);
         }
-        assert.equal(requestCount, 2);
+        assert.equal(requestCount, retry ? 4 : 2);
         report.push({ scenario, requestCount, responses, entries: Object.keys(entries), errors });
       }
       assert.deepEqual(errors, []);
     } catch (error) {
       await page.screenshot({ path: path.join(out, `${scenario}-failed.png`) }).catch(() => {});
+      console.error(JSON.stringify({ scenario, requestCount, failedZipAssets, errors }));
       console.error((await page.locator("body").innerText()).split("\n").filter(line => /SVG|same-name|error|fail/i.test(line)).slice(0, 24));
       throw error;
     } finally {
       release();
       await page.close();
+      if (gate) await new Promise((resolve, reject) => gate.proxy.close(error => error ? reject(error) : resolve()));
       await writeFile(path.join(out, "report.json"), JSON.stringify(report, null, 2));
     }
   }
