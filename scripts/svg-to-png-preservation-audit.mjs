@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import ts from "typescript";
 import { getSmokeBaseUrl } from "./smoke-base-url.mjs";
+import { assertCurrentMainPreserved, CURRENT_CONTRACT_FILES, CURRENT_MAIN_SHA } from "./current-main-preservation-contract.mjs";
 
 const execFileAsync = promisify(execFile);
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -415,6 +416,7 @@ async function main() {
   const parity = await runParityAudit();
 
   const summary = {
+    currentReleaseBase: CURRENT_MAIN_SHA,
     familyRoutes: expected.map((item) => item.path),
     routeContextKeys: expected.map((item) => item.key),
     contentContracts: expected.map((item) => ({
@@ -646,10 +648,19 @@ async function auditUnchangedContentFiles() {
   for (const [relativePath, expectedHash] of Object.entries(
     unchangedContentHashes,
   )) {
+    if (CURRENT_CONTRACT_FILES.has(relativePath)) {
+      assertCurrentMainPreserved(relativePath);
+      continue;
+    }
     const source = await fs.readFile(path.join(rootDir, relativePath));
     const actualHash = createHash("sha256").update(source).digest("hex");
+    // The archived ad hash used a mixed-ending checkout. The normalized
+    // hash is from historical Git object 0fe1179, before this audit change.
+    const matchesHistoricalAdBlob = relativePath === "app/client/components/ads/ContextualAdCard.tsx" &&
+      createHash("sha256").update(source.toString("utf8").replace(/\r\n/g, "\n")).digest("hex") ===
+        "749cfddc5c27da1fc9308abd69016bbe86293340b8a14d2a50d0c72662cc0a97";
     assert(
-      actualHash === expectedHash,
+      actualHash === expectedHash || matchesHistoricalAdBlob,
       `${relativePath} changed from the approved content/All Tools baseline.`,
     );
   }
