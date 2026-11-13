@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   PRIMARY_NAV_ITEMS,
   TOOL_NAV_ITEMS,
@@ -19,6 +18,7 @@ type NavGroup = ToolNavSection;
 
 type Rect = { top: number; left: number; width: number; height: number };
 
+const MOBILE_NAV_QUERY = "(max-width: 1023px)";
 const DEFAULT_MOBILE_PREVIEW_LIMIT = 10;
 const MOBILE_PREVIEW_LIMITS: Record<string, number> = {
   "craft-cut-files": 12,
@@ -58,8 +58,9 @@ export default function NavBar() {
     Record<string, boolean>
   >({});
 
+  const mobileBtnRef = useRef<HTMLButtonElement | null>(null);
   const moreBtnRef = useRef<HTMLButtonElement | null>(null);
-  const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const moreMenuRef = useRef<HTMLElement | null>(null);
   const mobilePanelRef = useRef<HTMLDivElement | null>(null);
   const desktopSearchRef = useRef<HTMLInputElement | null>(null);
   const mobileSearchRef = useRef<HTMLInputElement | null>(null);
@@ -121,28 +122,23 @@ export default function NavBar() {
     }));
   }
 
-  function handleNavClick(
-    e: React.MouseEvent<HTMLAnchorElement>,
-    href: string,
-  ) {
-    if (href.startsWith("#")) {
-      e.preventDefault();
+  function handleAllToolsClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    const target = document.getElementById("other-tools");
+    if (
+      !target ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) return;
 
-      const targetId = href.slice(1);
-      closeAll();
-
-      window.setTimeout(() => {
-        const target = document.getElementById(targetId);
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
-          window.history.replaceState(null, "", href);
-        }
-      }, 0);
-
-      return;
-    }
-
+    event.preventDefault();
     closeAll();
+    target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    window.history.replaceState(null, "", "#other-tools");
   }
 
   function updateMoreRect() {
@@ -185,65 +181,97 @@ export default function NavBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moreOpen]);
 
-  // Focus search when desktop menu opens
+  // Keep the desktop disclosure in the regular keyboard navigation order.
   useEffect(() => {
     if (!moreOpen) return;
+    const trigger = moreBtnRef.current;
+    const panel = moreMenuRef.current;
+    desktopSearchRef.current?.focus();
 
-    window.setTimeout(() => {
-      desktopSearchRef.current?.focus();
-    }, 0);
-  }, [moreOpen]);
-
-  // Focus mobile search when drawer opens
-  useEffect(() => {
-    if (!mobileOpen) return;
-
-    window.setTimeout(() => {
-      mobileSearchRef.current?.focus();
-    }, 0);
-  }, [mobileOpen]);
-
-  // Close desktop dropdown on outside click + Escape
-  useEffect(() => {
-    function onDocMouseDown(e: MouseEvent) {
-      if (!moreOpen) return;
-      const t = e.target as Node | null;
-      if (!t) return;
-
-      const btn = moreBtnRef.current;
-      const menu = moreMenuRef.current;
-
-      if (btn?.contains(t) || menu?.contains(t)) return;
-      setMoreOpen(false);
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+    function closeFromOutside(event: Event) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!trigger?.contains(target) && !panel?.contains(target)) {
         setMoreOpen(false);
-        setMobileOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", onDocMouseDown);
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      if (event.target === desktopSearchRef.current) setDesktopSearch("");
+      setMoreOpen(false);
+      trigger?.focus();
+    }
+
+    document.addEventListener("pointerdown", closeFromOutside);
+    document.addEventListener("focusin", closeFromOutside);
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("pointerdown", closeFromOutside);
+      document.removeEventListener("focusin", closeFromOutside);
       document.removeEventListener("keydown", onKeyDown);
+      if (window.matchMedia(MOBILE_NAV_QUERY).matches) {
+        mobileBtnRef.current?.focus({ preventScroll: true });
+      }
     };
   }, [moreOpen]);
 
-  // Mobile body lock
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    const panel = mobilePanelRef.current;
+    if (!mobileOpen || !panel) return;
+    const drawer = panel;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mobileSearchRef.current?.focus();
+
+    function onFocusIn(event: FocusEvent) {
+      if (event.target instanceof Node && !drawer.contains(event.target)) {
+        mobileSearchRef.current?.focus();
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = drawer.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), input:not(:disabled)',
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = "";
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("keydown", onKeyDown);
+      if (document.body.style.overflow === "hidden") {
+        document.body.style.overflow = previousOverflow;
+      }
+      const visibleTrigger = window.matchMedia(MOBILE_NAV_QUERY).matches
+        ? mobileBtnRef.current
+        : moreBtnRef.current;
+      visibleTrigger?.focus({ preventScroll: true });
     };
   }, [mobileOpen]);
 
   // Keep desktop and mobile menu state mutually exclusive across resizes.
   useEffect(() => {
     if (!isClient) return;
-    const media = window.matchMedia("(max-width: 1023px)");
+    const media = window.matchMedia(MOBILE_NAV_QUERY);
     const syncMenuMode = () => {
       setViewportSize({
         width: window.innerWidth,
@@ -284,38 +312,14 @@ export default function NavBar() {
     return () => window.removeEventListener("resize", updateViewportSize);
   }, [isClient]);
 
-  // Mobile close on backdrop click
-  useEffect(() => {
-    if (!mobileOpen) return;
-
-    function onDown(e: MouseEvent | TouchEvent) {
-      const t = e.target as Node | null;
-      if (!t) return;
-      const panel = mobilePanelRef.current;
-      if (panel && panel.contains(t)) return;
-      setMobileOpen(false);
-    }
-
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown, { passive: true });
-
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown as any);
-    };
-  }, [mobileOpen]);
-
-  // ATC-style dropdown placement (fixed, portal, right-aligned to button)
+  // Keep the desktop disclosure centered and within the viewport.
   const dropdownStyle = useMemo(() => {
     if (!moreRect) return undefined;
 
     const gap = 8;
     const top = Math.round(moreRect.top + moreRect.height + gap);
 
-    const viewportWidth =
-      typeof window === "undefined" ? 1180 : window.innerWidth;
-    const viewportHeight =
-      typeof window === "undefined" ? 720 : window.innerHeight;
+    const { width: viewportWidth, height: viewportHeight } = viewportSize;
     const preferredWidth =
       viewportWidth >= 1840
         ? 1680
@@ -352,7 +356,7 @@ export default function NavBar() {
       maxHeight,
       zIndex: 2147483647,
     };
-  }, [moreRect]);
+  }, [moreRect, viewportSize]);
 
   const desktopMoreGridStyle = useMemo(() => {
     const columnCount =
@@ -408,7 +412,9 @@ export default function NavBar() {
             className="lg:hidden inline-flex items-center justify-center rounded-md px-3 py-2
                        text-slate-200 hover:text-sky-200 hover:bg-sky-900/25 transition-colors
                        cursor-pointer"
+            ref={mobileBtnRef}
             aria-label="Open menu"
+            aria-haspopup="dialog"
             aria-expanded={mobileOpen}
             onClick={() => {
               setMobileOpen(true);
@@ -423,7 +429,7 @@ export default function NavBar() {
             aria-label="Primary"
             className="hidden min-w-0 flex-nowrap items-center gap-2 whitespace-nowrap text-sm lg:flex"
           >
-            <DesktopLink href="#other-tools" onClick={(e) => handleNavClick(e, "#other-tools")}>
+            <DesktopLink href="/sitemap" onClick={handleAllToolsClick}>
               All Tools
             </DesktopLink>
 
@@ -432,7 +438,7 @@ export default function NavBar() {
                 key={l.href}
                 href={l.href}
                 className={getPrimaryLinkVisibilityClassName(l.href)}
-                onClick={(e) => handleNavClick(e, l.href)}
+                onClick={closeAll}
               >
                 {l.label}
               </DesktopLink>
@@ -444,7 +450,8 @@ export default function NavBar() {
                 type="button"
                 className="font-semibold rounded-md px-2 py-2 inline-flex items-center gap-2
                            hover:text-sky-200 hover:bg-sky-900/25 transition-colors cursor-pointer"
-                aria-haspopup="menu"
+                id="more-tools-trigger"
+                aria-controls={moreOpen ? "more-tools-panel" : undefined}
                 aria-expanded={moreOpen}
                 onClick={() => {
                   if (!moreOpen) updateMoreRect();
@@ -454,106 +461,96 @@ export default function NavBar() {
                 More <IconChevronDown />
               </button>
             )}
+            {isClient && !isMobileNavMode && moreOpen && dropdownStyle ? (
+              <section
+                ref={moreMenuRef}
+                id="more-tools-panel"
+                aria-label="More tools"
+                data-nav-menu="desktop-more"
+                className="flex min-h-0 flex-col overflow-hidden whitespace-normal rounded-2xl border border-sky-900/60 bg-sky-950 shadow-xl"
+                style={dropdownStyle}
+              >
+                <div className="shrink-0 border-b border-sky-900/60 bg-sky-950/95 p-3">
+                  <label className="sr-only" htmlFor="desktop-tool-search">
+                    Search tools
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sky-200/70">
+                      <IconSearch />
+                    </span>
+                    <input
+                      id="desktop-tool-search"
+                      ref={desktopSearchRef}
+                      value={desktopSearch}
+                      onChange={(e) => setDesktopSearch(e.target.value)}
+                      placeholder="Search all tools..."
+                      className="w-full rounded-lg border border-sky-800/80 bg-sky-900/45 py-2 pl-10 pr-9 text-sm font-semibold text-white
+                                 placeholder:text-sky-200/60 outline-none transition-colors
+                                 focus:border-sky-400 focus:bg-sky-900/70 focus:ring-2 focus:ring-sky-400/25"
+                    />
+                    {desktopSearch ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDesktopSearch("");
+                          desktopSearchRef.current?.focus();
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1
+                                   text-sky-200 hover:bg-sky-800/70 hover:text-white transition-colors cursor-pointer"
+                        aria-label="Clear search"
+                      >
+                        <IconXSmall />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div role="status" className="mt-2 text-xs font-semibold text-sky-200/75">
+                    {filteredDesktopMoreLinks.length === 1
+                      ? "1 tool"
+                      : `${filteredDesktopMoreLinks.length} tools`}
+                  </div>
+                </div>
+
+                <div
+                  className={`${SCROLL_CLASS} min-h-0 flex-1 overflow-y-auto`}
+                >
+                  {filteredDesktopMoreLinks.length > 0 ? (
+                    isDesktopSearching ? (
+                      <DesktopSearchResults
+                        items={filteredDesktopMoreLinks}
+                        gridStyle={desktopMoreGridStyle}
+                        onNavClick={closeAll}
+                      />
+                    ) : (
+                      <div
+                        className="grid auto-rows-max items-start gap-3 p-3"
+                        style={desktopMoreGridStyle}
+                      >
+                        {desktopNavGroups.map((group) => (
+                          <DesktopNavGroup
+                            key={group.id}
+                            group={group}
+                            onNavClick={closeAll}
+                          />
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
+                      No matching tools found.
+                    </div>
+                  )}
+                </div>
+              </section>
+            ) : null}
           </nav>
         </div>
       </div>
 
-      {/* Desktop dropdown in portal */}
-      {isClient && !isMobileNavMode && moreOpen && dropdownStyle
-        ? createPortal(
-            <div
-              ref={moreMenuRef}
-              role="menu"
-              data-nav-menu="desktop-more"
-              className="flex min-h-0 flex-col rounded-2xl border border-sky-900/60 bg-sky-950 shadow-xl overflow-hidden"
-              style={dropdownStyle}
-            >
-              <div className="shrink-0 border-b border-sky-900/60 bg-sky-950/95 p-3">
-                <label className="sr-only" htmlFor="desktop-tool-search">
-                  Search tools
-                </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sky-200/70">
-                    <IconSearch />
-                  </span>
-                  <input
-                    id="desktop-tool-search"
-                    ref={desktopSearchRef}
-                    value={desktopSearch}
-                    onChange={(e) => setDesktopSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setDesktopSearch("");
-                        setMoreOpen(false);
-                      }
-                    }}
-                    placeholder="Search all tools..."
-                    className="w-full rounded-lg border border-sky-800/80 bg-sky-900/45 py-2 pl-10 pr-9 text-sm font-semibold text-white
-                               placeholder:text-sky-200/60 outline-none transition-colors
-                               focus:border-sky-400 focus:bg-sky-900/70 focus:ring-2 focus:ring-sky-400/25"
-                  />
-                  {desktopSearch ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDesktopSearch("");
-                        desktopSearchRef.current?.focus();
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1
-                                 text-sky-200 hover:bg-sky-800/70 hover:text-white transition-colors cursor-pointer"
-                      aria-label="Clear search"
-                    >
-                      <IconXSmall />
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="mt-2 text-xs font-semibold text-sky-200/75">
-                  {filteredDesktopMoreLinks.length === 1
-                    ? "1 tool"
-                    : `${filteredDesktopMoreLinks.length} tools`}
-                </div>
-              </div>
-
-              <div
-                className={`${SCROLL_CLASS} min-h-0 flex-1 overflow-y-auto`}
-              >
-                {filteredDesktopMoreLinks.length > 0 ? (
-                  isDesktopSearching ? (
-                    <DesktopSearchResults
-                      items={filteredDesktopMoreLinks}
-                      gridStyle={desktopMoreGridStyle}
-                      onNavClick={handleNavClick}
-                    />
-                  ) : (
-                    <div
-                      className="grid auto-rows-max items-start gap-3 p-3"
-                      style={desktopMoreGridStyle}
-                    >
-                      {desktopNavGroups.map((group) => (
-                        <DesktopNavGroup
-                          key={group.id}
-                          group={group}
-                          onNavClick={handleNavClick}
-                        />
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <div className="px-5 py-6 text-sm font-semibold text-sky-100/80">
-                    No matching tools found.
-                  </div>
-                )}
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-
       {/* Mobile drawer */}
       {isMobileNavMode && mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-[2147483647]">
-          <div className="absolute inset-0 bg-black/55" />
+          <div className="absolute inset-0 bg-black/55" onClick={closeAll} />
 
           <div
             ref={mobilePanelRef}
@@ -628,7 +625,7 @@ export default function NavBar() {
                   ) : null}
                 </div>
 
-                <div className="mt-2 text-xs font-semibold text-sky-200/75">
+                <div role="status" className="mt-2 text-xs font-semibold text-sky-200/75">
                   {filteredMobileLinks.length === 1
                     ? "1 tool"
                     : `${filteredMobileLinks.length} tools`}
@@ -646,7 +643,7 @@ export default function NavBar() {
                     {isMobileSearching ? (
                       <MobileSearchResults
                         items={filteredMobileLinks}
-                        onNavClick={handleNavClick}
+                        onNavClick={closeAll}
                       />
                     ) : (
                       mobileNavGroups.map((group) => (
@@ -655,7 +652,7 @@ export default function NavBar() {
                           group={group}
                           expanded={Boolean(expandedMobileGroups[group.id])}
                           onToggleExpanded={() => toggleMobileGroup(group.id)}
-                          onNavClick={handleNavClick}
+                          onNavClick={closeAll}
                         />
                       ))
                     )}
@@ -802,13 +799,12 @@ function DesktopNavGroup({
   onNavClick,
 }: {
   group: NavGroup;
-  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavClick: () => void;
 }) {
   const isLargeGroup = group.items.length >= 18;
 
   return (
     <section
-      role="none"
       data-nav-section={group.id}
       className={`min-w-0 rounded-xl border border-sky-800/70 bg-sky-900/20 p-2 ${
         isLargeGroup ? "lg:col-span-2" : ""
@@ -827,7 +823,7 @@ function DesktopNavGroup({
           <DropdownLink
             key={item.href}
             href={item.href}
-            onClick={(event) => onNavClick(event, item.href)}
+            onClick={onNavClick}
           >
             {item.label}
           </DropdownLink>
@@ -844,7 +840,7 @@ function DesktopSearchResults({
 }: {
   items: NavItem[];
   gridStyle: React.CSSProperties;
-  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavClick: () => void;
 }) {
   return (
     <div
@@ -856,7 +852,7 @@ function DesktopSearchResults({
         <DropdownLink
           key={item.href}
           href={item.href}
-          onClick={(event) => onNavClick(event, item.href)}
+          onClick={onNavClick}
         >
           {item.label}
         </DropdownLink>
@@ -870,7 +866,7 @@ function MobileSearchResults({
   onNavClick,
 }: {
   items: NavItem[];
-  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavClick: () => void;
 }) {
   return (
     <section
@@ -882,7 +878,7 @@ function MobileSearchResults({
           <MobileLink
             key={item.href}
             href={item.href}
-            onClick={(event) => onNavClick(event, item.href)}
+            onClick={onNavClick}
           >
             {item.label}
           </MobileLink>
@@ -901,7 +897,7 @@ function MobileNavGroup({
   group: NavGroup;
   expanded: boolean;
   onToggleExpanded: () => void;
-  onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
+  onNavClick: () => void;
 }) {
   const previewLimit =
     group.id === "most-popular"
@@ -910,7 +906,7 @@ function MobileNavGroup({
   const visibleItems = expanded
     ? group.items
     : group.items.slice(0, previewLimit);
-  const hiddenCount = group.items.length - visibleItems.length;
+  const hiddenCount = group.items.length - previewLimit;
   const gridClass =
     group.id === "most-popular"
       ? "grid-cols-1 min-[360px]:grid-cols-2"
@@ -934,12 +930,12 @@ function MobileNavGroup({
           {group.items.length}
         </span>
       </div>
-      <div className={`grid gap-2 ${gridClass}`}>
+      <div id={`mobile-nav-${group.id}`} className={`grid gap-2 ${gridClass}`}>
         {visibleItems.map((item) => (
           <MobileLink
             key={item.href}
             href={item.href}
-            onClick={(event) => onNavClick(event, item.href)}
+            onClick={onNavClick}
           >
             {item.label}
           </MobileLink>
@@ -949,9 +945,11 @@ function MobileNavGroup({
         <button
           type="button"
           onClick={onToggleExpanded}
+          aria-expanded={expanded}
+          aria-controls={`mobile-nav-${group.id}`}
           className="mt-3 inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-sky-800/70 bg-sky-950/45 px-3 py-2 text-sm font-extrabold text-sky-100 transition-colors hover:border-sky-500/70 hover:bg-sky-800/65 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/50"
         >
-          Show {hiddenCount} more
+          {expanded ? "Show fewer" : `Show ${hiddenCount} more`}
         </button>
       ) : null}
     </section>
@@ -971,7 +969,6 @@ function DropdownLink({
     <a
       href={href}
       onClick={onClick}
-      role="menuitem"
       data-nav-link=""
       className="block min-w-0 cursor-pointer select-none rounded-lg px-3 py-2 text-sm font-semibold
                  text-slate-100 hover:bg-sky-800/65 hover:text-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-300/50 transition-colors"

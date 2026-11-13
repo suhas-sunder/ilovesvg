@@ -42,6 +42,11 @@ export const PINNED_PRESETS_STORAGE_KEY = "ilovesvg:pinned-presets:v1";
 
 type PresetTab = "all" | "pinned";
 
+const PRESET_TABS = [
+  { id: "all", label: "All presets" },
+  { id: "pinned", label: "Pinned presets" },
+] as const;
+
 export function getPinnedPresetIds(): string[] {
   if (typeof window === "undefined") return [];
 
@@ -103,6 +108,11 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
   );
   const initialActivePresetIdRef = React.useRef(activePreset);
   const searchInputId = React.useId();
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const tabRefs = React.useRef<Record<PresetTab, HTMLButtonElement | null>>({
+    all: null,
+    pinned: null,
+  });
   const visibleLimit = 2;
   const basePresets = React.useMemo(
     () => dedupePresets(presets),
@@ -165,18 +175,47 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
     setSpeedFilter("all");
   }, []);
 
+  function clearFiltersAndFocusSearch() {
+    clearFilters();
+    searchInputRef.current?.focus();
+  }
+
   const toggleExpanded = React.useCallback(() => {
     if (expanded) clearFilters();
     setExpanded((value) => !value);
   }, [clearFilters, expanded]);
 
   const togglePinnedPreset = React.useCallback((presetId: string) => {
+    if (activeTab === "pinned") searchInputRef.current?.focus();
     setPinnedPresetIdsState((currentPresetIds) => {
       const nextPresetIds = togglePinnedPresetId(currentPresetIds, presetId);
       setPinnedPresetIds(nextPresetIds);
       return nextPresetIds;
     });
-  }, []);
+  }, [activeTab]);
+
+  function handleTabKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tab: PresetTab,
+  ) {
+    let nextTab: PresetTab;
+    switch (event.key) {
+      case "Home":
+        nextTab = "all";
+        break;
+      case "End":
+        nextTab = "pinned";
+        break;
+      case "ArrowLeft":
+      case "ArrowRight":
+        nextTab = tab === "all" ? "pinned" : "all";
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    setActiveTab(nextTab);
+  }
 
   const handleSpeedFilterChange = React.useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -198,9 +237,14 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
     onExpandedChange?.(expanded);
   }, [expanded, onExpandedChange]);
 
+  React.useEffect(() => {
+    if (expanded) tabRefs.current[activeTab]?.focus();
+  }, [activeTab, expanded]);
+
   return (
     <div className="mb-2 mt-[.67rem] min-w-0">
       <div
+        id={`${searchInputId}-picker`}
         className={[
           expanded
             ? "rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
@@ -209,194 +253,206 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
       >
         {expanded ? (
           <div className="space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
-              <div className="space-y-2">
-                <div
-                  role="tablist"
-                  aria-label="Preset list"
-                  className="grid grid-cols-2 gap-1 rounded-lg border border-slate-200 bg-white p-1 text-xs font-bold"
+            <div
+              role="tablist"
+              aria-label="Preset list"
+              className="grid grid-cols-2 gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs font-bold"
+            >
+              {PRESET_TABS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  ref={(button) => {
+                    tabRefs.current[id] = button;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`${searchInputId}-tab-${id}`}
+                  aria-controls={`${searchInputId}-panel-${id}`}
+                  aria-selected={activeTab === id}
+                  tabIndex={activeTab === id ? 0 : -1}
+                  onClick={() => setActiveTab(id)}
+                  onKeyDown={(event) => handleTabKeyDown(event, id)}
+                  className={[
+                    "rounded-md px-3 py-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
+                    activeTab === id
+                      ? "bg-sky-100 text-sky-950"
+                      : "text-slate-600 hover:bg-white hover:text-slate-900",
+                  ].join(" ")}
                 >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "all"}
-                    onClick={() => setActiveTab("all")}
-                    className={[
-                      "rounded-md px-3 py-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-                      activeTab === "all"
-                        ? "bg-sky-100 text-sky-950"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                    ].join(" ")}
-                  >
-                    All presets
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "pinned"}
-                    onClick={() => setActiveTab("pinned")}
-                    className={[
-                      "rounded-md px-3 py-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-                      activeTab === "pinned"
-                        ? "bg-sky-100 text-sky-950"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                    ].join(" ")}
-                  >
-                    Pinned presets
-                  </button>
-                </div>
-
-                <label className="sr-only" htmlFor={searchInputId}>
-                  Search presets
-                </label>
-                <div className="relative min-w-0">
-                  <input
-                    id={searchInputId}
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape" && query) {
-                        event.preventDefault();
-                        setQuery("");
-                      }
-                    }}
-                    placeholder={
-                      activeTab === "pinned"
-                        ? "Search pinned presets..."
-                        : "Search presets..."
-                    }
-                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-sky-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
-                  />
-                  {query ? (
-                    <button
-                      type="button"
-                      onClick={() => setQuery("")}
-                      aria-label="Clear preset search"
-                      className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 cursor-pointer hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    >
-                      <span aria-hidden="true">x</span>
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <label className="sr-only" htmlFor={`${searchInputId}-speed`}>
-                    Filter presets by speed
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div
+              role="tabpanel"
+              id={`${searchInputId}-panel-${activeTab === "all" ? "pinned" : "all"}`}
+              aria-labelledby={`${searchInputId}-tab-${activeTab === "all" ? "pinned" : "all"}`}
+              hidden
+            />
+            <div
+              role="tabpanel"
+              id={`${searchInputId}-panel-${activeTab}`}
+              aria-labelledby={`${searchInputId}-tab-${activeTab}`}
+              className="space-y-3"
+            >
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                <div className="space-y-2">
+                  <label className="sr-only" htmlFor={searchInputId}>
+                    Search presets
                   </label>
-                  <div
-                    className={[
-                      "relative inline-flex h-10 min-w-[10.75rem] max-w-full items-center rounded-lg border px-2.5 text-xs font-semibold transition-colors",
-                      speedFilterBadge
-                        ? speedFilterBadge.className
-                        : "border-slate-200 bg-white text-slate-700",
-                    ].join(" ")}
-                    title="Speed tags estimate conversion time and do not change output."
-                  >
-                    <span className="mr-1.5 hidden text-[11px] font-bold uppercase tracking-wide opacity-70 sm:inline">
-                      Speed
-                    </span>
-                    <select
-                      id={`${searchInputId}-speed`}
-                      value={speedFilter}
-                      onChange={handleSpeedFilterChange}
-                      aria-label="Filter presets by speed"
-                      className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-6 text-xs font-bold outline-none"
-                    >
-                      {SPEED_FILTERS.map((speed) => (
-                        <option key={speed} value={speed}>
-                          {speed === "all"
-                            ? "All speeds"
-                            : getPresetIntensityLabel(speed)}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-                      <ChevronDownIcon open={false} />
-                    </span>
+                  <div className="relative min-w-0">
+                    <input
+                      ref={searchInputRef}
+                      id={searchInputId}
+                      type="search"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape" && query) {
+                          event.preventDefault();
+                          setQuery("");
+                        }
+                      }}
+                      placeholder={
+                        activeTab === "pinned"
+                          ? "Search pinned presets..."
+                          : "Search presets..."
+                      }
+                      className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-sky-200 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                    />
+                    {query ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuery("");
+                          searchInputRef.current?.focus();
+                        }}
+                        aria-label="Clear preset search"
+                        className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 cursor-pointer hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        <span aria-hidden="true">x</span>
+                      </button>
+                    ) : null}
                   </div>
 
-                  <span
-                    className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-500"
-                    aria-live="polite"
-                  >
-                    {filteredPresets.length}{" "}
-                    {activeTab === "pinned" ? "pinned" : "presets"}
-                  </span>
-
-                  {filtersActive ? (
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <label className="sr-only" htmlFor={`${searchInputId}-speed`}>
+                      Filter presets by speed
+                    </label>
+                    <div
+                      className={[
+                        "relative inline-flex h-10 min-w-[10.75rem] max-w-full items-center rounded-lg border px-2.5 text-xs font-semibold transition-colors",
+                        speedFilterBadge
+                          ? speedFilterBadge.className
+                          : "border-slate-200 bg-white text-slate-700",
+                      ].join(" ")}
+                      title="Speed tags estimate conversion time and do not change output."
                     >
-                      Clear filters
-                    </button>
-                  ) : (
-                    <span className="sr-only">{speedFilterLabel}</span>
-                  )}
+                      <span className="mr-1.5 hidden text-[11px] font-bold uppercase tracking-wide opacity-70 sm:inline">
+                        Speed
+                      </span>
+                      <select
+                        id={`${searchInputId}-speed`}
+                        value={speedFilter}
+                        onChange={handleSpeedFilterChange}
+                        aria-label="Filter presets by speed"
+                        className="min-w-0 flex-1 cursor-pointer appearance-none rounded-sm bg-transparent pr-6 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                      >
+                        {SPEED_FILTERS.map((speed) => (
+                          <option key={speed} value={speed}>
+                            {speed === "all"
+                              ? "All speeds"
+                              : getPresetIntensityLabel(speed)}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                        <ChevronDownIcon open={false} />
+                      </span>
+                    </div>
+
+                    <span
+                      className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-500"
+                      aria-live="polite"
+                    >
+                      {filteredPresets.length}{" "}
+                      {activeTab === "pinned" ? "pinned" : "presets"}
+                    </span>
+
+                    {filtersActive ? (
+                      <button
+                        type="button"
+                        onClick={clearFiltersAndFocusSearch}
+                        className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        Clear filters
+                      </button>
+                    ) : (
+                      <span className="sr-only">{speedFilterLabel}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div
-              className="space-y-4 overflow-y-auto pr-1"
-              style={{
-                maxHeight: "min(62vh, 42rem)",
-                scrollbarWidth: "thin",
-              }}
-            >
-              {groupedPresets.length > 0 ? (
-                groupedPresets.map((group) => (
-                  <div key={group.label}>
-                    <div className="mb-1.5 flex items-center gap-2 px-0.5">
-                      <div className="h-px flex-1 bg-slate-100" />
-                      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                        {group.label}
+              <div
+                className="space-y-4 overflow-y-auto pr-1"
+                style={{
+                  maxHeight: "min(62vh, 42rem)",
+                  scrollbarWidth: "thin",
+                }}
+              >
+                {groupedPresets.length > 0 ? (
+                  groupedPresets.map((group) => (
+                    <div key={group.label}>
+                      <div className="mb-1.5 flex items-center gap-2 px-0.5">
+                        <div className="h-px flex-1 bg-slate-100" />
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                          {group.label}
+                        </div>
+                        <div className="h-px flex-1 bg-slate-100" />
                       </div>
-                      <div className="h-px flex-1 bg-slate-100" />
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {group.presets.map((preset, index) => (
+                          <PresetButton
+                            key={`${preset.id}-${index}`}
+                            preset={preset}
+                            active={activePreset === preset.id}
+                            pinned={pinnedPresetIdSet.has(preset.id)}
+                            applyPreset={applyPreset}
+                            togglePinnedPreset={togglePinnedPreset}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {group.presets.map((preset, index) => (
-                        <PresetButton
-                          key={`${preset.id}-${index}`}
-                          preset={preset}
-                          active={activePreset === preset.id}
-                          pinned={pinnedPresetIdSet.has(preset.id)}
-                          applyPreset={applyPreset}
-                          togglePinnedPreset={togglePinnedPreset}
-                        />
-                      ))}
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-sm text-slate-600">
+                    <div className="font-semibold text-slate-700">
+                      {activeTab === "pinned" &&
+                      routePinnedPresets.length === 0 &&
+                      !filtersActive
+                        ? "No pinned presets yet."
+                        : "No presets found."}
                     </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {activeTab === "pinned" &&
+                      routePinnedPresets.length === 0 &&
+                      !filtersActive
+                        ? "Pin presets you use often to keep them here."
+                        : "Try clearing search or choosing All speeds."}
+                    </div>
+                    {filtersActive ? (
+                      <button
+                        type="button"
+                        onClick={clearFiltersAndFocusSearch}
+                        className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        Clear filters
+                      </button>
+                    ) : null}
                   </div>
-                ))
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-sm text-slate-600">
-                  <div className="font-semibold text-slate-700">
-                    {activeTab === "pinned" &&
-                    routePinnedPresets.length === 0 &&
-                    !filtersActive
-                      ? "No pinned presets yet."
-                      : "No presets found."}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {activeTab === "pinned" &&
-                    routePinnedPresets.length === 0 &&
-                    !filtersActive
-                      ? "Pin presets you use often to keep them here."
-                      : "Try clearing search or choosing All speeds."}
-                  </div>
-                  {filtersActive ? (
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 cursor-pointer transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    >
-                      Clear filters
-                    </button>
-                  ) : null}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         ) : (
@@ -420,6 +476,7 @@ export function PresetPicker<TPreset extends ConverterPresetOption>({
           type="button"
           onClick={toggleExpanded}
           aria-expanded={expanded}
+          aria-controls={`${searchInputId}-picker`}
           className="mt-2 w-full inline-flex items-center justify-between px-3 py-2.5 rounded-lg border border-slate-200 bg-sky-50 text-slate-900 cursor-pointer transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-1"
         >
           <span className="flex items-center justify-center text-sm font-medium">
@@ -448,6 +505,7 @@ function PresetButton<TPreset extends ConverterPresetOption>({
   applyPreset: (preset: TPreset) => void;
   togglePinnedPreset: (presetId: string) => void;
 }) {
+  const presetLabelId = React.useId();
   const intensityBadge = getPresetIntensityBadge(preset);
   const title = [
     preset.help || preset.description || preset.label,
@@ -486,7 +544,7 @@ function PresetButton<TPreset extends ConverterPresetOption>({
             ].join(" ")}
             aria-hidden="true"
           />
-          <span className="min-w-0 break-words pr-1 leading-tight">
+          <span id={presetLabelId} className="min-w-0 break-words pr-1 leading-tight">
             {preset.label}
           </span>
         </span>
@@ -510,6 +568,7 @@ function PresetButton<TPreset extends ConverterPresetOption>({
           togglePinnedPreset(preset.id);
         }}
         aria-label={pinned ? "Unpin preset" : "Pin preset"}
+        aria-describedby={presetLabelId}
         aria-pressed={pinned}
         title={pinned ? "Unpin preset" : "Pin preset"}
         className={[
