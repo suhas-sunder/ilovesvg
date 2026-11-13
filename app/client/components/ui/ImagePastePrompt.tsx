@@ -59,16 +59,25 @@ export function useImagePaste({
   };
 }
 
-export function ImagePastePrompt({ paste }: { paste: ReturnType<typeof useImagePaste> }) {
+export function ImagePastePrompt({
+  paste,
+  requiresManualConversion = false,
+}: {
+  paste: ReturnType<typeof useImagePaste>;
+  requiresManualConversion?: boolean;
+}) {
   return paste.pendingFile ? (
     <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-800">
       <p role="status" className="m-0 leading-5">
         Image pasted ({Math.max(1, Math.round(paste.pendingFile.size / 1024))} KB).
-        Your current settings will be used after you confirm.
+        {" "}
+        {requiresManualConversion
+          ? "Use the pasted image, then click Convert to SVG when you’re ready."
+          : "Your current settings will be used after you confirm."}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={paste.confirm} className="min-h-11 rounded-lg bg-sky-700 px-3 py-2 font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2">
-          Convert pasted image
+          {requiresManualConversion ? "Use pasted image" : "Convert pasted image"}
         </button>
         <button type="button" onClick={paste.discard} className="min-h-11 rounded-lg border border-sky-200 bg-white px-3 py-2 font-medium hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500">
           Discard pasted image
