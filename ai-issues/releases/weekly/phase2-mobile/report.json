@@ -1,0 +1,425 @@
+{
+  "base": "http://127.0.0.1:5294/",
+  "baseline": "http://127.0.0.1:5280/",
+  "cases": [
+    {
+      "engine": "chromium",
+      "width": 320,
+      "state": {
+        "scrollWidth": 320,
+        "bodyWidth": 320,
+        "targetTop": 122.78125,
+        "targetBottom": 212.78125,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "chromium",
+      "width": 375,
+      "state": {
+        "scrollWidth": 375,
+        "bodyWidth": 375,
+        "targetTop": 122.78125,
+        "targetBottom": 182.78125,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "chromium",
+      "width": 390,
+      "state": {
+        "scrollWidth": 390,
+        "bodyWidth": 390,
+        "targetTop": 122.78125,
+        "targetBottom": 182.78125,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "chromium",
+      "width": 430,
+      "state": {
+        "scrollWidth": 430,
+        "bodyWidth": 430,
+        "targetTop": 122.78125,
+        "targetBottom": 182.78125,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "chromium",
+      "width": 768,
+      "state": {
+        "scrollWidth": 768,
+        "bodyWidth": 768,
+        "targetTop": 131.3125,
+        "targetBottom": 161.3125,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "chromium",
+      "width": 1024,
+      "state": {
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "targetTop": 131,
+        "targetBottom": 161,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "chromium",
+      "width": 1440,
+      "state": {
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "targetTop": 131,
+        "targetBottom": 161,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 320,
+      "state": {
+        "scrollWidth": 320,
+        "bodyWidth": 320,
+        "targetTop": 123.125,
+        "targetBottom": 213.125,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 375,
+      "state": {
+        "scrollWidth": 375,
+        "bodyWidth": 375,
+        "targetTop": 122.734375,
+        "targetBottom": 182.734375,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 390,
+      "state": {
+        "scrollWidth": 390,
+        "bodyWidth": 390,
+        "targetTop": 122.734375,
+        "targetBottom": 182.734375,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 430,
+      "state": {
+        "scrollWidth": 430,
+        "bodyWidth": 430,
+        "targetTop": 122.734375,
+        "targetBottom": 182.734375,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 768,
+      "state": {
+        "scrollWidth": 768,
+        "bodyWidth": 768,
+        "targetTop": 131.25,
+        "targetBottom": 161.25,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 1024,
+      "state": {
+        "scrollWidth": 1024,
+        "bodyWidth": 1024,
+        "targetTop": 130.96875,
+        "targetBottom": 160.96875,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    },
+    {
+      "engine": "webkit",
+      "width": 1440,
+      "state": {
+        "scrollWidth": 1440,
+        "bodyWidth": 1440,
+        "targetTop": 130.96875,
+        "targetBottom": 160.96875,
+        "windowHeight": 844,
+        "h1Count": 1,
+        "adBelowContent": true,
+        "links": [
+          "/png-to-svg-converter",
+          "/jpg-to-svg-converter",
+          "/webp-to-svg-converter",
+          "/how-it-works/conversion-workflow"
+        ],
+        "contentOverflow": false
+      },
+      "baselineAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "candidateAxe": [
+        "aria-prohibited-attr",
+        "region"
+      ],
+      "recoveryAxe": []
+    }
+  ],
+  "workflow": [
+    {
+      "engine": "chromium",
+      "inputBytes": 2405,
+      "svgBytes": 1400
+    },
+    {
+      "engine": "webkit",
+      "inputBytes": 2405,
+      "svgBytes": 1400
+    }
+  ],
+  "failures": []
+}
