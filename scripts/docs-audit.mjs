@@ -133,8 +133,8 @@ for (const doc of requiredDocs) {
 
   const links = collectInternalLinks(source);
   for (const link of links) {
-    if (!knownRoutes.has(link)) {
-      failures.push(`${doc.file} links to missing route ${link}`);
+    if (!knownRoutes.has(link) && !(await isPublicAsset(link))) {
+      failures.push(`${doc.file} links to missing route or public asset ${link}`);
     }
   }
 }
@@ -176,6 +176,18 @@ async function readText(filePath) {
     return await fs.readFile(filePath, "utf8");
   } catch (error) {
     if (error && error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
+async function isPublicAsset(link) {
+  const publicDir = path.resolve(rootDir, "public");
+  const assetPath = path.resolve(publicDir, `.${link}`);
+  if (!assetPath.startsWith(`${publicDir}${path.sep}`)) return false;
+  try {
+    return (await fs.stat(assetPath)).isFile();
+  } catch (error) {
+    if (error && (error.code === "ENOENT" || error.code === "ENOTDIR")) return false;
     throw error;
   }
 }
