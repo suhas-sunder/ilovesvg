@@ -155,7 +155,7 @@ assert(
 );
 
 const expectedPrimaryOrder = [
-  "#other-tools",
+  "/sitemap",
   "/svg-to-png-converter",
   "/png-to-svg-converter",
   "/svg-to-jpg-converter",
@@ -164,7 +164,7 @@ const expectedPrimaryOrder = [
 ];
 
 assert(
-  ["#other-tools", ...primaryHrefs].join("|") === expectedPrimaryOrder.join("|"),
+  ["/sitemap", ...primaryHrefs].join("|") === expectedPrimaryOrder.join("|"),
   `Unexpected primary nav order: ${primaryHrefs.join(", ")}`,
 );
 
@@ -175,12 +175,12 @@ assert(
 
 assert(
   !sectionHrefs.includes("#other-tools") &&
-    navBarSource.includes('aria-haspopup="menu"') &&
-    navBarSource.includes('href="#other-tools"') &&
+    navBarSource.includes('aria-controls={moreOpen ? "more-tools-panel"') &&
+    navBarSource.includes('href="/sitemap"') &&
     navBarSource.includes("All Tools") &&
     navBarSource.includes("More <IconChevronDown />") &&
     !navBarSource.includes("All Tools <IconChevronDown />"),
-  "All Tools must remain a desktop-only primary anchor and More must remain the dropdown button",
+  "All Tools must expose a sitemap fallback and More must control the desktop disclosure",
 );
 
 const knownAnchors = new Set(["#other-tools"]);

@@ -493,7 +493,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                                 downloadFileName,
                               )
                             }
-                            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
                             Download SVG
                           </button>
@@ -573,7 +573,7 @@ export function BespokeTraceOutputPanel<TItem extends BespokeTraceOutputItem>({
                             )
                           }
                           disabled={!displaySvg}
-                          className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 font-semibold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 font-semibold text-white transition-colors hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <Icons name="download" size={16} className="mr-1 inline-block" />
                           {downloadLabel}
@@ -796,7 +796,7 @@ function BespokeJobStateCard<TItem extends BespokeTraceOutputItem>({
           <button
             type="button"
             onClick={() => onRetryOutputJob(item.stamp)}
-            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800"
           >
             Retry
           </button>
@@ -870,7 +870,7 @@ function CollapsedBespokeCard<TItem extends BespokeTraceOutputItem>({
               <button
                 type="button"
                 onClick={onDownloadSvg}
-                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
               >
                 Download
               </button>
@@ -896,7 +896,7 @@ function CollapsedBespokeCard<TItem extends BespokeTraceOutputItem>({
             <button
               type="button"
               onClick={() => onRetryOutputJob(item.stamp)}
-              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               Retry
             </button>

@@ -68,10 +68,10 @@ function runNavAudit() {
   assertIncludes(nav, "filterNavSections", "shared nav section filtering");
   assertIncludes(nav, "data-nav-menu=\"desktop-more\"", "auditable desktop nav menu");
   assertIncludes(nav, "data-nav-menu=\"mobile-tools\"", "auditable mobile nav menu");
-  assertIncludes(nav, "href=\"#other-tools\"", "desktop All Tools section anchor");
+  assertIncludes(nav, "href=\"/sitemap\"", "desktop All Tools fallback link");
   assertIncludes(nav, "More <IconChevronDown />", "desktop More nav button");
   assertIncludes(nav, "visibleItems.map", "mobile nav renders direct links");
-  assertIncludes(nav, "Show {hiddenCount} more", "large mobile sections expose direct links before show more");
+  assertIncludes(nav, 'aria-expanded={expanded}', "large mobile sections keep an accessible expansion control");
   assertIncludes(nav, "maxHeight", "viewport-aware desktop menu height");
   assertIncludes(nav, "calc(100vh", "desktop menu height uses viewport calculation");
   assertIncludes(nav, "preferredWidth", "responsive dropdown width");
@@ -87,7 +87,7 @@ function runNavAudit() {
   assertIncludes(nav, "data-nav-search-results=\"\"", "nav search results expose an audit marker");
   assertIncludes(nav, "grid auto-rows-max items-start", "desktop nav cards avoid stretched empty columns");
   assertIncludes(nav, "lg:col-span-2", "large desktop nav sections can use wider cards");
-  assertIncludes(nav, "matchMedia(\"(max-width: 1023px)\")", "desktop mobile nav state sync");
+  assertIncludes(nav, "matchMedia(MOBILE_NAV_QUERY)", "desktop mobile nav state sync");
   assertIncludes(nav, "!isMobileNavMode && moreOpen", "desktop menu hidden in mobile nav mode");
   assertIncludes(nav, "isMobileNavMode && mobileOpen", "mobile drawer hidden outside mobile nav mode");
   assert(!nav.includes("<details") && !nav.includes("<summary"), "mobile nav should not use category-only details blocks");

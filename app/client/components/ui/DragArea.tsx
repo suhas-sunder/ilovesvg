@@ -55,6 +55,7 @@ export default function DragArea({
           ref={fileRef}
           id={inputId}
           type="file"
+          aria-label="Click or drag a file"
           accept={accept}
           multiple={multiple}
           onChange={(e) => {
@@ -100,5 +101,24 @@ export default function DragArea({
         </div>
       </label>
     </>
+  );
+}
+
+/** A native replacement picker that uses the same route-owned upload handler. */
+export function ReplaceFileButton({ onPick, accept }: {
+  onPick: (event: ChangeEvent<HTMLInputElement>) => void;
+  accept?: string;
+}) {
+  return (
+    <label className="relative inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-900 hover:bg-sky-50 focus-within:ring-2 focus-within:ring-sky-500 focus-within:ring-offset-1">
+      Replace
+      <input type="file" accept={accept} aria-label="Replace selected image"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        onChange={(event) => {
+          const input = event.currentTarget;
+          onPick(event);
+          input.value = "";
+        }} />
+    </label>
   );
 }

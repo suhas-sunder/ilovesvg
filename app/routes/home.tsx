@@ -24,7 +24,8 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
-import DragArea from "~/client/components/ui/DragArea";
+import DragArea, { ReplaceFileButton } from "~/client/components/ui/DragArea";
+import { ImagePastePrompt, useImagePaste } from "~/client/components/ui/ImagePastePrompt";
 import Icons from "~/client/assets/icons/Icons";
 import {
   FullscreenOutputPreview,
@@ -2866,6 +2867,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const clientAbortControllersRef = React.useRef(new Map<string, AbortController>());
   const lastProcessedResultKeyRef = React.useRef("");
   const fileMeasureRunIdRef = React.useRef(0);
+  const measuredUploadSizeRef = React.useRef<{ w: number; h: number } | null>(null);
   const busyRetryCountRef = React.useRef(0);
   const submitSequenceRef = React.useRef(0);
   const pendingUploadFileRef = React.useRef<File | null>(null);
@@ -3288,6 +3290,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     componentAbortControllerRef.current = componentController;
     return () => {
       mountedRef.current = false;
+      invalidateUploadPreparation();
       componentController.abort();
       if (componentAbortControllerRef.current === componentController) {
         componentAbortControllerRef.current = null;
@@ -3330,17 +3333,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
   }, []);
 
-  async function measureAndSet(f: File, runId = fileMeasureRunIdRef.current) {
+  function ownsUploadPreparation(file: File, runId: number) {
+    return mountedRef.current &&
+      fileMeasureRunIdRef.current === runId &&
+      pendingUploadFileRef.current === file;
+  }
+
+  function invalidateUploadPreparation() {
+    fileMeasureRunIdRef.current += 1;
+    pendingUploadFileRef.current = null;
+    measuredUploadSizeRef.current = null;
+    clearUploadAutoSubmit();
+  }
+
+  async function measureAndSet(f: File, runId: number) {
     if (isSvgFile(f)) {
-      if (fileMeasureRunIdRef.current === runId) {
-        setDims((current) => (current === null ? current : null));
-      }
       return;
     }
 
     try {
       const { w, h } = await getImageSize(f);
-      if (fileMeasureRunIdRef.current !== runId) return;
+      if (!ownsUploadPreparation(f, runId)) return;
+      measuredUploadSizeRef.current = { w, h };
       const mp = (w * h) / 1_000_000;
       setDims((current) =>
         current && current.w === w && current.h === h && current.mp === mp
@@ -3348,7 +3362,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           : { w, h, mp },
       );
     } catch (error) {
-      if (fileMeasureRunIdRef.current !== runId) return;
+      if (!ownsUploadPreparation(f, runId)) return;
       setDims((current) => (current === null ? current : null));
       logAppError(error, {
         flowStep: "home_measure_image",
@@ -3359,11 +3373,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
   }
 
+  const imagePaste = useImagePaste({ onFile: handleNewFile, onError: setErr, maxBytes: MAX_UPLOAD_BYTES });
+
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const f = input.files?.[0];
     input.value = "";
     if (!f) return;
+    imagePaste.clear();
     await handleNewFile(f);
   }
   async function onDrop(e: React.DragEvent) {
@@ -3371,6 +3388,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     e.stopPropagation();
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
+    imagePaste.clear();
     await handleNewFile(f);
   }
 
@@ -3384,12 +3402,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     suppressLiveRef.current = true;
     busyRetryCountRef.current = 0;
     lastProcessedResultKeyRef.current = "";
-    const measureRunId = fileMeasureRunIdRef.current + 1;
-    fileMeasureRunIdRef.current = measureRunId;
+    invalidateUploadPreparation();
+    const measureRunId = fileMeasureRunIdRef.current;
     const submitSequenceAtUpload = submitSequenceRef.current;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    clearUploadAutoSubmit();
-    pendingUploadFileRef.current = null;
 
     // Clear current file first so nothing submits with the old one
     setFile(null);
@@ -3414,6 +3430,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const url = URL.createObjectURL(chosen);
     setPreviewUrl(url);
     await measureAndSet(chosen, measureRunId);
+    if (!ownsUploadPreparation(chosen, measureRunId)) return;
 
     // Re-enable auto conversion and submit the selected file directly so the first upload
     // never depends on stale React state.
@@ -3421,7 +3438,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (submitSequenceRef.current !== submitSequenceAtUpload) {
       return;
     }
-    scheduleUploadAutoSubmit(chosen, submitSequenceAtUpload);
+    scheduleUploadAutoSubmit(chosen, measureRunId, submitSequenceAtUpload);
   }
 
   function getEffectiveSubmitSettings(targetSettings: Settings): Settings {
@@ -3532,30 +3549,32 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setErr("Choose an image first.");
       return false;
     }
+    const measureRunId = fileMeasureRunIdRef.current;
+    if (!ownsUploadPreparation(targetFile, measureRunId)) return false;
     clearUploadAutoSubmit();
-    submitSequenceRef.current += 1;
+    const submitSequence = ++submitSequenceRef.current;
+    const ownsSubmission = () =>
+      ownsUploadPreparation(targetFile, measureRunId) &&
+      submitSequenceRef.current === submitSequence;
 
     // Client-side precheck
+    let sourceSize: { w: number; h: number } | null;
     try {
-      await validateBeforeSubmit(targetFile, dims ? { w: dims.w, h: dims.h } : undefined);
+      sourceSize = await validateBeforeSubmit(targetFile, measuredUploadSizeRef.current);
     } catch (e: any) {
-      setErr(e?.message || "Image is too large.");
+      if (ownsSubmission()) setErr(e?.message || "Image is too large.");
       return false;
     }
+    if (!ownsSubmission()) return false;
 
     const svgInput = isSvgFile(targetFile);
 
     // Ensure invert always produces visible output (white on dark)
     const effective = getEffectiveSubmitSettings(targetSettings);
 
-    const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
-    abortSupersededClientTraceJobs(clientRunId);
-    latestSubmittedRunIdRef.current = clientRunId;
-    setErr(null);
     const submittedPresetId = svgInput
       ? null
       : resolveSubmittedPresetId(meta?.presetId ?? activePreset, effective);
-    const startedAt = Date.now();
     const replaceStamp = meta?.replaceStamp ?? null;
     const presetLabel = svgInput
       ? "Sanitized SVG"
@@ -3573,8 +3592,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             presetId: submittedPresetId,
             presetBackendIntensity: getPresetBackendIntensityById(submittedPresetId),
           },
-          dimensions: dims ? { width: dims.w, height: dims.h } : undefined,
+          dimensions: sourceSize ? { width: sourceSize.w, height: sourceSize.h } : undefined,
         });
+    if (!ownsSubmission()) return false;
+
+    const clientRunId = `home-${Date.now()}-${++clientRunIdCounterRef.current}`;
+    abortSupersededClientTraceJobs(clientRunId);
+    latestSubmittedRunIdRef.current = clientRunId;
+    setErr(null);
+    const startedAt = Date.now();
     const conversionCacheKey = cacheKeyInfo?.key ?? null;
     const cachedResult = lookupConversionCache(conversionCacheKey);
     if (cachedResult) {
@@ -3701,8 +3727,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         },
         presetId: submittedPresetId,
         presetBackendIntensity: getPresetBackendIntensityById(submittedPresetId),
-        sourceWidth: dims?.w ?? null,
-        sourceHeight: dims?.h ?? null,
+        sourceWidth: sourceSize?.w ?? null,
+        sourceHeight: sourceSize?.h ?? null,
         onProgress: (_progress, message) => {
           if (mountedRef.current && message) {
             setInfo(message);
@@ -3902,7 +3928,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       replaceStamp: item.stamp,
       sourceLayerEdits: item.layers,
     });
-    if (!submitted) {
+    if (!submitted && pendingUploadFileRef.current === file) {
       setUpdatingOutputStamp(null);
       patchHistoryItem(stamp, (current) => ({
         ...current,
@@ -4321,7 +4347,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     uploadAutoSubmitRef.current = null;
   }
 
-  function scheduleUploadAutoSubmit(targetFile: File, sequenceAtUpload: number) {
+  function scheduleUploadAutoSubmit(targetFile: File, measureRunId: number, sequenceAtUpload: number) {
     clearUploadAutoSubmit();
     const mode = getAutoMode(targetFile.size);
     if (mode === "off") return;
@@ -4332,7 +4358,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         : LIVE_MED_MS;
     uploadAutoSubmitRef.current = setTimeout(() => {
       uploadAutoSubmitRef.current = null;
-      if (submitSequenceRef.current !== sequenceAtUpload) return;
+      if (
+        !ownsUploadPreparation(targetFile, measureRunId) ||
+        submitSequenceRef.current !== sequenceAtUpload
+      ) return;
       void submitConvertWith(targetFile, settingsRef.current, {
         presetId: activePresetRef.current,
         parentStamp: null,
@@ -4365,10 +4394,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // manual-only until Convert or Update preview is clicked.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, autoMode]);
-
-  React.useEffect(() => {
-    return () => clearUploadAutoSubmit();
-  }, []);
 
   // Disable logic identical on SSR and first client render
   const buttonDisabled = isServer || !hydrated || !file;
@@ -4769,7 +4794,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
+            <div data-converter-input="true" onPaste={imagePaste.onPaste} tabIndex={-1} role="group" aria-label="Image input" className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] tracking-[-0.035em] text-sky-950 sm:text-[34px]">
                 Free SVG Converter
               </h1>
@@ -4811,12 +4836,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
+                    <ReplaceFileButton onPick={onPick} />
                     <button
                       type="button"
                       onClick={() => {
+                        imagePaste.clear();
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
-                        clearUploadAutoSubmit();
-                        pendingUploadFileRef.current = null;
+                        invalidateUploadPreparation();
                         setFile(null);
                         setPreviewUrl(null);
                         setAutoMode("off");
@@ -4824,9 +4850,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setErr(null);
                         setInfo(null);
                         setOriginalFileSize(null);
+                        setUpdatingOutputStamp(null);
                       }}
                       aria-label="Remove selected file"
-                      className="rounded-md border border-sky-200 bg-white px-2 py-1 text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-white text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
                       x
                     </button>
@@ -4842,6 +4869,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   )}
                 </>
               )}
+
+              <ImagePastePrompt
+                paste={imagePaste}
+                requiresManualConversion={getAutoMode(imagePaste.pendingFile?.size) === "off"}
+              />
 
               {/* Convert button + errors + tier hints */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -4872,7 +4904,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   </span>
                 )}
 
-                {err && <span className="text-red-700 text-sm">{err}</span>}
+                {err && <p role="alert" className="m-0 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-5 text-red-700">{err}</p>}
                 {!err && info && (
                   <span className="text-[13px] text-slate-600">{info}</span>
                 )}
@@ -4885,7 +4917,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
               data-output-panel-focused={focusedOutputStamp != null ? "true" : "false"}
               className={[
-                "converter-output-panel order-3 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
+        "converter-output-panel order-2 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
                 history.length === 0 && !busy ? "hidden md:block" : "",
                 focusedOutputStamp != null
                   ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
@@ -5336,7 +5368,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                 <button
                                   type="button"
                                   onClick={() => retryOutputJob(item.stamp)}
-                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800"
                                 >
                                   Retry
                                 </button>
@@ -5435,7 +5467,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                     a.remove();
                                     URL.revokeObjectURL(u);
                                   }}
-                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                                 >
                                   Download SVG
                                 </button>
@@ -5575,7 +5607,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => retryOutputJob(item.stamp)}
-                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800"
                               >
                                 Retry
                               </button>
@@ -5610,7 +5642,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             URL.revokeObjectURL(u);
                           }}
                           disabled={!hasUsableOutput}
-                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-700 hover:bg-sky-800 text-white border-sky-600 cursor-pointer"
                         >
                           <Icons
                             name="download"
@@ -5645,7 +5677,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onClick={() => openOutputBatchSettings(item.stamp)}
                           disabled={!hasUsableOutput}
                           data-output-batch-shortcut="true"
-                          aria-controls={`output-batch-${item.stamp}`}
+                          aria-expanded={!!item.batchOpen}
+                          aria-controls={item.batchOpen ? `output-batch-${item.stamp}` : undefined}
                           className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           Batch
@@ -6001,7 +6034,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
 
             {previewUrl && !presetMenuExpanded && (
-              <div className="order-2 flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:order-3 md:col-start-1 md:row-start-2 md:rounded-2xl">
+              <div data-converter-original="true" className="order-3 flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:order-3 md:col-start-1 md:row-start-2 md:rounded-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
                   <div className="min-w-0">
                     <p className="m-0 text-[13px] font-semibold text-slate-700">
@@ -6235,7 +6268,10 @@ async function getImageSize(file: File): Promise<{ w: number; h: number }> {
   }
 }
 
-async function validateBeforeSubmit(file: File, knownSize?: { w: number; h: number }) {
+async function validateBeforeSubmit(
+  file: File,
+  knownSize: { w: number; h: number } | null,
+): Promise<{ w: number; h: number } | null> {
   if (!isAllowedImageFile(file)) {
     throw new Error(`Only ${ACCEPTED_IMAGE_LABEL} images are allowed.`);
   }
@@ -6243,11 +6279,11 @@ async function validateBeforeSubmit(file: File, knownSize?: { w: number; h: numb
     throw new Error("File too large. Max 30 MB per image.");
   }
   if (isSvgFile(file)) {
-    return;
+    return null;
   }
   try {
     const { w, h } = knownSize || (await getImageSize(file));
-    if (!w || !h) return;
+    if (!w || !h) return null;
     if (w < MIN_TRACE_SIDE || h < MIN_TRACE_SIDE) {
       throw new Error(
         "Image is too small to trace safely. Please upload an image at least 2×2 pixels.",
@@ -6259,6 +6295,7 @@ async function validateBeforeSubmit(file: File, knownSize?: { w: number; h: numb
         `Image too large: ${w}×${h} (~${mp.toFixed(1)} MP). Max ${MAX_SIDE}px per side or ${MAX_MP} MP.`,
       );
     }
+    return { w, h };
   } catch (error: any) {
     if (
       error?.message?.startsWith("Image too large:") ||
@@ -6266,7 +6303,7 @@ async function validateBeforeSubmit(file: File, knownSize?: { w: number; h: numb
     ) {
       throw error;
     }
-    return;
+    return null;
   }
 }
 

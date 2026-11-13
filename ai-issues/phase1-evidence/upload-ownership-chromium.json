@@ -1,0 +1,47 @@
+[
+  {
+    "name": "remove-during-measurement",
+    "passed": true,
+    "posts": 0
+  },
+  {
+    "name": "replace-during-measurement",
+    "passed": true,
+    "posts": 1
+  },
+  {
+    "name": "navigate-during-measurement",
+    "passed": true,
+    "posts": 0
+  },
+  {
+    "name": "remove-during-convert-validation",
+    "passed": true,
+    "posts": 0
+  },
+  {
+    "name": "remove-during-preset-validation",
+    "passed": true,
+    "posts": 0
+  },
+  {
+    "name": "replace-during-fingerprinting",
+    "passed": true,
+    "posts": 1
+  },
+  {
+    "name": "replacement-uses-its-own-dimensions",
+    "passed": true,
+    "posts": 1
+  },
+  {
+    "name": "dimension-limits",
+    "passed": true,
+    "posts": 0
+  },
+  {
+    "name": "large-paste-requires-manual-convert",
+    "passed": true,
+    "posts": 0
+  }
+]

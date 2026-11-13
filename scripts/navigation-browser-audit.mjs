@@ -13,7 +13,7 @@ const profileDir = path.join(tmpDir, "profile");
 const mobileWidths = [320, 360, 390, 430, 768];
 const desktopWidths = [1024, 1280, 1440, 1600, 1920];
 const compactPrimaryHrefs = [
-  "#other-tools",
+  "/sitemap",
   "/svg-to-png-converter",
   "/png-to-svg-converter",
 ];
@@ -58,6 +58,7 @@ async function main() {
     windowsHide: true,
   });
 
+  let resizeFocus;
   const mobile = [];
   const desktop = [];
   try {
@@ -76,6 +77,7 @@ async function main() {
       desktop.push(result);
       console.error(`[navigation-browser] desktop ${width}px -> ${result.ok ? "ok" : "failed"}`);
     }
+    resizeFocus = await runResizeFocusAudit();
   } finally {
     browser.kill();
   }
@@ -86,11 +88,51 @@ async function main() {
     browserPath,
     mobile,
     desktop,
+    resizeFocus,
   };
   console.log(JSON.stringify(report, null, 2));
 
-  const failures = [...mobile, ...desktop].filter((result) => !result.ok);
+  const failures = [...mobile, ...desktop, resizeFocus].filter((result) => !result.ok);
   if (failures.length > 0) process.exit(1);
+}
+
+async function runResizeFocusAudit() {
+  const client = await openPage("/", 1024, 844);
+  const mobileTrigger = `document.querySelector('button[aria-label="Open menu"]')`;
+  const desktopTrigger = `document.getElementById("more-tools-trigger")`;
+
+  try {
+    await evaluate(client, `${desktopTrigger}.click()`);
+    await waitForValue(client, () => `document.activeElement.id === "desktop-tool-search"`, 8_000);
+    await client.send("Emulation.setDeviceMetricsOverride", {
+      width: 1023,
+      height: 844,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    const desktopToMobile = await waitForValue(
+      client,
+      () => `document.activeElement === ${mobileTrigger} && !document.getElementById("more-tools-panel")`,
+      3_000,
+    );
+
+    await evaluate(client, `${mobileTrigger}.click()`);
+    await waitForValue(client, () => `document.activeElement.id === "mobile-tool-search"`, 8_000);
+    await client.send("Emulation.setDeviceMetricsOverride", {
+      width: 1024,
+      height: 844,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    const mobileToDesktop = await waitForValue(
+      client,
+      () => `document.activeElement === ${desktopTrigger} && !document.querySelector('[role="dialog"][aria-label="Menu"]')`,
+      3_000,
+    );
+    return { ok: desktopToMobile && mobileToDesktop, desktopToMobile, mobileToDesktop };
+  } finally {
+    await client.close().catch(() => {});
+  }
 }
 
 async function runMobileAudit(width) {
@@ -117,6 +159,30 @@ async function runMobileAudit(width) {
     );
 
     const initial = await evaluate(client, mobileStateExpression());
+    const initialFocus = await waitForValue(
+      client,
+      () => `document.activeElement.id === "mobile-tool-search"`,
+      8_000,
+    );
+    await evaluate(client, `document.querySelector('[role="dialog"] a').focus()`);
+    await pressKey(client, "Tab", 9, 8);
+    const backwardWrap = await evaluate(client, `(() => {
+      const links = document.querySelectorAll('[role="dialog"] a, [role="dialog"] button, [role="dialog"] input');
+      return document.activeElement === links[links.length - 1];
+    })()`);
+    await pressKey(client, "Tab", 9);
+    const forwardWrap = await evaluate(client, `document.activeElement === document.querySelector('[role="dialog"] a')`);
+    const expansionKeepsFocus = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-nav-section] button[aria-expanded="false"]');
+      button.focus();
+      return document.activeElement === button;
+    })()`);
+    await pressKey(client, "Enter", 13);
+    const expandedControlFocused = await waitForValue(
+      client,
+      () => `document.activeElement.matches('button[aria-expanded="true"]') && document.activeElement.textContent.trim() === 'Show fewer'`,
+      3_000,
+    );
     await setSearchValue(client, "#mobile-tool-search", "favicon");
     const search = await waitForValue(
       client,
@@ -132,7 +198,13 @@ async function runMobileAudit(width) {
       (state) => state.searchValue === "svg two" && state.searchLinkLabels.some((label) => /^SVG to /i.test(label)),
     );
 
+    await pressKey(client, "Escape", 27);
+    const closeRestoresFocus = await evaluate(client, `(() => {
+      const trigger = document.querySelector('button[aria-label="Open menu"]');
+      return trigger === document.activeElement && trigger.getAttribute('aria-expanded') === 'false' && !document.querySelector('[role="dialog"][aria-label="Menu"]');
+    })()`);
     const ok =
+      initialFocus && backwardWrap && forwardWrap && expansionKeepsFocus && expandedControlFocused && closeRestoresFocus &&
       initial.hasDialog &&
       initial.hasMobileMenu &&
       initial.detailsCount === 0 &&
@@ -160,6 +232,7 @@ async function runMobileAudit(width) {
       width,
       ok,
       initial,
+      keyboard: { initialFocus, backwardWrap, forwardWrap, expansionKeepsFocus, expandedControlFocused, closeRestoresFocus },
       search: {
         searchValue: search.searchValue,
         searchDirectLinkCount: search.searchDirectLinkCount,
@@ -193,7 +266,7 @@ async function runDesktopAudit(width) {
     const primary = await evaluate(client, desktopPrimaryStateExpression());
     await evaluate(client, `(() => {
       const button = Array.from(document.querySelectorAll('button'))
-        .find((candidate) => /More/i.test(candidate.innerText || '') && candidate.getAttribute('aria-haspopup') === 'menu');
+        .find((candidate) => /More/i.test(candidate.innerText || '') && candidate.id === 'more-tools-trigger');
       if (!button) return false;
       button.click();
       return true;
@@ -204,6 +277,15 @@ async function runDesktopAudit(width) {
       8_000,
       (value) => value.hasMenu,
     );
+    const initialFocus = await waitForValue(
+      client,
+      () => `document.activeElement.id === "desktop-tool-search"`,
+      8_000,
+    );
+    await pressKey(client, "Tab", 9, 8);
+    const focusOrder = await evaluate(client, `document.activeElement.id === "more-tools-trigger"`);
+    await pressKey(client, "Tab", 9);
+    const focusReturnsToSearch = await evaluate(client, `document.activeElement.id === "desktop-tool-search"`);
     await setSearchValue(client, "#desktop-tool-search", "svg two");
     const directionalSearch = await waitForValue(
       client,
@@ -212,6 +294,18 @@ async function runDesktopAudit(width) {
       (value) => value.searchValue === "svg two" && value.searchLabels.some((label) => /^SVG to /i.test(label)),
     );
 
+    await pressKey(client, "Escape", 27);
+    const closeRestoresFocus = await evaluate(client, `(() => {
+      const trigger = document.getElementById('more-tools-trigger');
+      return trigger === document.activeElement && trigger.getAttribute('aria-expanded') === 'false' && !document.getElementById('more-tools-panel');
+    })()`);
+
+    const allToolsLink = `document.querySelector('nav[aria-label="Primary"] a[href="/sitemap"]')`;
+    await evaluate(client, `${allToolsLink}.click()`);
+    const catalogFocus = await evaluate(client, `location.hash === "#other-tools" && document.activeElement.id === "other-tools"`);
+    await client.navigate(`${baseUrl}/how-it-works`);
+    await evaluate(client, `${allToolsLink}.click()`);
+    const sitemapFallback = await waitForValue(client, () => `location.pathname === "/sitemap"`, 8_000);
     const expectedColumns = width >= 1840 ? 6 : width >= 1536 ? 5 : 4;
     const expectedVisiblePrimaryHrefs =
       width >= 1536
@@ -220,6 +314,7 @@ async function runDesktopAudit(width) {
           ? requiredPrimaryHrefs
           : compactPrimaryHrefs;
     const ok =
+      initialFocus && focusOrder && focusReturnsToSearch && closeRestoresFocus && catalogFocus && sitemapFallback &&
       primary.hasPrimaryNav &&
       primary.homeLogoHref === "/" &&
       primary.allToolsLinkVisible &&
@@ -256,6 +351,8 @@ async function runDesktopAudit(width) {
       expectedColumns,
       expectedVisiblePrimaryHrefs,
       primary,
+      keyboard: { initialFocus, focusOrder, focusReturnsToSearch, closeRestoresFocus },
+      catalog: { catalogFocus, sitemapFallback },
       ...state,
       directionalSearch: {
         searchValue: directionalSearch.searchValue,
@@ -352,7 +449,7 @@ function desktopPrimaryStateExpression() {
       return styles.display !== 'none' && styles.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     });
     const buttons = Array.from(nav?.querySelectorAll(':scope > button') || []);
-    const moreButton = buttons.find((button) => /More/i.test(button.innerText || '') && button.getAttribute('aria-haspopup') === 'menu');
+    const moreButton = buttons.find((button) => /More/i.test(button.innerText || '') && button.id === 'more-tools-trigger');
     const visibleNavControls = [
       ...visiblePrimaryLinks,
       ...buttons.filter((button) => {
@@ -372,7 +469,7 @@ function desktopPrimaryStateExpression() {
     });
     const minControlCenter = controlCenters.length ? Math.min(...controlCenters) : 0;
     const maxControlCenter = controlCenters.length ? Math.max(...controlCenters) : 0;
-    const allToolsLink = topLevelAnchors.find((link) => link.getAttribute('href') === '#other-tools' && (link.textContent || '').trim() === 'All Tools');
+    const allToolsLink = topLevelAnchors.find((link) => link.getAttribute('href') === '/sitemap' && (link.textContent || '').trim() === 'All Tools');
     const allToolsRect = allToolsLink?.getBoundingClientRect();
     const moreRect = moreButton?.getBoundingClientRect();
     return {
@@ -405,6 +502,12 @@ function desktopPrimaryStateExpression() {
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1,
     };
   })()`;
+}
+
+async function pressKey(client, key, windowsVirtualKeyCode, modifiers = 0) {
+  const params = { key, code: key, windowsVirtualKeyCode, modifiers };
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", ...(key === "Enter" ? { text: "\r" } : {}), ...params });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", ...params });
 }
 
 async function setSearchValue(client, selector, value) {
