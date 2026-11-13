@@ -61,7 +61,10 @@ export default function SiteFooter() {
           </nav>
         </div>
 
-        <p className="mt-5 max-w-[920px] text-xs leading-5 text-sky-200/75 text-center mx-auto">
+        <p className="mt-5 text-center text-sm leading-6 text-sky-100">
+          Built and maintained by <Link to="/author/suhas-sunder" className={linkClass}>Suhas Sunder</Link>, a software engineer.
+        </p>
+        <p className="mt-3 max-w-[920px] text-xs leading-5 text-sky-200/75 text-center mx-auto">
           Privacy: Uploaded files are used for conversion, processed in memory
           during the request, and not intentionally stored after processing.
         </p>

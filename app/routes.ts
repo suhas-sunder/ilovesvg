@@ -5,6 +5,7 @@ export default [
   route("api/batch-svg", "routes/api.batch-svg.tsx"),
 
   // Documentation
+  route("author/suhas-sunder", "routes/author.suhas-sunder.tsx"),
   route("how-it-works", "routes/how-it-works.tsx"),
   route(
     "how-it-works/conversion-workflow",

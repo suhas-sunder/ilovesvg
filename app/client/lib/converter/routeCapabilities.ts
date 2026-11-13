@@ -73,6 +73,8 @@ const SVG_EXPORT_GROUPS: AdvancedSettingGroup[] = [
 const SVG_UTILITY_GROUPS: AdvancedSettingGroup[] = ["svg-utility"];
 
 const ROUTE_GROUPS: Record<string, ConverterRouteGroup> = {
+  "author.suhas-sunder": "static",
+  "author/suhas-sunder": "static",
   home: "raster-to-svg",
   "png-to-svg-converter": "raster-to-svg",
   "jpg-to-svg-converter": "raster-to-svg",
