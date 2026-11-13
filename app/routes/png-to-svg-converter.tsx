@@ -2038,6 +2038,7 @@ export function PngToSvgRouteImplementation({
                     className="m-0 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-5 text-red-700"
                   >
                     {err}
+                    {" "}<a href="/how-it-works/troubleshooting#mobile-image-recovery" className="underline underline-offset-2">Image upload and mobile recovery steps</a>
                   </p>
                 )}
                 {!err && info && (
