@@ -21,6 +21,11 @@ type SitemapSection = {
 
 const sitemapSections: SitemapSection[] = [
   {
+    title: "Maintainer",
+    description: "The person responsible for iLoveSVG and its tools.",
+    links: [{ title: "Suhas Sunder", path: "/author/suhas-sunder", description: "Meet the software engineer who builds and maintains iLoveSVG." }],
+  },
+  {
     title: "How it works and converter help",
     description:
       "Practical documentation for choosing presets, understanding settings, troubleshooting output, and exporting SVG results.",

@@ -1,0 +1,1726 @@
+{
+  "base": "http://127.0.0.1:5292/",
+  "cases": [
+    {
+      "engineName": "chromium",
+      "width": 320,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 320,
+        "documentWidth": 320,
+        "bodyWidth": 320,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579660595&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579660613&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 375,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 375,
+        "documentWidth": 375,
+        "bodyWidth": 375,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579661166&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579661190&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 390,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 390,
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": [],
+        "adNavigation": {
+          "width": 390,
+          "matches": [
+            "<script async=\"\" src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570\" crossorigin=\"anonymous\"></script>"
+          ]
+        }
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579661843&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579661861&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 430,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 430,
+        "documentWidth": 430,
+        "bodyWidth": 430,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579662527&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579662543&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 768,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 768,
+        "documentWidth": 768,
+        "bodyWidth": 768,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579663124&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579663137&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 1024,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 1024,
+        "documentWidth": 1024,
+        "bodyWidth": 1024,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579663788&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579663801&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap"
+      ]
+    },
+    {
+      "engineName": "chromium",
+      "width": 1440,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": [],
+        "adNavigation": {
+          "width": 2560,
+          "matches": [
+            "<script async=\"\" src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570\" crossorigin=\"anonymous\"></script>"
+          ]
+        }
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579664415&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579664429&ver=1.320.0",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 320,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 320,
+        "documentWidth": 320,
+        "bodyWidth": 320,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579665424&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579665465&ver=1.320.0"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 375,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 375,
+        "documentWidth": 375,
+        "bodyWidth": 375,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579666061&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579666072&ver=1.320.0"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 390,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 390,
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": [],
+        "adNavigation": {
+          "width": 390,
+          "matches": [
+            "<script async=\"\" src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570\" crossorigin=\"anonymous\"></script>"
+          ]
+        }
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579666666&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579666735&ver=1.320.0",
+        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 430,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 430,
+        "documentWidth": 430,
+        "bodyWidth": 430,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579667592&ver=1.320.0&compression=base64"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 768,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 768,
+        "documentWidth": 768,
+        "bodyWidth": 768,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579668177&ver=1.320.0&compression=base64"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 1024,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 1024,
+        "documentWidth": 1024,
+        "bodyWidth": 1024,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": []
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579668723&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579668831&ver=1.320.0"
+      ]
+    },
+    {
+      "engineName": "webkit",
+      "width": 1440,
+      "state": {
+        "canonical": "https://www.ilovesvg.com/author/suhas-sunder",
+        "canonicalCount": 1,
+        "title": "Suhas Sunder - iLoveSVG Maintainer",
+        "viewport": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "overflow": 0,
+        "sections": [
+          [
+            "H1",
+            "Suhas Sunder"
+          ],
+          [
+            "H2",
+            "What I maintain"
+          ],
+          [
+            "H3",
+            "Tools and conversion behavior"
+          ],
+          [
+            "H3",
+            "Usability and clear explanations"
+          ],
+          [
+            "H2",
+            "How changes are checked"
+          ],
+          [
+            "H2",
+            "Other projects"
+          ],
+          [
+            "H2",
+            "Useful next reads"
+          ]
+        ],
+        "ads": 0,
+        "links": [
+          [
+            "Open the converter",
+            "/"
+          ],
+          [
+            "How the tools work",
+            "/how-it-works"
+          ],
+          [
+            "privacy policy",
+            "/privacy-policy"
+          ],
+          [
+            "iLoveTimers",
+            "https://www.ilovetimers.com/author/suhas-sunder/"
+          ],
+          [
+            "MorseWords",
+            "https://www.morsewords.com/about"
+          ],
+          [
+            "How It Works",
+            "/how-it-works"
+          ],
+          [
+            "Conversion Workflow",
+            "/how-it-works/conversion-workflow"
+          ],
+          [
+            "Preset Guide",
+            "/how-it-works/presets"
+          ],
+          [
+            "Settings Guide",
+            "/how-it-works/settings"
+          ],
+          [
+            "Troubleshooting",
+            "/how-it-works/troubleshooting"
+          ],
+          [
+            "Exporting and Downloads",
+            "/how-it-works/exporting-and-downloads"
+          ],
+          [
+            "Browse all tools",
+            "/sitemap"
+          ]
+        ],
+        "schema": [
+          {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "@id": "https://www.ilovesvg.com/author/suhas-sunder",
+            "url": "https://www.ilovesvg.com/author/suhas-sunder",
+            "name": "Suhas Sunder - iLoveSVG Maintainer",
+            "description": "Meet Suhas Sunder, the software engineer who builds and maintains iLoveSVG's conversion tools, editing workflows, documentation and browser compatibility.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://www.ilovesvg.com/author/suhas-sunder#person",
+              "name": "Suhas Sunder",
+              "url": "https://www.ilovesvg.com/author/suhas-sunder",
+              "jobTitle": "Software engineer",
+              "description": "Creator and maintainer of iLoveSVG."
+            }
+          }
+        ],
+        "axe": [],
+        "adNavigation": {
+          "width": 2560,
+          "matches": [
+            "<script async=\"\" src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570\" crossorigin=\"anonymous\"></script>"
+          ]
+        }
+      },
+      "runtime": [],
+      "external": [
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Sora:wght@600..800&display=swap",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config.js",
+        "https://us.i.posthog.com/flags/?v=2&config=true&ip=0&_=1794579669473&ver=1.320.0&compression=base64",
+        "https://us-assets.i.posthog.com/array/phc_zOGfW8rlGUKkYe2U4AxwLbHStq7KkXQNWFTgIzxOKvG/config?ip=0&_=1794579669618&ver=1.320.0",
+        "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4810616735714570"
+      ]
+    }
+  ],
+  "failures": []
+}
