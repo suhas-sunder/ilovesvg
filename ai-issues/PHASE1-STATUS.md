@@ -6,7 +6,7 @@ Authoritative report for this assignment. Historical audits and owner requests r
 
 **IMPLEMENTED** and locally **VALIDATED**: navigation/preset keyboard controls, native file replacement, confirmed raster clipboard input on Home and PNG, clearer errors and action contrast, mobile result ordering, fullscreen focus/nested dismissal, and stale upload ownership guards. Existing design, tracing parameters, output editing/history and supported formats are preserved.
 
-This is a review candidate, not an unqualified claim that every Phase 1 acceptance condition or original iPhone incident is resolved. **PUSHED:** publication checkpoint pending. **MERGED:** no. **DEPLOYED:** no. **PRODUCTION VERIFIED:** no. No production version or rollback deployment was executed; the source rollback reference for this package is the unchanged PR #11 foundation.
+This is a review candidate, not an unqualified claim that every Phase 1 acceptance condition or original iPhone incident is resolved. **PUSHED:** yes, [draft PR #12](https://github.com/suhas-sunder/ilovesvg/pull/12). **MERGED:** no. **DEPLOYED:** no. **PRODUCTION VERIFIED:** no. No production version or rollback deployment was executed; the source rollback reference for this package is the unchanged PR #11 foundation.
 
 ## 2. Starting source and final development SHAs
 
@@ -21,7 +21,7 @@ This is a review candidate, not an unqualified claim that every Phase 1 acceptan
 
 ## 3. Branches and draft PRs
 
-Branch: `codex/ilovesvg-final-ui-ux-buildout`. Draft PR targets `release/2026-W46-ilovesvg-consolidated` to keep its diff separate from PR #11. Integration depends on the owner's foundation review. The main-target reliability workflow does not automatically validate this stacked base: local checks are recorded here; integration CI is still a release gate. No main push, merge, deployment or infrastructure change is part of this assignment.
+Branch: `codex/ilovesvg-final-ui-ux-buildout`; [draft PR #12](https://github.com/suhas-sunder/ilovesvg/pull/12), open/unmerged. Draft PR targets `release/2026-W46-ilovesvg-consolidated` to keep its diff separate from PR #11. Integration depends on the owner's foundation review. The main-target reliability workflow does not automatically validate this stacked base: local checks are recorded here; integration CI is still a release gate. No main push, merge, deployment or infrastructure change is part of this assignment.
 
 ## 4. Main UI changes
 
@@ -101,7 +101,7 @@ Node20.20.2 production server; Chromium147.0.7727.15, WebKit26.4. Baseline immut
 | Conversion actions, input compatibility, output UX, navigation, SEO, schema, monetization, route HTTP | **VALIDATED**, `phase1-build5-*.log` |
 | Navigation browser | **VALIDATED**, ten widths/breakpoint keyboard checks, `tmp/phase1-browser/navigation-browser-build3.json` |
 | Preset keyboard | **VALIDATED**, Chromium/WebKit Home1280 and PNG390, `tmp/phase1-evidence/preset-{chromium,webkit}/` |
-| Existing preset identity | **VALIDATED**, 12/12 across six routes, metadata/default/copy/download, `preset-identity.json` |
+| Existing preset identity | **VALIDATED**, 12/12 across six routes, metadata/default/copy/download; final build5 rerun `build5-preset-identity.json` and `phase1-build5-preset-identity.log`, exit0 |
 | Hybrid fallback | **VALIDATED**, 12 Chromium desktop/mobile success, forced fallback, busy/permanent error, cancel and outline singlePOST; `phase1-hybrid-chromium.log` |
 | Batch/navigation | **VALIDATED**, Chromium/WebKit duplicate names/ZIP, partial/all-failure retry, held fallback, navigation cancellation, chunk failure; `phase1-batch-*.log` |
 | Paste/replacement | **VALIDATED**, Chromium/WebKit confirmation/discard, field exclusion, unsupported/empty data, same-name replacement, SVG bytes/pixels; `phase1-paste-build5-*.log` |
@@ -164,5 +164,4 @@ Review PR11 and this stacked draft, run integration CI on eventual main-target c
 
 ## Final checkpoint
 
-Application implementation is committed through `cdd56e667c8c81e76f4ed11ea8aadc95fb506843`. Final build5 checks above passed. Broad parity finished with exit0 and zero failures on build3; its 1,496 expected external `ERR_ADDRESS_INVALID` records came from deliberate DNS isolation, not local app requests. Main and PR11 refs were rechecked unchanged after implementation. Publication checkpoint pending. No merge/deployment performed.
-
+Application implementation is committed through `cdd56e667c8c81e76f4ed11ea8aadc95fb506843`. Final build5 checks above passed. Broad parity finished with exit0 and zero failures on build3; its 1,496 expected external `ERR_ADDRESS_INVALID` records came from deliberate DNS isolation, not local app requests. Main and PR11 refs were rechecked unchanged after implementation. **PUSHED:** code/evidence checkpoint `e35f5383e2ec27c57c53945d2b41b04709af5996` opened as draft PR #12; this documentation-only follow-up records publication. Use the PR head for the latest documentation revision. **MERGED:** no. **DEPLOYED:** no. **PRODUCTION VERIFIED:** no. Main and foundation were not changed. Task-owned loopback servers are stopped after validation; immutable builds and raw evidence remain under ignored `tmp/`. The original workspace/worktrees and partial E: checkout remain preserved.
