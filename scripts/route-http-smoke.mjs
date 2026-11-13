@@ -94,6 +94,7 @@ if (failures.length > 0) {
 function routeCandidates(routeId) {
   if (routeId === "home") return ["/"];
   if (routeId === "sitemap") return ["/sitemap.xml", "/sitemap"];
+  if (routeId === "author.suhas-sunder") return ["/author/suhas-sunder"];
   if (routeId.startsWith("how-it-works.")) {
     return [`/how-it-works/${routeId.replace("how-it-works.", "")}`];
   }
