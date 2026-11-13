@@ -105,7 +105,7 @@ function SocialLinks() {
   return (
     <div className="flex flex-col gap-8 w-full justify-center items-center pb-[5em]">
       <h2
-        className={`text-stone-400 flex py-2 text-2xl text-center sm:text-4xl font-lora mt-4 tracking-wide`}
+        className={`text-stone-600 flex py-2 text-2xl text-center sm:text-4xl font-lora mt-4 tracking-wide`}
       >
         Follow i🩵SVG On Social Media
       </h2>

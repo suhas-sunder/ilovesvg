@@ -149,6 +149,13 @@ main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid
   transform-origin: top center;
 }
 
+/* These marked panels contain input controls only, never advertising. The
+   focused workspace already collapses them visually; also remove hidden
+   controls from keyboard navigation and the accessibility tree. */
+.grid:has(> [data-output-panel-focused="true"]) > :is([data-converter-input="true"], [data-converter-original="true"]) {
+  visibility: hidden;
+}
+
 [data-editor-settings-panel="true"],
 [data-editor-comparison-panel="true"] {
   max-width: 100%;
@@ -347,7 +354,7 @@ main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class]:hove
   main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="order-3"][class*="hidden"][class*="md:flex"],
   main[class*="bg-slate-50"] > div[class*="max-w-[1180px]"] > section[class*="grid"] > div[class*="order-4"][class*="hidden"][class*="md:flex"] {
     display: flex !important;
-    order: 2 !important;
+    order: var(--converter-original-order, 2) !important;
     margin-top: 0 !important;
     border-radius: 1rem !important;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
@@ -357,6 +364,10 @@ main[class*="bg-slate-50"] button[aria-controls="advanced-settings"][class]:hove
     display: flex !important;
     max-height: none !important;
     overflow: hidden !important;
+  }
+
+  [data-converter-original="true"] {
+    --converter-original-order: 4;
   }
 
   main[class*="bg-slate-50"] img.transparent-checkerboard {

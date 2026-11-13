@@ -22,6 +22,7 @@ export function FullscreenPreviewButton({
       type="button"
       onClick={(event) => {
         event.stopPropagation();
+        event.currentTarget.focus({ preventScroll: true });
         onOpen();
       }}
       aria-label="Preview full screen"
@@ -92,7 +93,6 @@ export function FullscreenOutputPreview<TItem>({
   getPreviewImage: (item: TItem, index: number) => FullscreenPreviewImage;
 }) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null);
-  const previousFocusRef = React.useRef<HTMLElement | null>(null);
   const open = activeIndex !== null && activeIndex >= 0 && activeIndex < items.length;
   const safeIndex = open ? activeIndex : null;
   const currentItem = safeIndex === null ? null : items[safeIndex] ?? null;
@@ -112,6 +112,7 @@ export function FullscreenOutputPreview<TItem>({
     return null;
   }, [preview]);
   const hasMultiple = items.length > 1;
+  const hasPreview = open && Boolean(previewSrc);
 
   const close = React.useCallback(() => {
     setActiveIndex(null);
@@ -128,46 +129,77 @@ export function FullscreenOutputPreview<TItem>({
   }, [hasMultiple, items.length, safeIndex, setActiveIndex]);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!hasPreview || !dialogRef.current) return;
+    const dialog = dialogRef.current;
 
-    previousFocusRef.current =
+    const previousFocus =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    window.setTimeout(() => dialogRef.current?.focus(), 0);
+    const focusTimer = window.setTimeout(() => dialog.focus({ preventScroll: true }), 0);
 
+    function onFocusIn(event: FocusEvent) {
+      if (event.target instanceof Node && !dialog.contains(event.target)) {
+        dialog.focus({ preventScroll: true });
+      }
+    }
+
+    function onTab(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const buttons = dialog.querySelectorAll<HTMLButtonElement>("button:enabled");
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      const active = document.activeElement;
+      const shouldWrap = active === dialog || !dialog.contains(active) ||
+        (event.shiftKey ? active === first : active === last);
+      if (!shouldWrap) return;
+
+      event.preventDefault();
+      (event.shiftKey ? last : first)?.focus({ preventScroll: true });
+    }
+
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("keydown", onTab);
     return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("keydown", onTab);
       document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus?.();
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, [open]);
+  }, [hasPreview]);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!hasPreview) return;
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         close();
         return;
       }
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
+        event.stopPropagation();
         goToPrevious();
         return;
       }
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
+        event.stopPropagation();
         goToNext();
       }
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [close, goToNext, goToPrevious, open]);
+    // The modal owns these keys before the surrounding focused editor handles
+    // them. One Escape closes one layer and restores its still-mounted trigger.
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [close, goToNext, goToPrevious, hasPreview]);
 
   React.useEffect(() => {
     if (activeIndex !== null && (activeIndex < 0 || activeIndex >= items.length)) {
@@ -193,12 +225,12 @@ export function FullscreenOutputPreview<TItem>({
         tabIndex={-1}
         className="flex h-full min-h-0 flex-col rounded-xl border border-white/10 bg-slate-900 text-white shadow-2xl focus-visible:outline-none"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2 sm:px-4">
-          <div className="min-w-0">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2 sm:px-4">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold">
               {preview.label}
             </div>
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-slate-300 [overflow-wrap:anywhere]">
               {safeIndex + 1} of {items.length}
               {preview.width && preview.height
                 ? ` - ${Math.round(preview.width)} x ${Math.round(preview.height)} px`
@@ -207,14 +239,14 @@ export function FullscreenOutputPreview<TItem>({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {hasMultiple ? (
               <>
                 <button
                   type="button"
                   onClick={goToPrevious}
                   aria-label="Previous output"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white cursor-pointer hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white cursor-pointer hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                 >
                   <ArrowIcon direction="left" />
                 </button>
@@ -222,7 +254,7 @@ export function FullscreenOutputPreview<TItem>({
                   type="button"
                   onClick={goToNext}
                   aria-label="Next output"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white cursor-pointer hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white cursor-pointer hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                 >
                   <ArrowIcon direction="right" />
                 </button>
@@ -232,7 +264,7 @@ export function FullscreenOutputPreview<TItem>({
               type="button"
               onClick={close}
               aria-label="Close full-screen preview"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white cursor-pointer hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white cursor-pointer hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               <svg
                 aria-hidden="true"

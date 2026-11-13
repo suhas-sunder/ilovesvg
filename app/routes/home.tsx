@@ -24,7 +24,8 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
-import DragArea from "~/client/components/ui/DragArea";
+import DragArea, { ReplaceFileButton } from "~/client/components/ui/DragArea";
+import { ImagePastePrompt, useImagePaste } from "~/client/components/ui/ImagePastePrompt";
 import Icons from "~/client/assets/icons/Icons";
 import {
   FullscreenOutputPreview,
@@ -3359,11 +3360,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
   }
 
+  const imagePaste = useImagePaste({ onFile: handleNewFile, onError: setErr, maxBytes: MAX_UPLOAD_BYTES });
+
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const f = input.files?.[0];
     input.value = "";
     if (!f) return;
+    imagePaste.clear();
     await handleNewFile(f);
   }
   async function onDrop(e: React.DragEvent) {
@@ -3371,6 +3375,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     e.stopPropagation();
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
+    imagePaste.clear();
     await handleNewFile(f);
   }
 
@@ -4769,7 +4774,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
+            <div data-converter-input="true" onPaste={imagePaste.onPaste} tabIndex={-1} role="group" aria-label="Image input" className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="font-display m-0 mb-3 inline-flex w-full items-center justify-center gap-2 text-center text-[28px] font-[800] leading-[1.05] tracking-[-0.035em] text-sky-950 sm:text-[34px]">
                 Free SVG Converter
               </h1>
@@ -4811,9 +4816,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
+                    <ReplaceFileButton onPick={onPick} />
                     <button
                       type="button"
                       onClick={() => {
+                        imagePaste.clear();
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         clearUploadAutoSubmit();
                         pendingUploadFileRef.current = null;
@@ -4826,7 +4833,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         setOriginalFileSize(null);
                       }}
                       aria-label="Remove selected file"
-                      className="rounded-md border border-sky-200 bg-white px-2 py-1 text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-white text-slate-600 cursor-pointer transition-colors hover:bg-sky-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
                       x
                     </button>
@@ -4842,6 +4849,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   )}
                 </>
               )}
+
+              <ImagePastePrompt paste={imagePaste} />
 
               {/* Convert button + errors + tier hints */}
               <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -4872,7 +4881,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   </span>
                 )}
 
-                {err && <span className="text-red-700 text-sm">{err}</span>}
+                {err && <p role="alert" className="m-0 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium leading-5 text-red-700">{err}</p>}
                 {!err && info && (
                   <span className="text-[13px] text-slate-600">{info}</span>
                 )}
@@ -4885,7 +4894,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               data-focused-editor={focusedOutputStamp != null ? "true" : "false"}
               data-output-panel-focused={focusedOutputStamp != null ? "true" : "false"}
               className={[
-                "converter-output-panel order-3 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
+        "converter-output-panel order-2 min-w-0 overflow-visible rounded-xl border border-slate-300/40 bg-[#43546b] p-2 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] transition-[opacity,transform,box-shadow] duration-[300ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] sm:rounded-2xl sm:p-4 md:order-2 md:overflow-auto",
                 history.length === 0 && !busy ? "hidden md:block" : "",
                 focusedOutputStamp != null
                   ? "md:col-span-2 md:row-start-1 md:max-h-none md:self-start"
@@ -5336,7 +5345,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                 <button
                                   type="button"
                                   onClick={() => retryOutputJob(item.stamp)}
-                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800"
                                 >
                                   Retry
                                 </button>
@@ -5435,7 +5444,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                                     a.remove();
                                     URL.revokeObjectURL(u);
                                   }}
-                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                                  className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                                 >
                                   Download SVG
                                 </button>
@@ -5575,7 +5584,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                               <button
                                 type="button"
                                 onClick={() => retryOutputJob(item.stamp)}
-                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+                                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800"
                               >
                                 Retry
                               </button>
@@ -5610,7 +5619,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                             URL.revokeObjectURL(u);
                           }}
                           disabled={!hasUsableOutput}
-                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-500 hover:bg-sky-600 text-white border-sky-600 cursor-pointer"
+                          className="flex justify-center items-center px-3 py-2 rounded-lg font-semibold border bg-sky-700 hover:bg-sky-800 text-white border-sky-600 cursor-pointer"
                         >
                           <Icons
                             name="download"
@@ -5645,7 +5654,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                           onClick={() => openOutputBatchSettings(item.stamp)}
                           disabled={!hasUsableOutput}
                           data-output-batch-shortcut="true"
-                          aria-controls={`output-batch-${item.stamp}`}
+                          aria-expanded={!!item.batchOpen}
+                          aria-controls={item.batchOpen ? `output-batch-${item.stamp}` : undefined}
                           className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-950 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           Batch
@@ -6001,7 +6011,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
 
             {previewUrl && !presetMenuExpanded && (
-              <div className="order-2 flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:order-3 md:col-start-1 md:row-start-2 md:rounded-2xl">
+              <div data-converter-original="true" className="order-3 flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:order-3 md:col-start-1 md:row-start-2 md:rounded-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
                   <div className="min-w-0">
                     <p className="m-0 text-[13px] font-semibold text-slate-700">

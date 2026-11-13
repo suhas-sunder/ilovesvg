@@ -969,7 +969,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                                 downloadFileName,
                               )
                             }
-                            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                           >
                             Download SVG
                           </button>
@@ -1068,7 +1068,7 @@ export function TraceOutputPanel<TSettings extends MixedTraceSettings>({
                         downloadFileName,
                       )
                     }
-                    className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 font-semibold text-white transition-colors hover:bg-sky-600"
+                    className="flex cursor-pointer items-center justify-center rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 font-semibold text-white transition-colors hover:bg-sky-800"
                   >
                     <Icons
                       name="download"
@@ -1296,7 +1296,7 @@ function TraceJobStateCard<TSettings extends MixedTraceSettings>({
           <button
             type="button"
             onClick={() => onRetryOutputJob(item.stamp)}
-            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600"
+            className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800"
           >
             Retry
           </button>
@@ -1391,7 +1391,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
               <button
                 type="button"
                 onClick={onDownloadSvg}
-                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
               >
                 Download
               </button>
@@ -1417,7 +1417,7 @@ function CollapsedTraceOutputCard<TSettings extends MixedTraceSettings>({
             <button
               type="button"
               onClick={() => onRetryOutputJob(item.stamp)}
-              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="cursor-pointer rounded-lg border border-sky-600 bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               Retry
             </button>

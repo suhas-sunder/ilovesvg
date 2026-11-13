@@ -53,7 +53,8 @@ import { RelatedSites } from "~/client/components/navigation/RelatedSites";
 import SocialLinks from "~/client/components/navigation/SocialLinks";
 import { AdSenseDelayed } from "~/client/components/ads/AdsenseDelayed";
 import SiteFooter from "~/client/components/navigation/SiteFooter";
-import DragArea from "~/client/components/ui/DragArea";
+import DragArea, { ReplaceFileButton } from "~/client/components/ui/DragArea";
+import { ImagePastePrompt, useImagePaste } from "~/client/components/ui/ImagePastePrompt";
 import Icons from "~/client/assets/icons/Icons";
 import ExampleSvgConversion from "~/client/components/layout/ExampleSvgConversion";
 import { ContextualAdCard } from "~/client/components/ads/ContextualAdCard";
@@ -1415,7 +1416,10 @@ export function PngToSvgRouteImplementation({
   const uploadPreparationRef = React.useRef(0);
   React.useEffect(() => () => { uploadPreparationRef.current++; }, []);
 
+  const imagePaste = useImagePaste({ onFile: handleNewFile, onError: setErr, maxBytes: MAX_UPLOAD_BYTES });
+
   async function handleNewFile(f: File) {
+    imagePaste.clear();
     const preparationId = ++uploadPreparationRef.current;
     suppressLiveRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -1921,7 +1925,7 @@ export function PngToSvgRouteImplementation({
 
           <section className="grid grid-cols-1 gap-4 items-start sm:pt-5 md:grid-cols-2 lg:pt-0 lg:pb-8">
             {/* INPUT */}
-            <div className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
+            <div data-converter-input="true" onPaste={imagePaste.onPaste} tabIndex={-1} role="group" aria-label="Image input" className="order-1 min-w-0 overflow-hidden rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:border sm:border-slate-200">
               <h1 className="text-[32px] flex mb-3 text-sky-800 text-xl md:text-3xl w-full justify-center font-extrabold leading-none m-0">
                 <CurrentRouteTitle fallback="PNG to SVG Converter" />
               </h1>
@@ -1967,10 +1971,12 @@ export function PngToSvgRouteImplementation({
                           ` (shrunk from ${prettyBytes(originalFileSize)})`}
                       </span>
                     </div>
+                    <ReplaceFileButton onPick={onPick} accept={ACCEPTED_UPLOAD_ACCEPT} />
                     <button
                       type="button"
                       aria-label="Remove selected image"
                       onClick={() => {
+                        imagePaste.clear();
                         uploadPreparationRef.current++;
                         if (previewUrl) URL.revokeObjectURL(previewUrl);
                         setFile(null);
@@ -1984,7 +1990,7 @@ export function PngToSvgRouteImplementation({
                         submitInProgressRef.current = false;
                         queuedConversionRef.current = null;
                       }}
-                      className="px-2 py-1 rounded-md border border-[#d6e4ff] bg-[#eff4ff] cursor-pointer hover:bg-[#e5eeff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-white text-slate-600 cursor-pointer hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
                     >
                       x
                     </button>
@@ -2000,6 +2006,8 @@ export function PngToSvgRouteImplementation({
                   )}
                 </>
               )}
+
+              <ImagePastePrompt paste={imagePaste} />
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <button
@@ -2046,7 +2054,7 @@ export function PngToSvgRouteImplementation({
             </div>
 
             {previewUrl && !presetMenuExpanded && (
-              <div className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
+              <div data-converter-original="true" className="order-4 hidden min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] md:col-start-1 md:row-start-3 md:flex">
                 <p className="m-0 border-b border-slate-100 px-3 py-2 text-[13px] font-semibold text-slate-700">
                   Original image
                 </p>
