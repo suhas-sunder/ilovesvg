@@ -22,35 +22,19 @@ const SITE_URL = "https://www.ilovesvg.com";
 const FAQ_ITEMS = [
   {
     q: "Why doesn’t “remove background” change anything?",
-    a: "Most SVGs are transparent by default. If the original file doesn’t contain a full-canvas shape (usually a <rect>) then there is nothing to remove. Turn on the checkerboard preview to confirm transparency.",
+    a: "Turn on Checkerboard in Preview. If it shows through the empty areas, those areas are already transparent. If the image still looks solid, a path, embedded image, or stylesheet may be painting the background.",
   },
   {
-    q: "Will this change my artwork colors or strokes?",
-    a: "No. The tool only targets a likely full-canvas background element (when detected) and or inserts a new background <rect>. Your existing fills, strokes, gradients, patterns, and filters remain unchanged.",
+    q: "Why does my new background color stay hidden?",
+    a: "Add background places a rectangle behind existing artwork. An opaque rectangle already in your source can cover the new one. Remove and download the old background first, then reopen that SVG and add the new color.",
   },
   {
-    q: "What does Replace background do now?",
-    a: "Replace mode removes a detected background from your main SVG, then places an uploaded SVG underlay behind your artwork (still exports as SVG). This is useful when you want a patterned or illustrated backdrop instead of a solid color.",
+    q: "What does Replace background do?",
+    a: "Replace mode removes a detected background from your main SVG, then embeds an uploaded SVG behind your artwork. Use it to add a patterned or illustrated backdrop.",
   },
   {
-    q: "Does Replace mode keep the output as SVG?",
-    a: "Yes. The underlay must be an SVG. We embed it as a nested SVG layer behind your artwork so the exported file remains SVG.",
-  },
-  {
-    q: "What if my SVG uses CSS, <style>, or classes?",
-    a: 'That’s fine. The inserted background uses explicit attributes (fill and fill-opacity) and pointer-events="none" so it won’t interfere with clicks. We do not rewrite your CSS.',
-  },
-  {
-    q: "Can this remove a background that is not a single <rect>?",
-    a: "Sometimes, but not reliably without risking false positives. If the background is a full-canvas path or produced via masks, patterns, or filters, use manual selection or edit the SVG in an editor.",
-  },
-  {
-    q: "Does adding a background affect printing or PDF export?",
-    a: "Usually it helps. Many print and PDF pipelines expect an explicit background if you want solid white (or any color). A real background <rect> ensures the color travels with the file instead of relying on viewer defaults.",
-  },
-  {
-    q: "Where is the background inserted?",
-    a: "By default, it is inserted right after <defs> when present. If there is no <defs>, it becomes the first child of the root <svg> so it sits behind everything.",
+    q: "Can Manual remove select a path or part of an embedded photo?",
+    a: "Manual remove lists candidate rectangles. If the color comes from a path, an embedded image, or a CSS rule, edit the source that paints it and check the result in your destination app.",
   },
 ];
 
@@ -1099,55 +1083,54 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
         <article>
           <header>
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight m-0">
-              SVG Background Editor: Remove, Add, and Replace with an SVG
-              Underlay
+              Check whether the background is in your SVG
             </h2>
 
             <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
-              SVG background issues are usually caused by a mismatch between
-              what the file actually contains and what a viewer chooses to
-              display behind it. Many editors show a white canvas even when the
-              SVG is fully transparent. Web pages show the page background
-              behind your artwork. Some export pipelines introduce a white page
-              when converting to PDF. If you are trying to control what users
-              see and what gets exported, you need the background to be a real
-              element in the SVG, not a viewer default.
+              A white viewer can make transparent artwork look like it has a
+              white background. Turn on <strong>Checkerboard</strong> under
+              Preview. Wherever the checkerboard shows through, the artwork is
+              transparent. The checkerboard is a preview setting and the
+              downloaded SVG contains only your artwork and its actual background.
             </p>
 
             <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
-              This tool focuses on the most common, lowest-risk background
-              pattern: a full-canvas shape near the top of the SVG that exists
-              only to paint a background. In practice this is usually a{" "}
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                &lt;rect&gt;
-              </code>{" "}
-              that starts at the origin and covers the canvas. Sometimes it
-              matches the{" "}
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                viewBox
-              </code>
-              , sometimes it uses{" "}
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                width="100%"
-              </code>{" "}
-              and{" "}
-              <code className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                height="100%"
-              </code>
-              . This page detects likely candidates and removes them when you
-              choose Remove mode. If detection is unsure, you can manually
-              select a candidate so you stay in control.
+              The editor detects likely full-canvas rectangles. Compare the
+              input and output previews before downloading, especially when a
+              large rectangle is part of the design. For an SVG with a
+              painted path or a background baked into an embedded image, edit
+              the artwork in its source editor.
             </p>
 
-            <p className="mt-3 text-[15px] leading-relaxed text-slate-700">
-              The editor is intentionally narrow. It does not try to rewrite
-              your artwork, expand CSS, merge groups, flatten filters, or
-              convert paths. Backgrounds can be intertwined with real artwork in
-              complex SVGs, and aggressive heuristics can delete meaningful
-              shapes. Instead, the tool uses conservative detection, a manual
-              fallback, and a predictable insertion strategy when you add new
-              background layers.
-            </p>
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="m-0 text-lg font-extrabold text-slate-900">
+                Try it with the built-in example
+              </h3>
+              <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-700">
+                <li>
+                  Select <strong>Paste SVG Example</strong> to load a blue
+                  circle on a white rectangle. Both sit inside a{" "}
+                  <code>0 0 120 120</code> viewBox.
+                </li>
+                <li>
+                  Choose <strong>Remove background</strong> and turn on{" "}
+                  <strong>Checkerboard</strong>. In Output preview, the white
+                  disappears from around the circle. Open{" "}
+                  <strong>Output SVG code</strong> to confirm that the
+                  rectangle is gone and the circle and viewBox are still
+                  present. Select <strong>Download SVG</strong>.
+                </li>
+                <li>
+                  To give the circle a new solid backdrop, select{" "}
+                  <strong>Clear</strong> and upload the downloaded file.
+                  Choose <strong>Add background</strong> and make sure{" "}
+                  <strong>Transparent background</strong> is unchecked. Pick a{" "}
+                  <strong>Background color</strong>, set <strong>Opacity</strong>{" "}
+                  to 100% and <strong>Corner radius</strong> to 0 for full
+                  coverage, then download the new SVG.
+                </li>
+              </ol>
+            </div>
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <h3 className="m-0 text-lg font-extrabold text-slate-900">
@@ -1175,9 +1158,9 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
                   <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
                     Inserts a full-canvas background rectangle behind the
                     artwork. Use this when the SVG is transparent and you need a
-                    predictable solid background for print, PDF export,
-                    thumbnails, sticker mockups, or editor previews. The
-                    inserted rect is tagged so it can be removed cleanly later.
+                    solid background in the file. If the source already has
+                    an opaque background, remove and export it first so the
+                    old background cannot cover the new one.
                   </p>
                 </div>
 
@@ -1197,11 +1180,9 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
               </div>
 
               <p className="mt-4 text-[13px] leading-relaxed text-slate-700">
-                Replace mode is intentionally SVG-only. If you need to place a
-                JPG or PNG behind your artwork, that is still an SVG file, but
-                it is no longer purely vector. For iLoveSVG, keeping this
-                workflow SVG-only avoids surprises and preserves editability
-                across vector tools.
+                Add background with Transparent background selected skips
+                inserting a rectangle. Use Remove background to take an
+                existing rectangle out of the source.
               </p>
             </div>
             <ExampleSvgConversion />
@@ -1255,10 +1236,8 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
               from your main SVG, plus any background shapes that were
               previously inserted by this tool. Then it embeds your uploaded
               underlay as a nested SVG positioned behind the artwork. The nested
-              SVG is sized to match the main SVG canvas so it fills the same
-              drawing area. This approach keeps the output as SVG and preserves
-              the underlay’s vector content, including its own fills, gradients,
-              and shapes.
+              SVG stretches to the main drawing area. Review the result if
+              the two SVGs have different aspect ratios.
             </p>
 
             <p className="mt-3 text-[13px] leading-relaxed text-slate-700">
@@ -1271,16 +1250,34 @@ function SeoSections({ faq }: { faq: Array<{ q: string; a: string }> }) {
             </p>
 
             <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
-              Why the inserted background is a rectangle
+              Choose a format for the finished artwork
             </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
-              A single full-canvas rectangle is the most compatible way to
-              represent a solid background across browsers and editors. It does
-              not depend on viewer defaults. It remains easy to remove later.
-              When inserted, the rectangle is marked with a tool attribute so it
-              can be removed cleanly if you switch modes. It also uses
-              pointer-events="none" so it does not block clicks in interactive
-              SVG usage.
+              Download SVG to keep the artwork editable and scalable. For a
+              site or app that needs a raster image, use the{" "}
+              <a href="/svg-to-png-converter" className="font-medium text-sky-800 underline">
+                SVG to PNG converter
+              </a>
+              {" "}and set the final pixel dimensions with the aspect ratio
+              locked if you want to preserve proportions. Choose a
+              transparent export to keep the empty areas see-through. Any
+              opaque rectangle inside the SVG still appears in the PNG.
+            </p>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-700">
+              For a JPG, choose a matte color in the{" "}
+              <a href="/svg-to-jpg-converter" className="font-medium text-sky-800 underline">
+                SVG to JPG converter
+              </a>
+              {" "}because JPEG has no transparency. For a document with
+              paper size and margins, use the{" "}
+              <a href="/svg-to-pdf-converter" className="font-medium text-sky-800 underline">
+                SVG to PDF converter
+              </a>
+              {" "}and set Raster DPI for the artwork embedded on the PDF page.
+              Keep the SVG as your editable source.{" "}
+              <a href="https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Image_types" className="font-medium text-sky-800 underline">
+                MDN image format guide
+              </a>
             </p>
 
             <h3 className="mt-6 text-lg font-extrabold text-slate-900 m-0">
